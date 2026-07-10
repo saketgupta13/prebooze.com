@@ -248,7 +248,7 @@ textarea { resize: vertical; min-height: 84px; }
   font-size: 19px;
   letter-spacing: -0.3px;
 }
-.hdr-logo img { height: 30px; width: 30px; object-fit: contain; }
+.hdr-logo img { height: 42px; width: auto; object-fit: contain; }
 .hdr-search {
   flex: 1;
   max-width: 360px;

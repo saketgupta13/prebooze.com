@@ -20,7 +20,6 @@ export default function Header() {
       <div className="container hdr-in">
         <Link to="/" className="hdr-logo">
           <img src="/prebooze-logo.png" alt="Prebooze" />
-          prebooze
         </Link>
 
         <form className="hdr-search" onSubmit={submitSearch}>
