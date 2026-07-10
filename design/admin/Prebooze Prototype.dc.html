@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0b0c07;font-family:'Manrope',sans-serif;color:#f1f3ea;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#8bc34a;text-decoration:none}
+a:hover{color:#a8d977}
+::placeholder{color:#6b7460}
+input,button,select,textarea{font-family:'Manrope',sans-serif}
+button{cursor:pointer}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:rgba(139,195,74,.25);border-radius:8px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#0b0c07;position:relative">
+
+<!-- ===== LOGIN ===== -->
+<sc-if value="{{isLogin}}" hint-placeholder-val="{{false}}">
+<div data-screen-label="Login" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn .25s ease">
+<div style="width:100%;max-width:380px;display:flex;flex-direction:column;gap:18px">
+<div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+<img src="logo.png" alt="Prebooze" style="height:52px;width:auto">
+<div style="font:700 13px 'Space Grotesk',sans-serif;color:#9aa08c;letter-spacing:.5px">TEAM SIGN IN</div>
+</div>
+<div style="display:flex;border:1px solid rgba(139,195,74,.3);border-radius:10px;overflow:hidden">
+<button onClick="{{ setLoginRoleAdmin }}" style="flex:1;padding:10px;border:none;background:{{ loginTabAdminBg }};color:{{ loginTabAdminColor }};font-weight:700;font-size:13px">Admin login</button>
+<button onClick="{{ setLoginRoleStaff }}" style="flex:1;padding:10px;border:none;background:{{ loginTabStaffBg }};color:{{ loginTabStaffColor }};font-weight:700;font-size:13px">Staff login</button>
+</div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:14px;padding:22px;background:#14160d;display:flex;flex-direction:column;gap:12px">
+<div style="font:700 18px 'Space Grotesk',sans-serif">{{ loginHeading }}</div>
+<div style="font-size:12.5px;color:#9aa08c;margin-top:-8px">{{ loginSubheading }}</div>
+<div style="display:flex;flex-direction:column;gap:5px">
+<label style="font-size:11.5px;color:#9aa08c">Email</label>
+<input value="{{ loginEmail }}" onChange="{{ onLoginEmail }}" placeholder="{{ loginEmailPlaceholder }}" style="background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:8px;padding:10px 12px;color:#f1f3ea;font-size:13px">
+</div>
+<div style="display:flex;flex-direction:column;gap:5px">
+<label style="font-size:11.5px;color:#9aa08c">Password</label>
+<input type="password" value="{{ loginPassword }}" onChange="{{ onLoginPassword }}" placeholder="••••••••" style="background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:8px;padding:10px 12px;color:#f1f3ea;font-size:13px">
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px">
+<label style="display:flex;align-items:center;gap:6px;color:#9aa08c"><input type="checkbox" checked="{{ rememberMe }}" onChange="{{ onToggleRemember }}">Remember me</label>
+<a style="cursor:pointer">Forgot password?</a>
+</div>
+<sc-if value="{{ loginError }}"><div style="font-size:12px;color:#ff6b5e">{{ loginError }}</div></sc-if>
+<button onClick="{{ onLoginSubmit }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:11px;font-weight:700;font-size:13.5px;font-family:'Space Grotesk',sans-serif">{{ loginButtonLabel }}</button>
+<div style="font-size:11px;color:#6b7460;text-align:center">{{ loginFootnote }}</div>
+</div>
+<div style="text-align:center;font-size:12.5px">
+<a onClick="{{ onBrowseAsGuest }}" style="cursor:pointer">Not staff? Browse events as a guest →</a>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isAdmin}}" hint-placeholder-val="{{true}}">
+<div style="display:flex;flex-direction:column;min-height:100vh">
+
+<!-- ===== ADMIN TOP BAR ===== -->
+<div style="display:flex;align-items:center;gap:14px;padding:10px 20px;border-bottom:1px solid rgba(139,195,74,.16);background:#0f100a;position:sticky;top:0;z-index:20">
+<div style="display:flex;align-items:center;gap:8px">
+<img src="logo.png" alt="Prebooze" style="height:30px;width:auto;display:block">
+<span style="font:700 10px/1 'Space Grotesk',sans-serif;color:#ff6b5e;letter-spacing:.6px">{{ roleTag }}</span>
+</div>
+<div style="flex:1;max-width:420px;display:{{ searchBarDisplay }};align-items:center;gap:8px;background:#161810;border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:8px 12px">
+<span style="opacity:.6">🔍</span>
+<input value="{{ globalSearch }}" onChange="{{ onGlobalSearch }}" placeholder="Search bookings, events, users…" style="flex:1;background:transparent;border:none;outline:none;color:#f1f3ea;font-size:13px">
+</div>
+<div style="flex:1"></div>
+<button onClick="{{ onExportClick }}" style="display:{{ topActionsDisplay }};align-items:center;gap:6px;background:transparent;border:1px solid rgba(139,195,74,.3);color:#f1f3ea;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600">🔔 3</button>
+<button onClick="{{ toggleMode }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;font-family:'Space Grotesk',sans-serif">View guest site →</button>
+<button onClick="{{ onLogout }}" style="background:transparent;border:1px solid rgba(139,195,74,.3);color:#c7cbb9;border-radius:8px;padding:7px 12px;font-size:12px">Log out</button>
+<div style="width:32px;height:32px;border-radius:50%;border:1.5px solid #8bc34a;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none">👤</div>
+</div>
+
+<div style="display:flex;flex:1;min-height:0">
+
+<!-- ===== SIDEBAR (desktop) ===== -->
+<div style="width:{{ sidebarWidth }};flex:none;display:{{ sidebarDisplay }};flex-direction:column;background:#0f100a;border-right:1px solid rgba(139,195,74,.14);padding:14px 0;overflow-y:auto">
+<sc-for list="{{ mainNavItems }}" as="item" hint-placeholder-count="8">
+<button onClick="{{ item.onClick }}" style="display:flex;align-items:center;gap:10px;text-align:left;background:{{ item.bg }};color:{{ item.color }};border:none;border-radius:0;padding:10px 20px;font-size:13.5px;font-weight:{{ item.weight }};font-family:'Manrope',sans-serif;border-left:3px solid {{ item.borderColor }}">
+<span>{{ item.icon }}</span><span>{{ item.label }}</span>
+</button>
+</sc-for>
+<div style="font-size:9.5px;color:#6b7460;text-transform:uppercase;letter-spacing:.6px;padding:16px 20px 4px">Content</div>
+<sc-for list="{{ contentNavItems }}" as="item" hint-placeholder-count="4">
+<button onClick="{{ item.onClick }}" style="display:flex;align-items:center;gap:10px;text-align:left;background:{{ item.bg }};color:{{ item.color }};border:none;border-radius:0;padding:10px 20px;font-size:13.5px;font-weight:{{ item.weight }};font-family:'Manrope',sans-serif;border-left:3px solid {{ item.borderColor }}">
+<span>{{ item.icon }}</span><span>{{ item.label }}</span>
+</button>
+</sc-for>
+<div style="flex:1"></div>
+<button onClick="{{ goStaff }}" style="display:flex;align-items:center;gap:10px;text-align:left;background:{{ staffBg }};color:{{ staffColor }};border:none;padding:10px 20px;font-size:13.5px;font-weight:{{ staffWeight }};border-left:3px solid {{ staffBorderColor }}">
+<span>🛡</span><span>Staff &amp; roles</span>
+</button>
+</div>
+
+<!-- ===== CONTENT AREA ===== -->
+<div style="flex:1;min-width:0;overflow-y:auto;padding:{{ contentPadding }}">
+
+<!-- DASHBOARD -->
+<sc-if value="{{ isView.dashboard }}" hint-placeholder-val="{{true}}">
+<div data-screen-label="Admin — Dashboard" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:16px;max-width:1200px">
+<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+<div style="font:700 22px 'Space Grotesk',sans-serif">Good morning, Admin 👋</div>
+<span style="border:1px solid rgba(139,195,74,.3);border-radius:999px;padding:5px 12px;font-size:12px;color:#c7cbb9">Last 7 days ▾</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:12px;padding:14px;background:#14160d"><div style="font-size:11px;color:#9aa08c">Gross sales</div><div style="font:700 22px 'Space Grotesk',sans-serif;margin-top:4px">₹4.2L</div><div style="font-size:11px;color:#8bc34a;margin-top:2px">▲ 12% vs last wk</div></div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:12px;padding:14px;background:#14160d"><div style="font-size:11px;color:#9aa08c">Tickets sold</div><div style="font:700 22px 'Space Grotesk',sans-serif;margin-top:4px">1,842</div><div style="font-size:11px;color:#8bc34a;margin-top:2px">▲ 8%</div></div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:12px;padding:14px;background:#14160d"><div style="font-size:11px;color:#9aa08c">Commission earned</div><div style="font:700 22px 'Space Grotesk',sans-serif;margin-top:4px">₹38.4k</div><div style="font-size:11px;color:#8bc34a;margin-top:2px">▲ 15%</div></div>
+<div style="border:1px solid rgba(255,107,94,.35);border-radius:12px;padding:14px;background:#14160d"><div style="font-size:11px;color:#9aa08c">Refunds</div><div style="font:700 22px 'Space Grotesk',sans-serif;margin-top:4px">₹6.1k</div><div style="font-size:11px;color:#ff6b5e;margin-top:2px">▼ 41 tickets</div></div>
+</div>
+<div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px" data-stack-mobile>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:12px;padding:16px;background:#14160d">
+<div style="font-weight:700;margin-bottom:8px;font-family:'Space Grotesk',sans-serif">Sales trend</div>
+<div style="height:120px;border-radius:8px;background:repeating-linear-gradient(120deg,#181b10 0 12px,#14160d 12px 24px);border:1px dashed rgba(139,195,74,.3);display:flex;align-items:center;justify-content:center;color:#6b7460;font-size:11px">daily sales vs commission — line chart</div>
+</div>
+<div style="border:1px solid rgba(255,107,94,.3);border-radius:12px;padding:16px;background:#14160d;display:flex;flex-direction:column;gap:8px">
+<div style="font-weight:700;font-family:'Space Grotesk',sans-serif;color:#ff6b5e">Needs attention</div>
+<div onClick="{{ goPendingEvents }}" style="font-size:12px;border:1px solid rgba(255,107,94,.4);border-radius:8px;padding:8px 10px;color:#ffb3ac;cursor:pointer">⚠ 4 events awaiting approval →</div>
+<div onClick="{{ goRefunds }}" style="font-size:12px;border:1px solid rgba(139,195,74,.25);border-radius:8px;padding:8px 10px;color:#c7cbb9;cursor:pointer">↩ 3 refund requests pending →</div>
+<div style="font-size:12px;border:1px solid rgba(139,195,74,.25);border-radius:8px;padding:8px 10px;color:#c7cbb9">💸 2 organizer payouts due Fri</div>
+</div>
+</div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:12px;overflow:hidden;background:#14160d">
+<div style="display:flex;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(139,195,74,.15);font-weight:700;font-family:'Space Grotesk',sans-serif"><span>Live &amp; upcoming events</span><a onClick="{{ goEvents }}" style="font-size:12px;cursor:pointer">All events →</a></div>
+<sc-for list="{{ dashboardEvents }}" as="ev" hint-placeholder-count="3">
+<div onClick="{{ ev.onClick }}" style="display:flex;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(139,195,74,.08);font-size:12.5px;align-items:center;cursor:pointer">
+<span style="flex:2;font-weight:700">{{ ev.title }}</span><span style="flex:1;color:#9aa08c">{{ ev.date }}</span><span style="flex:1">{{ ev.soldLabel }}</span><span style="flex:1">{{ ev.revenueLabel }}</span>
+<span style="flex:1;border-radius:5px;padding:2px 9px;font-size:11px;border:1px solid {{ ev.statusColor }};color:{{ ev.statusColor }}">{{ ev.statusLabel }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- EVENTS LIST -->
+<sc-if value="{{ isView.events }}">
+<div data-screen-label="Admin — Events" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:1200px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font:700 20px 'Space Grotesk',sans-serif">Events</div><button onClick="{{ onCreateEvent }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:12.5px">+ Create event</button></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid rgba(139,195,74,.2)">
+<sc-for list="{{ eventTabs }}" as="tab" hint-placeholder-count="5">
+<button onClick="{{ tab.onClick }}" style="padding:7px 14px;border:none;background:transparent;color:{{ tab.color }};font-weight:{{ tab.weight }};font-size:12.5px;border-bottom:2px solid {{ tab.underline }}">{{ tab.label }}</button>
+</sc-for>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<div style="flex:1;min-width:180px;display:flex;align-items:center;gap:8px;background:#161810;border:1px solid rgba(139,195,74,.2);border-radius:8px;padding:7px 10px"><span style="opacity:.6">🔍</span><input value="{{ eventQuery }}" onChange="{{ onEventQuery }}" placeholder="Search events…" style="flex:1;background:transparent;border:none;outline:none;color:#f1f3ea;font-size:12.5px"></div>
+</div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;overflow:auto;background:#14160d">
+<div style="display:flex;gap:8px;padding:8px 14px;font-size:10px;color:#9aa08c;border-bottom:1px solid rgba(139,195,74,.15);text-transform:uppercase;letter-spacing:.4px;min-width:640px"><span style="flex:2">Event</span><span style="flex:1">Organizer</span><span style="flex:1">Date</span><span style="flex:1">Sold/cap</span><span style="flex:0.7">Comm.</span><span style="flex:1">Status</span></div>
+<sc-for list="{{ filteredEvents }}" as="ev" hint-placeholder-count="4">
+<div onClick="{{ ev.onClick }}" style="display:flex;gap:8px;padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(139,195,74,.08);cursor:pointer;min-width:640px;align-items:center">
+<span style="flex:2;font-weight:700">{{ ev.title }}</span><span style="flex:1;color:#9aa08c">{{ ev.organizer }}</span><span style="flex:1;color:#9aa08c">{{ ev.date }}</span><span style="flex:1">{{ ev.soldLabel }}</span><span style="flex:0.7;color:{{ ev.commColor }}">{{ ev.commLabel }}</span>
+<span style="flex:1;border-radius:5px;padding:2px 9px;font-size:11px;border:1px solid {{ ev.statusColor }};color:{{ ev.statusColor }};width:fit-content">{{ ev.statusLabel }}</span>
+</div>
+</sc-for>
+</div>
+<div style="font-size:11px;color:#6b7460">Click a row to open the event editor and set its commission.</div>
+</div>
+</sc-if>
+
+<!-- EVENT EDITOR -->
+<sc-if value="{{ isView.eventEditor }}">
+<div data-screen-label="Admin — Event editor" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:14px;max-width:900px">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<a onClick="{{ goEvents }}" style="cursor:pointer;font-size:13px">← Events</a>
+<div style="font:700 18px 'Space Grotesk',sans-serif">{{ editingEvent.title }}</div>
+<span style="border-radius:5px;padding:2px 9px;font-size:11px;border:1px solid {{ editingEvent.statusColor }};color:{{ editingEvent.statusColor }}">{{ editingEvent.statusLabel }}</span>
+<div style="flex:1"></div>
+<sc-if value="{{ editingEvent.isPending }}">
+<button onClick="{{ onApproveEvent }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:7px 14px;font-weight:700;font-size:12px">Approve ✓</button>
+<button onClick="{{ onRejectEvent }}" style="background:transparent;color:#ff6b5e;border:1px solid #ff6b5e;border-radius:8px;padding:7px 14px;font-weight:700;font-size:12px">Reject</button>
+</sc-if>
+<button onClick="{{ onSaveEvent }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:7px 14px;font-weight:700;font-size:12px">Save</button>
+</div>
+<div style="display:flex;gap:6px;border-bottom:1px solid rgba(139,195,74,.2);flex-wrap:wrap">
+<sc-for list="{{ editorTabs }}" as="tab" hint-placeholder-count="3">
+<button onClick="{{ tab.onClick }}" style="padding:7px 14px;border:none;background:transparent;color:{{ tab.color }};font-weight:{{ tab.weight }};font-size:12.5px;border-bottom:2px solid {{ tab.underline }}">{{ tab.label }}</button>
+</sc-for>
+</div>
+
+<sc-if value="{{ editorTabIsBasics }}">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" data-stack-mobile>
+<div style="grid-column:1/3;background:#161810;border:1px solid rgba(139,195,74,.2);border-radius:8px;padding:9px 12px;font-size:13px">{{ editingEvent.title }}</div>
+<div style="background:#161810;border:1px solid rgba(139,195,74,.2);border-radius:8px;padding:9px 12px;font-size:13px;color:#c7cbb9">Category: {{ editingEvent.category }}</div>
+<div style="background:#161810;border:1px solid rgba(139,195,74,.2);border-radius:8px;padding:9px 12px;font-size:13px;color:#c7cbb9">Venue: {{ editingEvent.venue }}</div>
+<div style="background:#161810;border:1px solid rgba(139,195,74,.2);border-radius:8px;padding:9px 12px;font-size:13px;color:#c7cbb9">{{ editingEvent.date }}, {{ editingEvent.time }}</div>
+<div style="background:#161810;border:1px solid rgba(139,195,74,.2);border-radius:8px;padding:9px 12px;font-size:13px;color:#c7cbb9">Organizer: {{ editingEvent.organizer }}</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ editorTabIsTickets }}">
+<div style="display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{ editingEvent.tiers }}" as="tier" hint-placeholder-count="2">
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:center;font-size:12.5px;background:#14160d">
+<span style="flex:1;font-weight:700">{{ tier.name }}</span><span style="flex:1;color:#9aa08c">₹{{ tier.price }}</span><span style="flex:1;color:#9aa08c">{{ tier.soldLabel }}</span>
+</div>
+</sc-for>
+<div style="font-size:11px;color:#6b7460">+ add tier (supports per-tier sale window, per-person limit)</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ editorTabIsCommission }}">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:14px;background:#14160d;display:flex;flex-direction:column;gap:10px">
+<div style="font-weight:700;font-family:'Space Grotesk',sans-serif">Commission &amp; fees — this event only</div>
+<div style="display:flex;gap:10px;align-items:center;font-size:13px;flex-wrap:wrap"><span style="flex:1;min-width:160px">Platform commission</span><input value="{{ commissionInputValue }}" onChange="{{ onCommissionChange }}" style="width:70px;background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:6px;padding:6px 8px;color:#f1f3ea;text-align:center"><span style="color:#9aa08c">%</span></div>
+<div style="display:flex;gap:10px;align-items:center;font-size:13px;flex-wrap:wrap"><span style="flex:1;min-width:160px">Booking fee (per ticket)</span><span style="color:#c7cbb9">₹30</span></div>
+<div style="display:flex;gap:10px;align-items:center;font-size:13px;flex-wrap:wrap"><span style="flex:1;min-width:160px">GST on platform fee</span><span style="color:#c7cbb9">18%</span></div>
+</div>
+<div style="border:1px dashed rgba(139,195,74,.35);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#c7cbb9">
+<b style="color:#f1f3ea">Live preview — ₹{{ previewTicketPrice }} ticket:</b> guest pays <b style="color:#f1f3ea">₹{{ previewGuestPays }}</b> · platform keeps <b style="color:#8bc34a">₹{{ previewPlatformKeeps }}</b> · organizer nets <b style="color:#f1f3ea">₹{{ previewOrganizerNets }}</b>
+</div>
+<div style="font-size:11px;color:#6b7460">Commission is set per event — there is no global rate. Locks once the event goes live.</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<!-- BOOKINGS -->
+<sc-if value="{{ isView.bookings }}">
+<div data-screen-label="Admin — Bookings" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:1100px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font:700 20px 'Space Grotesk',sans-serif">Bookings</div><button onClick="{{ onExportClick }}" style="background:transparent;color:#f1f3ea;border:1px solid rgba(139,195,74,.35);border-radius:8px;padding:7px 14px;font-size:12px">⬇ Export CSV</button></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<div style="flex:1;min-width:180px;display:flex;align-items:center;gap:8px;background:#161810;border:1px solid rgba(139,195,74,.2);border-radius:8px;padding:7px 10px"><span style="opacity:.6">🔍</span><input value="{{ bookingQuery }}" onChange="{{ onBookingQuery }}" placeholder="booking id / phone / name…" style="flex:1;background:transparent;border:none;outline:none;color:#f1f3ea;font-size:12.5px"></div>
+<sc-for list="{{ bookingStatusFilters }}" as="f" hint-placeholder-count="4">
+<button onClick="{{ f.onClick }}" style="border:1px solid rgba(139,195,74,.35);background:{{ f.bg }};color:{{ f.color }};border-radius:999px;padding:6px 12px;font-size:11.5px">{{ f.label }}</button>
+</sc-for>
+</div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;overflow:auto;background:#14160d">
+<div style="display:flex;gap:8px;padding:8px 14px;font-size:10px;color:#9aa08c;border-bottom:1px solid rgba(139,195,74,.15);text-transform:uppercase;min-width:560px"><span style="flex:1">#ID</span><span style="flex:1.6">Guest</span><span style="flex:1.8">Event</span><span style="flex:1">Qty · Amount</span><span style="flex:1">Status</span></div>
+<sc-for list="{{ filteredBookings }}" as="bk" hint-placeholder-count="4">
+<div onClick="{{ bk.onClick }}" style="display:flex;gap:8px;padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(139,195,74,.08);cursor:pointer;min-width:560px;align-items:center">
+<span style="flex:1;font-weight:700">{{ bk.id }}</span><span style="flex:1.6">{{ bk.guest }}</span><span style="flex:1.8;color:#9aa08c">{{ bk.eventTitle }}</span><span style="flex:1">{{ bk.qtyAmountLabel }}</span>
+<span style="flex:1;border-radius:5px;padding:2px 9px;font-size:11px;border:1px solid {{ bk.statusColor }};color:{{ bk.statusColor }};width:fit-content">{{ bk.statusLabel }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- CUSTOMERS -->
+<sc-if value="{{ isView.customers }}">
+<div data-screen-label="Admin — Customers" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:1100px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font:700 20px 'Space Grotesk',sans-serif">Customers</div>
+<div style="display:flex;gap:6px"><button onClick="{{ setCustSegGuests }}" style="border:1px solid rgba(139,195,74,.35);background:{{ custSegGuestsBg }};color:{{ custSegGuestsColor }};border-radius:999px;padding:6px 12px;font-size:11.5px">Guests</button><button onClick="{{ setCustSegOrganizers }}" style="border:1px solid rgba(139,195,74,.35);background:{{ custSegOrgBg }};color:{{ custSegOrgColor }};border-radius:999px;padding:6px 12px;font-size:11.5px">Organizers</button></div>
+</div>
+<div style="flex:1;min-width:180px;display:flex;align-items:center;gap:8px;background:#161810;border:1px solid rgba(139,195,74,.2);border-radius:8px;padding:7px 10px;max-width:340px"><span style="opacity:.6">🔍</span><input value="{{ customerQuery }}" onChange="{{ onCustomerQuery }}" placeholder="name / phone / email…" style="flex:1;background:transparent;border:none;outline:none;color:#f1f3ea;font-size:12.5px"></div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;overflow:auto;background:#14160d">
+<div style="display:flex;gap:8px;padding:8px 14px;font-size:10px;color:#9aa08c;border-bottom:1px solid rgba(139,195,74,.15);text-transform:uppercase;min-width:560px"><span style="flex:1.8">Guest</span><span style="flex:0.8">Gender</span><span style="flex:1">City</span><span style="flex:1">Bookings</span><span style="flex:1">Spend</span><span style="flex:1">Status</span></div>
+<sc-for list="{{ filteredCustomers }}" as="c" hint-placeholder-count="4">
+<div onClick="{{ c.onClick }}" style="display:flex;gap:8px;padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(139,195,74,.08);cursor:pointer;min-width:560px;align-items:center">
+<span style="flex:1.8;font-weight:700">{{ c.name }}</span><span style="flex:0.8;color:#9aa08c">{{ c.gender }}</span><span style="flex:1;color:#9aa08c">{{ c.city }}</span><span style="flex:1">{{ c.bookings }}</span><span style="flex:1">₹{{ c.spend }}</span>
+<span style="flex:1;border-radius:5px;padding:2px 9px;font-size:11px;border:1px solid {{ c.statusColor }};color:{{ c.statusColor }};width:fit-content">{{ c.statusLabel }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- ORGANIZERS -->
+<sc-if value="{{ isView.organizers }}">
+<div data-screen-label="Admin — Organizers" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:1100px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+<div style="font:700 20px 'Space Grotesk',sans-serif">Organizers</div>
+<sc-if value="{{ pendingOrganizerCount }}"><span style="border:1px solid #ff6b5e;color:#ff6b5e;border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:700">{{ pendingOrganizerCount }} awaiting review</span></sc-if>
+<div style="flex:1"></div>
+<button onClick="{{ onAddOrganizerClick }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:12.5px">+ Add organizer</button>
+</div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;overflow:auto;background:#14160d">
+<div style="display:flex;gap:8px;padding:8px 14px;font-size:10px;color:#9aa08c;border-bottom:1px solid rgba(139,195,74,.15);text-transform:uppercase;min-width:680px"><span style="flex:1.6">Organizer</span><span style="flex:1.6">Contact</span><span style="flex:1">City</span><span style="flex:0.8">Events</span><span style="flex:1">KYC</span><span style="flex:1">Status</span><span style="flex:1.4"></span></div>
+<sc-for list="{{ organizerRows }}" as="o" hint-placeholder-count="5">
+<div onClick="{{ o.onOpen }}" style="display:flex;gap:8px;padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(139,195,74,.08);min-width:680px;align-items:center;cursor:pointer">
+<span style="flex:1.6;font-weight:700">{{ o.name }}</span><span style="flex:1.6;color:#9aa08c">{{ o.contact }}</span><span style="flex:1;color:#9aa08c">{{ o.city }}</span><span style="flex:0.8">{{ o.events }}</span><span style="flex:1;color:#9aa08c">{{ o.kyc }}</span>
+<span style="flex:1;border-radius:5px;padding:2px 9px;font-size:11px;border:1px solid {{ o.statusColor }};color:{{ o.statusColor }};width:fit-content">{{ o.statusLabel }}</span>
+<span style="flex:1.4;display:flex;gap:6px;justify-content:flex-end">
+<sc-if value="{{ o.isPending }}">
+<button onClick="{{ o.onApprove }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:6px;padding:5px 10px;font-weight:700;font-size:11px">Approve</button>
+<button onClick="{{ o.onReject }}" style="background:transparent;color:#ff6b5e;border:1px solid #ff6b5e;border-radius:6px;padding:5px 10px;font-size:11px">Reject</button>
+</sc-if>
+</span>
+</div>
+</sc-for>
+</div>
+<div style="font-size:11px;color:#6b7460">approving unlocks event creation for that organizer · rejecting keeps their account read-only · click a row to open its detail page</div>
+</div>
+</sc-if>
+
+<!-- ORGANIZER DETAIL -->
+<sc-if value="{{ isView.organizerDetail }}">
+<div data-screen-label="Admin — Organizer detail" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:14px;max-width:1000px">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><a onClick="{{ goOrganizers }}" style="cursor:pointer;font-size:13px">← Organizers</a>
+<div style="font:700 18px 'Space Grotesk',sans-serif">{{ orgDetail.name }}</div>
+<span style="border-radius:5px;padding:2px 9px;font-size:11px;border:1px solid {{ orgDetail.statusColor }};color:{{ orgDetail.statusColor }}">{{ orgDetail.statusLabel }}</span>
+</div>
+<div style="font-size:12.5px;color:#9aa08c">{{ orgDetail.contact }} · {{ orgDetail.city }} · commission {{ orgDetail.commission }}%</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:12px;background:#14160d"><div style="font-size:11px;color:#9aa08c">Lifetime revenue</div><div style="font:700 18px 'Space Grotesk',sans-serif">₹{{ orgDetail.lifetimeRevenue }}</div></div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:12px;background:#14160d"><div style="font-size:11px;color:#9aa08c">Commission paid</div><div style="font:700 18px 'Space Grotesk',sans-serif">₹{{ orgDetail.commissionPaid }}</div></div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:12px;background:#14160d"><div style="font-size:11px;color:#9aa08c">Net payouts</div><div style="font:700 18px 'Space Grotesk',sans-serif">₹{{ orgDetail.netPayouts }}</div></div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:12px;background:#14160d"><div style="font-size:11px;color:#9aa08c">Events run</div><div style="font:700 18px 'Space Grotesk',sans-serif">{{ orgDetail.eventsCount }}</div></div>
+</div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:16px;background:#14160d">
+<div style="font-weight:700;margin-bottom:10px;font-family:'Space Grotesk',sans-serif">Income over time</div>
+<div style="display:flex;align-items:flex-end;gap:10px;height:120px">
+<sc-for list="{{ orgDetail.monthlyBars }}" as="bar" hint-placeholder-count="6">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end">
+<div style="width:100%;max-width:34px;border-radius:5px 5px 0 0;background:#8bc34a;height:{{ bar.heightPct }}%"></div>
+<span style="font-size:10px;color:#9aa08c">{{ bar.label }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;overflow:auto;background:#14160d">
+<div style="font-weight:700;padding:10px 14px;border-bottom:1px solid rgba(139,195,74,.15);font-family:'Space Grotesk',sans-serif">Income by event</div>
+<div style="display:flex;gap:8px;padding:8px 14px;font-size:10px;color:#9aa08c;border-bottom:1px solid rgba(139,195,74,.15);text-transform:uppercase;min-width:520px"><span style="flex:2">Event</span><span style="flex:1">Sold</span><span style="flex:1">Gross</span><span style="flex:1">Commission</span><span style="flex:1">Net</span></div>
+<sc-for list="{{ orgDetail.eventRows }}" as="r" hint-placeholder-count="3">
+<div onClick="{{ r.onClick }}" style="display:flex;gap:8px;padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(139,195,74,.08);min-width:520px;align-items:center;cursor:pointer">
+<span style="flex:2;font-weight:700">{{ r.title }}</span><span style="flex:1">{{ r.soldLabel }}</span><span style="flex:1">₹{{ r.gross }}</span><span style="flex:1">₹{{ r.commission }} ({{ r.commissionPct }}%)</span><span style="flex:1;font-weight:700;color:#8bc34a">₹{{ r.net }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- VENUES -->
+<sc-if value="{{ isView.venues }}">
+<div data-screen-label="Admin — Venues" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:1100px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font:700 20px 'Space Grotesk',sans-serif">Venues</div><button onClick="{{ onAddVenueClick }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:12.5px">+ Add venue</button></div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;overflow:auto;background:#14160d">
+<div style="display:flex;gap:8px;padding:8px 14px;font-size:10px;color:#9aa08c;border-bottom:1px solid rgba(139,195,74,.15);text-transform:uppercase;min-width:560px"><span style="flex:2">Venue</span><span style="flex:1">Capacity</span><span style="flex:1">Events</span><span style="flex:1.2">License</span><span style="flex:1">Status</span></div>
+<sc-for list="{{ venueRows }}" as="v" hint-placeholder-count="4">
+<div onClick="{{ v.onOpen }}" style="display:flex;gap:8px;padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(139,195,74,.08);min-width:560px;align-items:center;cursor:pointer">
+<span style="flex:2;font-weight:700">{{ v.name }}</span><span style="flex:1;color:#9aa08c">{{ v.capacity }}</span><span style="flex:1">{{ v.events }}</span><span style="flex:1.2;color:#9aa08c">{{ v.license }}</span>
+<span style="flex:1;border-radius:5px;padding:2px 9px;font-size:11px;border:1px solid {{ v.statusColor }};color:{{ v.statusColor }};width:fit-content">{{ v.statusLabel }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- VENUE DETAIL -->
+<sc-if value="{{ isView.venueDetail }}">
+<div data-screen-label="Admin — Venue detail" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:14px;max-width:900px">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><a onClick="{{ goVenues }}" style="cursor:pointer;font-size:13px">← Venues</a>
+<div style="font:700 18px 'Space Grotesk',sans-serif">{{ venueDetail.name }}</div>
+<span style="border-radius:5px;padding:2px 9px;font-size:11px;border:1px solid {{ venueDetail.statusColor }};color:{{ venueDetail.statusColor }}">{{ venueDetail.statusLabel }}</span>
+</div>
+<div style="height:130px;border-radius:10px;background:repeating-linear-gradient(45deg,#181b10 0 10px,#14160d 10px 20px);border:1px solid rgba(139,195,74,.2)"></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:12px;background:#14160d"><div style="font-size:11px;color:#9aa08c">Capacity</div><div style="font:700 18px 'Space Grotesk',sans-serif">{{ venueDetail.capacity }}</div></div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:12px;background:#14160d"><div style="font-size:11px;color:#9aa08c">Events hosted</div><div style="font:700 18px 'Space Grotesk',sans-serif">{{ venueDetail.events }}</div></div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:12px;background:#14160d"><div style="font-size:11px;color:#9aa08c">License</div><div style="font:700 14px 'Space Grotesk',sans-serif">{{ venueDetail.license }}</div></div>
+</div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;overflow:auto;background:#14160d">
+<div style="font-weight:700;padding:10px 14px;border-bottom:1px solid rgba(139,195,74,.15);font-family:'Space Grotesk',sans-serif">Events at this venue</div>
+<sc-for list="{{ venueDetail.eventsAtVenue }}" as="ev" hint-placeholder-count="2">
+<div style="display:flex;gap:8px;padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(139,195,74,.08);align-items:center">
+<span style="flex:2;font-weight:700">{{ ev.title }}</span><span style="flex:1;color:#9aa08c">{{ ev.date }}</span>
+<span style="flex:1;border-radius:5px;padding:2px 9px;font-size:11px;border:1px solid {{ ev.statusColor }};color:{{ ev.statusColor }};width:fit-content">{{ ev.statusLabel }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- ADD VENUE -->
+<sc-if value="{{ isView.addVenue }}">
+<div data-screen-label="Admin — Add venue" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:520px">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><a onClick="{{ goVenues }}" style="cursor:pointer;font-size:13px">← Venues</a><div style="font:700 20px 'Space Grotesk',sans-serif">Add new venue</div></div>
+<div style="height:80px;border:1.5px dashed rgba(139,195,74,.4);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#6b7460;font-size:11px;background:#14160d">+ upload venue photos</div>
+<input value="{{ newVenueName }}" onChange="{{ onNewVenueName }}" placeholder="Venue name" style="background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:8px;padding:10px 12px;color:#f1f3ea;font-size:13px">
+<input value="{{ newVenueAddress }}" onChange="{{ onNewVenueAddress }}" placeholder="Address / map pin" style="background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:8px;padding:10px 12px;color:#f1f3ea;font-size:13px">
+<div style="display:flex;gap:8px"><input value="{{ newVenueCap }}" onChange="{{ onNewVenueCap }}" placeholder="Capacity" style="flex:1;background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:8px;padding:10px 12px;color:#f1f3ea;font-size:13px"></div>
+<div style="border:1px dashed rgba(139,195,74,.4);border-radius:8px;padding:10px;font-size:11px;color:#9aa08c">+ upload license/permit docs — venue starts as "Docs pending" until reviewed</div>
+<button onClick="{{ onAddVenue }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:10px;font-weight:700;font-size:13px">Save venue</button>
+</div>
+</sc-if>
+
+<!-- ADD ORGANIZER -->
+<sc-if value="{{ isView.addOrganizer }}">
+<div data-screen-label="Admin — Add organizer" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:520px">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><a onClick="{{ goOrganizers }}" style="cursor:pointer;font-size:13px">← Organizers</a><div style="font:700 20px 'Space Grotesk',sans-serif">Add new organizer</div></div>
+<input value="{{ newOrgName }}" onChange="{{ onNewOrgName }}" placeholder="Organizer / company name" style="background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:8px;padding:10px 12px;color:#f1f3ea;font-size:13px">
+<div style="display:flex;gap:8px"><input value="{{ newOrgContact }}" onChange="{{ onNewOrgContact }}" placeholder="Contact email" style="flex:1;background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:8px;padding:10px 12px;color:#f1f3ea;font-size:13px"><input value="{{ newOrgCity }}" onChange="{{ onNewOrgCity }}" placeholder="City" style="flex:1;background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:8px;padding:10px 12px;color:#f1f3ea;font-size:13px"></div>
+<input value="{{ newOrgCommission }}" onChange="{{ onNewOrgCommission }}" placeholder="Commission rate % (per event, set later)" style="background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:8px;padding:10px 12px;color:#f1f3ea;font-size:13px">
+<div style="border:1px dashed rgba(139,195,74,.4);border-radius:8px;padding:10px;font-size:11px;color:#9aa08c">+ upload KYC docs (PAN / GST / business proof) — organizer stays "Pending review" until approved</div>
+<button onClick="{{ onSaveNewOrganizer }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:10px;font-weight:700;font-size:13px">Send invite</button>
+</div>
+</sc-if>
+
+<!-- PAYMENTS -->
+<sc-if value="{{ isView.payments }}">
+<div data-screen-label="Admin — Payments" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:1100px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font:700 20px 'Space Grotesk',sans-serif">Payments &amp; payouts</div><button onClick="{{ onRunPayout }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:12.5px">Run payout batch →</button></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:12px;background:#14160d"><div style="font-size:11px;color:#9aa08c">Collected</div><div style="font:700 18px 'Space Grotesk',sans-serif">₹3.4L</div></div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:12px;background:#14160d"><div style="font-size:11px;color:#9aa08c">Commission kept</div><div style="font:700 18px 'Space Grotesk',sans-serif">₹{{ totalCommissionKept }}</div></div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:12px;background:#14160d"><div style="font-size:11px;color:#9aa08c">GST collected</div><div style="font:700 18px 'Space Grotesk',sans-serif">₹7.4k</div></div>
+<div style="border:1px solid rgba(255,107,94,.35);border-radius:10px;padding:12px;background:#14160d"><div style="font-size:11px;color:#ff6b5e">Due Friday</div><div style="font:700 18px 'Space Grotesk',sans-serif">₹2.9L</div></div>
+</div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;overflow:auto;background:#14160d">
+<div style="display:flex;gap:8px;padding:8px 14px;font-size:10px;color:#9aa08c;border-bottom:1px solid rgba(139,195,74,.15);text-transform:uppercase;min-width:600px"><span style="flex:1.6">Organizer</span><span style="flex:1.6">Event</span><span style="flex:1">Gross</span><span style="flex:1.1">Commission</span><span style="flex:1">Net payout</span></div>
+<sc-for list="{{ payoutRows }}" as="p" hint-placeholder-count="3">
+<div style="display:flex;gap:8px;padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(139,195,74,.08);min-width:600px;align-items:center">
+<span style="flex:1.6;font-weight:700">{{ p.organizer }}</span><span style="flex:1.6;color:#9aa08c">{{ p.event }}</span><span style="flex:1">₹{{ p.gross }}</span><span style="flex:1.1">₹{{ p.commission }} ({{ p.commissionPct }}%)</span><span style="flex:1;font-weight:700;color:#8bc34a">₹{{ p.net }}</span>
+</div>
+</sc-for>
+</div>
+<div style="font-size:11px;color:#6b7460">commission % per row comes from each event's own rate — set in the event editor.</div>
+</div>
+</sc-if>
+
+<!-- PROMO CODES -->
+<sc-if value="{{ isView.promos }}">
+<div data-screen-label="Admin — Promo codes" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:900px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font:700 20px 'Space Grotesk',sans-serif">Promo codes</div></div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;overflow:auto;background:#14160d">
+<div style="display:flex;gap:8px;padding:8px 14px;font-size:10px;color:#9aa08c;border-bottom:1px solid rgba(139,195,74,.15);text-transform:uppercase;min-width:560px"><span style="flex:1.2">Code</span><span style="flex:1.3">Discount</span><span style="flex:1.2">Scope</span><span style="flex:1">Audience</span><span style="flex:0.8">Used</span><span style="flex:1">Status</span></div>
+<sc-for list="{{ promoList }}" as="p" hint-placeholder-count="4">
+<div style="display:flex;gap:8px;padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(139,195,74,.08);min-width:560px;align-items:center">
+<span style="flex:1.2;font-weight:700">{{ p.code }}</span><span style="flex:1.3;color:#9aa08c">{{ p.discountLabel }}</span><span style="flex:1.2;color:#9aa08c">{{ p.scope }}</span><span style="flex:1;color:#9aa08c">{{ p.audienceLabel }}</span><span style="flex:0.8">{{ p.usedLabel }}</span>
+<span style="flex:1;border-radius:5px;padding:2px 9px;font-size:11px;border:1px solid {{ p.statusColor }};color:{{ p.statusColor }};width:fit-content">{{ p.statusLabel }}</span>
+</div>
+</sc-for>
+</div>
+<div style="border:1px solid #8bc34a;border-radius:10px;padding:14px;background:#14160d;display:flex;flex-direction:column;gap:8px">
+<div style="font-weight:700;font-family:'Space Grotesk',sans-serif">New promo code</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<input value="{{ newPromoCode }}" onChange="{{ onNewPromoCode }}" placeholder="CODE" style="flex:1;min-width:100px;background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:6px;padding:7px 10px;color:#f1f3ea;font-size:12.5px;text-transform:uppercase">
+<input value="{{ newPromoValue }}" onChange="{{ onNewPromoValue }}" placeholder="value (e.g. 10 or 150)" style="width:170px;background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:6px;padding:7px 10px;color:#f1f3ea;font-size:12.5px">
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<span style="font-size:12px;font-weight:700;color:#c7cbb9">Audience — gender:</span>
+<sc-for list="{{ genderOptions }}" as="g" hint-placeholder-count="4">
+<button onClick="{{ g.onClick }}" style="border:1px solid rgba(139,195,74,.35);background:{{ g.bg }};color:{{ g.color }};border-radius:999px;padding:5px 12px;font-size:11.5px">{{ g.label }}</button>
+</sc-for>
+</div>
+<button onClick="{{ onCreatePromo }}" style="align-self:flex-start;background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:12.5px">Create code</button>
+</div>
+</div>
+</sc-if>
+
+<!-- REPORTS -->
+<sc-if value="{{ isView.reports }}">
+<div data-screen-label="Admin — Reports" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:1100px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font:700 20px 'Space Grotesk',sans-serif">Reports</div><button onClick="{{ onExportClick }}" style="background:transparent;color:#f1f3ea;border:1px solid rgba(139,195,74,.35);border-radius:8px;padding:7px 14px;font-size:12px">⬇ Export</button></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<sc-for list="{{ reportChips }}" as="ch" hint-placeholder-count="6">
+<button onClick="{{ ch.onClick }}" style="border:1px solid rgba(139,195,74,.35);background:{{ ch.bg }};color:{{ ch.color }};border-radius:999px;padding:6px 12px;font-size:11.5px">{{ ch.label }}</button>
+</sc-for>
+</div>
+<div style="display:grid;grid-template-columns:1.6fr 1fr;gap:12px" data-stack-mobile>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:14px;background:#14160d"><div style="font-weight:700;margin-bottom:8px;font-family:'Space Grotesk',sans-serif">Gross sales vs commission — daily</div><div style="height:120px;border-radius:8px;background:repeating-linear-gradient(120deg,#181b10 0 12px,#14160d 12px 24px);border:1px dashed rgba(139,195,74,.3)"></div></div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:12px;background:#14160d;font-size:12px"><div style="font-weight:700;margin-bottom:6px">Top events</div>Summer Fest — ₹2.1L<br>Indie Night — ₹94k<br>Techno Tuesday — ₹26.4k</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<!-- BANNERS -->
+<sc-if value="{{ isView.banners }}">
+<div data-screen-label="Admin — Banners" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:900px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font:700 20px 'Space Grotesk',sans-serif">Banners</div><button onClick="{{ toggleAddBanner }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:12.5px">+ Add banner</button></div>
+<sc-if value="{{ showAddBanner }}">
+<div style="border:1px solid #8bc34a;border-radius:10px;padding:12px;background:#14160d;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<input value="{{ newBannerTitle }}" onChange="{{ onNewBannerTitle }}" placeholder="Banner title / campaign" style="flex:1;min-width:180px;background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:6px;padding:7px 10px;color:#f1f3ea;font-size:12.5px">
+<button onClick="{{ onAddBanner }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:6px;padding:7px 14px;font-weight:700;font-size:12px">Add</button>
+</div>
+</sc-if>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+<sc-for list="{{ banners }}" as="b" hint-placeholder-count="3">
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;overflow:hidden;background:#14160d">
+<div style="height:70px;background:repeating-linear-gradient(45deg,#181b10 0 8px,#14160d 8px 16px)"></div>
+<div style="padding:8px 10px;font-size:11.5px;display:flex;justify-content:space-between"><span>{{ b.title }}</span><span style="color:#8bc34a">{{ b.statusLabel }}</span></div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- CATEGORIES -->
+<sc-if value="{{ isView.categories }}">
+<div data-screen-label="Admin — Categories" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:700px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font:700 20px 'Space Grotesk',sans-serif">Categories</div><button onClick="{{ toggleAddCategory }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:12.5px">+ Add category</button></div>
+<sc-if value="{{ showAddCategory }}">
+<div style="border:1px solid #8bc34a;border-radius:10px;padding:12px;background:#14160d;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<input value="{{ newCategoryName }}" onChange="{{ onNewCategoryName }}" placeholder="Category name" style="flex:1;min-width:140px;background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:6px;padding:7px 10px;color:#f1f3ea;font-size:12.5px">
+<button onClick="{{ onAddCategory }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:6px;padding:7px 14px;font-weight:700;font-size:12px">Add</button>
+</div>
+</sc-if>
+<div style="display:flex;flex-direction:column;gap:6px">
+<sc-for list="{{ categories }}" as="cat" hint-placeholder-count="4">
+<div style="display:flex;gap:8px;border:1px solid rgba(139,195,74,.2);border-radius:8px;padding:8px 12px;align-items:center;font-size:12.5px;background:#14160d">
+<span style="flex:1">{{ cat.icon }} <b>{{ cat.name }}</b> · {{ cat.count }} events</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- BLOGS -->
+<sc-if value="{{ isView.blogs }}">
+<div data-screen-label="Admin — Blogs" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:800px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font:700 20px 'Space Grotesk',sans-serif">Blog posts</div><button onClick="{{ toggleAddBlog }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:12.5px">+ New post</button></div>
+<sc-if value="{{ showAddBlog }}">
+<div style="border:1px solid #8bc34a;border-radius:10px;padding:12px;background:#14160d;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<input value="{{ newBlogTitle }}" onChange="{{ onNewBlogTitle }}" placeholder="Post title" style="flex:1;min-width:180px;background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:6px;padding:7px 10px;color:#f1f3ea;font-size:12.5px">
+<button onClick="{{ onAddBlog }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:6px;padding:7px 14px;font-weight:700;font-size:12px">Save draft</button>
+</div>
+</sc-if>
+<div style="display:flex;flex-direction:column;gap:6px">
+<sc-for list="{{ blogs }}" as="p" hint-placeholder-count="3">
+<div style="display:flex;gap:10px;border:1px solid rgba(139,195,74,.2);border-radius:8px;padding:9px 12px;align-items:center;font-size:12px;background:#14160d">
+<div style="width:44px;height:28px;border-radius:5px;background:repeating-linear-gradient(45deg,#181b10 0 6px,#14160d 6px 12px);flex:none"></div>
+<span style="flex:1"><b>{{ p.title }}</b><br><span style="color:#9aa08c">{{ p.meta }}</span></span>
+<span style="border-radius:5px;padding:2px 9px;font-size:11px;border:1px solid {{ p.statusColor }};color:{{ p.statusColor }}">{{ p.statusLabel }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- PAGES -->
+<sc-if value="{{ isView.pages }}">
+<div data-screen-label="Admin — Pages" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:800px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font:700 20px 'Space Grotesk',sans-serif">Site pages</div><button onClick="{{ toggleAddPage }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:12.5px">+ New page</button></div>
+<sc-if value="{{ showAddPage }}">
+<div style="border:1px solid #8bc34a;border-radius:10px;padding:12px;background:#14160d;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<input value="{{ newPageTitle }}" onChange="{{ onNewPageTitle }}" placeholder="Page title" style="flex:1;min-width:160px;background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:6px;padding:7px 10px;color:#f1f3ea;font-size:12.5px">
+<button onClick="{{ onAddPage }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:6px;padding:7px 14px;font-weight:700;font-size:12px">Add</button>
+</div>
+</sc-if>
+<div style="display:flex;flex-direction:column;gap:6px">
+<sc-for list="{{ pages }}" as="pg" hint-placeholder-count="5">
+<div style="display:flex;gap:10px;border:1px solid rgba(139,195,74,.2);border-radius:8px;padding:9px 12px;align-items:center;font-size:12.5px;background:#14160d">
+<span style="flex:1"><b>{{ pg.title }}</b></span><span style="color:#9aa08c">{{ pg.slug }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- STAFF -->
+<sc-if value="{{ isView.staff }}">
+<div data-screen-label="Admin — Staff and roles" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:12px;max-width:800px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font:700 20px 'Space Grotesk',sans-serif">Staff &amp; roles</div><button onClick="{{ toggleAddStaff }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:12.5px">+ Invite staff</button></div>
+<sc-if value="{{ showAddStaff }}">
+<div style="border:1px solid #8bc34a;border-radius:10px;padding:12px;background:#14160d;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<input value="{{ newStaffEmail }}" onChange="{{ onNewStaffEmail }}" placeholder="email@prebooze.com" style="flex:1;min-width:180px;background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:6px;padding:7px 10px;color:#f1f3ea;font-size:12.5px">
+<button onClick="{{ onAddStaff }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:6px;padding:7px 14px;font-weight:700;font-size:12px">Invite</button>
+</div>
+</sc-if>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;overflow:auto;background:#14160d">
+<div style="display:flex;gap:8px;padding:8px 14px;font-size:10px;color:#9aa08c;border-bottom:1px solid rgba(139,195,74,.15);text-transform:uppercase;min-width:400px"><span style="flex:1.6">Member</span><span style="flex:1.2">Role</span><span style="flex:1">Last active</span></div>
+<sc-for list="{{ staff }}" as="s" hint-placeholder-count="4">
+<div style="display:flex;gap:8px;padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(139,195,74,.08);min-width:400px;align-items:center">
+<span style="flex:1.6"><b>{{ s.name }}</b></span><span style="flex:1.2;color:#9aa08c">{{ s.role }}</span><span style="flex:1;color:#9aa08c">{{ s.lastActive }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+</div>
+</div>
+
+<!-- ===== MOBILE BOTTOM NAV ===== -->
+<div style="display:{{ bottomNavDisplay }};position:fixed;bottom:0;left:0;right:0;background:#0f100a;border-top:1px solid rgba(139,195,74,.2);padding:6px 0;z-index:30;justify-content:space-around">
+<sc-for list="{{ mobileNavItems }}" as="m" hint-placeholder-count="5">
+<button onClick="{{ m.onClick }}" style="background:transparent;border:none;color:{{ m.color }};font-size:10px;display:flex;flex-direction:column;align-items:center;gap:2px;font-weight:{{ m.weight }}"><span style="font-size:15px">{{ m.icon }}</span>{{ m.label }}</button>
+</sc-for>
+</div>
+
+<!-- ===== BOOKING DETAIL SLIDE-OVER ===== -->
+<sc-if value="{{ hasSelectedBooking }}">
+<div onClick="{{ closeBookingDetail }}" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40"></div>
+<div style="position:fixed;top:0;right:0;bottom:0;width:min(320px,88vw);background:#14160d;border-left:1px solid rgba(139,195,74,.3);z-index:41;padding:16px;display:flex;flex-direction:column;gap:10px;animation:slideIn .2s ease;overflow-y:auto">
+<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-family:'Space Grotesk',sans-serif;font-size:15px">{{ selectedBooking.id }}</b><span onClick="{{ closeBookingDetail }}" style="cursor:pointer;color:#9aa08c">✕</span></div>
+<div style="font-size:13px"><b>{{ selectedBooking.guest }}</b><br><span style="color:#9aa08c">{{ selectedBooking.phone }}</span></div>
+<hr style="border:none;border-top:1px dashed rgba(139,195,74,.25);margin:0">
+<div style="font-size:13px">{{ selectedBooking.eventTitle }}<br><span style="color:#9aa08c">{{ selectedBooking.qtyAmountLabel }}</span></div>
+<div style="border:1px dashed rgba(139,195,74,.3);border-radius:8px;padding:10px;font-size:12px;color:#c7cbb9">
+Subtotal ₹{{ selectedBooking.amount }}<br>Paid via {{ selectedBooking.method }}
+</div>
+<sc-if value="{{ selectedBooking.isRefundRequest }}">
+<div style="border:1px solid #ff6b5e;border-radius:8px;padding:10px;color:#ffb3ac;font-size:12.5px">↩ Refund requested</div>
+<div style="display:flex;gap:6px">
+<button onClick="{{ onApproveRefund }}" style="flex:1;background:#8bc34a;color:#0b0c07;border:none;border-radius:6px;padding:7px;font-weight:700;font-size:12px">Approve refund</button>
+<button onClick="{{ onDeclineRefund }}" style="flex:1;background:transparent;color:#f1f3ea;border:1px solid rgba(139,195,74,.35);border-radius:6px;padding:7px;font-size:12px">Decline</button>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<!-- ===== CUSTOMER PROFILE DRAWER ===== -->
+<sc-if value="{{ hasSelectedCustomer }}">
+<div onClick="{{ closeCustomerDetail }}" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40"></div>
+<div style="position:fixed;top:0;right:0;bottom:0;width:min(300px,88vw);background:#14160d;border-left:1px solid rgba(139,195,74,.3);z-index:41;padding:16px;display:flex;flex-direction:column;gap:10px;animation:slideIn .2s ease;overflow-y:auto">
+<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-family:'Space Grotesk',sans-serif;font-size:15px">{{ selectedCustomer.name }}</b><span onClick="{{ closeCustomerDetail }}" style="cursor:pointer;color:#9aa08c">✕</span></div>
+<div style="font-size:12.5px;color:#9aa08c">{{ selectedCustomer.city }} · {{ selectedCustomer.gender }} · {{ selectedCustomer.statusLabel }}</div>
+<div style="display:flex;gap:6px;text-align:center">
+<div style="flex:1;border:1px solid rgba(139,195,74,.25);border-radius:8px;padding:8px"><b>{{ selectedCustomer.bookings }}</b><br><span style="font-size:10.5px;color:#9aa08c">bookings</span></div>
+<div style="flex:1;border:1px solid rgba(139,195,74,.25);border-radius:8px;padding:8px"><b>₹{{ selectedCustomer.spend }}</b><br><span style="font-size:10.5px;color:#9aa08c">spend</span></div>
+</div>
+<button onClick="{{ onToggleBlock }}" style="background:transparent;color:#ff6b5e;border:1px solid #ff6b5e;border-radius:8px;padding:8px;font-size:12px">{{ selectedCustomer.blockActionLabel }}</button>
+</div>
+</sc-if>
+
+</div>
+</sc-if>
+
+<!-- ============================================================= -->
+<!-- ===================== GUEST SITE =========================== -->
+<!-- ============================================================= -->
+<sc-if value="{{ isGuest }}">
+<div style="display:flex;flex-direction:column;min-height:100vh;background:#0b0c07">
+
+<div style="display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid rgba(139,195,74,.16);background:#0f100a;flex-wrap:wrap;position:sticky;top:0;z-index:20">
+<img src="logo.png" alt="Prebooze" style="height:30px;width:auto">
+<div style="display:flex;gap:14px;font-size:13px;color:#c7cbb9;flex-wrap:wrap">
+<a onClick="{{ goGuestHome }}" style="cursor:pointer;color:{{ guestNavHomeColor }}">Browse</a>
+<a style="cursor:pointer">Host with us</a>
+<a style="cursor:pointer">Blog</a>
+</div>
+<div style="flex:1"></div>
+<button onClick="{{ toggleMode }}" style="background:transparent;border:1px solid rgba(139,195,74,.35);color:#f1f3ea;border-radius:8px;padding:7px 14px;font-size:12px">Team sign in →</button>
+</div>
+
+<!-- GUEST HOME / BROWSE -->
+<sc-if value="{{ isGuestView.home }}">
+<div data-screen-label="Guest — Home" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:20px;padding:{{ contentPadding }};max-width:1100px;margin:0 auto;width:100%">
+<div style="border-radius:16px;background:linear-gradient(135deg,#1a3d0d,#0f100a);border:1px solid rgba(139,195,74,.3);padding:32px;display:flex;flex-direction:column;gap:8px">
+<div style="font:700 clamp(22px,4vw,34px) 'Space Grotesk',sans-serif">Live shows, near you.</div>
+<div style="color:#c7cbb9;font-size:14px">Concerts, comedy, festivals — book in a tap.</div>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<sc-for list="{{ categoryChips }}" as="ch" hint-placeholder-count="5">
+<button onClick="{{ ch.onClick }}" style="border:1px solid rgba(139,195,74,.35);background:{{ ch.bg }};color:{{ ch.color }};border-radius:999px;padding:7px 14px;font-size:12.5px">{{ ch.icon }} {{ ch.label }}</button>
+</sc-for>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px">
+<sc-for list="{{ guestEvents }}" as="ev" hint-placeholder-count="4">
+<div onClick="{{ ev.onClick }}" style="border:1px solid rgba(139,195,74,.2);border-radius:12px;overflow:hidden;background:#14160d;cursor:pointer">
+<div style="height:120px;background:repeating-linear-gradient(45deg,#181b10 0 10px,#14160d 10px 20px)"></div>
+<div style="padding:12px;display:flex;flex-direction:column;gap:3px">
+<div style="font-weight:700;font-size:14px">{{ ev.title }}</div>
+<div style="font-size:12px;color:#9aa08c">{{ ev.venue }} · {{ ev.date }}</div>
+<div style="font-size:13px;color:#8bc34a;font-weight:700">from ₹{{ ev.priceFrom }}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- GUEST EVENT DETAIL -->
+<sc-if value="{{ isGuestView.detail }}">
+<div data-screen-label="Guest — Event detail" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:16px;padding:{{ contentPadding }};max-width:900px;margin:0 auto;width:100%">
+<a onClick="{{ goGuestHome }}" style="cursor:pointer;font-size:13px">← Back</a>
+<div style="display:grid;grid-template-columns:260px 1fr;gap:20px" data-stack-mobile>
+<div style="height:280px;border-radius:12px;background:repeating-linear-gradient(45deg,#181b10 0 10px,#14160d 10px 20px)"></div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font:700 26px 'Space Grotesk',sans-serif">{{ detailEvent.title }}</div>
+<div style="color:#c7cbb9;font-size:14px">{{ detailEvent.venue }} · {{ detailEvent.date }}, {{ detailEvent.time }}</div>
+<div style="font-size:13px;font-weight:700;color:#8bc34a">by {{ detailEvent.organizer }}</div>
+</div>
+</div>
+<div style="font:700 16px 'Space Grotesk',sans-serif">Select tickets</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{ tierOptions }}" as="t" hint-placeholder-count="2">
+<div onClick="{{ t.onClick }}" style="display:flex;align-items:center;gap:10px;border:1.5px solid {{ t.borderColor }};background:{{ t.bg }};border-radius:10px;padding:12px 14px;cursor:pointer">
+<span style="width:16px;height:16px;border-radius:50%;border:2px solid {{ t.borderColor }};background:{{ t.dotBg }};flex:none"></span>
+<span style="flex:1"><b>{{ t.name }}</b><br><span style="font-size:11.5px;color:#9aa08c">{{ t.availLabel }}</span></span>
+<span style="font-weight:700">₹{{ t.price }}</span>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;align-items:center;gap:12px">
+<span style="font-size:13px;color:#c7cbb9">Quantity</span>
+<button onClick="{{ onQtyDec }}" style="width:30px;height:30px;border-radius:8px;border:1px solid rgba(139,195,74,.35);background:transparent;color:#f1f3ea">−</button>
+<span style="font-weight:700;min-width:16px;text-align:center">{{ ticketQty }}</span>
+<button onClick="{{ onQtyInc }}" style="width:30px;height:30px;border-radius:8px;border:1px solid rgba(139,195,74,.35);background:transparent;color:#f1f3ea">+</button>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(139,195,74,.2);padding-top:14px">
+<div style="font-size:15px">Total: <b style="font-family:'Space Grotesk',sans-serif">₹{{ selectedTierTotal }}</b></div>
+<button onClick="{{ onProceedToCheckout }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:10px;padding:11px 22px;font-weight:700;font-size:14px">Proceed to checkout →</button>
+</div>
+</div>
+</sc-if>
+
+<!-- GUEST CHECKOUT -->
+<sc-if value="{{ isGuestView.checkout }}">
+<div data-screen-label="Guest — Checkout" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;gap:14px;padding:{{ contentPadding }};max-width:520px;margin:0 auto;width:100%">
+<a onClick="{{ backToDetail }}" style="cursor:pointer;font-size:13px">← Back</a>
+<div style="font:700 22px 'Space Grotesk',sans-serif">Checkout</div>
+<div style="border:1px solid rgba(139,195,74,.2);border-radius:10px;padding:14px;background:#14160d;font-size:13px">{{ detailEvent.title }} — {{ ticketQty }} × {{ selectedTierName }} @ ₹{{ selectedTierPrice }}</div>
+<input placeholder="Full name" style="background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:8px;padding:10px 12px;color:#f1f3ea;font-size:13px">
+<input placeholder="Phone number" style="background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:8px;padding:10px 12px;color:#f1f3ea;font-size:13px">
+<div style="display:flex;gap:8px">
+<input value="{{ guestPromoInput }}" onChange="{{ onGuestPromoInput }}" placeholder="Promo code" style="flex:1;background:#161810;border:1px solid rgba(139,195,74,.3);border-radius:8px;padding:10px 12px;color:#f1f3ea;font-size:13px">
+<button onClick="{{ onApplyPromo }}" style="background:transparent;border:1px solid #8bc34a;color:#8bc34a;border-radius:8px;padding:0 16px;font-size:12.5px;font-weight:700">Apply</button>
+</div>
+<div style="font-size:12px;color:{{ promoMsgColor }}">{{ promoMsg }}</div>
+<div style="border-top:1px solid rgba(139,195,74,.2);padding-top:12px;display:flex;flex-direction:column;gap:4px;font-size:13px;color:#c7cbb9">
+<div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>₹{{ checkoutSubtotal }}</span></div>
+<div style="display:flex;justify-content:space-between"><span>Booking fee + GST</span><span>₹{{ checkoutFees }}</span></div>
+<sc-if value="{{ promoApplied }}"><div style="display:flex;justify-content:space-between;color:#8bc34a"><span>Promo discount</span><span>−₹{{ checkoutDiscount }}</span></div></sc-if>
+<div style="display:flex;justify-content:space-between;font-weight:700;color:#f1f3ea;font-size:15px"><span>Total</span><span>₹{{ checkoutTotal }}</span></div>
+</div>
+<button onClick="{{ onPay }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:10px;padding:12px;font-weight:700;font-size:14px">Pay ₹{{ checkoutTotal }}</button>
+</div>
+</sc-if>
+
+<!-- GUEST CONFIRMATION -->
+<sc-if value="{{ isGuestView.confirmation }}">
+<div data-screen-label="Guest — Confirmation" style="animation:fadeIn .25s ease;display:flex;flex-direction:column;align-items:center;gap:14px;padding:{{ contentPadding }};max-width:420px;margin:40px auto;width:100%;text-align:center">
+<div style="width:64px;height:64px;border-radius:50%;background:rgba(139,195,74,.15);border:2px solid #8bc34a;display:flex;align-items:center;justify-content:center;font-size:28px">✓</div>
+<div style="font:700 20px 'Space Grotesk',sans-serif">Booking confirmed!</div>
+<div style="color:#c7cbb9;font-size:13px">{{ ticketQty }} ticket(s) to {{ detailEvent.title }} — sent to your phone.</div>
+<div style="width:100%;height:120px;border:1.5px dashed rgba(139,195,74,.4);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#6b7460;font-size:11px;background:#14160d">QR ticket placeholder</div>
+<button onClick="{{ goGuestHome }}" style="background:#8bc34a;color:#0b0c07;border:none;border-radius:10px;padding:11px 22px;font-weight:700;font-size:14px">Back to home</button>
+</div>
+</sc-if>
+
+</div>
+</sc-if>
+
+<sc-if value="{{ hasToast }}">
+<div style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#8bc34a;color:#0b0c07;padding:10px 18px;border-radius:999px;font-weight:700;font-size:13px;z-index:60;animation:fadeIn .2s ease">{{ toastMsg }}</div>
+</sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    mode: 'login',
+    userRole: 'admin',
+    loginRole: 'admin',
+    loginEmail: '', loginPassword: '', rememberMe: true, loginError: null,
+    adminView: 'dashboard',
+    guestView: 'home',
+    isMobile: (typeof window !== 'undefined' && window.innerWidth <= 820),
+    mobileMoreOpen: false,
+    globalSearch: '',
+    toastMsg: null,
+
+    eventQuery: '', eventTab: 'all',
+    selectedEventId: null, editorTab: 'basics',
+
+    bookingQuery: '', bookingStatusFilter: 'all', selectedBookingId: null,
+    customerQuery: '', customerSegment: 'guests', selectedCustomerId: null,
+
+    showAddVenue: false, newVenueName: '', newVenueCap: '',
+    showAddBanner: false, newBannerTitle: '',
+    showAddCategory: false, newCategoryName: '',
+    showAddBlog: false, newBlogTitle: '',
+    showAddPage: false, newPageTitle: '',
+    showAddStaff: false, newStaffEmail: '',
+
+    newPromoCode: '', newPromoValue: '', newPromoGender: 'all',
+
+    guestCategoryFilter: 'all', guestSelectedEventId: 'e1',
+    selectedTierIndex: 0, ticketQty: 1,
+    guestPromoInput: '', promoApplied: false, promoMsg: '',
+  };
+
+  events = [
+    {id:'e1', title:'Indie Night Live', category:'Concerts', venue:'Arena Hall', date:'24 Jul', time:'8:00 PM', organizer:'LiveWire Ent.', status:'live', sold:312, cap:400, revenue:94000, commission:10,
+      tiers:[{name:'Early bird',price:290,qty:100,sold:100},{name:'General',price:450,qty:250,sold:212},{name:'VIP Couch',price:1200,qty:50,sold:0}]},
+    {id:'e2', title:"Summer Fest '26", category:'Festivals', venue:'Riverside Grounds', date:'1 Aug', time:'2:00 PM', organizer:'FestCrew', status:'live', sold:1105, cap:2000, revenue:210000, commission:8,
+      tiers:[{name:'Day pass',price:650,qty:1500,sold:1000},{name:'VIP',price:2200,qty:500,sold:105}]},
+    {id:'e3', title:'Stand-up Sunday', category:'Comedy', venue:'Comedy Cave', date:'2 Aug', time:'6:00 PM', organizer:'NightOwl Co.', status:'pending', sold:0, cap:180, revenue:0, commission:null,
+      tiers:[{name:'General',price:150,qty:150,sold:0},{name:'Front row',price:600,qty:30,sold:0}]},
+    {id:'e4', title:'Acoustic Evenings', category:'Concerts', venue:'Arena Hall', date:'7 Aug', time:'7:00 PM', organizer:'LiveWire Ent.', status:'draft', sold:40, cap:150, revenue:9000, commission:12,
+      tiers:[{name:'General',price:225,qty:150,sold:40}]},
+    {id:'e5', title:'Techno Tuesday', category:'Festivals', venue:'The Loft', date:'12 Aug', time:'9:00 PM', organizer:'FestCrew', status:'live', sold:88, cap:120, revenue:26400, commission:9,
+      tiers:[{name:'General',price:300,qty:120,sold:88}]},
+  ];
+
+  bookings = [
+    {id:'#8412', guest:'Sam Rivera', phone:'+91 98••• ••210', eventId:'e1', qty:2, amount:1450, status:'refund_requested', method:'UPI'},
+    {id:'#8420', guest:'Priya K.', phone:'+91 87••• ••330', eventId:'e2', qty:4, amount:2900, status:'paid', method:'Card'},
+    {id:'#8419', guest:'Arjun M.', phone:'+91 99••• ••118', eventId:'e1', qty:1, amount:580, status:'checked_in', method:'UPI'},
+    {id:'#8415', guest:'Nia T.', phone:'+91 76••• ••902', eventId:'e2', qty:2, amount:1160, status:'refunded', method:'UPI'},
+  ];
+
+  customers = [
+    {id:'c1', name:'Sam Rivera', verified:true, gender:'M', city:'Austin', bookings:14, spend:18200, status:'active', segment:'guests'},
+    {id:'c2', name:'Priya K.', verified:true, gender:'F', city:'Austin', bookings:6, spend:7400, status:'active', segment:'guests'},
+    {id:'c3', name:'Arjun M.', verified:false, gender:'M', city:'Dallas', bookings:2, spend:1100, status:'unverified', segment:'guests'},
+    {id:'c4', name:'R. Gupta', verified:false, gender:'—', city:'Austin', bookings:1, spend:0, status:'blocked', segment:'guests'},
+    {id:'c5', name:'LiveWire Ent.', verified:true, gender:'—', city:'Austin', bookings:18, spend:0, status:'active', segment:'organizers'},
+  ];
+
+  organizers = [
+    {id:'o1', name:'LiveWire Ent.', contact:'contact@livewire.co', city:'Austin', events:18, kyc:'verified', status:'approved'},
+    {id:'o2', name:'FestCrew', contact:'hello@festcrew.io', city:'Austin', events:11, kyc:'verified', status:'approved'},
+    {id:'o3', name:'NightOwl Co.', contact:'bookings@nightowl.co', city:'Dallas', events:2, kyc:'pending', status:'pending'},
+    {id:'o4', name:'Sunset Sessions', contact:'team@sunsetsessions.com', city:'Houston', events:0, kyc:'submitted', status:'pending'},
+    {id:'o5', name:'Rowdy Promotions', contact:'info@rowdyprom.com', city:'Austin', events:0, kyc:'flagged', status:'rejected'},
+  ];
+
+  venues = [
+    {name:'Arena Hall', capacity:400, events:18, license:'valid till Mar \'27', statusLabel:'Verified', statusColor:'#8bc34a'},
+    {name:'Riverside Grounds', capacity:2000, events:11, license:'valid till Jan \'27', statusLabel:'Verified', statusColor:'#8bc34a'},
+    {name:'Comedy Cave', capacity:180, events:9, license:'expires 12 Aug ⚠', statusLabel:'Docs pending', statusColor:'#ff6b5e'},
+    {name:'The Loft', capacity:120, events:7, license:'valid till Nov \'26', statusLabel:'Verified', statusColor:'#8bc34a'},
+  ];
+
+  banners = [
+    {title:'Summer Fest hero', statusLabel:'Live · #1'},
+    {title:'Host with us', statusLabel:'Live · #2'},
+    {title:'Diwali promo', statusLabel:'Scheduled'},
+  ];
+
+  categories = [
+    {icon:'🎵', name:'Concerts', count:22},
+    {icon:'😂', name:'Comedy', count:9},
+    {icon:'🎪', name:'Festivals', count:6},
+    {icon:'🏠', name:'House parties', count:0},
+  ];
+
+  blogs = [
+    {title:'Top 10 gigs this monsoon', meta:'2.1k views · Published', statusLabel:'Published', statusColor:'#8bc34a'},
+    {title:'How to host a sold-out show', meta:'targets organizers', statusLabel:'Draft', statusColor:'#ff6b5e'},
+    {title:'Venue spotlight: Riverside', meta:'scheduled 12 Jul', statusLabel:'Scheduled', statusColor:'#9aa08c'},
+  ];
+
+  pages = [
+    {title:'About us', slug:'/about'},
+    {title:'Host with us', slug:'/host'},
+    {title:'Refund policy', slug:'/refunds'},
+    {title:'Terms · Privacy · Contact · FAQs', slug:'/terms…'},
+    {title:'Corporate events', slug:'/corporate'},
+  ];
+
+  staff = [
+    {name:'You · owner@prebooze', role:'Owner', lastActive:'now'},
+    {name:'Meera J.', role:'Finance', lastActive:'2h ago'},
+    {name:'Dev P.', role:'Content', lastActive:'1d ago'},
+    {name:'Gate crew (4)', role:'Scanner only', lastActive:'at event'},
+  ];
+
+  promos = [
+    {code:'FEST10', discountLabel:'10% ≤ ₹100', scope:'Summer Fest', gender:'all', usedLabel:'184/500', statusLabel:'Active', statusColor:'#8bc34a'},
+    {code:'LADIESNIGHT', discountLabel:'50% ≤ ₹300', scope:'Indie Night', gender:'women', usedLabel:'67/200', statusLabel:'Active', statusColor:'#8bc34a'},
+    {code:'FIRSTGIG', discountLabel:'₹150 flat', scope:'first booking', gender:'all', usedLabel:'96/∞', statusLabel:'Active', statusColor:'#8bc34a'},
+    {code:'DIWALI25', discountLabel:'25% ≤ ₹250', scope:'all events', gender:'all', usedLabel:'890/1k', statusLabel:'Expired', statusColor:'#6b7460'},
+  ];
+
+  componentDidMount() {
+    this._resize = () => this.setState({ isMobile: window.innerWidth <= 820 });
+    window.addEventListener('resize', this._resize);
+  }
+  componentWillUnmount() {
+    window.removeEventListener('resize', this._resize);
+  }
+
+  toast(msg) {
+    this.setState({ toastMsg: msg });
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ toastMsg: null }), 2200);
+  }
+
+  fmt(n) { return Math.round(n).toLocaleString('en-IN'); }
+
+  renderVals() {
+    const s = this.state;
+    const isMobile = s.isMobile;
+
+    const nav = (key, label, icon) => ({
+      key, label, icon,
+      onClick: () => this.setState({ adminView: key, selectedEventId: null }),
+      active: s.adminView === key,
+    });
+    const rawMain = [
+      nav('dashboard','Dashboard','▦'), nav('events','Events','🎪'), nav('bookings','Bookings','🎟'),
+      nav('customers','Customers','👥'), nav('organizers','Organizers','🧑\u200d💼'), nav('venues','Venues','🏛'), nav('payments','Payments','💰'),
+      nav('promos','Promo codes','🏷'), nav('reports','Reports','📊'),
+    ];
+    const styleNav = (n) => ({ ...n,
+      bg: n.active ? 'rgba(139,195,74,.12)' : 'transparent',
+      color: n.active ? '#8bc34a' : '#c7cbb9',
+      weight: n.active ? 700 : 500,
+      borderColor: n.active ? '#8bc34a' : 'transparent',
+    });
+    const mainNavItems = rawMain.map(styleNav);
+    const rawContent = [nav('banners','Banners','🖼'), nav('categories','Categories','📁'), nav('blogs','Blogs','✍'), nav('pages','Pages','📄')];
+    const contentNavItems = rawContent.map(styleNav);
+    const staffActive = s.adminView === 'staff' || s.adminView === 'eventEditor' && false;
+    const staffIsOn = s.adminView === 'staff';
+
+    const isView = {
+      dashboard: s.adminView === 'dashboard',
+      events: s.adminView === 'events',
+      eventEditor: s.adminView === 'eventEditor',
+      bookings: s.adminView === 'bookings',
+      customers: s.adminView === 'customers',
+      organizers: s.adminView === 'organizers',
+      organizerDetail: s.adminView === 'organizerDetail',
+      addOrganizer: s.adminView === 'addOrganizer',
+      venues: s.adminView === 'venues',
+      venueDetail: s.adminView === 'venueDetail',
+      addVenue: s.adminView === 'addVenue',
+      payments: s.adminView === 'payments',
+      promos: s.adminView === 'promos',
+      reports: s.adminView === 'reports',
+      banners: s.adminView === 'banners',
+      categories: s.adminView === 'categories',
+      blogs: s.adminView === 'blogs',
+      pages: s.adminView === 'pages',
+      staff: s.adminView === 'staff',
+    };
+
+    const statusMeta = {
+      live: { label: '● Live', color: '#8bc34a' },
+      pending: { label: 'Pending', color: '#ff6b5e' },
+      draft: { label: 'Draft', color: '#9aa08c' },
+    };
+
+    const goEvent = (id) => () => this.setState({ adminView: 'eventEditor', selectedEventId: id, editorTab: 'basics' });
+
+    const dashboardEvents = this.events.slice(0, 3).map(ev => {
+      const sm = statusMeta[ev.status];
+      return {
+        title: ev.title, date: ev.date,
+        soldLabel: `${ev.sold}/${ev.cap}`, revenueLabel: `₹${this.fmt(ev.revenue)}`,
+        statusLabel: sm.label, statusColor: sm.color,
+        onClick: goEvent(ev.id),
+      };
+    });
+
+    const eventTabsDef = [
+      { key: 'all', label: `All (${this.events.length})` },
+      { key: 'pending', label: `Pending (${this.events.filter(e=>e.status==='pending').length})` },
+      { key: 'live', label: `Live (${this.events.filter(e=>e.status==='live').length})` },
+      { key: 'draft', label: `Draft (${this.events.filter(e=>e.status==='draft').length})` },
+    ];
+    const eventTabs = eventTabsDef.map(t => ({
+      label: t.label,
+      onClick: () => this.setState({ eventTab: t.key }),
+      color: s.eventTab === t.key ? '#8bc34a' : '#9aa08c',
+      weight: s.eventTab === t.key ? 700 : 500,
+      underline: s.eventTab === t.key ? '#8bc34a' : 'transparent',
+    }));
+
+    let evList = this.events;
+    if (s.eventTab !== 'all') evList = evList.filter(e => e.status === s.eventTab);
+    if (s.eventQuery.trim()) {
+      const q = s.eventQuery.toLowerCase();
+      evList = evList.filter(e => e.title.toLowerCase().includes(q) || e.organizer.toLowerCase().includes(q));
+    }
+    const filteredEvents = evList.map(ev => {
+      const sm = statusMeta[ev.status];
+      return {
+        title: ev.title, organizer: ev.organizer, date: ev.date,
+        soldLabel: `${ev.sold}/${ev.cap}`,
+        commLabel: ev.commission == null ? 'unset' : ev.commission + '%',
+        commColor: ev.commission == null ? '#ff6b5e' : '#c7cbb9',
+        statusLabel: sm.label, statusColor: sm.color,
+        onClick: goEvent(ev.id),
+      };
+    });
+
+    const editingEventRaw = this.events.find(e => e.id === s.selectedEventId) || this.events[0];
+    const smEdit = statusMeta[editingEventRaw.status];
+    const editingEvent = {
+      ...editingEventRaw,
+      statusLabel: smEdit.label, statusColor: smEdit.color,
+      isPending: editingEventRaw.status === 'pending',
+      tiers: editingEventRaw.tiers.map(t => ({ ...t, soldLabel: `${t.qty} qty · ${t.sold} sold` })),
+    };
+
+    const editorTabsDef = [
+      { key: 'basics', label: '1 · Basics' }, { key: 'tickets', label: '2 · Tickets' }, { key: 'commission', label: '3 · Commission' },
+    ];
+    const editorTabs = editorTabsDef.map(t => ({
+      label: t.label, onClick: () => this.setState({ editorTab: t.key }),
+      color: s.editorTab === t.key ? '#8bc34a' : '#9aa08c',
+      weight: s.editorTab === t.key ? 700 : 500,
+      underline: s.editorTab === t.key ? '#8bc34a' : 'transparent',
+    }));
+
+    const commissionPct = editingEventRaw.commission == null ? 10 : editingEventRaw.commission;
+    const previewTicketPrice = editingEventRaw.tiers[Math.min(1, editingEventRaw.tiers.length-1)].price;
+    const bookingFee = 30, gstPct = 18;
+    const gstAmt = bookingFee * gstPct/100;
+    const previewGuestPays = this.fmt(previewTicketPrice + bookingFee + gstAmt);
+    const platformKeeps = previewTicketPrice*commissionPct/100 + bookingFee;
+    const previewPlatformKeeps = this.fmt(platformKeeps);
+    const previewOrganizerNets = this.fmt(previewTicketPrice - previewTicketPrice*commissionPct/100);
+
+    let bkList = this.bookings;
+    if (s.bookingStatusFilter !== 'all') bkList = bkList.filter(b => b.status === s.bookingStatusFilter);
+    if (s.bookingQuery.trim()) {
+      const q = s.bookingQuery.toLowerCase();
+      bkList = bkList.filter(b => b.id.toLowerCase().includes(q) || b.guest.toLowerCase().includes(q));
+    }
+    const bkStatusMeta = {
+      refund_requested: {label:'Refund req.', color:'#ff6b5e'},
+      paid: {label:'Paid', color:'#8bc34a'},
+      checked_in: {label:'Checked in', color:'#9aa08c'},
+      refunded: {label:'Refunded', color:'#6b7460'},
+    };
+    const eventTitleOf = (id) => (this.events.find(e=>e.id===id)||{}).title || '';
+    const filteredBookings = bkList.map(b => {
+      const sm2 = bkStatusMeta[b.status];
+      return {
+        id: b.id, guest: b.guest, eventTitle: eventTitleOf(b.eventId),
+        qtyAmountLabel: `${b.qty} · ₹${this.fmt(b.amount)}`,
+        statusLabel: sm2.label, statusColor: sm2.color,
+        onClick: () => this.setState({ selectedBookingId: b.id }),
+      };
+    });
+    const bookingStatusFilterDef = [
+      {key:'all', label:'All'}, {key:'refund_requested', label:'Refunds'}, {key:'paid', label:'Paid'}, {key:'checked_in', label:'Checked in'},
+    ];
+    const bookingStatusFilters = bookingStatusFilterDef.map(f => ({
+      label: f.label, onClick: () => this.setState({ bookingStatusFilter: f.key }),
+      bg: s.bookingStatusFilter === f.key ? '#8bc34a' : 'transparent',
+      color: s.bookingStatusFilter === f.key ? '#0b0c07' : '#c7cbb9',
+    }));
+
+    const selBookingRaw = this.bookings.find(b => b.id === s.selectedBookingId);
+    const hasSelectedBooking = !!selBookingRaw;
+    const selectedBooking = selBookingRaw ? {
+      ...selBookingRaw, eventTitle: eventTitleOf(selBookingRaw.eventId),
+      qtyAmountLabel: `${selBookingRaw.qty} × ticket`,
+      isRefundRequest: selBookingRaw.status === 'refund_requested',
+    } : {};
+
+    let custList = this.customers.filter(c => c.segment === (s.customerSegment === 'guests' ? 'guests' : 'organizers'));
+    if (s.customerQuery.trim()) {
+      const q = s.customerQuery.toLowerCase();
+      custList = custList.filter(c => c.name.toLowerCase().includes(q));
+    }
+    const custStatusColor = { active:'#8bc34a', unverified:'#9aa08c', blocked:'#ff6b5e' };
+    const filteredCustomers = custList.map(c => ({
+      name: c.name + (c.verified ? ' ✓' : ''), gender: c.gender, city: c.city, bookings: c.bookings, spend: this.fmt(c.spend),
+      statusLabel: c.status[0].toUpperCase()+c.status.slice(1), statusColor: custStatusColor[c.status],
+      onClick: () => this.setState({ selectedCustomerId: c.id }),
+    }));
+    const selCustRaw = this.customers.find(c => c.id === s.selectedCustomerId);
+    const hasSelectedCustomer = !!selCustRaw;
+    const selectedCustomer = selCustRaw ? {
+      ...selCustRaw, spend: this.fmt(selCustRaw.spend),
+      statusLabel: selCustRaw.status[0].toUpperCase()+selCustRaw.status.slice(1),
+      blockActionLabel: selCustRaw.status === 'blocked' ? 'Unblock customer' : 'Block customer',
+    } : {};
+
+    const payoutRows = this.events.filter(e => e.status !== 'draft' && e.commission != null).map(ev => {
+      const commission = ev.revenue * ev.commission / 100;
+      return { organizer: ev.organizer, event: ev.title, gross: this.fmt(ev.revenue), commission: this.fmt(commission), commissionPct: ev.commission, net: this.fmt(ev.revenue - commission) };
+    });
+    const totalCommissionKept = this.fmt(payoutRows.reduce((a,r)=>a+parseFloat(r.commission.replace(/,/g,'')),0));
+
+    const genderDef = [
+      {key:'all', label:'All'}, {key:'women', label:'Women'}, {key:'men', label:'Men'}, {key:'other', label:'Other'},
+    ];
+    const genderOptions = genderDef.map(g => ({
+      label: g.label, onClick: () => this.setState({ newPromoGender: g.key }),
+      bg: s.newPromoGender === g.key ? '#8bc34a' : 'transparent',
+      color: s.newPromoGender === g.key ? '#0b0c07' : '#c7cbb9',
+    }));
+    const audienceLabelOf = (g) => g === 'all' ? 'everyone' : g === 'women' ? 'women only' : g === 'men' ? 'men only' : 'other';
+    const promoList = this.promos.map(p => ({ ...p, audienceLabel: audienceLabelOf(p.gender) }));
+
+    const reportChipsDef = ['Sales','Commission by event','GST / tax','Refunds','Attendance','Promos'];
+    const reportChips = reportChipsDef.map((label,i) => ({
+      label, onClick: () => this.toast(label + ' report selected'),
+      bg: i===0 ? '#8bc34a' : 'transparent', color: i===0 ? '#0b0c07' : '#c7cbb9',
+    }));
+
+    // --- guest ---
+    const isGuestView = {
+      home: s.guestView === 'home', detail: s.guestView === 'detail',
+      checkout: s.guestView === 'checkout', confirmation: s.guestView === 'confirmation',
+    };
+    const catChipDef = [
+      {key:'all', label:'All', icon:'✨'}, {key:'Concerts', label:'Concerts', icon:'🎵'},
+      {key:'Comedy', label:'Comedy', icon:'😂'}, {key:'Festivals', label:'Festivals', icon:'🎪'},
+    ];
+    const categoryChips = catChipDef.map(c => ({
+      label: c.label, icon: c.icon, onClick: () => this.setState({ guestCategoryFilter: c.key }),
+      bg: s.guestCategoryFilter === c.key ? '#8bc34a' : 'transparent',
+      color: s.guestCategoryFilter === c.key ? '#0b0c07' : '#c7cbb9',
+    }));
+    let gEvents = this.events.filter(e => e.status === 'live');
+    if (s.guestCategoryFilter !== 'all') gEvents = gEvents.filter(e => e.category === s.guestCategoryFilter);
+    const guestEvents = gEvents.map(ev => ({
+      title: ev.title, venue: ev.venue, date: ev.date, priceFrom: ev.tiers[0].price,
+      onClick: () => this.setState({ guestSelectedEventId: ev.id, guestView: 'detail', selectedTierIndex: 0, ticketQty: 1, promoApplied: false, guestPromoInput: '', promoMsg: '' }),
+    }));
+
+    const detailEventRaw = this.events.find(e => e.id === s.guestSelectedEventId) || this.events[0];
+    const detailEvent = detailEventRaw;
+    const tierOptions = detailEventRaw.tiers.map((t, i) => ({
+      name: t.name, price: t.price,
+      availLabel: `${t.qty - t.sold} left of ${t.qty}`,
+      onClick: () => this.setState({ selectedTierIndex: i }),
+      borderColor: s.selectedTierIndex === i ? '#8bc34a' : 'rgba(139,195,74,.25)',
+      bg: s.selectedTierIndex === i ? 'rgba(139,195,74,.1)' : '#14160d',
+      dotBg: s.selectedTierIndex === i ? '#8bc34a' : 'transparent',
+    }));
+    const selectedTier = detailEventRaw.tiers[s.selectedTierIndex] || detailEventRaw.tiers[0];
+    const selectedTierTotal = this.fmt(selectedTier.price * s.ticketQty);
+    const selectedTierName = selectedTier.name;
+    const selectedTierPrice = selectedTier.price;
+
+    const checkoutSubtotal = selectedTier.price * s.ticketQty;
+    const checkoutFeesNum = 30*s.ticketQty + Math.round(30*s.ticketQty*0.18);
+    const checkoutFees = this.fmt(checkoutFeesNum);
+    const discountNum = s.promoApplied ? Math.min(Math.round(checkoutSubtotal*0.1), 100) : 0;
+    const checkoutDiscount = this.fmt(discountNum);
+    const checkoutTotal = this.fmt(checkoutSubtotal + checkoutFeesNum - discountNum);
+
+    const mobileNavDef = [
+      {key:'dashboard', label:'Home', icon:'▦'}, {key:'events', label:'Events', icon:'🎪'},
+      {key:'bookings', label:'Bookings', icon:'🎟'}, {key:'payments', label:'Money', icon:'💰'},
+      {key:'promos', label:'More', icon:'⋯'},
+    ];
+    const mobileNavItems = mobileNavDef.map(m => ({
+      label: m.label, icon: m.icon, onClick: () => this.setState({ adminView: m.key }),
+      color: s.adminView === m.key ? '#8bc34a' : '#9aa08c', weight: s.adminView === m.key ? 700 : 500,
+    }));
+
+    const loginIsAdmin = s.loginRole === 'admin';
+
+    return {
+      isLogin: s.mode === 'login',
+      isAdmin: s.mode === 'admin', isGuest: s.mode === 'guest',
+      toggleMode: () => this.setState({ mode: s.mode === 'admin' ? 'guest' : (s.mode === 'guest' ? 'login' : 'admin') }),
+      hasToast: !!s.toastMsg, toastMsg: s.toastMsg,
+
+      roleTag: s.userRole === 'staff' ? 'STAFF' : 'ADMIN',
+      onLogout: () => this.setState({ mode: 'login', loginEmail: '', loginPassword: '', loginError: null }),
+
+      setLoginRoleAdmin: () => this.setState({ loginRole: 'admin', loginError: null }),
+      setLoginRoleStaff: () => this.setState({ loginRole: 'staff', loginError: null }),
+      loginTabAdminBg: loginIsAdmin ? '#8bc34a' : 'transparent',
+      loginTabAdminColor: loginIsAdmin ? '#0b0c07' : '#c7cbb9',
+      loginTabStaffBg: !loginIsAdmin ? '#8bc34a' : 'transparent',
+      loginTabStaffColor: !loginIsAdmin ? '#0b0c07' : '#c7cbb9',
+      loginHeading: loginIsAdmin ? 'Admin sign in' : 'Staff sign in',
+      loginSubheading: loginIsAdmin ? 'Full access to the Prebooze control center.' : 'Scoped access — bookings, refunds & gate check-in.',
+      loginEmailPlaceholder: loginIsAdmin ? 'owner@prebooze.com' : 'staffname@prebooze.com',
+      loginButtonLabel: loginIsAdmin ? 'Sign in to admin panel' : 'Sign in as staff',
+      loginFootnote: loginIsAdmin ? 'Owners & managers only. Contact IT for access issues.' : 'Ask your manager for an invite if you don\u2019t have an account.',
+      loginEmail: s.loginEmail, onLoginEmail: (e) => this.setState({ loginEmail: e.target.value, loginError: null }),
+      loginPassword: s.loginPassword, onLoginPassword: (e) => this.setState({ loginPassword: e.target.value, loginError: null }),
+      rememberMe: s.rememberMe, onToggleRemember: () => this.setState({ rememberMe: !s.rememberMe }),
+      loginError: s.loginError,
+      onLoginSubmit: () => {
+        if (!s.loginEmail.trim() || !s.loginPassword.trim()) {
+          this.setState({ loginError: 'Enter both email and password.' });
+          return;
+        }
+        this.setState({ mode: 'admin', userRole: s.loginRole, adminView: 'dashboard', loginError: null });
+        this.toast('Welcome back ✓');
+      },
+      onBrowseAsGuest: () => this.setState({ mode: 'guest', guestView: 'home' }),
+
+      sidebarWidth: isMobile ? '0px' : '210px',
+      sidebarDisplay: isMobile ? 'none' : 'flex',
+      bottomNavDisplay: isMobile ? 'flex' : 'none',
+      contentPadding: isMobile ? '16px 14px 80px' : '24px 32px',
+      searchBarDisplay: isMobile ? 'none' : 'flex',
+      topActionsDisplay: isMobile ? 'none' : 'flex',
+
+      globalSearch: s.globalSearch, onGlobalSearch: (e) => this.setState({ globalSearch: e.target.value }),
+      onExportClick: () => this.toast('Export started ✓'),
+      onRunPayout: () => this.toast('Payout batch queued ✓'),
+      onCreateEvent: () => this.toast('New event draft created'),
+
+      mainNavItems, contentNavItems,
+      goStaff: () => this.setState({ adminView: 'staff' }),
+      staffBg: staffIsOn ? 'rgba(139,195,74,.12)' : 'transparent',
+      staffColor: staffIsOn ? '#8bc34a' : '#c7cbb9',
+      staffWeight: staffIsOn ? 700 : 500,
+      staffBorderColor: staffIsOn ? '#8bc34a' : 'transparent',
+      mobileNavItems,
+
+      isView, dashboardEvents,
+      goEvents: () => this.setState({ adminView: 'events' }),
+      goPendingEvents: () => this.setState({ adminView: 'events', eventTab: 'pending' }),
+      goRefunds: () => this.setState({ adminView: 'bookings', bookingStatusFilter: 'refund_requested' }),
+
+      eventTabs, eventQuery: s.eventQuery, onEventQuery: (e) => this.setState({ eventQuery: e.target.value }),
+      filteredEvents,
+
+      editingEvent,
+      editorTabs, editorTabIsBasics: s.editorTab === 'basics', editorTabIsTickets: s.editorTab === 'tickets', editorTabIsCommission: s.editorTab === 'commission',
+      commissionInputValue: String(commissionPct),
+      onCommissionChange: (e) => {
+        const v = e.target.value.replace(/[^0-9.]/g,'');
+        editingEventRaw.commission = v === '' ? 0 : parseFloat(v);
+        this.forceUpdate();
+      },
+      previewTicketPrice, previewGuestPays, previewPlatformKeeps, previewOrganizerNets,
+      onApproveEvent: () => { editingEventRaw.status = 'live'; editingEventRaw.commission = editingEventRaw.commission ?? 10; this.toast('Event approved ✓'); this.forceUpdate(); },
+      onRejectEvent: () => { this.toast('Event rejected'); this.setState({ adminView: 'events' }); },
+      onSaveEvent: () => this.toast('Event saved ✓'),
+
+      bookingQuery: s.bookingQuery, onBookingQuery: (e) => this.setState({ bookingQuery: e.target.value }),
+      bookingStatusFilters, filteredBookings,
+      hasSelectedBooking, selectedBooking,
+      closeBookingDetail: () => this.setState({ selectedBookingId: null }),
+      onApproveRefund: () => { selBookingRaw.status = 'refunded'; this.toast('Refund approved ✓'); this.setState({ selectedBookingId: null }); },
+      onDeclineRefund: () => { selBookingRaw.status = 'paid'; this.toast('Refund declined'); this.setState({ selectedBookingId: null }); },
+
+      customerQuery: s.customerQuery, onCustomerQuery: (e) => this.setState({ customerQuery: e.target.value }),
+      setCustSegGuests: () => this.setState({ customerSegment: 'guests' }),
+      setCustSegOrganizers: () => this.setState({ customerSegment: 'organizers' }),
+      custSegGuestsBg: s.customerSegment === 'guests' ? '#8bc34a' : 'transparent',
+      custSegGuestsColor: s.customerSegment === 'guests' ? '#0b0c07' : '#c7cbb9',
+      custSegOrgBg: s.customerSegment === 'organizers' ? '#8bc34a' : 'transparent',
+      custSegOrgColor: s.customerSegment === 'organizers' ? '#0b0c07' : '#c7cbb9',
+      filteredCustomers,
+      hasSelectedCustomer, selectedCustomer,
+      closeCustomerDetail: () => this.setState({ selectedCustomerId: null }),
+      onToggleBlock: () => { selCustRaw.status = selCustRaw.status === 'blocked' ? 'active' : 'blocked'; this.toast('Customer status updated'); this.forceUpdate(); },
+
+      organizerStatusMeta: null,
+      organizerRows: this.organizers.map(o => {
+        const om = { approved: {label:'Approved', color:'#8bc34a'}, pending: {label:'Pending review', color:'#ff6b5e'}, rejected: {label:'Rejected', color:'#6b7460'} }[o.status];
+        return {
+          id: o.id, name: o.name, contact: o.contact, city: o.city, events: o.events, kyc: o.kyc,
+          statusLabel: om.label, statusColor: om.color, isPending: o.status === 'pending',
+          onOpen: () => this.setState({ adminView: 'organizerDetail', selectedOrganizerId: o.id }),
+          onApprove: (e) => { e.stopPropagation(); o.status = 'approved'; this.toast(o.name + ' approved ✓'); this.forceUpdate(); },
+          onReject: (e) => { e.stopPropagation(); o.status = 'rejected'; this.toast(o.name + ' rejected'); this.forceUpdate(); },
+        };
+      }),
+      pendingOrganizerCount: this.organizers.filter(o=>o.status==='pending').length,
+      goOrganizers: () => this.setState({ adminView: 'organizers' }),
+      onAddOrganizerClick: () => this.setState({ adminView: 'addOrganizer', newOrgName:'', newOrgContact:'', newOrgCity:'', newOrgCommission:'' }),
+
+      orgDetail: (() => {
+        const o = this.organizers.find(x => x.id === s.selectedOrganizerId) || this.organizers[0];
+        const om = { approved: {label:'Approved', color:'#8bc34a'}, pending: {label:'Pending review', color:'#ff6b5e'}, rejected: {label:'Rejected', color:'#6b7460'} }[o.status];
+        const orgEvents = this.events.filter(ev => ev.organizer === o.name);
+        const eventRows = orgEvents.map(ev => {
+          const commission = ev.commission || 0;
+          const commAmt = ev.revenue * commission / 100;
+          return { title: ev.title, soldLabel: `${ev.sold}/${ev.cap}`, gross: this.fmt(ev.revenue), commission: this.fmt(commAmt), commissionPct: commission, net: this.fmt(ev.revenue - commAmt), onClick: () => this.setState({ adminView: 'eventEditor', selectedEventId: ev.id, editorTab: 'basics' }) };
+        });
+        const lifetimeRevenue = orgEvents.reduce((a,e)=>a+e.revenue,0);
+        const commissionPaid = orgEvents.reduce((a,e)=>a+(e.revenue*(e.commission||0)/100),0);
+        const monthlyBarsRaw = [30,55,40,70,85,60];
+        const maxBar = Math.max(...monthlyBarsRaw);
+        const monthLabels = ['Feb','Mar','Apr','May','Jun','Jul'];
+        return {
+          name: o.name, contact: o.contact, city: o.city, commission: orgEvents[0] ? orgEvents[0].commission : '—',
+          statusLabel: om.label, statusColor: om.color,
+          lifetimeRevenue: this.fmt(lifetimeRevenue), commissionPaid: this.fmt(commissionPaid), netPayouts: this.fmt(lifetimeRevenue - commissionPaid),
+          eventsCount: orgEvents.length,
+          monthlyBars: monthlyBarsRaw.map((v,i) => ({ heightPct: Math.round(v/maxBar*100), label: monthLabels[i] })),
+          eventRows,
+        };
+      })(),
+
+      venueRows: this.venues.map((v,i) => ({
+        ...v, onOpen: () => this.setState({ adminView: 'venueDetail', selectedVenueId: i }),
+      })),
+      showAddVenue: s.showAddVenue, toggleAddVenue: () => this.setState({ showAddVenue: !s.showAddVenue }),
+      newVenueName: s.newVenueName, onNewVenueName: (e) => this.setState({ newVenueName: e.target.value }),
+      newVenueCap: s.newVenueCap, onNewVenueCap: (e) => this.setState({ newVenueCap: e.target.value }),
+      onAddVenue: () => {
+        if (!s.newVenueName.trim()) return;
+        this.venues.push({ name: s.newVenueName, capacity: s.newVenueCap || '—', events: 0, license: 'docs pending', statusLabel: 'Docs pending', statusColor: '#ff6b5e' });
+        this.toast('Venue added ✓');
+        this.setState({ showAddVenue: false, newVenueName: '', newVenueCap: '', adminView: 'venues' });
+      },
+      onAddVenueClick: () => this.setState({ adminView: 'addVenue', newVenueName:'', newVenueCap:'', newVenueAddress:'', newVenueType:'Indoor' }),
+      newVenueAddress: s.newVenueAddress, onNewVenueAddress: (e) => this.setState({ newVenueAddress: e.target.value }),
+
+      venueDetail: (() => {
+        const v = this.venues[s.selectedVenueId] ?? this.venues[0];
+        return { ...v, eventsAtVenue: this.events.filter(ev => ev.venue === v.name).map(ev => {
+          const sm = statusMeta[ev.status] || {label:ev.status, color:'#9aa08c'};
+          return { title: ev.title, date: ev.date, statusLabel: sm.label, statusColor: sm.color };
+        })};
+      })(),
+      goVenues: () => this.setState({ adminView: 'venues' }),
+
+      newOrgName: s.newOrgName, onNewOrgName: (e) => this.setState({ newOrgName: e.target.value }),
+      newOrgContact: s.newOrgContact, onNewOrgContact: (e) => this.setState({ newOrgContact: e.target.value }),
+      newOrgCity: s.newOrgCity, onNewOrgCity: (e) => this.setState({ newOrgCity: e.target.value }),
+      newOrgCommission: s.newOrgCommission, onNewOrgCommission: (e) => this.setState({ newOrgCommission: e.target.value }),
+      onSaveNewOrganizer: () => {
+        if (!s.newOrgName.trim()) { this.toast('Enter an organizer name'); return; }
+        this.organizers.push({ id: 'o'+(this.organizers.length+1), name: s.newOrgName, contact: s.newOrgContact || '—', city: s.newOrgCity || '—', events: 0, kyc: 'submitted', status: 'pending' });
+        this.toast('Invite sent — organizer added as Pending review ✓');
+        this.setState({ adminView: 'organizers' });
+      },
+
+      payoutRows, totalCommissionKept,
+
+      promoList, newPromoCode: s.newPromoCode, onNewPromoCode: (e) => this.setState({ newPromoCode: e.target.value.toUpperCase() }),
+      newPromoValue: s.newPromoValue, onNewPromoValue: (e) => this.setState({ newPromoValue: e.target.value }),
+      genderOptions,
+      onCreatePromo: () => {
+        if (!s.newPromoCode.trim()) { this.toast('Enter a code first'); return; }
+        this.promos.unshift({ code: s.newPromoCode, discountLabel: (s.newPromoValue || '10') + (s.newPromoValue && s.newPromoValue.includes('₹') ? '' : '%'), scope: 'all events', gender: s.newPromoGender, usedLabel: '0/∞', statusLabel: 'Active', statusColor: '#8bc34a' });
+        this.toast('Promo code created ✓');
+        this.setState({ newPromoCode: '', newPromoValue: '', newPromoGender: 'all' });
+      },
+
+      reportChips,
+
+      banners: this.banners,
+      showAddBanner: s.showAddBanner, toggleAddBanner: () => this.setState({ showAddBanner: !s.showAddBanner }),
+      newBannerTitle: s.newBannerTitle, onNewBannerTitle: (e) => this.setState({ newBannerTitle: e.target.value }),
+      onAddBanner: () => { if(!s.newBannerTitle.trim()) return; this.banners.push({ title: s.newBannerTitle, statusLabel: 'Scheduled' }); this.toast('Banner added ✓'); this.setState({ showAddBanner:false, newBannerTitle:'' }); },
+
+      categories: this.categories,
+      showAddCategory: s.showAddCategory, toggleAddCategory: () => this.setState({ showAddCategory: !s.showAddCategory }),
+      newCategoryName: s.newCategoryName, onNewCategoryName: (e) => this.setState({ newCategoryName: e.target.value }),
+      onAddCategory: () => { if(!s.newCategoryName.trim()) return; this.categories.push({ icon:'🏷', name: s.newCategoryName, count: 0 }); this.toast('Category added ✓'); this.setState({ showAddCategory:false, newCategoryName:'' }); },
+
+      blogs: this.blogs,
+      showAddBlog: s.showAddBlog, toggleAddBlog: () => this.setState({ showAddBlog: !s.showAddBlog }),
+      newBlogTitle: s.newBlogTitle, onNewBlogTitle: (e) => this.setState({ newBlogTitle: e.target.value }),
+      onAddBlog: () => { if(!s.newBlogTitle.trim()) return; this.blogs.unshift({ title: s.newBlogTitle, meta: 'by You · just now', statusLabel: 'Draft', statusColor:'#ff6b5e' }); this.toast('Draft saved ✓'); this.setState({ showAddBlog:false, newBlogTitle:'' }); },
+
+      pages: this.pages,
+      showAddPage: s.showAddPage, toggleAddPage: () => this.setState({ showAddPage: !s.showAddPage }),
+      newPageTitle: s.newPageTitle, onNewPageTitle: (e) => this.setState({ newPageTitle: e.target.value }),
+      onAddPage: () => { if(!s.newPageTitle.trim()) return; this.pages.push({ title: s.newPageTitle, slug: '/'+s.newPageTitle.toLowerCase().replace(/\s+/g,'-') }); this.toast('Page created ✓'); this.setState({ showAddPage:false, newPageTitle:'' }); },
+
+      staff: this.staff,
+      showAddStaff: s.showAddStaff, toggleAddStaff: () => this.setState({ showAddStaff: !s.showAddStaff }),
+      newStaffEmail: s.newStaffEmail, onNewStaffEmail: (e) => this.setState({ newStaffEmail: e.target.value }),
+      onAddStaff: () => { if(!s.newStaffEmail.trim()) return; this.staff.push({ name: s.newStaffEmail, role: 'Support', lastActive: 'invited' }); this.toast('Invite sent ✓'); this.setState({ showAddStaff:false, newStaffEmail:'' }); },
+
+      guestNavHomeColor: '#8bc34a',
+      goGuestHome: () => this.setState({ guestView: 'home' }),
+      isGuestView, categoryChips, guestEvents,
+      detailEvent, tierOptions, selectedTierTotal, selectedTierName, selectedTierPrice,
+      ticketQty: s.ticketQty,
+      onQtyDec: () => this.setState({ ticketQty: Math.max(1, s.ticketQty - 1) }),
+      onQtyInc: () => this.setState({ ticketQty: Math.min(8, s.ticketQty + 1) }),
+      onProceedToCheckout: () => this.setState({ guestView: 'checkout' }),
+      backToDetail: () => this.setState({ guestView: 'detail' }),
+
+      guestPromoInput: s.guestPromoInput, onGuestPromoInput: (e) => this.setState({ guestPromoInput: e.target.value }),
+      onApplyPromo: () => {
+        const found = this.promos.find(p => p.code === s.guestPromoInput.toUpperCase() && p.statusLabel === 'Active');
+        if (found) { this.setState({ promoApplied: true, promoMsg: 'Promo applied ✓ ' + found.discountLabel }); }
+        else { this.setState({ promoApplied: false, promoMsg: 'Invalid or expired code' }); }
+      },
+      promoApplied: s.promoApplied,
+      promoMsg: s.promoMsg, promoMsgColor: s.promoApplied ? '#8bc34a' : '#ff6b5e',
+      checkoutSubtotal: this.fmt(checkoutSubtotal), checkoutFees, checkoutDiscount, checkoutTotal,
+      onPay: () => this.setState({ guestView: 'confirmation' }),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

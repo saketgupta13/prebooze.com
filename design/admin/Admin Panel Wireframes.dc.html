@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&amp;family=Caveat:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+a{color:#8bc34a}a:hover{color:#6fa334}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#15170f;border:1px solid rgba(139,195,74,.25);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.3);overflow:hidden}
+.dv-opt:target .dv-oid{background:#8bc34a;color:#0d0d0d}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.dv-group{width:100%;font:700 15px Caveat,cursive;color:rgba(0,0,0,.45);margin:14px 0 -12px;letter-spacing:.3px}
+.wf{font-family:'Patrick Hand',cursive;color:#f0f0e8}
+.wf-img{background:repeating-linear-gradient(45deg,#1c1f16 0 8px,#20240f 8px 16px);border:1.5px dashed rgba(139,195,74,.4);display:flex;align-items:center;justify-content:center;color:#8a8f7f;font:11px ui-monospace,Menlo,monospace}
+.wf-btn{border:1.8px solid #8bc34a;border-radius:6px;padding:7px 14px;text-align:center;font-family:'Patrick Hand',cursive;font-size:14px;background:transparent;color:#f0f0e8}
+.wf-btn.pri{background:#8bc34a;color:#0d0d0d;border-color:#8bc34a}
+.wf-in{border:1.6px solid rgba(139,195,74,.35);border-radius:6px;padding:7px 10px;color:#9aa08c;font-family:'Patrick Hand',cursive;font-size:13px;background:#0f110a}
+.wf-chip{border:1.5px solid rgba(139,195,74,.4);border-radius:999px;padding:3px 11px;font-size:12px;color:#c7cbb9;background:#1a1d13}
+.wf-note{font:500 13px Caveat,cursive;color:#ff6b5e}
+.wf-hr{border:none;border-top:1.5px dashed rgba(139,195,74,.3);margin:0}
+.wf-line{height:8px;background:#23261a;border-radius:4px}
+.wf-side{width:120px;flex:none;border-right:1.5px solid rgba(139,195,74,.2);background:#0f110a;padding:10px 0;display:flex;flex-direction:column;font-size:12px}
+.wf-si{padding:5px 12px;color:#a3a897;display:flex;gap:6px;align-items:center}
+.wf-si.on{background:#8bc34a;color:#0d0d0d;font-weight:700}
+.wf-th{display:flex;gap:8px;padding:6px 10px;font-size:10px;color:#8a8f7f;border-bottom:1.5px solid rgba(139,195,74,.2);background:#0f110a;text-transform:uppercase;letter-spacing:.5px}
+.wf-tr{display:flex;gap:8px;padding:7px 10px;font-size:11px;border-bottom:1.5px solid rgba(255,255,255,.06);align-items:center}
+.wf-tag{border-radius:4px;padding:1px 7px;font-size:10px;border:1.5px solid}
+.wf-kpi{border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:8px 10px;flex:1}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t4" data-screen-label="Turn 4 — Organizer & venue detail/add">
+<div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname">Organizer detail (income + events chart) · venue detail · add venue · add organizer</span></div>
+<div class="dv-opts">
+
+<!-- 4a organizer detail -->
+<div class="dv-opt" id="4a">
+<div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a>Organizer detail — income, event-wise breakdown, chart</div>
+<div class="dv-card wf" style="width:620px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<span style="font-size:12px">🧑‍💼 Organizers / <b>LiveWire Ent.</b></span>
+<div style="flex:1"></div>
+<span class="wf-btn" style="font-size:10px;padding:3px 10px">Message organizer</span>
+</div>
+<div style="display:flex;min-height:340px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si on">🧑‍💼 Organizers</div>
+<div class="wf-si">🏛 Venues</div>
+<div class="wf-si">💰 Payments</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;gap:10px;align-items:center">
+<span style="width:44px;height:44px;border-radius:50%;border:1.5px solid #8bc34a;display:flex;align-items:center;justify-content:center;font-size:18px;flex:none">🧑‍💼</span>
+<div style="flex:1"><div style="font-size:16px;font-weight:700">LiveWire Ent. <span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a;font-size:9px">Approved ✓</span></div><div style="font-size:11px;color:#9aa08c">contact@livewire.co · Austin · joined Jan '25 · 7% commission deal (volume)</div></div>
+</div>
+<div style="display:flex;gap:8px">
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Lifetime revenue</div><div style="font-size:16px;font-weight:700">₹3.1L</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Commission paid</div><div style="font-size:16px;font-weight:700">₹22.4k</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Net payouts</div><div style="font-size:16px;font-weight:700">₹2.88L</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Events run</div><div style="font-size:16px;font-weight:700">18</div></div>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:10px">
+<div style="font-size:12px;font-weight:700;margin-bottom:6px">Income over time</div>
+<div class="wf-img" style="height:90px;border-radius:6px;font-size:9px">bar chart — revenue per month, last 6 months</div>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div style="font-size:12px;font-weight:700;padding:8px 10px;border-bottom:1.5px solid rgba(139,195,74,.15)">Income by event</div>
+<div class="wf-th"><span style="flex:2">Event</span><span style="flex:1">Sold</span><span style="flex:1">Gross</span><span style="flex:1">Comm.</span><span style="flex:1">Net</span></div>
+<div class="wf-tr"><span style="flex:2;font-weight:700">Indie Night Live</span><span style="flex:1">312/400</span><span style="flex:1">₹94k</span><span style="flex:1">₹6.6k (7%)</span><span style="flex:1;font-weight:700">₹87.4k</span></div>
+<div class="wf-tr"><span style="flex:2;font-weight:700">Acoustic Evenings</span><span style="flex:1">40/150</span><span style="flex:1">₹9k</span><span style="flex:1">₹1.1k (12%)</span><span style="flex:1;font-weight:700">₹7.9k</span></div>
+<div class="wf-tr"><span style="flex:2;font-weight:700">Rooftop Sessions</span><span style="flex:1">210/210</span><span style="flex:1">₹1.5L</span><span style="flex:1">₹10.7k (7%)</span><span style="flex:1;font-weight:700">₹1.39L</span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">click an event row to open its editor · full history exportable as CSV</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 4b venue detail -->
+<div class="dv-opt" id="4b">
+<div class="dv-olabel"><a class="dv-oid" href="#4b">4b</a>Venue detail</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<span style="font-size:12px">🏛 Venues / <b>Arena Hall</b></span>
+<div style="flex:1"></div>
+<span class="wf-btn" style="font-size:10px;padding:3px 10px">Edit</span>
+</div>
+<div style="display:flex;min-height:320px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si">🧑‍💼 Organizers</div>
+<div class="wf-si on">🏛 Venues</div>
+<div class="wf-si">💰 Payments</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div class="wf-img" style="height:110px;border-radius:8px;font-size:9px">venue photo gallery — 4 photos</div>
+<div style="display:flex;gap:10px">
+<div style="flex:1"><div style="font-size:16px;font-weight:700">Arena Hall <span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a;font-size:9px">Verified</span></div><div style="font-size:11px;color:#9aa08c">123 5th St, Austin, TX · map pin set 📍</div></div>
+</div>
+<div style="display:flex;gap:8px">
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Capacity</div><div style="font-size:15px;font-weight:700">400</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Type</div><div style="font-size:15px;font-weight:700">Indoor</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Events hosted</div><div style="font-size:15px;font-weight:700">18</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">License</div><div style="font-size:13px;font-weight:700">valid · Mar '27</div></div>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:10px;font-size:11px;color:#9aa08c">Contact: Ravi N. · +91 98••• ••400 · house rules: no outside food, 11 PM curfew</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div style="font-size:12px;font-weight:700;padding:8px 10px;border-bottom:1.5px solid rgba(139,195,74,.15)">Upcoming &amp; past events here</div>
+<div class="wf-tr"><span style="flex:2;font-weight:700">Indie Night Live</span><span style="flex:1;color:#9aa08c">24 Jul</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Live</span></span></div>
+<div class="wf-tr"><span style="flex:2;font-weight:700">Acoustic Evenings</span><span style="flex:1;color:#9aa08c">7 Aug</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.35)">Draft</span></span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 4c add venue -->
+<div class="dv-opt" id="4c">
+<div class="dv-olabel"><a class="dv-oid" href="#4c">4c</a>Add new venue</div>
+<div class="dv-card wf" style="width:440px">
+<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<span style="font-size:13px">← <b>Add new venue</b></span>
+<div style="flex:1"></div>
+<span class="wf-btn pri" style="font-size:10px;padding:3px 10px">Save venue</span>
+</div>
+<div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+<div class="wf-img" style="height:70px;border-radius:8px;font-size:9px">+ upload venue photos</div>
+<div class="wf-in" style="font-size:12px">Venue name</div>
+<div class="wf-in" style="font-size:12px">Address / map pin 📍</div>
+<div style="display:flex;gap:8px"><div class="wf-in" style="flex:1;font-size:12px">Capacity</div><div class="wf-in" style="flex:1;font-size:12px">Type: Indoor ▾</div></div>
+<div class="wf-in" style="font-size:12px">Contact person + phone</div>
+<div class="wf-in" style="font-size:12px">House rules / notes</div>
+<div style="border:1.5px dashed rgba(139,195,74,.4);border-radius:8px;padding:10px;font-size:11px;color:#9aa08c">+ upload license / permit docs — required before venue is marked Verified</div>
+<div class="wf-note">new venue starts as "Docs pending" until license reviewed</div>
+</div>
+</div>
+</div>
+
+<!-- 4d add organizer -->
+<div class="dv-opt" id="4d">
+<div class="dv-olabel"><a class="dv-oid" href="#4d">4d</a>Add new organizer</div>
+<div class="dv-card wf" style="width:440px">
+<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<span style="font-size:13px">← <b>Add new organizer</b></span>
+<div style="flex:1"></div>
+<span class="wf-btn pri" style="font-size:10px;padding:3px 10px">Send invite</span>
+</div>
+<div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+<div class="wf-in" style="font-size:12px">Organizer / company name</div>
+<div style="display:flex;gap:8px"><div class="wf-in" style="flex:1;font-size:12px">Contact email</div><div class="wf-in" style="flex:1;font-size:12px">Phone</div></div>
+<div class="wf-in" style="font-size:12px">City</div>
+<div style="display:flex;gap:8px"><div class="wf-in" style="flex:1;font-size:12px">Commission rate %</div><div class="wf-in" style="flex:1;font-size:12px">Category focus ▾</div></div>
+<div style="border:1.5px dashed rgba(139,195,74,.4);border-radius:8px;padding:10px;font-size:11px;color:#9aa08c">+ upload KYC docs (PAN / GST / business proof) — organizer stays "Pending review" until approved</div>
+<div class="wf-note">invite sends a portal link for the organizer to set their password</div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "riff on the income chart style" · "add a payout schedule to organizer detail" · "map view for venues"</p>
+</section>
+
+<section class="dv-turn" id="t3" data-screen-label="Turn 3 — Login">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Admin &amp; staff login</span></div>
+<div class="dv-opts">
+
+<!-- 3a admin login -->
+<div class="dv-opt" id="3a">
+<div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Admin login</div>
+<div class="dv-card wf" style="width:360px">
+<div style="padding:28px 26px;display:flex;flex-direction:column;gap:16px;align-items:center">
+<img src="logo.png" alt="Prebooze" style="height:46px;width:auto">
+<div style="font-size:11px;color:#9aa08c;letter-spacing:.5px;font-family:system-ui,sans-serif;text-transform:uppercase">Team sign in</div>
+<div style="display:flex;width:100%;border:1.8px solid #8bc34a;border-radius:8px;overflow:hidden">
+<div style="flex:1;text-align:center;padding:8px;background:#8bc34a;color:#0d0d0d;font-weight:700;font-size:13px">Admin login</div>
+<div style="flex:1;text-align:center;padding:8px;color:#c7cbb9;font-size:13px">Staff login</div>
+</div>
+<div style="width:100%;display:flex;flex-direction:column;gap:10px">
+<div style="font-size:15px;font-weight:700">Admin sign in</div>
+<div style="font-size:11px;color:#9aa08c;margin-top:-6px">Full access to the Prebooze control center</div>
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:10px;color:#9aa08c">Email</span><div class="wf-in" style="font-size:12px;padding:7px 10px">owner@prebooze.com</div></div>
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:10px;color:#9aa08c">Password</span><div class="wf-in" style="font-size:12px;padding:7px 10px">••••••••</div></div>
+<div style="display:flex;justify-content:space-between;font-size:10px;color:#9aa08c"><span>☑ Remember me</span><span style="text-decoration:underline">Forgot password?</span></div>
+<div class="wf-btn pri" style="font-size:13px">Sign in to admin panel</div>
+<div style="font-size:9.5px;color:#6b7460;text-align:center">Owners &amp; managers only · contact IT for access</div>
+</div>
+<div style="font-size:11px;text-decoration:underline">Not staff? Browse events as a guest →</div>
+</div>
+</div>
+<div class="wf-note">tab switch swaps copy + role tag (ADMIN/STAFF) after sign in</div>
+</div>
+
+<!-- 3b staff login -->
+<div class="dv-opt" id="3b">
+<div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>Staff login</div>
+<div class="dv-card wf" style="width:360px">
+<div style="padding:28px 26px;display:flex;flex-direction:column;gap:16px;align-items:center">
+<img src="logo.png" alt="Prebooze" style="height:46px;width:auto">
+<div style="font-size:11px;color:#9aa08c;letter-spacing:.5px;font-family:system-ui,sans-serif;text-transform:uppercase">Team sign in</div>
+<div style="display:flex;width:100%;border:1.8px solid #8bc34a;border-radius:8px;overflow:hidden">
+<div style="flex:1;text-align:center;padding:8px;color:#c7cbb9;font-size:13px">Admin login</div>
+<div style="flex:1;text-align:center;padding:8px;background:#8bc34a;color:#0d0d0d;font-weight:700;font-size:13px">Staff login</div>
+</div>
+<div style="width:100%;display:flex;flex-direction:column;gap:10px">
+<div style="font-size:15px;font-weight:700">Staff sign in</div>
+<div style="font-size:11px;color:#9aa08c;margin-top:-6px">Scoped access — bookings, refunds &amp; gate check-in</div>
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:10px;color:#9aa08c">Email</span><div class="wf-in" style="font-size:12px;padding:7px 10px">staffname@prebooze.com</div></div>
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:10px;color:#9aa08c">Password</span><div class="wf-in" style="font-size:12px;padding:7px 10px">••••••••</div></div>
+<div style="display:flex;justify-content:space-between;font-size:10px;color:#9aa08c"><span>☑ Remember me</span><span style="text-decoration:underline">Forgot password?</span></div>
+<div class="wf-btn pri" style="font-size:13px">Sign in as staff</div>
+<div style="font-size:9.5px;color:#6b7460;text-align:center">Ask your manager for an invite if you don't have an account</div>
+</div>
+<div style="font-size:11px;text-decoration:underline">Not staff? Browse events as a guest →</div>
+</div>
+</div>
+<div class="wf-note">staff role scoped per permission matrix (see <a class="dv-oid" href="#2n">2n</a>)</div>
+</div>
+
+<!-- 3c error state -->
+<div class="dv-opt" id="3c">
+<div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>Validation error state</div>
+<div class="dv-card wf" style="width:360px">
+<div style="padding:28px 26px;display:flex;flex-direction:column;gap:16px;align-items:center">
+<img src="logo.png" alt="Prebooze" style="height:46px;width:auto">
+<div style="display:flex;width:100%;border:1.8px solid #8bc34a;border-radius:8px;overflow:hidden">
+<div style="flex:1;text-align:center;padding:8px;background:#8bc34a;color:#0d0d0d;font-weight:700;font-size:13px">Admin login</div>
+<div style="flex:1;text-align:center;padding:8px;color:#c7cbb9;font-size:13px">Staff login</div>
+</div>
+<div style="width:100%;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:10px;color:#9aa08c">Email</span><div class="wf-in" style="font-size:12px;padding:7px 10px;border-color:#ff6b5e"></div></div>
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:10px;color:#9aa08c">Password</span><div class="wf-in" style="font-size:12px;padding:7px 10px;border-color:#ff6b5e"></div></div>
+<div style="font-size:11px;color:#ff6b5e">Enter both email and password.</div>
+<div class="wf-btn pri" style="font-size:13px">Sign in to admin panel</div>
+</div>
+</div>
+</div>
+<div class="wf-note">empty submit blocks with inline error, no page reload</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "riff on the staff permission scoping" · "add forgot-password flow" · "2FA step after login"</p>
+</section>
+
+<section class="dv-turn" id="t2" data-screen-label="Turn 2 — Sidebar shell everywhere">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Preferred direction <a class="dv-oid" href="#1a">1a</a> — sidebar shell on every screen · one module per screen · per-event commission · gender targeting in promos</span></div>
+<div class="dv-opts">
+
+<!-- 2a dashboard -->
+<div class="dv-opt" id="2a">
+<div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Dashboard</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search bookings, events, users…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:360px">
+<div class="wf-side">
+<div class="wf-si on">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si">🧑‍💼 Organizers</div>
+<div class="wf-si">🏛 Venues</div>
+<div class="wf-si">💰 Payments</div>
+<div class="wf-si">🏷 Promo codes</div>
+<div class="wf-si">📊 Reports</div>
+<div style="font-size:9px;color:#9aa08c;padding:8px 12px 2px;text-transform:uppercase;letter-spacing:.5px">Content</div>
+<div class="wf-si">🖼 Banners</div>
+<div class="wf-si">📁 Categories</div>
+<div class="wf-si">✍ Blogs</div>
+<div class="wf-si">📄 Pages</div>
+<div style="flex:1"></div>
+<div class="wf-si">🛡 Staff &amp; roles</div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:15px;font-weight:700">Good morning, Admin 👋</div><div style="display:flex;gap:8px;align-items:center"><span class="wf-chip" style="font-size:10px">Last 7 days ▾</span><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ Add organizer</span></div></div>
+<div style="display:flex;gap:8px">
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Gross sales</div><div style="font-size:16px;font-weight:700">₹4.2L</div><div style="font-size:9px;color:#8bc34a">▲ 12%</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Tickets sold</div><div style="font-size:16px;font-weight:700">1,842</div><div style="font-size:9px;color:#8bc34a">▲ 8%</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Commission earned</div><div style="font-size:16px;font-weight:700">₹38.4k</div><div style="font-size:9px;color:#8bc34a">▲ 15%</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Refunds</div><div style="font-size:16px;font-weight:700">₹6.1k</div><div style="font-size:9px;color:#ff6b5e">▼ 41 tickets</div></div>
+</div>
+<div style="display:flex;gap:10px">
+<div style="flex:1.5;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:10px">
+<div style="font-size:12px;font-weight:700;margin-bottom:6px">Sales trend</div>
+<div class="wf-img" style="height:90px;border-radius:6px;font-size:9px">line chart — daily sales vs commission</div>
+</div>
+<div style="flex:1;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px">
+<div style="font-size:12px;font-weight:700">Needs attention</div>
+<div style="font-size:10px;border:1.5px dashed #ff6b5e;border-radius:6px;padding:5px 7px;color:#ff6b5e">⚠ 4 events awaiting approval</div>
+<div style="font-size:10px;border:1.5px dashed rgba(139,195,74,.35);border-radius:6px;padding:5px 7px;color:#9aa08c">↩ 3 refund requests pending</div>
+<div style="font-size:10px;border:1.5px dashed rgba(139,195,74,.35);border-radius:6px;padding:5px 7px;color:#9aa08c">💸 2 organizer payouts due Fri</div>
+<div style="font-size:10px;border:1.5px dashed rgba(139,195,74,.35);border-radius:6px;padding:5px 7px;color:#9aa08c">🛡 1 organizer KYC to review</div>
+</div>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div style="font-size:12px;font-weight:700;padding:8px 10px;border-bottom:1.5px solid rgba(139,195,74,.15);display:flex;justify-content:space-between"><span>Live &amp; upcoming events</span><span style="font-size:10px;color:#9aa08c;text-decoration:underline">All events →</span></div>
+<div class="wf-th"><span style="flex:2">Event</span><span style="flex:1">Date</span><span style="flex:1">Sold</span><span style="flex:1">Revenue</span><span style="flex:1">Status</span></div>
+<div class="wf-tr"><span style="flex:2;font-weight:700">Indie Night Live</span><span style="flex:1;color:#9aa08c">24 Jul</span><span style="flex:1">312/400</span><span style="flex:1">₹94k</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">● Live</span></span></div>
+<div class="wf-tr"><span style="flex:2;font-weight:700">Summer Fest '26</span><span style="flex:1;color:#9aa08c">1 Aug</span><span style="flex:1">1,105/2k</span><span style="flex:1">₹2.1L</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">● Live</span></span></div>
+<div class="wf-tr"><span style="flex:2;font-weight:700">Stand-up Sunday</span><span style="flex:1;color:#9aa08c">2 Aug</span><span style="flex:1">—</span><span style="flex:1">—</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Pending</span></span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="wf-note">note: no global “Commission” item — commission is set per event (<a class="dv-oid" href="#2c">2c</a>)</div>
+</div>
+
+<!-- 2b events -->
+<div class="dv-opt" id="2b">
+<div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Events</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:330px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si on">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si">🧑‍💼 Organizers</div>
+<div class="wf-si">🏛 Venues</div>
+<div class="wf-si">💰 Payments</div>
+<div class="wf-si">🏷 Promo codes</div>
+<div class="wf-si">📊 Reports</div>
+<div style="font-size:9px;color:#9aa08c;padding:8px 12px 2px;text-transform:uppercase;letter-spacing:.5px">Content</div>
+<div class="wf-si">🖼 Banners</div>
+<div class="wf-si">📁 Categories</div>
+<div class="wf-si">✍ Blogs</div>
+<div class="wf-si">📄 Pages</div>
+<div style="flex:1"></div>
+<div class="wf-si">🛡 Staff &amp; roles</div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Events</div><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ Create event</span></div>
+<div style="display:flex;gap:0;border-bottom:1.8px solid #8bc34a;font-size:11px">
+<div style="padding:4px 12px;border:1.8px solid #8bc34a;border-bottom:none;border-radius:7px 7px 0 0;font-weight:700;background:#15170f">All (48)</div>
+<div style="padding:4px 12px;color:#ff6b5e">Pending approval (4)</div>
+<div style="padding:4px 12px;color:#9aa08c">Live (12)</div>
+<div style="padding:4px 12px;color:#9aa08c">Draft (6)</div>
+<div style="padding:4px 12px;color:#9aa08c">Past (26)</div>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 8px">🔍 Search events…</div>
+<span class="wf-chip" style="font-size:10px">Category ▾</span>
+<span class="wf-chip" style="font-size:10px">Venue ▾</span>
+<span class="wf-chip" style="font-size:10px">Organizer ▾</span>
+<span class="wf-chip" style="font-size:10px">Date ▾</span>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:2.2">Event</span><span style="flex:1.2">Organizer</span><span style="flex:1">Date</span><span style="flex:1">Sold / cap</span><span style="flex:0.9">Comm.</span><span style="flex:1">Status</span><span style="width:20px"></span></div>
+<div class="wf-tr"><span style="flex:2.2;display:flex;gap:6px;align-items:center"><span class="wf-img" style="width:22px;height:28px;border-radius:3px;font-size:6px"></span><b>Indie Night Live</b></span><span style="flex:1.2;color:#9aa08c">LiveWire ✓</span><span style="flex:1;color:#9aa08c">24 Jul</span><span style="flex:1">312/400</span><span style="flex:0.9">10%</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">● Live</span></span><span style="width:20px;color:#9aa08c">⋮</span></div>
+<div class="wf-tr" style="background:rgba(255,107,94,.08)"><span style="flex:2.2;display:flex;gap:6px;align-items:center"><span class="wf-img" style="width:22px;height:28px;border-radius:3px;font-size:6px"></span><b>Stand-up Sunday</b></span><span style="flex:1.2;color:#9aa08c">NightOwl ✓</span><span style="flex:1;color:#9aa08c">2 Aug</span><span style="flex:1">—</span><span style="flex:0.9;color:#ff6b5e">unset</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Pending</span></span><span style="width:20px;color:#9aa08c">⋮</span></div>
+<div class="wf-tr"><span style="flex:2.2;display:flex;gap:6px;align-items:center"><span class="wf-img" style="width:22px;height:28px;border-radius:3px;font-size:6px"></span><b>Summer Fest '26</b></span><span style="flex:1.2;color:#9aa08c">FestCrew ✓</span><span style="flex:1;color:#9aa08c">1 Aug</span><span style="flex:1">1,105/2k</span><span style="flex:0.9">8%</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">● Live</span></span><span style="width:20px;color:#9aa08c">⋮</span></div>
+<div class="wf-tr"><span style="flex:2.2;display:flex;gap:6px;align-items:center"><span class="wf-img" style="width:22px;height:28px;border-radius:3px;font-size:6px"></span><b>Acoustic Evenings</b></span><span style="flex:1.2;color:#9aa08c">LiveWire ✓</span><span style="flex:1;color:#9aa08c">7 Aug</span><span style="flex:1">40/150</span><span style="flex:0.9">12%</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.35)">Draft</span></span><span style="width:20px;color:#9aa08c">⋮</span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c;display:flex;justify-content:space-between"><span>⋮ menu: view · edit · set commission · feature on home · pause sales · duplicate · cancel</span><span>‹ 1 2 3 ›</span></div>
+</div>
+</div>
+</div>
+<div class="wf-note">commission column shows each event's own rate</div>
+</div>
+
+<!-- 2c event editor -->
+<div class="dv-opt" id="2c">
+<div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>Event editor — commission set per event</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<span style="font-size:12px">🎪 Events / <b>Indie Night Live</b></span>
+<div style="flex:1"></div>
+<span class="wf-btn" style="font-size:10px;padding:3px 10px">Preview as guest</span>
+<span class="wf-btn pri" style="font-size:10px;padding:3px 10px">Save</span>
+</div>
+<div style="display:flex;min-height:330px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si on">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si">🧑‍💼 Organizers</div>
+<div class="wf-si">🏛 Venues</div>
+<div class="wf-si">💰 Payments</div>
+<div class="wf-si">🏷 Promo codes</div>
+<div class="wf-si">📊 Reports</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;display:flex">
+<div style="width:104px;flex:none;border-right:1.5px solid rgba(139,195,74,.2);padding:10px 0;display:flex;flex-direction:column;font-size:11px">
+<div class="wf-si" style="font-size:11px">1 · Basics</div>
+<div class="wf-si" style="font-size:11px">2 · Tickets</div>
+<div class="wf-si" style="font-size:11px">3 · Media</div>
+<div class="wf-si" style="font-size:11px">4 · Rules</div>
+<div class="wf-si on" style="font-size:11px">5 · Commission</div>
+<div class="wf-si" style="font-size:11px">6 · Line-up</div>
+</div>
+<div style="flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="font-size:14px;font-weight:700">Commission &amp; fees — this event only</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;gap:8px;font-size:11px;align-items:center"><span style="flex:1.4">Platform commission</span><div class="wf-in" style="width:56px;font-size:11px;padding:3px 8px;color:#f0f0e8;text-align:center">10 %</div><span style="font-size:9px;color:#9aa08c">negotiated with organizer</span></div>
+<div style="display:flex;gap:8px;font-size:11px;align-items:center"><span style="flex:1.4">Booking fee (per ticket)</span><div class="wf-in" style="width:56px;font-size:11px;padding:3px 8px;color:#f0f0e8;text-align:center">₹30</div></div>
+<div style="display:flex;gap:8px;font-size:11px;align-items:center"><span style="flex:1.4">GST on platform fee</span><div class="wf-in" style="width:56px;font-size:11px;padding:3px 8px;color:#f0f0e8;text-align:center">18 %</div></div>
+<div style="display:flex;gap:8px;font-size:11px;align-items:center"><span style="flex:1.4">Fee absorbed by</span><span class="wf-chip" style="font-size:10px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">Organizer</span><span class="wf-chip" style="font-size:10px">Guest</span><span class="wf-chip" style="font-size:10px">Split</span></div>
+</div>
+<div style="border:1.5px dashed rgba(139,195,74,.3);border-radius:8px;padding:8px 10px;font-size:10px;color:#9aa08c">
+<b style="color:#f0f0e8">Preview — ₹450 General ticket:</b> guest pays ₹450 + ₹30 fee + ₹5.4 GST = <b style="color:#f0f0e8">₹485.4</b> · platform keeps ₹75 · organizer nets ₹405
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.15);border-radius:8px;padding:8px 10px;font-size:10px;color:#9aa08c">
+Rate history: 10% set 12 Jun by You · draft was 12% · <span style="text-decoration:underline">copy rates from another event ▾</span>
+</div>
+<div class="wf-note">locked once event goes live — change requires owner approval</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 2d bookings -->
+<div class="dv-opt" id="2d">
+<div class="dv-olabel"><a class="dv-oid" href="#2d">2d</a>Bookings</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:300px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si on">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si">🧑‍💼 Organizers</div>
+<div class="wf-si">🏛 Venues</div>
+<div class="wf-si">💰 Payments</div>
+<div class="wf-si">🏷 Promo codes</div>
+<div class="wf-si">📊 Reports</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px;position:relative">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Bookings</div><span class="wf-btn" style="font-size:10px;padding:3px 10px">⬇ Export CSV</span></div>
+<div style="display:flex;gap:6px">
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 8px">🔍 booking id / phone / name…</div>
+<span class="wf-chip" style="font-size:10px">Event ▾</span>
+<span class="wf-chip" style="font-size:10px">Status ▾</span>
+<span class="wf-chip" style="font-size:10px">Date ▾</span>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:1">#ID</span><span style="flex:1.6">Guest</span><span style="flex:1.8">Event</span><span style="flex:1">Qty · Amount</span><span style="flex:1">Status</span></div>
+<div class="wf-tr" style="background:rgba(139,195,74,.08)"><span style="flex:1;font-weight:700">#8412</span><span style="flex:1.6">Sam R. · +91 98•••</span><span style="flex:1.8;color:#9aa08c">Indie Night Live</span><span style="flex:1">2 · ₹1,450</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Refund req.</span></span></div>
+<div class="wf-tr"><span style="flex:1;font-weight:700">#8420</span><span style="flex:1.6">Priya K. · +91 87•••</span><span style="flex:1.8;color:#9aa08c">Summer Fest '26</span><span style="flex:1">4 · ₹2,900</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Paid</span></span></div>
+<div class="wf-tr"><span style="flex:1;font-weight:700">#8419</span><span style="flex:1.6">Arjun M. · +91 99•••</span><span style="flex:1.8;color:#9aa08c">Indie Night Live</span><span style="flex:1">1 · ₹580</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.35)">Checked in</span></span></div>
+<div class="wf-tr"><span style="flex:1;font-weight:700">#8415</span><span style="flex:1.6">Nia T. · +91 76•••</span><span style="flex:1.8;color:#9aa08c">Summer Fest '26</span><span style="flex:1">2 · ₹1,160</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.3)">Refunded</span></span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">click row → slide-over detail with fee breakdown, QR resend, refund approve/decline (<a class="dv-oid" href="#1g">1g</a>)</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 2e customers -->
+<div class="dv-opt" id="2e">
+<div class="dv-olabel"><a class="dv-oid" href="#2e">2e</a>Customers</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:290px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si on">👥 Customers</div>
+<div class="wf-si">🧑‍💼 Organizers</div>
+<div class="wf-si">🏛 Venues</div>
+<div class="wf-si">💰 Payments</div>
+<div class="wf-si">🏷 Promo codes</div>
+<div class="wf-si">📊 Reports</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Customers</div><div style="display:flex;gap:6px"><span class="wf-chip" style="font-size:10px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">Guests</span><span class="wf-chip" style="font-size:10px">Organizers</span></div></div>
+<div style="display:flex;gap:6px">
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 8px">🔍 name / phone / email…</div>
+<span class="wf-chip" style="font-size:10px">Verified ▾</span>
+<span class="wf-chip" style="font-size:10px">City ▾</span>
+<span class="wf-chip" style="font-size:10px">Gender ▾</span>
+<span class="wf-chip" style="font-size:10px">Spend ▾</span>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:1.8">Guest</span><span style="flex:0.9">Gender</span><span style="flex:1">City</span><span style="flex:1">Bookings</span><span style="flex:1">Spend</span><span style="flex:1">Status</span></div>
+<div class="wf-tr"><span style="flex:1.8"><b>Sam Rivera</b> ✓</span><span style="flex:0.9;color:#9aa08c">M</span><span style="flex:1;color:#9aa08c">Austin</span><span style="flex:1">14</span><span style="flex:1">₹18.2k</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Active</span></span></div>
+<div class="wf-tr"><span style="flex:1.8"><b>Priya K.</b> ✓</span><span style="flex:0.9;color:#9aa08c">F</span><span style="flex:1;color:#9aa08c">Austin</span><span style="flex:1">6</span><span style="flex:1">₹7.4k</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Active</span></span></div>
+<div class="wf-tr"><span style="flex:1.8"><b>Arjun M.</b></span><span style="flex:0.9;color:#9aa08c">M</span><span style="flex:1;color:#9aa08c">Dallas</span><span style="flex:1">2</span><span style="flex:1">₹1.1k</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.35)">Unverified</span></span></div>
+<div class="wf-tr"><span style="flex:1.8"><b>R. Gupta</b></span><span style="flex:0.9;color:#9aa08c">—</span><span style="flex:1;color:#9aa08c">Austin</span><span style="flex:1">1</span><span style="flex:1">₹0</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Blocked</span></span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">click row → profile drawer: verification, booking history, WhatsApp, block (<a class="dv-oid" href="#1k">1k</a>)</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 2o organizers -->
+<div class="dv-opt" id="2o">
+<div class="dv-olabel"><a class="dv-oid" href="#2o">2o</a>Organizers — approve / reject</div>
+<div class="dv-card wf" style="width:600px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:300px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si on">🧑‍💼 Organizers</div>
+<div class="wf-si">🏛 Venues</div>
+<div class="wf-si">💰 Payments</div>
+<div class="wf-si">🏷 Promo codes</div>
+<div class="wf-si">📊 Reports</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Organizers</div><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e;font-size:10px">2 awaiting review</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:1.6">Organizer</span><span style="flex:1.6">Contact</span><span style="flex:1">City</span><span style="flex:0.8">Events</span><span style="flex:1">KYC</span><span style="flex:1">Status</span><span style="flex:1.4"></span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>LiveWire Ent.</b></span><span style="flex:1.6;color:#9aa08c">contact@livewire.co</span><span style="flex:1;color:#9aa08c">Austin</span><span style="flex:0.8">18</span><span style="flex:1;color:#9aa08c">verified</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Approved</span></span><span style="flex:1.4"></span></div>
+<div class="wf-tr" style="background:rgba(255,107,94,.08)"><span style="flex:1.6"><b>NightOwl Co.</b></span><span style="flex:1.6;color:#9aa08c">bookings@nightowl.co</span><span style="flex:1;color:#9aa08c">Dallas</span><span style="flex:0.8">2</span><span style="flex:1;color:#9aa08c">pending</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Pending review</span></span><span style="flex:1.4;display:flex;gap:5px;justify-content:flex-end"><span class="wf-btn pri" style="font-size:9px;padding:3px 9px">Approve</span><span class="wf-btn" style="font-size:9px;padding:3px 9px;color:#ff6b5e;border-color:#ff6b5e">Reject</span></span></div>
+<div class="wf-tr" style="background:rgba(255,107,94,.08)"><span style="flex:1.6"><b>Sunset Sessions</b></span><span style="flex:1.6;color:#9aa08c">team@sunsetsessions.com</span><span style="flex:1;color:#9aa08c">Houston</span><span style="flex:0.8">0</span><span style="flex:1;color:#9aa08c">submitted</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Pending review</span></span><span style="flex:1.4;display:flex;gap:5px;justify-content:flex-end"><span class="wf-btn pri" style="font-size:9px;padding:3px 9px">Approve</span><span class="wf-btn" style="font-size:9px;padding:3px 9px;color:#ff6b5e;border-color:#ff6b5e">Reject</span></span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>Rowdy Promotions</b></span><span style="flex:1.6;color:#9aa08c">info@rowdyprom.com</span><span style="flex:1;color:#9aa08c">Austin</span><span style="flex:0.8">0</span><span style="flex:1;color:#9aa08c">flagged</span><span style="flex:1"><span class="wf-tag" style="color:#6b7460;border-color:rgba(139,195,74,.35)">Rejected</span></span><span style="flex:1.4"></span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">approve unlocks event creation for the organizer · reject keeps account read-only</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 2f venues -->
+<div class="dv-opt" id="2f">
+<div class="dv-olabel"><a class="dv-oid" href="#2f">2f</a>Venues — own screen</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:280px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si on">🏛 Venues</div>
+<div class="wf-si">💰 Payments</div>
+<div class="wf-si">🏷 Promo codes</div>
+<div class="wf-si">📊 Reports</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Venues</div><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ Add venue</span></div>
+<div style="display:flex;gap:6px">
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 8px">🔍 search venues…</div>
+<span class="wf-chip" style="font-size:10px">City ▾</span>
+<span class="wf-chip" style="font-size:10px">Type ▾</span>
+<span class="wf-chip" style="font-size:10px">Docs status ▾</span>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:2">Venue</span><span style="flex:1">Capacity</span><span style="flex:1">Type</span><span style="flex:1">Events</span><span style="flex:1.2">License</span><span style="flex:1">Status</span></div>
+<div class="wf-tr"><span style="flex:2;display:flex;gap:6px;align-items:center"><span class="wf-img" style="width:26px;height:20px;border-radius:3px;font-size:6px"></span><b>Arena Hall</b></span><span style="flex:1">400</span><span style="flex:1;color:#9aa08c">Indoor</span><span style="flex:1">18</span><span style="flex:1.2;color:#9aa08c">valid till Mar '27</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Verified</span></span></div>
+<div class="wf-tr"><span style="flex:2;display:flex;gap:6px;align-items:center"><span class="wf-img" style="width:26px;height:20px;border-radius:3px;font-size:6px"></span><b>Riverside Grounds</b></span><span style="flex:1">2,000</span><span style="flex:1;color:#9aa08c">Outdoor</span><span style="flex:1">11</span><span style="flex:1.2;color:#9aa08c">valid till Jan '27</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Verified</span></span></div>
+<div class="wf-tr" style="background:rgba(255,107,94,.08)"><span style="flex:2;display:flex;gap:6px;align-items:center"><span class="wf-img" style="width:26px;height:20px;border-radius:3px;font-size:6px"></span><b>Comedy Cave</b></span><span style="flex:1">180</span><span style="flex:1;color:#9aa08c">Indoor</span><span style="flex:1">9</span><span style="flex:1.2;color:#ff6b5e">expires 12 Aug ⚠</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Docs pending</span></span></div>
+<div class="wf-tr"><span style="flex:2;display:flex;gap:6px;align-items:center"><span class="wf-img" style="width:26px;height:20px;border-radius:3px;font-size:6px"></span><b>The Loft</b></span><span style="flex:1">120</span><span style="flex:1;color:#9aa08c">Rooftop</span><span style="flex:1">7</span><span style="flex:1.2;color:#9aa08c">valid till Nov '26</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Verified</span></span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">venue detail: address + map pin, photos, license docs, contact person, house rules</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 2g payments -->
+<div class="dv-opt" id="2g">
+<div class="dv-olabel"><a class="dv-oid" href="#2g">2g</a>Payments — per-event commission in ledger</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:300px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si">🧑‍💼 Organizers</div>
+<div class="wf-si">🏛 Venues</div>
+<div class="wf-si on">💰 Payments</div>
+<div class="wf-si">🏷 Promo codes</div>
+<div class="wf-si">📊 Reports</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Payments &amp; payouts</div><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">Run payout batch →</span></div>
+<div style="display:flex;gap:8px">
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Collected</div><div style="font-size:14px;font-weight:700">₹3.4L</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Commission kept</div><div style="font-size:14px;font-weight:700">₹41.2k</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">GST collected</div><div style="font-size:14px;font-weight:700">₹7.4k</div></div>
+<div class="wf-kpi" style="border-color:#ff6b5e"><div style="font-size:10px;color:#ff6b5e">Due Friday</div><div style="font-size:14px;font-weight:700;color:#ff6b5e">₹2.9L</div></div>
+</div>
+<div style="display:flex;gap:0;border-bottom:1.8px solid #8bc34a;font-size:11px">
+<div style="padding:4px 12px;border:1.8px solid #8bc34a;border-bottom:none;border-radius:7px 7px 0 0;font-weight:700;background:#15170f">Payouts due</div>
+<div style="padding:4px 12px;color:#9aa08c">Transactions</div>
+<div style="padding:4px 12px;color:#9aa08c">Refunds</div>
+<div style="padding:4px 12px;color:#9aa08c">Disputes</div>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:1.6">Organizer</span><span style="flex:1.6">Event</span><span style="flex:1">Gross</span><span style="flex:1.1">Comm. (event rate)</span><span style="flex:0.8">GST</span><span style="flex:1">Net payout</span><span style="flex:0.9"></span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>LiveWire Ent.</b> ✓</span><span style="flex:1.6;color:#9aa08c">Indie Night Live</span><span style="flex:1">₹94k</span><span style="flex:1.1">₹9.4k <span style="color:#9aa08c">(10%)</span></span><span style="flex:0.8">₹1.7k</span><span style="flex:1;font-weight:700">₹82.9k</span><span style="flex:0.9"><span class="wf-btn" style="font-size:9px;padding:2px 8px">Pay ▸</span></span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>FestCrew</b> ✓</span><span style="flex:1.6;color:#9aa08c">Summer Fest '26</span><span style="flex:1">₹2.1L</span><span style="flex:1.1">₹16.8k <span style="color:#9aa08c">(8%)</span></span><span style="flex:0.8">₹3k</span><span style="flex:1;font-weight:700">₹1.9L</span><span style="flex:0.9"><span class="wf-btn" style="font-size:9px;padding:2px 8px">Pay ▸</span></span></div>
+<div class="wf-tr" style="background:rgba(255,107,94,.08)"><span style="flex:1.6"><b>NightOwl Co.</b></span><span style="flex:1.6;color:#9aa08c">Stand-up Sunday</span><span style="flex:1">₹12k</span><span style="flex:1.1">₹1.4k <span style="color:#9aa08c">(12%)</span></span><span style="flex:0.8">₹252</span><span style="flex:1;font-weight:700">₹10.3k</span><span style="flex:0.9"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e;font-size:9px">KYC hold</span></span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">each row expands → per-booking breakdown, invoice PDF, UTR after transfer · rate comes from the event (<a class="dv-oid" href="#2c">2c</a>)</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 2h promo codes -->
+<div class="dv-opt" id="2h">
+<div class="dv-olabel"><a class="dv-oid" href="#2h">2h</a>Promo codes — create with gender targeting</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:330px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si">🧑‍💼 Organizers</div>
+<div class="wf-si">🏛 Venues</div>
+<div class="wf-si">💰 Payments</div>
+<div class="wf-si on">🏷 Promo codes</div>
+<div class="wf-si">📊 Reports</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Promo codes</div><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ New code</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:1.3">Code</span><span style="flex:1.3">Discount</span><span style="flex:1.4">Scope</span><span style="flex:1">Audience</span><span style="flex:0.8">Used</span><span style="flex:1">Status</span></div>
+<div class="wf-tr"><span style="flex:1.3;font-weight:700">FEST10</span><span style="flex:1.3">10% ≤ ₹100</span><span style="flex:1.4;color:#9aa08c">Summer Fest</span><span style="flex:1;color:#9aa08c">everyone</span><span style="flex:0.8">184/500</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Active</span></span></div>
+<div class="wf-tr"><span style="flex:1.3;font-weight:700">LADIESNIGHT</span><span style="flex:1.3">50% ≤ ₹300</span><span style="flex:1.4;color:#9aa08c">Indie Night</span><span style="flex:1;color:#9aa08c">women only</span><span style="flex:0.8">67/200</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Active</span></span></div>
+<div class="wf-tr"><span style="flex:1.3;font-weight:700">FIRSTGIG</span><span style="flex:1.3">₹150 flat</span><span style="flex:1.4;color:#9aa08c">first booking</span><span style="flex:1;color:#9aa08c">everyone</span><span style="flex:0.8">96/∞</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Active</span></span></div>
+<div class="wf-tr"><span style="flex:1.3;font-weight:700">DIWALI25</span><span style="flex:1.3">25% ≤ ₹250</span><span style="flex:1.4;color:#9aa08c">all events</span><span style="flex:1;color:#9aa08c">everyone</span><span style="flex:0.8">890/1k</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.3)">Expired</span></span></div>
+</div>
+<div style="border:1.8px solid #8bc34a;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:7px">
+<div style="font-size:12px;font-weight:700">New promo code</div>
+<div style="display:flex;gap:6px"><div class="wf-in" style="flex:1;font-size:10px;padding:4px 8px">CODE</div><div class="wf-in" style="width:70px;font-size:10px;padding:4px 8px">% / ₹ ▾</div><div class="wf-in" style="width:56px;font-size:10px;padding:4px 8px">value</div><div class="wf-in" style="width:70px;font-size:10px;padding:4px 8px">max cap ₹</div></div>
+<div style="display:flex;gap:6px"><div class="wf-in" style="flex:1;font-size:10px;padding:4px 8px">Scope: event / category / all ▾</div><div class="wf-in" style="flex:1;font-size:10px;padding:4px 8px">Valid: 📅 from – till</div><div class="wf-in" style="width:70px;font-size:10px;padding:4px 8px">max uses</div></div>
+<div style="display:flex;gap:6px;font-size:10px;color:#9aa08c;align-items:center;flex-wrap:wrap">
+<span style="font-weight:700;color:#f0f0e8">Audience — gender:</span>
+<span class="wf-chip" style="font-size:10px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">All ✓</span>
+<span class="wf-chip" style="font-size:10px">Women</span>
+<span class="wf-chip" style="font-size:10px">Men</span>
+<span class="wf-chip" style="font-size:10px">Other</span>
+<span style="color:#9aa08c">· checked against verified profile gender at checkout</span>
+</div>
+<div style="display:flex;gap:10px;font-size:10px;color:#9aa08c;align-items:center"><span style="width:12px;height:12px;border:1.5px solid #f0f0e8;border-radius:3px"></span>first-time users only<span style="width:12px;height:12px;border:1.5px solid #f0f0e8;border-radius:3px"></span>verified users only<span>discount paid by: platform / organizer ▾</span></div>
+<span class="wf-btn pri" style="font-size:10px;padding:3px 12px;align-self:flex-start">Create code</span>
+</div>
+</div>
+</div>
+</div>
+<div class="wf-note">gender-targeted codes enable ladies-night pricing without separate tiers</div>
+</div>
+
+<!-- 2i reports -->
+<div class="dv-opt" id="2i">
+<div class="dv-olabel"><a class="dv-oid" href="#2i">2i</a>Reports</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:300px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si">🧑‍💼 Organizers</div>
+<div class="wf-si">🏛 Venues</div>
+<div class="wf-si">💰 Payments</div>
+<div class="wf-si">🏷 Promo codes</div>
+<div class="wf-si on">📊 Reports</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div style="font-size:15px;font-weight:700">Reports</div>
+<div style="display:flex;gap:6px"><span class="wf-chip" style="font-size:10px">1 Jun – 8 Jul ▾</span><span class="wf-btn" style="font-size:10px;padding:3px 10px">⬇ Export</span></div>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<span class="wf-chip" style="font-size:10px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">Sales</span>
+<span class="wf-chip" style="font-size:10px">Commission by event</span>
+<span class="wf-chip" style="font-size:10px">GST / tax</span>
+<span class="wf-chip" style="font-size:10px">Refunds</span>
+<span class="wf-chip" style="font-size:10px">Attendance</span>
+<span class="wf-chip" style="font-size:10px">Promos</span>
+<span class="wf-chip" style="font-size:10px">Organizers</span>
+</div>
+<div style="display:flex;gap:10px">
+<div style="flex:1.6;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:10px">
+<div style="font-size:11px;font-weight:700;margin-bottom:5px">Gross sales vs commission — daily</div>
+<div class="wf-img" style="height:96px;border-radius:6px;font-size:9px">dual-line chart</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px">
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:8px"><div style="font-size:10px;font-weight:700;margin-bottom:4px">By category</div><div class="wf-img" style="height:40px;border-radius:4px;font-size:8px">donut</div></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:8px;font-size:9px"><div style="font-size:10px;font-weight:700;margin-bottom:3px">Commission by event</div>Summer Fest — 8% · ₹16.8k<br>Indie Night — 10% · ₹9.4k<br>Stand-up Sun — 12% · ₹1.4k</div>
+</div>
+</div>
+<div style="border:1.5px dashed rgba(139,195,74,.3);border-radius:8px;padding:8px 10px;font-size:10px;color:#9aa08c;display:flex;gap:14px">
+<span><b style="color:#f0f0e8">GST report:</b> monthly, filing-ready</span>
+<span><b style="color:#f0f0e8">Payout register:</b> per organizer, UTRs</span>
+<span><b style="color:#f0f0e8">Weekly email</b> to owner ▾</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 2j banners -->
+<div class="dv-opt" id="2j">
+<div class="dv-olabel"><a class="dv-oid" href="#2j">2j</a>Banners — own screen</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:280px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">💰 Payments</div>
+<div style="font-size:9px;color:#9aa08c;padding:8px 12px 2px;text-transform:uppercase;letter-spacing:.5px">Content</div>
+<div class="wf-si on">🖼 Banners</div>
+<div class="wf-si">📁 Categories</div>
+<div class="wf-si">✍ Blogs</div>
+<div class="wf-si">📄 Pages</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Banners</div><div style="display:flex;gap:6px"><span class="wf-btn" style="font-size:10px;padding:3px 10px">Preview home →</span><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ Add banner</span></div></div>
+<div style="font-size:11px;font-weight:700">Hero rotation — drag to reorder</div>
+<div style="display:flex;gap:8px">
+<div style="flex:1;border:1.8px solid #8bc34a;border-radius:8px;overflow:hidden"><div class="wf-img" style="height:52px;font-size:8px;border:none">banner 16:5 — Summer Fest</div><div style="padding:5px 8px;font-size:9px;display:flex;justify-content:space-between"><span>#1 · → event page<br><span style="color:#9aa08c">live now · 12k views · 8.2% CTR</span></span><span style="color:#9aa08c">⠿</span></div></div>
+<div style="flex:1;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden"><div class="wf-img" style="height:52px;font-size:8px;border:none">banner — Host with us</div><div style="padding:5px 8px;font-size:9px;display:flex;justify-content:space-between"><span>#2 · → page<br><span style="color:#9aa08c">live now · 9k views · 2.1% CTR</span></span><span style="color:#9aa08c">⠿</span></div></div>
+<div style="flex:1;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden;opacity:.65"><div class="wf-img" style="height:52px;font-size:8px;border:none">banner — Diwali promo</div><div style="padding:5px 8px;font-size:9px;display:flex;justify-content:space-between"><span>scheduled<br><span style="color:#9aa08c">starts 20 Oct → ends 5 Nov</span></span><span style="color:#9aa08c">⠿</span></div></div>
+</div>
+<div style="font-size:11px;font-weight:700">Placements</div>
+<div style="display:flex;flex-direction:column;gap:4px;font-size:10px">
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px;align-items:center"><span style="flex:1"><b>Home hero</b> · 3 banners · auto-rotate 5s</span><span class="wf-chip" style="font-size:9px;padding:1px 7px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">ON</span></div>
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px;align-items:center"><span style="flex:1"><b>Browse page strip</b> · 1 banner</span><span class="wf-chip" style="font-size:9px;padding:1px 7px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">ON</span></div>
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px;align-items:center;color:#8a8f7f"><span style="flex:1"><b>Checkout upsell</b> · empty</span><span class="wf-chip" style="font-size:9px;padding:1px 7px">OFF</span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">banner editor: image 16:5, link target (event / page / URL), schedule start–end, city targeting</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 2k categories -->
+<div class="dv-opt" id="2k">
+<div class="dv-olabel"><a class="dv-oid" href="#2k">2k</a>Categories — own screen</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:260px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">💰 Payments</div>
+<div style="font-size:9px;color:#9aa08c;padding:8px 12px 2px;text-transform:uppercase;letter-spacing:.5px">Content</div>
+<div class="wf-si">🖼 Banners</div>
+<div class="wf-si on">📁 Categories</div>
+<div class="wf-si">✍ Blogs</div>
+<div class="wf-si">📄 Pages</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Categories</div><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ Add category</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="width:20px"></span><span style="flex:1.8">Category</span><span style="flex:1">Events</span><span style="flex:1">Icon / cover</span><span style="flex:1.2">Shown on home</span><span style="flex:1">Status</span></div>
+<div class="wf-tr"><span style="width:20px;color:#9aa08c">⠿</span><span style="flex:1.8">🎵 <b>Concerts</b></span><span style="flex:1">22</span><span style="flex:1"><span class="wf-img" style="width:30px;height:18px;border-radius:3px;font-size:6px;display:inline-flex"></span></span><span style="flex:1.2">chip #1</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Visible</span></span></div>
+<div class="wf-tr"><span style="width:20px;color:#9aa08c">⠿</span><span style="flex:1.8">😂 <b>Comedy</b></span><span style="flex:1">9</span><span style="flex:1"><span class="wf-img" style="width:30px;height:18px;border-radius:3px;font-size:6px;display:inline-flex"></span></span><span style="flex:1.2">chip #2</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Visible</span></span></div>
+<div class="wf-tr"><span style="width:20px;color:#9aa08c">⠿</span><span style="flex:1.8">🎪 <b>Festivals</b></span><span style="flex:1">6</span><span style="flex:1"><span class="wf-img" style="width:30px;height:18px;border-radius:3px;font-size:6px;display:inline-flex"></span></span><span style="flex:1.2">chip #3</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Visible</span></span></div>
+<div class="wf-tr"><span style="width:20px;color:#9aa08c">⠿</span><span style="flex:1.8">🏠 <b>House parties</b></span><span style="flex:1">0</span><span style="flex:1"><span class="wf-img" style="width:30px;height:18px;border-radius:3px;font-size:6px;display:inline-flex"></span></span><span style="flex:1.2">—</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.35)">Hidden</span></span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">category = browse filter chip + facet + slug for SEO landing page · drag ⠿ sets chip order on home</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 2l blogs -->
+<div class="dv-opt" id="2l">
+<div class="dv-olabel"><a class="dv-oid" href="#2l">2l</a>Blogs — own screen</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:270px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">💰 Payments</div>
+<div style="font-size:9px;color:#9aa08c;padding:8px 12px 2px;text-transform:uppercase;letter-spacing:.5px">Content</div>
+<div class="wf-si">🖼 Banners</div>
+<div class="wf-si">📁 Categories</div>
+<div class="wf-si on">✍ Blogs</div>
+<div class="wf-si">📄 Pages</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Blog posts</div><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ New post</span></div>
+<div style="display:flex;gap:6px">
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 8px">🔍 search posts…</div>
+<span class="wf-chip" style="font-size:10px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">All (12)</span>
+<span class="wf-chip" style="font-size:10px">Published (8)</span>
+<span class="wf-chip" style="font-size:10px">Draft (3)</span>
+<span class="wf-chip" style="font-size:10px">Scheduled (1)</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:5px;font-size:10px">
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:7px 9px;align-items:center"><span class="wf-img" style="width:44px;height:28px;border-radius:4px;font-size:6px">cover</span><span style="flex:1"><b>Top 10 gigs this monsoon</b><br><span style="color:#9aa08c">by Dev P. · 2.1k views · SEO “events in austin” ✓ · 4 events linked</span></span><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Published</span><span style="color:#9aa08c">⋮</span></div>
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:7px 9px;align-items:center"><span class="wf-img" style="width:44px;height:28px;border-radius:4px;font-size:6px">cover</span><span style="flex:1"><b>How to host a sold-out show</b><br><span style="color:#9aa08c">by Dev P. · targets organizers · last edit 2d ago</span></span><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Draft</span><span style="color:#9aa08c">⋮</span></div>
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:7px 9px;align-items:center"><span class="wf-img" style="width:44px;height:28px;border-radius:4px;font-size:6px">cover</span><span style="flex:1"><b>Venue spotlight: Riverside</b><br><span style="color:#9aa08c">scheduled 12 Jul, 9 AM</span></span><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.35)">Scheduled</span><span style="color:#9aa08c">⋮</span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">post editor: cover, rich text, embed event cards, slug, meta title/description, OG image, publish or schedule</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 2m pages -->
+<div class="dv-opt" id="2m">
+<div class="dv-olabel"><a class="dv-oid" href="#2m">2m</a>Pages — own screen</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:260px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">💰 Payments</div>
+<div style="font-size:9px;color:#9aa08c;padding:8px 12px 2px;text-transform:uppercase;letter-spacing:.5px">Content</div>
+<div class="wf-si">🖼 Banners</div>
+<div class="wf-si">📁 Categories</div>
+<div class="wf-si">✍ Blogs</div>
+<div class="wf-si on">📄 Pages</div>
+<div style="flex:1"></div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Site pages</div><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ New page</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:2">Page</span><span style="flex:1.4">Slug</span><span style="flex:1.2">In footer nav</span><span style="flex:1">Updated</span><span style="flex:1">Status</span></div>
+<div class="wf-tr"><span style="flex:2"><b>About us</b></span><span style="flex:1.4;color:#9aa08c">/about</span><span style="flex:1.2">Company ▾</span><span style="flex:1;color:#9aa08c">3d ago</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Live</span></span></div>
+<div class="wf-tr"><span style="flex:2"><b>Host with us</b></span><span style="flex:1.4;color:#9aa08c">/host</span><span style="flex:1.2">Company ▾</span><span style="flex:1;color:#9aa08c">1w ago</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Live</span></span></div>
+<div class="wf-tr"><span style="flex:2"><b>Refund policy</b></span><span style="flex:1.4;color:#9aa08c">/refunds</span><span style="flex:1.2">Support ▾</span><span style="flex:1;color:#9aa08c">2w ago</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Live</span></span></div>
+<div class="wf-tr"><span style="flex:2"><b>Terms · Privacy · Contact · FAQs</b></span><span style="flex:1.4;color:#9aa08c">/terms · /privacy…</span><span style="flex:1.2">Support ▾</span><span style="flex:1;color:#9aa08c">1mo ago</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Live</span></span></div>
+<div class="wf-tr" style="background:rgba(255,107,94,.08)"><span style="flex:2"><b>Corporate events</b> <span style="color:#9aa08c">(new)</span></span><span style="flex:1.4;color:#9aa08c">/corporate</span><span style="flex:1.2">— not in nav</span><span style="flex:1;color:#9aa08c">today</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Draft</span></span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">page editor: block-based (heading / text / image / FAQ / CTA) · new pages can be added to footer nav group ▾</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 2n staff -->
+<div class="dv-opt" id="2n">
+<div class="dv-olabel"><a class="dv-oid" href="#2n">2n</a>Staff &amp; roles</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:290px">
+<div class="wf-side">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si">💰 Payments</div>
+<div class="wf-si">📊 Reports</div>
+<div style="flex:1"></div>
+<div class="wf-si on">🛡 Staff &amp; roles</div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Staff &amp; roles</div><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ Invite staff</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:1.6">Member</span><span style="flex:1.2">Role</span><span style="flex:1">Last active</span><span style="width:24px"></span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>You</b> · owner@prebooze</span><span style="flex:1.2"><span class="wf-tag" style="border-color:#8bc34a;color:#f0f0e8">Owner</span></span><span style="flex:1;color:#9aa08c">now</span><span style="width:24px"></span></div>
+<div class="wf-tr" style="background:rgba(139,195,74,.08)"><span style="flex:1.6"><b>Meera J.</b></span><span style="flex:1.2"><span class="wf-tag" style="border-color:rgba(139,195,74,.35);color:#9aa08c">Finance</span></span><span style="flex:1;color:#9aa08c">2h ago</span><span style="width:24px;color:#9aa08c">⋮</span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>Dev P.</b></span><span style="flex:1.2"><span class="wf-tag" style="border-color:rgba(139,195,74,.35);color:#9aa08c">Content</span></span><span style="flex:1;color:#9aa08c">1d ago</span><span style="width:24px;color:#9aa08c">⋮</span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>Gate crew (4)</b></span><span style="flex:1.2"><span class="wf-tag" style="border-color:rgba(139,195,74,.35);color:#9aa08c">Scanner only</span></span><span style="flex:1;color:#9aa08c">at event</span><span style="width:24px;color:#9aa08c">⋮</span></div>
+</div>
+<div style="font-size:12px;font-weight:700">Role: Finance — permissions</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden;font-size:10px">
+<div class="wf-th"><span style="flex:2">Module</span><span style="flex:1;text-align:center">View</span><span style="flex:1;text-align:center">Edit</span><span style="flex:1;text-align:center">Approve</span></div>
+<div class="wf-tr"><span style="flex:2">Payments &amp; payouts</span><span style="flex:1;text-align:center">☑</span><span style="flex:1;text-align:center">☑</span><span style="flex:1;text-align:center">☑</span></div>
+<div class="wf-tr"><span style="flex:2">Refunds</span><span style="flex:1;text-align:center">☑</span><span style="flex:1;text-align:center">☑</span><span style="flex:1;text-align:center">☑</span></div>
+<div class="wf-tr"><span style="flex:2">Event commission (per event)</span><span style="flex:1;text-align:center">☑</span><span style="flex:1;text-align:center">☐</span><span style="flex:1;text-align:center">☐</span></div>
+<div class="wf-tr"><span style="flex:2">Events / content / users</span><span style="flex:1;text-align:center">☑</span><span style="flex:1;text-align:center">☐</span><span style="flex:1;text-align:center">☐</span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">roles: Owner · Manager · Finance · Content · Support · Scanner only — custom roles supported</div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "detail the event editor's other tabs" · "mobile versions of these screens" · "riff on the create-promo window <a class="dv-oid" href="#2h">2h</a>"</p>
+</section>
+
+<section class="dv-turn" id="t1" data-screen-label="Turn 1 — Admin panel">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Prebooze admin panel — nav directions, all modules, desktop + mobile</span></div>
+<div class="dv-opts">
+
+<div class="dv-group">Admin shell + dashboard — 3 navigation directions</div>
+
+<!-- 1a sidebar classic -->
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Dashboard — sidebar nav, dense classic admin</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 9px">🔍 Search bookings, events, users…</div>
+<span class="wf-chip" style="font-size:10px">🔔 3</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="display:flex;min-height:380px">
+<div class="wf-side">
+<div class="wf-si on">▦ Dashboard</div>
+<div class="wf-si">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si">🧑‍💼 Organizers</div>
+<div class="wf-si">🏛 Venues</div>
+<div class="wf-si">💰 Payments</div>
+<div class="wf-si">％ Commission</div>
+<div class="wf-si">🏷 Promo codes</div>
+<div class="wf-si">📊 Reports</div>
+<div style="font-size:9px;color:#9aa08c;padding:8px 12px 2px;text-transform:uppercase;letter-spacing:.5px">Content</div>
+<div class="wf-si">🖼 Banners</div>
+<div class="wf-si">📁 Categories</div>
+<div class="wf-si">✍ Blogs</div>
+<div class="wf-si">📄 Pages</div>
+<div style="flex:1"></div>
+<div class="wf-si">🛡 Staff &amp; roles</div>
+<div class="wf-si">⚙ Settings</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:15px;font-weight:700">Good morning, Admin 👋</div><span class="wf-chip" style="font-size:10px">Last 7 days ▾</span></div>
+<div style="display:flex;gap:8px">
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Gross sales</div><div style="font-size:16px;font-weight:700">₹4.2L</div><div style="font-size:9px;color:#8bc34a">▲ 12% vs last wk</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Tickets sold</div><div style="font-size:16px;font-weight:700">1,842</div><div style="font-size:9px;color:#8bc34a">▲ 8%</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Commission earned</div><div style="font-size:16px;font-weight:700">₹38.4k</div><div style="font-size:9px;color:#8bc34a">▲ 15%</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Refunds</div><div style="font-size:16px;font-weight:700">₹6.1k</div><div style="font-size:9px;color:#ff6b5e">▼ 41 tickets</div></div>
+</div>
+<div style="display:flex;gap:10px">
+<div style="flex:1.5;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:10px">
+<div style="font-size:12px;font-weight:700;margin-bottom:6px">Sales trend</div>
+<div class="wf-img" style="height:90px;border-radius:6px;font-size:9px">line chart — daily sales vs commission</div>
+</div>
+<div style="flex:1;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px">
+<div style="font-size:12px;font-weight:700">Needs attention</div>
+<div style="font-size:10px;border:1.5px dashed #ff6b5e;border-radius:6px;padding:5px 7px;color:#ff6b5e">⚠ 4 events awaiting approval</div>
+<div style="font-size:10px;border:1.5px dashed rgba(139,195,74,.35);border-radius:6px;padding:5px 7px;color:#9aa08c">↩ 3 refund requests pending</div>
+<div style="font-size:10px;border:1.5px dashed rgba(139,195,74,.35);border-radius:6px;padding:5px 7px;color:#9aa08c">💸 2 organizer payouts due Fri</div>
+<div style="font-size:10px;border:1.5px dashed rgba(139,195,74,.35);border-radius:6px;padding:5px 7px;color:#9aa08c">🛡 1 organizer KYC to review</div>
+</div>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div style="font-size:12px;font-weight:700;padding:8px 10px;border-bottom:1.5px solid rgba(139,195,74,.15);display:flex;justify-content:space-between"><span>Live &amp; upcoming events</span><span style="font-size:10px;color:#9aa08c;text-decoration:underline">All events →</span></div>
+<div class="wf-th"><span style="flex:2">Event</span><span style="flex:1">Date</span><span style="flex:1">Sold</span><span style="flex:1">Revenue</span><span style="flex:1">Status</span></div>
+<div class="wf-tr"><span style="flex:2;font-weight:700">Indie Night Live</span><span style="flex:1;color:#9aa08c">24 Jul</span><span style="flex:1">312/400</span><span style="flex:1">₹94k</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">● Live</span></span></div>
+<div class="wf-tr"><span style="flex:2;font-weight:700">Summer Fest '26</span><span style="flex:1;color:#9aa08c">1 Aug</span><span style="flex:1">1,105/2k</span><span style="flex:1">₹2.1L</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">● Live</span></span></div>
+<div class="wf-tr"><span style="flex:2;font-weight:700">Stand-up Sunday</span><span style="flex:1;color:#9aa08c">2 Aug</span><span style="flex:1">—</span><span style="flex:1">—</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Pending</span></span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="wf-note">sidebar groups: operations / content / system — everything one click away</div>
+</div>
+
+<!-- 1b top nav -->
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Dashboard — top nav + command palette, roomy</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1.8px solid #8bc34a">
+<div style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="Prebooze" style="height:26px;width:auto;display:block"><span style="font-size:9px;color:#ff6b5e;letter-spacing:.5px;font-family:system-ui,sans-serif;font-weight:700">ADMIN</span></div>
+<div style="display:flex;gap:12px;font-size:12px;color:#777"><b style="color:#f0f0e8;border-bottom:2px solid #f0f0e8">Overview</b><span>Events</span><span>Bookings</span><span>Money</span><span>People</span><span>Content</span><span>Reports</span></div>
+<div style="flex:1"></div>
+<span class="wf-chip" style="font-size:10px">⌘K — jump to anything</span>
+<span style="width:24px;height:24px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">👤</span>
+</div>
+<div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:14px;align-items:stretch">
+<div style="flex:1.2;display:flex;flex-direction:column;gap:4px;justify-content:center">
+<div style="font-size:20px;font-weight:700">₹4.2L this week</div>
+<div style="font-size:12px;color:#9aa08c">1,842 tickets · ₹38.4k commission · 41 refunds</div>
+<div style="display:flex;gap:6px;margin-top:6px"><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ New event</span><span class="wf-btn" style="font-size:11px;padding:4px 12px">Run payout</span><span class="wf-btn" style="font-size:11px;padding:4px 12px">New promo</span></div>
+</div>
+<div class="wf-img" style="flex:1.6;min-height:90px;border-radius:8px;font-size:9px">sparkline strip — sales / tickets / commission</div>
+</div>
+<div style="display:flex;gap:10px">
+<div style="flex:1;border:1.8px solid #ff6b5e;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:5px">
+<div style="font-size:12px;font-weight:700;color:#ff6b5e">Inbox — 10 items need you</div>
+<div style="font-size:11px">⚠ Approve “Stand-up Sunday” <span style="color:#9aa08c">· submitted 2h ago</span></div>
+<div style="font-size:11px">↩ Refund ₹1,450 — booking #8412</div>
+<div style="font-size:11px">🛡 KYC review — NightOwl Co.</div>
+<div style="font-size:11px;text-decoration:underline;color:#9aa08c">View all →</div>
+</div>
+<div style="flex:1;border:1.5px solid rgba(139,195,74,.25);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:5px">
+<div style="font-size:12px;font-weight:700">Tonight, live now</div>
+<div style="font-size:11px"><b>Indie Night Live</b> · Arena Hall</div>
+<div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#9aa08c"><div style="flex:1;height:7px;background:rgba(139,195,74,.15);border-radius:4px;overflow:hidden"><div style="width:62%;height:100%;background:#8bc34a"></div></div>248/312 checked in</div>
+<div style="font-size:10px;color:#9aa08c">gate scans: 4/min · 0 fake QR attempts</div>
+<div class="wf-btn" style="font-size:10px;padding:3px 9px;align-self:flex-start">Open live monitor →</div>
+</div>
+</div>
+<div style="border:1.5px dashed rgba(139,195,74,.3);border-radius:8px;padding:8px 12px;display:flex;gap:14px;font-size:11px;color:#9aa08c;align-items:center">
+<span style="font-weight:700;color:#f0f0e8">Recent activity</span>
+<span>· booking #8420 paid ₹2,900</span><span>· promo FEST10 used 8×</span><span>· blog “Top 10 gigs” published</span>
+</div>
+</div>
+</div>
+<div class="wf-note">calm overview + ⌘K palette — depth lives behind search, not menus</div>
+</div>
+
+<!-- 1c mobile admin -->
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Dashboard — mobile admin (on-the-go ops)</div>
+<div class="dv-card wf" style="width:240px">
+<div style="padding:10px 12px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px;font-weight:700">◆ Admin</div><div style="display:flex;gap:6px;align-items:center"><span class="wf-chip" style="font-size:9px">🔔 3</span><span style="font-size:14px">☰</span></div></div>
+<div style="display:flex;gap:6px">
+<div class="wf-kpi" style="padding:6px 8px"><div style="font-size:9px;color:#9aa08c">Today's sales</div><div style="font-size:14px;font-weight:700">₹62k</div></div>
+<div class="wf-kpi" style="padding:6px 8px"><div style="font-size:9px;color:#9aa08c">Tickets</div><div style="font-size:14px;font-weight:700">214</div></div>
+</div>
+<div style="border:1.8px solid #ff6b5e;border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:4px">
+<div style="font-size:11px;font-weight:700;color:#ff6b5e">Needs you (10)</div>
+<div style="font-size:10px">⚠ 4 events to approve</div>
+<div style="font-size:10px">↩ 3 refunds pending</div>
+<div style="font-size:10px">💸 2 payouts due</div>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:4px">
+<div style="font-size:11px;font-weight:700">● Live now — Indie Night</div>
+<div style="display:flex;align-items:center;gap:5px;font-size:9px;color:#9aa08c"><div style="flex:1;height:6px;background:rgba(139,195,74,.15);border-radius:4px;overflow:hidden"><div style="width:62%;height:100%;background:#8bc34a"></div></div>248/312 in</div>
+<div class="wf-btn" style="font-size:10px;padding:3px 8px;align-self:flex-start">Live monitor →</div>
+</div>
+<div class="wf-img" style="height:64px;border-radius:8px;font-size:9px">sales sparkline — 7 days</div>
+<div style="display:flex;flex-direction:column;gap:5px;font-size:11px">
+<div style="border:1.5px solid rgba(139,195,74,.15);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between"><span>booking #8420 · ₹2,900</span><span style="color:#8bc34a">paid</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.15);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between"><span>booking #8419 · ₹580</span><span style="color:#ff6b5e">refund?</span></div>
+</div>
+</div>
+<div style="display:flex;justify-content:space-around;border-top:1.5px solid rgba(139,195,74,.2);padding:8px 0;font-size:10px;color:#9aa08c"><span style="color:#f0f0e8;font-weight:700">▦ Home</span><span>🎪 Events</span><span>🎟 Bookings</span><span>💰 Money</span><span>⋯ More</span></div>
+</div>
+<div class="wf-note">approvals + live gate monitor first — desktop for heavy editing</div>
+</div>
+
+<div class="dv-group">Events &amp; ticket management</div>
+
+<!-- 1d events list -->
+<div class="dv-opt" id="1d">
+<div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Events list — filterable table + approval queue tab</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;min-height:300px">
+<div class="wf-side" style="width:100px">
+<div class="wf-si">▦ Dashboard</div>
+<div class="wf-si on">🎪 Events</div>
+<div class="wf-si">🎟 Bookings</div>
+<div class="wf-si">👥 Customers</div>
+<div class="wf-si">💰 Payments</div>
+<div class="wf-si" style="color:#bbb">…</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Events</div><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ Create event</span></div>
+<div style="display:flex;gap:0;border-bottom:1.8px solid #8bc34a;font-size:11px">
+<div style="padding:4px 12px;border:1.8px solid #8bc34a;border-bottom:none;border-radius:7px 7px 0 0;font-weight:700;background:#15170f">All (48)</div>
+<div style="padding:4px 12px;color:#ff6b5e">Pending approval (4)</div>
+<div style="padding:4px 12px;color:#9aa08c">Live (12)</div>
+<div style="padding:4px 12px;color:#9aa08c">Draft (6)</div>
+<div style="padding:4px 12px;color:#9aa08c">Past (26)</div>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 8px">🔍 Search events…</div>
+<span class="wf-chip" style="font-size:10px">Category ▾</span>
+<span class="wf-chip" style="font-size:10px">Venue ▾</span>
+<span class="wf-chip" style="font-size:10px">Organizer ▾</span>
+<span class="wf-chip" style="font-size:10px">Date ▾</span>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:2.2">Event</span><span style="flex:1.2">Organizer</span><span style="flex:1">Date</span><span style="flex:1">Sold / cap</span><span style="flex:1">Revenue</span><span style="flex:1">Status</span><span style="width:20px"></span></div>
+<div class="wf-tr"><span style="flex:2.2;display:flex;gap:6px;align-items:center"><span class="wf-img" style="width:22px;height:28px;border-radius:3px;font-size:6px"></span><b>Indie Night Live</b></span><span style="flex:1.2;color:#9aa08c">LiveWire ✓</span><span style="flex:1;color:#9aa08c">24 Jul</span><span style="flex:1">312/400</span><span style="flex:1">₹94k</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">● Live</span></span><span style="width:20px;color:#9aa08c">⋮</span></div>
+<div class="wf-tr" style="background:rgba(255,107,94,.08)"><span style="flex:2.2;display:flex;gap:6px;align-items:center"><span class="wf-img" style="width:22px;height:28px;border-radius:3px;font-size:6px"></span><b>Stand-up Sunday</b></span><span style="flex:1.2;color:#9aa08c">NightOwl ✓</span><span style="flex:1;color:#9aa08c">2 Aug</span><span style="flex:1">—</span><span style="flex:1">—</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Pending</span></span><span style="width:20px;color:#9aa08c">⋮</span></div>
+<div class="wf-tr"><span style="flex:2.2;display:flex;gap:6px;align-items:center"><span class="wf-img" style="width:22px;height:28px;border-radius:3px;font-size:6px"></span><b>Summer Fest '26</b></span><span style="flex:1.2;color:#9aa08c">FestCrew ✓</span><span style="flex:1;color:#9aa08c">1 Aug</span><span style="flex:1">1,105/2k</span><span style="flex:1">₹2.1L</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">● Live</span></span><span style="width:20px;color:#9aa08c">⋮</span></div>
+<div class="wf-tr"><span style="flex:2.2;display:flex;gap:6px;align-items:center"><span class="wf-img" style="width:22px;height:28px;border-radius:3px;font-size:6px"></span><b>Acoustic Evenings</b></span><span style="flex:1.2;color:#9aa08c">LiveWire ✓</span><span style="flex:1;color:#9aa08c">7 Aug</span><span style="flex:1">40/150</span><span style="flex:1">₹9k</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.35)">Draft</span></span><span style="width:20px;color:#9aa08c">⋮</span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c;display:flex;justify-content:space-between"><span>⋮ row menu: view · edit · feature on home · pause sales · duplicate · cancel event</span><span>‹ 1 2 3 ›</span></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1e event editor -->
+<div class="dv-opt" id="1e">
+<div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Event editor — details, ticket tiers, fees per event</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<span style="font-size:13px">← <b>Edit event — Indie Night Live</b></span>
+<span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a;font-size:9px">● Live</span>
+<div style="flex:1"></div>
+<span class="wf-btn" style="font-size:10px;padding:3px 10px">Preview as guest</span>
+<span class="wf-btn pri" style="font-size:10px;padding:3px 10px">Save</span>
+</div>
+<div style="display:flex;min-height:300px">
+<div style="width:110px;flex:none;border-right:1.5px solid rgba(139,195,74,.2);padding:10px 0;display:flex;flex-direction:column;font-size:11px">
+<div class="wf-si on" style="font-size:11px">1 · Basics</div>
+<div class="wf-si" style="font-size:11px">2 · Tickets</div>
+<div class="wf-si" style="font-size:11px">3 · Media</div>
+<div class="wf-si" style="font-size:11px">4 · Rules</div>
+<div class="wf-si" style="font-size:11px">5 · Fees &amp; taxes</div>
+<div class="wf-si" style="font-size:11px">6 · Line-up</div>
+</div>
+<div style="flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+<div class="wf-in" style="font-size:11px;color:#f0f0e8;grid-column:1/3">Indie Night Live</div>
+<div class="wf-in" style="font-size:11px">Category: Concert ▾</div>
+<div class="wf-in" style="font-size:11px">Venue: Arena Hall ▾ <span style="color:#8bc34a">+ new</span></div>
+<div class="wf-in" style="font-size:11px">Fri 24 Jul, 8:00 PM 📅</div>
+<div class="wf-in" style="font-size:11px">Duration: 3 hrs ▾</div>
+</div>
+<div style="display:flex;gap:10px">
+<div class="wf-img" style="width:80px;aspect-ratio:3/4;border-radius:6px;font-size:8px;flex:none">poster 3:4</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:6px">
+<div style="font-size:11px;font-weight:700">Ticket tiers</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:6px 8px;display:flex;gap:8px;font-size:10px;align-items:center"><span style="flex:1"><b>Early bird</b> · ₹290</span><span style="color:#9aa08c">100 qty · sold out</span><span class="wf-chip" style="font-size:9px;padding:1px 7px">edit</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:6px 8px;display:flex;gap:8px;font-size:10px;align-items:center"><span style="flex:1"><b>General</b> · ₹450</span><span style="color:#9aa08c">250 qty · 212 sold</span><span class="wf-chip" style="font-size:9px;padding:1px 7px">edit</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:6px 8px;display:flex;gap:8px;font-size:10px;align-items:center"><span style="flex:1"><b>VIP couch</b> · ₹1,200</span><span style="color:#9aa08c">50 qty · gate closes 9:30</span><span class="wf-chip" style="font-size:9px;padding:1px 7px">edit</span></div>
+<div style="font-size:10px;color:#8bc34a;text-decoration:underline">+ add tier (supports per-tier sale window, per-person limit)</div>
+</div>
+</div>
+<div style="border:1.5px dashed rgba(139,195,74,.3);border-radius:8px;padding:8px 10px;display:flex;gap:14px;font-size:10px;align-items:center">
+<span style="font-weight:700">Fees for this event</span>
+<span>Commission: <b>10%</b> (platform default) <span style="text-decoration:underline;color:#8bc34a">override</span></span>
+<span>GST: <b>18%</b> on fee</span>
+<span>Booking fee: <b>₹30</b>/ticket</span>
+<span>Absorbed by: organizer ▾</span>
+</div>
+<div class="wf-note">tier price preview shows guest-facing total incl. fees</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1f approval review -->
+<div class="dv-opt" id="1f">
+<div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>Event approval — side-by-side review (novel)</div>
+<div class="dv-card wf" style="width:520px">
+<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<span style="font-size:13px">← <b>Review submission 2 of 4</b></span>
+<div style="flex:1"></div>
+<span style="font-size:10px;color:#9aa08c">submitted 2h ago by NightOwl Co. ✓</span>
+</div>
+<div style="display:flex">
+<div style="flex:1.2;border-right:1.5px dashed rgba(139,195,74,.3);padding:12px;display:flex;flex-direction:column;gap:8px">
+<div style="font-size:10px;color:#9aa08c;text-transform:uppercase;letter-spacing:.5px">Guest preview</div>
+<div style="display:flex;gap:8px">
+<div class="wf-img" style="width:64px;aspect-ratio:3/4;border-radius:6px;font-size:7px;flex:none">poster</div>
+<div style="font-size:11px"><b style="font-size:13px">Stand-up Sunday</b><br><span style="color:#9aa08c">Sun 2 Aug · Comedy Cave · 18+</span><br>₹150–₹600 · 180 cap</div>
+</div>
+<div class="wf-line" style="width:95%"></div><div class="wf-line" style="width:85%"></div><div class="wf-line" style="width:60%"></div>
+<div style="font-size:10px;color:#9aa08c">3 ticket tiers · dress code set · refund policy: 48h</div>
+</div>
+<div style="flex:1;padding:12px;display:flex;flex-direction:column;gap:8px">
+<div style="font-size:10px;color:#9aa08c;text-transform:uppercase;letter-spacing:.5px">Checks</div>
+<div style="font-size:11px;color:#8bc34a">✓ Organizer KYC verified</div>
+<div style="font-size:11px;color:#8bc34a">✓ Venue registered &amp; capacity ok</div>
+<div style="font-size:11px;color:#8bc34a">✓ Pricing within norms</div>
+<div style="font-size:11px;color:#ff6b5e">⚠ Poster may contain alcohol imagery — check policy</div>
+<div class="wf-in" style="font-size:10px;height:36px">Note to organizer (sent on reject / changes)…</div>
+<div style="display:flex;gap:6px">
+<span class="wf-btn pri" style="flex:1;font-size:11px;padding:5px;background:#8bc34a;border-color:#8bc34a">Approve ✓</span>
+<span class="wf-btn" style="flex:1;font-size:11px;padding:5px">Request changes</span>
+<span class="wf-btn" style="font-size:11px;padding:5px 10px;color:#ff6b5e;border-color:#ff6b5e">Reject</span>
+</div>
+<div style="font-size:10px;color:#9aa08c;text-align:center">← previous · skip · next → (keyboard: A / C / R)</div>
+</div>
+</div>
+</div>
+<div class="wf-note">tinder-style queue — clear checks, one decision per screen</div>
+</div>
+
+<div class="dv-group">Bookings, refunds &amp; live gate</div>
+
+<!-- 1g bookings -->
+<div class="dv-opt" id="1g">
+<div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>Bookings — table + slide-over detail with refund</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;min-height:300px;position:relative">
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Bookings</div><span class="wf-btn" style="font-size:10px;padding:3px 10px">⬇ Export CSV</span></div>
+<div style="display:flex;gap:6px">
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 8px">🔍 booking id / phone / name…</div>
+<span class="wf-chip" style="font-size:10px">Event ▾</span>
+<span class="wf-chip" style="font-size:10px">Status ▾</span>
+<span class="wf-chip" style="font-size:10px">Date ▾</span>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:1">#ID</span><span style="flex:1.6">Guest</span><span style="flex:1.8">Event</span><span style="flex:1">Qty · Amount</span><span style="flex:1">Status</span></div>
+<div class="wf-tr" style="background:rgba(139,195,74,.08)"><span style="flex:1;font-weight:700">#8412</span><span style="flex:1.6">Sam R. · +91 98•••</span><span style="flex:1.8;color:#9aa08c">Indie Night Live</span><span style="flex:1">2 · ₹1,450</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Refund req.</span></span></div>
+<div class="wf-tr"><span style="flex:1;font-weight:700">#8420</span><span style="flex:1.6">Priya K. · +91 87•••</span><span style="flex:1.8;color:#9aa08c">Summer Fest '26</span><span style="flex:1">4 · ₹2,900</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Paid</span></span></div>
+<div class="wf-tr"><span style="flex:1;font-weight:700">#8419</span><span style="flex:1.6">Arjun M. · +91 99•••</span><span style="flex:1.8;color:#9aa08c">Indie Night Live</span><span style="flex:1">1 · ₹580</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.35)">Checked in</span></span></div>
+<div class="wf-tr"><span style="flex:1;font-weight:700">#8415</span><span style="flex:1.6">Nia T. · +91 76•••</span><span style="flex:1.8;color:#9aa08c">Summer Fest '26</span><span style="flex:1">2 · ₹1,160</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.3)">Refunded</span></span></div>
+</div>
+</div>
+<!-- slide-over -->
+<div style="width:190px;flex:none;border-left:1.8px solid #f0f0e8;background:#0f110a;padding:12px;display:flex;flex-direction:column;gap:8px;font-size:10px">
+<div style="display:flex;justify-content:space-between"><b style="font-size:12px">#8412</b><span>✕</span></div>
+<div><b>Sam Rivera</b> ✓ verified<br><span style="color:#9aa08c">+91 98••• ••210</span></div>
+<hr class="wf-hr">
+<div>Indie Night Live<br><span style="color:#9aa08c">2 × General ₹450</span></div>
+<div style="border:1.5px dashed rgba(139,195,74,.3);border-radius:6px;padding:6px">
+Subtotal ₹900<br>Booking fee ₹60<br>GST ₹28<br><b>Paid ₹988</b> · UPI
+</div>
+<div style="color:#9aa08c">Commission ₹90 · organizer net ₹810</div>
+<div class="wf-img" style="height:40px;border-radius:4px;font-size:8px">2 × QR tickets</div>
+<div style="border:1.5px solid #ff6b5e;border-radius:6px;padding:6px;color:#ff6b5e">↩ Refund requested — “can't attend”</div>
+<div style="display:flex;gap:4px"><span class="wf-btn pri" style="flex:1;font-size:9px;padding:3px">Approve refund</span><span class="wf-btn" style="flex:1;font-size:9px;padding:3px">Decline</span></div>
+<div style="color:#9aa08c;text-decoration:underline">Resend ticket via WhatsApp</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1h live gate monitor -->
+<div class="dv-opt" id="1h">
+<div class="dv-olabel"><a class="dv-oid" href="#1h">1h</a>Live gate monitor — during event (novel)</div>
+<div class="dv-card wf" style="width:400px">
+<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1.5px solid rgba(139,195,74,.2)">
+<span style="font-size:13px">← <b>Indie Night Live</b></span>
+<span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a;font-size:9px">● LIVE</span>
+<div style="flex:1"></div>
+<span style="font-size:10px;color:#9aa08c">refreshes every 5s</span>
+</div>
+<div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;gap:8px;text-align:center">
+<div class="wf-kpi"><div style="font-size:18px;font-weight:700">248</div><div style="font-size:9px;color:#9aa08c">checked in</div></div>
+<div class="wf-kpi"><div style="font-size:18px;font-weight:700">64</div><div style="font-size:9px;color:#9aa08c">yet to arrive</div></div>
+<div class="wf-kpi"><div style="font-size:18px;font-weight:700">4/min</div><div style="font-size:9px;color:#9aa08c">scan rate</div></div>
+<div class="wf-kpi" style="border-color:#ff6b5e"><div style="font-size:18px;font-weight:700;color:#ff6b5e">2</div><div style="font-size:9px;color:#ff6b5e">rejected QRs</div></div>
+</div>
+<div class="wf-img" style="height:56px;border-radius:6px;font-size:9px">arrivals histogram — by 15 min</div>
+<div style="font-size:11px;font-weight:700">Gate feed</div>
+<div style="display:flex;flex-direction:column;gap:4px;font-size:10px">
+<div style="display:flex;justify-content:space-between;border:1.5px solid rgba(139,195,74,.15);border-radius:5px;padding:4px 8px"><span>✓ Arjun M. · General · Gate A</span><span style="color:#9aa08c">just now</span></div>
+<div style="display:flex;justify-content:space-between;border:1.5px solid rgba(139,195,74,.15);border-radius:5px;padding:4px 8px"><span>✓ Nia T. +1 · VIP · Gate B</span><span style="color:#9aa08c">12s</span></div>
+<div style="display:flex;justify-content:space-between;border:1.5px solid #ff6b5e;border-radius:5px;padding:4px 8px;color:#ff6b5e"><span>✕ duplicate QR — already scanned 8:41 PM</span><span>40s</span></div>
+</div>
+<div style="display:flex;gap:6px"><span class="wf-btn" style="flex:1;font-size:10px;padding:4px">Pause gate sales</span><span class="wf-btn" style="flex:1;font-size:10px;padding:4px">Manual check-in</span><span class="wf-btn" style="flex:1;font-size:10px;padding:4px">Message staff</span></div>
+</div>
+</div>
+<div class="wf-note">same screen works on staff phones at the gate</div>
+</div>
+
+<div class="dv-group">Money — payouts, commission &amp; tax</div>
+
+<!-- 1i payments -->
+<div class="dv-opt" id="1i">
+<div class="dv-olabel"><a class="dv-oid" href="#1i">1i</a>Payments — organizer payouts ledger</div>
+<div class="dv-card wf" style="width:560px">
+<div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Payments &amp; payouts</div><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">Run payout batch →</span></div>
+<div style="display:flex;gap:8px">
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Collected (this cycle)</div><div style="font-size:15px;font-weight:700">₹3.4L</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">Commission + fees kept</div><div style="font-size:15px;font-weight:700">₹41.2k</div></div>
+<div class="wf-kpi"><div style="font-size:10px;color:#9aa08c">GST collected</div><div style="font-size:15px;font-weight:700">₹7.4k</div></div>
+<div class="wf-kpi" style="border-color:#ff6b5e"><div style="font-size:10px;color:#ff6b5e">Due to organizers Fri</div><div style="font-size:15px;font-weight:700;color:#ff6b5e">₹2.9L</div></div>
+</div>
+<div style="display:flex;gap:0;border-bottom:1.8px solid #8bc34a;font-size:11px">
+<div style="padding:4px 12px;border:1.8px solid #8bc34a;border-bottom:none;border-radius:7px 7px 0 0;font-weight:700;background:#15170f">Payouts due</div>
+<div style="padding:4px 12px;color:#9aa08c">Transactions</div>
+<div style="padding:4px 12px;color:#9aa08c">Refunds</div>
+<div style="padding:4px 12px;color:#9aa08c">Disputes</div>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:1.6">Organizer</span><span style="flex:1.6">Event</span><span style="flex:1">Gross</span><span style="flex:1">Comm. 10%</span><span style="flex:1">GST</span><span style="flex:1">Net payout</span><span style="flex:1"></span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>LiveWire Ent.</b> ✓</span><span style="flex:1.6;color:#9aa08c">Indie Night Live</span><span style="flex:1">₹94k</span><span style="flex:1">₹9.4k</span><span style="flex:1">₹1.7k</span><span style="flex:1;font-weight:700">₹82.9k</span><span style="flex:1"><span class="wf-btn" style="font-size:9px;padding:2px 8px">Pay ▸</span></span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>FestCrew</b> ✓</span><span style="flex:1.6;color:#9aa08c">Summer Fest '26</span><span style="flex:1">₹2.1L</span><span style="flex:1">₹21k</span><span style="flex:1">₹3.8k</span><span style="flex:1;font-weight:700">₹1.85L</span><span style="flex:1"><span class="wf-btn" style="font-size:9px;padding:2px 8px">Pay ▸</span></span></div>
+<div class="wf-tr" style="background:rgba(255,107,94,.08)"><span style="flex:1.6"><b>NightOwl Co.</b></span><span style="flex:1.6;color:#9aa08c">Stand-up Sunday</span><span style="flex:1">₹12k</span><span style="flex:1">₹1.2k</span><span style="flex:1">₹216</span><span style="flex:1;font-weight:700">₹10.5k</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e;font-size:9px">KYC hold</span></span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">each row expands → per-booking breakdown, invoice PDF, UTR number after transfer</div>
+</div>
+</div>
+</div>
+
+<!-- 1j commission settings -->
+<div class="dv-opt" id="1j">
+<div class="dv-olabel"><a class="dv-oid" href="#1j">1j</a>Commission &amp; tax settings — global rules + overrides</div>
+<div class="dv-card wf" style="width:440px">
+<div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="font-size:15px;font-weight:700">Commission, fees &amp; tax</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px">
+<div style="font-size:12px;font-weight:700">Platform defaults</div>
+<div style="display:flex;gap:8px;font-size:11px;align-items:center"><span style="flex:1.4">Commission on ticket sales</span><div class="wf-in" style="width:56px;font-size:11px;padding:3px 8px;color:#f0f0e8;text-align:center">10 %</div></div>
+<div style="display:flex;gap:8px;font-size:11px;align-items:center"><span style="flex:1.4">Booking fee (per ticket)</span><div class="wf-in" style="width:56px;font-size:11px;padding:3px 8px;color:#f0f0e8;text-align:center">₹30</div></div>
+<div style="display:flex;gap:8px;font-size:11px;align-items:center"><span style="flex:1.4">GST on platform fee</span><div class="wf-in" style="width:56px;font-size:11px;padding:3px 8px;color:#f0f0e8;text-align:center">18 %</div></div>
+<div style="display:flex;gap:8px;font-size:11px;align-items:center"><span style="flex:1.4">Fee shown to guest as</span><div class="wf-in" style="flex:1;font-size:11px;padding:3px 8px;color:#f0f0e8">“Convenience fee” ▾</div></div>
+<div style="display:flex;gap:8px;font-size:11px;align-items:center"><span style="flex:1.4">Absorbed by default</span><span class="wf-chip" style="font-size:10px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">Organizer</span><span class="wf-chip" style="font-size:10px">Guest</span><span class="wf-chip" style="font-size:10px">Split</span></div>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:12px;font-weight:700">Overrides</span><span style="font-size:10px;color:#8bc34a;text-decoration:underline">+ add override</span></div>
+<div style="display:flex;justify-content:space-between;font-size:10px;border:1.5px dashed rgba(139,195,74,.3);border-radius:6px;padding:5px 8px"><span><b>Category: Festivals</b> → 8% commission</span><span style="color:#9aa08c">edit</span></div>
+<div style="display:flex;justify-content:space-between;font-size:10px;border:1.5px dashed rgba(139,195,74,.3);border-radius:6px;padding:5px 8px"><span><b>Organizer: LiveWire ✓</b> → 7% (volume deal, till Dec)</span><span style="color:#9aa08c">edit</span></div>
+</div>
+<div style="border:1.5px dashed rgba(139,195,74,.3);border-radius:8px;padding:8px 10px;font-size:10px;color:#9aa08c">
+<b style="color:#f0f0e8">Preview — ₹450 General ticket:</b> guest pays ₹450 + ₹30 fee + ₹5.4 GST = <b style="color:#f0f0e8">₹485.4</b> · platform keeps ₹75 · organizer nets ₹405
+</div>
+<div class="wf-btn pri" style="font-size:12px;align-self:flex-start;padding:5px 16px">Save changes</div>
+</div>
+</div>
+<div class="wf-note">live preview makes fee math obvious before saving</div>
+</div>
+
+<div class="dv-group">People — customers, organizers, staff &amp; roles</div>
+
+<!-- 1k customers -->
+<div class="dv-opt" id="1k">
+<div class="dv-olabel"><a class="dv-oid" href="#1k">1k</a>Customers — list + profile drawer</div>
+<div class="dv-card wf" style="width:560px">
+<div style="display:flex;min-height:270px">
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Customers</div><div style="display:flex;gap:6px"><span class="wf-chip" style="font-size:10px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">Guests</span><span class="wf-chip" style="font-size:10px">Organizers</span></div></div>
+<div style="display:flex;gap:6px">
+<div class="wf-in" style="flex:1;font-size:11px;padding:4px 8px">🔍 name / phone / email…</div>
+<span class="wf-chip" style="font-size:10px">Verified ▾</span>
+<span class="wf-chip" style="font-size:10px">City ▾</span>
+<span class="wf-chip" style="font-size:10px">Spend ▾</span>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:1.8">Guest</span><span style="flex:1">City</span><span style="flex:1">Bookings</span><span style="flex:1">Lifetime spend</span><span style="flex:1">Status</span></div>
+<div class="wf-tr" style="background:rgba(139,195,74,.08)"><span style="flex:1.8"><b>Sam Rivera</b> ✓</span><span style="flex:1;color:#9aa08c">Austin</span><span style="flex:1">14</span><span style="flex:1">₹18.2k</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Active</span></span></div>
+<div class="wf-tr"><span style="flex:1.8"><b>Priya K.</b> ✓</span><span style="flex:1;color:#9aa08c">Austin</span><span style="flex:1">6</span><span style="flex:1">₹7.4k</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Active</span></span></div>
+<div class="wf-tr"><span style="flex:1.8"><b>Arjun M.</b></span><span style="flex:1;color:#9aa08c">Dallas</span><span style="flex:1">2</span><span style="flex:1">₹1.1k</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.35)">Unverified</span></span></div>
+<div class="wf-tr"><span style="flex:1.8"><b>R. Gupta</b></span><span style="flex:1;color:#9aa08c">Austin</span><span style="flex:1">1</span><span style="flex:1">₹0 (refunded)</span><span style="flex:1"><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Blocked</span></span></div>
+</div>
+</div>
+<div style="width:180px;flex:none;border-left:1.8px solid #f0f0e8;background:#0f110a;padding:12px;display:flex;flex-direction:column;gap:7px;font-size:10px">
+<div style="display:flex;gap:8px;align-items:center"><span style="width:30px;height:30px;border:1.5px solid #f0f0e8;border-radius:50%;display:flex;align-items:center;justify-content:center">👤</span><span><b style="font-size:12px">Sam Rivera</b> ✓<br><span style="color:#9aa08c">@samrivera · Austin</span></span></div>
+<div style="color:#9aa08c">+91 98••• ••210 · sam@mail.com<br>Aadhaar ✓ · member since Jan '25</div>
+<hr class="wf-hr">
+<div style="display:flex;gap:6px;text-align:center"><span style="flex:1;border:1.5px solid rgba(139,195,74,.25);border-radius:5px;padding:4px"><b>14</b><br>bookings</span><span style="flex:1;border:1.5px solid rgba(139,195,74,.25);border-radius:5px;padding:4px"><b>₹18.2k</b><br>spend</span><span style="flex:1;border:1.5px solid rgba(139,195,74,.25);border-radius:5px;padding:4px"><b>1</b><br>refund</span></div>
+<div style="font-weight:700;font-size:11px">Recent</div>
+<div style="color:#9aa08c">🎟 Indie Night Live · 24 Jul<br>🎟 Summer Fest '26 · 1 Aug</div>
+<div style="display:flex;gap:4px;flex-wrap:wrap"><span class="wf-btn" style="font-size:9px;padding:2px 7px">💬 WhatsApp</span><span class="wf-btn" style="font-size:9px;padding:2px 7px">View bookings</span><span class="wf-btn" style="font-size:9px;padding:2px 7px;color:#ff6b5e;border-color:#ff6b5e">Block</span></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1l staff roles -->
+<div class="dv-opt" id="1l">
+<div class="dv-olabel"><a class="dv-oid" href="#1l">1l</a>Staff &amp; roles — permission matrix</div>
+<div class="dv-card wf" style="width:460px">
+<div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Staff &amp; roles</div><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ Invite staff</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:1.6">Member</span><span style="flex:1.2">Role</span><span style="flex:1">Last active</span><span style="width:24px"></span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>You</b> · owner@prebooze</span><span style="flex:1.2"><span class="wf-tag" style="border-color:#8bc34a;color:#f0f0e8">Owner</span></span><span style="flex:1;color:#9aa08c">now</span><span style="width:24px"></span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>Meera J.</b></span><span style="flex:1.2"><span class="wf-tag" style="border-color:rgba(139,195,74,.35);color:#9aa08c">Finance</span></span><span style="flex:1;color:#9aa08c">2h ago</span><span style="width:24px;color:#9aa08c">⋮</span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>Dev P.</b></span><span style="flex:1.2"><span class="wf-tag" style="border-color:rgba(139,195,74,.35);color:#9aa08c">Content</span></span><span style="flex:1;color:#9aa08c">1d ago</span><span style="width:24px;color:#9aa08c">⋮</span></div>
+<div class="wf-tr"><span style="flex:1.6"><b>Gate crew (4)</b></span><span style="flex:1.2"><span class="wf-tag" style="border-color:rgba(139,195,74,.35);color:#9aa08c">Scanner only</span></span><span style="flex:1;color:#9aa08c">at event</span><span style="width:24px;color:#9aa08c">⋮</span></div>
+</div>
+<div style="font-size:12px;font-weight:700">Role: Finance — permissions</div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden;font-size:10px">
+<div class="wf-th"><span style="flex:2">Module</span><span style="flex:1;text-align:center">View</span><span style="flex:1;text-align:center">Edit</span><span style="flex:1;text-align:center">Approve</span></div>
+<div class="wf-tr"><span style="flex:2">Payments &amp; payouts</span><span style="flex:1;text-align:center">☑</span><span style="flex:1;text-align:center">☑</span><span style="flex:1;text-align:center">☑</span></div>
+<div class="wf-tr"><span style="flex:2">Refunds</span><span style="flex:1;text-align:center">☑</span><span style="flex:1;text-align:center">☑</span><span style="flex:1;text-align:center">☑</span></div>
+<div class="wf-tr"><span style="flex:2">Commission settings</span><span style="flex:1;text-align:center">☑</span><span style="flex:1;text-align:center">☐</span><span style="flex:1;text-align:center">☐</span></div>
+<div class="wf-tr"><span style="flex:2">Events / content / users</span><span style="flex:1;text-align:center">☑</span><span style="flex:1;text-align:center">☐</span><span style="flex:1;text-align:center">☐</span></div>
+</div>
+<div style="font-size:10px;color:#9aa08c">roles: Owner · Manager · Finance · Content · Support · Scanner only — custom roles supported</div>
+</div>
+</div>
+</div>
+
+<div class="dv-group">Growth &amp; content — promos, banners, categories, venues, blogs, pages</div>
+
+<!-- 1m promos -->
+<div class="dv-opt" id="1m">
+<div class="dv-olabel"><a class="dv-oid" href="#1m">1m</a>Promo codes — list + quick create</div>
+<div class="dv-card wf" style="width:460px">
+<div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Promo codes</div><span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ New code</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden">
+<div class="wf-th"><span style="flex:1.4">Code</span><span style="flex:1.4">Discount</span><span style="flex:1.4">Scope</span><span style="flex:1">Used</span><span style="flex:1">Status</span></div>
+<div class="wf-tr"><span style="flex:1.4;font-weight:700">FEST10</span><span style="flex:1.4">10% up to ₹100</span><span style="flex:1.4;color:#9aa08c">Summer Fest only</span><span style="flex:1">184/500</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Active</span></span></div>
+<div class="wf-tr"><span style="flex:1.4;font-weight:700">FIRSTGIG</span><span style="flex:1.4">₹150 flat</span><span style="flex:1.4;color:#9aa08c">first booking only</span><span style="flex:1">96/∞</span><span style="flex:1"><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Active</span></span></div>
+<div class="wf-tr"><span style="flex:1.4;font-weight:700">VIPLOVE</span><span style="flex:1.4">15%</span><span style="flex:1.4;color:#9aa08c">VIP tiers only</span><span style="flex:1">22/50</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.35)">Paused</span></span></div>
+<div class="wf-tr"><span style="flex:1.4;font-weight:700">DIWALI25</span><span style="flex:1.4">25% up to ₹250</span><span style="flex:1.4;color:#9aa08c">all events</span><span style="flex:1">890/1k</span><span style="flex:1"><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.3)">Expired</span></span></div>
+</div>
+<div style="border:1.5px dashed rgba(139,195,74,.3);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px">
+<div style="font-size:11px;font-weight:700">Quick create</div>
+<div style="display:flex;gap:6px"><div class="wf-in" style="flex:1;font-size:10px;padding:4px 8px">CODE</div><div class="wf-in" style="width:70px;font-size:10px;padding:4px 8px">% / ₹ ▾</div><div class="wf-in" style="width:56px;font-size:10px;padding:4px 8px">value</div></div>
+<div style="display:flex;gap:6px"><div class="wf-in" style="flex:1;font-size:10px;padding:4px 8px">Scope: all events ▾</div><div class="wf-in" style="flex:1;font-size:10px;padding:4px 8px">Valid till 📅</div><div class="wf-in" style="width:70px;font-size:10px;padding:4px 8px">max uses</div></div>
+<div style="display:flex;gap:6px;font-size:10px;color:#9aa08c;align-items:center"><span style="width:12px;height:12px;border:1.5px solid #f0f0e8;border-radius:3px"></span>first-time users only<span style="width:12px;height:12px;border:1.5px solid #f0f0e8;border-radius:3px;margin-left:8px"></span>who pays for discount: platform / organizer ▾</div>
+<span class="wf-btn pri" style="font-size:10px;padding:3px 12px;align-self:flex-start">Create code</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1n banners home curation -->
+<div class="dv-opt" id="1n">
+<div class="dv-olabel"><a class="dv-oid" href="#1n">1n</a>Banners &amp; home curation — drag to reorder (novel)</div>
+<div class="dv-card wf" style="width:480px">
+<div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">Home page &amp; banners</div><span class="wf-btn" style="font-size:10px;padding:3px 10px">Preview home →</span></div>
+<div style="font-size:11px;font-weight:700">Hero banner rotation</div>
+<div style="display:flex;gap:8px">
+<div style="flex:1;border:1.8px solid #8bc34a;border-radius:8px;overflow:hidden"><div class="wf-img" style="height:46px;font-size:8px;border:none">banner 16:5 — Summer Fest</div><div style="padding:4px 8px;font-size:9px;display:flex;justify-content:space-between"><span>#1 · links to event</span><span style="color:#9aa08c">⠿ drag</span></div></div>
+<div style="flex:1;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;overflow:hidden"><div class="wf-img" style="height:46px;font-size:8px;border:none">banner — Host with us</div><div style="padding:4px 8px;font-size:9px;display:flex;justify-content:space-between"><span>#2 · links to page</span><span style="color:#9aa08c">⠿</span></div></div>
+<div style="flex:1;border:1.5px dashed rgba(139,195,74,.35);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#8a8f7f;min-height:66px">+ add banner<br>(schedule start/end)</div>
+</div>
+<div style="font-size:11px;font-weight:700">Home sections — drag to reorder, toggle visibility</div>
+<div style="display:flex;flex-direction:column;gap:4px;font-size:10px">
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px;align-items:center"><span style="color:#9aa08c">⠿</span><span style="flex:1"><b>Featured events</b> · manual pick (4 pinned)</span><span class="wf-chip" style="font-size:9px;padding:1px 7px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">ON</span></div>
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px;align-items:center"><span style="color:#9aa08c">⠿</span><span style="flex:1"><b>Video reels</b> · latest 8</span><span class="wf-chip" style="font-size:9px;padding:1px 7px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">ON</span></div>
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px;align-items:center"><span style="color:#9aa08c">⠿</span><span style="flex:1"><b>Trending venues</b> · auto by bookings</span><span class="wf-chip" style="font-size:9px;padding:1px 7px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">ON</span></div>
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px;align-items:center;color:#8a8f7f"><span>⠿</span><span style="flex:1"><b>Blog highlights</b> · latest 3</span><span class="wf-chip" style="font-size:9px;padding:1px 7px">OFF</span></div>
+</div>
+<div class="wf-note">what guests see on the home page (1a in guest wireframes) is curated here</div>
+</div>
+</div>
+</div>
+
+<!-- 1o categories & venues -->
+<div class="dv-opt" id="1o">
+<div class="dv-olabel"><a class="dv-oid" href="#1o">1o</a>Categories &amp; venues — taxonomy manager</div>
+<div class="dv-card wf" style="width:480px">
+<div style="display:flex;min-height:230px">
+<div style="flex:1;border-right:1.5px dashed rgba(139,195,74,.3);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:13px;font-weight:700">Categories</div><span style="font-size:10px;color:#8bc34a;text-decoration:underline">+ add</span></div>
+<div style="display:flex;flex-direction:column;gap:4px;font-size:10px">
+<div style="display:flex;gap:6px;border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px;align-items:center"><span style="color:#9aa08c">⠿</span><span style="flex:1">🎵 <b>Concerts</b> · 22 events</span><span style="color:#9aa08c">edit</span></div>
+<div style="display:flex;gap:6px;border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px;align-items:center"><span style="color:#9aa08c">⠿</span><span style="flex:1">😂 <b>Comedy</b> · 9 events</span><span style="color:#9aa08c">edit</span></div>
+<div style="display:flex;gap:6px;border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px;align-items:center"><span style="color:#9aa08c">⠿</span><span style="flex:1">🎪 <b>Festivals</b> · 6 · <span style="color:#ff6b5e">8% comm. override</span></span><span style="color:#9aa08c">edit</span></div>
+<div style="display:flex;gap:6px;border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px;align-items:center;color:#8a8f7f"><span>⠿</span><span style="flex:1">🏠 House parties · 0 · hidden</span><span>edit</span></div>
+</div>
+<div style="font-size:9px;color:#9aa08c">category = home filter chip + browse facet + commission scope</div>
+</div>
+<div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:13px;font-weight:700">Venues</div><span style="font-size:10px;color:#8bc34a;text-decoration:underline">+ add venue</span></div>
+<div class="wf-in" style="font-size:10px;padding:4px 8px">🔍 search venues…</div>
+<div style="display:flex;flex-direction:column;gap:4px;font-size:10px">
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px"><b>Arena Hall</b> ✓ verified<br><span style="color:#9aa08c">cap 400 · indoor · 18 events · map pin set</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:6px;padding:5px 8px"><b>Riverside Grounds</b> ✓<br><span style="color:#9aa08c">cap 2,000 · outdoor · 11 events</span></div>
+<div style="border:1.5px solid #ff6b5e;border-radius:6px;padding:5px 8px"><b>Comedy Cave</b> <span style="color:#ff6b5e">· docs pending</span><br><span style="color:#9aa08c">cap 180 · license expiry 12 Aug ⚠</span></div>
+</div>
+<div style="font-size:9px;color:#9aa08c">venue holds: address, capacity, photos, license docs, contact</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1p blogs & pages -->
+<div class="dv-opt" id="1p">
+<div class="dv-olabel"><a class="dv-oid" href="#1p">1p</a>Blogs &amp; pages — content CMS</div>
+<div class="dv-card wf" style="width:480px">
+<div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div style="display:flex;gap:0;font-size:11px;border-bottom:1.8px solid #8bc34a">
+<div style="padding:4px 12px;border:1.8px solid #8bc34a;border-bottom:none;border-radius:7px 7px 0 0;font-weight:700;background:#15170f">Blog posts</div>
+<div style="padding:4px 12px;color:#9aa08c">Site pages</div>
+</div>
+<span class="wf-btn pri" style="font-size:11px;padding:4px 12px">+ New post</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:5px;font-size:10px">
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:7px 9px;align-items:center"><span class="wf-img" style="width:40px;height:26px;border-radius:4px;font-size:6px">cover</span><span style="flex:1"><b>Top 10 gigs this monsoon</b><br><span style="color:#9aa08c">by Dev P. · 2.1k views · SEO: “events in austin” ✓</span></span><span class="wf-tag" style="color:#8bc34a;border-color:#8bc34a">Published</span></div>
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:7px 9px;align-items:center"><span class="wf-img" style="width:40px;height:26px;border-radius:4px;font-size:6px">cover</span><span style="flex:1"><b>How to host a sold-out show</b><br><span style="color:#9aa08c">by Dev P. · targets organizers</span></span><span class="wf-tag" style="color:#ff6b5e;border-color:#ff6b5e">Draft</span></div>
+<div style="display:flex;gap:8px;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:7px 9px;align-items:center"><span class="wf-img" style="width:40px;height:26px;border-radius:4px;font-size:6px">cover</span><span style="flex:1"><b>Venue spotlight: Riverside</b><br><span style="color:#9aa08c">scheduled 12 Jul, 9 AM</span></span><span class="wf-tag" style="color:#9aa08c;border-color:rgba(139,195,74,.35)">Scheduled</span></div>
+</div>
+<div style="border:1.5px dashed rgba(139,195,74,.3);border-radius:8px;padding:8px 10px;font-size:10px;color:#9aa08c">
+<b style="color:#f0f0e8">Site pages tab:</b> About us · Host with us · FAQs · Refund policy · Terms · Privacy · Contact — each opens a simple block editor (heading / text / image / FAQ / CTA blocks) + <span style="color:#f0f0e8">“+ New page”</span> for extra pages, auto-added to footer nav ▾
+</div>
+<div style="font-size:10px;color:#9aa08c">every post/page: slug, meta title + description, OG image, publish/schedule</div>
+</div>
+</div>
+</div>
+
+<div class="dv-group">Reports &amp; analytics</div>
+
+<!-- 1q reports -->
+<div class="dv-opt" id="1q">
+<div class="dv-olabel"><a class="dv-oid" href="#1q">1q</a>Reports — analytics with export</div>
+<div class="dv-card wf" style="width:560px">
+<div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div style="font-size:15px;font-weight:700">Reports</div>
+<div style="display:flex;gap:6px"><span class="wf-chip" style="font-size:10px">1 Jun – 8 Jul ▾</span><span class="wf-chip" style="font-size:10px">vs prev. period</span><span class="wf-btn" style="font-size:10px;padding:3px 10px">⬇ Export</span></div>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<span class="wf-chip" style="font-size:10px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">Sales</span>
+<span class="wf-chip" style="font-size:10px">Commission</span>
+<span class="wf-chip" style="font-size:10px">GST / tax</span>
+<span class="wf-chip" style="font-size:10px">Refunds</span>
+<span class="wf-chip" style="font-size:10px">Attendance</span>
+<span class="wf-chip" style="font-size:10px">Promo performance</span>
+<span class="wf-chip" style="font-size:10px">Organizer leaderboard</span>
+</div>
+<div style="display:flex;gap:10px">
+<div style="flex:1.6;border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:10px">
+<div style="font-size:11px;font-weight:700;margin-bottom:5px">Gross sales vs commission — daily</div>
+<div class="wf-img" style="height:100px;border-radius:6px;font-size:9px">dual-line chart</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px">
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:8px"><div style="font-size:10px;font-weight:700;margin-bottom:4px">By category</div><div class="wf-img" style="height:44px;border-radius:4px;font-size:8px">donut</div></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:8px;font-size:9px"><div style="font-size:10px;font-weight:700;margin-bottom:3px">Top events</div>Summer Fest — ₹2.1L<br>Indie Night — ₹94k<br>Acoustic Eve — ₹9k</div>
+</div>
+</div>
+<div style="border:1.5px dashed rgba(139,195,74,.3);border-radius:8px;padding:8px 10px;font-size:10px;color:#9aa08c;display:flex;gap:14px">
+<span><b style="color:#f0f0e8">GST report:</b> monthly, download-ready for filing</span>
+<span><b style="color:#f0f0e8">Payout register:</b> per organizer, with UTRs</span>
+<span><b style="color:#f0f0e8">Scheduled email:</b> weekly summary to owner ▾</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1r mobile module screens -->
+<div class="dv-opt" id="1r">
+<div class="dv-olabel"><a class="dv-oid" href="#1r">1r</a>Mobile — bookings &amp; approvals (companion to <a class="dv-oid" href="#1c">1c</a>)</div>
+<div style="display:flex;gap:12px">
+<div class="dv-card wf" style="width:220px">
+<div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;font-weight:700">Bookings</div>
+<div class="wf-in" style="font-size:10px;padding:4px 8px">🔍 id / phone…</div>
+<div style="display:flex;gap:4px"><span class="wf-chip" style="font-size:9px;background:#8bc34a;color:#0d0d0d;border-color:#8bc34a">All</span><span class="wf-chip" style="font-size:9px">Refunds</span><span class="wf-chip" style="font-size:9px">Today</span></div>
+<div style="display:flex;flex-direction:column;gap:5px;font-size:10px">
+<div style="border:1.5px solid #ff6b5e;border-radius:6px;padding:6px 8px"><b>#8412</b> · Sam R. · ₹1,450<br><span style="color:#ff6b5e">↩ refund requested</span><div style="display:flex;gap:4px;margin-top:4px"><span class="wf-btn pri" style="font-size:8px;padding:2px 6px">Approve</span><span class="wf-btn" style="font-size:8px;padding:2px 6px">Decline</span></div></div>
+<div style="border:1.5px solid rgba(139,195,74,.15);border-radius:6px;padding:6px 8px"><b>#8420</b> · Priya K. · ₹2,900<br><span style="color:#8bc34a">✓ paid · Summer Fest</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.15);border-radius:6px;padding:6px 8px"><b>#8419</b> · Arjun M. · ₹580<br><span style="color:#9aa08c">checked in 8:41 PM</span></div>
+</div>
+</div>
+<div style="display:flex;justify-content:space-around;border-top:1.5px solid rgba(139,195,74,.2);padding:7px 0;font-size:9px;color:#9aa08c"><span>▦ Home</span><span>🎪 Events</span><span style="color:#f0f0e8;font-weight:700">🎟 Bookings</span><span>💰 Money</span><span>⋯</span></div>
+</div>
+<div class="dv-card wf" style="width:220px">
+<div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;font-weight:700">Approvals <span style="color:#ff6b5e">(4)</span></div>
+<div style="border:1.5px solid rgba(139,195,74,.25);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:5px;font-size:10px">
+<div style="display:flex;gap:6px"><span class="wf-img" style="width:30px;height:38px;border-radius:4px;font-size:6px"></span><span><b>Stand-up Sunday</b><br><span style="color:#9aa08c">NightOwl ✓ · 2 Aug · ₹150–600</span></span></div>
+<div style="color:#8bc34a">✓ KYC · ✓ venue · ✓ pricing</div>
+<div style="color:#ff6b5e">⚠ poster check needed</div>
+<div style="display:flex;gap:4px"><span class="wf-btn pri" style="flex:1;font-size:9px;padding:3px;background:#8bc34a;border-color:#8bc34a">Approve</span><span class="wf-btn" style="flex:1;font-size:9px;padding:3px">Changes</span><span class="wf-btn" style="font-size:9px;padding:3px 7px;color:#ff6b5e;border-color:#ff6b5e">✕</span></div>
+</div>
+<div style="border:1.5px solid rgba(139,195,74,.15);border-radius:8px;padding:8px;font-size:10px;color:#9aa08c"><b style="color:#f0f0e8">Techno Tuesday</b> · FestCrew · next in queue…</div>
+</div>
+<div style="display:flex;justify-content:space-around;border-top:1.5px solid rgba(139,195,74,.2);padding:7px 0;font-size:9px;color:#9aa08c"><span>▦ Home</span><span style="color:#f0f0e8;font-weight:700">🎪 Events</span><span>🎟 Bookings</span><span>💰 Money</span><span>⋯</span></div>
+</div>
+</div>
+<div class="wf-note">approve events &amp; refunds from your phone — full editing stays on desktop</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "go deeper on <a class="dv-oid" href="#1a">1a</a> sidebar shell for all modules" · "riff on the approval flow <a class="dv-oid" href="#1f">1f</a>" · "show organizer-side panel too" · "new nav directions"</p>
+</section>
+
+</x-dc>
+</body>
+</html>
