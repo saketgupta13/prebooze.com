@@ -25,6 +25,7 @@ interface AppState {
   setSelection: (s: Selection | null) => void;
   addBooking: (b: Booking) => void;
   cancelBooking: (id: string) => void;
+  checkInBooking: (id: string, count: number) => void;
   addEvent: (e: Event) => void;
   addCoupon: (c: Coupon) => void;
   toggleCoupon: (id: string) => void;
@@ -115,6 +116,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cancelBooking: (id) =>
         setBookings((prev) =>
           prev.map((b) => (b.id === id ? { ...b, status: 'cancelled' as const } : b))
+        ),
+      checkInBooking: (id, count) =>
+        setBookings((prev) =>
+          prev.map((b) =>
+            b.id === id
+              ? {
+                  ...b,
+                  guests: b.guests.map((g, i) => ({ ...g, checkedIn: i < count })),
+                }
+              : b
+          )
         ),
       addEvent: (e) => setMyEvents((prev) => [e, ...prev]),
       addCoupon: (c) => setCoupons((prev) => [c, ...prev]),

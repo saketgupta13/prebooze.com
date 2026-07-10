@@ -19,6 +19,16 @@ import Login from './pages/auth/Login';
 import Otp from './pages/auth/Otp';
 import ProfileCompletion from './pages/auth/ProfileCompletion';
 import IdVerification from './pages/auth/IdVerification';
+import Onboarding from './pages/organizer/Onboarding';
+import OrganizerLayout from './pages/organizer/OrganizerLayout';
+import Dashboard from './pages/organizer/Dashboard';
+import MyEvents from './pages/organizer/MyEvents';
+import CreateEvent from './pages/organizer/CreateEvent';
+import Attendees from './pages/organizer/Attendees';
+import Scanner from './pages/organizer/Scanner';
+import Coupons from './pages/organizer/Coupons';
+import Payouts from './pages/organizer/Payouts';
+import Settings from './pages/organizer/Settings';
 import HostLanding from './pages/static/HostLanding';
 import About from './pages/static/About';
 import Contact from './pages/static/Contact';
@@ -112,6 +122,26 @@ export default function App() {
             </RequireAuth>
           }
         />
+
+        {/* Organizer — onboarding & console */}
+        <Route
+          path="/organizer/onboarding"
+          element={
+            <RequireAuth>
+              <Onboarding />
+            </RequireAuth>
+          }
+        />
+        <Route path="/organizer" element={<OrganizerLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="events" element={<MyEvents />} />
+          <Route path="events/create" element={<CreateEvent />} />
+          <Route path="attendees" element={<Attendees />} />
+          <Route path="scanner" element={<Scanner />} />
+          <Route path="coupons" element={<Coupons />} />
+          <Route path="payouts" element={<Payouts />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
 
         {/* Company / static */}
         <Route path="/host" element={<HostLanding />} />
