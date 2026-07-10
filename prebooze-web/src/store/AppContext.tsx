@@ -55,12 +55,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const [pendingPhone, setPendingPhone] = useState('');
 
-  useEffect(() => localStorage.setItem('pb_user', JSON.stringify(user)), [user]);
-  useEffect(() => localStorage.setItem('pb_city', JSON.stringify(city)), [city]);
-  useEffect(() => localStorage.setItem('pb_bookings', JSON.stringify(bookings)), [bookings]);
-  useEffect(() => localStorage.setItem('pb_my_events', JSON.stringify(myEvents)), [myEvents]);
-  useEffect(() => localStorage.setItem('pb_coupons', JSON.stringify(coupons)), [coupons]);
-  useEffect(() => localStorage.setItem('pb_following', JSON.stringify(following)), [following]);
+  useEffect(() => {
+    localStorage.setItem('pb_user', JSON.stringify(user));
+  }, [user]);
+  useEffect(() => {
+    localStorage.setItem('pb_city', JSON.stringify(city));
+  }, [city]);
+  useEffect(() => {
+    localStorage.setItem('pb_bookings', JSON.stringify(bookings));
+  }, [bookings]);
+  useEffect(() => {
+    localStorage.setItem('pb_my_events', JSON.stringify(myEvents));
+  }, [myEvents]);
+  useEffect(() => {
+    localStorage.setItem('pb_coupons', JSON.stringify(coupons));
+  }, [coupons]);
+  useEffect(() => {
+    localStorage.setItem('pb_following', JSON.stringify(following));
+  }, [following]);
 
   const value = useMemo<AppState>(
     () => ({
