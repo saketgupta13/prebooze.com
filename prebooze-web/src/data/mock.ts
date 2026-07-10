@@ -1,0 +1,530 @@
+import type {
+  Attendee,
+  Coupon,
+  Event,
+  Organizer,
+  Payout,
+  Review,
+  Venue,
+} from '../types';
+
+export const CITIES = ['Austin', 'Mumbai', 'Delhi', 'Bengaluru', 'Goa'];
+
+export const CATEGORIES = ['All', 'Concerts', 'Comedy', 'Festivals', 'This weekend'];
+
+export const INTEREST_TAGS = [
+  'Concerts',
+  'Techno',
+  'Comedy',
+  'Festivals',
+  'House parties',
+  'Theatre',
+  'Sports',
+];
+
+const year = new Date().getFullYear();
+const iso = (m: number, d: number, h = 20) =>
+  new Date(year, m - 1, d, h, 0, 0).toISOString();
+
+export const VENUES: Venue[] = [
+  {
+    id: 'arena-hall',
+    name: 'Arena Hall',
+    verified: true,
+    type: 'Concert hall',
+    locality: 'Downtown',
+    city: 'Austin',
+    address: '214 Congress Ave, Downtown, Austin, TX 78701',
+    capacity: 2500,
+    rating: 4.7,
+    followers: 840,
+    amenities: ['🅿 Parking', '♿ Accessible', '🍸 In-house bar'],
+    about:
+      'A landmark downtown concert hall with a 2,500 capacity main floor, mezzanine bar and one of the best sound systems in the city. Home to indie gigs, club nights and album launches since 2014.',
+    photoHue: 152,
+  },
+  {
+    id: 'riverside',
+    name: 'Riverside Grounds',
+    verified: true,
+    type: 'Open-air',
+    locality: 'Riverside',
+    city: 'Austin',
+    address: 'Riverside Park, Festival Ln, Austin, TX',
+    capacity: 8000,
+    rating: 4.5,
+    followers: 620,
+    amenities: ['🅿 Parking', '🍔 Food trucks', '⛺ Open-air'],
+    about:
+      'Sprawling open-air festival grounds by the river — the go-to spot for summer festivals, food carnivals and sundowner sets.',
+    photoHue: 205,
+  },
+  {
+    id: 'comedy-cave',
+    name: 'Comedy Cave',
+    verified: true,
+    type: 'Club',
+    locality: 'Downtown',
+    city: 'Austin',
+    address: '88 6th St, Downtown, Austin, TX',
+    capacity: 350,
+    rating: 4.6,
+    followers: 410,
+    amenities: ['🍸 In-house bar', '♿ Accessible'],
+    about:
+      "Austin's tightest comedy room. Low ceilings, loud laughs — open mics on weekdays, headline specials on weekends.",
+    photoHue: 28,
+  },
+  {
+    id: 'the-loft',
+    name: 'The Loft',
+    verified: false,
+    type: 'Rooftop bar',
+    locality: 'Downtown',
+    city: 'Austin',
+    address: '5th & Lamar, Downtown, Austin, TX',
+    capacity: 220,
+    rating: 4.3,
+    followers: 260,
+    amenities: ['🍸 In-house bar', '🌇 Rooftop'],
+    about:
+      'Rooftop bar with skyline views, acoustic sessions and slow sunsets. Intimate capacity — shows sell out fast.',
+    photoHue: 265,
+  },
+  {
+    id: 'warehouse-9',
+    name: 'Warehouse 9',
+    verified: false,
+    type: 'Warehouse',
+    locality: 'East Side',
+    city: 'Austin',
+    address: 'Bay 9, Industrial Blvd, East Austin, TX',
+    capacity: 1200,
+    rating: 4.4,
+    followers: 380,
+    amenities: ['🔊 30k-watt rig', '🅿 Parking'],
+    about:
+      'Raw industrial warehouse turned late-night techno institution. Concrete, strobes, and sound you feel in your chest.',
+    photoHue: 330,
+  },
+  {
+    id: 'the-basement',
+    name: 'The Basement',
+    verified: false,
+    type: 'Club',
+    locality: 'South Congress',
+    city: 'Austin',
+    address: 'S Congress Ave, Austin, TX',
+    capacity: 300,
+    rating: 4.2,
+    followers: 190,
+    amenities: ['🍸 In-house bar'],
+    about: 'Underground club for house heads and after-hours sets on South Congress.',
+    photoHue: 90,
+  },
+];
+
+export const ORGANIZERS: Organizer[] = [
+  {
+    id: 'livewire',
+    brandName: 'LiveWire Ent.',
+    username: 'livewire',
+    verified: true,
+    city: 'Austin',
+    since: '2023',
+    rating: 4.6,
+    reviewCount: 182,
+    eventsHosted: 24,
+    followers: 1200,
+    following: 86,
+    about:
+      "Austin's indie-music collective. 24 shows and counting — concerts, rooftop gigs & festivals.",
+    logoHue: 95,
+  },
+  {
+    id: 'nightowl',
+    brandName: 'NightOwl Co.',
+    username: 'nightowl',
+    verified: true,
+    city: 'Austin',
+    since: '2024',
+    rating: 4.4,
+    reviewCount: 97,
+    eventsHosted: 17,
+    followers: 780,
+    following: 41,
+    about: 'Late-night club series & warehouse takeovers. If it ends before 4 AM, it isn’t ours.',
+    logoHue: 260,
+  },
+  {
+    id: 'festcrew',
+    brandName: 'FestCrew',
+    username: 'festcrew',
+    verified: true,
+    city: 'Austin',
+    since: '2024',
+    rating: 4.5,
+    reviewCount: 64,
+    eventsHosted: 12,
+    followers: 540,
+    following: 28,
+    about: 'Open-air festivals, food carnivals and day parties across Texas.',
+    logoHue: 25,
+  },
+];
+
+const defaultConditions = [
+  'Entry only with valid QR ticket + photo ID',
+  '18+ event — age verified at gate',
+  'No re-entry once checked in',
+  'Gates close at 9:30 PM sharp',
+  'Tickets non-transferable',
+];
+
+const defaultRules = [
+  { title: 'Dress code', body: 'Smart casual — no flip-flops or sleeveless shirts.' },
+  {
+    title: 'Food & drinks',
+    body: 'Food trucks and a full bar inside. Outside food & drinks are not permitted.',
+  },
+  {
+    title: 'Prohibited items',
+    body: 'No weapons, illegal substances, professional cameras or laser pointers.',
+  },
+  {
+    title: 'Photography & recording',
+    body: 'Phone photography is fine. Professional recording requires organizer approval.',
+  },
+];
+
+export const EVENTS: Event[] = [
+  {
+    id: 'ev-1',
+    slug: 'indie-night-live',
+    title: 'Indie Night Live',
+    description:
+      "An unforgettable night of live indie music featuring the city's hottest acts. Doors open at 7 PM with a warm-up DJ set, followed by three headline performances on the main stage. Expect great sound, food trucks and a crowd that sings every word. The Wilds close the night with their new album played front-to-back, plus a few surprises we're not allowed to announce yet.",
+    category: 'Concerts',
+    ageLimit: '18+',
+    tags: ['Concert', '18+', 'Indoor'],
+    date: iso(7, 24, 20),
+    durationHrs: 3,
+    venueId: 'arena-hall',
+    organizerId: 'livewire',
+    status: 'approved',
+    conditions: defaultConditions,
+    rules: defaultRules,
+    lineup: [
+      { name: 'DJ Nova', role: 'Opening DJ' },
+      { name: 'The Wilds', role: 'Headline artist' },
+      { name: 'FizzCo', role: 'Sponsor' },
+      { name: 'CityBeat', role: 'Promoter' },
+    ],
+    tiers: [
+      { id: 't1', name: 'General', price: 29, quantity: 500, sold: 412, includes: ['Entry', '1 welcome drink'] },
+      { id: 't2', name: 'VIP', price: 79, quantity: 50, sold: 12, includes: ['Entry', 'Lounge access', '2 drinks', 'Meet & greet'] },
+      { id: 't3', name: 'Early bird', price: 19, quantity: 100, sold: 100, includes: ['Entry'] },
+    ],
+    posterHue: 95,
+    seo: {
+      title: 'Indie Night Live | Austin tickets',
+      description:
+        'An unforgettable night of live indie music at Arena Hall, Austin. Book on Prebooze.',
+      slug: 'indie-night-live-austin',
+      keywords: ['indie concert', 'austin', 'live music'],
+    },
+  },
+  {
+    id: 'ev-2',
+    slug: 'summer-fest-26',
+    title: "Summer Fest '26",
+    description:
+      'Two stages, twelve artists, one riverside sunset. The biggest open-air festival of the summer returns with food trucks, art installations and a headline set under fireworks.',
+    category: 'Festivals',
+    ageLimit: 'All ages',
+    tags: ['Festival', 'Open-air'],
+    date: iso(8, 1, 16),
+    durationHrs: 8,
+    venueId: 'riverside',
+    organizerId: 'livewire',
+    status: 'approved',
+    conditions: [
+      'Entry only with valid QR ticket + photo ID',
+      'All ages — under 16 must be with an adult',
+      'Re-entry allowed with wristband',
+      'Last entry 8 PM',
+    ],
+    rules: defaultRules,
+    lineup: [
+      { name: 'DJ Nova', role: 'Opening DJ' },
+      { name: 'The Wilds', role: 'Headline artist' },
+      { name: 'FizzCo', role: 'Sponsor' },
+    ],
+    tiers: [
+      { id: 't1', name: 'General', price: 45, quantity: 2000, sold: 1032, includes: ['Entry'] },
+      { id: 't2', name: 'VIP Lawn', price: 120, quantity: 200, sold: 84, includes: ['Entry', 'VIP lawn', '2 drinks'] },
+    ],
+    posterHue: 205,
+  },
+  {
+    id: 'ev-3',
+    slug: 'stand-up-sunday',
+    title: 'Stand-up Sunday',
+    description:
+      'Five comics, one intimate basement room, zero chill. Doors at 7, first act at 8 — come early, the front row fills fast (if you dare).',
+    category: 'Comedy',
+    ageLimit: '18+',
+    tags: ['Comedy', '18+', 'Indoor'],
+    date: iso(8, 2, 19),
+    durationHrs: 2,
+    venueId: 'comedy-cave',
+    organizerId: 'nightowl',
+    status: 'approved',
+    conditions: defaultConditions.slice(0, 3),
+    rules: defaultRules.slice(0, 3),
+    lineup: [
+      { name: 'Maya K.', role: 'Headline artist' },
+      { name: 'Open Mic Five', role: 'Opening acts' },
+    ],
+    tiers: [
+      { id: 't1', name: 'Standard', price: 15, quantity: 300, sold: 122, includes: ['Entry'] },
+      { id: 't2', name: 'Front row + drink', price: 35, quantity: 30, sold: 21, includes: ['Entry', 'Front row', '1 drink'] },
+    ],
+    posterHue: 28,
+  },
+  {
+    id: 'ev-4',
+    slug: 'acoustic-evenings',
+    title: 'Acoustic Evenings',
+    description:
+      'Unplugged sessions on the rooftop — three singer-songwriters, string lights and slow sunsets over the skyline. Limited to 200 guests.',
+    category: 'Concerts',
+    ageLimit: '18+',
+    tags: ['Concert', 'Rooftop'],
+    date: iso(8, 7, 19),
+    durationHrs: 3,
+    venueId: 'the-loft',
+    organizerId: 'festcrew',
+    status: 'approved',
+    conditions: defaultConditions.slice(0, 4),
+    rules: defaultRules,
+    lineup: [{ name: 'June & Co', role: 'Headline artist' }],
+    tiers: [
+      { id: 't1', name: 'General', price: 22, quantity: 200, sold: 96, includes: ['Entry', '1 welcome drink'] },
+    ],
+    posterHue: 265,
+  },
+  {
+    id: 'ev-5',
+    slug: 'techno-bunker',
+    title: 'Techno Bunker',
+    description:
+      'Raw warehouse energy. International headliner, 30k-watt sound system, lights out at 6 AM. Location shared with ticket holders 24h before doors.',
+    category: 'Concerts',
+    ageLimit: '21+',
+    tags: ['Techno', '21+', 'Warehouse'],
+    date: iso(8, 8, 22),
+    durationHrs: 8,
+    venueId: 'warehouse-9',
+    organizerId: 'nightowl',
+    status: 'approved',
+    conditions: defaultConditions,
+    rules: defaultRules,
+    lineup: [
+      { name: 'KLANG', role: 'Headline artist' },
+      { name: 'DJ Nova', role: 'Opening DJ' },
+    ],
+    tiers: [
+      { id: 't1', name: 'Phase 1', price: 35, quantity: 400, sold: 400, includes: ['Entry'] },
+      { id: 't2', name: 'Phase 2', price: 49, quantity: 400, sold: 187, includes: ['Entry'] },
+      { id: 't3', name: 'Backstage', price: 110, quantity: 40, sold: 9, includes: ['Entry', 'Backstage', '2 drinks'] },
+    ],
+    posterHue: 330,
+  },
+  {
+    id: 'ev-6',
+    slug: 'rooftop-sundowner',
+    title: 'Rooftop Sundowner',
+    description:
+      'Golden-hour house sets, craft cocktails and skyline views. The season closer of our rooftop series.',
+    category: 'This weekend',
+    ageLimit: '21+',
+    tags: ['House', 'Rooftop', '21+'],
+    date: iso(8, 15, 17),
+    durationHrs: 5,
+    venueId: 'the-loft',
+    organizerId: 'livewire',
+    status: 'pending',
+    conditions: defaultConditions.slice(0, 3),
+    rules: defaultRules,
+    lineup: [{ name: 'DJ Nova', role: 'Headline artist' }],
+    tiers: [
+      { id: 't1', name: 'General', price: 49, quantity: 180, sold: 0, includes: ['Entry', '1 cocktail'] },
+    ],
+    posterHue: 45,
+  },
+  {
+    id: 'ev-7',
+    slug: 'neon-warehouse-party',
+    title: 'Neon Warehouse Party',
+    description: 'UV paint, neon installations and bass till late.',
+    category: 'Concerts',
+    ageLimit: '18+',
+    tags: ['Party', '18+'],
+    date: iso(8, 22, 21),
+    durationHrs: 6,
+    venueId: 'warehouse-9',
+    organizerId: 'livewire',
+    status: 'rejected',
+    rejectionReason: 'banner violates guidelines',
+    conditions: defaultConditions,
+    rules: defaultRules,
+    lineup: [],
+    tiers: [{ id: 't1', name: 'General', price: 39, quantity: 600, sold: 0, includes: ['Entry'] }],
+    posterHue: 310,
+  },
+  {
+    id: 'ev-8',
+    slug: 'summer-fest-27',
+    title: "Summer Fest '27",
+    description: 'Next year, bigger. Draft in progress.',
+    category: 'Festivals',
+    ageLimit: 'All ages',
+    tags: ['Festival'],
+    date: iso(12, 31, 16),
+    durationHrs: 8,
+    venueId: 'riverside',
+    organizerId: 'livewire',
+    status: 'draft',
+    conditions: [],
+    rules: [],
+    lineup: [],
+    tiers: [{ id: 't1', name: 'General', price: 45, quantity: 2000, sold: 0, includes: ['Entry'] }],
+    posterHue: 190,
+  },
+];
+
+// Past events shown on profiles
+export const PAST_EVENTS = [
+  { title: 'Jazz in the Park', date: '12 Jun', rating: 4, orgRating: 4.8, hue: 140 },
+  { title: 'Comedy Open Mic', date: '3 May', rating: 0, orgRating: 4.2, hue: 30 },
+  { title: 'NYE Countdown', date: '31 Dec', rating: 5, orgRating: 4.5, hue: 280 },
+  { title: 'Techno Bunker', date: '14 Nov', rating: 4, orgRating: 4.7, hue: 330 },
+  { title: 'Rooftop Sessions', date: '2 Oct', rating: 4, orgRating: 4.4, hue: 60 },
+  { title: 'Indie Unplugged', date: '18 Sep', rating: 5, orgRating: 4.6, hue: 200 },
+];
+
+export const REVIEWS: Review[] = [
+  {
+    id: 'r1',
+    author: 'Priya S.',
+    rating: 5,
+    eventTitle: 'Jazz in the Park',
+    text: 'Smooth entry, great sound, well organized.',
+  },
+  {
+    id: 'r2',
+    author: 'Marco T.',
+    rating: 4,
+    eventTitle: 'NYE Countdown',
+    text: 'Fun night — queue at the bar was long.',
+  },
+  {
+    id: 'r3',
+    author: 'Alex K.',
+    rating: 5,
+    eventTitle: 'Indie Night Live',
+    text: 'QR entry took seconds. Best gig this year.',
+  },
+];
+
+export const FAQS = [
+  {
+    q: 'How do I get my ticket?',
+    a: 'Sent instantly to your WhatsApp — also downloadable as QR from My Bookings.',
+  },
+  {
+    q: 'Can I cancel a booking?',
+    a: 'Yes — free cancellation up to 48 hours before the event. Refunds land back on your payment method instantly.',
+  },
+  {
+    q: 'Do I need an account to book?',
+    a: 'You log in with your WhatsApp number and an OTP — no passwords, no forms. Your number is your account.',
+  },
+  {
+    q: 'How do organizers get verified?',
+    a: 'Every organizer completes identity KYC (Aadhaar + selfie) and bank verification before their events go live.',
+  },
+  {
+    q: 'When do organizers get paid?',
+    a: 'Automatic weekly payouts every Monday, with per-event settlement after the event completes.',
+  },
+];
+
+export const TRUST_POINTS = [
+  'Verified organizers only',
+  'WhatsApp OTP — no passwords',
+  'Secure QR entry, no fakes',
+  'Free cancellation up to 48h',
+  'Instant refunds to source',
+];
+
+export const COUPONS: Coupon[] = [
+  {
+    id: 'c1',
+    code: 'FIRST50',
+    type: 'percent',
+    value: 50,
+    maxDiscount: 100,
+    usageLimit: 500,
+    used: 182,
+    perUserLimit: 1,
+    eventScope: 'all',
+    validTill: '31 Aug',
+    firstTimeOnly: true,
+    status: 'active',
+  },
+  {
+    id: 'c2',
+    code: 'VIPLOVE',
+    type: 'flat',
+    value: 200,
+    usageLimit: 100,
+    used: 34,
+    perUserLimit: 1,
+    eventScope: 'Indie Night Live',
+    validTill: '24 Jul',
+    firstTimeOnly: false,
+    status: 'paused',
+  },
+];
+
+export const PAYOUTS: Payout[] = [
+  { date: '6 Jul', event: 'Indie Night Live', amount: 42180, status: 'paid' },
+  { date: '29 Jun', event: 'Jazz in the Park', amount: 28400, status: 'paid' },
+  { date: '22 Jun', event: 'Comedy Open Mic', amount: 9120, status: 'processing' },
+];
+
+export const ATTENDEES: Attendee[] = [
+  { bookingId: '#88412', name: 'Sam Rivera', phone: '+1 555•••210', tickets: '2× Gen', qty: 2, status: 'checked-in' },
+  { bookingId: '#88393', name: 'J. Okafor', phone: '+1 555•••884', tickets: '1× VIP', qty: 1, status: 'confirmed' },
+  { bookingId: '#88371', name: 'M. Chen', phone: '+1 555•••102', tickets: '4× Gen', qty: 4, status: 'refunded' },
+  { bookingId: '#88356', name: 'R. Gupta', phone: '+1 555•••339', tickets: '2× Gen', qty: 2, status: 'confirmed' },
+  { bookingId: '#88344', name: 'L. Torres', phone: '+1 555•••771', tickets: '3× Gen', qty: 3, status: 'checked-in' },
+];
+
+export const venueById = (id: string) => VENUES.find((v) => v.id === id)!;
+export const organizerById = (id: string) => ORGANIZERS.find((o) => o.id === id)!;
+export const eventBySlug = (slug: string) => EVENTS.find((e) => e.slug === slug);
+export const eventById = (id: string) => EVENTS.find((e) => e.id === id);
+
+export const minPrice = (e: Event) =>
+  Math.min(...e.tiers.filter((t) => t.sold < t.quantity).map((t) => t.price), ...e.tiers.map((t) => t.price));
+
+export const fmtDate = (isoStr: string) =>
+  new Date(isoStr).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+
+export const fmtTime = (isoStr: string) =>
+  new Date(isoStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: undefined, hour12: true }).replace(' ', ' ');
+
+export const fmtMoney = (n: number) => '₹' + n.toLocaleString('en-IN');
