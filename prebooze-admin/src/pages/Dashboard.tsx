@@ -60,6 +60,13 @@ export default function Dashboard() {
           >
             ↩ {pendingRefunds} refund request{pendingRefunds === 1 ? '' : 's'} pending →
           </button>
+          <button
+            className="dashed-box"
+            style={{ borderColor: 'rgba(139,195,74,.5)', color: 'var(--green)', background: 'none', textAlign: 'left', fontSize: 12 }}
+            onClick={() => navigate('/events/e1/live')}
+          >
+            ● Indie Night Live is live now — open gate monitor →
+          </button>
           <div className="dashed-box" style={{ fontSize: 12 }}>💸 2 organizer payouts due Fri</div>
           <button
             className="dashed-box"

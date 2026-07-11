@@ -8,8 +8,11 @@ import type {
   Category,
   Customer,
   Organizer,
+  PermSet,
   Promo,
   Role,
+  RoleMatrix,
+  Settings,
   SitePage,
   StaffMember,
   Venue,
@@ -24,8 +27,11 @@ import {
   SEED_ORGANIZERS,
   SEED_PAGES,
   SEED_PROMOS,
+  SEED_ROLES,
+  SEED_SETTINGS,
   SEED_STAFF,
   SEED_VENUES,
+  PERM_MODULES,
 } from './data';
 
 interface Session {
@@ -46,11 +52,19 @@ interface AdminState {
   blogs: Blog[];
   pages: SitePage[];
   staff: StaffMember[];
+  roles: RoleMatrix;
+  settings: Settings;
   toastMsg: string | null;
   login: (role: Role, email: string) => void;
   logout: () => void;
   toast: (msg: string) => void;
+  addEvent: (e: AdminEvent) => void;
   updateEvent: (id: string, patch: Partial<AdminEvent>) => void;
+  updateStaffRole: (name: string, role: string) => void;
+  removeStaff: (name: string) => void;
+  setRolePerm: (role: string, module: string, key: keyof PermSet, value: boolean) => void;
+  addRole: (name: string) => void;
+  updateSettings: (patch: Partial<Settings>) => void;
   approveEvent: (id: string) => void;
   rejectEvent: (id: string) => void;
   resolveRefund: (bookingId: string, approve: boolean) => void;
@@ -98,6 +112,8 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [blogs, setBlogs] = usePersisted('pba_blogs', SEED_BLOGS);
   const [pages, setPages] = usePersisted('pba_pages', SEED_PAGES);
   const [staff, setStaff] = usePersisted('pba_staff', SEED_STAFF);
+  const [roles, setRoles] = usePersisted('pba_roles', SEED_ROLES);
+  const [settings, setSettings] = usePersisted('pba_settings', SEED_SETTINGS);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -121,6 +137,8 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       blogs,
       pages,
       staff,
+      roles,
+      settings,
       toastMsg,
       toast,
       login: (role, email) => {
@@ -128,8 +146,38 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Welcome back ✓');
       },
       logout: () => setSession(null),
+      addEvent: (e) => {
+        setEvents((prev) => [e, ...prev]);
+        toast('Event created ✓');
+      },
       updateEvent: (id, patch) =>
         setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e))),
+      updateStaffRole: (name, role) => {
+        setStaff((prev) => prev.map((s) => (s.name === name ? { ...s, role } : s)));
+        toast(`${name.split(' ·')[0]} is now ${role} ✓`);
+      },
+      removeStaff: (name) => {
+        setStaff((prev) => prev.filter((s) => s.name !== name));
+        toast('Staff member removed');
+      },
+      setRolePerm: (role, module, key, value) =>
+        setRoles((prev) => ({
+          ...prev,
+          [role]: {
+            ...prev[role],
+            [module]: { ...prev[role][module], [key]: value },
+          },
+        })),
+      addRole: (name) => {
+        setRoles((prev) => ({
+          ...prev,
+          [name]: Object.fromEntries(
+            PERM_MODULES.map((m) => [m, { view: true, edit: false, approve: false }])
+          ),
+        }));
+        toast(`Role "${name}" created ✓`);
+      },
+      updateSettings: (patch) => setSettings((prev) => ({ ...prev, ...patch })),
       approveEvent: (id) => {
         setEvents((prev) =>
           prev.map((e) =>
@@ -198,7 +246,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff]
+    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -26,6 +26,10 @@ export interface AdminEvent {
   revenue: number;
   commission: number | null; // per-event rate — no global setting
   tiers: Tier[];
+  description?: string;
+  rules?: string;
+  lineup?: string;
+  hasBanner?: boolean;
 }
 
 export interface AdminBooking {
@@ -106,4 +110,26 @@ export interface StaffMember {
   name: string;
   role: string;
   lastActive: string;
+}
+
+export interface PermSet {
+  view: boolean;
+  edit: boolean;
+  approve: boolean;
+}
+
+/** role name -> module name -> permissions */
+export type RoleMatrix = Record<string, Record<string, PermSet>>;
+
+export interface Settings {
+  bookingFee: number;
+  gstPct: number;
+  feeLabel: string;
+  absorbedBy: 'Organizer' | 'Guest' | 'Split';
+  payoutDay: string;
+  autoPayout: boolean;
+  weeklyEmail: boolean;
+  whatsappAlerts: boolean;
+  require2fa: boolean;
+  maintenanceMode: boolean;
 }

@@ -528,3 +528,82 @@ export const fmtTime = (isoStr: string) =>
   new Date(isoStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: undefined, hour12: true }).replace(' ', ' ');
 
 export const fmtMoney = (n: number) => '₹' + n.toLocaleString('en-IN');
+
+// ---- Blog (guest-facing side of the admin Blogs CMS) ----
+export interface BlogPost {
+  slug: string;
+  title: string;
+  excerpt: string;
+  author: string;
+  date: string;
+  readMins: number;
+  views: string;
+  tag: string;
+  hue: number;
+  body: string[];
+  linkedEventSlugs: string[];
+}
+
+export const BLOG_POSTS: BlogPost[] = [
+  {
+    slug: 'top-10-gigs-this-monsoon',
+    title: 'Top 10 gigs this monsoon',
+    excerpt:
+      "Rain check? Never heard of it. From rooftop acoustics to warehouse techno, here's where the city is dancing this season.",
+    author: 'Dev P.',
+    date: '4 Jul 2026',
+    readMins: 6,
+    views: '2.1k',
+    tag: 'City guide',
+    hue: 150,
+    body: [
+      'The monsoon has a way of thinning the crowds and thickening the atmosphere — which is exactly why some of the best gigs of the year happen while it pours. We pulled booking data from the last three seasons and one pattern is clear: indoor shows in July and August sell out faster than any other window.',
+      'Leading the pack is Indie Night Live at Arena Hall — three headline acts, a warm-up DJ set, and a sound system that makes the rain outside irrelevant. General tickets are moving fast, and if history repeats, the VIP couches will be gone a week before doors.',
+      "If festivals are more your thing, Summer Fest '26 at Riverside Grounds is betting on clear skies with two stages and twelve artists. Pro tip: the day pass is the best value per hour of music anywhere in the city right now.",
+      'Comedy fans, don\'t sleep on Stand-up Sunday at Comedy Cave — 180 seats, five comics, zero chill. It\'s the kind of room where the back row heckles and the front row regrets everything.',
+      'Whatever you pick, book early, carry a poncho, and remember: every ticket on Prebooze comes with a QR that gets you through the gate in seconds — wet or dry.',
+    ],
+    linkedEventSlugs: ['indie-night-live', 'summer-fest-26', 'stand-up-sunday'],
+  },
+  {
+    slug: 'how-to-host-a-sold-out-show',
+    title: 'How to host a sold-out show',
+    excerpt:
+      'Organizers who sell out share three habits: early-bird urgency, a tight guest list cap, and posters that pass the three-second test.',
+    author: 'Dev P.',
+    date: '28 Jun 2026',
+    readMins: 8,
+    views: '1.4k',
+    tag: 'For organizers',
+    hue: 95,
+    body: [
+      "We looked at every sold-out event on Prebooze in the last six months and interviewed the organizers behind them. The good news: none of them relied on luck, and none of them had a huge marketing budget. They had a system.",
+      'First, early-bird tiers work — but only when they are genuinely scarce. The sweet spot in our data is 20–25% of total capacity. Sell those in the first week and the psychological clock starts ticking for everyone else.',
+      'Second, the poster matters more than the copy. Guests decide in about three seconds whether they can imagine themselves at your event. High contrast, one focal image, date and venue readable at thumbnail size.',
+      'Third, the guest-list cap per booking is your friend. Groups of four convert better than singles, but groups of ten stall the queue at the gate. Cap bookings at 6 and your check-in stays smooth.',
+      'Ready to try it? Listing an event takes about ten minutes, approval usually lands within a day, and payouts hit your account every week.',
+    ],
+    linkedEventSlugs: ['rooftop-sundowner'],
+  },
+  {
+    slug: 'venue-spotlight-riverside',
+    title: 'Venue spotlight: Riverside Grounds',
+    excerpt:
+      "8,000 capacity, a river breeze, and the best sunset in Austin. Why every festival wants a date at Riverside — and how it handles the crowds.",
+    author: 'Team Prebooze',
+    date: '12 Jul 2026',
+    readMins: 5,
+    views: '890',
+    tag: 'Venues',
+    hue: 205,
+    body: [
+      'Some venues host events; Riverside Grounds hosts summers. The sprawling open-air site by the river has become the default answer to the question "where should we do something big?"',
+      'The numbers tell the story: 8,000 capacity, eleven upcoming events, and a 4.5 rating across thousands of reviews. But the thing organizers mention first is the load-in — drive-up access for trucks, power on tap, and a site crew that has seen everything.',
+      "For guests, the magic is simpler: food trucks along the east fence, a sunset that lands directly behind the main stage, and phone signal that actually works — which matters when your ticket is a QR code.",
+      "Riverside's next big one is Summer Fest '26 — two stages, twelve artists, and fireworks over the water. If you only make it to one open-air show this year, make it that one.",
+    ],
+    linkedEventSlugs: ['summer-fest-26'],
+  },
+];
+
+export const blogBySlug = (slug: string) => BLOG_POSTS.find((p) => p.slug === slug);

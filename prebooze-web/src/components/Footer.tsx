@@ -10,6 +10,7 @@ export default function Footer() {
             <Link to="/browse">Events</Link>
             <Link to="/venues">Venues</Link>
             <Link to="/organizers/livewire">Organizers</Link>
+            <Link to="/blog">Blog</Link>
             <Link to="/browse">Cities</Link>
           </div>
           <div>

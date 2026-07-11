@@ -33,6 +33,8 @@ import HostLanding from './pages/static/HostLanding';
 import About from './pages/static/About';
 import Contact from './pages/static/Contact';
 import Legal from './pages/static/Legal';
+import Blog from './pages/static/Blog';
+import BlogPost from './pages/static/BlogPost';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useApp();
@@ -149,6 +151,8 @@ export default function App() {
         <Route path="/host" element={<HostLanding />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/legal/:page" element={<Legal />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -128,6 +128,80 @@ export const SEED_STAFF: StaffMember[] = [
   { name: 'Gate crew (4)', role: 'Scanner only', lastActive: 'at event' },
 ];
 
+import type { RoleMatrix, Settings } from '../types';
+
+export const PERM_MODULES = [
+  'Payments & payouts',
+  'Refunds',
+  'Event commission (per event)',
+  'Events & approvals',
+  'Content (banners / blogs / pages)',
+  'Customers & organizers',
+  'Gate check-in',
+];
+
+const perms = (view: boolean, edit: boolean, approve: boolean) => ({ view, edit, approve });
+const allOn = () => Object.fromEntries(PERM_MODULES.map((m) => [m, perms(true, true, true)]));
+
+export const SEED_ROLES: RoleMatrix = {
+  Owner: allOn(),
+  Manager: {
+    ...allOn(),
+    'Payments & payouts': perms(true, true, false),
+  },
+  Finance: {
+    'Payments & payouts': perms(true, true, true),
+    Refunds: perms(true, true, true),
+    'Event commission (per event)': perms(true, true, false),
+    'Events & approvals': perms(true, false, false),
+    'Content (banners / blogs / pages)': perms(true, false, false),
+    'Customers & organizers': perms(true, false, false),
+    'Gate check-in': perms(false, false, false),
+  },
+  Content: {
+    'Payments & payouts': perms(false, false, false),
+    Refunds: perms(false, false, false),
+    'Event commission (per event)': perms(false, false, false),
+    'Events & approvals': perms(true, false, false),
+    'Content (banners / blogs / pages)': perms(true, true, true),
+    'Customers & organizers': perms(true, false, false),
+    'Gate check-in': perms(false, false, false),
+  },
+  Support: {
+    'Payments & payouts': perms(false, false, false),
+    Refunds: perms(true, true, false),
+    'Event commission (per event)': perms(false, false, false),
+    'Events & approvals': perms(true, false, false),
+    'Content (banners / blogs / pages)': perms(true, false, false),
+    'Customers & organizers': perms(true, true, false),
+    'Gate check-in': perms(true, false, false),
+  },
+  'Scanner only': {
+    'Payments & payouts': perms(false, false, false),
+    Refunds: perms(false, false, false),
+    'Event commission (per event)': perms(false, false, false),
+    'Events & approvals': perms(false, false, false),
+    'Content (banners / blogs / pages)': perms(false, false, false),
+    'Customers & organizers': perms(false, false, false),
+    'Gate check-in': perms(true, true, false),
+  },
+};
+
+export const SEED_SETTINGS: Settings = {
+  bookingFee: 30,
+  gstPct: 18,
+  feeLabel: 'Convenience fee',
+  absorbedBy: 'Organizer',
+  payoutDay: 'Friday',
+  autoPayout: true,
+  weeklyEmail: true,
+  whatsappAlerts: true,
+  require2fa: false,
+  maintenanceMode: false,
+};
+
+export const CATEGORY_OPTIONS = ['Concerts', 'Comedy', 'Festivals', 'House parties'];
+
 export const GUEST_SITE_URL = 'http://localhost:5173';
 
 export const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');

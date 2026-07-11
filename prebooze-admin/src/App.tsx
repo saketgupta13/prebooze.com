@@ -13,7 +13,10 @@ import { AddVenue, VenueDetail, Venues } from './pages/Venues';
 import Payments from './pages/Payments';
 import Promos from './pages/Promos';
 import Reports from './pages/Reports';
-import { Banners, Blogs, Categories, Pages, Staff } from './pages/Content';
+import { Banners, Blogs, Categories, Pages } from './pages/Content';
+import StaffRoles from './pages/StaffRoles';
+import LiveMonitor from './pages/LiveMonitor';
+import Settings from './pages/Settings';
 
 export default function App() {
   return (
@@ -22,7 +25,9 @@ export default function App() {
       <Route element={<AdminLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/events" element={<Events />} />
+        <Route path="/events/create" element={<EventEditor />} />
         <Route path="/events/:id" element={<EventEditor />} />
+        <Route path="/events/:id/live" element={<LiveMonitor />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/organizers" element={<Organizers />} />
@@ -38,7 +43,8 @@ export default function App() {
         <Route path="/categories" element={<Categories />} />
         <Route path="/blogs" element={<Blogs />} />
         <Route path="/pages" element={<Pages />} />
-        <Route path="/staff" element={<Staff />} />
+        <Route path="/staff" element={<StaffRoles />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

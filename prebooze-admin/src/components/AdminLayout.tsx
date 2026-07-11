@@ -92,6 +92,10 @@ export default function AdminLayout() {
             <span>🛡</span>
             <span>Staff &amp; roles</span>
           </NavLink>
+          <NavLink to="/settings" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
+            <span>⚙</span>
+            <span>Settings</span>
+          </NavLink>
         </nav>
 
         <main className="content">
