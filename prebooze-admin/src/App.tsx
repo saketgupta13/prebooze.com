@@ -17,6 +17,12 @@ import { Banners, Blogs, Categories, Pages } from './pages/Content';
 import StaffRoles from './pages/StaffRoles';
 import LiveMonitor from './pages/LiveMonitor';
 import Settings from './pages/Settings';
+import OrganizerEdit from './pages/OrganizerEdit';
+import { EditVenue } from './pages/Venues';
+import RunPayoutBatch from './pages/RunPayoutBatch';
+import PromoEdit from './pages/PromoEdit';
+import Profile from './pages/Profile';
+import AddCustomer from './pages/AddCustomer';
 
 export default function App() {
   return (
@@ -30,20 +36,26 @@ export default function App() {
         <Route path="/events/:id/live" element={<LiveMonitor />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/customers" element={<Customers />} />
+        <Route path="/customers/new" element={<AddCustomer />} />
         <Route path="/organizers" element={<Organizers />} />
         <Route path="/organizers/new" element={<AddOrganizer />} />
         <Route path="/organizers/:id" element={<OrganizerDetail />} />
+        <Route path="/organizers/:id/edit" element={<OrganizerEdit />} />
         <Route path="/venues" element={<Venues />} />
         <Route path="/venues/new" element={<AddVenue />} />
         <Route path="/venues/:id" element={<VenueDetail />} />
+        <Route path="/venues/:id/edit" element={<EditVenue />} />
         <Route path="/payments" element={<Payments />} />
+        <Route path="/payments/run" element={<RunPayoutBatch />} />
         <Route path="/promos" element={<Promos />} />
+        <Route path="/promos/:code/edit" element={<PromoEdit />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/banners" element={<Banners />} />
         <Route path="/categories" element={<Categories />} />
         <Route path="/blogs" element={<Blogs />} />
         <Route path="/pages" element={<Pages />} />
         <Route path="/staff" element={<StaffRoles />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

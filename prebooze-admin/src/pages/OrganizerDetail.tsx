@@ -37,6 +37,7 @@ export default function OrganizerDetail() {
         <button className="btn btn-ghost btn-sm" onClick={() => toast('Message sent to organizer ✓')}>
           Message organizer
         </button>
+        <Link to={`/organizers/${org.id}/edit`} className="btn btn-pri btn-sm">✎ Edit organizer</Link>
       </div>
       <div className="small muted">
         {org.contact} · {org.city} · joined Jan '25 ·{' '}

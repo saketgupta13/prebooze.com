@@ -67,6 +67,8 @@ export function VenueDetail() {
         <Link to="/venues" style={{ fontSize: 13 }}>← Venues</Link>
         <h1 className="display" style={{ fontSize: 18 }}>{venue.name}</h1>
         {venue.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Docs pending" cls="tag-red" />}
+        <div style={{ flex: 1 }} />
+        <Link to={`/venues/${venue.id}/edit`} className="btn btn-pri btn-sm">✎ Edit venue</Link>
       </div>
       {venue.address && <div className="small muted">{venue.address} · map pin set 📍</div>}
 
@@ -79,7 +81,7 @@ export function VenueDetail() {
       </div>
 
       <div className="dashed-box tiny" style={{ color: 'var(--muted)' }}>
-        Contact: Ravi N. · +91 98••• ••400 · house rules: no outside food, 11 PM curfew
+        {venue.type ? `Type: ${venue.type} · ` : ''}Contact: {venue.contact ?? '—'} · house rules: {venue.rules ?? '—'}
       </div>
 
       <div className="tblwrap">
@@ -160,6 +162,105 @@ export function AddVenue() {
       </button>
       <button type="submit" className="btn btn-pri" style={{ padding: 10, fontSize: 13 }}>Save venue</button>
       <div className="tiny red">new venue starts as "Docs pending" until license reviewed</div>
+    </form>
+  );
+}
+
+
+/** Edit venue — same form as Add venue (the venue onboarding flow), prefilled. */
+export function EditVenue() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { venues, updateVenue, toast } = useAdmin();
+  const venue = venues.find((v) => v.id === id);
+
+  const [name, setName] = useState(venue?.name ?? '');
+  const [address, setAddress] = useState(venue?.address ?? '');
+  const [capacity, setCapacity] = useState(String(venue?.capacity ?? ''));
+  const [type, setType] = useState(venue?.type ?? 'Indoor');
+  const [contact, setContact] = useState(venue?.contact ?? '');
+  const [rules, setRules] = useState(venue?.rules ?? '');
+  const [docs, setDocs] = useState(venue?.verified ?? false);
+
+  if (!venue) {
+    return (
+      <div className="stack fade">
+        <h1 className="page-title">Venue not found</h1>
+        <Link to="/venues" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Venues</Link>
+      </div>
+    );
+  }
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      toast('Venue name is required');
+      return;
+    }
+    updateVenue(venue.id, {
+      name: name.trim(),
+      address: address.trim() || undefined,
+      capacity: parseInt(capacity, 10) || venue.capacity,
+      type,
+      contact: contact.trim() || undefined,
+      rules: rules.trim() || undefined,
+      verified: docs,
+      license: docs ? venue.license.replace('docs pending', 'under review') : venue.license,
+    });
+    navigate(`/venues/${venue.id}`);
+  };
+
+  return (
+    <form className="stack fade" style={{ maxWidth: 520 }} onSubmit={submit}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <Link to={`/venues/${venue.id}`} style={{ fontSize: 13 }}>← {venue.name}</Link>
+        <h1 className="page-title">Edit venue</h1>
+        {venue.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Docs pending" cls="tag-red" />}
+      </div>
+      <div className="ph" style={{ height: 80, borderRadius: 10 }}>venue photos — 4 uploaded · + add more</div>
+      <div className="field">
+        <label>Venue name</label>
+        <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>Address / map pin 📍</label>
+        <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} />
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <div className="field" style={{ flex: 1 }}>
+          <label>Capacity</label>
+          <input className="input" value={capacity} onChange={(e) => setCapacity(e.target.value)} inputMode="numeric" />
+        </div>
+        <div className="field" style={{ flex: 1 }}>
+          <label>Type</label>
+          <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
+            <option>Indoor</option>
+            <option>Outdoor</option>
+            <option>Rooftop</option>
+            <option>Warehouse</option>
+          </select>
+        </div>
+      </div>
+      <div className="field">
+        <label>Contact person + phone</label>
+        <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>House rules / notes</label>
+        <input className="input" value={rules} onChange={(e) => setRules(e.target.value)} />
+      </div>
+      <button
+        type="button"
+        className="dashed-box"
+        style={{ background: 'none', textAlign: 'left', color: docs ? 'var(--green)' : 'var(--muted)', fontSize: 11.5, cursor: 'pointer' }}
+        onClick={() => setDocs((d) => !d)}
+      >
+        {docs ? '✓ License / permit docs on file — venue Verified' : '+ upload license / permit docs — required before venue is marked Verified'}
+      </button>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }}>Save venue</button>
+        <Link to={`/venues/${venue.id}`} className="btn btn-ghost" style={{ padding: 10 }}>Cancel</Link>
+      </div>
     </form>
   );
 }

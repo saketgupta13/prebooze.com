@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react';
 import type {
   AdminBooking,
+  Notification,
   AdminEvent,
   Banner,
   Blog,
@@ -26,6 +27,7 @@ import {
   SEED_EVENTS,
   SEED_ORGANIZERS,
   SEED_PAGES,
+  SEED_NOTIFICATIONS,
   SEED_PROMOS,
   SEED_ROLES,
   SEED_SETTINGS,
@@ -37,6 +39,7 @@ import {
 interface Session {
   role: Role;
   email: string;
+  name?: string;
 }
 
 interface AdminState {
@@ -71,8 +74,17 @@ interface AdminState {
   toggleBlockCustomer: (id: string) => void;
   setOrganizerStatus: (id: string, status: Organizer['status']) => void;
   addOrganizer: (o: Organizer) => void;
+  updateOrganizer: (id: string, patch: Partial<Organizer>) => void;
   addVenue: (v: Venue) => void;
+  updateVenue: (id: string, patch: Partial<Venue>) => void;
   addPromo: (p: Promo) => void;
+  updatePromo: (code: string, patch: Partial<Promo>) => void;
+  runPayoutBatch: (eventIds: string[]) => void;
+  notifications: Notification[];
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
+  addCustomer: (c: Customer) => void;
+  updateSession: (patch: Partial<Session>) => void;
   addBanner: (b: Banner) => void;
   addCategory: (c: Category) => void;
   addBlog: (b: Blog) => void;
@@ -91,8 +103,11 @@ const load = <T,>(key: string, fallback: T): T => {
   }
 };
 
-function usePersisted<T>(key: string, seed: T) {
-  const [value, setValue] = useState<T>(() => load(key, seed));
+function usePersisted<T>(key: string, seed: T, migrate?: (v: T) => T) {
+  const [value, setValue] = useState<T>(() => {
+    const v = load(key, seed);
+    return migrate ? migrate(v) : v;
+  });
   useEffect(() => {
     localStorage.setItem(key, JSON.stringify(value));
   }, [key, value]);
@@ -102,7 +117,10 @@ function usePersisted<T>(key: string, seed: T) {
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = usePersisted<Session | null>('pba_session', null);
   const [events, setEvents] = usePersisted('pba_events', SEED_EVENTS);
-  const [bookings, setBookings] = usePersisted('pba_bookings', SEED_BOOKINGS);
+  const [bookings, setBookings] = usePersisted('pba_bookings', SEED_BOOKINGS, (list) =>
+    // schema migration: bookings stored before the guests field existed
+    list.map((b) => ({ ...b, guests: b.guests ?? [`${b.guest} (main)`] }))
+  );
   const [customers, setCustomers] = usePersisted('pba_customers', SEED_CUSTOMERS);
   const [organizers, setOrganizers] = usePersisted('pba_organizers', SEED_ORGANIZERS);
   const [venues, setVenues] = usePersisted('pba_venues', SEED_VENUES);
@@ -113,6 +131,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [pages, setPages] = usePersisted('pba_pages', SEED_PAGES);
   const [staff, setStaff] = usePersisted('pba_staff', SEED_STAFF);
   const [roles, setRoles] = usePersisted('pba_roles', SEED_ROLES);
+  const [notifications, setNotifications] = usePersisted<Notification[]>('pba_notifications', SEED_NOTIFICATIONS);
   const [settings, setSettings] = usePersisted('pba_settings', SEED_SETTINGS);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -217,9 +236,58 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setOrganizers((prev) => [...prev, o]);
         toast('Invite sent — organizer added as Pending review ✓');
       },
+      updateOrganizer: (id, patch) => {
+        setOrganizers((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+        toast('Organizer profile saved ✓');
+      },
       addVenue: (v) => {
         setVenues((prev) => [...prev, v]);
         toast('Venue added — Docs pending until license reviewed ✓');
+      },
+      updateVenue: (id, patch) => {
+        setVenues((prev) => prev.map((v) => (v.id === id ? { ...v, ...patch } : v)));
+        toast('Venue saved ✓');
+      },
+      updatePromo: (code, patch) => {
+        setPromos((prev) => prev.map((p) => (p.code === code ? { ...p, ...patch } : p)));
+        toast('Promo code saved ✓');
+      },
+      runPayoutBatch: (eventIds) => {
+        const utr = () => 'UTR' + Math.floor(100000000 + Math.random() * 899999999);
+        setEvents((prev) =>
+          prev.map((e) => (eventIds.includes(e.id) ? { ...e, paidOut: true, payoutUtr: utr() } : e))
+        );
+        setNotifications((prev) => [
+          {
+            id: 'n' + Date.now(),
+            icon: '💸',
+            text: `Payout batch processed — ${eventIds.length} transfer${eventIds.length === 1 ? '' : 's'} initiated`,
+            time: 'just now',
+            read: false,
+            to: '/payments',
+          },
+          ...prev,
+        ]);
+        toast(`Payout batch of ${eventIds.length} processed ✓`);
+      },
+      notifications,
+      markNotificationRead: (id) =>
+        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n))),
+      markAllNotificationsRead: () => {
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        toast('All notifications marked read ✓');
+      },
+      addCustomer: (c) => {
+        setCustomers((prev) => [c, ...prev]);
+        setNotifications((prev) => [
+          { id: 'n' + Date.now(), icon: '👥', text: `${c.name} onboarded manually by admin`, time: 'just now', read: true, to: '/customers' },
+          ...prev,
+        ]);
+        toast(`${c.name} onboarded ✓`);
+      },
+      updateSession: (patch) => {
+        setSession((prev) => (prev ? { ...prev, ...patch } : prev));
+        toast('Profile updated ✓');
       },
       addPromo: (p) => {
         setPromos((prev) => [p, ...prev]);
@@ -246,7 +314,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings]
+    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

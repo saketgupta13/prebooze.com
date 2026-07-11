@@ -58,10 +58,10 @@ export const SEED_EVENTS: AdminEvent[] = [
 ];
 
 export const SEED_BOOKINGS: AdminBooking[] = [
-  { id: '#8412', guest: 'Sam Rivera', phone: '+91 98••• ••210', eventId: 'e1', qty: 2, amount: 1450, status: 'refund_requested', method: 'UPI' },
-  { id: '#8420', guest: 'Priya K.', phone: '+91 87••• ••330', eventId: 'e2', qty: 4, amount: 2900, status: 'paid', method: 'Card' },
-  { id: '#8419', guest: 'Arjun M.', phone: '+91 99••• ••118', eventId: 'e1', qty: 1, amount: 580, status: 'checked_in', method: 'UPI' },
-  { id: '#8415', guest: 'Nia T.', phone: '+91 76••• ••902', eventId: 'e2', qty: 2, amount: 1160, status: 'refunded', method: 'UPI' },
+  { id: '#8412', guest: 'Sam Rivera', phone: '+91 98••• ••210', eventId: 'e1', qty: 2, amount: 1450, status: 'refund_requested', method: 'UPI', guests: ['Sam Rivera ✓ (main)', 'Alex Kim'] },
+  { id: '#8420', guest: 'Priya K.', phone: '+91 87••• ••330', eventId: 'e2', qty: 4, amount: 2900, status: 'paid', method: 'Card', guests: ['Priya K. ✓ (main)', 'Meera S.', 'Tara J.', 'Ishaan V.'] },
+  { id: '#8419', guest: 'Arjun M.', phone: '+91 99••• ••118', eventId: 'e1', qty: 1, amount: 580, status: 'checked_in', method: 'UPI', guests: ['Arjun M. (main)'] },
+  { id: '#8415', guest: 'Nia T.', phone: '+91 76••• ••902', eventId: 'e2', qty: 2, amount: 1160, status: 'refunded', method: 'UPI', guests: ['Nia T. ✓ (main)', 'Zoya R.'] },
 ];
 
 export const SEED_CUSTOMERS: Customer[] = [
@@ -73,7 +73,7 @@ export const SEED_CUSTOMERS: Customer[] = [
 ];
 
 export const SEED_ORGANIZERS: Organizer[] = [
-  { id: 'o1', name: 'LiveWire Ent.', contact: 'contact@livewire.co', city: 'Austin', events: 18, kyc: 'verified', status: 'approved' },
+  { id: 'o1', name: 'LiveWire Ent.', contact: 'contact@livewire.co', city: 'Austin', events: 18, kyc: 'verified', status: 'approved', contactPerson: 'Jordan Lee', phone: '+91 98••• ••442', eventTypes: 'Concerts, Festivals', about: "Austin's indie-music collective — 18 shows and counting.", links: 'livewire.co / ig / X', gstin: '29ABCDE1234F1Z5', pan: 'ABCDE1234F', bankLast4: '8821' },
   { id: 'o2', name: 'FestCrew', contact: 'hello@festcrew.io', city: 'Austin', events: 11, kyc: 'verified', status: 'approved' },
   { id: 'o3', name: 'NightOwl Co.', contact: 'bookings@nightowl.co', city: 'Dallas', events: 2, kyc: 'pending', status: 'pending' },
   { id: 'o4', name: 'Sunset Sessions', contact: 'team@sunsetsessions.com', city: 'Houston', events: 0, kyc: 'submitted', status: 'pending' },
@@ -81,17 +81,29 @@ export const SEED_ORGANIZERS: Organizer[] = [
 ];
 
 export const SEED_VENUES: Venue[] = [
-  { id: 'v1', name: 'Arena Hall', capacity: 400, events: 18, license: "valid till Mar '27", verified: true, address: '123 5th St, Austin, TX' },
+  { id: 'v1', name: 'Arena Hall', capacity: 400, events: 18, license: "valid till Mar '27", verified: true, address: '123 5th St, Austin, TX', type: 'Indoor', contact: 'Ravi N. · +91 98••• ••400', rules: 'No outside food, 11 PM curfew' },
   { id: 'v2', name: 'Riverside Grounds', capacity: 2000, events: 11, license: "valid till Jan '27", verified: true, address: 'Riverside Park, Austin, TX' },
   { id: 'v3', name: 'Comedy Cave', capacity: 180, events: 9, license: 'expires 12 Aug ⚠', verified: false, address: '88 6th St, Austin, TX' },
   { id: 'v4', name: 'The Loft', capacity: 120, events: 7, license: "valid till Nov '26", verified: true, address: '5th & Lamar, Austin, TX' },
 ];
 
 export const SEED_PROMOS: Promo[] = [
-  { code: 'FEST10', discountLabel: '10% ≤ ₹100', scope: 'Summer Fest', gender: 'all', usedLabel: '184/500', status: 'active' },
-  { code: 'LADIESNIGHT', discountLabel: '50% ≤ ₹300', scope: 'Indie Night', gender: 'women', usedLabel: '67/200', status: 'active' },
-  { code: 'FIRSTGIG', discountLabel: '₹150 flat', scope: 'first booking', gender: 'all', usedLabel: '96/∞', status: 'active' },
-  { code: 'DIWALI25', discountLabel: '25% ≤ ₹250', scope: 'all events', gender: 'all', usedLabel: '890/1k', status: 'expired' },
+  { code: 'FEST10', discountLabel: '10% ≤ ₹100', scope: 'Summer Fest', gender: 'all', usedLabel: '184/500', status: 'active', type: 'percent', value: 10, maxCap: 100 },
+  { code: 'LADIESNIGHT', discountLabel: '50% ≤ ₹300', scope: 'Indie Night', gender: 'women', usedLabel: '67/200', status: 'active', type: 'percent', value: 50, maxCap: 300 },
+  { code: 'FIRSTGIG', discountLabel: '₹150 flat', scope: 'first booking', gender: 'all', usedLabel: '96/∞', status: 'active', type: 'flat', value: 150 },
+  { code: 'DIWALI25', discountLabel: '25% ≤ ₹250', scope: 'all events', gender: 'all', usedLabel: '890/1k', status: 'expired', type: 'percent', value: 25, maxCap: 250 },
+];
+
+export const promoLabel = (type: 'percent' | 'flat', value: number, maxCap?: number) =>
+  type === 'flat' ? `₹${value} flat` : `${value}%${maxCap ? ` ≤ ₹${maxCap}` : ''}`;
+
+export const SEED_NOTIFICATIONS = [
+  { id: 'n1', icon: '⚠', text: '“Stand-up Sunday” submitted for approval by NightOwl Co.', time: '2h ago', read: false, to: '/events?tab=pending' },
+  { id: 'n2', icon: '↩', text: 'Refund requested — booking #8412 · ₹1,450 · “can\'t attend”', time: '3h ago', read: false, to: '/bookings?status=refund_requested' },
+  { id: 'n3', icon: '🛡', text: 'Sunset Sessions submitted KYC docs for review', time: '5h ago', read: false, to: '/organizers' },
+  { id: 'n4', icon: '📄', text: 'Comedy Cave license expires 12 Aug — docs pending', time: '1d ago', read: true, to: '/venues' },
+  { id: 'n5', icon: '💸', text: '2 organizer payouts due Friday · ₹2.9L total', time: '1d ago', read: true, to: '/payments' },
+  { id: 'n6', icon: '✍', text: 'Blog “Venue spotlight: Riverside” goes live 12 Jul, 9 AM', time: '2d ago', read: true, to: '/blogs' },
 ];
 
 export const SEED_BANNERS: Banner[] = [

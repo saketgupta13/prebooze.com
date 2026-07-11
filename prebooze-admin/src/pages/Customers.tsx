@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { CUSTOMER_STATUS, Drawer, SearchBox, Tag } from '../components/ui';
@@ -24,9 +25,10 @@ export default function Customers() {
     <div className="stack fade" style={{ maxWidth: 1100 }}>
       <div className="page-hd">
         <h1 className="page-title">Customers</h1>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <button className={`chip ${segment === 'guests' ? 'on' : ''}`} onClick={() => setSegment('guests')}>Guests</button>
           <button className={`chip ${segment === 'organizers' ? 'on' : ''}`} onClick={() => setSegment('organizers')}>Organizers</button>
+          <Link to="/customers/new" className="btn btn-pri btn-sm">+ Add customer</Link>
         </div>
       </div>
 

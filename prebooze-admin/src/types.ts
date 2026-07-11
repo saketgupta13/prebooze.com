@@ -30,6 +30,8 @@ export interface AdminEvent {
   rules?: string;
   lineup?: string;
   hasBanner?: boolean;
+  paidOut?: boolean;
+  payoutUtr?: string;
 }
 
 export interface AdminBooking {
@@ -41,6 +43,7 @@ export interface AdminBooking {
   amount: number;
   status: BookingStatus;
   method: string;
+  guests: string[]; // every attendee on the group QR (main guest first)
 }
 
 export interface Customer {
@@ -53,6 +56,9 @@ export interface Customer {
   spend: number;
   status: CustomerStatus;
   segment: 'guests' | 'organizers';
+  phone?: string;
+  email?: string;
+  notes?: string;
 }
 
 export interface Organizer {
@@ -63,6 +69,14 @@ export interface Organizer {
   events: number;
   kyc: string;
   status: OrganizerStatus;
+  contactPerson?: string;
+  phone?: string;
+  eventTypes?: string;
+  about?: string;
+  links?: string;
+  gstin?: string;
+  pan?: string;
+  bankLast4?: string;
 }
 
 export interface Venue {
@@ -73,6 +87,9 @@ export interface Venue {
   license: string;
   verified: boolean;
   address?: string;
+  type?: string;
+  contact?: string;
+  rules?: string;
 }
 
 export interface Promo {
@@ -82,6 +99,18 @@ export interface Promo {
   gender: Gender;
   usedLabel: string;
   status: 'active' | 'expired' | 'paused';
+  type?: 'percent' | 'flat';
+  value?: number;
+  maxCap?: number;
+}
+
+export interface Notification {
+  id: string;
+  icon: string;
+  text: string;
+  time: string;
+  read: boolean;
+  to?: string; // route to open on click
 }
 
 export interface Banner {

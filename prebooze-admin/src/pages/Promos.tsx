@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
+import { promoLabel } from '../store/data';
 import { Tag } from '../components/ui';
 import type { Gender } from '../types';
 
@@ -16,7 +18,9 @@ const audienceLabel = (g: Gender) =>
 export default function Promos() {
   const { promos, addPromo, toast } = useAdmin();
   const [code, setCode] = useState('');
+  const [ptype, setPtype] = useState<'percent' | 'flat'>('percent');
   const [value, setValue] = useState('');
+  const [maxCap, setMaxCap] = useState('');
   const [gender, setGender] = useState<Gender>('all');
 
   const create = (e: React.FormEvent) => {
@@ -30,17 +34,26 @@ export default function Promos() {
       toast(`${c} already exists`);
       return;
     }
-    const v = value.trim() || '10';
+    const v = parseFloat(value) || 10;
+    if (ptype === 'percent' && v > 100) {
+      toast('Percentage discount cannot exceed 100%');
+      return;
+    }
+    const cap = maxCap ? parseInt(maxCap, 10) : undefined;
     addPromo({
       code: c,
-      discountLabel: v.includes('₹') ? v : `${v}%`,
+      discountLabel: promoLabel(ptype, v, ptype === 'percent' ? cap : undefined),
       scope: 'all events',
       gender,
       usedLabel: '0/∞',
       status: 'active',
+      type: ptype,
+      value: v,
+      maxCap: ptype === 'percent' ? cap : undefined,
     });
     setCode('');
     setValue('');
+    setMaxCap('');
     setGender('all');
   };
 
@@ -56,6 +69,7 @@ export default function Promos() {
           <span style={{ flex: 1 }}>Audience</span>
           <span style={{ flex: 0.8 }}>Used</span>
           <span style={{ flex: 1 }}>Status</span>
+          <span style={{ width: 50 }} />
         </div>
         {promos.map((p) => (
           <div key={p.code} className="trow" style={{ minWidth: 560 }}>
@@ -73,6 +87,9 @@ export default function Promos() {
                 <Tag label="Expired" cls="tag-dim" />
               )}
             </span>
+            <span style={{ width: 50, display: 'flex', justifyContent: 'flex-end' }}>
+              <Link to={`/promos/${p.code}/edit`} className="btn btn-ghost btn-sm" style={{ padding: '3px 8px' }}>✎</Link>
+            </span>
           </div>
         ))}
       </div>
@@ -87,13 +104,28 @@ export default function Promos() {
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             placeholder="CODE"
           />
+          <select className="input" style={{ width: 150 }} value={ptype} onChange={(e) => setPtype(e.target.value as 'percent' | 'flat')}>
+            <option value="percent">% percentage off</option>
+            <option value="flat">₹ flat off</option>
+          </select>
           <input
             className="input"
-            style={{ width: 170 }}
+            style={{ width: 110 }}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="value (e.g. 10 or ₹150)"
+            onChange={(e) => setValue(e.target.value.replace(/[^0-9.]/g, ''))}
+            placeholder={ptype === 'percent' ? '% value' : '₹ value'}
+            inputMode="numeric"
           />
+          {ptype === 'percent' && (
+            <input
+              className="input"
+              style={{ width: 120 }}
+              value={maxCap}
+              onChange={(e) => setMaxCap(e.target.value.replace(/\D/g, ''))}
+              placeholder="max cap ₹"
+              inputMode="numeric"
+            />
+          )}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <span className="small" style={{ fontWeight: 700, color: '#c7cbb9' }}>Audience — gender:</span>

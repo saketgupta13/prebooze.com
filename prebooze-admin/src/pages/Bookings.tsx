@@ -108,7 +108,32 @@ export default function Bookings() {
             <br />
             <b style={{ color: 'var(--text)' }}>Paid ₹{fmt(selected.amount)}</b> · {selected.method}
           </div>
-          <div className="ph" style={{ height: 48 }}>{selected.qty} × QR tickets</div>
+          <div>
+            <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>
+              Guests on this booking ({(selected.guests ?? []).length || 1})
+            </div>
+            <div className="stack" style={{ gap: 4 }}>
+              {(selected.guests ?? [`${selected.guest} (main)`]).map((g, i) => (
+                <div
+                  key={g}
+                  style={{
+                    display: 'flex',
+                    gap: 8,
+                    alignItems: 'center',
+                    border: '1px solid rgba(139,195,74,.2)',
+                    borderRadius: 6,
+                    padding: '5px 9px',
+                    fontSize: 11.5,
+                  }}
+                >
+                  <span className="muted">{i + 1}.</span>
+                  <span style={{ flex: 1 }}>{g}</span>
+                </div>
+              ))}
+            </div>
+            <div className="tiny hint" style={{ marginTop: 4 }}>one QR covers the whole group — partial check-in supported</div>
+          </div>
+          <div className="ph" style={{ height: 48 }}>1 × group QR · valid for {(selected.guests ?? []).length || 1} guest{((selected.guests ?? []).length || 1) > 1 ? 's' : ''}</div>
           {selected.status === 'refund_requested' && (
             <>
               <div style={{ border: '1px solid var(--red)', borderRadius: 8, padding: 10, color: 'var(--red-soft)', fontSize: 12.5 }}>

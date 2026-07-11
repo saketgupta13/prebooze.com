@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { Kpi } from '../components/ui';
@@ -7,6 +8,7 @@ const TABS = ['Payouts due', 'Transactions', 'Refunds', 'Disputes'];
 
 export default function Payments() {
   const { events, toast } = useAdmin();
+  const navigate = useNavigate();
   const [tab, setTab] = useState(TABS[0]);
 
   // Each row's commission % is pulled from that event's own rate — the event editor is the source of truth.
@@ -22,7 +24,7 @@ export default function Payments() {
     <div className="stack fade" style={{ maxWidth: 1100 }}>
       <div className="page-hd">
         <h1 className="page-title">Payments &amp; payouts</h1>
-        <button className="btn btn-pri" onClick={() => toast('Payout batch queued ✓')}>Run payout batch →</button>
+        <button className="btn btn-pri" onClick={() => navigate('/payments/run')}>Run payout batch →</button>
       </div>
 
       <div className="kpi-grid">
@@ -56,9 +58,16 @@ export default function Payments() {
               <span style={{ flex: 1.1 }}>
                 ₹{fmt(r.commissionAmt)} <span className="muted">({r.commission}%)</span>
               </span>
-              <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(r.net)}</span>
+              <span style={{ flex: 1, fontWeight: 700 }} className="green">
+                ₹{fmt(r.net)}
+                {r.paidOut && r.payoutUtr && <span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>{r.payoutUtr}</span>}
+              </span>
               <span style={{ flex: 0.9, display: 'flex', justifyContent: 'flex-end' }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => toast(`Payout to ${r.organizer} initiated ✓`)}>Pay ⏸</button>
+                {r.paidOut ? (
+                  <span className="tag tag-green" title={r.payoutUtr}>Paid ✓</span>
+                ) : (
+                  <button className="btn btn-ghost btn-sm" onClick={() => toast(`Payout to ${r.organizer} initiated ✓`)}>Pay ⏸</button>
+                )}
               </span>
             </div>
           ))}

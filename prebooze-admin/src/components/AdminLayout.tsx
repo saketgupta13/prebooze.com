@@ -1,6 +1,8 @@
-import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { GUEST_SITE_URL } from '../store/data';
+import NotificationsPanel from './NotificationsPanel';
 
 const MAIN_NAV = [
   { to: '/', icon: '▦', label: 'Dashboard', end: true },
@@ -30,8 +32,10 @@ const MOBILE_NAV = [
 ];
 
 export default function AdminLayout() {
-  const { session, logout, toast } = useAdmin();
+  const { session, logout, notifications } = useAdmin();
   const navigate = useNavigate();
+  const [notifOpen, setNotifOpen] = useState(false);
+  const unread = notifications.filter((n) => !n.read).length;
 
   if (!session) return <Navigate to="/login" replace />;
 
@@ -54,8 +58,12 @@ export default function AdminLayout() {
           />
         </div>
         <div style={{ flex: 1 }} />
-        <button className="btn btn-ghost btn-sm hide-mobile" onClick={() => toast('3 unread notifications')}>
-          🔔 3
+        <button
+          className="btn btn-ghost btn-sm"
+          style={unread > 0 ? { borderColor: 'var(--red)', color: 'var(--red-soft)' } : undefined}
+          onClick={() => setNotifOpen(true)}
+        >
+          🔔{unread > 0 ? ` ${unread}` : ''}
         </button>
         <a href={GUEST_SITE_URL} target="_blank" rel="noreferrer" className="btn btn-pri btn-sm">
           View guest site →
@@ -69,7 +77,7 @@ export default function AdminLayout() {
         >
           Log out
         </button>
-        <div className="avatar">👤</div>
+        <Link to="/profile" className="avatar" title="My profile" style={{ textDecoration: 'none' }}>👤</Link>
       </header>
 
       <div className="shell">
@@ -126,6 +134,7 @@ export default function AdminLayout() {
         ))}
       </nav>
 
+      {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
       <ToastHost />
     </>
   );
