@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { BOOKING_STATUS, Drawer, SearchBox, Tag } from '../components/ui';
@@ -41,7 +41,10 @@ export default function Bookings() {
     <div className="stack fade" style={{ maxWidth: 1100 }}>
       <div className="page-hd">
         <h1 className="page-title">Bookings</h1>
-        <button className="btn btn-ghost" onClick={() => toast('Export started ✓')}>⬇ Export CSV</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-ghost" onClick={() => toast('Export started ✓')}>⬇ Export CSV</button>
+          <Link to="/bookings/new" className="btn btn-pri">+ Manual booking</Link>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

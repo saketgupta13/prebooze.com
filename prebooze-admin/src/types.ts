@@ -32,6 +32,7 @@ export interface AdminEvent {
   hasBanner?: boolean;
   paidOut?: boolean;
   payoutUtr?: string;
+  seo?: Seo;
 }
 
 export interface AdminBooking {
@@ -77,6 +78,7 @@ export interface Organizer {
   gstin?: string;
   pan?: string;
   bankLast4?: string;
+  seo?: Seo;
 }
 
 export interface Venue {
@@ -90,6 +92,7 @@ export interface Venue {
   type?: string;
   contact?: string;
   rules?: string;
+  seo?: Seo;
 }
 
 export interface Promo {
@@ -104,6 +107,39 @@ export interface Promo {
   maxCap?: number;
 }
 
+export interface Seo {
+  title: string;
+  description: string;
+  keywords: string;
+}
+
+export interface BlogCategory {
+  id: string;
+  name: string;
+  hasBanner?: boolean;
+  seo?: Seo;
+}
+
+export interface LedgerEntry {
+  id: string;
+  kind: 'income' | 'expense';
+  category: string;
+  amount: number;
+  note?: string;
+  date: string;
+  auto?: boolean; // auto-posted (e.g. ticket commission) — not editable
+}
+
+export interface GuestEntry {
+  id: string;
+  eventId: string;
+  name: string;
+  phone?: string;
+  plusOnes: number;
+  addedBy: string;
+  arrived?: boolean;
+}
+
 export interface Notification {
   id: string;
   icon: string;
@@ -114,25 +150,41 @@ export interface Notification {
 }
 
 export interface Banner {
+  id: string;
   title: string;
   statusLabel: string;
+  heading?: string;
+  description?: string;
+  ctaLabel?: string;
+  ctaLink?: string;
+  hasImage?: boolean;
 }
 
 export interface Category {
   icon: string;
   name: string;
   count: number;
+  hasImage?: boolean;
+  seo?: Seo;
 }
 
 export interface Blog {
+  id: string;
   title: string;
   meta: string;
   status: 'published' | 'draft' | 'scheduled';
+  category?: string;
+  content?: string;
+  hasBanner?: boolean;
+  seo?: Seo;
 }
 
 export interface SitePage {
   title: string;
   slug: string;
+  content?: string;
+  navGroup?: string;
+  seo?: Seo;
 }
 
 export interface StaffMember {

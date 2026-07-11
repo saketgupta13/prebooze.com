@@ -2,6 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react';
 import type {
   AdminBooking,
+  BlogCategory,
+  GuestEntry,
+  LedgerEntry,
   Notification,
   AdminEvent,
   Banner,
@@ -27,6 +30,10 @@ import {
   SEED_EVENTS,
   SEED_ORGANIZERS,
   SEED_PAGES,
+  SEED_BLOG_CATEGORIES,
+  SEED_GUEST_LIST,
+  SEED_LEDGER,
+  SEED_LEDGER_CATEGORIES,
   SEED_NOTIFICATIONS,
   SEED_PROMOS,
   SEED_ROLES,
@@ -86,10 +93,27 @@ interface AdminState {
   addCustomer: (c: Customer) => void;
   updateSession: (patch: Partial<Session>) => void;
   addBanner: (b: Banner) => void;
+  updateBanner: (id: string, patch: Partial<Banner>) => void;
+  removeBanner: (id: string) => void;
   addCategory: (c: Category) => void;
+  updateCategory: (name: string, patch: Partial<Category>) => void;
   addBlog: (b: Blog) => void;
+  updateBlog: (id: string, patch: Partial<Blog>) => void;
+  blogCategories: BlogCategory[];
+  addBlogCategory: (c: BlogCategory) => void;
   addPage: (p: SitePage) => void;
+  updatePage: (slug: string, patch: Partial<SitePage>) => void;
   addStaff: (s: StaffMember) => void;
+  ledger: LedgerEntry[];
+  ledgerCategories: { income: string[]; expense: string[] };
+  addLedgerEntry: (e: LedgerEntry) => void;
+  removeLedgerEntry: (id: string) => void;
+  addLedgerCategory: (kind: 'income' | 'expense', name: string) => void;
+  guestList: GuestEntry[];
+  addGuestEntry: (g: GuestEntry) => void;
+  removeGuestEntry: (id: string) => void;
+  toggleGuestArrived: (id: string) => void;
+  addBooking: (b: AdminBooking) => void;
 }
 
 const Ctx = createContext<AdminState>(null as unknown as AdminState);
@@ -134,11 +158,19 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [organizers, setOrganizers] = usePersisted('pba_organizers', SEED_ORGANIZERS, mergeWithSeed(SEED_ORGANIZERS, 'id'));
   const [venues, setVenues] = usePersisted('pba_venues', SEED_VENUES, mergeWithSeed(SEED_VENUES, 'id'));
   const [promos, setPromos] = usePersisted('pba_promos', SEED_PROMOS, mergeWithSeed(SEED_PROMOS, 'code'));
-  const [banners, setBanners] = usePersisted('pba_banners', SEED_BANNERS);
+  const [banners, setBanners] = usePersisted('pba_banners', SEED_BANNERS, (list) =>
+    mergeWithSeed(SEED_BANNERS, 'title')(list).map((b, i) => ({ ...b, id: b.id ?? 'b' + (i + 1) }))
+  );
   const [categories, setCategories] = usePersisted('pba_categories', SEED_CATEGORIES);
-  const [blogs, setBlogs] = usePersisted('pba_blogs', SEED_BLOGS);
+  const [blogs, setBlogs] = usePersisted('pba_blogs', SEED_BLOGS, (list) =>
+    mergeWithSeed(SEED_BLOGS, 'title')(list).map((b, i) => ({ ...b, id: b.id ?? 'bl' + (i + 1) }))
+  );
   const [pages, setPages] = usePersisted('pba_pages', SEED_PAGES);
   const [staff, setStaff] = usePersisted('pba_staff', SEED_STAFF);
+  const [blogCategories, setBlogCategories] = usePersisted<BlogCategory[]>('pba_blogcats', SEED_BLOG_CATEGORIES);
+  const [ledger, setLedger] = usePersisted<LedgerEntry[]>('pba_ledger', SEED_LEDGER);
+  const [ledgerCategories, setLedgerCategories] = usePersisted('pba_ledgercats', SEED_LEDGER_CATEGORIES);
+  const [guestList, setGuestList] = usePersisted<GuestEntry[]>('pba_guestlist', SEED_GUEST_LIST);
   const [roles, setRoles] = usePersisted('pba_roles', SEED_ROLES);
   const [notifications, setNotifications] = usePersisted<Notification[]>('pba_notifications', SEED_NOTIFICATIONS);
   const [settings, setSettings] = usePersisted('pba_settings', SEED_SETTINGS);
@@ -306,6 +338,60 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setBanners((prev) => [...prev, b]);
         toast('Banner added ✓');
       },
+      updateBanner: (id, patch) => {
+        setBanners((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+        toast('Banner saved ✓');
+      },
+      removeBanner: (id) => {
+        setBanners((prev) => prev.filter((b) => b.id !== id));
+        toast('Banner removed');
+      },
+      updateCategory: (name, patch) => {
+        setCategories((prev) => prev.map((c) => (c.name === name ? { ...c, ...patch } : c)));
+        toast('Category saved ✓');
+      },
+      updateBlog: (id, patch) => {
+        setBlogs((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+        toast('Post saved ✓');
+      },
+      blogCategories,
+      addBlogCategory: (c) => {
+        setBlogCategories((prev) => [...prev, c]);
+        toast(`Blog category "${c.name}" created ✓`);
+      },
+      updatePage: (slug, patch) => {
+        setPages((prev) => prev.map((p) => (p.slug === slug ? { ...p, ...patch } : p)));
+        toast('Page saved ✓');
+      },
+      ledger,
+      ledgerCategories,
+      addLedgerEntry: (e) => {
+        setLedger((prev) => [e, ...prev]);
+        toast(`${e.kind === 'income' ? 'Income' : 'Expense'} of ₹${e.amount.toLocaleString('en-IN')} recorded ✓`);
+      },
+      removeLedgerEntry: (id) => {
+        setLedger((prev) => prev.filter((e) => e.id !== id));
+        toast('Entry removed');
+      },
+      addLedgerCategory: (kind, name) => {
+        setLedgerCategories((prev) => ({ ...prev, [kind]: [...prev[kind], name] }));
+        toast(`Category "${name}" added ✓`);
+      },
+      guestList,
+      addGuestEntry: (g) => {
+        setGuestList((prev) => [g, ...prev]);
+        toast(`${g.name} added to guest list ✓`);
+      },
+      removeGuestEntry: (id) => {
+        setGuestList((prev) => prev.filter((g) => g.id !== id));
+        toast('Removed from guest list');
+      },
+      toggleGuestArrived: (id) =>
+        setGuestList((prev) => prev.map((g) => (g.id === id ? { ...g, arrived: !g.arrived } : g))),
+      addBooking: (b) => {
+        setBookings((prev) => [b, ...prev]);
+        toast(`Manual booking ${b.id} created ✓`);
+      },
       addCategory: (c) => {
         setCategories((prev) => [...prev, c]);
         toast('Category added ✓');
@@ -323,7 +409,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications]
+    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

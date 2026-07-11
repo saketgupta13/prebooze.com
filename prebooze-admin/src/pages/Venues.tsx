@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { EVENT_STATUS, Kpi, Tag } from '../components/ui';
+import SeoFields, { emptySeo } from '../components/SeoFields';
 
 export function Venues() {
   const { venues } = useAdmin();
@@ -181,6 +182,7 @@ export function EditVenue() {
   const [contact, setContact] = useState(venue?.contact ?? '');
   const [rules, setRules] = useState(venue?.rules ?? '');
   const [docs, setDocs] = useState(venue?.verified ?? false);
+  const [seo, setSeo] = useState(venue?.seo ?? emptySeo());
 
   if (!venue) {
     return (
@@ -206,6 +208,7 @@ export function EditVenue() {
       rules: rules.trim() || undefined,
       verified: docs,
       license: docs ? venue.license.replace('docs pending', 'under review') : venue.license,
+      seo,
     });
     navigate(`/venues/${venue.id}`);
   };
@@ -257,6 +260,12 @@ export function EditVenue() {
       >
         {docs ? '✓ License / permit docs on file — venue Verified' : '+ upload license / permit docs — required before venue is marked Verified'}
       </button>
+      <SeoFields
+        seo={seo}
+        onChange={setSeo}
+        slug={'/venues/' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
+        fallbackTitle={`${name || 'Venue'} — events & tickets`}
+      />
       <div style={{ display: 'flex', gap: 10 }}>
         <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }}>Save venue</button>
         <Link to={`/venues/${venue.id}`} className="btn btn-ghost" style={{ padding: 10 }}>Cancel</Link>

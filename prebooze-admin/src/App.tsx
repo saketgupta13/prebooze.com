@@ -23,6 +23,13 @@ import RunPayoutBatch from './pages/RunPayoutBatch';
 import PromoEdit from './pages/PromoEdit';
 import Profile from './pages/Profile';
 import AddCustomer from './pages/AddCustomer';
+import PageEdit from './pages/PageEdit';
+import CategoryEdit from './pages/CategoryEdit';
+import BannerEdit from './pages/BannerEdit';
+import { BlogEditor, BlogCategories } from './pages/BlogEditor';
+import Finance from './pages/Finance';
+import ManualBooking from './pages/ManualBooking';
+import GuestList from './pages/GuestList';
 
 export default function App() {
   return (
@@ -34,7 +41,9 @@ export default function App() {
         <Route path="/events/create" element={<EventEditor />} />
         <Route path="/events/:id" element={<EventEditor />} />
         <Route path="/events/:id/live" element={<LiveMonitor />} />
+        <Route path="/events/:id/guestlist" element={<GuestList />} />
         <Route path="/bookings" element={<Bookings />} />
+        <Route path="/bookings/new" element={<ManualBooking />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/customers/new" element={<AddCustomer />} />
         <Route path="/organizers" element={<Organizers />} />
@@ -50,10 +59,19 @@ export default function App() {
         <Route path="/promos" element={<Promos />} />
         <Route path="/promos/:code/edit" element={<PromoEdit />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/finance" element={<Finance />} />
         <Route path="/banners" element={<Banners />} />
+        <Route path="/banners/new" element={<BannerEdit />} />
+        <Route path="/banners/:id/edit" element={<BannerEdit />} />
         <Route path="/categories" element={<Categories />} />
+        <Route path="/categories/new" element={<CategoryEdit />} />
+        <Route path="/categories/:name/edit" element={<CategoryEdit />} />
         <Route path="/blogs" element={<Blogs />} />
+        <Route path="/blogs/new" element={<BlogEditor />} />
+        <Route path="/blogs/categories" element={<BlogCategories />} />
+        <Route path="/blogs/:id/edit" element={<BlogEditor />} />
         <Route path="/pages" element={<Pages />} />
+        <Route path="/pages/:pid/edit" element={<PageEdit />} />
         <Route path="/staff" element={<StaffRoles />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />

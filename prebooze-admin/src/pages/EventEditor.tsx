@@ -3,9 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { CATEGORY_OPTIONS, fmt } from '../store/data';
 import { EVENT_STATUS, Tag } from '../components/ui';
+import SeoFields, { emptySeo } from '../components/SeoFields';
 import type { AdminEvent, Tier } from '../types';
 
-type EditorTab = 'basics' | 'tickets' | 'media' | 'rules' | 'commission' | 'lineup';
+type EditorTab = 'basics' | 'tickets' | 'media' | 'rules' | 'commission' | 'lineup' | 'seo';
 const TABS: { key: EditorTab; label: string }[] = [
   { key: 'basics', label: '1 · Basics' },
   { key: 'tickets', label: '2 · Tickets' },
@@ -13,6 +14,7 @@ const TABS: { key: EditorTab; label: string }[] = [
   { key: 'rules', label: '4 · Rules' },
   { key: 'commission', label: '5 · Commission' },
   { key: 'lineup', label: '6 · Line-up' },
+  { key: 'seo', label: '7 · SEO' },
 ];
 
 const EMPTY_EVENT: AdminEvent = {
@@ -120,6 +122,11 @@ export default function EventEditor() {
               Reject
             </button>
           </>
+        )}
+        {!isCreate && (
+          <Link to={`/events/${event.id}/guestlist`} className="btn btn-ghost btn-sm">
+            📋 Guest list
+          </Link>
         )}
         {!isCreate && event.status === 'live' && (
           <Link to={`/events/${event.id}/live`} className="btn btn-ghost btn-sm" style={{ color: 'var(--green)', borderColor: 'var(--green)' }}>
@@ -305,6 +312,15 @@ export default function EventEditor() {
           </div>
           <div className="tiny hint">Commission is set per event — there is no global rate. Locks once the event goes live.</div>
         </div>
+      )}
+
+      {tab === 'seo' && (
+        <SeoFields
+          seo={event.seo ?? emptySeo()}
+          onChange={(next) => patch({ seo: next })}
+          slug={'/events/' + (event.title || 'event').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}
+          fallbackTitle={`${event.title || 'Event'} tickets`}
+        />
       )}
 
       {tab === 'lineup' && (

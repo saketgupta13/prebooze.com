@@ -12,6 +12,7 @@ const MAIN_NAV = [
   { to: '/organizers', icon: '🧑‍💼', label: 'Organizers' },
   { to: '/venues', icon: '📍', label: 'Venues' },
   { to: '/payments', icon: '💰', label: 'Payments' },
+  { to: '/finance', icon: '🧾', label: 'Income & expenses' },
   { to: '/promos', icon: '🏷', label: 'Promo codes' },
   { to: '/reports', icon: '📈', label: 'Reports' },
 ];

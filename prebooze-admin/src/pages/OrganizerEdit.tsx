@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { ORGANIZER_STATUS, Tag } from '../components/ui';
+import SeoFields, { emptySeo } from '../components/SeoFields';
 
 /** Edit organizer — mirrors the organizer onboarding flow: business profile then KYC & bank. */
 export default function OrganizerEdit() {
@@ -24,6 +25,7 @@ export default function OrganizerEdit() {
   }));
   const [logo, setLogo] = useState(true);
   const [aadhaar, setAadhaar] = useState(org?.kyc === 'verified');
+  const [seo, setSeo] = useState(org?.seo ?? emptySeo());
   const [bank, setBank] = useState(org?.bankLast4 ?? '');
   const [ifsc, setIfsc] = useState(org?.bankLast4 ? 'HDFC0001234' : '');
 
@@ -50,6 +52,7 @@ export default function OrganizerEdit() {
       name: form.name.trim(),
       kyc: aadhaar && bank ? 'verified' : org.kyc,
       bankLast4: bank ? bank.slice(-4) : org.bankLast4,
+      seo,
     });
     navigate(`/organizers/${org.id}`);
   };
@@ -147,6 +150,13 @@ export default function OrganizerEdit() {
         {bank && ifsc && <div className="small green">✓ penny-drop verification passed</div>}
         <div className="tiny hint">KYC status: {org.kyc} · changing bank details re-triggers penny-drop verification</div>
       </div>
+
+      <SeoFields
+        seo={seo}
+        onChange={setSeo}
+        slug={'/organizers/' + form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
+        fallbackTitle={`${form.name || 'Organizer'} — events & tickets`}
+      />
 
       <div style={{ display: 'flex', gap: 10 }}>
         <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }}>Save organizer</button>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { Tag } from '../components/ui';
 
@@ -58,60 +59,75 @@ function ContentPage({
 }
 
 export function Banners() {
-  const { banners, addBanner, toast } = useAdmin();
+  const { banners, toast } = useAdmin();
+  const navigate = useNavigate();
   return (
-    <ContentPage
-      title="Banners"
-      addLabel="+ Add banner"
-      placeholder="Banner title / campaign"
-      onAdd={(title) => addBanner({ title, statusLabel: 'Scheduled' })}
-      footnote="banner editor: image 16:5, link target (event / page / URL), schedule start–end, city targeting"
-    >
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => toast('Opening guest home preview…')}>Preview home →</button>
+    <div className="stack fade" style={{ maxWidth: 800 }}>
+      <div className="page-hd">
+        <h1 className="page-title">Banners</h1>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => toast('Opening guest home preview…')}>Preview home →</button>
+          <Link to="/banners/new" className="btn btn-pri">+ Add banner</Link>
+        </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
-        {banners.map((b, i) => (
-          <div key={b.title + i} className="tblwrap" style={{ overflow: 'hidden' }}>
-            <div className="ph" style={{ height: 70, border: 'none', borderRadius: 0 }}>banner 16:5</div>
-            <div style={{ padding: '8px 10px', fontSize: 11.5, display: 'flex', justifyContent: 'space-between' }}>
-              <span>{b.title}</span>
-              <span className="green">{b.statusLabel}</span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+        {banners.map((b) => (
+          <button key={b.id} className="tblwrap" style={{ overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0 }} onClick={() => navigate(`/banners/${b.id}/edit`)}>
+            <div
+              className="ph"
+              style={{ height: 76, border: 'none', borderRadius: 0, flexDirection: 'column', gap: 2, background: b.hasImage ? 'linear-gradient(120deg, rgba(139,195,74,.22), rgba(139,195,74,.05))' : undefined }}
+            >
+              <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: 12.5, fontFamily: "'Space Grotesk',sans-serif" }}>{b.heading ?? 'banner 16:5'}</span>
+              {b.ctaLabel && <span className="tiny green">{b.ctaLabel} → {b.ctaLink}</span>}
             </div>
-          </div>
+            <div style={{ padding: '8px 10px', fontSize: 11.5, display: 'flex', justifyContent: 'space-between', color: 'var(--text)' }}>
+              <span>{b.title}</span>
+              <span className="green">{b.statusLabel} · ✎</span>
+            </div>
+          </button>
         ))}
       </div>
-    </ContentPage>
+      <div className="tiny hint">click a banner to edit its image, heading, description and CTA link</div>
+    </div>
   );
 }
 
 export function Categories() {
-  const { categories, addCategory } = useAdmin();
+  const { categories } = useAdmin();
+  const navigate = useNavigate();
   return (
-    <ContentPage
-      title="Categories"
-      addLabel="+ Add category"
-      placeholder="Category name"
-      onAdd={(name) => addCategory({ icon: '🏷', name, count: 0 })}
-      footnote="category = browse filter chip + facet + slug for SEO landing page · drag sets chip order on home"
-    >
+    <div className="stack fade" style={{ maxWidth: 700 }}>
+      <div className="page-hd">
+        <h1 className="page-title">Categories</h1>
+        <Link to="/categories/new" className="btn btn-pri">+ Add category</Link>
+      </div>
       <div className="stack" style={{ gap: 6 }}>
         {categories.map((c, i) => (
-          <div key={c.name + i} className="card" style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 12px', fontSize: 12.5 }}>
+          <button
+            key={c.name + i}
+            className="card"
+            style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 12px', fontSize: 12.5, cursor: 'pointer', textAlign: 'left', color: 'var(--text)' }}
+            onClick={() => navigate(`/categories/${encodeURIComponent(c.name)}/edit`)}
+          >
             <span className="muted">⠿</span>
             <span style={{ flex: 1 }}>
               {c.icon} <b>{c.name}</b> · {c.count} events
+              {c.hasImage && <span className="tiny green"> · cover ✓</span>}
+              {c.seo?.title && <span className="tiny green"> · SEO ✓</span>}
             </span>
             {c.count === 0 ? <Tag label="Hidden" cls="tag-dim" /> : <Tag label="Visible" cls="tag-green" />}
-          </div>
+            <span className="muted">✎</span>
+          </button>
         ))}
       </div>
-    </ContentPage>
+      <div className="tiny hint">click a category to edit its icon, cover image and SEO landing page · drag sets chip order on home</div>
+    </div>
   );
 }
 
 export function Blogs() {
-  const { blogs, addBlog } = useAdmin();
+  const { blogs } = useAdmin();
+  const navigate = useNavigate();
   const tagFor = (status: string) =>
     status === 'published' ? (
       <Tag label="Published" cls="tag-green" />
@@ -121,27 +137,38 @@ export function Blogs() {
       <Tag label="Scheduled" cls="" />
     );
   return (
-    <ContentPage
-      title="Blog posts"
-      addLabel="+ New post"
-      placeholder="Post title"
-      onAdd={(title) => addBlog({ title, meta: 'by You · just now', status: 'draft' })}
-      footnote="post editor: cover, rich text, embed event cards, slug, meta title/description, OG image, publish or schedule"
-    >
+    <div className="stack fade" style={{ maxWidth: 800 }}>
+      <div className="page-hd">
+        <h1 className="page-title">Blog posts</h1>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link to="/blogs/categories" className="btn btn-ghost btn-sm">Categories</Link>
+          <Link to="/blogs/new" className="btn btn-pri">+ New post</Link>
+        </div>
+      </div>
       <div className="stack" style={{ gap: 6 }}>
-        {blogs.map((b, i) => (
-          <div key={b.title + i} className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 12px', fontSize: 12 }}>
-            <div className="ph" style={{ width: 44, height: 28, borderRadius: 5, flex: 'none', fontSize: 7 }}>cover</div>
+        {blogs.map((b) => (
+          <button
+            key={b.id}
+            className="card"
+            style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 12px', fontSize: 12, cursor: 'pointer', textAlign: 'left', color: 'var(--text)' }}
+            onClick={() => navigate(`/blogs/${b.id}/edit`)}
+          >
+            <div className="ph" style={{ width: 44, height: 28, borderRadius: 5, flex: 'none', fontSize: 7, background: b.hasBanner ? 'linear-gradient(120deg, rgba(139,195,74,.25), rgba(139,195,74,.06))' : undefined }}>
+              {b.hasBanner ? '✓' : 'cover'}
+            </div>
             <span style={{ flex: 1 }}>
               <b>{b.title}</b>
+              {b.category && <span className="tiny green"> · {b.category}</span>}
               <br />
               <span className="muted">{b.meta}</span>
             </span>
             {tagFor(b.status)}
-          </div>
+            <span className="muted">✎</span>
+          </button>
         ))}
       </div>
-    </ContentPage>
+      <div className="tiny hint">click a post to edit — cover banner, category, content and SEO</div>
+    </div>
   );
 }
 
@@ -157,10 +184,19 @@ export function Pages() {
     >
       <div className="stack" style={{ gap: 6 }}>
         {pages.map((p, i) => (
-          <div key={p.slug + i} className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 12px', fontSize: 12.5 }}>
-            <span style={{ flex: 1 }}><b>{p.title}</b></span>
+          <Link
+            key={p.slug + i}
+            to={`/pages/${p.slug.replace(/^\//, '')}/edit`}
+            className="card"
+            style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 12px', fontSize: 12.5, color: 'var(--text)' }}
+          >
+            <span style={{ flex: 1 }}>
+              <b>{p.title}</b>
+              {p.seo?.title && <span className="tiny green"> · SEO ✓</span>}
+            </span>
             <span className="muted">{p.slug}</span>
-          </div>
+            <span className="muted">✎</span>
+          </Link>
         ))}
       </div>
     </ContentPage>

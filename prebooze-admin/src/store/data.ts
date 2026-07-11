@@ -107,9 +107,9 @@ export const SEED_NOTIFICATIONS = [
 ];
 
 export const SEED_BANNERS: Banner[] = [
-  { title: 'Summer Fest hero', statusLabel: 'Live · #1' },
-  { title: 'Host with us', statusLabel: 'Live · #2' },
-  { title: 'Diwali promo', statusLabel: 'Scheduled' },
+  { id: 'b1', title: 'Summer Fest hero', statusLabel: 'Live · #1', heading: "Summer Fest '26 is here", description: 'Two stages, twelve artists, fireworks over the river.', ctaLabel: 'Get day passes →', ctaLink: '/events/summer-fest-26', hasImage: true },
+  { id: 'b2', title: 'Host with us', statusLabel: 'Live · #2', heading: 'Turn your events into income', description: 'List in minutes, get paid weekly.', ctaLabel: 'Join as organizer', ctaLink: '/host', hasImage: true },
+  { id: 'b3', title: 'Diwali promo', statusLabel: 'Scheduled', heading: 'Diwali nights, 25% off', description: 'Use DIWALI25 at checkout.', ctaLabel: 'Browse events', ctaLink: '/browse', hasImage: false },
 ];
 
 export const SEED_CATEGORIES: Category[] = [
@@ -120,9 +120,32 @@ export const SEED_CATEGORIES: Category[] = [
 ];
 
 export const SEED_BLOGS: Blog[] = [
-  { title: 'Top 10 gigs this monsoon', meta: 'by Dev P. · 2.1k views', status: 'published' },
-  { title: 'How to host a sold-out show', meta: 'by Dev P. · targets organizers', status: 'draft' },
-  { title: 'Venue spotlight: Riverside', meta: 'scheduled 12 Jul, 9 AM', status: 'scheduled' },
+  { id: 'bl1', title: 'Top 10 gigs this monsoon', meta: 'by Dev P. · 2.1k views', status: 'published', category: 'City guide', hasBanner: true, content: 'The monsoon has a way of thinning the crowds and thickening the atmosphere…' },
+  { id: 'bl2', title: 'How to host a sold-out show', meta: 'by Dev P. · targets organizers', status: 'draft', category: 'For organizers', hasBanner: true, content: 'We looked at every sold-out event on Prebooze in the last six months…' },
+  { id: 'bl3', title: 'Venue spotlight: Riverside', meta: 'scheduled 12 Jul, 9 AM', status: 'scheduled', category: 'Venues', hasBanner: false, content: 'Some venues host events; Riverside Grounds hosts summers…' },
+];
+
+export const SEED_BLOG_CATEGORIES = [
+  { id: 'bc1', name: 'City guide', hasBanner: true },
+  { id: 'bc2', name: 'For organizers', hasBanner: false },
+  { id: 'bc3', name: 'Venues', hasBanner: true },
+];
+
+export const SEED_LEDGER = [
+  { id: 'l1', kind: 'expense' as const, category: 'Marketing', amount: 18500, note: 'Instagram ads — Summer Fest', date: '2 Jul' },
+  { id: 'l2', kind: 'expense' as const, category: 'Staff & salaries', amount: 64000, note: 'Gate crew + support, June', date: '1 Jul' },
+  { id: 'l3', kind: 'income' as const, category: 'Sponsorship', amount: 40000, note: 'FizzCo — Indie Night Live', date: '28 Jun' },
+  { id: 'l4', kind: 'expense' as const, category: 'Office & tools', amount: 9200, note: 'SaaS + coworking, June', date: '28 Jun' },
+];
+
+export const SEED_LEDGER_CATEGORIES = {
+  income: ['Ticket commission', 'Booking fees', 'Sponsorship', 'Other income'],
+  expense: ['Marketing', 'Staff & salaries', 'Office & tools', 'Refund losses', 'Other expense'],
+};
+
+export const SEED_GUEST_LIST = [
+  { id: 'g1', eventId: 'e1', name: 'Rhea Kapoor', phone: '+91 98••• ••771', plusOnes: 1, addedBy: 'Admin', arrived: false },
+  { id: 'g2', eventId: 'e1', name: 'DJ Nova (artist)', plusOnes: 2, addedBy: 'Admin', arrived: true },
 ];
 
 export const SEED_PAGES: SitePage[] = [

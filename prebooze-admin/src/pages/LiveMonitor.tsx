@@ -34,6 +34,11 @@ export default function LiveMonitor() {
   const [rejected, setRejected] = useState(2);
   const [scanRate, setScanRate] = useState(4);
   const [paused, setPaused] = useState(false);
+  const [panel, setPanel] = useState<'none' | 'checkin' | 'message'>('none');
+  const [ciName, setCiName] = useState('');
+  const [ciCount, setCiCount] = useState(1);
+  const [msgTo, setMsgTo] = useState('All gate staff');
+  const [msgText, setMsgText] = useState('');
   const [feed, setFeed] = useState<FeedEntry[]>([
     { ok: true, text: '✓ Arjun M. · General · Gate A', at: Date.now() - 4000 },
     { ok: true, text: '✓ Nia T. +1 · VIP · Gate B', at: Date.now() - 12000 },
@@ -155,20 +160,94 @@ export default function LiveMonitor() {
           {paused ? 'Resume gate sales ✓' : 'Pause gate sales'}
         </button>
         <button
-          className="btn btn-ghost"
+          className={panel === 'checkin' ? 'btn btn-pri' : 'btn btn-ghost'}
           style={{ flex: 1 }}
-          onClick={() => {
-            setCheckedIn((c) => c + 1);
-            setFeed((f) => [{ ok: true, text: '✓ manual check-in · walk-up · Gate A', at: Date.now() }, ...f].slice(0, 8));
-            toast('Manual check-in recorded ✓');
-          }}
+          onClick={() => setPanel(panel === 'checkin' ? 'none' : 'checkin')}
         >
           Manual check-in
         </button>
-        <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => toast('Message sent to 4 gate staff ✓')}>
+        <button
+          className={panel === 'message' ? 'btn btn-pri' : 'btn btn-ghost'}
+          style={{ flex: 1 }}
+          onClick={() => setPanel(panel === 'message' ? 'none' : 'message')}
+        >
           Message staff
         </button>
       </div>
+
+      {panel === 'checkin' && (
+        <form
+          className="card fade"
+          style={{ border: '1px solid var(--green)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!ciName.trim()) {
+              toast('Enter the guest name or booking #');
+              return;
+            }
+            setCheckedIn((c) => c + ciCount);
+            setFeed((f) =>
+              [{ ok: true, text: `✓ ${ciName.trim()} ×${ciCount} · manual check-in · Gate A`, at: Date.now() }, ...f].slice(0, 8)
+            );
+            toast(`${ciName.trim()} checked in manually (${ciCount}) ✓`);
+            setCiName('');
+            setCiCount(1);
+            setPanel('none');
+          }}
+        >
+          <div className="field" style={{ flex: 1.6, minWidth: 160 }}>
+            <label>Guest name or booking #</label>
+            <input className="input" value={ciName} onChange={(e) => setCiName(e.target.value)} placeholder="e.g. Sam Rivera or #8412" autoFocus />
+          </div>
+          <div className="field" style={{ width: 130 }}>
+            <label>Guests</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCiCount((c) => Math.max(1, c - 1))}>−</button>
+              <b>{ciCount}</b>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCiCount((c) => Math.min(10, c + 1))}>+</button>
+            </div>
+          </div>
+          <button type="submit" className="btn btn-pri" style={{ height: 38 }}>Check in ✓</button>
+        </form>
+      )}
+
+      {panel === 'message' && (
+        <form
+          className="card fade"
+          style={{ border: '1px solid var(--green)', display: 'flex', flexDirection: 'column', gap: 8 }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!msgText.trim()) {
+              toast('Type a message first');
+              return;
+            }
+            toast(`Message sent to ${msgTo} ✓`);
+            setFeed((f) => [{ ok: true, text: `📣 to ${msgTo}: “${msgText.trim().slice(0, 40)}${msgText.trim().length > 40 ? '…' : ''}”`, at: Date.now() }, ...f].slice(0, 8));
+            setMsgText('');
+            setPanel('none');
+          }}
+        >
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {['All gate staff', 'Gate A crew', 'Gate B crew', 'Door lead'].map((t) => (
+              <button key={t} type="button" className={`chip ${msgTo === t ? 'on' : ''}`} onClick={() => setMsgTo(t)}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              className="input"
+              style={{ flex: 1 }}
+              value={msgText}
+              onChange={(e) => setMsgText(e.target.value)}
+              placeholder="e.g. Hold entries 5 min — clearing the lobby"
+              autoFocus
+            />
+            <button type="submit" className="btn btn-pri">Send 📣</button>
+          </div>
+          <div className="tiny hint">delivered to staff phones via WhatsApp · quick sends: “Slow the queue” · “VIP arriving” · “Last entry closing”</div>
+        </form>
+      )}
       <div className="tiny hint">rejected scans alert the door lead automatically · duplicate QRs show when & where the first scan happened</div>
     </div>
   );
