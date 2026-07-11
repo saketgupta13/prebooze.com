@@ -1,0 +1,109 @@
+export type EventStatus = 'live' | 'pending' | 'draft';
+export type BookingStatus = 'refund_requested' | 'paid' | 'checked_in' | 'refunded';
+export type CustomerStatus = 'active' | 'unverified' | 'blocked';
+export type OrganizerStatus = 'approved' | 'pending' | 'rejected';
+export type Gender = 'all' | 'women' | 'men' | 'other';
+export type Role = 'admin' | 'staff';
+
+export interface Tier {
+  name: string;
+  price: number;
+  qty: number;
+  sold: number;
+}
+
+export interface AdminEvent {
+  id: string;
+  title: string;
+  category: string;
+  venue: string;
+  date: string;
+  time: string;
+  organizer: string;
+  status: EventStatus;
+  sold: number;
+  cap: number;
+  revenue: number;
+  commission: number | null; // per-event rate — no global setting
+  tiers: Tier[];
+}
+
+export interface AdminBooking {
+  id: string;
+  guest: string;
+  phone: string;
+  eventId: string;
+  qty: number;
+  amount: number;
+  status: BookingStatus;
+  method: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  verified: boolean;
+  gender: string;
+  city: string;
+  bookings: number;
+  spend: number;
+  status: CustomerStatus;
+  segment: 'guests' | 'organizers';
+}
+
+export interface Organizer {
+  id: string;
+  name: string;
+  contact: string;
+  city: string;
+  events: number;
+  kyc: string;
+  status: OrganizerStatus;
+}
+
+export interface Venue {
+  id: string;
+  name: string;
+  capacity: number | string;
+  events: number;
+  license: string;
+  verified: boolean;
+  address?: string;
+}
+
+export interface Promo {
+  code: string;
+  discountLabel: string;
+  scope: string;
+  gender: Gender;
+  usedLabel: string;
+  status: 'active' | 'expired' | 'paused';
+}
+
+export interface Banner {
+  title: string;
+  statusLabel: string;
+}
+
+export interface Category {
+  icon: string;
+  name: string;
+  count: number;
+}
+
+export interface Blog {
+  title: string;
+  meta: string;
+  status: 'published' | 'draft' | 'scheduled';
+}
+
+export interface SitePage {
+  title: string;
+  slug: string;
+}
+
+export interface StaffMember {
+  name: string;
+  role: string;
+  lastActive: string;
+}
