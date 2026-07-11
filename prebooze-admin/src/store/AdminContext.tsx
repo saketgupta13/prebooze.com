@@ -103,6 +103,15 @@ const load = <T,>(key: string, fallback: T): T => {
   }
 };
 
+/** Backfill fields added after the user's data was saved: stored values win, seed fills gaps. */
+function mergeWithSeed<T extends object>(seed: T[], idKey: keyof T) {
+  return (list: T[]) =>
+    list.map((item) => {
+      const base = seed.find((x) => x[idKey] === item[idKey]);
+      return base ? { ...base, ...item } : item;
+    });
+}
+
 function usePersisted<T>(key: string, seed: T, migrate?: (v: T) => T) {
   const [value, setValue] = useState<T>(() => {
     const v = load(key, seed);
@@ -122,9 +131,9 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     list.map((b) => ({ ...b, guests: b.guests ?? [`${b.guest} (main)`] }))
   );
   const [customers, setCustomers] = usePersisted('pba_customers', SEED_CUSTOMERS);
-  const [organizers, setOrganizers] = usePersisted('pba_organizers', SEED_ORGANIZERS);
-  const [venues, setVenues] = usePersisted('pba_venues', SEED_VENUES);
-  const [promos, setPromos] = usePersisted('pba_promos', SEED_PROMOS);
+  const [organizers, setOrganizers] = usePersisted('pba_organizers', SEED_ORGANIZERS, mergeWithSeed(SEED_ORGANIZERS, 'id'));
+  const [venues, setVenues] = usePersisted('pba_venues', SEED_VENUES, mergeWithSeed(SEED_VENUES, 'id'));
+  const [promos, setPromos] = usePersisted('pba_promos', SEED_PROMOS, mergeWithSeed(SEED_PROMOS, 'code'));
   const [banners, setBanners] = usePersisted('pba_banners', SEED_BANNERS);
   const [categories, setCategories] = usePersisted('pba_categories', SEED_CATEGORIES);
   const [blogs, setBlogs] = usePersisted('pba_blogs', SEED_BLOGS);
