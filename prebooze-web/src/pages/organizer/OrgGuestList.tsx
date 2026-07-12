@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../../store/AppContext';
+import { PROMOTERS } from '../../data/mock';
+import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
 import { EVENTS } from '../../data/mock';
 
 /** Free-entry guest list — full admin-parity version: KPIs, name + phone for
@@ -166,6 +168,73 @@ export default function OrgGuestList() {
       </div>
       <div className="tiny muted-2" style={{ marginTop: 10 }}>
         guest-list names show in the scanner as free entries · they don't consume ticket inventory
+      </div>
+
+      <PromoterGuestsSection eventId={eventId} />
+    </div>
+  );
+}
+
+
+/** Unified door view — promoter-brought guests for this event, grouped by promoter,
+ * tagged with attribution, with cutoff validity and check-in. */
+function PromoterGuestsSection({ eventId }: { eventId: string }) {
+  const { myEvents, promoterGuests, checkInPromoterGuest } = useApp();
+  const event = [...myEvents, ...EVENTS].find((e) => e.id === eventId);
+  if (!event?.promoterConfig?.enabled) return null;
+
+  const guests = promoterGuests.filter((g) => g.eventId === eventId);
+  const cutoff = cutoffDate(event);
+  const closed = cutoff ? Date.now() >= cutoff.getTime() : false;
+  const byPromoter = new Map<string, typeof guests>();
+  guests.forEach((g) => {
+    const arr = byPromoter.get(g.promoterSlug) ?? [];
+    arr.push(g);
+    byPromoter.set(g.promoterSlug, arr);
+  });
+  const promoterName = (slug: string) => PROMOTERS.find((p) => p.slug === slug)?.name ?? slug;
+  const arrived = guests.filter((g) => g.arrived).length;
+
+  return (
+    <div className="card" style={{ marginTop: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 6 }}>
+        <h3>Promoter guests <span className="badge badge-accent">free entry</span></h3>
+        <span className="small muted">
+          {arrived}/{guests.length} arrived · cap {event.promoterConfig.cap} ·{' '}
+          {closed ? <span className="danger-text">list closed</span> : cutoff ? <>closes in <b className="accent">{countdownLabel(cutoff)}</b></> : ''}
+        </span>
+      </div>
+      {guests.length === 0 ? (
+        <div className="muted small" style={{ marginTop: 8 }}>No promoter guests yet for this event.</div>
+      ) : (
+        [...byPromoter.entries()].map(([slug, list]) => (
+          <div key={slug} style={{ marginTop: 12 }}>
+            <div className="small bold" style={{ marginBottom: 4 }}>
+              📣 {promoterName(slug)} <span className="muted" style={{ fontWeight: 400 }}>· {list.filter((g) => g.arrived).length}/{list.length} in</span>
+            </div>
+            {list.map((g) => (
+              <div key={g.id} className="evrow">
+                <span style={{ flex: 1.6 }} className="bold small">{g.name}</span>
+                <span style={{ flex: 1 }} className="muted small">{g.phone}</span>
+                <span style={{ flex: 0.7 }} className="small">{g.age} · {g.gender[0]}</span>
+                <span style={{ flex: 1 }}>
+                  <button
+                    className={`chip ${g.arrived ? 'on' : ''}`}
+                    style={{ fontSize: 10.5, padding: '3px 10px' }}
+                    disabled={closed && !g.arrived}
+                    title={closed && !g.arrived ? 'Free window closed' : ''}
+                    onClick={() => checkInPromoterGuest(g.id)}
+                  >
+                    {g.arrived ? 'Arrived ✓' : closed ? 'No-show' : 'Check in'}
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        ))
+      )}
+      <div className="tiny muted-2" style={{ marginTop: 10 }}>
+        each guest is tagged with the promoter who brought them · after the cutoff, un-arrived guests count as no-shows
       </div>
     </div>
   );

@@ -144,6 +144,7 @@ interface AppState {
   addMyVenue: (v: Venue) => void;
   promoterGuests: PromoterGuest[];
   addPromoterGuest: (g: PromoterGuest) => void;
+  checkInPromoterGuest: (id: string) => void;
   toastMsg: string | null;
   toast: (msg: string) => void;
   updateTeamRole: (name: string, role: string) => void;
@@ -370,6 +371,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       promoterGuests,
       addPromoterGuest: (g) => setPromoterGuests((prev) => [g, ...prev]),
+      checkInPromoterGuest: (id) =>
+        setPromoterGuests((prev) => prev.map((g) => (g.id === id ? { ...g, arrived: !g.arrived } : g))),
       toastMsg,
       toast,
       updateTeamRole: (name, role) => {

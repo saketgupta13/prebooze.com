@@ -1,14 +1,23 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { EVENTS, fmtDate, venueById } from '../../data/mock';
+import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
 
-/** A promoter's own captured guests for one event (count vs cap). Real-time
- * arrivals + attribution come in Phase 4. */
+/** A promoter's real-time monitor for one event — arrivals, no-shows, show-rate,
+ * live countdown, and self check-in at their own door table. */
 export default function PromoterGuestList() {
   const { eventId } = useParams();
-  const { user, myEvents, promoterGuests } = useApp();
+  const { user, myEvents, promoterGuests, checkInPromoterGuest, toast } = useApp();
   const mySlug = user?.promoterUsername ?? '';
   const event = [...myEvents, ...EVENTS].find((e) => e.id === eventId);
+
+  // tick so the countdown + no-show status stay current
+  const [, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   if (!event || !event.promoterConfig?.enabled) {
     return (
@@ -23,49 +32,84 @@ export default function PromoterGuestList() {
   const totalOnEvent = promoterGuests.filter((g) => g.eventId === event.id).length;
   const cap = event.promoterConfig.cap;
   const venue = venueById(event.venueId);
+  const cutoff = cutoffDate(event);
+  const closed = cutoff ? Date.now() >= cutoff.getTime() : false;
+
+  const arrived = mine.filter((g) => g.arrived).length;
+  const notYet = mine.length - arrived;
+  const noShows = closed ? notYet : 0;
+  const showRate = mine.length ? Math.round((arrived / mine.length) * 100) : 0;
+  const perHead = event.promoterConfig.perHeadPayout ? event.promoterConfig.perHeadAmount : 0;
 
   return (
     <div>
       <div className="breadcrumb">
         <Link to="/promoter/promotions">← My promotions</Link> / {event.title}
       </div>
-      <h1 style={{ fontSize: 24, marginBottom: 4 }}>Your guest list</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+        <h1 style={{ fontSize: 24 }}>
+          Live guest list{' '}
+          {closed ? <span className="badge badge-status-cancelled">list closed</span> : <span className="badge badge-ok">● live</span>}
+        </h1>
+        {cutoff && !closed && (
+          <span className="small muted">free entry closes in <b className="accent">{countdownLabel(cutoff)}</b></span>
+        )}
+      </div>
       <div className="muted small" style={{ marginBottom: 18 }}>
         {event.title} · {fmtDate(event.date)} · {venue?.name}
       </div>
 
+      <div className="kpis" style={{ marginBottom: 12 }}>
+        <div className="kpi"><div className="l">On your list</div><div className="v">{mine.length}<span className="muted small"> / {cap} cap</span></div></div>
+        <div className="kpi"><div className="l">Arrived</div><div className="v accent">{arrived}</div></div>
+        <div className="kpi"><div className="l">{closed ? 'No-shows' : 'Not yet in'}</div><div className="v" style={closed && noShows ? { color: 'var(--danger)' } : undefined}>{closed ? noShows : notYet}</div></div>
+      </div>
       <div className="kpis" style={{ marginBottom: 18 }}>
-        <div className="kpi"><div className="l">Your guests</div><div className="v">{mine.length}</div></div>
-        <div className="kpi"><div className="l">Heads (incl. +0)</div><div className="v">{mine.length}</div></div>
-        <div className="kpi"><div className="l">Event list</div><div className="v">{totalOnEvent}<span className="muted small"> / {cap}</span></div></div>
+        <div className="kpi"><div className="l">Show-up rate</div><div className="v">{showRate}%</div></div>
+        {perHead > 0 && (
+          <div className="kpi"><div className="l">Earned (₹{perHead}/arrival)</div><div className="v accent">₹{(arrived * perHead).toLocaleString('en-IN')}</div></div>
+        )}
+        <div className="kpi"><div className="l">Event total</div><div className="v">{totalOnEvent}<span className="muted small"> across all PRs</span></div></div>
       </div>
 
       <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <h3>Your guests</h3>
+          <button className="btn btn-ghost btn-sm" onClick={() => toast('Guest list exported ✓')}>⬇ Export</button>
+        </div>
         {mine.length === 0 ? (
-          <div className="muted small">
-            Nobody yet — share your affiliate link and guests will appear here the moment they join.
-          </div>
+          <div className="muted small">Nobody yet — share your affiliate link and guests appear here the moment they join.</div>
         ) : (
           <>
             <div className="evrow" style={{ fontWeight: 700, fontSize: 12, color: 'var(--muted)' }}>
               <span style={{ flex: 1.6 }}>Guest</span>
               <span style={{ flex: 1 }}>Phone</span>
-              <span style={{ flex: 0.6 }}>Age</span>
+              <span style={{ flex: 0.5 }}>Age</span>
               <span style={{ flex: 1 }}>Gender</span>
+              <span style={{ flex: 1 }}>Gate</span>
             </div>
             {mine.map((g) => (
               <div key={g.id} className="evrow">
                 <span style={{ flex: 1.6 }} className="bold small">{g.name}</span>
                 <span style={{ flex: 1 }} className="muted small">{g.phone}</span>
-                <span style={{ flex: 0.6 }} className="small">{g.age}</span>
+                <span style={{ flex: 0.5 }} className="small">{g.age}</span>
                 <span style={{ flex: 1 }} className="muted small">{g.gender}</span>
+                <span style={{ flex: 1 }}>
+                  <button
+                    className={`chip ${g.arrived ? 'on' : ''}`}
+                    style={{ fontSize: 10.5, padding: '3px 10px' }}
+                    onClick={() => checkInPromoterGuest(g.id)}
+                  >
+                    {g.arrived ? 'Arrived ✓' : closed ? 'No-show' : 'Check in'}
+                  </button>
+                </span>
               </div>
             ))}
           </>
         )}
       </div>
       <div className="tiny muted-2" style={{ marginTop: 10 }}>
-        real-time arrivals, check-in status and per-head earnings arrive in the next update
+        arrivals update live as the gate scans your guests · check-ins at the main gate roll up here too
       </div>
     </div>
   );
