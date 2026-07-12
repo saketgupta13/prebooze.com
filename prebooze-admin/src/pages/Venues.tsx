@@ -1,10 +1,55 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
-import { ADMIN_CITIES } from '../store/data';
+import { ADMIN_CITIES, AMENITY_PRESETS } from '../store/data';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { EVENT_STATUS, GradientPhoto, Kpi, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
+
+/** Chip-based amenities editor with presets + custom add. */
+function AmenitiesEditor({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const [custom, setCustom] = useState('');
+  const toggle = (a: string) => onChange(value.includes(a) ? value.filter((x) => x !== a) : [...value, a]);
+  const options = [...new Set([...AMENITY_PRESETS, ...value])];
+  return (
+    <div className="field">
+      <label>Amenities</label>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+        {options.map((a) => (
+          <button key={a} type="button" className={`chip ${value.includes(a) ? 'on' : ''}`} onClick={() => toggle(a)}>
+            {value.includes(a) ? '✓ ' : ''}{a}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          className="input"
+          style={{ flex: 1 }}
+          value={custom}
+          onChange={(e) => setCustom(e.target.value)}
+          placeholder="add a custom amenity…"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (custom.trim() && !value.includes(custom.trim())) onChange([...value, custom.trim()]);
+              setCustom('');
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            if (custom.trim() && !value.includes(custom.trim())) onChange([...value, custom.trim()]);
+            setCustom('');
+          }}
+        >
+          + Add
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function Venues() {
   const { venues, removeVenue } = useAdmin();
@@ -154,6 +199,13 @@ export function VenueDetail() {
       <div className="dashed-box tiny" style={{ color: 'var(--muted)' }}>
         {venue.type ? `Type: ${venue.type} · ` : ''}Contact: {venue.contact ?? '—'} · house rules: {venue.rules ?? '—'}
       </div>
+      {(venue.amenities ?? []).length > 0 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {(venue.amenities ?? []).map((a) => (
+            <span key={a} className="tag tag-green">{a}</span>
+          ))}
+        </div>
+      )}
 
       <div className="tblwrap">
         <div className="display" style={{ fontWeight: 700, padding: '10px 14px', borderBottom: '1px solid rgba(139,195,74,.15)' }}>
@@ -182,6 +234,7 @@ export function AddVenue() {
   const [vcity, setVcity] = useState('Austin');
   const [contact, setContact] = useState('');
   const [rules, setRules] = useState('');
+  const [amenities, setAmenities] = useState<string[]>([]);
   const [docs, setDocs] = useState(false);
 
   const submit = (e: React.FormEvent) => {
@@ -194,6 +247,7 @@ export function AddVenue() {
       id: 'v' + Date.now(),
       name: name.trim(),
       city: vcity,
+      amenities,
       capacity: capacity ? parseInt(capacity, 10) || capacity : '—',
       events: 0,
       license: docs ? 'under review' : 'docs pending',
@@ -228,6 +282,7 @@ export function AddVenue() {
       </div>
       <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Contact person + phone" />
       <input className="input" value={rules} onChange={(e) => setRules(e.target.value)} placeholder="House rules / notes" />
+      <AmenitiesEditor value={amenities} onChange={setAmenities} />
       <button
         type="button"
         className="dashed-box"
@@ -259,6 +314,7 @@ export function EditVenue() {
   const [contact, setContact] = useState(venue?.contact ?? '');
   const [rules, setRules] = useState(venue?.rules ?? '');
   const [docs, setDocs] = useState(venue?.verified ?? false);
+  const [amenities, setAmenities] = useState<string[]>(venue?.amenities ?? []);
   const [seo, setSeo] = useState(venue?.seo ?? emptySeo());
 
   if (!venue) {
@@ -285,6 +341,7 @@ export function EditVenue() {
       rules: rules.trim() || undefined,
       verified: docs,
       license: docs ? venue.license.replace('docs pending', 'under review') : venue.license,
+      amenities,
       seo,
     });
     navigate(`/venues/${venue.id}`);
@@ -329,6 +386,7 @@ export function EditVenue() {
         <label>House rules / notes</label>
         <input className="input" value={rules} onChange={(e) => setRules(e.target.value)} />
       </div>
+      <AmenitiesEditor value={amenities} onChange={setAmenities} />
       <button
         type="button"
         className="dashed-box"

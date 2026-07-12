@@ -4,6 +4,10 @@ import type {
   AdminBooking,
   AdminReview,
   BlogCategory,
+  FaqItem,
+  MenuConfig,
+  Policy,
+  Testimonial,
   Lineup,
   GuestEntry,
   LedgerEntry,
@@ -39,8 +43,12 @@ import {
   SEED_LEDGER_CATEGORIES,
   SEED_LINEUPS,
   SEED_NOTIFICATIONS,
+  SEED_FAQS,
+  SEED_MENUS,
+  SEED_POLICIES,
   SEED_PROMOS,
   SEED_REVIEWS,
+  SEED_TESTIMONIALS,
   SEED_ROLES,
   SEED_SETTINGS,
   SEED_STAFF,
@@ -138,6 +146,18 @@ interface AdminState {
   reviews: AdminReview[];
   updateReview: (id: string, patch: Partial<AdminReview>) => void;
   removeReview: (id: string) => void;
+  testimonials: Testimonial[];
+  addTestimonial: (t: Testimonial) => void;
+  updateTestimonial: (id: string, patch: Partial<Testimonial>) => void;
+  removeTestimonial: (id: string) => void;
+  faqs: FaqItem[];
+  addFaq: (f: FaqItem) => void;
+  updateFaq: (id: string, patch: Partial<FaqItem>) => void;
+  removeFaq: (id: string) => void;
+  policies: Policy[];
+  updatePolicy: (id: string, patch: Partial<Policy>) => void;
+  menus: MenuConfig;
+  setMenus: (m: MenuConfig) => void;
 }
 
 const Ctx = createContext<AdminState>(null as unknown as AdminState);
@@ -209,6 +229,10 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   }));
   const [lineups, setLineups] = usePersisted<Lineup[]>('pba_lineups', SEED_LINEUPS);
   const [reviews, setReviews] = usePersisted<AdminReview[]>('pba_reviews', SEED_REVIEWS);
+  const [testimonials, setTestimonials] = usePersisted<Testimonial[]>('pba_testimonials', SEED_TESTIMONIALS);
+  const [faqs, setFaqs] = usePersisted<FaqItem[]>('pba_faqs', SEED_FAQS);
+  const [policies, setPolicies] = usePersisted<Policy[]>('pba_policies', SEED_POLICIES);
+  const [menus, setMenusState] = usePersisted<MenuConfig>('pba_menus', SEED_MENUS);
   const [lineupCategories, setLineupCategories] = usePersisted<string[]>('pba_lineupcats', LINEUP_CATEGORIES);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -491,6 +515,42 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setReviews((prev) => prev.filter((r) => r.id !== id));
         toast('Review removed');
       },
+      testimonials,
+      addTestimonial: (t) => {
+        setTestimonials((prev) => [t, ...prev]);
+        toast('Testimonial added ✓');
+      },
+      updateTestimonial: (id, patch) => {
+        setTestimonials((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+        toast('Testimonial saved ✓');
+      },
+      removeTestimonial: (id) => {
+        setTestimonials((prev) => prev.filter((t) => t.id !== id));
+        toast('Testimonial removed');
+      },
+      faqs,
+      addFaq: (f) => {
+        setFaqs((prev) => [...prev, f]);
+        toast('FAQ added ✓');
+      },
+      updateFaq: (id, patch) => {
+        setFaqs((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+        toast('FAQ saved ✓');
+      },
+      removeFaq: (id) => {
+        setFaqs((prev) => prev.filter((f) => f.id !== id));
+        toast('FAQ removed');
+      },
+      policies,
+      updatePolicy: (id, patch) => {
+        setPolicies((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch, updated: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) } : p)));
+        toast('Policy saved ✓');
+      },
+      menus,
+      setMenus: (m) => {
+        setMenusState(m);
+        toast('Menu saved ✓');
+      },
       removeRole: (name) => {
         if (name === 'Owner') {
           toast("The Owner role can't be removed");
@@ -524,7 +584,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews]
+    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

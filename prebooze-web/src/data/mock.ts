@@ -672,3 +672,19 @@ export const ORG_REVIEWS: OrgReview[] = [
 export const registerVenue = (v: Venue) => {
   if (!VENUES.some((x) => x.id === v.id)) VENUES.push(v);
 };
+
+
+// Home-page testimonials — curated in the admin panel (Content → Testimonials).
+export interface Testimonial {
+  id: string;
+  author: string;
+  location: string;
+  rating: number;
+  quote: string;
+}
+
+export const TESTIMONIALS: Testimonial[] = [
+  { id: 't1', author: 'Sam Rivera', location: 'Austin', rating: 5, quote: 'Booked in 20 seconds, QR hit my WhatsApp instantly, walked straight in. Never buying paper tickets again.' },
+  { id: 't2', author: 'Priya K.', location: 'Austin', rating: 5, quote: 'Found three gigs I would have missed. The city filter is so good.' },
+  { id: 't3', author: 'Arjun M.', location: 'Dallas', rating: 4, quote: 'Refund landed back in minutes when my plans changed. Rare for a ticketing app.' },
+];

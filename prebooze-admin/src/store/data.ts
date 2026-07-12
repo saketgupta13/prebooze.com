@@ -81,10 +81,10 @@ export const SEED_ORGANIZERS: Organizer[] = [
 ];
 
 export const SEED_VENUES: Venue[] = [
-  { id: 'v1', name: 'Arena Hall', city: 'Austin', capacity: 400, events: 18, license: "valid till Mar '27", verified: true, address: '123 5th St, Austin, TX', type: 'Indoor', contact: 'Ravi N. · +91 98••• ••400', rules: 'No outside food, 11 PM curfew' },
-  { id: 'v2', name: 'Riverside Grounds', city: 'Austin', capacity: 2000, events: 11, license: "valid till Jan '27", verified: true, address: 'Riverside Park, Austin, TX' },
-  { id: 'v3', name: 'Comedy Cave', city: 'Dallas', capacity: 180, events: 9, license: 'expires 12 Aug ⚠', verified: false, address: '88 6th St, Dallas, TX' },
-  { id: 'v4', name: 'The Loft', city: 'Houston', capacity: 120, events: 7, license: "valid till Nov '26", verified: true, address: '5th & Lamar, Houston, TX' },
+  { id: 'v1', name: 'Arena Hall', city: 'Austin', capacity: 400, events: 18, license: "valid till Mar '27", verified: true, address: '123 5th St, Austin, TX', type: 'Indoor', contact: 'Ravi N. · +91 98••• ••400', rules: 'No outside food, 11 PM curfew', amenities: ['Parking', 'Accessible', 'In-house bar', 'Coat check'] },
+  { id: 'v2', name: 'Riverside Grounds', city: 'Austin', capacity: 2000, events: 11, license: "valid till Jan '27", verified: true, address: 'Riverside Park, Austin, TX', amenities: ['Parking', 'Food trucks', 'Open-air'] },
+  { id: 'v3', name: 'Comedy Cave', city: 'Dallas', capacity: 180, events: 9, license: 'expires 12 Aug ⚠', verified: false, address: '88 6th St, Dallas, TX', amenities: ['In-house bar', 'Accessible'] },
+  { id: 'v4', name: 'The Loft', city: 'Houston', capacity: 120, events: 7, license: "valid till Nov '26", verified: true, address: '5th & Lamar, Houston, TX', amenities: ['Rooftop', 'In-house bar'] },
 ];
 
 export const SEED_PROMOS: Promo[] = [
@@ -252,6 +252,68 @@ export const SEED_SETTINGS: Settings = {
     address: '4th Floor, Cowork Hub, Koramangala, Bengaluru',
     organizerEmail: 'organizers@prebooze.com',
   },
+  footerCopyright: '© 2026 Prebooze Inc. · All rights reserved',
+};
+
+export const AMENITY_PRESETS = [
+  'Parking', 'Accessible', 'In-house bar', 'Food trucks', 'Rooftop', 'Open-air',
+  'Coat check', 'Smoking area', 'VIP lounge', 'ATM', 'Prayer room', 'Valet',
+];
+
+export const SEED_TESTIMONIALS = [
+  { id: 't1', author: 'Sam Rivera', location: 'Austin', rating: 5, quote: 'Booked in 20 seconds, QR hit my WhatsApp instantly, walked straight in. Never buying paper tickets again.', featured: true },
+  { id: 't2', author: 'Priya K.', location: 'Austin', rating: 5, quote: 'Found three gigs I would have missed. The city filter is so good.', featured: true },
+  { id: 't3', author: 'Arjun M.', location: 'Dallas', rating: 4, quote: 'Refund landed back in minutes when my plans changed. Rare for a ticketing app.', featured: true },
+  { id: 't4', author: 'Nia T.', location: 'Houston', rating: 5, quote: 'Group QR for all four of us meant no bottleneck at the gate. Smart.', featured: false },
+];
+
+export const SEED_FAQS = [
+  { id: 'f1', question: 'How do I get my ticket?', answer: 'Sent instantly to your WhatsApp — also downloadable as a QR from My Bookings.', audience: 'guests' as const },
+  { id: 'f2', question: 'Can I cancel a booking?', answer: 'Yes — free cancellation up to 48 hours before the event. Refunds land back on your payment method instantly.', audience: 'guests' as const },
+  { id: 'f3', question: 'Do I need an account to book?', answer: 'You log in with your WhatsApp number and an OTP — no passwords. Your number is your account.', audience: 'guests' as const },
+  { id: 'f4', question: 'How do organizers get verified?', answer: 'Every organizer completes identity KYC (Aadhaar + selfie) and bank verification before their events go live.', audience: 'organizers' as const },
+  { id: 'f5', question: 'When do organizers get paid?', answer: 'Automatic weekly payouts every Monday, with per-event settlement after the event completes.', audience: 'organizers' as const },
+];
+
+const policyDoc = (id: string, title: string, slug: string, sections: string[]) => ({
+  id, title, slug, updated: '1 July 2026',
+  sections: sections.map((h) => ({ heading: h, body: 'Placeholder copy — final legal language to be drafted and reviewed by counsel before launch. It describes, in plain terms, the rights and responsibilities that apply here.' })),
+});
+
+export const SEED_POLICIES = [
+  policyDoc('terms', 'Terms & Conditions', '/legal/terms', ['Introduction', 'Account & eligibility', 'Booking & payments', 'Cancellations', 'Conduct at events', 'Liability']),
+  policyDoc('privacy', 'Privacy Policy', '/legal/privacy', ['Data we collect', 'How we use it', 'Sharing & WhatsApp', 'Government ID data', 'Your rights']),
+  policyDoc('organizer-policy', 'Organizer Policy', '/legal/organizer-policy', ['Verification & KYC', 'Listing standards', 'Payouts & fees', 'Approval & rejection', 'Suspension']),
+  policyDoc('guest-policy', 'Guest Policy', '/legal/guest-policy', ['Entry requirements', 'Age & ID checks', 'Ticket transfers', 'Code of conduct', 'Bans & reporting']),
+  policyDoc('refund-policy', 'Refund Policy', '/legal/refund-policy', ['Cancellation window', 'Refund timelines', 'Event cancelled by organizer', 'Non-refundable cases']),
+  policyDoc('disclaimer', 'Disclaimer', '/legal/disclaimer', ['Third-party events', 'No warranty', 'Assumption of risk']),
+];
+
+export const SEED_MENUS = {
+  header: [
+    { label: 'Events', to: '/browse' },
+    { label: 'Venues', to: '/venues' },
+    { label: 'Blog', to: '/blog' },
+    { label: 'Host with us', to: '/host' },
+  ],
+  footer: [
+    { title: 'Explore', links: [
+      { label: 'Events', to: '/browse' },
+      { label: 'Venues', to: '/venues' },
+      { label: 'Blog', to: '/blog' },
+    ]},
+    { title: 'Company', links: [
+      { label: 'About us', to: '/about' },
+      { label: 'Host with us', to: '/host' },
+      { label: 'Contact', to: '/contact' },
+    ]},
+    { title: 'Support', links: [
+      { label: 'FAQs', to: '/faqs' },
+      { label: 'Refund policy', to: '/legal/refund-policy' },
+      { label: 'Terms', to: '/legal/terms' },
+      { label: 'Privacy', to: '/legal/privacy' },
+    ]},
+  ],
 };
 
 export const LINEUP_CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];

@@ -95,6 +95,7 @@ export interface Venue {
   type?: string;
   contact?: string;
   rules?: string;
+  amenities?: string[];
   seo?: Seo;
 }
 
@@ -231,6 +232,47 @@ export interface Settings {
   socials: { instagram: string; x: string; youtube: string; whatsapp: string; facebook: string };
   siteSeo: Seo;
   contact: { email: string; phone: string; address: string; organizerEmail: string };
+  footerCopyright: string;
+}
+
+export interface Testimonial {
+  id: string;
+  author: string;
+  location: string;
+  rating: number;
+  quote: string;
+  featured: boolean;
+}
+
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+  audience: 'guests' | 'organizers';
+}
+
+export interface Policy {
+  id: string;
+  title: string;
+  slug: string;
+  updated: string;
+  sections: { heading: string; body: string }[];
+  seo?: Seo;
+}
+
+export interface MenuLink {
+  label: string;
+  to: string;
+}
+
+export interface FooterGroup {
+  title: string;
+  links: MenuLink[];
+}
+
+export interface MenuConfig {
+  header: MenuLink[];
+  footer: FooterGroup[];
 }
 
 export interface Lineup {

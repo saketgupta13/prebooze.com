@@ -32,6 +32,10 @@ import ManualBooking from './pages/ManualBooking';
 import GuestList from './pages/GuestList';
 import { Lineups, LineupEdit } from './pages/Lineups';
 import Reviews from './pages/Reviews';
+import Testimonials from './pages/Testimonials';
+import Faqs from './pages/Faqs';
+import Policies from './pages/Policies';
+import Menus from './pages/Menus';
 
 export default function App() {
   return (
@@ -66,6 +70,10 @@ export default function App() {
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/finance" element={<Finance />} />
+        <Route path="/testimonials" element={<Testimonials />} />
+        <Route path="/faqs" element={<Faqs />} />
+        <Route path="/policies" element={<Policies />} />
+        <Route path="/menus" element={<Menus />} />
         <Route path="/banners" element={<Banners />} />
         <Route path="/banners/new" element={<BannerEdit />} />
         <Route path="/banners/:id/edit" element={<BannerEdit />} />

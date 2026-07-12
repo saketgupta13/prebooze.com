@@ -171,6 +171,13 @@ export default function Settings() {
         </Row>
       </div>
 
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="display" style={{ fontWeight: 700 }}>Footer</div>
+        <Row label="Copyright text" hint="shown at the bottom of every guest page">
+          <input className="input" style={{ maxWidth: 340 }} value={settings.footerCopyright} onChange={(e) => set({ footerCopyright: e.target.value })} />
+        </Row>
+      </div>
+
       <div className="card" style={{ borderColor: 'rgba(255,107,94,.35)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="display" style={{ fontWeight: 700, color: 'var(--red)' }}>Danger zone</div>
         <Row label="Maintenance mode" hint="guest site shows a “back soon” page; bookings pause">

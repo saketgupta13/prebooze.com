@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { CATEGORIES, EVENTS, FAQS, ORGANIZERS, TRUST_POINTS, VENUES } from '../data/mock';
+import { CATEGORIES, EVENTS, FAQS, ORGANIZERS, TESTIMONIALS, TRUST_POINTS, VENUES } from '../data/mock';
 import EventCard from '../components/EventCard';
 import Poster from '../components/Poster';
 import Accordion from '../components/Accordion';
+import Stars from '../components/Stars';
 
 export default function Home() {
   const { city } = useApp();
@@ -144,6 +145,24 @@ export default function Home() {
               <div key={t} className="trust-item">
                 <span className="tick">✓</span>
                 {t}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Testimonials */}
+        <section className="section">
+          <div className="section-hd">
+            <h2>Happy guests 💚</h2>
+          </div>
+          <div className="grid-3">
+            {TESTIMONIALS.map((t) => (
+              <div key={t.id} className="card">
+                <Stars rating={t.rating} />
+                <p style={{ margin: '10px 0 12px', fontSize: 14 }}>"{t.quote}"</p>
+                <div className="small bold">
+                  {t.author} <span className="muted-2" style={{ fontWeight: 400 }}>· {t.location}</span>
+                </div>
               </div>
             ))}
           </div>
