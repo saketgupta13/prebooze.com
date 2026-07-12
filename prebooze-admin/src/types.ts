@@ -145,6 +145,13 @@ export interface GuestEntry {
   arrived?: boolean;
 }
 
+export interface PromoterPayout {
+  id: string;
+  date: string;
+  amount: number;
+  status: 'processing' | 'paid';
+}
+
 export interface Promoter {
   id: string;
   name: string;
@@ -157,6 +164,12 @@ export interface Promoter {
   eventsPromoted: number;
   showRate: number;
   bio?: string;
+  // earnings & payouts (admin visibility)
+  guestsBrought?: number;    // lifetime guests brought
+  perHeadEarned?: number;    // ₹ from per-head payouts on verified arrivals
+  commissionEarned?: number; // ₹ from affiliate ticket commission
+  withdrawn?: number;        // ₹ already paid out
+  payouts?: PromoterPayout[];
 }
 
 export interface AdminReview {

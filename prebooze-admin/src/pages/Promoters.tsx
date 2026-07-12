@@ -3,6 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { GradientPhoto, ORGANIZER_STATUS, SearchBox, Tag } from '../components/ui';
+import type { Promoter } from '../types';
+
+const earned = (p: Promoter) => (p.perHeadEarned ?? 0) + (p.commissionEarned ?? 0);
+const available = (p: Promoter) => Math.max(0, earned(p) - (p.withdrawn ?? 0));
 
 /** Promoter / PR management — mirrors Organizers: approve KYC, view, suspend. */
 export function Promoters() {
@@ -13,6 +17,11 @@ export function Promoters() {
   const cities = ['All', ...new Set(promoters.map((p) => p.city))];
   const pending = promoters.filter((p) => p.status === 'pending').length;
   const planName = (id: string) => subTiers.find((t) => t.id === id)?.name ?? id;
+
+  const top = useMemo(
+    () => [...promoters].filter((p) => earned(p) > 0).sort((a, b) => earned(b) - earned(a)).slice(0, 5),
+    [promoters]
+  );
 
   const list = useMemo(() => {
     let l = promoters;
@@ -35,8 +44,37 @@ export function Promoters() {
             </span>
           )}
         </div>
-        <Link to="/promoters/tiers" className="btn btn-ghost btn-sm">Subscription tiers</Link>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link to="/promoters/tiers" className="btn btn-ghost btn-sm">Subscription tiers</Link>
+          <Link to="/promoters/new" className="btn btn-pri btn-sm">+ Add promoter</Link>
+        </div>
       </div>
+
+      {top.length > 0 && (
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span className="display" style={{ fontWeight: 700 }}>🏆 Top promoters</span>
+            <span className="tiny muted">by total earned</span>
+          </div>
+          <div className="stack" style={{ gap: 8 }}>
+            {top.map((p, i) => {
+              const maxE = earned(top[0]);
+              const e = earned(p);
+              return (
+                <div key={p.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/promoters/${p.id}`)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <b>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`} {p.name}</b>
+                    <span className="muted">₹{fmt(e)} · {p.showRate}% show · {fmt(p.guestsBrought ?? 0)} guests</span>
+                  </div>
+                  <div style={{ height: 8, background: 'rgba(139,195,74,.12)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
+                    <div style={{ width: `${(e / maxE) * 100}%`, height: '100%', background: 'var(--green)', opacity: 0.5 + (e / maxE) * 0.5 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <SearchBox value={query} onChange={setQuery} placeholder="Search promoters…" style={{ flex: 1, minWidth: 180 }} />
@@ -46,12 +84,13 @@ export function Promoters() {
       </div>
 
       <div className="tblwrap">
-        <div className="thead" style={{ minWidth: 760 }}>
+        <div className="thead" style={{ minWidth: 860 }}>
           <span style={{ flex: 1.6 }}>Promoter</span>
           <span style={{ flex: 1 }}>City</span>
           <span style={{ flex: 0.9 }}>Plan</span>
           <span style={{ flex: 1 }}>Guests / mo</span>
           <span style={{ flex: 0.9 }}>Show-rate</span>
+          <span style={{ flex: 1 }}>Earned</span>
           <span style={{ flex: 1 }}>Status</span>
           <span style={{ flex: 1.4 }} />
         </div>
@@ -59,7 +98,7 @@ export function Promoters() {
           <div
             key={p.id}
             className="trow clickable"
-            style={{ minWidth: 760, background: p.status === 'pending' ? 'rgba(255,107,94,.06)' : undefined }}
+            style={{ minWidth: 860, background: p.status === 'pending' ? 'rgba(255,107,94,.06)' : undefined }}
             onClick={() => navigate(`/promoters/${p.id}`)}
           >
             <span style={{ flex: 1.6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -72,6 +111,7 @@ export function Promoters() {
             <span style={{ flex: 0.9 }} className={p.showRate >= 70 ? 'green' : p.showRate > 0 ? '' : 'hint'}>
               {p.showRate ? `${p.showRate}%` : '—'}
             </span>
+            <span style={{ flex: 1 }} className={earned(p) > 0 ? '' : 'hint'}>{earned(p) > 0 ? `₹${fmt(earned(p))}` : '—'}</span>
             <span style={{ flex: 1 }}><Tag {...ORGANIZER_STATUS[p.status]} /></span>
             <span style={{ flex: 1.4, display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
               {p.status === 'pending' && (
@@ -95,7 +135,7 @@ export function Promoters() {
 export function PromoterDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { promoters, subTiers, setPromoterStatus2, removePromoter2, toast } = useAdmin();
+  const { promoters, subTiers, setPromoterStatus2, removePromoter2, setPromoterPayoutStatus, toast } = useAdmin();
   const p = promoters.find((x) => x.id === id);
 
   if (!p) {
@@ -125,6 +165,7 @@ export function PromoterDetail() {
         {p.status === 'approved' && (
           <button className="btn btn-danger btn-sm" onClick={() => setPromoterStatus2(p.id, 'rejected')}>Suspend</button>
         )}
+        <Link to={`/promoters/${p.id}/edit`} className="btn btn-ghost btn-sm">Edit</Link>
         <button className="btn btn-ghost btn-sm" onClick={() => toast('Message sent to promoter ✓')}>Message</button>
       </div>
       <div className="small muted">{p.contact} · {p.city} · {p.bio ?? ''}</div>
@@ -143,22 +184,70 @@ export function PromoterDetail() {
         <div className="kv"><span className="k">Subscription</span><span>{planName}</span></div>
       </div>
 
-      <div className="dashed-box tiny" style={{ color: 'var(--muted)' }}>
-        Real-time guest-list activity, per-event attribution and earnings appear here once the promoter is running lists (Phase 4+).
-      </div>
+      {(() => {
+        const totalEarned = (p.perHeadEarned ?? 0) + (p.commissionEarned ?? 0);
+        const avail = Math.max(0, totalEarned - (p.withdrawn ?? 0));
+        const payouts = p.payouts ?? [];
+        return (
+          <>
+            <div className="card">
+              <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>Earnings</div>
+              <div className="kpi-grid">
+                <div className="kpi"><div className="l">Guests brought (lifetime)</div><div className="v">{fmt(p.guestsBrought ?? 0)}</div></div>
+                <div className="kpi"><div className="l">Per-head payouts</div><div className="v">₹{fmt(p.perHeadEarned ?? 0)}</div></div>
+                <div className="kpi"><div className="l">Ticket commission</div><div className="v">₹{fmt(p.commissionEarned ?? 0)}</div></div>
+                <div className="kpi"><div className="l">Total earned</div><div className="v green">₹{fmt(totalEarned)}</div></div>
+              </div>
+              <div className="kv" style={{ marginTop: 8 }}><span className="k">Withdrawn to date</span><span>₹{fmt(p.withdrawn ?? 0)}</span></div>
+              <div className="kv"><span className="k">Available balance</span><span className="green" style={{ fontWeight: 700 }}>₹{fmt(avail)}</span></div>
+            </div>
 
-      <button
-        className="btn btn-danger btn-sm"
-        style={{ width: 'fit-content' }}
-        onClick={() => {
-          if (window.confirm(`Remove ${p.name} entirely?`)) {
-            removePromoter2(p.id);
-            navigate('/promoters');
-          }
-        }}
-      >
-        ✕ Remove promoter
-      </button>
+            <div className="card">
+              <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>Payouts</div>
+              {payouts.length === 0 ? (
+                <div className="muted small">No payouts yet.</div>
+              ) : (
+                <div className="tblwrap" style={{ border: 'none' }}>
+                  <div className="thead" style={{ minWidth: 380 }}>
+                    <span style={{ flex: 1 }}>Date</span>
+                    <span style={{ flex: 1 }}>Amount</span>
+                    <span style={{ flex: 1 }}>Status</span>
+                    <span style={{ flex: 1.2 }} />
+                  </div>
+                  {payouts.map((w) => (
+                    <div key={w.id} className="trow" style={{ minWidth: 380 }}>
+                      <span style={{ flex: 1 }} className="muted">{w.date}</span>
+                      <span style={{ flex: 1, fontWeight: 700 }}>₹{fmt(w.amount)}</span>
+                      <span style={{ flex: 1 }} className={w.status === 'paid' ? 'green' : 'muted'}>{w.status}</span>
+                      <span style={{ flex: 1.2, display: 'flex', justifyContent: 'flex-end' }}>
+                        {w.status === 'processing' ? (
+                          <button className="btn btn-pri btn-sm" onClick={() => setPromoterPayoutStatus(p.id, w.id, 'paid')}>Mark paid ✓</button>
+                        ) : (
+                          <button className="btn btn-ghost btn-sm" onClick={() => setPromoterPayoutStatus(p.id, w.id, 'processing')}>Reopen</button>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="tiny hint" style={{ marginTop: 6 }}>per-head payouts settle on verified arrivals · commission settles on attributed ticket sales</div>
+            </div>
+
+            <button
+              className="btn btn-danger btn-sm"
+              style={{ width: 'fit-content' }}
+              onClick={() => {
+                if (window.confirm(`Remove ${p.name} entirely?`)) {
+                  removePromoter2(p.id);
+                  navigate('/promoters');
+                }
+              }}
+            >
+              ✕ Remove promoter
+            </button>
+          </>
+        );
+      })()}
     </div>
   );
 }

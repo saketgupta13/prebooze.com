@@ -163,8 +163,10 @@ interface AdminState {
   setMenus: (m: MenuConfig) => void;
   promoters: Promoter[];
   setPromoterStatus2: (id: string, status: Promoter['status']) => void;
+  addPromoter: (p: Promoter) => void;
   updatePromoter: (id: string, patch: Partial<Promoter>) => void;
   removePromoter2: (id: string) => void;
+  setPromoterPayoutStatus: (promoterId: string, payoutId: string, status: 'processing' | 'paid') => void;
   subTiers: { id: string; name: string; price: number; guests: number }[];
   updateSubTier: (id: string, patch: { name?: string; price?: number; guests?: number }) => void;
 }
@@ -242,7 +244,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [faqs, setFaqs] = usePersisted<FaqItem[]>('pba_faqs', SEED_FAQS);
   const [policies, setPolicies] = usePersisted<Policy[]>('pba_policies', SEED_POLICIES);
   const [menus, setMenusState] = usePersisted<MenuConfig>('pba_menus', SEED_MENUS);
-  const [promoters, setPromoters] = usePersisted<Promoter[]>('pba_promoters', SEED_PROMOTERS);
+  const [promoters, setPromoters] = usePersisted<Promoter[]>('pba_promoters', SEED_PROMOTERS, mergeWithSeed(SEED_PROMOTERS, 'id'));
   const [subTiers, setSubTiers] = usePersisted('pba_subtiers', SEED_SUB_TIERS);
   const [lineupCategories, setLineupCategories] = usePersisted<string[]>('pba_lineupcats', LINEUP_CATEGORIES);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -568,6 +570,10 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         const name = promoters.find((p) => p.id === id)?.name ?? 'Promoter';
         toast(status === 'approved' ? `${name} approved ✓` : `${name} ${status}`);
       },
+      addPromoter: (p) => {
+        setPromoters((prev) => [p, ...prev]);
+        toast('Promoter added — Pending review ✓');
+      },
       updatePromoter: (id, patch) => {
         setPromoters((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
         toast('Promoter saved ✓');
@@ -575,6 +581,18 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       removePromoter2: (id) => {
         setPromoters((prev) => prev.filter((p) => p.id !== id));
         toast('Promoter removed');
+      },
+      setPromoterPayoutStatus: (promoterId, payoutId, status) => {
+        setPromoters((prev) =>
+          prev.map((p) => {
+            if (p.id !== promoterId) return p;
+            const payouts = (p.payouts ?? []).map((w) => (w.id === payoutId ? { ...w, status } : w));
+            const justPaid = status === 'paid' && (p.payouts ?? []).find((w) => w.id === payoutId)?.status !== 'paid';
+            const amt = (p.payouts ?? []).find((w) => w.id === payoutId)?.amount ?? 0;
+            return { ...p, payouts, withdrawn: (p.withdrawn ?? 0) + (justPaid ? amt : 0) };
+          })
+        );
+        toast(status === 'paid' ? 'Payout marked paid ✓' : 'Payout reopened');
       },
       subTiers,
       updateSubTier: (id, patch) => {

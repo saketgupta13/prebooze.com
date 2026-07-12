@@ -339,11 +339,18 @@ export const SEED_REVIEWS = [
 ];
 
 export const SEED_PROMOTERS = [
-  { id: 'pr1', name: 'Nova Nights', contact: 'hey@novanights.co', city: 'Austin', status: 'approved' as const, kyc: 'verified', plan: 'pro', guestsThisMonth: 312, eventsPromoted: 64, showRate: 78, bio: 'Rooftops, warehouses, after-hours. Free before 1 AM.' },
-  { id: 'pr2', name: 'Crowd Co.', contact: 'book@crowdco.io', city: 'Dallas', status: 'approved' as const, kyc: 'verified', plan: 'starter', guestsThisMonth: 88, eventsPromoted: 38, showRate: 71, bio: 'We fill floors.' },
-  { id: 'pr3', name: 'The Plug', contact: 'team@theplug.co', city: 'Houston', status: 'pending' as const, kyc: 'submitted', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'New in town, big lists.' },
-  { id: 'pr4', name: 'Hype House ATX', contact: 'info@hypehouse.co', city: 'Austin', status: 'pending' as const, kyc: 'submitted', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'College nights & day parties.' },
-  { id: 'pr5', name: 'Ghost Guestlist', contact: 'x@ghostgl.co', city: 'Dallas', status: 'rejected' as const, kyc: 'flagged', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'Flagged for fake guest activity.' },
+  { id: 'pr1', name: 'Nova Nights', contact: 'hey@novanights.co', city: 'Austin', status: 'approved' as const, kyc: 'verified', plan: 'pro', guestsThisMonth: 312, eventsPromoted: 64, showRate: 78, bio: 'Rooftops, warehouses, after-hours. Free before 1 AM.', guestsBrought: 12400, perHeadEarned: 148800, commissionEarned: 42160, withdrawn: 160000, payouts: [
+    { id: 'pp1', date: '6 Jul', amount: 24000, status: 'processing' as const },
+    { id: 'pp2', date: '22 Jun', amount: 80000, status: 'paid' as const },
+    { id: 'pp3', date: '5 Jun', amount: 80000, status: 'paid' as const },
+  ] },
+  { id: 'pr2', name: 'Crowd Co.', contact: 'book@crowdco.io', city: 'Dallas', status: 'approved' as const, kyc: 'verified', plan: 'starter', guestsThisMonth: 88, eventsPromoted: 38, showRate: 71, bio: 'We fill floors.', guestsBrought: 6100, perHeadEarned: 61000, commissionEarned: 18240, withdrawn: 60000, payouts: [
+    { id: 'pp4', date: '1 Jul', amount: 19240, status: 'processing' as const },
+    { id: 'pp5', date: '18 Jun', amount: 60000, status: 'paid' as const },
+  ] },
+  { id: 'pr3', name: 'The Plug', contact: 'team@theplug.co', city: 'Houston', status: 'pending' as const, kyc: 'submitted', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'New in town, big lists.', guestsBrought: 1400, perHeadEarned: 0, commissionEarned: 0, withdrawn: 0, payouts: [] },
+  { id: 'pr4', name: 'Hype House ATX', contact: 'info@hypehouse.co', city: 'Austin', status: 'pending' as const, kyc: 'submitted', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'College nights & day parties.', guestsBrought: 0, perHeadEarned: 0, commissionEarned: 0, withdrawn: 0, payouts: [] },
+  { id: 'pr5', name: 'Ghost Guestlist', contact: 'x@ghostgl.co', city: 'Dallas', status: 'rejected' as const, kyc: 'flagged', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'Flagged for fake guest activity.', guestsBrought: 0, perHeadEarned: 0, commissionEarned: 0, withdrawn: 0, payouts: [] },
 ];
 
 // Editable subscription tiers (admin-configurable; mirrored to the promoter app).

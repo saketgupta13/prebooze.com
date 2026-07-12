@@ -25,8 +25,14 @@ function dayLabels(n: number, quarterly: boolean) {
 }
 
 export default function Dashboard() {
-  const { events, bookings, organizers, customers } = useAdmin();
+  const { events, bookings, organizers, customers, promoters } = useAdmin();
   const navigate = useNavigate();
+
+  const topPromoters = [...promoters]
+    .map((p) => ({ ...p, earned: (p.perHeadEarned ?? 0) + (p.commissionEarned ?? 0) }))
+    .filter((p) => p.earned > 0)
+    .sort((a, b) => b.earned - a.earned)
+    .slice(0, 3);
 
   const pendingEvents = events.filter((e) => e.status === 'pending').length;
   const pendingRefunds = bookings.filter((b) => b.status === 'refund_requested').length;
@@ -213,6 +219,31 @@ export default function Dashboard() {
           })()}
         </div>
       </div>
+
+      {topPromoters.length > 0 && (
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span className="display" style={{ fontWeight: 700 }}>🏆 Top promoters</span>
+            <Link to="/promoters" className="small">All promoters →</Link>
+          </div>
+          <div className="stack" style={{ gap: 8 }}>
+            {topPromoters.map((p, i) => {
+              const maxE = topPromoters[0].earned;
+              return (
+                <div key={p.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/promoters/${p.id}`)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <b>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} {p.name}</b>
+                    <span className="muted">₹{fmt(p.earned)} earned · {p.showRate}% show-rate</span>
+                  </div>
+                  <div style={{ height: 8, background: 'rgba(139,195,74,.12)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
+                    <div style={{ width: `${(p.earned / maxE) * 100}%`, height: '100%', background: 'var(--green)', opacity: 0.5 + (p.earned / maxE) * 0.5 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="tblwrap">
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(139,195,74,.15)' }}>
