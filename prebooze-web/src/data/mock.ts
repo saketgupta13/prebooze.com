@@ -233,6 +233,15 @@ export const EVENTS: Event[] = [
       slug: 'indie-night-live-austin',
       keywords: ['indie concert', 'austin', 'live music'],
     },
+    promoterConfig: {
+      enabled: true,
+      cap: 200,
+      cutoff: '01:00',
+      allowedPromoters: ['nova-nights', 'crowd-co'],
+      perHeadPayout: true,
+      perHeadAmount: 120,
+      allowTeams: true,
+    },
   },
   {
     id: 'ev-2',

@@ -40,6 +40,17 @@ export interface Event {
   tiers: TicketTier[];
   posterHue: number;
   seo?: { title: string; description: string; slug: string; keywords: string[] };
+  promoterConfig?: PromoterConfig;
+}
+
+export interface PromoterConfig {
+  enabled: boolean;
+  cap: number;            // total free-entry passes across all promoters
+  cutoff: string;         // free entry valid before this time, e.g. "01:00"
+  allowedPromoters: string[]; // promoter slugs the organizer allows
+  perHeadPayout: boolean;
+  perHeadAmount: number;  // ₹ paid to promoter per verified arrival
+  allowTeams: boolean;
 }
 
 export interface Venue {

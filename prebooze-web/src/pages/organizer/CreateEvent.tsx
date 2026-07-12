@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { EVENTS, LINEUPS, VENUES, fmtDate, fmtTime } from '../../data/mock';
+import { EVENTS, LINEUPS, PROMOTERS, VENUES, fmtDate, fmtTime } from '../../data/mock';
 import type { Event, TicketTier } from '../../types';
 import Poster, { categoryEmoji } from '../../components/Poster';
 import Accordion from '../../components/Accordion';
 
-const STEPS = ['1 Basics', '2 Tickets', '3 Rules & line-up', '4 SEO & publish'];
+const STEPS = ['1 Basics', '2 Tickets', '3 Rules & line-up', '4 Promoters', '5 SEO & publish'];
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
 
 interface TierDraft {
@@ -71,7 +71,19 @@ export default function CreateEvent() {
   const [nlName, setNlName] = useState('');
   const [nlRole, setNlRole] = useState('Headline artist');
 
-  // Step 4 — SEO
+  // Step 4 — promoters
+  const pc = editing?.promoterConfig;
+  const [promoEnabled, setPromoEnabled] = useState(pc?.enabled ?? false);
+  const [promoCap, setPromoCap] = useState(String(pc?.cap ?? 200));
+  const [promoCutoff, setPromoCutoff] = useState(pc?.cutoff ?? '01:00');
+  const [allowedPromoters, setAllowedPromoters] = useState<string[]>(pc?.allowedPromoters ?? []);
+  const [perHead, setPerHead] = useState(pc?.perHeadPayout ?? false);
+  const [perHeadAmt, setPerHeadAmt] = useState(String(pc?.perHeadAmount ?? 100));
+  const [allowTeams, setAllowTeams] = useState(pc?.allowTeams ?? false);
+  const togglePromoter = (slug: string) =>
+    setAllowedPromoters((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]));
+
+  // Step 5 — SEO
   const [seoTitle, setSeoTitle] = useState(editing?.seo?.title ?? '');
   const [seoDesc, setSeoDesc] = useState(editing?.seo?.description ?? '');
   const [seoSlug, setSeoSlug] = useState(editing?.seo?.slug ?? '');
@@ -140,6 +152,15 @@ export default function CreateEvent() {
       description: seoDesc || description.slice(0, 160),
       slug,
       keywords: seoKeywords.split(',').map((s) => s.trim()).filter(Boolean),
+    },
+    promoterConfig: {
+      enabled: promoEnabled,
+      cap: +promoCap || 0,
+      cutoff: promoCutoff,
+      allowedPromoters,
+      perHeadPayout: perHead,
+      perHeadAmount: +perHeadAmt || 0,
+      allowTeams,
     },
   });
 
@@ -557,13 +578,100 @@ export default function CreateEvent() {
               ← Back
             </button>
             <button className="btn btn-pri" onClick={() => setStep(3)}>
-              Next: SEO & publish →
+              Next: Promoters →
             </button>
           </div>
         </div>
       )}
 
       {step === 3 && (
+        <div className="card">
+          <h3 style={{ marginBottom: 4 }}>Promoter guest lists</h3>
+          <p className="muted small" style={{ marginBottom: 14 }}>
+            Let approved promoters bring free-entry guests to this event, up to a cap and before a cutoff time.
+            You choose exactly who's allowed.
+          </p>
+
+          <label
+            className="checkbox-row"
+            style={{ marginBottom: promoEnabled ? 16 : 0, padding: '12px 14px', border: '1.5px solid var(--border-3)', borderRadius: 10 }}
+          >
+            <input type="checkbox" checked={promoEnabled} onChange={(e) => setPromoEnabled(e.target.checked)} />
+            <span style={{ fontWeight: 700, color: 'var(--text)' }}>Enable promoter guest lists for this event</span>
+          </label>
+
+          {promoEnabled && (
+            <>
+              <div className="form-row" style={{ marginTop: 6 }}>
+                <div className="field">
+                  <span>Free-entry cap (total passes)</span>
+                  <input value={promoCap} onChange={(e) => setPromoCap(e.target.value.replace(/\D/g, ''))} inputMode="numeric" />
+                </div>
+                <div className="field">
+                  <span>Free entry valid before</span>
+                  <input type="time" value={promoCutoff} onChange={(e) => setPromoCutoff(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="field">
+                <span>Allowed promoters — only these can promote your event</span>
+                <div className="chip-row">
+                  {PROMOTERS.map((p) => (
+                    <button
+                      key={p.slug}
+                      type="button"
+                      className={`chip ${allowedPromoters.includes(p.slug) ? 'on' : ''}`}
+                      onClick={() => togglePromoter(p.slug)}
+                    >
+                      {p.name} {p.verified ? '✓' : ''}
+                      {allowedPromoters.includes(p.slug) ? ' ·✓' : ''}
+                    </button>
+                  ))}
+                </div>
+                {allowedPromoters.length === 0 && (
+                  <div className="tiny danger-text" style={{ marginTop: 6 }}>
+                    Pick at least one promoter, or nobody can bring guests.
+                  </div>
+                )}
+              </div>
+
+              <div className="hr" />
+
+              <label className="checkbox-row" style={{ marginBottom: 8 }}>
+                <input type="checkbox" checked={perHead} onChange={(e) => setPerHead(e.target.checked)} />
+                <span>Pay promoters per verified arrival</span>
+              </label>
+              {perHead && (
+                <div className="field" style={{ maxWidth: 220, marginLeft: 26 }}>
+                  <span>₹ per confirmed check-in</span>
+                  <input value={perHeadAmt} onChange={(e) => setPerHeadAmt(e.target.value.replace(/\D/g, ''))} inputMode="numeric" />
+                </div>
+              )}
+
+              <label className="checkbox-row">
+                <input type="checkbox" checked={allowTeams} onChange={(e) => setAllowTeams(e.target.checked)} />
+                <span>Allow promoter teams / sub-promoters</span>
+              </label>
+
+              <div className="tiny muted-2" style={{ marginTop: 12 }}>
+                Guests on promoter lists get a time-based QR that's only valid before your cutoff. Everything rolls
+                up to your gate scanner, tagged with which promoter brought them.
+              </div>
+            </>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 16 }}>
+            <button className="btn btn-ghost" onClick={() => setStep(2)}>
+              ← Back
+            </button>
+            <button className="btn btn-pri" onClick={() => setStep(4)}>
+              Next: SEO & publish →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 4 && (
         <div className="card">
           <h3 style={{ marginBottom: 12 }}>SEO options</h3>
           <div className="field">
@@ -604,7 +712,7 @@ export default function CreateEvent() {
           </Accordion>
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 16 }}>
-            <button className="btn btn-ghost" onClick={() => setStep(2)}>
+            <button className="btn btn-ghost" onClick={() => setStep(3)}>
               ← Back
             </button>
             <button className="btn btn-pri" disabled={!step1Valid || !tiersValid} onClick={() => setPreview(true)}>

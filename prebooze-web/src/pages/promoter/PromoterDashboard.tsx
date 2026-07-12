@@ -1,11 +1,16 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { SUB_TIERS } from '../../data/mock';
+import { EVENTS, SUB_TIERS } from '../../data/mock';
 
 export default function PromoterDashboard() {
-  const { user } = useApp();
+  const { user, myEvents } = useApp();
   const plan = SUB_TIERS.find((t) => t.id === (user?.promoterPlan ?? 'free')) ?? SUB_TIERS[0];
-  const guestsUsed = 0; // Phase 1: no promotions yet
+  const mySlug = user?.promoterUsername ?? '';
+  const allEvents = [...myEvents, ...EVENTS.filter((e) => !myEvents.some((m) => m.id === e.id))];
+  const promotingCount = allEvents.filter(
+    (e) => e.status === 'approved' && e.promoterConfig?.enabled && e.promoterConfig.allowedPromoters.includes(mySlug)
+  ).length;
+  const guestsUsed = 0;
   const quota = plan.guests < 0 ? '∞' : plan.guests;
 
   return (
@@ -26,7 +31,7 @@ export default function PromoterDashboard() {
         </div>
         <div className="kpi">
           <div className="l">Events promoting</div>
-          <div className="v">0</div>
+          <div className="v">{promotingCount}</div>
         </div>
       </div>
 
