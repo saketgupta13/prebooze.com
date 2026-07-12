@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, VENUES } from '../data/mock';
@@ -29,7 +30,10 @@ export default function VenueDetail() {
   return (
     <main className="page">
       <div className="container">
-        <Poster hue={venue.photoHue} emoji="🏛" label="venue photo 1 of 6 — image slider" variant="landscape" />
+        {(() => {
+          const labels = ['main hall', 'stage', 'bar', 'entry', 'crowd', 'terrace'];
+          return <VenueSlider hue={venue.photoHue} labels={labels} />;
+        })()}
 
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', margin: '22px 0', flexWrap: 'wrap' }}>
           <span className="avatar" style={{ width: 58, height: 58, fontSize: 24 }}>🏛</span>
@@ -123,5 +127,38 @@ export default function VenueDetail() {
         </section>
       </div>
     </main>
+  );
+}
+
+
+/** Image slider cycling all venue photos with ‹ › controls and dots. */
+function VenueSlider({ hue, labels }: { hue: number; labels: string[] }) {
+  const [idx, setIdx] = useState(0);
+  const go = (d: number) => setIdx((i) => (i + d + labels.length) % labels.length);
+  return (
+    <div style={{ position: 'relative' }}>
+      <Poster
+        hue={(hue + idx * 40) % 360}
+        emoji="🏛"
+        label={`${labels[idx]} · photo ${idx + 1} of ${labels.length}`}
+        variant="landscape"
+      />
+      <button className="btn btn-ghost btn-sm" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(26,28,23,.75)' }} onClick={() => go(-1)}>
+        ‹
+      </button>
+      <button className="btn btn-ghost btn-sm" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(26,28,23,.75)' }} onClick={() => go(1)}>
+        ›
+      </button>
+      <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6 }}>
+        {labels.map((_, i) => (
+          <button
+            key={i}
+            aria-label={`photo ${i + 1}`}
+            onClick={() => setIdx(i)}
+            style={{ width: 8, height: 8, borderRadius: '50%', border: 'none', cursor: 'pointer', background: i === idx ? 'var(--accent)' : 'rgba(237,239,230,.35)' }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }

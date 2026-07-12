@@ -123,6 +123,15 @@ interface AdminState {
   updateLineup: (id: string, patch: Partial<Lineup>) => void;
   removeLineup: (id: string) => void;
   addLineupCategory: (name: string) => void;
+  removeEvent: (id: string) => void;
+  removeCustomer: (id: string) => void;
+  removeOrganizer: (id: string) => void;
+  removeBooking: (id: string) => void;
+  removePromo: (code: string) => void;
+  removeBlog: (id: string) => void;
+  removePage: (slug: string) => void;
+  removeCategory: (name: string) => void;
+  removeRole: (name: string) => void;
 }
 
 const Ctx = createContext<AdminState>(null as unknown as AdminState);
@@ -158,7 +167,7 @@ function usePersisted<T>(key: string, seed: T, migrate?: (v: T) => T) {
 
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = usePersisted<Session | null>('pba_session', null);
-  const [events, setEvents] = usePersisted('pba_events', SEED_EVENTS);
+  const [events, setEvents] = usePersisted('pba_events', SEED_EVENTS, mergeWithSeed(SEED_EVENTS, 'id'));
   const [bookings, setBookings] = usePersisted('pba_bookings', SEED_BOOKINGS, (list) =>
     // schema migration: bookings stored before the guests field existed
     list.map((b) => ({ ...b, guests: b.guests ?? [`${b.guest} (main)`] }))
@@ -174,8 +183,11 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [blogs, setBlogs] = usePersisted('pba_blogs', SEED_BLOGS, (list) =>
     mergeWithSeed(SEED_BLOGS, 'title')(list).map((b, i) => ({ ...b, id: b.id ?? 'bl' + (i + 1) }))
   );
-  const [pages, setPages] = usePersisted('pba_pages', SEED_PAGES);
-  const [staff, setStaff] = usePersisted('pba_staff', SEED_STAFF);
+  const [pages, setPages] = usePersisted('pba_pages', SEED_PAGES, (list) => [
+    ...list,
+    ...SEED_PAGES.filter((sp) => !list.some((p) => p.slug === sp.slug)),
+  ]);
+  const [staff, setStaff] = usePersisted('pba_staff', SEED_STAFF, mergeWithSeed(SEED_STAFF, 'name'));
   const [blogCategories, setBlogCategories] = usePersisted<BlogCategory[]>('pba_blogcats', SEED_BLOG_CATEGORIES);
   const [ledger, setLedger] = usePersisted<LedgerEntry[]>('pba_ledger', SEED_LEDGER);
   const [ledgerCategories, setLedgerCategories] = usePersisted('pba_ledgercats', SEED_LEDGER_CATEGORIES);
@@ -426,6 +438,54 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       addLineupCategory: (name) => {
         setLineupCategories((prev) => (prev.includes(name) ? prev : [...prev, name]));
         toast(`Line-up category "${name}" added ✓`);
+      },
+      removeEvent: (id) => {
+        setEvents((prev) => prev.filter((e) => e.id !== id));
+        toast('Event removed');
+      },
+      removeCustomer: (id) => {
+        setCustomers((prev) => prev.filter((c) => c.id !== id));
+        toast('Customer removed');
+      },
+      removeOrganizer: (id) => {
+        setOrganizers((prev) => prev.filter((o) => o.id !== id));
+        toast('Organizer removed');
+      },
+      removeBooking: (id) => {
+        setBookings((prev) => prev.filter((b) => b.id !== id));
+        toast('Booking removed');
+      },
+      removePromo: (code) => {
+        setPromos((prev) => prev.filter((p) => p.code !== code));
+        toast(`Promo ${code} removed`);
+      },
+      removeBlog: (id) => {
+        setBlogs((prev) => prev.filter((b) => b.id !== id));
+        toast('Post removed');
+      },
+      removePage: (slug) => {
+        setPages((prev) => prev.filter((p) => p.slug !== slug));
+        toast('Page removed');
+      },
+      removeCategory: (name) => {
+        setCategories((prev) => prev.filter((c) => c.name !== name));
+        toast(`Category "${name}" removed`);
+      },
+      removeRole: (name) => {
+        if (name === 'Owner') {
+          toast("The Owner role can't be removed");
+          return;
+        }
+        if (staff.some((m) => m.role === name)) {
+          toast(`Reassign members using "${name}" first`);
+          return;
+        }
+        setRoles((prev) => {
+          const next = { ...prev };
+          delete next[name];
+          return next;
+        });
+        toast(`Role "${name}" removed`);
       },
       addCategory: (c) => {
         setCategories((prev) => [...prev, c]);

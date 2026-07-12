@@ -25,6 +25,7 @@ const EMPTY_EVENT: AdminEvent = {
   date: '',
   time: '8:00 PM',
   organizer: '',
+  city: 'Austin',
   status: 'draft',
   sold: 0,
   cap: 0,
@@ -47,6 +48,7 @@ export default function EventEditor() {
   const [draft, setDraft] = useState<AdminEvent>(() => ({
     ...EMPTY_EVENT,
     venue: venues[0]?.name ?? '',
+    city: venues[0]?.city ?? 'Austin',
     organizer: organizers.find((o) => o.status === 'approved')?.name ?? '',
   }));
 
@@ -178,7 +180,14 @@ export default function EventEditor() {
           </div>
           <div className="field">
             <label>Venue</label>
-            <select className="input" value={event.venue} onChange={(e) => patch({ venue: e.target.value })}>
+            <select
+              className="input"
+              value={event.venue}
+              onChange={(e) => {
+                const v = venues.find((x) => x.name === e.target.value);
+                patch({ venue: e.target.value, city: v?.city ?? event.city });
+              }}
+            >
               {venues.map((v) => (
                 <option key={v.id} value={v.name}>{v.name}{!v.verified ? ' (docs pending)' : ''}</option>
               ))}

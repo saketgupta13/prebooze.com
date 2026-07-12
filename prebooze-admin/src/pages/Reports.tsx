@@ -27,6 +27,8 @@ function Line({ label, value, bold, red, indent }: { label: string; value: strin
 export default function Reports() {
   const { events, ledger, settings, toast } = useAdmin();
   const [chip, setChip] = useState(CHIPS[0]);
+  const [cityF, setCityF] = useState('All');
+  const cityEvents = cityF === 'All' ? events : events.filter((e) => e.city === cityF);
 
   const fin = useMemo(() => {
     const selling = events.filter((e) => e.status !== 'draft' && e.commission != null && e.revenue > 0);
@@ -46,7 +48,7 @@ export default function Reports() {
     return { commissionIncome, feeIncome, otherIncome, expensesByCat, totalExpenses, gstPayable, gross, payoutsDue, paidOut, totalIncome, netProfit, cash };
   }, [events, ledger, settings]);
 
-  const top = [...events].filter((e) => e.revenue > 0).sort((a, b) => b.revenue - a.revenue).slice(0, 3);
+  const top = [...cityEvents].filter((e) => e.revenue > 0).sort((a, b) => b.revenue - a.revenue).slice(0, 3);
 
   return (
     <div className="stack fade" style={{ maxWidth: 1100 }}>
@@ -59,9 +61,13 @@ export default function Reports() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         {CHIPS.map((c) => (
           <button key={c} className={`chip ${chip === c ? 'on' : ''}`} onClick={() => setChip(c)}>{c}</button>
+        ))}
+        <span style={{ flex: 1 }} />
+        {['All', ...new Set(events.map((e) => e.city))].map((c) => (
+          <button key={c} className={`chip ${cityF === c ? 'on' : ''}`} onClick={() => setCityF(c)}>{c}</button>
         ))}
       </div>
 

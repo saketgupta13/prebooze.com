@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { SOCIAL_LINKS } from '../data/mock';
 
 export default function Footer() {
   return (
@@ -22,17 +23,18 @@ export default function Footer() {
           </div>
           <div>
             <h4>Support</h4>
-            <Link to="/#faqs">FAQs</Link>
+            <Link to="/faqs">FAQs</Link>
             <Link to="/legal/refund-policy">Refund policy</Link>
             <Link to="/legal/terms">Terms</Link>
             <Link to="/legal/privacy">Privacy</Link>
           </div>
           <div>
             <h4>Follow</h4>
-            <a href="#ig">Instagram</a>
-            <a href="#x">X</a>
-            <a href="#yt">YouTube</a>
-            <a href="#wa">WhatsApp</a>
+            {SOCIAL_LINKS.map((s) => (
+              <a key={s.label} href={s.url} target="_blank" rel="noreferrer">
+                {s.label}
+              </a>
+            ))}
           </div>
         </div>
         <div className="ftr-base">

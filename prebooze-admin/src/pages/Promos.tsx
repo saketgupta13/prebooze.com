@@ -16,7 +16,7 @@ const audienceLabel = (g: Gender) =>
   g === 'all' ? 'everyone' : g === 'women' ? 'women only' : g === 'men' ? 'men only' : 'other';
 
 export default function Promos() {
-  const { promos, addPromo, toast } = useAdmin();
+  const { promos, addPromo, removePromo, toast } = useAdmin();
   const [code, setCode] = useState('');
   const [ptype, setPtype] = useState<'percent' | 'flat'>('percent');
   const [value, setValue] = useState('');
@@ -69,7 +69,7 @@ export default function Promos() {
           <span style={{ flex: 1 }}>Audience</span>
           <span style={{ flex: 0.8 }}>Used</span>
           <span style={{ flex: 1 }}>Status</span>
-          <span style={{ width: 50 }} />
+          <span style={{ width: 84 }} />
         </div>
         {promos.map((p) => (
           <div key={p.code} className="trow" style={{ minWidth: 560 }}>
@@ -87,8 +87,17 @@ export default function Promos() {
                 <Tag label="Expired" cls="tag-dim" />
               )}
             </span>
-            <span style={{ width: 50, display: 'flex', justifyContent: 'flex-end' }}>
+            <span style={{ width: 84, display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
               <Link to={`/promos/${p.code}/edit`} className="btn btn-ghost btn-sm" style={{ padding: '3px 8px' }}>✎</Link>
+              <button
+                className="btn btn-danger btn-sm"
+                style={{ padding: '3px 8px' }}
+                onClick={() => {
+                  if (window.confirm(`Remove promo ${p.code}?`)) removePromo(p.code);
+                }}
+              >
+                ✕
+              </button>
             </span>
           </div>
         ))}

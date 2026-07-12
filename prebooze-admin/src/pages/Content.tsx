@@ -93,7 +93,7 @@ export function Banners() {
 }
 
 export function Categories() {
-  const { categories } = useAdmin();
+  const { categories, removeCategory } = useAdmin();
   const navigate = useNavigate();
   return (
     <div className="stack fade" style={{ maxWidth: 700 }}>
@@ -117,6 +117,20 @@ export function Categories() {
             </span>
             {c.count === 0 ? <Tag label="Hidden" cls="tag-dim" /> : <Tag label="Visible" cls="tag-green" />}
             <span className="muted">✎</span>
+            <span
+              className="btn btn-danger btn-sm"
+              style={{ padding: '2px 7px' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (c.count > 0) {
+                  window.alert(`"${c.name}" still has ${c.count} events — move them first.`);
+                  return;
+                }
+                if (window.confirm(`Remove category "${c.name}"?`)) removeCategory(c.name);
+              }}
+            >
+              ✕
+            </span>
           </button>
         ))}
       </div>
@@ -126,7 +140,7 @@ export function Categories() {
 }
 
 export function Blogs() {
-  const { blogs } = useAdmin();
+  const { blogs, removeBlog } = useAdmin();
   const navigate = useNavigate();
   const tagFor = (status: string) =>
     status === 'published' ? (
@@ -164,6 +178,16 @@ export function Blogs() {
             </span>
             {tagFor(b.status)}
             <span className="muted">✎</span>
+            <span
+              className="btn btn-danger btn-sm"
+              style={{ padding: '2px 7px' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm(`Remove post "${b.title}"?`)) removeBlog(b.id);
+              }}
+            >
+              ✕
+            </span>
           </button>
         ))}
       </div>
@@ -173,7 +197,7 @@ export function Blogs() {
 }
 
 export function Pages() {
-  const { pages, addPage } = useAdmin();
+  const { pages, addPage, removePage } = useAdmin();
   return (
     <ContentPage
       title="Site pages"
@@ -196,6 +220,17 @@ export function Pages() {
             </span>
             <span className="muted">{p.slug}</span>
             <span className="muted">✎</span>
+            <span
+              className="btn btn-danger btn-sm"
+              style={{ padding: '2px 7px' }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.confirm(`Remove page "${p.title}"? Footer links to it will 404.`)) removePage(p.slug);
+              }}
+            >
+              ✕
+            </span>
           </Link>
         ))}
       </div>

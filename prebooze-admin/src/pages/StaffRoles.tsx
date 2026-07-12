@@ -7,11 +7,12 @@ import type { PermSet } from '../types';
 const PERM_KEYS: (keyof PermSet)[] = ['view', 'edit', 'approve'];
 
 export default function StaffRoles() {
-  const { staff, roles, addStaff, updateStaffRole, removeStaff, setRolePerm, addRole, toast } = useAdmin();
+  const { staff, roles, addStaff, updateStaffRole, removeStaff, setRolePerm, addRole, removeRole, toast } = useAdmin();
   const roleNames = Object.keys(roles);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('Support');
+  const [inviteCity, setInviteCity] = useState('Austin');
   const [selectedRole, setSelectedRole] = useState('Finance');
   const [showAddRole, setShowAddRole] = useState(false);
   const [newRole, setNewRole] = useState('');
@@ -33,7 +34,7 @@ export default function StaffRoles() {
           onSubmit={(e) => {
             e.preventDefault();
             if (!inviteEmail.trim()) return;
-            addStaff({ name: inviteEmail.trim(), role: inviteRole, lastActive: 'invited' });
+            addStaff({ name: inviteEmail.trim(), role: inviteRole, lastActive: 'invited', city: inviteCity });
             setInviteEmail('');
             setShowInvite(false);
           }}
@@ -51,6 +52,11 @@ export default function StaffRoles() {
               <option key={r}>{r}</option>
             ))}
           </select>
+          <select className="input" style={{ width: 120 }} value={inviteCity} onChange={(e) => setInviteCity(e.target.value)}>
+            {['Austin', 'Dallas', 'Houston'].map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
           <button type="submit" className="btn btn-pri btn-sm">Invite</button>
         </form>
       )}
@@ -60,6 +66,7 @@ export default function StaffRoles() {
         <div className="thead" style={{ minWidth: 480 }}>
           <span style={{ flex: 1.6 }}>Member</span>
           <span style={{ flex: 1.3 }}>Role</span>
+          <span style={{ flex: 0.8 }}>City</span>
           <span style={{ flex: 1 }}>Last active</span>
           <span style={{ width: 60 }} />
         </div>
@@ -84,6 +91,7 @@ export default function StaffRoles() {
                   </select>
                 )}
               </span>
+              <span style={{ flex: 0.8 }} className="muted">{s.city ?? '—'}</span>
               <span style={{ flex: 1 }} className="muted">{s.lastActive}</span>
               <span style={{ width: 60, display: 'flex', justifyContent: 'flex-end' }}>
                 {!isOwner && (
@@ -175,9 +183,22 @@ export default function StaffRoles() {
           </div>
         ))}
         {!isOwnerRole && (
-          <button className="btn btn-pri btn-sm" style={{ marginTop: 10 }} onClick={() => toast(`Permissions saved for ${selectedRole} ✓`)}>
-            Save role
-          </button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button className="btn btn-pri btn-sm" onClick={() => toast(`Permissions saved for ${selectedRole} ✓`)}>
+              Save role
+            </button>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={() => {
+                if (window.confirm(`Remove the "${selectedRole}" role?`)) {
+                  removeRole(selectedRole);
+                  setSelectedRole('Finance');
+                }
+              }}
+            >
+              ✕ Remove role
+            </button>
+          </div>
         )}
       </div>
       <div className="tiny hint">roles: Owner · Manager · Finance · Content · Support · Scanner only — plus your custom roles</div>

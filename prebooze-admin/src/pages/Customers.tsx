@@ -5,20 +5,23 @@ import { fmt } from '../store/data';
 import { CUSTOMER_STATUS, Drawer, SearchBox, Tag } from '../components/ui';
 
 export default function Customers() {
-  const { customers, toggleBlockCustomer, toast } = useAdmin();
+  const { customers, toggleBlockCustomer, removeCustomer, toast } = useAdmin();
   const navigate = useNavigate();
   const [segment, setSegment] = useState<'guests' | 'organizers'>('guests');
   const [query, setQuery] = useState('');
+  const [cityF, setCityF] = useState('All');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const cities = ['All', ...new Set(customers.map((c) => c.city).filter((c) => c !== '—'))];
 
   const list = useMemo(() => {
     let l = customers.filter((c) => c.segment === segment);
+    if (cityF !== 'All') l = l.filter((c) => c.city === cityF);
     if (query.trim()) {
       const q = query.toLowerCase();
       l = l.filter((c) => c.name.toLowerCase().includes(q));
     }
     return l;
-  }, [customers, segment, query]);
+  }, [customers, segment, cityF, query]);
 
   const selected = customers.find((c) => c.id === selectedId);
 
@@ -33,7 +36,12 @@ export default function Customers() {
         </div>
       </div>
 
-      <SearchBox value={query} onChange={setQuery} placeholder="name / phone / email…" style={{ maxWidth: 340 }} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <SearchBox value={query} onChange={setQuery} placeholder="name / phone / email…" style={{ maxWidth: 340, flex: 1, minWidth: 180 }} />
+        {cities.map((c) => (
+          <button key={c} className={`chip ${cityF === c ? 'on' : ''}`} onClick={() => setCityF(c)}>{c}</button>
+        ))}
+      </div>
 
       <div className="tblwrap">
         <div className="thead" style={{ minWidth: 560 }}>
@@ -92,6 +100,17 @@ export default function Customers() {
           </div>
           <button className="btn btn-danger" onClick={() => toggleBlockCustomer(selected.id)}>
             {selected.status === 'blocked' ? 'Unblock customer' : 'Block customer'}
+          </button>
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={() => {
+              if (window.confirm(`Permanently remove ${selected.name}? Their bookings stay on record.`)) {
+                removeCustomer(selected.id);
+                setSelectedId(null);
+              }
+            }}
+          >
+            ✕ Remove customer
           </button>
         </Drawer>
       )}

@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
+import { ADMIN_CITIES } from '../store/data';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { EVENT_STATUS, GradientPhoto, Kpi, Tag } from '../components/ui';
@@ -8,6 +9,9 @@ import SeoFields, { emptySeo } from '../components/SeoFields';
 export function Venues() {
   const { venues } = useAdmin();
   const navigate = useNavigate();
+  const [city, setCity] = useState('All');
+  const cities = ['All', ...new Set(venues.map((v) => v.city))];
+  const list = city === 'All' ? venues : venues.filter((v) => v.city === city);
 
   return (
     <div className="stack fade" style={{ maxWidth: 1100 }}>
@@ -15,16 +19,22 @@ export function Venues() {
         <h1 className="page-title">Venues</h1>
         <Link to="/venues/new" className="btn btn-pri">+ Add venue</Link>
       </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {cities.map((c) => (
+          <button key={c} className={`chip ${city === c ? 'on' : ''}`} onClick={() => setCity(c)}>{c}</button>
+        ))}
+      </div>
 
       <div className="tblwrap">
         <div className="thead" style={{ minWidth: 560 }}>
           <span style={{ flex: 2 }}>Venue</span>
           <span style={{ flex: 1 }}>Capacity</span>
+          <span style={{ flex: 0.9 }}>City</span>
           <span style={{ flex: 1 }}>Events</span>
           <span style={{ flex: 1.2 }}>License</span>
           <span style={{ flex: 1 }}>Status</span>
         </div>
-        {venues.map((v) => (
+        {list.map((v) => (
           <div
             key={v.id}
             className="trow clickable"
@@ -36,6 +46,7 @@ export function Venues() {
               {v.name}
             </span>
             <span style={{ flex: 1 }} className="muted">{typeof v.capacity === 'number' ? fmt(v.capacity) : v.capacity}</span>
+            <span style={{ flex: 0.9 }} className="muted">{v.city}</span>
             <span style={{ flex: 1 }}>{v.events}</span>
             <span style={{ flex: 1.2 }} className={v.verified ? 'muted' : 'red'}>{v.license}</span>
             <span style={{ flex: 1 }}>
@@ -45,6 +56,48 @@ export function Venues() {
         ))}
       </div>
       <div className="tiny hint">venue detail: address + map pin, photos, license docs, contact person, house rules</div>
+    </div>
+  );
+}
+
+/** Photo slider — cycles all venue images with ‹ › controls and dots. */
+function VenueSlider({ name }: { name: string }) {
+  const photos = [
+    { seed: name.charCodeAt(0) * 3, label: `${name} — main hall` },
+    { seed: name.charCodeAt(0) * 3 + 11, label: 'stage' },
+    { seed: name.charCodeAt(0) * 3 + 23, label: 'bar' },
+    { seed: name.charCodeAt(0) * 3 + 37, label: 'entry' },
+    { seed: name.charCodeAt(0) * 3 + 51, label: 'crowd' },
+  ];
+  const [idx, setIdx] = useState(0);
+  const go = (d: number) => setIdx((i) => (i + d + photos.length) % photos.length);
+  return (
+    <div style={{ position: 'relative' }}>
+      <GradientPhoto seed={photos[idx].seed} label={`${photos[idx].label} · ${idx + 1}/${photos.length}`} style={{ height: 200 }} />
+      <button
+        onClick={() => go(-1)}
+        className="btn btn-ghost btn-sm"
+        style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', background: 'rgba(11,12,7,.7)' }}
+      >
+        ‹
+      </button>
+      <button
+        onClick={() => go(1)}
+        className="btn btn-ghost btn-sm"
+        style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'rgba(11,12,7,.7)' }}
+      >
+        ›
+      </button>
+      <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6 }}>
+        {photos.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setIdx(i)}
+            aria-label={`photo ${i + 1}`}
+            style={{ width: 8, height: 8, borderRadius: '50%', border: 'none', cursor: 'pointer', background: i === idx ? 'var(--green)' : 'rgba(241,243,234,.35)' }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -76,13 +129,7 @@ export function VenueDetail() {
       </div>
       {venue.address && <div className="small muted">{venue.address} · map pin set 📍</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gridTemplateRows: '70px 70px', gap: 8 }}>
-        <GradientPhoto seed={venue.name.charCodeAt(0) * 3} label={`${venue.name} — main hall`} style={{ gridRow: '1 / 3', height: '100%' }} />
-        <GradientPhoto seed={venue.name.charCodeAt(0) * 3 + 11} label="stage" />
-        <GradientPhoto seed={venue.name.charCodeAt(0) * 3 + 23} label="bar" />
-        <GradientPhoto seed={venue.name.charCodeAt(0) * 3 + 37} label="entry" />
-        <GradientPhoto seed={venue.name.charCodeAt(0) * 3 + 51} label="crowd" />
-      </div>
+      <VenueSlider name={venue.name} />
 
       <div className="kpi-grid">
         <Kpi label="Capacity" value={typeof venue.capacity === 'number' ? fmt(venue.capacity) : venue.capacity} />
@@ -118,6 +165,7 @@ export function AddVenue() {
   const [address, setAddress] = useState('');
   const [capacity, setCapacity] = useState('');
   const [type, setType] = useState('Indoor');
+  const [vcity, setVcity] = useState('Austin');
   const [contact, setContact] = useState('');
   const [rules, setRules] = useState('');
   const [docs, setDocs] = useState(false);
@@ -131,6 +179,7 @@ export function AddVenue() {
     addVenue({
       id: 'v' + Date.now(),
       name: name.trim(),
+      city: vcity,
       capacity: capacity ? parseInt(capacity, 10) || capacity : '—',
       events: 0,
       license: docs ? 'under review' : 'docs pending',
@@ -156,6 +205,11 @@ export function AddVenue() {
           <option>Outdoor</option>
           <option>Rooftop</option>
           <option>Warehouse</option>
+        </select>
+        <select className="input" value={vcity} onChange={(e) => setVcity(e.target.value)}>
+          {ADMIN_CITIES.map((c) => (
+            <option key={c}>{c}</option>
+          ))}
         </select>
       </div>
       <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Contact person + phone" />

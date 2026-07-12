@@ -15,23 +15,28 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 ];
 
 export default function Bookings() {
-  const { bookings, events, resolveRefund, toast } = useAdmin();
+  const { bookings, events, resolveRefund, removeBooking, toast } = useAdmin();
   const [params, setParams] = useSearchParams();
   const filter = (params.get('status') as FilterKey) ?? 'all';
   const [query, setQuery] = useState(params.get('q') ?? '');
+  const [cityF, setCityF] = useState('All');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const cities = ['All', ...new Set(events.map((e) => e.city))];
+  const eventCity = (id: string) => events.find((e) => e.id === id)?.city ?? '';
 
   const eventTitle = (id: string) => events.find((e) => e.id === id)?.title ?? '';
 
   const list = useMemo(() => {
     let l = bookings;
     if (filter !== 'all') l = l.filter((b) => b.status === filter);
+    if (cityF !== 'All') l = l.filter((b) => eventCity(b.eventId) === cityF);
     if (query.trim()) {
       const q = query.toLowerCase();
       l = l.filter((b) => b.id.toLowerCase().includes(q) || b.guest.toLowerCase().includes(q) || b.phone.includes(q));
     }
     return l;
-  }, [bookings, filter, query]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookings, filter, cityF, query]);
 
   const selected = bookings.find((b) => b.id === selectedId);
   const fee = selected ? selected.qty * 30 : 0;
@@ -58,6 +63,16 @@ export default function Bookings() {
             {f.label}
           </button>
         ))}
+        <select
+          className="chip"
+          style={{ appearance: 'none', cursor: 'pointer', background: cityF !== 'All' ? 'var(--green)' : 'var(--bg)', color: cityF !== 'All' ? 'var(--on-green)' : '#c7cbb9' }}
+          value={cityF}
+          onChange={(e) => setCityF(e.target.value)}
+        >
+          {cities.map((c) => (
+            <option key={c} value={c}>{c === 'All' ? 'City ▾' : c}</option>
+          ))}
+        </select>
       </div>
 
       <div className="tblwrap">
@@ -169,6 +184,17 @@ export default function Bookings() {
           <a onClick={() => toast('Ticket resent via WhatsApp ✓')} className="small" style={{ textDecoration: 'underline', color: 'var(--muted)' }}>
             Resend ticket via WhatsApp
           </a>
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={() => {
+              if (window.confirm(`Remove booking ${selected.id} from records?`)) {
+                removeBooking(selected.id);
+                setSelectedId(null);
+              }
+            }}
+          >
+            ✕ Remove booking
+          </button>
         </Drawer>
       )}
     </div>

@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { ORGANIZER_STATUS, Tag } from '../components/ui';
 
 export default function Organizers() {
-  const { organizers, setOrganizerStatus } = useAdmin();
+  const { organizers, setOrganizerStatus, removeOrganizer } = useAdmin();
+  const [cityF, setCityF] = useState('All');
+  const cities = ['All', ...new Set(organizers.map((o) => o.city).filter((c) => c !== '—'))];
   const navigate = useNavigate();
   const pending = organizers.filter((o) => o.status === 'pending').length;
 
@@ -21,6 +24,12 @@ export default function Organizers() {
         <Link to="/organizers/new" className="btn btn-pri">+ Add organizer</Link>
       </div>
 
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {cities.map((c) => (
+          <button key={c} className={`chip ${cityF === c ? 'on' : ''}`} onClick={() => setCityF(c)}>{c}</button>
+        ))}
+      </div>
+
       <div className="tblwrap">
         <div className="thead" style={{ minWidth: 680 }}>
           <span style={{ flex: 1.6 }}>Organizer</span>
@@ -31,7 +40,7 @@ export default function Organizers() {
           <span style={{ flex: 1 }}>Status</span>
           <span style={{ flex: 1.4 }} />
         </div>
-        {organizers.map((o) => (
+        {(cityF === 'All' ? organizers : organizers.filter((o) => o.city === cityF)).map((o) => (
           <div
             key={o.id}
             className="trow clickable"
@@ -67,6 +76,17 @@ export default function Organizers() {
                   </button>
                 </>
               )}
+              <button
+                className="btn btn-danger btn-sm"
+                style={{ padding: '2px 7px' }}
+                title="Remove organizer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm(`Remove ${o.name}? Their events stay but lose the link.`)) removeOrganizer(o.id);
+                }}
+              >
+                ✕
+              </button>
             </span>
           </div>
         ))}

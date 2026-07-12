@@ -21,6 +21,7 @@ export interface AdminEvent {
   date: string;
   time: string;
   organizer: string;
+  city: string;
   status: EventStatus;
   sold: number;
   cap: number;
@@ -85,6 +86,7 @@ export interface Organizer {
 export interface Venue {
   id: string;
   name: string;
+  city: string;
   capacity: number | string;
   events: number;
   license: string;
@@ -137,6 +139,7 @@ export interface GuestEntry {
   name: string;
   phone?: string;
   plusOnes: number;
+  companions?: { name: string; phone?: string }[]; // name + phone for every plus-one
   addedBy: string;
   arrived?: boolean;
 }
@@ -192,6 +195,7 @@ export interface StaffMember {
   name: string;
   role: string;
   lastActive: string;
+  city?: string;
 }
 
 export interface PermSet {

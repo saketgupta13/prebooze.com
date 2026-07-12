@@ -12,6 +12,15 @@ export default function GuestList() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [plusOnes, setPlusOnes] = useState(0);
+  const [companions, setCompanions] = useState<{ name: string; phone: string }[]>([]);
+
+  const setCompanion = (i: number, patch: Partial<{ name: string; phone: string }>) =>
+    setCompanions((prev) => {
+      const next = [...prev];
+      while (next.length < i + 1) next.push({ name: '', phone: '' });
+      next[i] = { ...next[i], ...patch };
+      return next;
+    });
 
   if (!event) {
     return (
@@ -32,18 +41,24 @@ export default function GuestList() {
       toast('Guest name is required');
       return;
     }
+    const comps = companions.slice(0, plusOnes).map((c, i) => ({
+      name: c.name.trim() || `Guest of ${name.trim()} #${i + 1}`,
+      phone: c.phone.trim() || undefined,
+    }));
     addGuestEntry({
       id: 'g' + Date.now(),
       eventId: event.id,
       name: name.trim(),
       phone: phone.trim() || undefined,
       plusOnes,
+      companions: comps,
       addedBy: session?.name ?? 'Admin',
       arrived: false,
     });
     setName('');
     setPhone('');
     setPlusOnes(0);
+    setCompanions([]);
   };
 
   return (
@@ -80,6 +95,29 @@ export default function GuestList() {
           </div>
         </div>
         <button type="submit" className="btn btn-pri" style={{ height: 38 }}>Add to list ✓</button>
+        {plusOnes > 0 && (
+          <div style={{ flexBasis: '100%', display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px dashed rgba(139,195,74,.25)', paddingTop: 8 }}>
+            <span className="tiny muted">name &amp; phone for each plus-one (required at the gate):</span>
+            {Array.from({ length: plusOnes }, (_, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  className="input"
+                  style={{ flex: 1.4, minWidth: 140 }}
+                  value={companions[i]?.name ?? ''}
+                  onChange={(e) => setCompanion(i, { name: e.target.value })}
+                  placeholder={`Plus-one ${i + 1} name`}
+                />
+                <input
+                  className="input"
+                  style={{ flex: 1, minWidth: 120 }}
+                  value={companions[i]?.phone ?? ''}
+                  onChange={(e) => setCompanion(i, { phone: e.target.value })}
+                  placeholder="Phone (optional)"
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </form>
 
       <div className="tblwrap">
@@ -93,7 +131,15 @@ export default function GuestList() {
         </div>
         {list.map((g) => (
           <div key={g.id} className="trow" style={{ minWidth: 560 }}>
-            <span style={{ flex: 1.8, fontWeight: 700 }}>{g.name}{g.plusOnes > 0 && <span className="muted"> +{g.plusOnes}</span>}</span>
+            <span style={{ flex: 1.8, fontWeight: 700 }}>
+              {g.name}
+              {g.plusOnes > 0 && <span className="muted"> +{g.plusOnes}</span>}
+              {(g.companions ?? []).length > 0 && (
+                <span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>
+                  with {(g.companions ?? []).map((c) => c.name + (c.phone ? ` (${c.phone})` : '')).join(', ')}
+                </span>
+              )}
+            </span>
             <span style={{ flex: 1 }} className="muted">{g.phone ?? '—'}</span>
             <span style={{ flex: 0.7 }}>{1 + g.plusOnes}</span>
             <span style={{ flex: 1 }} className="muted">{g.addedBy}</span>

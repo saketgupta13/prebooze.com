@@ -637,3 +637,13 @@ export const LINEUPS: LineupProfileData[] = [
 
 export const lineupBySlug = (slug: string) => LINEUPS.find((l) => l.slug === slug);
 export const lineupByName = (name: string) => LINEUPS.find((l) => l.name.toLowerCase() === name.toLowerCase());
+
+
+// Social links — defaults mirror the admin panel's Settings → Social accounts;
+// once the backend lands, the admin values drive these directly.
+export const SOCIAL_LINKS = [
+  { label: 'Instagram', url: 'https://instagram.com/prebooze' },
+  { label: 'X', url: 'https://x.com/prebooze' },
+  { label: 'YouTube', url: 'https://youtube.com/@prebooze' },
+  { label: 'WhatsApp', url: 'https://wa.me/919876543210' },
+];

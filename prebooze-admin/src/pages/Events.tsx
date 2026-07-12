@@ -36,7 +36,7 @@ function FilterSelect({ label, value, options, onChange }: {
 }
 
 export default function Events() {
-  const { events } = useAdmin();
+  const { events, removeEvent } = useAdmin();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const tab = (params.get('tab') as TabKey) ?? 'all';
@@ -45,7 +45,9 @@ export default function Events() {
   const [venue, setVenue] = useState(ANY);
   const [organizer, setOrganizer] = useState(ANY);
   const [month, setMonth] = useState(ANY);
+  const [city, setCity] = useState(ANY);
 
+  const cities = [...new Set(events.map((e) => e.city))];
   const categories = [...new Set(events.map((e) => e.category))];
   const venues = [...new Set(events.map((e) => e.venue))];
   const organizers = [...new Set(events.map((e) => e.organizer))];
@@ -65,14 +67,15 @@ export default function Events() {
     if (venue !== ANY) l = l.filter((e) => e.venue === venue);
     if (organizer !== ANY) l = l.filter((e) => e.organizer === organizer);
     if (month !== ANY) l = l.filter((e) => e.date.endsWith(' ' + month));
+    if (city !== ANY) l = l.filter((e) => e.city === city);
     if (query.trim()) {
       const q = query.toLowerCase();
       l = l.filter((e) => e.title.toLowerCase().includes(q) || e.organizer.toLowerCase().includes(q));
     }
     return l;
-  }, [events, tab, category, venue, organizer, month, query]);
+  }, [events, tab, category, venue, organizer, month, city, query]);
 
-  const filtersActive = category !== ANY || venue !== ANY || organizer !== ANY || month !== ANY || query.trim();
+  const filtersActive = category !== ANY || venue !== ANY || organizer !== ANY || month !== ANY || city !== ANY || query.trim();
 
   return (
     <div className="stack fade" style={{ maxWidth: 1200 }}>
@@ -100,6 +103,7 @@ export default function Events() {
         <FilterSelect label="Venue" value={venue} options={venues} onChange={setVenue} />
         <FilterSelect label="Organizer" value={organizer} options={organizers} onChange={setOrganizer} />
         <FilterSelect label="Date" value={month} options={months} onChange={setMonth} />
+        <FilterSelect label="City" value={city} options={cities} onChange={setCity} />
         {filtersActive && (
           <button
             className="chip"
@@ -109,6 +113,7 @@ export default function Events() {
               setVenue(ANY);
               setOrganizer(ANY);
               setMonth(ANY);
+              setCity(ANY);
               setQuery('');
             }}
           >
@@ -125,6 +130,7 @@ export default function Events() {
           <span style={{ flex: 1 }}>Sold / cap</span>
           <span style={{ flex: 0.7 }}>Comm.</span>
           <span style={{ flex: 1 }}>Status</span>
+          <span style={{ width: 34 }} />
         </div>
         {list.map((ev) => {
           const sm = EVENT_STATUS[ev.status];
@@ -143,6 +149,19 @@ export default function Events() {
                 {ev.commission == null ? 'unset' : `${ev.commission}%`}
               </span>
               <span style={{ flex: 1 }}><Tag {...sm} /></span>
+              <span style={{ width: 34, display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  className="btn btn-danger btn-sm"
+                  style={{ padding: '2px 7px' }}
+                  title="Remove event"
+                  onClick={(ev2) => {
+                    ev2.stopPropagation();
+                    if (window.confirm(`Remove "${ev.title}"? Bookings keep their records.`)) removeEvent(ev.id);
+                  }}
+                >
+                  ✕
+                </button>
+              </span>
             </div>
           );
         })}
