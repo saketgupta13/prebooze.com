@@ -29,6 +29,10 @@ import Scanner from './pages/organizer/Scanner';
 import Coupons from './pages/organizer/Coupons';
 import Payouts from './pages/organizer/Payouts';
 import Settings from './pages/organizer/Settings';
+import Withdraw from './pages/organizer/Withdraw';
+import OrgGuestList from './pages/organizer/OrgGuestList';
+import OrgLiveMonitor from './pages/organizer/OrgLiveMonitor';
+import OrgReviews from './pages/organizer/OrgReviews';
 import HostLanding from './pages/static/HostLanding';
 import About from './pages/static/About';
 import Contact from './pages/static/Contact';
@@ -145,10 +149,15 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="events" element={<MyEvents />} />
           <Route path="events/create" element={<CreateEvent />} />
+          <Route path="events/:id/edit" element={<CreateEvent />} />
           <Route path="attendees" element={<Attendees />} />
           <Route path="scanner" element={<Scanner />} />
           <Route path="coupons" element={<Coupons />} />
           <Route path="payouts" element={<Payouts />} />
+          <Route path="payouts/withdraw" element={<Withdraw />} />
+          <Route path="guestlist" element={<OrgGuestList />} />
+          <Route path="live" element={<OrgLiveMonitor />} />
+          <Route path="reviews" element={<OrgReviews />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 

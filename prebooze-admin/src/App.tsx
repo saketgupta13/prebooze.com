@@ -31,6 +31,7 @@ import Finance from './pages/Finance';
 import ManualBooking from './pages/ManualBooking';
 import GuestList from './pages/GuestList';
 import { Lineups, LineupEdit } from './pages/Lineups';
+import Reviews from './pages/Reviews';
 
 export default function App() {
   return (
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/payments/run" element={<RunPayoutBatch />} />
         <Route path="/promos" element={<Promos />} />
         <Route path="/promos/:code/edit" element={<PromoEdit />} />
+        <Route path="/reviews" element={<Reviews />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/banners" element={<Banners />} />

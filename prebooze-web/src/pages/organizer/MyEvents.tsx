@@ -25,7 +25,8 @@ export default function MyEvents() {
   const [tab, setTab] = useState<'all' | EventStatus>('all');
 
   const seeded = EVENTS.filter((e) => e.organizerId === 'livewire');
-  const all = [...myEvents, ...seeded];
+  // edited seeded events live in myEvents with the same id — the edit wins
+  const all = [...myEvents, ...seeded.filter((s) => !myEvents.some((m) => m.id === s.id))];
   const list = tab === 'all' ? all : all.filter((e) => e.status === tab);
 
   return (
@@ -84,6 +85,9 @@ export default function MyEvents() {
                 </div>
               </div>
               <span className={`badge ${badge.cls}`}>{badge.label}</span>
+              <Link to={`/organizer/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval">
+                ✎ Edit
+              </Link>
               <Link to={`/events/${e.slug}`} className="icon-round" title="View as guest">
                 ⋮
               </Link>

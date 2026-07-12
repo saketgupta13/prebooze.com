@@ -15,6 +15,7 @@ const MAIN_NAV = [
   { to: '/payments', icon: '💰', label: 'Payments' },
   { to: '/finance', icon: '🧾', label: 'Income & expenses' },
   { to: '/promos', icon: '🏷', label: 'Promo codes' },
+  { to: '/reviews', icon: '★', label: 'Reviews' },
   { to: '/reports', icon: '📈', label: 'Reports' },
 ];
 

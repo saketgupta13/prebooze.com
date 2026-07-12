@@ -1,7 +1,36 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Booking, Coupon, Event, User } from '../types';
+import type { Booking, Coupon, Event, User, Venue } from '../types';
+import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS } from '../data/mock';
+
+export interface GuestListEntry {
+  id: string;
+  eventId: string;
+  name: string;
+  phone?: string;
+  plusOnes: number;
+  arrived?: boolean;
+}
+
+export interface TeamMember {
+  name: string;
+  role: string;
+  scan: boolean;
+}
+
+export interface OrgPrefs {
+  whatsapp: boolean;
+  emailDigest: boolean;
+  refundWindow: string;
+}
+
+export interface Withdrawal {
+  id: string;
+  amount: number;
+  date: string;
+  status: 'processing' | 'paid';
+}
 
 interface Selection {
   eventId: string;
@@ -27,9 +56,28 @@ interface AppState {
   cancelBooking: (id: string) => void;
   checkInBooking: (id: string, count: number) => void;
   addEvent: (e: Event) => void;
+  upsertEvent: (e: Event) => void;
   addCoupon: (c: Coupon) => void;
+  updateCoupon: (id: string, patch: Partial<Coupon>) => void;
+  removeCoupon: (id: string) => void;
   toggleCoupon: (id: string) => void;
   toggleFollow: (id: string) => void;
+  orgBalance: number;
+  withdrawals: Withdrawal[];
+  withdraw: (amount: number) => void;
+  team: TeamMember[];
+  addTeamMember: (m: TeamMember) => void;
+  removeTeamMember: (name: string) => void;
+  orgPrefs: OrgPrefs;
+  updateOrgPrefs: (patch: Partial<OrgPrefs>) => void;
+  glist: GuestListEntry[];
+  addGlist: (g: GuestListEntry) => void;
+  removeGlist: (id: string) => void;
+  toggleGlistArrived: (id: string) => void;
+  customLineups: { name: string; role: string }[];
+  addCustomLineup: (l: { name: string; role: string }) => void;
+  myVenues: Venue[];
+  addMyVenue: (v: Venue) => void;
 }
 
 const Ctx = createContext<AppState>(null as unknown as AppState);
@@ -54,6 +102,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     load('pb_following', ['livewire', 'nightowl'])
   );
   const [pendingPhone, setPendingPhone] = useState('');
+  const [orgBalance, setOrgBalance] = useState<number>(() => load('pb_org_balance', 84320));
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(() => load('pb_withdrawals', []));
+  const [team, setTeam] = useState<TeamMember[]>(() =>
+    load('pb_team', [
+      { name: 'You (owner)', role: 'Owner', scan: true },
+      { name: 'Meera J.', role: 'Manager', scan: true },
+      { name: 'Ravi D.', role: 'Door staff', scan: true },
+    ])
+  );
+  const [orgPrefs, setOrgPrefs] = useState<OrgPrefs>(() =>
+    load('pb_orgprefs', { whatsapp: true, emailDigest: true, refundWindow: '48h' })
+  );
+  const [glist, setGlist] = useState<GuestListEntry[]>(() => load('pb_glist', []));
+  const [customLineups, setCustomLineups] = useState<{ name: string; role: string }[]>(() =>
+    load('pb_customlineups', [])
+  );
+  const [myVenues, setMyVenues] = useState<Venue[]>(() => {
+    const v = load<Venue[]>('pb_myvenues', []);
+    v.forEach(registerVenue);
+    return v;
+  });
 
   useEffect(() => {
     localStorage.setItem('pb_user', JSON.stringify(user));
@@ -141,7 +210,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
           )
         ),
       addEvent: (e) => setMyEvents((prev) => [e, ...prev]),
+      upsertEvent: (e) =>
+        setMyEvents((prev) =>
+          prev.some((x) => x.id === e.id) ? prev.map((x) => (x.id === e.id ? e : x)) : [e, ...prev]
+        ),
       addCoupon: (c) => setCoupons((prev) => [c, ...prev]),
+      updateCoupon: (id, patch) =>
+        setCoupons((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c))),
+      removeCoupon: (id) => setCoupons((prev) => prev.filter((c) => c.id !== id)),
       toggleCoupon: (id) =>
         setCoupons((prev) =>
           prev.map((c) =>
@@ -152,8 +228,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setFollowing((prev) =>
           prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
         ),
+      orgBalance,
+      withdrawals,
+      withdraw: (amount) => {
+        setOrgBalance((b) => Math.max(0, b - amount));
+        setWithdrawals((prev) => [
+          {
+            id: 'w' + Date.now(),
+            amount,
+            date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            status: 'processing' as const,
+          },
+          ...prev,
+        ]);
+      },
+      team,
+      addTeamMember: (m) => setTeam((prev) => [...prev, m]),
+      removeTeamMember: (name) => setTeam((prev) => prev.filter((m) => m.name !== name)),
+      orgPrefs,
+      updateOrgPrefs: (patch) => setOrgPrefs((prev) => ({ ...prev, ...patch })),
+      glist,
+      addGlist: (g) => setGlist((prev) => [g, ...prev]),
+      removeGlist: (id) => setGlist((prev) => prev.filter((g) => g.id !== id)),
+      toggleGlistArrived: (id) =>
+        setGlist((prev) => prev.map((g) => (g.id === id ? { ...g, arrived: !g.arrived } : g))),
+      customLineups,
+      addCustomLineup: (l) => setCustomLineups((prev) => [...prev, l]),
+      myVenues,
+      addMyVenue: (v) => {
+        registerVenue(v);
+        setMyVenues((prev) => [...prev, v]);
+      },
     }),
-    [user, city, bookings, selection, myEvents, coupons, following, pendingPhone]
+    [user, city, bookings, selection, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

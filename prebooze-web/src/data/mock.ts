@@ -647,3 +647,28 @@ export const SOCIAL_LINKS = [
   { label: 'YouTube', url: 'https://youtube.com/@prebooze' },
   { label: 'WhatsApp', url: 'https://wa.me/919876543210' },
 ];
+
+
+// ---- Organizer reviews (moderated by admin; organizers view-only) ----
+export interface OrgReview {
+  id: string;
+  author: string;
+  rating: number;
+  eventTitle: string;
+  organizerId: string;
+  text: string;
+  date: string;
+}
+
+export const ORG_REVIEWS: OrgReview[] = [
+  { id: 'rv1', author: 'Priya S.', rating: 5, eventTitle: 'Jazz in the Park', organizerId: 'livewire', text: 'Smooth entry, great sound, well organized.', date: '14 Jun' },
+  { id: 'rv2', author: 'Marco T.', rating: 4, eventTitle: 'NYE Countdown', organizerId: 'livewire', text: 'Fun night — queue at the bar was long.', date: '2 Jan' },
+  { id: 'rv3', author: 'Alex K.', rating: 5, eventTitle: 'Indie Night Live', organizerId: 'livewire', text: 'QR entry took seconds. Best gig this year.', date: '2 Jul' },
+  { id: 'rv4', author: 'Nikita R.', rating: 2, eventTitle: 'Techno Bunker', organizerId: 'nightowl', text: 'Sound was great but entry took 40 minutes.', date: '20 Jun' },
+  { id: 'rv5', author: 'Dev M.', rating: 4, eventTitle: 'Stand-up Sunday', organizerId: 'nightowl', text: 'Maya K. destroyed. Seats a bit cramped.', date: '28 Jun' },
+];
+
+/** Register a runtime-created venue so venueById() keeps working everywhere. */
+export const registerVenue = (v: Venue) => {
+  if (!VENUES.some((x) => x.id === v.id)) VENUES.push(v);
+};

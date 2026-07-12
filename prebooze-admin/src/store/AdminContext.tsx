@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react';
 import type {
   AdminBooking,
+  AdminReview,
   BlogCategory,
   Lineup,
   GuestEntry,
@@ -39,6 +40,7 @@ import {
   SEED_LINEUPS,
   SEED_NOTIFICATIONS,
   SEED_PROMOS,
+  SEED_REVIEWS,
   SEED_ROLES,
   SEED_SETTINGS,
   SEED_STAFF,
@@ -132,6 +134,10 @@ interface AdminState {
   removePage: (slug: string) => void;
   removeCategory: (name: string) => void;
   removeRole: (name: string) => void;
+  removeVenue: (id: string) => void;
+  reviews: AdminReview[];
+  updateReview: (id: string, patch: Partial<AdminReview>) => void;
+  removeReview: (id: string) => void;
 }
 
 const Ctx = createContext<AdminState>(null as unknown as AdminState);
@@ -202,6 +208,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     contact: { ...SEED_SETTINGS.contact, ...(v as Partial<typeof SEED_SETTINGS>).contact },
   }));
   const [lineups, setLineups] = usePersisted<Lineup[]>('pba_lineups', SEED_LINEUPS);
+  const [reviews, setReviews] = usePersisted<AdminReview[]>('pba_reviews', SEED_REVIEWS);
   const [lineupCategories, setLineupCategories] = usePersisted<string[]>('pba_lineupcats', LINEUP_CATEGORIES);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -471,6 +478,19 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setCategories((prev) => prev.filter((c) => c.name !== name));
         toast(`Category "${name}" removed`);
       },
+      removeVenue: (id) => {
+        setVenues((prev) => prev.filter((v) => v.id !== id));
+        toast('Venue removed');
+      },
+      reviews,
+      updateReview: (id, patch) => {
+        setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+        toast('Review updated ✓');
+      },
+      removeReview: (id) => {
+        setReviews((prev) => prev.filter((r) => r.id !== id));
+        toast('Review removed');
+      },
       removeRole: (name) => {
         if (name === 'Owner') {
           toast("The Owner role can't be removed");
@@ -504,7 +524,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories]
+    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

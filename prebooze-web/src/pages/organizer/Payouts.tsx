@@ -1,6 +1,9 @@
+import { Link } from 'react-router-dom';
 import { PAYOUTS, fmtMoney } from '../../data/mock';
+import { useApp } from '../../store/AppContext';
 
 export default function Payouts() {
+  const { orgBalance, withdrawals } = useApp();
   return (
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 18 }}>Payouts</h1>
@@ -8,10 +11,10 @@ export default function Payouts() {
       <div className="kpis" style={{ marginBottom: 18 }}>
         <div className="kpi" style={{ borderColor: 'rgba(155,225,61,.4)' }}>
           <div className="l">Available balance</div>
-          <div className="v accent">₹84,320</div>
-          <button className="btn btn-pri btn-sm" style={{ marginTop: 10 }}>
+          <div className="v accent">{fmtMoney(orgBalance)}</div>
+          <Link to="/organizer/payouts/withdraw" className="btn btn-pri btn-sm" style={{ marginTop: 10 }}>
             Withdraw now
-          </button>
+          </Link>
         </div>
         <div className="kpi">
           <div className="l">Pending (settles after event)</div>
@@ -43,6 +46,16 @@ export default function Payouts() {
             </tr>
           </thead>
           <tbody>
+            {withdrawals.map((w) => (
+              <tr key={w.id}>
+                <td>{w.date}</td>
+                <td className="bold">Manual withdrawal</td>
+                <td>{fmtMoney(w.amount)}</td>
+                <td>
+                  <span className="badge badge-pending">Processing ◌ · UTR pending</span>
+                </td>
+              </tr>
+            ))}
             {PAYOUTS.map((p) => (
               <tr key={p.date + p.event}>
                 <td>{p.date}</td>

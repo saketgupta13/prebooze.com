@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { VENUES, fmtDate, fmtTime } from '../../data/mock';
+import { EVENTS, LINEUPS, VENUES, fmtDate, fmtTime } from '../../data/mock';
 import type { Event, TicketTier } from '../../types';
 import Poster, { categoryEmoji } from '../../components/Poster';
 import Accordion from '../../components/Accordion';
@@ -18,41 +18,78 @@ interface TierDraft {
 }
 
 export default function CreateEvent() {
-  const { user, addEvent } = useApp();
+  const { user, addEvent, upsertEvent, myEvents, customLineups, addCustomLineup, myVenues, addMyVenue } = useApp();
+  const { id: editId } = useParams();
+  const editing = editId ? (myEvents.find((e) => e.id === editId) ?? EVENTS.find((e) => e.id === editId)) : undefined;
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [preview, setPreview] = useState(false);
 
   // Step 1 — basics
-  const [banner, setBanner] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Concerts');
-  const [ageLimit, setAgeLimit] = useState('18+');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('20:00');
-  const [duration, setDuration] = useState('3');
-  const [venueId, setVenueId] = useState(VENUES[0].id);
+  const [banner, setBanner] = useState(!!editing);
+  const [title, setTitle] = useState(editing?.title ?? '');
+  const [description, setDescription] = useState(editing?.description ?? '');
+  const [category, setCategory] = useState(editing?.category ?? 'Concerts');
+  const [ageLimit, setAgeLimit] = useState(editing?.ageLimit ?? '18+');
+  const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : '');
+  const [time, setTime] = useState(() => {
+    if (!editing) return '20:00';
+    const d = new Date(editing.date);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  });
+  const [duration, setDuration] = useState(String(editing?.durationHrs ?? '3'));
+  const [venueId, setVenueId] = useState(editing?.venueId ?? VENUES[0].id);
+  const [venueSearch, setVenueSearch] = useState('');
+  const [showAddVenue, setShowAddVenue] = useState(false);
+  const [nvName, setNvName] = useState('');
+  const [nvLocality, setNvLocality] = useState('');
 
   // Step 2 — tickets
-  const [tiers, setTiers] = useState<TierDraft[]>([
-    { name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '' },
-  ]);
+  const [tiers, setTiers] = useState<TierDraft[]>(
+    editing
+      ? editing.tiers.map((t) => ({
+          name: t.name,
+          price: String(t.price),
+          quantity: String(t.quantity),
+          includes: t.includes,
+          description: t.description ?? '',
+        }))
+      : [{ name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '' }]
+  );
   const [earlyBird, setEarlyBird] = useState(false);
   const [guestCap, setGuestCap] = useState('10');
 
   // Step 3 — rules & lineup
-  const [conditions, setConditions] = useState('Photo ID required\nNo re-entry');
-  const [dressCode, setDressCode] = useState('Smart casual — no flip-flops or sleeveless shirts.');
-  const [foodRule, setFoodRule] = useState('Full bar inside. Outside food & drinks not permitted.');
-  const [prohibited, setProhibited] = useState('No weapons, illegal substances or professional cameras.');
-  const [lineup, setLineup] = useState('DJ Nova (Opening DJ), The Wilds (Headline artist)');
+  const [conditions, setConditions] = useState(editing ? editing.conditions.join('\n') : 'Photo ID required\nNo re-entry');
+  const [dressCode, setDressCode] = useState(editing?.rules.find((r) => r.title === 'Dress code')?.body ?? 'Smart casual — no flip-flops or sleeveless shirts.');
+  const [foodRule, setFoodRule] = useState(editing?.rules.find((r) => r.title === 'Food & drinks')?.body ?? 'Full bar inside. Outside food & drinks not permitted.');
+  const [prohibited, setProhibited] = useState(editing?.rules.find((r) => r.title === 'Prohibited items')?.body ?? 'No weapons, illegal substances or professional cameras.');
+  const [lineupSel, setLineupSel] = useState<{ name: string; role: string }[]>(
+    editing ? editing.lineup.map((l) => ({ name: l.name, role: l.role })) : [{ name: 'DJ Nova', role: 'Opening DJ' }]
+  );
+  const [showNewLineup, setShowNewLineup] = useState(false);
+  const [nlName, setNlName] = useState('');
+  const [nlRole, setNlRole] = useState('Headline artist');
 
   // Step 4 — SEO
-  const [seoTitle, setSeoTitle] = useState('');
-  const [seoDesc, setSeoDesc] = useState('');
-  const [seoSlug, setSeoSlug] = useState('');
-  const [seoKeywords, setSeoKeywords] = useState('');
+  const [seoTitle, setSeoTitle] = useState(editing?.seo?.title ?? '');
+  const [seoDesc, setSeoDesc] = useState(editing?.seo?.description ?? '');
+  const [seoSlug, setSeoSlug] = useState(editing?.seo?.slug ?? '');
+  const [seoKeywords, setSeoKeywords] = useState(editing?.seo?.keywords.join(', ') ?? '');
+
+  // available line-ups: platform roster + this organizer's custom ones
+  const availableLineups = [
+    ...LINEUPS.map((l) => ({ name: l.name, role: l.category === 'DJ' ? 'Opening DJ' : l.category === 'Sponsor' ? 'Sponsor' : l.category === 'Promoter' ? 'Promoter' : 'Headline artist' })),
+    ...customLineups,
+  ];
+  const toggleLineup = (l: { name: string; role: string }) =>
+    setLineupSel((prev) =>
+      prev.some((x) => x.name === l.name) ? prev.filter((x) => x.name !== l.name) : [...prev, l]
+    );
+  const allVenues = [...VENUES.filter((v) => !myVenues.some((m) => m.id === v.id)), ...myVenues];
+  const venueMatches = allVenues.filter((v) =>
+    (v.name + ' ' + v.locality + ' ' + v.city).toLowerCase().includes(venueSearch.toLowerCase())
+  );
 
   const slug = useMemo(
     () =>
@@ -67,7 +104,7 @@ export default function CreateEvent() {
   const tiersValid = tiers.every((t) => t.name.trim() && +t.price >= 0 && +t.quantity > 0);
 
   const buildEvent = (status: Event['status']): Event => ({
-    id: 'my-' + Date.now(),
+    id: editing?.id ?? 'my-' + Date.now(),
     slug: slug || 'my-event-' + Date.now(),
     title: title.trim() || 'Untitled event',
     description: description.trim(),
@@ -85,21 +122,14 @@ export default function CreateEvent() {
       { title: 'Food & drinks', body: foodRule },
       { title: 'Prohibited items', body: prohibited },
     ],
-    lineup: lineup
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((s) => {
-        const m = s.match(/^(.*?)\s*\((.*?)\)$/);
-        return m ? { name: m[1], role: m[2] } : { name: s, role: 'Artist' };
-      }),
+    lineup: lineupSel,
     tiers: tiers.map(
       (t, i): TicketTier => ({
         id: 't' + (i + 1),
         name: t.name.trim(),
         price: +t.price,
         quantity: +t.quantity,
-        sold: 0,
+        sold: editing?.tiers[i]?.name === t.name.trim() ? editing.tiers[i].sold : 0,
         includes: t.includes,
         description: t.description.trim() || undefined,
       })
@@ -114,12 +144,15 @@ export default function CreateEvent() {
   });
 
   const saveDraft = () => {
-    addEvent(buildEvent('draft'));
+    if (editing) upsertEvent(buildEvent('draft'));
+    else addEvent(buildEvent('draft'));
     navigate('/organizer/events');
   };
 
+  // Edited events always go back through admin approval
   const submitForApproval = () => {
-    addEvent(buildEvent('pending'));
+    if (editing) upsertEvent(buildEvent('pending'));
+    else addEvent(buildEvent('pending'));
     navigate('/organizer/events');
   };
 
@@ -192,9 +225,13 @@ export default function CreateEvent() {
           <Link to="/organizer/events" className="muted">
             ←
           </Link>{' '}
-          Create event
+          {editing ? `Edit event — ${editing.title}` : 'Create event'}
         </h1>
-        <span className="badge badge-ok">Draft saved ✓</span>
+        {editing ? (
+          <span className="badge badge-pending">edits resubmit for admin approval</span>
+        ) : (
+          <span className="badge badge-ok">Draft saved ✓</span>
+        )}
       </div>
 
       <div className="wizard-steps">
@@ -273,13 +310,65 @@ export default function CreateEvent() {
           </div>
           <div className="field">
             <span>Venue — search or add new 📍</span>
-            <select value={venueId} onChange={(e) => setVenueId(e.target.value)}>
-              {VENUES.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name} · {v.locality}
-                </option>
+            <input
+              value={venueSearch}
+              onChange={(e) => setVenueSearch(e.target.value)}
+              placeholder="🔍 type to search venues…"
+              style={{ marginBottom: 8 }}
+            />
+            <div className="chip-row">
+              {venueMatches.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  className={`chip ${venueId === v.id ? 'on' : ''}`}
+                  onClick={() => setVenueId(v.id)}
+                >
+                  {v.name} · {v.locality || v.city}
+                </button>
               ))}
-            </select>
+              {venueMatches.length === 0 && <span className="muted small">no venues match “{venueSearch}”</span>}
+              <button type="button" className="chip" onClick={() => setShowAddVenue((v) => !v)}>
+                + add new venue
+              </button>
+            </div>
+            {showAddVenue && (
+              <div className="form-row" style={{ marginTop: 10 }}>
+                <input value={nvName} onChange={(e) => setNvName(e.target.value)} placeholder="Venue name" />
+                <input value={nvLocality} onChange={(e) => setNvLocality(e.target.value)} placeholder="Locality" />
+                <button
+                  type="button"
+                  className="btn btn-pri"
+                  style={{ flex: '0 0 auto' }}
+                  onClick={() => {
+                    if (!nvName.trim()) return;
+                    const nv = {
+                      id: 'mv-' + Date.now(),
+                      name: nvName.trim(),
+                      verified: false,
+                      type: 'Indoor',
+                      locality: nvLocality.trim() || 'TBD',
+                      city: 'Austin',
+                      address: `${nvLocality.trim() || 'TBD'}, Austin`,
+                      capacity: 200,
+                      rating: 0,
+                      followers: 0,
+                      amenities: [],
+                      about: 'Added by organizer — pending venue verification.',
+                      photoHue: (nvName.length * 53) % 360,
+                    };
+                    addMyVenue(nv);
+                    setVenueId(nv.id);
+                    setVenueSearch('');
+                    setShowAddVenue(false);
+                    setNvName('');
+                    setNvLocality('');
+                  }}
+                >
+                  Add ✓
+                </button>
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button className="btn btn-ghost" onClick={saveDraft}>
@@ -415,8 +504,53 @@ export default function CreateEvent() {
             <input value={prohibited} onChange={(e) => setProhibited(e.target.value)} />
           </div>
           <div className="field">
-            <span>Line-up & partners — “Name (Role)”, comma-separated</span>
-            <input value={lineup} onChange={(e) => setLineup(e.target.value)} placeholder="DJ Nova (Opening DJ), FizzCo (Sponsor)" />
+            <span>Line-up & partners — pick from the roster or create new</span>
+            <div className="chip-row" style={{ marginBottom: 8 }}>
+              {availableLineups.map((l) => {
+                const on = lineupSel.some((x) => x.name === l.name);
+                return (
+                  <button key={l.name} type="button" className={`chip ${on ? 'on' : ''}`} onClick={() => toggleLineup(l)}>
+                    {l.name}
+                    {on ? ' ✓' : ''}
+                  </button>
+                );
+              })}
+              <button type="button" className="chip" onClick={() => setShowNewLineup((v) => !v)}>
+                + create new
+              </button>
+            </div>
+            {showNewLineup && (
+              <div className="form-row" style={{ marginBottom: 8 }}>
+                <input value={nlName} onChange={(e) => setNlName(e.target.value)} placeholder="Name (e.g. MC Echo)" />
+                <select value={nlRole} onChange={(e) => setNlRole(e.target.value)} style={{ flex: '0 0 170px' }}>
+                  <option>Headline artist</option>
+                  <option>Opening DJ</option>
+                  <option>Host</option>
+                  <option>Sponsor</option>
+                  <option>Promoter</option>
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-pri"
+                  style={{ flex: '0 0 auto' }}
+                  onClick={() => {
+                    if (!nlName.trim()) return;
+                    const nl = { name: nlName.trim(), role: nlRole };
+                    addCustomLineup(nl);
+                    setLineupSel((prev) => [...prev, nl]);
+                    setNlName('');
+                    setShowNewLineup(false);
+                  }}
+                >
+                  Add ✓
+                </button>
+              </div>
+            )}
+            {lineupSel.length > 0 && (
+              <div className="tiny muted-2">
+                on the bill: {lineupSel.map((l) => `${l.name} (${l.role})`).join(' · ')}
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
             <button className="btn btn-ghost" onClick={() => setStep(1)}>

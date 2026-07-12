@@ -144,6 +144,16 @@ export interface GuestEntry {
   arrived?: boolean;
 }
 
+export interface AdminReview {
+  id: string;
+  author: string;
+  rating: number;
+  eventTitle: string;
+  organizer: string;
+  text: string;
+  date: string;
+}
+
 export interface Notification {
   id: string;
   icon: string;

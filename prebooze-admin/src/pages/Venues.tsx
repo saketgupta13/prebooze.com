@@ -7,7 +7,7 @@ import { EVENT_STATUS, GradientPhoto, Kpi, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 
 export function Venues() {
-  const { venues } = useAdmin();
+  const { venues, removeVenue } = useAdmin();
   const navigate = useNavigate();
   const [city, setCity] = useState('All');
   const cities = ['All', ...new Set(venues.map((v) => v.city))];
@@ -33,6 +33,7 @@ export function Venues() {
           <span style={{ flex: 1 }}>Events</span>
           <span style={{ flex: 1.2 }}>License</span>
           <span style={{ flex: 1 }}>Status</span>
+          <span style={{ width: 34 }} />
         </div>
         {list.map((v) => (
           <div
@@ -51,6 +52,19 @@ export function Venues() {
             <span style={{ flex: 1.2 }} className={v.verified ? 'muted' : 'red'}>{v.license}</span>
             <span style={{ flex: 1 }}>
               {v.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Docs pending" cls="tag-red" />}
+            </span>
+            <span style={{ width: 34, display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-danger btn-sm"
+                style={{ padding: '2px 7px' }}
+                title="Remove venue"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm(`Remove ${v.name}? Events at this venue keep their records.`)) removeVenue(v.id);
+                }}
+              >
+                ✕
+              </button>
             </span>
           </div>
         ))}

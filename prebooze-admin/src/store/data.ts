@@ -267,6 +267,15 @@ export const SEED_LINEUPS = [
 
 export const CATEGORY_OPTIONS = ['Concerts', 'Comedy', 'Festivals', 'House parties'];
 
+export const SEED_REVIEWS = [
+  { id: 'rv1', author: 'Priya S.', rating: 5, eventTitle: 'Jazz in the Park', organizer: 'LiveWire Ent.', text: 'Smooth entry, great sound, well organized.', date: '14 Jun' },
+  { id: 'rv2', author: 'Marco T.', rating: 4, eventTitle: 'NYE Countdown', organizer: 'LiveWire Ent.', text: 'Fun night — queue at the bar was long.', date: '2 Jan' },
+  { id: 'rv3', author: 'Alex K.', rating: 5, eventTitle: 'Indie Night Live', organizer: 'LiveWire Ent.', text: 'QR entry took seconds. Best gig this year.', date: '2 Jul' },
+  { id: 'rv4', author: 'Nikita R.', rating: 2, eventTitle: 'Techno Tuesday', organizer: 'FestCrew', text: 'Sound was great but entry took 40 minutes.', date: '20 Jun' },
+  { id: 'rv5', author: 'Dev M.', rating: 4, eventTitle: 'Stand-up Sunday', organizer: 'NightOwl Co.', text: 'Maya K. destroyed. Seats a bit cramped.', date: '28 Jun' },
+  { id: 'rv6', author: 'anon_user_99', rating: 1, eventTitle: "Summer Fest '26", organizer: 'FestCrew', text: 'SCAM!!! buy tickets from my site instead www.fake-tickets.example', date: '1 Jul' },
+];
+
 export const ADMIN_CITIES = ['Austin', 'Dallas', 'Houston'];
 
 export const GUEST_SITE_URL = 'http://localhost:5173';

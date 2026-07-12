@@ -1,20 +1,30 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { ATTENDEES } from '../../data/mock';
+import { ATTENDEES, EVENTS, eventById, venueById } from '../../data/mock';
 import type { Attendee } from '../../types';
 
 const STATUS_FILTERS = ['All', 'Checked in', 'Confirmed', 'Refunded'];
 
 export default function Attendees() {
-  const { bookings } = useApp();
+  const { bookings, myEvents } = useApp();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
+  const [eventF, setEventF] = useState('All');
+  const [cityF, setCityF] = useState('All');
+  const orgEvents = [...myEvents, ...EVENTS.filter((e) => e.organizerId === 'livewire' && !myEvents.some((m) => m.id === e.id))];
+  const cityOf = (eventId: string | undefined) => {
+    if (!eventId) return 'Austin';
+    const ev = myEvents.find((e) => e.id === eventId) ?? eventById(eventId);
+    return ev ? (venueById(ev.venueId)?.city ?? 'Austin') : 'Austin';
+  };
+  const cities = ['All', ...new Set(orgEvents.map((e) => venueById(e.venueId)?.city).filter(Boolean) as string[])];
 
   // Merge seeded attendees with real bookings made in this browser
   const rows = useMemo<Attendee[]>(() => {
-    const fromBookings: Attendee[] = bookings.map((b) => ({
+    const fromBookings: (Attendee & { eventId?: string })[] = bookings.map((b) => ({
       bookingId: b.id,
+      eventId: b.eventId,
       name: b.mainGuest,
       phone: b.whatsapp.slice(0, 6) + '•••' + b.whatsapp.slice(-3),
       tickets: b.tierName,
@@ -26,10 +36,16 @@ export default function Attendees() {
             ? 'checked-in'
             : 'confirmed',
     }));
-    return [...fromBookings, ...ATTENDEES];
+    return [...fromBookings, ...ATTENDEES.map((a) => ({ ...a, eventId: 'ev-1' }))];
   }, [bookings]);
 
   const filtered = rows.filter((r) => {
+    const rEvent = (r as Attendee & { eventId?: string }).eventId;
+    if (eventF !== 'All') {
+      const ev = myEvents.find((e) => e.id === rEvent) ?? eventById(rEvent ?? '');
+      if ((ev?.title ?? '') !== eventF) return false;
+    }
+    if (cityF !== 'All' && cityOf(rEvent) !== cityF) return false;
     if (q && !(r.name + r.phone + r.bookingId).toLowerCase().includes(q.toLowerCase())) return false;
     if (status === 'Checked in') return r.status === 'checked-in';
     if (status === 'Confirmed') return r.status === 'confirmed';
@@ -54,7 +70,7 @@ export default function Attendees() {
   return (
     <div>
       <div className="breadcrumb">
-        <Link to="/organizer/events">Events</Link> / Indie Night Live / Attendees
+        <Link to="/organizer/events">Events</Link> / {eventF === 'All' ? 'All events' : eventF} / Attendees
       </div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
         <input
@@ -70,6 +86,17 @@ export default function Attendees() {
         >
           {STATUS_FILTERS.map((s) => (
             <option key={s}>{s}</option>
+          ))}
+        </select>
+        <select value={eventF} onChange={(e) => setEventF(e.target.value)} style={{ maxWidth: 190 }}>
+          <option>All</option>
+          {orgEvents.map((e) => (
+            <option key={e.id}>{e.title}</option>
+          ))}
+        </select>
+        <select value={cityF} onChange={(e) => setCityF(e.target.value)} style={{ maxWidth: 130 }}>
+          {cities.map((c) => (
+            <option key={c}>{c}</option>
           ))}
         </select>
         <span style={{ flex: 1 }} />

@@ -4,8 +4,9 @@ import { EVENTS } from '../../data/mock';
 import type { Coupon } from '../../types';
 
 export default function Coupons() {
-  const { coupons, addCoupon, toggleCoupon } = useApp();
+  const { coupons, addCoupon, updateCoupon, removeCoupon, toggleCoupon } = useApp();
   const [showForm, setShowForm] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [code, setCode] = useState('');
   const [type, setType] = useState<'percent' | 'flat'>('percent');
@@ -18,29 +19,45 @@ export default function Coupons() {
   const [firstOnly, setFirstOnly] = useState(false);
   const [err, setErr] = useState('');
 
+  const startEdit = (c: Coupon) => {
+    setEditingId(c.id);
+    setShowForm(true);
+    setCode(c.code);
+    setType(c.type);
+    setValue(String(c.value));
+    setMaxDiscount(c.maxDiscount ? String(c.maxDiscount) : '');
+    setUsageLimit(String(c.usageLimit));
+    setPerUser(String(c.perUserLimit));
+    setScope(c.eventScope);
+    setFirstOnly(c.firstTimeOnly);
+    window.scrollTo(0, 0);
+  };
+
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     const c = code.trim().toUpperCase();
     if (!c) return setErr('Coupon code is required');
-    if (coupons.some((x) => x.code === c)) return setErr(`${c} already exists`);
+    if (coupons.some((x) => x.code === c && x.id !== editingId)) return setErr(`${c} already exists`);
     if (!+value || +value <= 0) return setErr('Discount value must be positive');
-    const coupon: Coupon = {
-      id: 'c' + Date.now(),
+    const payload = {
       code: c,
       type,
       value: +value,
       maxDiscount: type === 'percent' ? +maxDiscount || undefined : undefined,
       usageLimit: +usageLimit || 100,
-      used: 0,
       perUserLimit: +perUser || 1,
       eventScope: scope,
       validTill: validTill
         ? new Date(validTill).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
         : '31 Dec',
       firstTimeOnly: firstOnly,
-      status: 'active',
     };
-    addCoupon(coupon);
+    if (editingId) {
+      updateCoupon(editingId, payload);
+      setEditingId(null);
+    } else {
+      addCoupon({ id: 'c' + Date.now(), used: 0, status: 'active', ...payload });
+    }
     setCode('');
     setErr('');
   };
@@ -56,7 +73,7 @@ export default function Coupons() {
 
       {showForm && (
         <form className="card" style={{ marginBottom: 18 }} onSubmit={save}>
-          <h3 style={{ marginBottom: 14 }}>New coupon</h3>
+          <h3 style={{ marginBottom: 14 }}>{editingId ? `Edit coupon — ${code}` : 'New coupon'}</h3>
           <div className="form-row">
             <div className="field">
               <span>Code</span>
@@ -116,7 +133,21 @@ export default function Coupons() {
               ✕ {err}
             </div>
           )}
-          <button className="btn btn-pri">Save coupon</button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn btn-pri">{editingId ? 'Save changes ✓' : 'Save coupon'}</button>
+            {editingId && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  setEditingId(null);
+                  setCode('');
+                }}
+              >
+                Cancel edit
+              </button>
+            )}
+          </div>
         </form>
       )}
 
@@ -145,6 +176,16 @@ export default function Coupons() {
             </span>
             <button className="btn btn-ghost btn-sm" onClick={() => toggleCoupon(c.id)}>
               {c.status === 'active' ? 'Pause' : 'Resume'}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => startEdit(c)}>✎ Edit</button>
+            <button
+              className="btn btn-danger-ghost btn-sm"
+              style={{ border: '1.5px solid var(--danger)', color: 'var(--danger)', borderRadius: 8 }}
+              onClick={() => {
+                if (window.confirm(`Delete coupon ${c.code}?`)) removeCoupon(c.id);
+              }}
+            >
+              ✕
             </button>
           </div>
         ))}
