@@ -92,7 +92,7 @@ export default function GuestPass() {
               {cutoff && ` at ${cutoff.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`}. You can
               still grab a ticket and come in.
             </p>
-            <Link to={`/events/${event.slug}`} className="btn btn-pri btn-lg">
+            <Link to={`/events/${event.slug}?ref=${guest.promoterSlug}`} className="btn btn-pri btn-lg">
               Get a ticket — from ₹{minPrice(event)} →
             </Link>
           </div>

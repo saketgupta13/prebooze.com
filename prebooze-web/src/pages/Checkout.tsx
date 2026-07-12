@@ -7,7 +7,7 @@ import type { Booking } from '../types';
 const BOOKING_FEE_PER_TICKET = 1.5;
 
 export default function Checkout() {
-  const { user, selection, coupons, myEvents, addBooking, setSelection } = useApp();
+  const { user, selection, coupons, myEvents, addBooking, setSelection, pendingPromoterRef, setPendingPromoterRef } = useApp();
   const navigate = useNavigate();
 
   const event = selection
@@ -110,9 +110,11 @@ export default function Checkout() {
         mainGuest: name.trim(),
         whatsapp: whatsapp.trim(),
         createdAt: new Date().toISOString(),
+        promoterRef: pendingPromoterRef ?? undefined,
       };
       addBooking(booking);
       setSelection(null);
+      setPendingPromoterRef(null);
       navigate('/confirmation/' + encodeURIComponent(id));
     }, 900);
   };

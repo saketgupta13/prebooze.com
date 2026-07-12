@@ -145,6 +145,12 @@ interface AppState {
   promoterGuests: PromoterGuest[];
   addPromoterGuest: (g: PromoterGuest) => void;
   checkInPromoterGuest: (id: string) => void;
+  promoterPlans: Record<string, string>; // promoter slug -> plan id (for public quota lookup)
+  setPromoterPlan: (slug: string, planId: string) => void;
+  pendingPromoterRef: string | null; // promoter slug to credit for an in-progress paid booking
+  setPendingPromoterRef: (slug: string | null) => void;
+  promoterWithdrawals: Withdrawal[];
+  promoterWithdraw: (amount: number) => void;
   toastMsg: string | null;
   toast: (msg: string) => void;
   updateTeamRole: (name: string, role: string) => void;
@@ -199,6 +205,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const [orgRoles, setOrgRoles] = useState<OrgRoleMatrix>(() => load('pb_orgroles', ORG_ROLE_SEED));
   const [promoterGuests, setPromoterGuests] = useState<PromoterGuest[]>(() => load('pb_promoter_guests', []));
+  const [promoterPlans, setPromoterPlans] = useState<Record<string, string>>(() => load('pb_promoter_plans', {}));
+  const [promoterWithdrawals, setPromoterWithdrawals] = useState<Withdrawal[]>(() => load('pb_promoter_withdrawals', []));
+  const [pendingPromoterRef, setPendingPromoterRef] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const toast = useCallback((msg: string) => {
@@ -252,6 +261,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_promoter_guests', JSON.stringify(promoterGuests));
   }, [promoterGuests]);
+  useEffect(() => {
+    localStorage.setItem('pb_promoter_plans', JSON.stringify(promoterPlans));
+  }, [promoterPlans]);
+  useEffect(() => {
+    localStorage.setItem('pb_promoter_withdrawals', JSON.stringify(promoterWithdrawals));
+  }, [promoterWithdrawals]);
 
   const value = useMemo<AppState>(
     () => ({
@@ -373,6 +388,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addPromoterGuest: (g) => setPromoterGuests((prev) => [g, ...prev]),
       checkInPromoterGuest: (id) =>
         setPromoterGuests((prev) => prev.map((g) => (g.id === id ? { ...g, arrived: !g.arrived } : g))),
+      promoterPlans,
+      setPromoterPlan: (slug, planId) =>
+        setPromoterPlans((prev) => ({ ...prev, [slug]: planId })),
+      pendingPromoterRef,
+      setPendingPromoterRef,
+      promoterWithdrawals,
+      promoterWithdraw: (amount) =>
+        setPromoterWithdrawals((prev) => [
+          {
+            id: 'pw' + Date.now(),
+            amount,
+            date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            status: 'processing' as const,
+          },
+          ...prev,
+        ]),
       toastMsg,
       toast,
       updateTeamRole: (name, role) => {
@@ -414,7 +445,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, toastMsg, toast]
+    [user, city, bookings, selection, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

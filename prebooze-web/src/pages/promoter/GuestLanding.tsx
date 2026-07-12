@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { EVENTS, GENDER_OPTIONS, PROMOTERS, fmtDate, fmtTime, venueById } from '../../data/mock';
 import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
+import { quotaReached } from '../../lib/promoterEarnings';
 import Poster, { categoryEmoji } from '../../components/Poster';
 
 /** Public guest-capture landing reached via a promoter's affiliate link.
@@ -10,7 +11,7 @@ import Poster, { categoryEmoji } from '../../components/Poster';
 export default function GuestLanding() {
   const { eventSlug, promoterSlug } = useParams();
   const navigate = useNavigate();
-  const { myEvents, promoterGuests, addPromoterGuest } = useApp();
+  const { myEvents, promoterGuests, promoterPlans, addPromoterGuest } = useApp();
 
   const event = useMemo(
     () => [...myEvents, ...EVENTS].find((e) => e.slug === eventSlug),
@@ -29,6 +30,8 @@ export default function GuestLanding() {
   const listCount = promoterGuests.filter((g) => g.eventId === event?.id).length;
   const capFull = cfg ? listCount >= cfg.cap : false;
   const cutoff = event ? cutoffDate(event) : null;
+  const quotaFull = quotaReached(promoterGuests, promoterSlug ?? '', promoterPlans[promoterSlug ?? '']);
+  const blocked = capFull || quotaFull;
 
   if (!event || !active) {
     return (
@@ -59,6 +62,10 @@ export default function GuestLanding() {
     }
     if (capFull) {
       setErr('Sorry — this free-entry list is full.');
+      return;
+    }
+    if (quotaFull) {
+      setErr(`Sorry — ${promoter?.name ?? 'this promoter'} has reached their guest limit for this month.`);
       return;
     }
     const id = 'pass-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -128,8 +135,8 @@ export default function GuestLanding() {
               </div>
             </div>
             {err && <div className="alert alert-error" style={{ marginBottom: 12 }}>{err}</div>}
-            <button className="btn btn-pri btn-block btn-lg" disabled={capFull}>
-              {capFull ? 'List is full' : 'Get my free-entry QR →'}
+            <button className="btn btn-pri btn-block btn-lg" disabled={blocked}>
+              {capFull ? 'List is full' : quotaFull ? 'Promoter limit reached' : 'Get my free-entry QR →'}
             </button>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
               🔒 your QR is sent to WhatsApp &amp; email · valid only before the cutoff · carry ID matching your name

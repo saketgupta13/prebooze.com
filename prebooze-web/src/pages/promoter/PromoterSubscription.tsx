@@ -1,16 +1,44 @@
 import { useApp } from '../../store/AppContext';
 import { SUB_TIERS, fmtMoney } from '../../data/mock';
+import { guestsThisMonth, planQuota } from '../../lib/promoterEarnings';
 
 export default function PromoterSubscription() {
-  const { user, updateUser, toast } = useApp();
+  const { user, updateUser, setPromoterPlan, promoterGuests, toast } = useApp();
   const current = user?.promoterPlan ?? 'free';
+  const mySlug = user?.promoterUsername ?? '';
+  const used = guestsThisMonth(promoterGuests, mySlug);
+  const quota = planQuota(current);
+  const pct = quota < 0 ? 0 : Math.min(100, Math.round((used / Math.max(1, quota)) * 100));
+  const overish = quota >= 0 && used >= quota * 0.8;
 
   return (
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 6 }}>Subscription</h1>
-      <p className="muted small" style={{ marginBottom: 20 }}>
+      <p className="muted small" style={{ marginBottom: 16 }}>
         Your plan sets how many guests you can add to lists each month. Upgrade any time — changes apply instantly.
       </p>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 6 }}>
+          <b>Guests this month</b>
+          <span className={overish ? 'danger-text small bold' : 'muted small'}>
+            {used} / {quota < 0 ? '∞' : quota}
+            {quota >= 0 && used >= quota && ' · limit reached'}
+          </span>
+        </div>
+        {quota >= 0 && (
+          <div style={{ height: 8, borderRadius: 999, background: 'var(--border-dash)', marginTop: 8, overflow: 'hidden' }}>
+            <div style={{ width: `${pct}%`, height: '100%', background: used >= quota ? 'var(--danger)' : 'var(--accent)', transition: 'width .3s' }} />
+          </div>
+        )}
+        <div className="tiny muted-2" style={{ marginTop: 8 }}>
+          {quota < 0
+            ? 'Unlimited guests on your current plan.'
+            : used >= quota
+              ? 'You’ve hit your monthly cap — new guests can’t join your lists until you upgrade or the month resets.'
+              : `${quota - used} more guests can join your lists this month.`}
+        </div>
+      </div>
 
       <div className="grid-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
         {SUB_TIERS.map((t) => {
@@ -46,6 +74,7 @@ export default function PromoterSubscription() {
                 disabled={active}
                 onClick={() => {
                   updateUser({ promoterPlan: t.id });
+                  if (mySlug) setPromoterPlan(mySlug, t.id);
                   toast(`Switched to ${t.name} ✓`);
                 }}
               >

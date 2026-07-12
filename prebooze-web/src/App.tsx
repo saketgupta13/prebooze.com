@@ -49,6 +49,7 @@ import PromoterLayout from './pages/promoter/PromoterLayout';
 import PromoterDashboard from './pages/promoter/PromoterDashboard';
 import PromoterPromotions from './pages/promoter/PromoterPromotions';
 import PromoterSubscription from './pages/promoter/PromoterSubscription';
+import PromoterEarnings from './pages/promoter/PromoterEarnings';
 import PromoterSettings from './pages/promoter/PromoterSettings';
 import PromoterGuestList from './pages/promoter/PromoterGuestList';
 import GuestLanding from './pages/promoter/GuestLanding';
@@ -182,6 +183,7 @@ export default function App() {
           <Route index element={<PromoterDashboard />} />
           <Route path="promotions" element={<PromoterPromotions />} />
           <Route path="guests/:eventId" element={<PromoterGuestList />} />
+          <Route path="earnings" element={<PromoterEarnings />} />
           <Route path="subscription" element={<PromoterSubscription />} />
           <Route path="settings" element={<PromoterSettings />} />
         </Route>

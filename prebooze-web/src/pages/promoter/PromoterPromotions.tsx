@@ -48,7 +48,10 @@ export default function PromoterPromotions() {
           const venue = venueById(e.venueId);
           const cfg = e.promoterConfig!;
           const link = `${window.location.origin}/p/${e.slug}/${mySlug}`;
-          const myGuests = promoterGuests.filter((g) => g.eventId === e.id && g.promoterSlug === mySlug).length;
+          const mine = promoterGuests.filter((g) => g.eventId === e.id && g.promoterSlug === mySlug);
+          const myGuests = mine.length;
+          const arrived = mine.filter((g) => g.arrived).length;
+          const earned = cfg.perHeadPayout ? arrived * cfg.perHeadAmount : 0;
           return (
             <div key={e.id} className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -88,6 +91,8 @@ export default function PromoterPromotions() {
 
               <div className="tiny muted-2" style={{ marginTop: 12 }}>
                 You've brought <b className="accent">{myGuests}</b> guest{myGuests === 1 ? '' : 's'} to this event
+                {arrived > 0 && <> · <b className="accent">{arrived}</b> arrived</>}
+                {earned > 0 && <> · earned <b className="accent">₹{earned}</b></>}
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <button

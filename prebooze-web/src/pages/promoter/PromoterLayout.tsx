@@ -4,6 +4,7 @@ import { useApp } from '../../store/AppContext';
 const NAV = [
   { to: '/promoter', label: '▦ Dashboard', end: true },
   { to: '/promoter/promotions', label: '📣 My promotions' },
+  { to: '/promoter/earnings', label: '💰 Earnings' },
   { to: '/promoter/subscription', label: '💳 Subscription' },
   { to: '/promoter/settings', label: '⚙ Profile & settings' },
 ];

@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import {
   EVENTS,
+  PROMOTERS,
   REVIEWS,
   lineupByName,
   eventBySlug,
@@ -20,10 +21,18 @@ import EventCard from '../components/EventCard';
 export default function EventDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { user, city, setSelection, myEvents } = useApp();
+  const [params] = useSearchParams();
+  const { user, city, setSelection, myEvents, pendingPromoterRef, setPendingPromoterRef } = useApp();
   const event = eventBySlug(slug ?? '') ?? myEvents.find((e) => e.slug === slug);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [expanded, setExpanded] = useState(false);
+
+  // Credit a promoter for any purchase made through their shared link (?ref=slug).
+  const ref = params.get('ref');
+  useEffect(() => {
+    if (ref) setPendingPromoterRef(ref);
+  }, [ref, setPendingPromoterRef]);
+  const refPromoter = PROMOTERS.find((p) => p.slug === (ref ?? pendingPromoterRef));
 
   const total = useMemo(() => {
     if (!event) return 0;
@@ -212,6 +221,11 @@ export default function EventDetail() {
 
           {/* Sticky ticket selector */}
           <aside className="ticket-box card card-shadow">
+            {refPromoter && (
+              <div className="dashed-box" style={{ border: '1.5px dashed var(--accent)', borderRadius: 10, padding: '8px 10px', fontSize: 12, marginBottom: 12 }}>
+                📣 Referred by <b>{refPromoter.name}</b> — they’ll be credited for your booking.
+              </div>
+            )}
             <h3 style={{ marginBottom: 6 }}>Select tickets</h3>
             {event.tiers.map((t) => {
               const left = t.quantity - t.sold;

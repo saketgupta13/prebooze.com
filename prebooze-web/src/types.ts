@@ -114,6 +114,7 @@ export interface Booking {
   mainGuest: string;
   whatsapp: string;
   createdAt: string;
+  promoterRef?: string; // promoter slug credited with this sale (affiliate commission)
 }
 
 export interface Coupon {
