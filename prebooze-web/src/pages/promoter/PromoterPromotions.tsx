@@ -5,7 +5,7 @@ import { EVENTS, fmtDate, fmtTime, venueById } from '../../data/mock';
 /** Events this promoter is approved to promote — organizer-enabled events whose
  * allow-list includes this promoter. */
 export default function PromoterPromotions() {
-  const { user, myEvents } = useApp();
+  const { user, myEvents, promoterGuests, toast } = useApp();
   const mySlug = user?.promoterUsername ?? '';
   const allEvents = [...myEvents, ...EVENTS.filter((e) => !myEvents.some((m) => m.id === e.id))];
 
@@ -47,6 +47,8 @@ export default function PromoterPromotions() {
         {promotions.map((e) => {
           const venue = venueById(e.venueId);
           const cfg = e.promoterConfig!;
+          const link = `${window.location.origin}/p/${e.slug}/${mySlug}`;
+          const myGuests = promoterGuests.filter((g) => g.eventId === e.id && g.promoterSlug === mySlug).length;
           return (
             <div key={e.id} className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -84,15 +86,24 @@ export default function PromoterPromotions() {
                 )}
               </div>
 
-              <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-                <button className="btn btn-pri btn-sm" disabled title="Coming in the next update">
-                  🔗 Get affiliate link
+              <div className="tiny muted-2" style={{ marginTop: 12 }}>
+                You've brought <b className="accent">{myGuests}</b> guest{myGuests === 1 ? '' : 's'} to this event
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button
+                  className="btn btn-pri btn-sm"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(link).catch(() => {});
+                    toast('Affiliate link copied ✓');
+                  }}
+                >
+                  🔗 Copy affiliate link
                 </button>
-                <button className="btn btn-ghost btn-sm" disabled title="Coming in the next update">
-                  📋 Guest list
-                </button>
+                <Link to={`/promoter/guests/${e.id}`} className="btn btn-ghost btn-sm">📋 Guest list</Link>
+                <a href={link} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">Preview link ↗</a>
                 <Link to={`/events/${e.slug}`} className="btn btn-ghost btn-sm">View event →</Link>
               </div>
+              <div className="tiny muted-2" style={{ marginTop: 6, wordBreak: 'break-all' }}>{link}</div>
             </div>
           );
         })}

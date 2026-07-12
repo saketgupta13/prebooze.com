@@ -738,3 +738,6 @@ export const SUB_TIERS: SubTier[] = [
   { id: 'pro', name: 'Pro', price: 2499, guests: 500, perks: ['500 guests / month', 'Everything in Starter', 'Advanced analytics'] },
   { id: 'elite', name: 'Elite', price: 4999, guests: -1, perks: ['Unlimited guests', 'Everything in Pro', 'Promoter teams', 'Dedicated manager'] },
 ];
+
+
+export const GENDER_OPTIONS = ['Female', 'Male', 'Non-binary', 'Prefer not to say'];

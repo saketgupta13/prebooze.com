@@ -84,6 +84,18 @@ export interface Withdrawal {
   status: 'processing' | 'paid';
 }
 
+export interface PromoterGuest {
+  id: string;
+  eventId: string;
+  promoterSlug: string;
+  name: string;
+  phone: string;
+  age: string;
+  gender: string;
+  createdAt: string;
+  arrived?: boolean;
+}
+
 interface Selection {
   eventId: string;
   qty: Record<string, number>; // tierId -> qty
@@ -130,6 +142,8 @@ interface AppState {
   addCustomLineup: (l: { name: string; role: string }) => void;
   myVenues: Venue[];
   addMyVenue: (v: Venue) => void;
+  promoterGuests: PromoterGuest[];
+  addPromoterGuest: (g: PromoterGuest) => void;
   toastMsg: string | null;
   toast: (msg: string) => void;
   updateTeamRole: (name: string, role: string) => void;
@@ -183,6 +197,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return v;
   });
   const [orgRoles, setOrgRoles] = useState<OrgRoleMatrix>(() => load('pb_orgroles', ORG_ROLE_SEED));
+  const [promoterGuests, setPromoterGuests] = useState<PromoterGuest[]>(() => load('pb_promoter_guests', []));
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const toast = useCallback((msg: string) => {
@@ -209,6 +224,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_following', JSON.stringify(following));
   }, [following]);
+  useEffect(() => {
+    localStorage.setItem('pb_org_balance', JSON.stringify(orgBalance));
+  }, [orgBalance]);
+  useEffect(() => {
+    localStorage.setItem('pb_withdrawals', JSON.stringify(withdrawals));
+  }, [withdrawals]);
+  useEffect(() => {
+    localStorage.setItem('pb_team', JSON.stringify(team));
+  }, [team]);
+  useEffect(() => {
+    localStorage.setItem('pb_orgprefs', JSON.stringify(orgPrefs));
+  }, [orgPrefs]);
+  useEffect(() => {
+    localStorage.setItem('pb_glist', JSON.stringify(glist));
+  }, [glist]);
+  useEffect(() => {
+    localStorage.setItem('pb_customlineups', JSON.stringify(customLineups));
+  }, [customLineups]);
+  useEffect(() => {
+    localStorage.setItem('pb_myvenues', JSON.stringify(myVenues));
+  }, [myVenues]);
+  useEffect(() => {
+    localStorage.setItem('pb_orgroles', JSON.stringify(orgRoles));
+  }, [orgRoles]);
+  useEffect(() => {
+    localStorage.setItem('pb_promoter_guests', JSON.stringify(promoterGuests));
+  }, [promoterGuests]);
 
   const value = useMemo<AppState>(
     () => ({
@@ -326,6 +368,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         registerVenue(v);
         setMyVenues((prev) => [...prev, v]);
       },
+      promoterGuests,
+      addPromoterGuest: (g) => setPromoterGuests((prev) => [g, ...prev]),
       toastMsg,
       toast,
       updateTeamRole: (name, role) => {
@@ -367,7 +411,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, toastMsg, toast]
+    [user, city, bookings, selection, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

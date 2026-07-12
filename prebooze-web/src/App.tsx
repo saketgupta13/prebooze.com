@@ -50,6 +50,9 @@ import PromoterDashboard from './pages/promoter/PromoterDashboard';
 import PromoterPromotions from './pages/promoter/PromoterPromotions';
 import PromoterSubscription from './pages/promoter/PromoterSubscription';
 import PromoterSettings from './pages/promoter/PromoterSettings';
+import PromoterGuestList from './pages/promoter/PromoterGuestList';
+import GuestLanding from './pages/promoter/GuestLanding';
+import GuestPass from './pages/promoter/GuestPass';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useApp();
@@ -83,6 +86,8 @@ export default function App() {
         <Route path="/lineup/:slug" element={<LineupProfile />} />
         <Route path="/promoter/onboarding" element={<PromoterOnboarding />} />
         <Route path="/promoter/:slug" element={<PromoterProfile />} />
+        <Route path="/p/:eventSlug/:promoterSlug" element={<GuestLanding />} />
+        <Route path="/pass/:id" element={<GuestPass />} />
 
         {/* Guest — auth & identity */}
         <Route path="/login" element={<Login />} />
@@ -176,6 +181,7 @@ export default function App() {
         <Route path="/promoter" element={<PromoterLayout />}>
           <Route index element={<PromoterDashboard />} />
           <Route path="promotions" element={<PromoterPromotions />} />
+          <Route path="guests/:eventId" element={<PromoterGuestList />} />
           <Route path="subscription" element={<PromoterSubscription />} />
           <Route path="settings" element={<PromoterSettings />} />
         </Route>
