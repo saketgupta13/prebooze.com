@@ -46,6 +46,9 @@ export default function HostLanding() {
             <Link to={joinTarget} state={{ from: '/organizer/onboarding' }} className="btn btn-ghost btn-lg">
               🏛 Join as Venue
             </Link>
+            <Link to="/lineup/onboarding" className="btn btn-ghost btn-lg">
+              🎤 Join as Artist / Line-up
+            </Link>
           </div>
         </section>
 

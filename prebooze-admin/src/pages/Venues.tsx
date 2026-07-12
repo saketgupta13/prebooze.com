@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
-import { EVENT_STATUS, Kpi, Tag } from '../components/ui';
+import { EVENT_STATUS, GradientPhoto, Kpi, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 
 export function Venues() {
@@ -31,7 +31,10 @@ export function Venues() {
             style={{ minWidth: 560, background: !v.verified ? 'rgba(255,107,94,.06)' : undefined }}
             onClick={() => navigate(`/venues/${v.id}`)}
           >
-            <span style={{ flex: 2, fontWeight: 700 }}>{v.name}</span>
+            <span style={{ flex: 2, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <GradientPhoto seed={v.name.length * 7 + v.name.charCodeAt(0)} style={{ width: 42, height: 28, borderRadius: 5, flex: 'none', padding: 0 }} />
+              {v.name}
+            </span>
             <span style={{ flex: 1 }} className="muted">{typeof v.capacity === 'number' ? fmt(v.capacity) : v.capacity}</span>
             <span style={{ flex: 1 }}>{v.events}</span>
             <span style={{ flex: 1.2 }} className={v.verified ? 'muted' : 'red'}>{v.license}</span>
@@ -73,7 +76,13 @@ export function VenueDetail() {
       </div>
       {venue.address && <div className="small muted">{venue.address} · map pin set 📍</div>}
 
-      <div className="ph" style={{ height: 130, borderRadius: 10 }}>venue photo gallery — 4 photos</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gridTemplateRows: '70px 70px', gap: 8 }}>
+        <GradientPhoto seed={venue.name.charCodeAt(0) * 3} label={`${venue.name} — main hall`} style={{ gridRow: '1 / 3', height: '100%' }} />
+        <GradientPhoto seed={venue.name.charCodeAt(0) * 3 + 11} label="stage" />
+        <GradientPhoto seed={venue.name.charCodeAt(0) * 3 + 23} label="bar" />
+        <GradientPhoto seed={venue.name.charCodeAt(0) * 3 + 37} label="entry" />
+        <GradientPhoto seed={venue.name.charCodeAt(0) * 3 + 51} label="crowd" />
+      </div>
 
       <div className="kpi-grid">
         <Kpi label="Capacity" value={typeof venue.capacity === 'number' ? fmt(venue.capacity) : venue.capacity} />

@@ -18,7 +18,7 @@ export default function Bookings() {
   const { bookings, events, resolveRefund, toast } = useAdmin();
   const [params, setParams] = useSearchParams();
   const filter = (params.get('status') as FilterKey) ?? 'all';
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(params.get('q') ?? '');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const eventTitle = (id: string) => events.find((e) => e.id === id)?.title ?? '';

@@ -14,6 +14,7 @@ interface TierDraft {
   price: string;
   quantity: string;
   includes: string[];
+  description: string;
 }
 
 export default function CreateEvent() {
@@ -35,7 +36,7 @@ export default function CreateEvent() {
 
   // Step 2 — tickets
   const [tiers, setTiers] = useState<TierDraft[]>([
-    { name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'] },
+    { name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '' },
   ]);
   const [earlyBird, setEarlyBird] = useState(false);
   const [guestCap, setGuestCap] = useState('10');
@@ -100,6 +101,7 @@ export default function CreateEvent() {
         quantity: +t.quantity,
         sold: 0,
         includes: t.includes,
+        description: t.description.trim() || undefined,
       })
     ),
     posterHue: (title.length * 47) % 360,
@@ -329,6 +331,14 @@ export default function CreateEvent() {
               <div className="tiny muted" style={{ marginBottom: 6 }}>
                 What's included in this ticket:
               </div>
+              <div className="field" style={{ marginTop: 10, marginBottom: 6 }}>
+                <span>Ticket description — shown under this tier on the event page</span>
+                <input
+                  value={t.description}
+                  onChange={(e) => setTier(i, { description: e.target.value })}
+                  placeholder="e.g. Best value — entry, welcome drink and access to both stages"
+                />
+              </div>
               <div className="chip-row">
                 {INCLUDE_OPTIONS.map((opt) => (
                   <button
@@ -355,7 +365,7 @@ export default function CreateEvent() {
             <button
               className="chip"
               onClick={() =>
-                setTiers((prev) => [...prev, { name: 'VIP', price: '79', quantity: '50', includes: ['Entry', 'Lounge access'] }])
+                setTiers((prev) => [...prev, { name: 'VIP', price: '79', quantity: '50', includes: ['Entry', 'Lounge access'], description: '' }])
               }
             >
               + Add tier

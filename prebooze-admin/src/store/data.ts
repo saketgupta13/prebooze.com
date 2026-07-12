@@ -233,7 +233,36 @@ export const SEED_SETTINGS: Settings = {
   whatsappAlerts: true,
   require2fa: false,
   maintenanceMode: false,
+  socials: {
+    instagram: 'instagram.com/prebooze',
+    x: 'x.com/prebooze',
+    youtube: 'youtube.com/@prebooze',
+    whatsapp: 'wa.me/919876543210',
+    facebook: '',
+  },
+  siteSeo: {
+    title: 'Prebooze — Your city\'s events, one tap away',
+    description: 'Book tickets to concerts, comedy, festivals and parties from verified organizers. WhatsApp tickets, QR entry.',
+    keywords: 'events, tickets, concerts, nightlife, austin',
+  },
+  contact: {
+    email: 'help@prebooze.com',
+    phone: '+91 98765 43210',
+    address: '4th Floor, Cowork Hub, Koramangala, Bengaluru',
+    organizerEmail: 'organizers@prebooze.com',
+  },
 };
+
+export const LINEUP_CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
+
+export const SEED_LINEUPS = [
+  { id: 'lu1', name: 'DJ Nova', category: 'DJ', description: 'Opening sets that fill the floor before 9 PM. House & disco edits.', city: 'Austin', links: 'ig/djnova · soundcloud/djnova', hasImage: true, followers: 4200, verified: true },
+  { id: 'lu2', name: 'The Wilds', category: 'Band', description: 'Indie four-piece. New album “Night Maps” out now — headline set plays it front to back.', city: 'Austin', links: 'ig/thewilds · spotify/thewilds', hasImage: true, followers: 12800, verified: true },
+  { id: 'lu3', name: 'Maya K.', category: 'Comedian', description: 'Sharp crowd-work, zero mercy for the front row.', city: 'Dallas', links: 'ig/mayak', hasImage: true, followers: 6100, verified: true },
+  { id: 'lu4', name: 'KLANG', category: 'DJ', description: 'Berlin-schooled techno. 6 AM finisher.', city: 'Berlin', links: 'ig/klang · ra.co/klang', hasImage: true, followers: 22000, verified: true },
+  { id: 'lu5', name: 'FizzCo', category: 'Sponsor', description: 'Craft soda brand sponsoring stages across Texas.', city: 'Austin', links: 'fizzco.com', hasImage: false, followers: 900, verified: false },
+  { id: 'lu6', name: 'CityBeat', category: 'Promoter', description: 'Promoting the loudest nights in town since 2019.', city: 'Austin', links: 'ig/citybeat', hasImage: false, followers: 3100, verified: true },
+];
 
 export const CATEGORY_OPTIONS = ['Concerts', 'Comedy', 'Festivals', 'House parties'];
 

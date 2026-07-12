@@ -20,8 +20,17 @@ export default function ManualBooking() {
   const [qty, setQty] = useState(1);
   const [guest, setGuest] = useState('');
   const [phone, setPhone] = useState('');
-  const [extraGuests, setExtraGuests] = useState('');
+  const [gender, setGender] = useState('—');
+  const [others, setOthers] = useState<{ name: string; gender: string; whatsapp: string }[]>([]);
   const [method, setMethod] = useState('Cash');
+
+  const setOther = (i: number, patch: Partial<{ name: string; gender: string; whatsapp: string }>) =>
+    setOthers((prev) => {
+      const next = [...prev];
+      while (next.length < i + 1) next.push({ name: '', gender: '—', whatsapp: '' });
+      next[i] = { ...next[i], ...patch };
+      return next;
+    });
 
   const tier = event?.tiers[Math.min(tierIdx, (event?.tiers.length ?? 1) - 1)];
   const left = tier ? tier.qty - tier.sold : 0;
@@ -48,7 +57,10 @@ export default function ManualBooking() {
       toast(`Only ${left} tickets left in ${tier.name}`);
       return;
     }
-    const others = extraGuests.split(',').map((s) => s.trim()).filter(Boolean);
+    const extra = others
+      .slice(0, qty - 1)
+      .filter((o) => o.name.trim())
+      .map((o) => `${o.name.trim()}${o.gender !== '—' ? ` (${o.gender})` : ''}${o.whatsapp.trim() ? ` · ${o.whatsapp.trim()}` : ''}`);
     addBooking({
       id: '#' + Math.floor(8500 + Math.random() * 999),
       guest: guest.trim(),
@@ -58,7 +70,7 @@ export default function ManualBooking() {
       amount: totals.total,
       status: isComp ? 'checked_in' : 'paid',
       method: isComp ? 'Comp' : method + ' (manual)',
-      guests: [`${guest.trim()} ✓ (main)`, ...others.slice(0, qty - 1)],
+      guests: [`${guest.trim()}${gender !== '—' ? ` (${gender})` : ''} ✓ (main)`, ...extra],
     });
     updateEvent(event.id, {
       sold: event.sold + qty,
@@ -140,22 +152,48 @@ export default function ManualBooking() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="display" style={{ fontWeight: 700 }}>Guest details</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div className="field" style={{ flex: 1 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="field" style={{ flex: 1.4, minWidth: 140 }}>
             <label>Main guest name</label>
             <input className="input" value={guest} onChange={(e) => setGuest(e.target.value)} autoFocus />
           </div>
-          <div className="field" style={{ flex: 1 }}>
+          <div className="field" style={{ width: 120 }}>
+            <label>Gender</label>
+            <select className="input" value={gender} onChange={(e) => setGender(e.target.value)}>
+              <option value="—">—</option>
+              <option value="F">Female</option>
+              <option value="M">Male</option>
+              <option value="O">Other</option>
+            </select>
+          </div>
+          <div className="field" style={{ flex: 1, minWidth: 140 }}>
             <label>WhatsApp number</label>
             <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91" inputMode="tel" />
           </div>
         </div>
-        {qty > 1 && (
-          <div className="field">
-            <label>Other guest names (comma-separated, optional)</label>
-            <input className="input" value={extraGuests} onChange={(e) => setExtraGuests(e.target.value)} placeholder="Alex Kim, Priya S." />
-          </div>
-        )}
+        {qty > 1 &&
+          Array.from({ length: qty - 1 }, (_, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px dashed rgba(139,195,74,.2)', paddingTop: 8 }}>
+              <div className="field" style={{ flex: 1.4, minWidth: 140 }}>
+                <label>Guest {i + 2} name</label>
+                <input className="input" value={others[i]?.name ?? ''} onChange={(e) => setOther(i, { name: e.target.value })} placeholder={`Guest ${i + 2}`} />
+              </div>
+              <div className="field" style={{ width: 120 }}>
+                <label>Gender</label>
+                <select className="input" value={others[i]?.gender ?? '—'} onChange={(e) => setOther(i, { gender: e.target.value })}>
+                  <option value="—">—</option>
+                  <option value="F">Female</option>
+                  <option value="M">Male</option>
+                  <option value="O">Other</option>
+                </select>
+              </div>
+              <div className="field" style={{ flex: 1, minWidth: 140 }}>
+                <label>WhatsApp (optional)</label>
+                <input className="input" value={others[i]?.whatsapp ?? ''} onChange={(e) => setOther(i, { whatsapp: e.target.value })} placeholder="+91" inputMode="tel" />
+              </div>
+            </div>
+          ))}
+        <div className="tiny hint">gender is checked by gender-targeted promo codes · each guest's WhatsApp gets the group QR</div>
       </div>
 
       {tier && (

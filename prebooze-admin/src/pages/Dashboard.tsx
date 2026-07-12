@@ -1,9 +1,28 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { EVENT_STATUS, Kpi, Tag } from '../components/ui';
 
-const TREND = [42, 55, 38, 61, 74, 52, 68, 85, 62, 91, 78, 96, 84, 108];
+const RANGES: Record<string, number[]> = {
+  'Last 7 days': [68, 85, 62, 91, 78, 96, 108],
+  'Last 14 days': [42, 55, 38, 61, 74, 52, 68, 85, 62, 91, 78, 96, 84, 108],
+  'Last 30 days': [31, 44, 39, 52, 47, 61, 42, 55, 38, 61, 74, 52, 68, 85, 62, 91, 78, 96, 84, 108, 92, 88, 74, 101, 96, 112, 89, 118, 104, 121],
+  'This month': [52, 68, 85, 62, 91, 78, 96, 84, 108, 92, 88, 74],
+  'Last quarter': [280, 342, 310, 398, 371, 452, 429, 486, 512, 471, 538, 502, 561],
+};
+
+function dayLabels(n: number, quarterly: boolean) {
+  const out: string[] = [];
+  const d = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const dt = new Date(d);
+    if (quarterly) dt.setDate(d.getDate() - i * 7);
+    else dt.setDate(d.getDate() - i);
+    out.push(dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
+  }
+  return out;
+}
 
 export default function Dashboard() {
   const { events, bookings, organizers } = useAdmin();
@@ -12,14 +31,22 @@ export default function Dashboard() {
   const pendingEvents = events.filter((e) => e.status === 'pending').length;
   const pendingRefunds = bookings.filter((b) => b.status === 'refund_requested').length;
   const pendingKyc = organizers.filter((o) => o.status === 'pending').length;
-  const max = Math.max(...TREND);
+  const [range, setRange] = useState('Last 14 days');
+  const trend = RANGES[range];
+  const max = Math.max(...trend);
+  const labels = dayLabels(trend.length, range === 'Last quarter');
+  const labelEvery = Math.max(1, Math.ceil(trend.length / 7));
 
   return (
     <div className="stack fade" style={{ maxWidth: 1200, gap: 16 }}>
       <div className="page-hd">
         <h1 className="display" style={{ fontSize: 22 }}>Good morning, Admin 👋</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span className="chip">Last 7 days ▾</span>
+          <select className="chip" style={{ appearance: 'none', cursor: 'pointer', background: 'var(--bg)' }} value={range} onChange={(e) => setRange(e.target.value)}>
+            {Object.keys(RANGES).map((r) => (
+              <option key={r}>{r}</option>
+            ))}
+          </select>
           <Link to="/organizers/new" className="btn btn-pri btn-sm">+ Add organizer</Link>
         </div>
       </div>
@@ -33,14 +60,36 @@ export default function Dashboard() {
 
       <div className="two-col">
         <div className="card">
-          <div className="display" style={{ marginBottom: 8, fontWeight: 700 }}>Sales trend</div>
-          <div className="tiny muted" style={{ marginBottom: 8 }}>daily sales vs commission · last 14 days</div>
-          <div className="bars" style={{ height: 110 }}>
-            {TREND.map((v, i) => (
-              <div key={i} className="bar">
-                <div style={{ height: `${(v / max) * 100}%`, opacity: 0.35 + (v / max) * 0.65 }} title={`₹${v}k`} />
+          <div className="display" style={{ marginBottom: 2, fontWeight: 700 }}>Sales trend</div>
+          <div className="tiny muted" style={{ marginBottom: 8 }}>
+            {range === 'Last quarter' ? 'weekly' : 'daily'} gross sales (₹ thousands) · {range.toLowerCase()}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {/* Y axis */}
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: 110, textAlign: 'right', paddingBottom: 0 }} className="tiny muted">
+              <span>₹{max}k</span>
+              <span>₹{Math.round(max / 2)}k</span>
+              <span>₹0</span>
+            </div>
+            <div style={{ flex: 1, borderLeft: '1px solid rgba(139,195,74,.25)', borderBottom: '1px solid rgba(139,195,74,.25)', paddingLeft: 4 }}>
+              <div className="bars" style={{ height: 108 }}>
+                {trend.map((v, i) => (
+                  <div key={i} className="bar">
+                    <div style={{ height: `${(v / max) * 100}%`, opacity: 0.35 + (v / max) * 0.65 }} title={`${labels[i]} — ₹${v}k`} />
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+          </div>
+          {/* X axis */}
+          <div style={{ display: 'flex', gap: 8, paddingLeft: 38 }}>
+            <div style={{ flex: 1, display: 'flex' }} className="tiny muted">
+              {trend.map((_, i) => (
+                <span key={i} style={{ flex: 1, textAlign: 'center', overflow: 'visible', whiteSpace: 'nowrap', fontSize: 9 }}>
+                  {i % labelEvery === 0 ? labels[i] : ''}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 

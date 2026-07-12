@@ -30,7 +30,7 @@ const EMPTY_EVENT: AdminEvent = {
   cap: 0,
   revenue: 0,
   commission: 10,
-  tiers: [{ name: 'General', price: 450, qty: 200, sold: 0 }],
+  tiers: [{ name: 'General', price: 450, qty: 200, sold: 0, description: 'Entry + 1 welcome drink' }],
   description: '',
   rules: 'Photo ID required\nNo re-entry',
   lineup: '',
@@ -230,12 +230,21 @@ export default function EventEditor() {
               >
                 ✕
               </button>
+              <div className="field" style={{ flexBasis: '100%' }}>
+                <label>Ticket description — what's included, shown under the tier on the guest page</label>
+                <input
+                  className="input"
+                  value={t.description ?? ''}
+                  onChange={(e) => patchTier(i, { description: e.target.value })}
+                  placeholder="e.g. Entry + 2 drinks + lounge access · gates close 9:30 PM"
+                />
+              </div>
             </div>
           ))}
           <button
             className="btn btn-ghost btn-sm"
             style={{ width: 'fit-content' }}
-            onClick={() => patch({ tiers: [...event.tiers, { name: 'VIP', price: 1200, qty: 50, sold: 0 }] })}
+            onClick={() => patch({ tiers: [...event.tiers, { name: 'VIP', price: 1200, qty: 50, sold: 0, description: '' }] })}
           >
             + Add tier
           </button>

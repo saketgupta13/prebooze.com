@@ -26,6 +26,31 @@ export const ORGANIZER_STATUS: Record<OrganizerStatus, { label: string; cls: str
   rejected: { label: 'Rejected', cls: 'tag-dim' },
 };
 
+/** Dummy "photo" — layered gradients that read as imagery until real uploads exist. */
+export function GradientPhoto({ seed, label, style }: { seed: number; label?: string; style?: React.CSSProperties }) {
+  const h1 = (seed * 47) % 360;
+  const h2 = (h1 + 70) % 360;
+  return (
+    <div
+      style={{
+        borderRadius: 10,
+        border: '1px solid rgba(139,195,74,.2)',
+        background: `radial-gradient(ellipse at 25% 20%, hsla(${h1},65%,45%,.55), transparent 55%),
+          radial-gradient(ellipse at 80% 75%, hsla(${h2},60%,35%,.45), transparent 60%),
+          linear-gradient(160deg, #1c1f13, #101208)`,
+        display: 'flex',
+        alignItems: 'flex-end',
+        padding: 8,
+        color: 'rgba(241,243,234,.65)',
+        fontSize: 10,
+        ...style,
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
 export function Tag({ label, cls }: { label: string; cls: string }) {
   return <span className={`tag ${cls}`}>{label}</span>;
 }

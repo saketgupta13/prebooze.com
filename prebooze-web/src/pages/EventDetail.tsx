@@ -4,6 +4,7 @@ import { useApp } from '../store/AppContext';
 import {
   EVENTS,
   REVIEWS,
+  lineupByName,
   eventBySlug,
   fmtDate,
   fmtTime,
@@ -157,15 +158,27 @@ export default function EventDetail() {
                   <h2>Line-up & partners</h2>
                 </div>
                 <div className="lineup">
-                  {event.lineup.map((l) => (
-                    <div key={l.name} className="lineup-item">
-                      <span className="avatar">{l.role.includes('DJ') || l.role.includes('artist') ? '🎤' : '🏷'}</span>
-                      <span className="who">
-                        <span className="n" style={{ display: 'block' }}>{l.name}</span>
-                        <span className="r">{l.role}</span>
-                      </span>
-                    </div>
-                  ))}
+                  {event.lineup.map((l) => {
+                    const profile = lineupByName(l.name);
+                    const inner = (
+                      <>
+                        <span className="avatar">{profile?.emoji ?? (l.role.includes('DJ') || l.role.includes('artist') ? '🎤' : '🏷')}</span>
+                        <span className="who">
+                          <span className="n" style={{ display: 'block' }}>
+                            {l.name} {profile?.verified && <span className="verified">✓</span>}
+                          </span>
+                          <span className="r">{l.role}{profile ? ' · view profile →' : ''}</span>
+                        </span>
+                      </>
+                    );
+                    return profile ? (
+                      <Link key={l.name} to={`/lineup/${profile.slug}`} className="lineup-item" style={{ borderColor: 'var(--border-3)' }}>
+                        {inner}
+                      </Link>
+                    ) : (
+                      <div key={l.name} className="lineup-item">{inner}</div>
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -215,6 +228,7 @@ export default function EventDetail() {
                     {t.includes.length > 0 && (
                       <div className="includes">✓ {t.includes.join(' · ✓ ')}</div>
                     )}
+                    {t.description && <div className="includes" style={{ marginTop: 2 }}>{t.description}</div>}
                   </div>
                   {soldOut ? (
                     <span className="badge badge-danger">sold out</span>

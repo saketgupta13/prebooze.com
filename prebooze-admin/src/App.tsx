@@ -30,6 +30,7 @@ import { BlogEditor, BlogCategories } from './pages/BlogEditor';
 import Finance from './pages/Finance';
 import ManualBooking from './pages/ManualBooking';
 import GuestList from './pages/GuestList';
+import { Lineups, LineupEdit } from './pages/Lineups';
 
 export default function App() {
   return (
@@ -50,6 +51,9 @@ export default function App() {
         <Route path="/organizers/new" element={<AddOrganizer />} />
         <Route path="/organizers/:id" element={<OrganizerDetail />} />
         <Route path="/organizers/:id/edit" element={<OrganizerEdit />} />
+        <Route path="/lineups" element={<Lineups />} />
+        <Route path="/lineups/new" element={<LineupEdit />} />
+        <Route path="/lineups/:id/edit" element={<LineupEdit />} />
         <Route path="/venues" element={<Venues />} />
         <Route path="/venues/new" element={<AddVenue />} />
         <Route path="/venues/:id" element={<VenueDetail />} />

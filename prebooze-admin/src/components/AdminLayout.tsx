@@ -11,6 +11,7 @@ const MAIN_NAV = [
   { to: '/customers', icon: '👥', label: 'Customers' },
   { to: '/organizers', icon: '🧑‍💼', label: 'Organizers' },
   { to: '/venues', icon: '📍', label: 'Venues' },
+  { to: '/lineups', icon: '🎤', label: 'Line-ups' },
   { to: '/payments', icon: '💰', label: 'Payments' },
   { to: '/finance', icon: '🧾', label: 'Income & expenses' },
   { to: '/promos', icon: '🏷', label: 'Promo codes' },

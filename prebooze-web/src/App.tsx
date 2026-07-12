@@ -35,6 +35,8 @@ import Contact from './pages/static/Contact';
 import Legal from './pages/static/Legal';
 import Blog from './pages/static/Blog';
 import BlogPost from './pages/static/BlogPost';
+import LineupProfile from './pages/LineupProfile';
+import LineupOnboarding from './pages/LineupOnboarding';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useApp();
@@ -64,6 +66,8 @@ export default function App() {
         <Route path="/venues" element={<Venues />} />
         <Route path="/venues/:id" element={<VenueDetail />} />
         <Route path="/organizers/:id" element={<OrganizerProfile />} />
+        <Route path="/lineup/onboarding" element={<LineupOnboarding />} />
+        <Route path="/lineup/:slug" element={<LineupProfile />} />
 
         {/* Guest — auth & identity */}
         <Route path="/login" element={<Login />} />

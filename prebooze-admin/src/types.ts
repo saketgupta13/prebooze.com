@@ -10,6 +10,7 @@ export interface Tier {
   price: number;
   qty: number;
   sold: number;
+  description?: string; // what's included — shown under the tier on the guest page
 }
 
 export interface AdminEvent {
@@ -213,4 +214,19 @@ export interface Settings {
   whatsappAlerts: boolean;
   require2fa: boolean;
   maintenanceMode: boolean;
+  socials: { instagram: string; x: string; youtube: string; whatsapp: string; facebook: string };
+  siteSeo: Seo;
+  contact: { email: string; phone: string; address: string; organizerEmail: string };
+}
+
+export interface Lineup {
+  id: string;
+  name: string;
+  category: string; // Artist / DJ / Band / Sponsor / Promoter / Host …
+  description: string;
+  city?: string;
+  links?: string;
+  hasImage?: boolean;
+  followers: number;
+  verified: boolean;
 }

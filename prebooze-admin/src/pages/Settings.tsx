@@ -1,4 +1,5 @@
 import { useAdmin } from '../store/AdminContext';
+import SeoFields from '../components/SeoFields';
 import type { Settings as SettingsType } from '../types';
 
 function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
@@ -118,6 +119,55 @@ export default function Settings() {
         </Row>
         <Row label="Require 2FA for team sign-in">
           <Toggle on={settings.require2fa} onChange={() => set({ require2fa: !settings.require2fa })} />
+        </Row>
+      </div>
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="display" style={{ fontWeight: 700 }}>Social media accounts</div>
+        <div className="tiny hint" style={{ marginTop: -8 }}>linked in the guest site footer and ticket emails</div>
+        {(
+          [
+            ['instagram', 'Instagram'],
+            ['x', 'X (Twitter)'],
+            ['youtube', 'YouTube'],
+            ['whatsapp', 'WhatsApp channel'],
+            ['facebook', 'Facebook'],
+          ] as const
+        ).map(([key, label]) => (
+          <Row key={key} label={label}>
+            <input
+              className="input"
+              style={{ maxWidth: 300 }}
+              value={settings.socials[key]}
+              onChange={(e) => set({ socials: { ...settings.socials, [key]: e.target.value } })}
+              placeholder={`${key}.com/prebooze`}
+            />
+          </Row>
+        ))}
+      </div>
+
+      <SeoFields
+        seo={settings.siteSeo}
+        onChange={(next) => set({ siteSeo: next })}
+        slug="/"
+        fallbackTitle="Prebooze — Your city's events, one tap away"
+      />
+      <div className="tiny hint" style={{ marginTop: -8 }}>website-wide SEO defaults — pages, events and blogs without their own SEO fall back to these</div>
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="display" style={{ fontWeight: 700 }}>Contact details</div>
+        <div className="tiny hint" style={{ marginTop: -8 }}>shown on the guest Contact page and booking confirmations</div>
+        <Row label="Support email">
+          <input className="input" style={{ maxWidth: 300 }} value={settings.contact.email} onChange={(e) => set({ contact: { ...settings.contact, email: e.target.value } })} />
+        </Row>
+        <Row label="WhatsApp / phone">
+          <input className="input" style={{ maxWidth: 300 }} value={settings.contact.phone} onChange={(e) => set({ contact: { ...settings.contact, phone: e.target.value } })} />
+        </Row>
+        <Row label="Organizer support email">
+          <input className="input" style={{ maxWidth: 300 }} value={settings.contact.organizerEmail} onChange={(e) => set({ contact: { ...settings.contact, organizerEmail: e.target.value } })} />
+        </Row>
+        <Row label="Office address">
+          <input className="input" style={{ maxWidth: 300 }} value={settings.contact.address} onChange={(e) => set({ contact: { ...settings.contact, address: e.target.value } })} />
         </Row>
       </div>
 

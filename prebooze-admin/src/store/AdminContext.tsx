@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type {
   AdminBooking,
   BlogCategory,
+  Lineup,
   GuestEntry,
   LedgerEntry,
   Notification,
@@ -22,6 +23,7 @@ import type {
   Venue,
 } from '../types';
 import {
+  LINEUP_CATEGORIES,
   SEED_BANNERS,
   SEED_BLOGS,
   SEED_BOOKINGS,
@@ -34,6 +36,7 @@ import {
   SEED_GUEST_LIST,
   SEED_LEDGER,
   SEED_LEDGER_CATEGORIES,
+  SEED_LINEUPS,
   SEED_NOTIFICATIONS,
   SEED_PROMOS,
   SEED_ROLES,
@@ -114,6 +117,12 @@ interface AdminState {
   removeGuestEntry: (id: string) => void;
   toggleGuestArrived: (id: string) => void;
   addBooking: (b: AdminBooking) => void;
+  lineups: Lineup[];
+  lineupCategories: string[];
+  addLineup: (l: Lineup) => void;
+  updateLineup: (id: string, patch: Partial<Lineup>) => void;
+  removeLineup: (id: string) => void;
+  addLineupCategory: (name: string) => void;
 }
 
 const Ctx = createContext<AdminState>(null as unknown as AdminState);
@@ -173,7 +182,15 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [guestList, setGuestList] = usePersisted<GuestEntry[]>('pba_guestlist', SEED_GUEST_LIST);
   const [roles, setRoles] = usePersisted('pba_roles', SEED_ROLES);
   const [notifications, setNotifications] = usePersisted<Notification[]>('pba_notifications', SEED_NOTIFICATIONS);
-  const [settings, setSettings] = usePersisted('pba_settings', SEED_SETTINGS);
+  const [settings, setSettings] = usePersisted('pba_settings', SEED_SETTINGS, (v) => ({
+    ...SEED_SETTINGS,
+    ...v,
+    socials: { ...SEED_SETTINGS.socials, ...(v as Partial<typeof SEED_SETTINGS>).socials },
+    siteSeo: { ...SEED_SETTINGS.siteSeo, ...(v as Partial<typeof SEED_SETTINGS>).siteSeo },
+    contact: { ...SEED_SETTINGS.contact, ...(v as Partial<typeof SEED_SETTINGS>).contact },
+  }));
+  const [lineups, setLineups] = usePersisted<Lineup[]>('pba_lineups', SEED_LINEUPS);
+  const [lineupCategories, setLineupCategories] = usePersisted<string[]>('pba_lineupcats', LINEUP_CATEGORIES);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -392,6 +409,24 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setBookings((prev) => [b, ...prev]);
         toast(`Manual booking ${b.id} created ✓`);
       },
+      lineups,
+      lineupCategories,
+      addLineup: (l) => {
+        setLineups((prev) => [l, ...prev]);
+        toast(`${l.name} added to line-ups ✓`);
+      },
+      updateLineup: (id, patch) => {
+        setLineups((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+        toast('Line-up saved ✓');
+      },
+      removeLineup: (id) => {
+        setLineups((prev) => prev.filter((l) => l.id !== id));
+        toast('Line-up removed');
+      },
+      addLineupCategory: (name) => {
+        setLineupCategories((prev) => (prev.includes(name) ? prev : [...prev, name]));
+        toast(`Line-up category "${name}" added ✓`);
+      },
       addCategory: (c) => {
         setCategories((prev) => [...prev, c]);
         toast('Category added ✓');
@@ -409,7 +444,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList]
+    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -7,6 +7,7 @@ export interface TicketTier {
   quantity: number;
   sold: number;
   includes: string[];
+  description?: string;
 }
 
 export interface LineupItem {
@@ -155,4 +156,7 @@ export interface User {
   isOrganizer: boolean;
   orgBrand?: string;
   orgUsername?: string;
+  isLineup?: boolean;
+  lineupName?: string;
+  lineupCategory?: string;
 }

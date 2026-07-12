@@ -607,3 +607,33 @@ export const BLOG_POSTS: BlogPost[] = [
 ];
 
 export const blogBySlug = (slug: string) => BLOG_POSTS.find((p) => p.slug === slug);
+
+
+// ---- Line-ups (artists, DJs, sponsors, promoters — followable profiles) ----
+export interface LineupProfileData {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  verified: boolean;
+  city: string;
+  bio: string;
+  links: string[];
+  followers: number;
+  eventsPlayed: number;
+  hue: number;
+  emoji: string;
+}
+
+export const LINEUPS: LineupProfileData[] = [
+  { id: 'lu1', slug: 'dj-nova', name: 'DJ Nova', category: 'DJ', verified: true, city: 'Austin', bio: 'Opening sets that fill the floor before 9 PM. House & disco edits, zero filler. Resident at Arena Hall and the rooftop series.', links: ['ig/djnova', 'soundcloud/djnova'], followers: 4200, eventsPlayed: 38, hue: 200, emoji: '🎧' },
+  { id: 'lu2', slug: 'the-wilds', name: 'The Wilds', category: 'Band', verified: true, city: 'Austin', bio: 'Indie four-piece. New album “Night Maps” out now — the headline set plays it front to back with a string section for the closer.', links: ['ig/thewilds', 'spotify/thewilds'], followers: 12800, eventsPlayed: 52, hue: 95, emoji: '🎸' },
+  { id: 'lu3', slug: 'maya-k', name: 'Maya K.', category: 'Comedian', verified: true, city: 'Dallas', bio: 'Sharp crowd-work, zero mercy for the front row. As seen at Comedy Cave every other Sunday.', links: ['ig/mayak'], followers: 6100, eventsPlayed: 74, hue: 28, emoji: '🎤' },
+  { id: 'lu4', slug: 'klang', name: 'KLANG', category: 'DJ', verified: true, city: 'Berlin', bio: 'Berlin-schooled techno. 6 AM finisher. If the warehouse is still standing, the set isn\'t over.', links: ['ig/klang', 'ra.co/klang'], followers: 22000, eventsPlayed: 120, hue: 330, emoji: '🎛' },
+  { id: 'lu5', slug: 'june-and-co', name: 'June & Co', category: 'Artist', verified: false, city: 'Austin', bio: 'Unplugged trio for golden-hour rooftops. Harmonies first, everything else second.', links: ['ig/juneandco'], followers: 2900, eventsPlayed: 21, hue: 265, emoji: '🪕' },
+  { id: 'lu6', slug: 'fizzco', name: 'FizzCo', category: 'Sponsor', verified: false, city: 'Austin', bio: 'Craft soda brand sponsoring stages across Texas. Find the FizzCo bar at every partner event.', links: ['fizzco.com'], followers: 900, eventsPlayed: 16, hue: 150, emoji: '🥤' },
+  { id: 'lu7', slug: 'citybeat', name: 'CityBeat', category: 'Promoter', verified: true, city: 'Austin', bio: 'Promoting the loudest nights in town since 2019.', links: ['ig/citybeat'], followers: 3100, eventsPlayed: 44, hue: 60, emoji: '📣' },
+];
+
+export const lineupBySlug = (slug: string) => LINEUPS.find((l) => l.slug === slug);
+export const lineupByName = (name: string) => LINEUPS.find((l) => l.name.toLowerCase() === name.toLowerCase());

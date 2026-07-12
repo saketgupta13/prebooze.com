@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { CUSTOMER_STATUS, Drawer, SearchBox, Tag } from '../components/ui';
 
 export default function Customers() {
   const { customers, toggleBlockCustomer, toast } = useAdmin();
+  const navigate = useNavigate();
   const [segment, setSegment] = useState<'guests' | 'organizers'>('guests');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -87,7 +88,7 @@ export default function Customers() {
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button className="btn btn-ghost btn-sm" onClick={() => toast('Opening WhatsApp chat…')}>💬 WhatsApp</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => toast('Filtered bookings by customer')}>View bookings</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/bookings?q=${encodeURIComponent(selected.name)}`)}>View bookings</button>
           </div>
           <button className="btn btn-danger" onClick={() => toggleBlockCustomer(selected.id)}>
             {selected.status === 'blocked' ? 'Unblock customer' : 'Block customer'}
