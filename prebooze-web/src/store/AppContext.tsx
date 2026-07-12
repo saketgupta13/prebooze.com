@@ -94,6 +94,13 @@ export interface PromoterGuest {
   gender: string;
   createdAt: string;
   arrived?: boolean;
+  subPromoter?: string; // sub-promoter handle credited within the promoter's team
+}
+
+export interface SubPromoter {
+  handle: string;
+  name: string;
+  hue: number;
 }
 
 interface Selection {
@@ -151,6 +158,9 @@ interface AppState {
   setPendingPromoterRef: (slug: string | null) => void;
   promoterWithdrawals: Withdrawal[];
   promoterWithdraw: (amount: number) => void;
+  promoterTeam: SubPromoter[];
+  addSubPromoter: (s: SubPromoter) => void;
+  removeSubPromoter: (handle: string) => void;
   toastMsg: string | null;
   toast: (msg: string) => void;
   updateTeamRole: (name: string, role: string) => void;
@@ -207,6 +217,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [promoterGuests, setPromoterGuests] = useState<PromoterGuest[]>(() => load('pb_promoter_guests', []));
   const [promoterPlans, setPromoterPlans] = useState<Record<string, string>>(() => load('pb_promoter_plans', {}));
   const [promoterWithdrawals, setPromoterWithdrawals] = useState<Withdrawal[]>(() => load('pb_promoter_withdrawals', []));
+  const [promoterTeam, setPromoterTeam] = useState<SubPromoter[]>(() => load('pb_promoter_team', []));
   const [pendingPromoterRef, setPendingPromoterRef] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -267,6 +278,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_promoter_withdrawals', JSON.stringify(promoterWithdrawals));
   }, [promoterWithdrawals]);
+  useEffect(() => {
+    localStorage.setItem('pb_promoter_team', JSON.stringify(promoterTeam));
+  }, [promoterTeam]);
 
   const value = useMemo<AppState>(
     () => ({
@@ -404,6 +418,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           },
           ...prev,
         ]),
+      promoterTeam,
+      addSubPromoter: (s) =>
+        setPromoterTeam((prev) => (prev.some((m) => m.handle === s.handle) ? prev : [...prev, s])),
+      removeSubPromoter: (handle) => setPromoterTeam((prev) => prev.filter((m) => m.handle !== handle)),
       toastMsg,
       toast,
       updateTeamRole: (name, role) => {
@@ -445,7 +463,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, toastMsg, toast]
+    [user, city, bookings, selection, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

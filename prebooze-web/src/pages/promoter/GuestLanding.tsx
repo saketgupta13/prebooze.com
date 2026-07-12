@@ -1,21 +1,25 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { EVENTS, GENDER_OPTIONS, PROMOTERS, fmtDate, fmtTime, venueById } from '../../data/mock';
 import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
 import { quotaReached } from '../../lib/promoterEarnings';
+import { existingPassId, phoneBlocked } from '../../lib/promoterFraud';
 import Poster, { categoryEmoji } from '../../components/Poster';
 
 /** Public guest-capture landing reached via a promoter's affiliate link.
  * No login — name / phone / age / gender → a time-based QR pass. */
 export default function GuestLanding() {
   const { eventSlug, promoterSlug } = useParams();
+  const [params] = useSearchParams();
+  const via = params.get('via') ?? undefined; // sub-promoter handle (team link)
   const navigate = useNavigate();
   const { myEvents, promoterGuests, promoterPlans, addPromoterGuest } = useApp();
 
+  const allEvents = useMemo(() => [...myEvents, ...EVENTS], [myEvents]);
   const event = useMemo(
-    () => [...myEvents, ...EVENTS].find((e) => e.slug === eventSlug),
-    [myEvents, eventSlug]
+    () => allEvents.find((e) => e.slug === eventSlug),
+    [allEvents, eventSlug]
   );
   const promoter = PROMOTERS.find((p) => p.slug === promoterSlug);
 
@@ -68,6 +72,17 @@ export default function GuestLanding() {
       setErr(`Sorry — ${promoter?.name ?? 'this promoter'} has reached their guest limit for this month.`);
       return;
     }
+    // Fraud: one pass per phone per event — send them back to the pass they already have.
+    const dupe = existingPassId(promoterGuests, event.id, phone);
+    if (dupe) {
+      navigate(`/pass/${dupe}`);
+      return;
+    }
+    // Fraud: block phones with repeat no-shows from taking a free spot.
+    if (phoneBlocked(promoterGuests, phone, allEvents)) {
+      setErr('This number has missed too many free-entry lists. Grab a ticket to come in.');
+      return;
+    }
     const id = 'pass-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     addPromoterGuest({
       id,
@@ -78,6 +93,7 @@ export default function GuestLanding() {
       age: age.trim(),
       gender,
       createdAt: new Date().toISOString(),
+      subPromoter: via,
     });
     navigate(`/pass/${id}`);
   };
@@ -98,7 +114,8 @@ export default function GuestLanding() {
           </div>
 
           <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: '10px 12px', fontSize: 13, marginBottom: 16 }}>
-            You're on <b>{promoter?.name ?? promoterSlug}</b>'s guest list.{' '}
+            You're on <b>{promoter?.name ?? promoterSlug}</b>'s guest list
+            {via && <> <span className="muted">(via {via})</span></>}.{' '}
             {cutoff && (
               <>
                 Free entry <b>before {cutoff.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</b> —

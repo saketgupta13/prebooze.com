@@ -5,7 +5,7 @@ import { EVENTS, fmtDate, fmtTime, venueById } from '../../data/mock';
 /** Events this promoter is approved to promote — organizer-enabled events whose
  * allow-list includes this promoter. */
 export default function PromoterPromotions() {
-  const { user, myEvents, promoterGuests, toast } = useApp();
+  const { user, myEvents, promoterGuests, promoterTeam, toast } = useApp();
   const mySlug = user?.promoterUsername ?? '';
   const allEvents = [...myEvents, ...EVENTS.filter((e) => !myEvents.some((m) => m.id === e.id))];
 
@@ -109,6 +109,34 @@ export default function PromoterPromotions() {
                 <Link to={`/events/${e.slug}`} className="btn btn-ghost btn-sm">View event →</Link>
               </div>
               <div className="tiny muted-2" style={{ marginTop: 6, wordBreak: 'break-all' }}>{link}</div>
+
+              {cfg.allowTeams && promoterTeam.length > 0 && (
+                <div style={{ marginTop: 12, borderTop: '1px dashed var(--border-dash)', paddingTop: 10 }}>
+                  <div className="tiny muted-2" style={{ marginBottom: 6 }}>👥 Team links — each tagged to a member:</div>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    {promoterTeam.map((m) => {
+                      const sub = `${link}?via=${m.handle}`;
+                      const g = promoterGuests.filter((x) => x.eventId === e.id && x.promoterSlug === mySlug && x.subPromoter === m.handle);
+                      return (
+                        <div key={m.handle} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span className="small bold" style={{ flex: '0 0 auto' }}>{m.name}</span>
+                          <span className="tiny muted-2">{g.length} brought · {g.filter((x) => x.arrived).length} in</span>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ marginLeft: 'auto' }}
+                            onClick={() => {
+                              navigator.clipboard?.writeText(sub).catch(() => {});
+                              toast(`${m.name}'s link copied ✓`);
+                            }}
+                          >
+                            🔗 Copy
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

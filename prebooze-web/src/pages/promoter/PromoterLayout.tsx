@@ -5,6 +5,8 @@ const NAV = [
   { to: '/promoter', label: '▦ Dashboard', end: true },
   { to: '/promoter/promotions', label: '📣 My promotions' },
   { to: '/promoter/earnings', label: '💰 Earnings' },
+  { to: '/promoter/team', label: '👥 Team' },
+  { to: '/promoter/leaderboard', label: '🏆 Leaderboard' },
   { to: '/promoter/subscription', label: '💳 Subscription' },
   { to: '/promoter/settings', label: '⚙ Profile & settings' },
 ];

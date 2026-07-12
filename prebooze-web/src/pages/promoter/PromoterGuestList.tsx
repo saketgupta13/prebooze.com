@@ -8,7 +8,7 @@ import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
  * live countdown, and self check-in at their own door table. */
 export default function PromoterGuestList() {
   const { eventId } = useParams();
-  const { user, myEvents, promoterGuests, checkInPromoterGuest, toast } = useApp();
+  const { user, myEvents, promoterGuests, promoterTeam, checkInPromoterGuest, toast } = useApp();
   const mySlug = user?.promoterUsername ?? '';
   const event = [...myEvents, ...EVENTS].find((e) => e.id === eventId);
 
@@ -72,6 +72,37 @@ export default function PromoterGuestList() {
         <div className="kpi"><div className="l">Event total</div><div className="v">{totalOnEvent}<span className="muted small"> across all PRs</span></div></div>
       </div>
 
+      {event.promoterConfig.allowTeams && (promoterTeam.length > 0 || mine.some((g) => g.subPromoter)) && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <h3 style={{ marginBottom: 8 }}>By team member <span className="badge badge-accent">teams on</span></h3>
+          {(() => {
+            const groups = new Map<string, { name: string; brought: number; arrived: number }>();
+            const label = (h?: string) =>
+              h ? (promoterTeam.find((m) => m.handle === h)?.name ?? '@' + h) : 'You (direct)';
+            mine.forEach((g) => {
+              const key = g.subPromoter ?? '';
+              const cur = groups.get(key) ?? { name: label(g.subPromoter), brought: 0, arrived: 0 };
+              cur.brought += 1;
+              if (g.arrived) cur.arrived += 1;
+              groups.set(key, cur);
+            });
+            const list = [...groups.values()].sort((a, b) => b.arrived - a.arrived);
+            return list.length === 0 ? (
+              <div className="muted small">No guests attributed yet.</div>
+            ) : (
+              list.map((m) => (
+                <div key={m.name} className="evrow">
+                  <span style={{ flex: 1.6 }} className="bold small">{m.name}</span>
+                  <span style={{ flex: 1 }} className="small">{m.brought} brought</span>
+                  <span style={{ flex: 1 }} className="small accent">{m.arrived} arrived</span>
+                  <span style={{ flex: 0.8 }} className="small muted">{m.brought ? Math.round((m.arrived / m.brought) * 100) : 0}%</span>
+                </div>
+              ))
+            );
+          })()}
+        </div>
+      )}
+
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <h3>Your guests</h3>
@@ -90,7 +121,10 @@ export default function PromoterGuestList() {
             </div>
             {mine.map((g) => (
               <div key={g.id} className="evrow">
-                <span style={{ flex: 1.6 }} className="bold small">{g.name}</span>
+                <span style={{ flex: 1.6 }} className="bold small">
+                  {g.name}
+                  {g.subPromoter && <span className="tiny muted-2" style={{ fontWeight: 400 }}> · via {promoterTeam.find((m) => m.handle === g.subPromoter)?.name ?? g.subPromoter}</span>}
+                </span>
                 <span style={{ flex: 1 }} className="muted small">{g.phone}</span>
                 <span style={{ flex: 0.5 }} className="small">{g.age}</span>
                 <span style={{ flex: 1 }} className="muted small">{g.gender}</span>
