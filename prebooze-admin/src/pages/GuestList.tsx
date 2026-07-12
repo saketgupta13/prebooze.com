@@ -41,17 +41,29 @@ export default function GuestList() {
       toast('Guest name is required');
       return;
     }
-    const comps = companions.slice(0, plusOnes).map((c, i) => ({
-      name: c.name.trim() || `Guest of ${name.trim()} #${i + 1}`,
-      phone: c.phone.trim() || undefined,
-    }));
+    if (!phone.trim()) {
+      toast('WhatsApp number is required for the main guest');
+      return;
+    }
+    const comps = companions.slice(0, plusOnes);
+    for (let i = 0; i < plusOnes; i++) {
+      if (!comps[i]?.name.trim()) {
+        toast(`Name is required for plus-one ${i + 1}`);
+        return;
+      }
+      if (!comps[i]?.phone.trim()) {
+        toast(`WhatsApp number is required for plus-one ${i + 1}`);
+        return;
+      }
+    }
+    const finalComps = comps.map((c) => ({ name: c.name.trim(), phone: c.phone.trim() }));
     addGuestEntry({
       id: 'g' + Date.now(),
       eventId: event.id,
       name: name.trim(),
-      phone: phone.trim() || undefined,
+      phone: phone.trim(),
       plusOnes,
-      companions: comps,
+      companions: finalComps,
       addedBy: session?.name ?? 'Admin',
       arrived: false,
     });
@@ -83,7 +95,7 @@ export default function GuestList() {
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. DJ Nova (artist)" />
         </div>
         <div className="field" style={{ flex: 1, minWidth: 130 }}>
-          <label>Phone (optional)</label>
+          <label>WhatsApp number *</label>
           <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91" />
         </div>
         <div className="field" style={{ width: 130 }}>
@@ -97,7 +109,7 @@ export default function GuestList() {
         <button type="submit" className="btn btn-pri" style={{ height: 38 }}>Add to list ✓</button>
         {plusOnes > 0 && (
           <div style={{ flexBasis: '100%', display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px dashed rgba(139,195,74,.25)', paddingTop: 8 }}>
-            <span className="tiny muted">name &amp; phone for each plus-one (required at the gate):</span>
+            <span className="tiny muted">name &amp; WhatsApp number required for each plus-one (checked at the gate):</span>
             {Array.from({ length: plusOnes }, (_, i) => (
               <div key={i} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <input
@@ -105,14 +117,14 @@ export default function GuestList() {
                   style={{ flex: 1.4, minWidth: 140 }}
                   value={companions[i]?.name ?? ''}
                   onChange={(e) => setCompanion(i, { name: e.target.value })}
-                  placeholder={`Plus-one ${i + 1} name`}
+                  placeholder={`Plus-one ${i + 1} name *`}
                 />
                 <input
                   className="input"
                   style={{ flex: 1, minWidth: 120 }}
                   value={companions[i]?.phone ?? ''}
                   onChange={(e) => setCompanion(i, { phone: e.target.value })}
-                  placeholder="Phone (optional)"
+                  placeholder="WhatsApp number *"
                 />
               </div>
             ))}

@@ -34,17 +34,29 @@ export default function OrgGuestList() {
       toast('Guest name is required');
       return;
     }
-    const comps = companions.slice(0, plusOnes).map((c, i) => ({
-      name: c.name.trim() || `Guest of ${name.trim()} #${i + 1}`,
-      phone: c.phone.trim() || undefined,
-    }));
+    if (!phone.trim()) {
+      toast('WhatsApp number is required for the main guest');
+      return;
+    }
+    const comps = companions.slice(0, plusOnes);
+    for (let i = 0; i < plusOnes; i++) {
+      if (!comps[i]?.name.trim()) {
+        toast(`Name is required for plus-one ${i + 1}`);
+        return;
+      }
+      if (!comps[i]?.phone.trim()) {
+        toast(`WhatsApp number is required for plus-one ${i + 1}`);
+        return;
+      }
+    }
+    const finalComps = comps.map((c) => ({ name: c.name.trim(), phone: c.phone.trim() }));
     addGlist({
       id: 'g' + Date.now(),
       eventId,
       name: name.trim(),
-      phone: phone.trim() || undefined,
+      phone: phone.trim(),
       plusOnes,
-      companions: comps,
+      companions: finalComps,
       addedBy: user?.orgBrand ?? user?.name ?? 'Organizer',
       arrived: false,
     });
@@ -84,7 +96,7 @@ export default function OrgGuestList() {
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. DJ Nova (artist)" />
           </div>
           <div className="field">
-            <span>Phone (optional)</span>
+            <span>WhatsApp number *</span>
             <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91" />
           </div>
           <div className="field" style={{ flex: '0 0 150px' }}>
@@ -98,18 +110,18 @@ export default function OrgGuestList() {
         </div>
         {plusOnes > 0 && (
           <div style={{ borderTop: '1px dashed var(--border-dash)', paddingTop: 10, marginBottom: 12 }}>
-            <div className="tiny muted-2" style={{ marginBottom: 8 }}>name &amp; phone for each plus-one (required at the gate):</div>
+            <div className="tiny muted-2" style={{ marginBottom: 8 }}>name &amp; WhatsApp number required for each plus-one (checked at the gate):</div>
             {Array.from({ length: plusOnes }, (_, i) => (
               <div key={i} className="form-row" style={{ marginBottom: 8 }}>
                 <input
                   value={companions[i]?.name ?? ''}
                   onChange={(e) => setCompanion(i, { name: e.target.value })}
-                  placeholder={`Plus-one ${i + 1} name`}
+                  placeholder={`Plus-one ${i + 1} name *`}
                 />
                 <input
                   value={companions[i]?.phone ?? ''}
                   onChange={(e) => setCompanion(i, { phone: e.target.value })}
-                  placeholder="Phone (optional)"
+                  placeholder="WhatsApp number *"
                 />
               </div>
             ))}
