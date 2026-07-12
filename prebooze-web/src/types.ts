@@ -159,4 +159,8 @@ export interface User {
   isLineup?: boolean;
   lineupName?: string;
   lineupCategory?: string;
+  isPromoter?: boolean;
+  promoterBrand?: string;
+  promoterUsername?: string;
+  promoterPlan?: string;
 }

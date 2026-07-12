@@ -338,6 +338,22 @@ export const SEED_REVIEWS = [
   { id: 'rv6', author: 'anon_user_99', rating: 1, eventTitle: "Summer Fest '26", organizer: 'FestCrew', text: 'SCAM!!! buy tickets from my site instead www.fake-tickets.example', date: '1 Jul' },
 ];
 
+export const SEED_PROMOTERS = [
+  { id: 'pr1', name: 'Nova Nights', contact: 'hey@novanights.co', city: 'Austin', status: 'approved' as const, kyc: 'verified', plan: 'pro', guestsThisMonth: 312, eventsPromoted: 64, showRate: 78, bio: 'Rooftops, warehouses, after-hours. Free before 1 AM.' },
+  { id: 'pr2', name: 'Crowd Co.', contact: 'book@crowdco.io', city: 'Dallas', status: 'approved' as const, kyc: 'verified', plan: 'starter', guestsThisMonth: 88, eventsPromoted: 38, showRate: 71, bio: 'We fill floors.' },
+  { id: 'pr3', name: 'The Plug', contact: 'team@theplug.co', city: 'Houston', status: 'pending' as const, kyc: 'submitted', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'New in town, big lists.' },
+  { id: 'pr4', name: 'Hype House ATX', contact: 'info@hypehouse.co', city: 'Austin', status: 'pending' as const, kyc: 'submitted', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'College nights & day parties.' },
+  { id: 'pr5', name: 'Ghost Guestlist', contact: 'x@ghostgl.co', city: 'Dallas', status: 'rejected' as const, kyc: 'flagged', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'Flagged for fake guest activity.' },
+];
+
+// Editable subscription tiers (admin-configurable; mirrored to the promoter app).
+export const SEED_SUB_TIERS = [
+  { id: 'free', name: 'Free', price: 0, guests: 25 },
+  { id: 'starter', name: 'Starter', price: 999, guests: 150 },
+  { id: 'pro', name: 'Pro', price: 2499, guests: 500 },
+  { id: 'elite', name: 'Elite', price: 4999, guests: -1 },
+];
+
 export const ADMIN_CITIES = ['Austin', 'Dallas', 'Houston'];
 
 export const GUEST_SITE_URL = 'http://localhost:5173';

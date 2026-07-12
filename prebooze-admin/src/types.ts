@@ -145,6 +145,20 @@ export interface GuestEntry {
   arrived?: boolean;
 }
 
+export interface Promoter {
+  id: string;
+  name: string;
+  contact: string;
+  city: string;
+  status: OrganizerStatus; // approved / pending / rejected
+  kyc: string;
+  plan: string;
+  guestsThisMonth: number;
+  eventsPromoted: number;
+  showRate: number;
+  bio?: string;
+}
+
 export interface AdminReview {
   id: string;
   author: string;

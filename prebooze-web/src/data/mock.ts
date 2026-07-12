@@ -688,3 +688,44 @@ export const TESTIMONIALS: Testimonial[] = [
   { id: 't2', author: 'Priya K.', location: 'Austin', rating: 5, quote: 'Found three gigs I would have missed. The city filter is so good.' },
   { id: 't3', author: 'Arjun M.', location: 'Dallas', rating: 4, quote: 'Refund landed back in minutes when my plans changed. Rare for a ticketing app.' },
 ];
+
+
+// ---- Promoters / PR (followable public profiles; promote events & run free-entry lists) ----
+export interface PromoterProfileData {
+  id: string;
+  slug: string;
+  name: string;
+  verified: boolean;
+  city: string;
+  bio: string;
+  links: string[];
+  followers: number;
+  eventsPromoted: number;
+  guestsBrought: number;
+  showRate: number; // % of guests who actually arrived
+  hue: number;
+}
+
+export const PROMOTERS: PromoterProfileData[] = [
+  { id: 'pr1', slug: 'nova-nights', name: 'Nova Nights', verified: true, city: 'Austin', bio: 'The guest list you actually want to be on. Rooftops, warehouses, after-hours. Free before 1 AM, always.', links: ['ig/novanights', 'wa/novanights'], followers: 8600, eventsPromoted: 64, guestsBrought: 12400, showRate: 78, hue: 285 },
+  { id: 'pr2', slug: 'crowd-co', name: 'Crowd Co.', verified: true, city: 'Dallas', bio: 'We fill floors. Techno, house and everything loud — get on the list before the cutoff.', links: ['ig/crowdco'], followers: 4200, eventsPromoted: 38, guestsBrought: 6100, showRate: 71, hue: 150 },
+  { id: 'pr3', slug: 'the-plug', name: 'The Plug', verified: false, city: 'Houston', bio: 'New in town, big lists. Comedy nights and indie gigs mostly.', links: ['ig/theplug'], followers: 1900, eventsPromoted: 12, guestsBrought: 1400, showRate: 64, hue: 40 },
+];
+
+export const promoterBySlug = (slug: string) => PROMOTERS.find((p) => p.slug === slug);
+
+// Subscription tiers — mirrored from admin config; guests = list adds per month.
+export interface SubTier {
+  id: string;
+  name: string;
+  price: number; // ₹ per month
+  guests: number; // -1 = unlimited
+  perks: string[];
+}
+
+export const SUB_TIERS: SubTier[] = [
+  { id: 'free', name: 'Free', price: 0, guests: 25, perks: ['25 guests / month', 'Affiliate links', 'Real-time monitoring'] },
+  { id: 'starter', name: 'Starter', price: 999, guests: 150, perks: ['150 guests / month', 'Everything in Free', 'Priority support'] },
+  { id: 'pro', name: 'Pro', price: 2499, guests: 500, perks: ['500 guests / month', 'Everything in Starter', 'Advanced analytics'] },
+  { id: 'elite', name: 'Elite', price: 4999, guests: -1, perks: ['Unlimited guests', 'Everything in Pro', 'Promoter teams', 'Dedicated manager'] },
+];

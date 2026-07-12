@@ -74,11 +74,17 @@ export default function Header() {
                 <Link to="/bookings" onClick={() => setMenuOpen(false)}>
                   🎟 My bookings
                 </Link>
-                {user.isOrganizer ? (
+                {user.isOrganizer && (
                   <Link to="/organizer" onClick={() => setMenuOpen(false)}>
                     ▦ Organizer console
                   </Link>
-                ) : (
+                )}
+                {user.isPromoter && (
+                  <Link to="/promoter" onClick={() => setMenuOpen(false)}>
+                    📣 Promoter console
+                  </Link>
+                )}
+                {!user.isOrganizer && !user.isPromoter && (
                   <Link to="/host" onClick={() => setMenuOpen(false)}>
                     🎤 Host with us
                   </Link>

@@ -43,6 +43,13 @@ import Blog from './pages/static/Blog';
 import BlogPost from './pages/static/BlogPost';
 import LineupProfile from './pages/LineupProfile';
 import LineupOnboarding from './pages/LineupOnboarding';
+import PromoterProfile from './pages/PromoterProfile';
+import PromoterOnboarding from './pages/promoter/PromoterOnboarding';
+import PromoterLayout from './pages/promoter/PromoterLayout';
+import PromoterDashboard from './pages/promoter/PromoterDashboard';
+import PromoterPromotions from './pages/promoter/PromoterPromotions';
+import PromoterSubscription from './pages/promoter/PromoterSubscription';
+import PromoterSettings from './pages/promoter/PromoterSettings';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useApp();
@@ -74,6 +81,8 @@ export default function App() {
         <Route path="/organizers/:id" element={<OrganizerProfile />} />
         <Route path="/lineup/onboarding" element={<LineupOnboarding />} />
         <Route path="/lineup/:slug" element={<LineupProfile />} />
+        <Route path="/promoter/onboarding" element={<PromoterOnboarding />} />
+        <Route path="/promoter/:slug" element={<PromoterProfile />} />
 
         {/* Guest — auth & identity */}
         <Route path="/login" element={<Login />} />
@@ -161,6 +170,14 @@ export default function App() {
           <Route path="reviews" element={<OrgReviews />} />
           <Route path="team" element={<OrgTeamRoles />} />
           <Route path="settings" element={<Settings />} />
+        </Route>
+
+        {/* Promoter console */}
+        <Route path="/promoter" element={<PromoterLayout />}>
+          <Route index element={<PromoterDashboard />} />
+          <Route path="promotions" element={<PromoterPromotions />} />
+          <Route path="subscription" element={<PromoterSubscription />} />
+          <Route path="settings" element={<PromoterSettings />} />
         </Route>
 
         {/* Company / static */}

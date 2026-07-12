@@ -32,6 +32,7 @@ import ManualBooking from './pages/ManualBooking';
 import GuestList from './pages/GuestList';
 import { Lineups, LineupEdit } from './pages/Lineups';
 import Reviews from './pages/Reviews';
+import { Promoters, PromoterDetail, PromoterTiers } from './pages/Promoters';
 import Testimonials from './pages/Testimonials';
 import Faqs from './pages/Faqs';
 import Policies from './pages/Policies';
@@ -59,6 +60,9 @@ export default function App() {
         <Route path="/lineups" element={<Lineups />} />
         <Route path="/lineups/new" element={<LineupEdit />} />
         <Route path="/lineups/:id/edit" element={<LineupEdit />} />
+        <Route path="/promoters" element={<Promoters />} />
+        <Route path="/promoters/tiers" element={<PromoterTiers />} />
+        <Route path="/promoters/:id" element={<PromoterDetail />} />
         <Route path="/venues" element={<Venues />} />
         <Route path="/venues/new" element={<AddVenue />} />
         <Route path="/venues/:id" element={<VenueDetail />} />

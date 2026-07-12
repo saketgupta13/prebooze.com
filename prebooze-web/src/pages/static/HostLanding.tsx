@@ -49,6 +49,9 @@ export default function HostLanding() {
             <Link to="/lineup/onboarding" className="btn btn-ghost btn-lg">
               🎤 Join as Artist / Line-up
             </Link>
+            <Link to="/promoter/onboarding" className="btn btn-ghost btn-lg">
+              📣 Join as Promoter / PR
+            </Link>
           </div>
         </section>
 

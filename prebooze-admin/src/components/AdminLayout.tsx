@@ -10,6 +10,7 @@ const MAIN_NAV = [
   { to: '/bookings', icon: '🎟', label: 'Bookings' },
   { to: '/customers', icon: '👥', label: 'Customers' },
   { to: '/organizers', icon: '🧑‍💼', label: 'Organizers' },
+  { to: '/promoters', icon: '📣', label: 'Promoters' },
   { to: '/venues', icon: '📍', label: 'Venues' },
   { to: '/lineups', icon: '🎤', label: 'Line-ups' },
   { to: '/payments', icon: '💰', label: 'Payments' },
