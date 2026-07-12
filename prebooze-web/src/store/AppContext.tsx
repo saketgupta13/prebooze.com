@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Booking, Coupon, Event, User, Venue } from '../types';
 import { registerVenue } from '../data/mock';
@@ -10,8 +10,60 @@ export interface GuestListEntry {
   name: string;
   phone?: string;
   plusOnes: number;
+  companions?: { name: string; phone?: string }[];
+  addedBy?: string;
   arrived?: boolean;
 }
+
+export interface OrgPermSet {
+  view: boolean;
+  edit: boolean;
+}
+
+/** role name -> module -> permissions (organizer team) */
+export type OrgRoleMatrix = Record<string, Record<string, OrgPermSet>>;
+
+export const ORG_PERM_MODULES = [
+  'Events & wizard',
+  'Attendees & check-in',
+  'Guest list',
+  'Coupons',
+  'Payouts & withdrawals',
+  'Reviews',
+  'Settings & team',
+];
+
+const orgPerms = (view: boolean, edit: boolean) => ({ view, edit });
+const ORG_ROLE_SEED: OrgRoleMatrix = {
+  Owner: Object.fromEntries(ORG_PERM_MODULES.map((m) => [m, orgPerms(true, true)])),
+  Manager: {
+    'Events & wizard': orgPerms(true, true),
+    'Attendees & check-in': orgPerms(true, true),
+    'Guest list': orgPerms(true, true),
+    Coupons: orgPerms(true, true),
+    'Payouts & withdrawals': orgPerms(true, false),
+    Reviews: orgPerms(true, false),
+    'Settings & team': orgPerms(true, false),
+  },
+  'Door staff': {
+    'Events & wizard': orgPerms(false, false),
+    'Attendees & check-in': orgPerms(true, true),
+    'Guest list': orgPerms(true, true),
+    Coupons: orgPerms(false, false),
+    'Payouts & withdrawals': orgPerms(false, false),
+    Reviews: orgPerms(false, false),
+    'Settings & team': orgPerms(false, false),
+  },
+  Promoter: {
+    'Events & wizard': orgPerms(true, false),
+    'Attendees & check-in': orgPerms(true, false),
+    'Guest list': orgPerms(true, true),
+    Coupons: orgPerms(true, false),
+    'Payouts & withdrawals': orgPerms(false, false),
+    Reviews: orgPerms(true, false),
+    'Settings & team': orgPerms(false, false),
+  },
+};
 
 export interface TeamMember {
   name: string;
@@ -78,6 +130,13 @@ interface AppState {
   addCustomLineup: (l: { name: string; role: string }) => void;
   myVenues: Venue[];
   addMyVenue: (v: Venue) => void;
+  toastMsg: string | null;
+  toast: (msg: string) => void;
+  updateTeamRole: (name: string, role: string) => void;
+  orgRoles: OrgRoleMatrix;
+  setOrgRolePerm: (role: string, module: string, key: keyof OrgPermSet, value: boolean) => void;
+  addOrgRole: (name: string) => void;
+  removeOrgRole: (name: string) => boolean;
 }
 
 const Ctx = createContext<AppState>(null as unknown as AppState);
@@ -123,6 +182,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     v.forEach(registerVenue);
     return v;
   });
+  const [orgRoles, setOrgRoles] = useState<OrgRoleMatrix>(() => load('pb_orgroles', ORG_ROLE_SEED));
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
+  const toast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToastMsg(null), 2200);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('pb_user', JSON.stringify(user));
@@ -259,8 +326,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
         registerVenue(v);
         setMyVenues((prev) => [...prev, v]);
       },
+      toastMsg,
+      toast,
+      updateTeamRole: (name, role) => {
+        setTeam((prev) => prev.map((m) => (m.name === name ? { ...m, role } : m)));
+        toast(`${name} is now ${role} ✓`);
+      },
+      orgRoles,
+      setOrgRolePerm: (role, module, key, value) =>
+        setOrgRoles((prev) => ({
+          ...prev,
+          [role]: { ...prev[role], [module]: { ...prev[role][module], [key]: value } },
+        })),
+      addOrgRole: (name) => {
+        setOrgRoles((prev) =>
+          prev[name]
+            ? prev
+            : {
+                ...prev,
+                [name]: Object.fromEntries(ORG_PERM_MODULES.map((m) => [m, { view: true, edit: false }])),
+              }
+        );
+        toast(`Role "${name}" created ✓`);
+      },
+      removeOrgRole: (name) => {
+        if (name === 'Owner') {
+          toast("The Owner role can't be removed");
+          return false;
+        }
+        if (team.some((m) => m.role === name)) {
+          toast(`Reassign members using "${name}" first`);
+          return false;
+        }
+        setOrgRoles((prev) => {
+          const next = { ...prev };
+          delete next[name];
+          return next;
+        });
+        toast(`Role "${name}" removed`);
+        return true;
+      },
     }),
-    [user, city, bookings, selection, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues]
+    [user, city, bookings, selection, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -11,11 +11,12 @@ const NAV = [
   { to: '/organizer/reviews', label: '★ Reviews' },
   { to: '/organizer/coupons', label: '🏷 Coupons' },
   { to: '/organizer/payouts', label: '💰 Payouts' },
+  { to: '/organizer/team', label: '🛡 Team & roles' },
   { to: '/organizer/settings', label: '⚙ Settings' },
 ];
 
 export default function OrganizerLayout() {
-  const { user } = useApp();
+  const { user, toastMsg } = useApp();
 
   if (!user) return <Navigate to="/login" state={{ from: '/organizer' }} replace />;
   if (!user.isOrganizer) return <Navigate to="/organizer/onboarding" replace />;
@@ -35,6 +36,26 @@ export default function OrganizerLayout() {
           <Outlet />
         </div>
       </div>
+      {toastMsg && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--accent)',
+            color: 'var(--on-accent)',
+            padding: '10px 18px',
+            borderRadius: 999,
+            fontWeight: 700,
+            fontSize: 13,
+            zIndex: 60,
+            maxWidth: '90vw',
+          }}
+        >
+          {toastMsg}
+        </div>
+      )}
     </main>
   );
 }

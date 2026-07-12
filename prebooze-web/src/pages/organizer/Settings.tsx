@@ -108,6 +108,7 @@ export default function Settings() {
               {team.length} members · door-scan access for {team.filter((m) => m.scan).length}
             </div>
           </div>
+          <Link to="/organizer/team" className="btn btn-ghost btn-sm">Manage →</Link>
           <button className="btn btn-ghost btn-sm" onClick={() => toggleOpen('team')}>
             {open === 'team' ? 'Close' : 'Invite +'}
           </button>

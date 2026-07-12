@@ -33,6 +33,7 @@ import Withdraw from './pages/organizer/Withdraw';
 import OrgGuestList from './pages/organizer/OrgGuestList';
 import OrgLiveMonitor from './pages/organizer/OrgLiveMonitor';
 import OrgReviews from './pages/organizer/OrgReviews';
+import OrgTeamRoles from './pages/organizer/OrgTeamRoles';
 import HostLanding from './pages/static/HostLanding';
 import About from './pages/static/About';
 import Contact from './pages/static/Contact';
@@ -158,6 +159,7 @@ export default function App() {
           <Route path="guestlist" element={<OrgGuestList />} />
           <Route path="live" element={<OrgLiveMonitor />} />
           <Route path="reviews" element={<OrgReviews />} />
+          <Route path="team" element={<OrgTeamRoles />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 
