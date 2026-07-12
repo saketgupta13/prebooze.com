@@ -49,8 +49,9 @@ export default function PromoterEarnings() {
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 6 }}>Earnings</h1>
       <p className="muted small" style={{ marginBottom: 18 }}>
-        You earn a per-head payout on every guest who actually shows up, plus a {COMMISSION_LABEL} affiliate
-        commission on paid tickets bought through your link.
+        The <b>organizer</b> pays you directly (not Prebooze): a per-head payout on every guest who shows up, plus a{' '}
+        {COMMISSION_LABEL} commission whenever a guest from your list arrives after the free cutoff and buys a ticket at
+        the gate.
       </p>
 
       <div className="kpis" style={{ marginBottom: 18 }}>
@@ -122,8 +123,8 @@ export default function PromoterEarnings() {
       )}
 
       <div className="tiny muted-2" style={{ marginTop: 14 }}>
-        🔒 payouts are simulated for now · real settlements to your bank/UPI land with the backend · per-head amounts
-        and commission are set per event by the organizer
+        🔒 payouts are simulated for now · you're paid by the <b>organizer</b> running each event — Prebooze doesn't fund
+        promoter payouts · per-head amounts and commission are set per event by the organizer
       </div>
     </div>
   );

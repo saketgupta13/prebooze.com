@@ -135,7 +135,7 @@ export function Promoters() {
 export function PromoterDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { promoters, subTiers, setPromoterStatus2, removePromoter2, setPromoterPayoutStatus, toast } = useAdmin();
+  const { promoters, subTiers, setPromoterStatus2, removePromoter2, toast } = useAdmin();
   const p = promoters.find((x) => x.id === id);
 
   if (!p) {
@@ -191,46 +191,42 @@ export function PromoterDetail() {
         return (
           <>
             <div className="card">
-              <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>Earnings</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                <span className="display" style={{ fontWeight: 700 }}>Earnings</span>
+                <span className="tag" style={{ borderColor: 'var(--border)' }}>organizer-funded</span>
+              </div>
               <div className="kpi-grid">
                 <div className="kpi"><div className="l">Guests brought (lifetime)</div><div className="v">{fmt(p.guestsBrought ?? 0)}</div></div>
                 <div className="kpi"><div className="l">Per-head payouts</div><div className="v">₹{fmt(p.perHeadEarned ?? 0)}</div></div>
-                <div className="kpi"><div className="l">Ticket commission</div><div className="v">₹{fmt(p.commissionEarned ?? 0)}</div></div>
+                <div className="kpi"><div className="l">Gate commission</div><div className="v">₹{fmt(p.commissionEarned ?? 0)}</div></div>
                 <div className="kpi"><div className="l">Total earned</div><div className="v green">₹{fmt(totalEarned)}</div></div>
               </div>
-              <div className="kv" style={{ marginTop: 8 }}><span className="k">Withdrawn to date</span><span>₹{fmt(p.withdrawn ?? 0)}</span></div>
-              <div className="kv"><span className="k">Available balance</span><span className="green" style={{ fontWeight: 700 }}>₹{fmt(avail)}</span></div>
+              <div className="kv" style={{ marginTop: 8 }}><span className="k">Paid out by organizers</span><span>₹{fmt(p.withdrawn ?? 0)}</span></div>
+              <div className="kv"><span className="k">Outstanding (owed by organizers)</span><span className="green" style={{ fontWeight: 700 }}>₹{fmt(avail)}</span></div>
+              <div className="tiny hint" style={{ marginTop: 6 }}>Prebooze doesn’t fund promoter payouts — organizers pay their promoters directly. This is admin visibility only.</div>
             </div>
 
             <div className="card">
-              <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>Payouts</div>
+              <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>Payout activity <span className="tiny muted" style={{ fontWeight: 400 }}>(read-only)</span></div>
               {payouts.length === 0 ? (
                 <div className="muted small">No payouts yet.</div>
               ) : (
                 <div className="tblwrap" style={{ border: 'none' }}>
-                  <div className="thead" style={{ minWidth: 380 }}>
+                  <div className="thead" style={{ minWidth: 300 }}>
                     <span style={{ flex: 1 }}>Date</span>
                     <span style={{ flex: 1 }}>Amount</span>
                     <span style={{ flex: 1 }}>Status</span>
-                    <span style={{ flex: 1.2 }} />
                   </div>
                   {payouts.map((w) => (
-                    <div key={w.id} className="trow" style={{ minWidth: 380 }}>
+                    <div key={w.id} className="trow" style={{ minWidth: 300 }}>
                       <span style={{ flex: 1 }} className="muted">{w.date}</span>
                       <span style={{ flex: 1, fontWeight: 700 }}>₹{fmt(w.amount)}</span>
-                      <span style={{ flex: 1 }} className={w.status === 'paid' ? 'green' : 'muted'}>{w.status}</span>
-                      <span style={{ flex: 1.2, display: 'flex', justifyContent: 'flex-end' }}>
-                        {w.status === 'processing' ? (
-                          <button className="btn btn-pri btn-sm" onClick={() => setPromoterPayoutStatus(p.id, w.id, 'paid')}>Mark paid ✓</button>
-                        ) : (
-                          <button className="btn btn-ghost btn-sm" onClick={() => setPromoterPayoutStatus(p.id, w.id, 'processing')}>Reopen</button>
-                        )}
-                      </span>
+                      <span style={{ flex: 1 }} className={w.status === 'paid' ? 'green' : 'muted'}>{w.status === 'paid' ? 'paid by organizer' : 'processing'}</span>
                     </div>
                   ))}
                 </div>
               )}
-              <div className="tiny hint" style={{ marginTop: 6 }}>per-head payouts settle on verified arrivals · commission settles on attributed ticket sales</div>
+              <div className="tiny hint" style={{ marginTop: 6 }}>per-head settles on verified arrivals · gate commission when a listed guest arrives late and buys a ticket · all settled by the organizer</div>
             </div>
 
             <button

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { CATEGORIES, EVENTS, FAQS, ORGANIZERS, TESTIMONIALS, TRUST_POINTS, VENUES } from '../data/mock';
+import { CATEGORIES, EVENTS, FAQS, ORGANIZERS, PROMOTERS, TESTIMONIALS, TRUST_POINTS, VENUES } from '../data/mock';
 import EventCard from '../components/EventCard';
 import Poster from '../components/Poster';
 import Accordion from '../components/Accordion';
@@ -118,7 +118,7 @@ export default function Home() {
         <section className="section">
           <div className="section-hd">
             <h2>Trending organizers in {city}</h2>
-            <Link to="/organizers/livewire">See all organizers →</Link>
+            <Link to="/organizers">See all organizers →</Link>
           </div>
           <div className="grid-3">
             {ORGANIZERS.map((o) => (
@@ -129,6 +129,27 @@ export default function Home() {
                     {o.brandName} {o.verified && <span className="verified">✓</span>}
                   </h3>
                   <div className="meta muted small">{o.eventsHosted} events hosted</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* Top promoters */}
+        <section className="section">
+          <div className="section-hd">
+            <h2>Top promoters 📣</h2>
+            <Link to="/promoters">See all promoters →</Link>
+          </div>
+          <div className="grid-3">
+            {[...PROMOTERS].sort((a, b) => b.showRate - a.showRate).slice(0, 3).map((p) => (
+              <Link key={p.slug} to={`/promoter/${p.slug}`} className="card" style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                <Poster hue={p.hue} emoji="📣" variant="square" className="" />
+                <div style={{ minWidth: 0 }}>
+                  <h3 style={{ fontSize: 15 }}>
+                    {p.name} {p.verified && <span className="verified">✓</span>}
+                  </h3>
+                  <div className="meta muted small">{p.city} · {p.showRate}% show-rate</div>
                 </div>
               </Link>
             ))}

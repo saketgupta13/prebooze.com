@@ -1,9 +1,38 @@
 import { Link } from 'react-router-dom';
-import { PAYOUTS, fmtMoney } from '../../data/mock';
+import { EVENTS, PAYOUTS, PROMOTERS, fmtMoney } from '../../data/mock';
+import { PROMOTER_COMMISSION_RATE, COMMISSION_LABEL } from '../../lib/promoterEarnings';
 import { useApp } from '../../store/AppContext';
 
 export default function Payouts() {
-  const { orgBalance, withdrawals } = useApp();
+  const { orgBalance, withdrawals, myEvents, promoterGuests, bookings, toast } = useApp();
+
+  // What this organizer owes promoters — per-head on verified arrivals + gate
+  // commission when a listed guest arrives late and buys a ticket. Organizer-funded.
+  const orgEvents = [
+    ...myEvents,
+    ...EVENTS.filter((e) => e.organizerId === 'livewire' && !myEvents.some((m) => m.id === e.id)),
+  ];
+  const orgEventIds = new Set(orgEvents.map((e) => e.id));
+  const promoterDues = PROMOTERS.map((pr) => {
+    let perHead = 0;
+    let commission = 0;
+    orgEvents.forEach((e) => {
+      const cfg = e.promoterConfig;
+      if (!cfg?.enabled) return;
+      if (cfg.perHeadPayout) {
+        const arrived = promoterGuests.filter((g) => g.eventId === e.id && g.promoterSlug === pr.slug && g.arrived).length;
+        perHead += arrived * cfg.perHeadAmount;
+      }
+    });
+    bookings.forEach((b) => {
+      if (b.promoterRef === pr.slug && orgEventIds.has(b.eventId) && b.status !== 'cancelled') {
+        commission += Math.round(b.subtotal * PROMOTER_COMMISSION_RATE);
+      }
+    });
+    return { pr, perHead, commission, total: perHead + commission };
+  }).filter((d) => d.total > 0);
+  const promoterTotal = promoterDues.reduce((a, d) => a + d.total, 0);
+
   return (
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 18 }}>Payouts</h1>
@@ -75,6 +104,42 @@ export default function Payouts() {
         <button className="btn btn-ghost btn-sm" style={{ marginTop: 14 }}>
           ⬇ Download statements (CSV / PDF)
         </button>
+      </div>
+
+      {/* Promoter payouts — you pay your promoters directly */}
+      <div className="card" style={{ marginTop: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+          <h3>Promoter payouts <span className="badge badge-accent">you pay these</span></h3>
+          <span className="small muted">total owed <b className="accent">{fmtMoney(promoterTotal)}</b></span>
+        </div>
+        <p className="tiny muted-2" style={{ marginBottom: 12 }}>
+          You pay your promoters directly — Prebooze doesn’t fund these. Per-head is owed on verified arrivals; a{' '}
+          {COMMISSION_LABEL} gate commission is owed when a listed guest arrives after the free cutoff and buys a ticket.
+        </p>
+        {promoterDues.length === 0 ? (
+          <div className="muted small">No promoter dues yet — enable a promoter guest list on an event and arrivals will show up here.</div>
+        ) : (
+          <>
+            <div className="evrow" style={{ fontWeight: 700, fontSize: 12, color: 'var(--muted)' }}>
+              <span style={{ flex: 1.6 }}>Promoter</span>
+              <span style={{ flex: 1, textAlign: 'right' }}>Per-head</span>
+              <span style={{ flex: 1, textAlign: 'right' }}>Gate commission</span>
+              <span style={{ flex: 1, textAlign: 'right' }}>Total owed</span>
+              <span style={{ flex: 0.8 }} />
+            </div>
+            {promoterDues.map((d) => (
+              <div key={d.pr.slug} className="evrow">
+                <span style={{ flex: 1.6 }} className="bold small">📣 {d.pr.name}</span>
+                <span style={{ flex: 1, textAlign: 'right' }} className="small">{fmtMoney(d.perHead)}</span>
+                <span style={{ flex: 1, textAlign: 'right' }} className="small">{fmtMoney(d.commission)}</span>
+                <span style={{ flex: 1, textAlign: 'right' }} className="bold accent">{fmtMoney(d.total)}</span>
+                <span style={{ flex: 0.8, textAlign: 'right' }}>
+                  <button className="btn btn-pri btn-sm" onClick={() => toast(`${fmtMoney(d.total)} paid to ${d.pr.name} ✓`)}>Pay</button>
+                </span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </div>
   );

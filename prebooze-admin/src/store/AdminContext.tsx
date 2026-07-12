@@ -166,7 +166,6 @@ interface AdminState {
   addPromoter: (p: Promoter) => void;
   updatePromoter: (id: string, patch: Partial<Promoter>) => void;
   removePromoter2: (id: string) => void;
-  setPromoterPayoutStatus: (promoterId: string, payoutId: string, status: 'processing' | 'paid') => void;
   subTiers: { id: string; name: string; price: number; guests: number }[];
   updateSubTier: (id: string, patch: { name?: string; price?: number; guests?: number }) => void;
 }
@@ -581,18 +580,6 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       removePromoter2: (id) => {
         setPromoters((prev) => prev.filter((p) => p.id !== id));
         toast('Promoter removed');
-      },
-      setPromoterPayoutStatus: (promoterId, payoutId, status) => {
-        setPromoters((prev) =>
-          prev.map((p) => {
-            if (p.id !== promoterId) return p;
-            const payouts = (p.payouts ?? []).map((w) => (w.id === payoutId ? { ...w, status } : w));
-            const justPaid = status === 'paid' && (p.payouts ?? []).find((w) => w.id === payoutId)?.status !== 'paid';
-            const amt = (p.payouts ?? []).find((w) => w.id === payoutId)?.amount ?? 0;
-            return { ...p, payouts, withdrawn: (p.withdrawn ?? 0) + (justPaid ? amt : 0) };
-          })
-        );
-        toast(status === 'paid' ? 'Payout marked paid ✓' : 'Payout reopened');
       },
       subTiers,
       updateSubTier: (id, patch) => {
