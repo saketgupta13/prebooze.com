@@ -134,14 +134,10 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="stat3" style={{ marginBottom: 16, gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <div className="stat3" style={{ marginBottom: 16 }}>
             <div className="s">
               <div className="v">{bookings.length}</div>
               <div className="l">attended</div>
-            </div>
-            <div className="s">
-              <div className="v">{user.isOrganizer ? myEvents.length : 0}</div>
-              <div className="l">hosted</div>
             </div>
             <div className="s">
               <div className="v">{followers.length}</div>
