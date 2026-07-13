@@ -167,6 +167,7 @@ interface AppState {
   followRequests: string[]; // person ids awaiting my approval
   acceptFollowRequest: (personId: string) => void;
   declineFollowRequest: (personId: string) => void;
+  removeFollower: (personId: string) => void;
   orgBalance: number;
   withdrawals: Withdrawal[];
   withdraw: (amount: number) => void;
@@ -462,6 +463,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setFollowers((prev) => (prev.includes(personId) ? prev : [personId, ...prev]));
       },
       declineFollowRequest: (personId) => setFollowRequests((prev) => prev.filter((x) => x !== personId)),
+      removeFollower: (personId) => setFollowers((prev) => prev.filter((x) => x !== personId)),
       orgBalance,
       withdrawals,
       withdraw: (amount) => {

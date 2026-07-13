@@ -6,12 +6,13 @@ import Poster from '../components/Poster';
 import Stars from '../components/Stars';
 
 export default function Profile() {
-  const { user, bookings, following, toggleFollow, myEvents, updateUser, followers, followRequests, acceptFollowRequest, declineFollowRequest } = useApp();
+  const { user, bookings, following, toggleFollow, myEvents, updateUser, followers, followRequests, acceptFollowRequest, declineFollowRequest, removeFollower } = useApp();
 
   if (!user) return null;
 
   const visibility = user.attendanceVisibility ?? 'off';
   const peopleFollowing = following.filter((f) => f.startsWith('person:')).length;
+  const followerPeople = followers.map((id) => personById(id)).filter((p): p is NonNullable<typeof p> => !!p);
   const VIS_OPTIONS: { v: 'off' | 'followers' | 'public'; label: string; desc: string }[] = [
     { v: 'off', label: 'Off', desc: 'Nobody sees you' },
     { v: 'followers', label: 'Followers', desc: 'People who follow you' },
@@ -133,17 +134,21 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="stat3" style={{ marginBottom: 16 }}>
+          <div className="stat3" style={{ marginBottom: 16, gridTemplateColumns: 'repeat(4, 1fr)' }}>
             <div className="s">
               <div className="v">{bookings.length}</div>
-              <div className="l">parties attended</div>
+              <div className="l">attended</div>
             </div>
             <div className="s">
               <div className="v">{user.isOrganizer ? myEvents.length : 0}</div>
-              <div className="l">parties hosted</div>
+              <div className="l">hosted</div>
             </div>
             <div className="s">
-              <div className="v">{following.length}</div>
+              <div className="v">{followers.length}</div>
+              <div className="l">followers</div>
+            </div>
+            <div className="s">
+              <div className="v">{peopleFollowing}</div>
               <div className="l">following</div>
             </div>
           </div>
@@ -163,6 +168,25 @@ export default function Profile() {
                 </button>
               </div>
             ))}
+          </div>
+
+          <div className="card" style={{ marginTop: 16 }}>
+            <h3 style={{ marginBottom: 8 }}>Followers ({followers.length})</h3>
+            {followerPeople.length === 0 ? (
+              <div className="muted small">No followers yet. Accept follow requests to grow your circle.</div>
+            ) : (
+              followerPeople.map((p) => (
+                <div key={p.id} className="kv" style={{ alignItems: 'center' }}>
+                  <Link to={`/u/${p.username}`} className="k bold" style={{ color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 28, height: 28, borderRadius: '50%', background: `hsl(${p.avatarHue} 55% 45%)`, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
+                      {p.name[0]}
+                    </span>
+                    {p.name} {p.verified && <span className="verified">✓</span>}
+                  </Link>
+                  <button className="btn btn-ghost btn-sm" onClick={() => removeFollower(p.id)}>Remove</button>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
