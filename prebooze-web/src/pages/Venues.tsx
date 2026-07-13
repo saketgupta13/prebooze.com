@@ -16,7 +16,7 @@ export default function Venues() {
   const [q, setQ] = useState('');
 
   const venues = useMemo(() => {
-    let list = VENUES;
+    let list = VENUES.filter((v) => v.city === city);
     if (q) list = list.filter((v) => v.name.toLowerCase().includes(q.toLowerCase()));
     if (loc !== LOCALITIES[0]) list = list.filter((v) => v.locality === loc);
     if (type !== TYPES[0]) list = list.filter((v) => v.type === type);
@@ -24,7 +24,7 @@ export default function Venues() {
     if (cap === CAPS[2]) list = list.filter((v) => v.capacity >= 500 && v.capacity <= 2500);
     if (cap === CAPS[3]) list = list.filter((v) => v.capacity > 2500);
     return list;
-  }, [q, loc, type, cap]);
+  }, [q, loc, type, cap, city]);
 
   const cycle = (options: string[], current: string, set: (v: string) => void) => () => {
     set(options[(options.indexOf(current) + 1) % options.length]);

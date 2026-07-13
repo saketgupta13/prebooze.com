@@ -1,16 +1,13 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EVENTS, ORGANIZERS } from '../data/mock';
 import { useApp } from '../store/AppContext';
 import DirectoryCard from '../components/DirectoryCard';
 
-/** Public directory of all verified organizers. */
+/** Public directory of verified organizers in the selected city. */
 export default function Organizers() {
   const { city, following, toggleFollow } = useApp();
-  const cities = ['All', ...Array.from(new Set(ORGANIZERS.map((o) => o.city)))];
-  const [cityF, setCityF] = useState(() => (cities.includes(city) ? city : 'All'));
   const list = [...ORGANIZERS]
-    .filter((o) => cityF === 'All' || o.city === cityF)
+    .filter((o) => o.city === city)
     .sort((a, b) => b.eventsHosted - a.eventsHosted);
 
   return (
@@ -19,15 +16,10 @@ export default function Organizers() {
         <div className="breadcrumb">
           <Link to="/">Home</Link> / Organizers
         </div>
-        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Organizers 🎧</h1>
-        <p className="muted" style={{ marginBottom: 14 }}>
+        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Organizers in {city} 🎧</h1>
+        <p className="muted" style={{ marginBottom: 18 }}>
           Verified event brands — concerts, comedy, festivals and warehouse parties near you.
         </p>
-        <div className="chip-row" style={{ marginBottom: 18 }}>
-          {cities.map((c) => (
-            <button key={c} className={`chip ${cityF === c ? 'on' : ''}`} onClick={() => setCityF(c)}>{c}</button>
-          ))}
-        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(258px, 1fr))', gap: 14 }}>
           {list.map((o) => {
@@ -57,6 +49,7 @@ export default function Organizers() {
             );
           })}
         </div>
+        {list.length === 0 && <div className="empty">No organizers in {city} yet.</div>}
       </div>
     </main>
   );

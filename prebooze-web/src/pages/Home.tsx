@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import {
@@ -13,6 +13,14 @@ import Poster from '../components/Poster';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
 
+const HERO = [
+  { hue: 95, emoji: '🎉', badge: 'Featured', title: "Your city's events, one tap away", text: 'Concerts, comedy, festivals and warehouse parties — instant WhatsApp tickets, QR entry, zero fakes.', cta: 'Explore events →', to: '/browse' },
+  { hue: 285, emoji: '📣', badge: 'Guest lists', title: 'Free entry before the cutoff', text: 'Join a promoter’s guest list and walk in free — no ticket needed if you’re early.', cta: 'Find promoters →', to: '/promoters' },
+  { hue: 200, emoji: '👀', badge: 'Who’s going', title: 'See who’s going before you book', text: 'Follow your friends and spot the crowd on every event in your city.', cta: 'Find your people →', to: '/people' },
+  { hue: 30, emoji: '🎤', badge: 'For hosts', title: 'Host an event, get paid weekly', text: 'List in minutes, sell tickets, scan QR at the gate — payouts every week.', cta: 'Host with us →', to: '/host' },
+  { hue: 330, emoji: '🎧', badge: 'Line-ups', title: 'Catch your favourite acts live', text: 'Follow DJs, bands and comedians — never miss their next set.', cta: 'Browse line-ups →', to: '/lineups' },
+];
+
 const TRUST = [
   { icon: '✅', title: 'Verified organizers only', desc: 'Every host is KYC-checked. No fake listings, ever.' },
   { icon: '💬', title: 'WhatsApp OTP login', desc: 'No passwords. Your tickets land straight in your chats.' },
@@ -20,7 +28,48 @@ const TRUST = [
   { icon: '↩️', title: 'Instant refunds', desc: 'Plans change? Money back to source in minutes, up to 48h.' },
   { icon: '👀', title: 'See who’s going', desc: 'Follow friends and spot the crowd before you book.' },
   { icon: '⚡', title: 'Book in 20 seconds', desc: 'Pick, pay with UPI, walk in. That’s the whole flow.' },
+  { icon: '🎟️', title: 'Fair, transparent fees', desc: 'What you see is what you pay — no surprise charges at checkout.' },
+  { icon: '📍', title: 'Local to your city', desc: 'Every listing is filtered to your city — only what you can actually attend.' },
 ];
+
+const HOW: Record<'guests' | 'organizers' | 'promoters' | 'lineups', { label: string; steps: { icon: string; t: string; d: string }[] }> = {
+  guests: {
+    label: 'For guests',
+    steps: [
+      { icon: '🔎', t: 'Find an event', d: 'Browse concerts, comedy and parties in your city.' },
+      { icon: '💬', t: 'Login with WhatsApp', d: 'One OTP, no password. 20 seconds flat.' },
+      { icon: '💳', t: 'Pay & get your QR', d: 'UPI or card — ticket lands in WhatsApp instantly.' },
+      { icon: '🎉', t: 'Scan at entry', d: 'Show your QR, walk in, enjoy the night.' },
+    ],
+  },
+  organizers: {
+    label: 'For organizers',
+    steps: [
+      { icon: '📝', t: 'Create your event', d: 'Set tickets, tiers and guest-list rules in minutes.' },
+      { icon: '✅', t: 'Get verified & go live', d: 'Quick KYC, then publish to the whole city.' },
+      { icon: '📈', t: 'Guests book instantly', d: 'Discovery, social proof and coupons do the selling.' },
+      { icon: '💰', t: 'Scan & get paid', d: 'Check in at the gate, payouts land weekly.' },
+    ],
+  },
+  promoters: {
+    label: 'For promoters',
+    steps: [
+      { icon: '🤝', t: 'Get approved', d: 'Sign up, pass KYC, get added to an event’s allow-list.' },
+      { icon: '🔗', t: 'Share your link', d: 'Every event gives you a personal affiliate guest-list link.' },
+      { icon: '📋', t: 'Fill the list', d: 'Guests join free before the cutoff; watch arrivals live.' },
+      { icon: '💸', t: 'Earn per head', d: 'The organizer pays you for every guest who shows up.' },
+    ],
+  },
+  lineups: {
+    label: 'For line-ups',
+    steps: [
+      { icon: '🎧', t: 'Create your profile', d: 'DJ, band or comedian — set your genre, city and links.' },
+      { icon: '⭐', t: 'Grow your following', d: 'Fans follow you and get pinged on your next set.' },
+      { icon: '📅', t: 'Get booked', d: 'Organizers add you to their line-ups and events.' },
+      { icon: '🔥', t: 'Sell out shows', d: 'Your name on the poster pulls your crowd in.' },
+    ],
+  },
+};
 
 const JOIN = [
   { icon: '🎤', title: 'Host events', desc: 'List your event, sell tickets, scan QR at the gate — payouts weekly.', cta: 'Host with us →', to: '/host' },
@@ -32,8 +81,16 @@ export default function Home() {
   const { city, user, carts, setSelection, following, toggleFollow } = useApp();
   const navigate = useNavigate();
   const [cat, setCat] = useState('All');
-  const [howTab, setHowTab] = useState<'guests' | 'organizers'>('guests');
+  const [howTab, setHowTab] = useState<'guests' | 'organizers' | 'promoters' | 'lineups'>('guests');
   const [dismissed, setDismissed] = useState(false);
+  const [heroIdx, setHeroIdx] = useState(0);
+  const [eventLimit, setEventLimit] = useState(4);
+
+  // auto-advance the hero every 5s
+  useEffect(() => {
+    const t = setInterval(() => setHeroIdx((i) => (i + 1) % HERO.length), 5000);
+    return () => clearInterval(t);
+  }, []);
 
   const published = EVENTS.filter((e) => e.status === 'approved');
   const events = cat === 'All' ? published : published.filter((e) => e.category === cat);
@@ -84,15 +141,31 @@ export default function Home() {
           </div>
         )}
 
-        {/* Hero */}
-        <section className="hero">
-          <span className="badge badge-accent">Featured · {city}</span>
-          <h1 style={{ marginTop: 12 }}>Your city's events, one tap away</h1>
-          <p>Concerts, comedy, festivals and warehouse parties from verified organizers — instant WhatsApp tickets, QR entry, zero fakes.</p>
-          <div style={{ marginTop: 20 }}>
-            <Link to="/browse" className="btn btn-pri btn-lg">Explore events →</Link>
+        {/* Hero slider */}
+        <div className="hero-slider">
+          {(() => {
+            const h = HERO[heroIdx];
+            return (
+              <div className="hero-slide">
+                <div className="hero-bg" style={{ background: `radial-gradient(ellipse at 28% 24%, hsla(${h.hue},70%,52%,.42), transparent 60%), radial-gradient(ellipse at 78% 82%, hsla(${(h.hue + 60) % 360},65%,45%,.30), transparent 55%), var(--surface-2)` }} />
+                <div className="hero-ov" />
+                <div className="hero-inner">
+                  <span className="badge badge-accent">{h.emoji} {h.badge} · {city}</span>
+                  <h1>{h.title}</h1>
+                  <p>{h.text}</p>
+                  <Link to={h.to} className="btn btn-pri btn-lg" style={{ marginTop: 18 }}>{h.cta}</Link>
+                </div>
+              </div>
+            );
+          })()}
+          <button className="hero-arrow left" onClick={() => setHeroIdx((i) => (i - 1 + HERO.length) % HERO.length)} aria-label="Previous">‹</button>
+          <button className="hero-arrow right" onClick={() => setHeroIdx((i) => (i + 1) % HERO.length)} aria-label="Next">›</button>
+          <div className="hero-dots">
+            {HERO.map((_, i) => (
+              <button key={i} className={i === heroIdx ? 'on' : ''} onClick={() => setHeroIdx(i)} aria-label={`Slide ${i + 1}`} />
+            ))}
           </div>
-        </section>
+        </div>
 
         {/* Category chips + grid */}
         <div className="chip-row" style={{ marginBottom: 18 }}>
@@ -101,9 +174,19 @@ export default function Home() {
           ))}
         </div>
         <div className="grid-4">
-          {events.slice(0, 4).map((e) => <EventCard key={e.id} event={e} />)}
+          {events.slice(0, eventLimit).map((e) => <EventCard key={e.id} event={e} />)}
         </div>
         {events.length === 0 && <div className="empty">No events in this category yet.</div>}
+        {events.length > eventLimit && (
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <button className="btn btn-ghost" onClick={() => setEventLimit((n) => n + 8)}>Show more events ▾</button>
+          </div>
+        )}
+        {events.length > 4 && events.length <= eventLimit && (
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <Link to="/browse" className="btn btn-ghost">Browse all events →</Link>
+          </div>
+        )}
 
         {/* Friends going feed */}
         {friendEvents.length > 0 && (
@@ -249,24 +332,12 @@ export default function Home() {
         <section className="section">
           <div className="section-hd"><h2>How it works</h2></div>
           <div className="chip-row" style={{ marginBottom: 16 }}>
-            <button className={`chip ${howTab === 'guests' ? 'on' : ''}`} onClick={() => setHowTab('guests')}>For guests</button>
-            <button className={`chip ${howTab === 'organizers' ? 'on' : ''}`} onClick={() => setHowTab('organizers')}>For organizers</button>
+            {(Object.keys(HOW) as (keyof typeof HOW)[]).map((k) => (
+              <button key={k} className={`chip ${howTab === k ? 'on' : ''}`} onClick={() => setHowTab(k)}>{HOW[k].label}</button>
+            ))}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
-            {(howTab === 'guests'
-              ? [
-                  { icon: '🔎', t: 'Find an event', d: 'Browse concerts, comedy and parties in your city.' },
-                  { icon: '💬', t: 'Login with WhatsApp', d: 'One OTP, no password. 20 seconds flat.' },
-                  { icon: '💳', t: 'Pay & get your QR', d: 'UPI or card — ticket lands in WhatsApp instantly.' },
-                  { icon: '🎉', t: 'Scan at entry', d: 'Show your QR, walk in, enjoy the night.' },
-                ]
-              : [
-                  { icon: '📝', t: 'Create your event', d: 'Set tickets, tiers and guest-list rules in minutes.' },
-                  { icon: '✅', t: 'Get verified & go live', d: 'Quick KYC, then publish to the whole city.' },
-                  { icon: '📈', t: 'Guests book instantly', d: 'Discovery, social proof and coupons do the selling.' },
-                  { icon: '💰', t: 'Scan & get paid', d: 'Check in at the gate, payouts land weekly.' },
-                ]
-            ).map((s, i) => (
+            {HOW[howTab].steps.map((s, i) => (
               <div key={s.t} className="card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span className="num" style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>{i + 1}</span>

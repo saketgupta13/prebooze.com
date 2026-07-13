@@ -7,12 +7,10 @@ import DirectoryCard from '../components/DirectoryCard';
 /** Public directory of line-up artists — DJs, bands, comedians and more. */
 export default function Lineups() {
   const { city, following, toggleFollow } = useApp();
-  const cats = ['All', ...Array.from(new Set(LINEUPS.map((l) => l.category)))];
-  const cities = ['All', ...Array.from(new Set(LINEUPS.map((l) => l.city)))];
+  const cats = ['All', ...Array.from(new Set(LINEUPS.filter((l) => l.city === city).map((l) => l.category)))];
   const [catF, setCatF] = useState('All');
-  const [cityF, setCityF] = useState(() => (cities.includes(city) ? city : 'All'));
   const list = [...LINEUPS]
-    .filter((l) => (catF === 'All' || l.category === catF) && (cityF === 'All' || l.city === cityF))
+    .filter((l) => l.city === city && (catF === 'All' || l.category === catF))
     .sort((a, b) => b.followers - a.followers);
 
   return (
@@ -21,19 +19,14 @@ export default function Lineups() {
         <div className="breadcrumb">
           <Link to="/">Home</Link> / Line-ups
         </div>
-        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Line-ups 🎤</h1>
+        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Line-ups in {city} 🎤</h1>
         <p className="muted" style={{ marginBottom: 18 }}>
           Follow the artists, DJs and acts you love — catch them before their next set sells out.
         </p>
 
-        <div className="chip-row" style={{ marginBottom: 8 }}>
+        <div className="chip-row" style={{ marginBottom: 18 }}>
           {cats.map((c) => (
             <button key={c} className={`chip ${catF === c ? 'on' : ''}`} onClick={() => setCatF(c)}>{c}</button>
-          ))}
-        </div>
-        <div className="chip-row" style={{ marginBottom: 18 }}>
-          {cities.map((c) => (
-            <button key={c} className={`chip ${cityF === c ? 'on' : ''}`} onClick={() => setCityF(c)}>{c}</button>
           ))}
         </div>
 
@@ -61,6 +54,7 @@ export default function Lineups() {
             );
           })}
         </div>
+        {list.length === 0 && <div className="empty">No line-ups in {city} yet.</div>}
       </div>
     </main>
   );

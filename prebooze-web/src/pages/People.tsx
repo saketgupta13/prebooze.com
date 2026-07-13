@@ -11,12 +11,7 @@ export default function People() {
   const { city, following, bookings, interested, toggleFollow } = useApp();
   const [tab, setTab] = useState<'discover' | 'following'>('discover');
   const [q, setQ] = useState('');
-  const [cityF, setCityF] = useState(() => {
-    const cs = new Set(PEOPLE.map((p) => p.city));
-    return cs.has(city) ? city : 'All';
-  });
 
-  const cities = ['All', ...Array.from(new Set(PEOPLE.map((p) => p.city)))];
   const myEventIds = useMemo(
     () => new Set([...bookings.filter((b) => b.status !== 'cancelled').map((b) => b.eventId), ...interested]),
     [bookings, interested]
@@ -25,16 +20,15 @@ export default function People() {
   const followingCount = PEOPLE.filter((p) => following.includes(personFollowKey(p.id))).length;
 
   const list = useMemo(() => {
-    let l = [...PEOPLE];
+    let l = PEOPLE.filter((p) => p.city === city);
     if (tab === 'following') l = l.filter((p) => following.includes(personFollowKey(p.id)));
-    if (cityF !== 'All') l = l.filter((p) => p.city === cityF);
     if (q.trim()) {
       const s = q.toLowerCase();
-      l = l.filter((p) => (p.name + p.username + p.city).toLowerCase().includes(s));
+      l = l.filter((p) => (p.name + p.username).toLowerCase().includes(s));
     }
     return l.sort((a, b) => commonCount(b) - commonCount(a) || b.followers - a.followers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, cityF, q, following, myEventIds]);
+  }, [tab, city, q, following, myEventIds]);
 
   return (
     <main className="page">
@@ -57,21 +51,16 @@ export default function People() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 18 }}>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search people by name, handle or city…" style={{ flex: 1, minWidth: 200 }} />
-          <div className="chip-row" style={{ margin: 0 }}>
-            {cities.map((c) => (
-              <button key={c} className={`chip ${cityF === c ? 'on' : ''}`} onClick={() => setCityF(c)}>{c}</button>
-            ))}
-          </div>
+        <div style={{ marginBottom: 18 }}>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search people in ${city}…`} style={{ width: '100%' }} />
         </div>
 
         {list.length === 0 ? (
           <div className="empty">
             {tab === 'following' ? (
-              <>You’re not following anyone yet. <button className="link bold" style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }} onClick={() => setTab('discover')}>Discover people →</button></>
+              <>You’re not following anyone in {city} yet. <button className="link bold" style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }} onClick={() => setTab('discover')}>Discover people →</button></>
             ) : (
-              'No people match your search.'
+              `No people in ${city} yet.`
             )}
           </div>
         ) : (

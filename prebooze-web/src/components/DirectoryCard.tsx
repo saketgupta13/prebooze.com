@@ -18,7 +18,7 @@ export default function DirectoryCard({
   action?: ReactNode;
 }) {
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
       <Link to={to} style={{ width: 'fit-content' }}>
         <span style={{
           width: 46, height: 46, borderRadius: '50%', flexShrink: 0,
@@ -31,7 +31,7 @@ export default function DirectoryCard({
       </Link>
       <div className="tiny muted-2">{meta}</div>
       {bio && (
-        <p className="tiny muted" style={{ margin: '8px 0 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <p className="tiny muted" style={{ margin: '8px 0 0', minHeight: '2.6em', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {bio}
         </p>
       )}
