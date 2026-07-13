@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { CITIES } from '../../data/mock';
+import LocationPicker, { emptyLocation } from '../../components/LocationPicker';
 
 /** Promoter onboarding — same 2-step pattern as organizers: PR profile → identity KYC,
  * then Pending admin review. */
@@ -12,7 +12,8 @@ export default function PromoterOnboarding() {
   const [logo, setLogo] = useState(false);
   const [brand, setBrand] = useState('');
   const [username, setUsername] = useState('');
-  const [city, setCity] = useState(user?.city ?? 'Austin');
+  const [city, setCity] = useState(user?.city ?? '');
+  const [loc, setLoc] = useState(emptyLocation);
   const [bio, setBio] = useState('');
   const [links, setLinks] = useState('');
   const [audience, setAudience] = useState('');
@@ -91,19 +92,10 @@ export default function PromoterOnboarding() {
                 <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@novanights" />
               </div>
             </div>
-            <div className="form-row">
-              <div className="field">
-                <span>City</span>
-                <select value={city} onChange={(e) => setCity(e.target.value)}>
-                  {CITIES.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <span>Links (socials / WhatsApp)</span>
-                <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="ig / wa / telegram" />
-              </div>
+            <LocationPicker value={loc} onChange={(v) => { setLoc(v); setCity(v.city); }} />
+            <div className="field">
+              <span>Links (socials / WhatsApp)</span>
+              <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="ig / wa / telegram" />
             </div>
             <div className="field">
               <span>Bio — what nights do you run?</span>

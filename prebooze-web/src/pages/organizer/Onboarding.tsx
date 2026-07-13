@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { CITIES } from '../../data/mock';
+import LocationPicker, { emptyLocation } from '../../components/LocationPicker';
 
 export default function Onboarding() {
   const { user, updateUser } = useApp();
@@ -15,7 +15,8 @@ export default function Onboarding() {
   const [contact, setContact] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
   const [altPhone, setAltPhone] = useState('');
-  const [city, setCity] = useState(user?.city ?? 'Austin');
+  const [city, setCity] = useState(user?.city ?? '');
+  const [loc, setLoc] = useState(emptyLocation);
   const [types, setTypes] = useState('Concerts');
   const [about, setAbout] = useState('');
   const [links, setLinks] = useState('');
@@ -99,25 +100,16 @@ export default function Onboarding() {
                 <input value={user?.phone ?? ''} disabled />
               </div>
             </div>
-            <div className="form-row">
-              <div className="field">
-                <span>City</span>
-                <select value={city} onChange={(e) => setCity(e.target.value)}>
-                  {CITIES.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <span>Event types you host</span>
-                <select value={types} onChange={(e) => setTypes(e.target.value)}>
-                  <option>Concerts</option>
-                  <option>Comedy</option>
-                  <option>Festivals</option>
-                  <option>Club nights</option>
-                  <option>Mixed</option>
-                </select>
-              </div>
+            <LocationPicker value={loc} onChange={(v) => { setLoc(v); setCity(v.city); }} />
+            <div className="field">
+              <span>Event types you host</span>
+              <select value={types} onChange={(e) => setTypes(e.target.value)}>
+                <option>Concerts</option>
+                <option>Comedy</option>
+                <option>Festivals</option>
+                <option>Club nights</option>
+                <option>Mixed</option>
+              </select>
             </div>
             <div className="field">
               <span>About your brand</span>

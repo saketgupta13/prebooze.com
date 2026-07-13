@@ -4,13 +4,11 @@ import { useApp } from '../store/AppContext';
 import { EVENTS, VENUES } from '../data/mock';
 import Poster from '../components/Poster';
 
-const LOCALITIES = ['Locality', 'Downtown', 'East Side', 'Riverside', 'South Congress'];
 const TYPES = ['Venue type', 'Concert hall', 'Club', 'Rooftop bar', 'Open-air', 'Warehouse'];
 const CAPS = ['Capacity', 'Under 500', '500–2500', '2500+'];
 
 export default function Venues() {
   const { city } = useApp();
-  const [loc, setLoc] = useState(LOCALITIES[0]);
   const [type, setType] = useState(TYPES[0]);
   const [cap, setCap] = useState(CAPS[0]);
   const [q, setQ] = useState('');
@@ -18,45 +16,33 @@ export default function Venues() {
   const venues = useMemo(() => {
     let list = VENUES.filter((v) => v.city === city);
     if (q) list = list.filter((v) => v.name.toLowerCase().includes(q.toLowerCase()));
-    if (loc !== LOCALITIES[0]) list = list.filter((v) => v.locality === loc);
     if (type !== TYPES[0]) list = list.filter((v) => v.type === type);
     if (cap === CAPS[1]) list = list.filter((v) => v.capacity < 500);
     if (cap === CAPS[2]) list = list.filter((v) => v.capacity >= 500 && v.capacity <= 2500);
     if (cap === CAPS[3]) list = list.filter((v) => v.capacity > 2500);
     return list;
-  }, [q, loc, type, cap, city]);
-
-  const cycle = (options: string[], current: string, set: (v: string) => void) => () => {
-    set(options[(options.indexOf(current) + 1) % options.length]);
-  };
+  }, [q, type, cap, city]);
 
   return (
     <main className="page">
       <div className="container">
-        <div className="chip-row" style={{ marginBottom: 20 }}>
+        <div className="chip-row" style={{ marginBottom: 20, gap: 10, alignItems: 'center' }}>
           <input
             placeholder="🔍 Search venues…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             style={{ maxWidth: 240, borderRadius: 999 }}
           />
-          <button className={`chip ${loc !== LOCALITIES[0] ? 'on' : ''}`} onClick={cycle(LOCALITIES, loc, setLoc)}>
-            {loc} {loc !== LOCALITIES[0] ? '✕' : '▾'}
-          </button>
-          <button className={`chip ${type !== TYPES[0] ? 'on' : ''}`} onClick={cycle(TYPES, type, setType)}>
-            {type} ▾
-          </button>
-          <button className={`chip ${cap !== CAPS[0] ? 'on' : ''}`} onClick={cycle(CAPS, cap, setCap)}>
-            {cap} ▾
-          </button>
+          <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: 'auto' }}>
+            {TYPES.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <select value={cap} onChange={(e) => setCap(e.target.value)} style={{ width: 'auto' }}>
+            {CAPS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
         </div>
 
         <h1 style={{ fontSize: 21, marginBottom: 18 }}>
-          {venues.length} venue{venues.length === 1 ? '' : 's'} in{' '}
-          <span className="accent">
-            {loc !== LOCALITIES[0] ? `${loc}, ` : ''}
-            {city}
-          </span>
+          {venues.length} venue{venues.length === 1 ? '' : 's'} in <span className="accent">{city}</span>
         </h1>
 
         <div className="grid-3">

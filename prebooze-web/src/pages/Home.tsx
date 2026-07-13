@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import {
   CATEGORIES, EVENTS, FAQS, LINEUPS, ORGANIZERS, PEOPLE, PROMOTERS, TESTIMONIALS, VENUES,
-  eventsForPerson,
+  eventsForPerson, venueById,
 } from '../data/mock';
 import { friendsGoing, personFollowKey } from '../lib/social';
 import EventCard from '../components/EventCard';
@@ -93,7 +93,10 @@ export default function Home() {
   }, []);
 
   const published = EVENTS.filter((e) => e.status === 'approved');
-  const events = cat === 'All' ? published : published.filter((e) => e.category === cat);
+  const soldOf = (e: typeof EVENTS[number]) => e.tiers.reduce((a, t) => a + t.sold, 0);
+  const events = (cat === 'All' ? published : published.filter((e) => e.category === cat))
+    .filter((e) => venueById(e.venueId)?.city === city)
+    .sort((a, b) => soldOf(b) - soldOf(a));
 
   // City-scoped top lists (fall back to all when a city has no seeded data yet).
   const byCity = <T extends { city: string }>(arr: T[]) => {
@@ -167,7 +170,11 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Category chips + grid */}
+        {/* Top selling events */}
+        <div className="section-hd">
+          <h2>Top selling events in {city}</h2>
+          <Link to="/browse">See all →</Link>
+        </div>
         <div className="chip-row" style={{ marginBottom: 18 }}>
           {CATEGORIES.map((c) => (
             <button key={c} className={`chip ${cat === c ? 'on' : ''}`} onClick={() => setCat(c)}>{c}</button>
@@ -176,7 +183,7 @@ export default function Home() {
         <div className="grid-4">
           {events.slice(0, eventLimit).map((e) => <EventCard key={e.id} event={e} />)}
         </div>
-        {events.length === 0 && <div className="empty">No events in this category yet.</div>}
+        {events.length === 0 && <div className="empty">No events in {city} yet.</div>}
         {events.length > eventLimit && (
           <div style={{ textAlign: 'center', marginTop: 16 }}>
             <button className="btn btn-ghost" onClick={() => setEventLimit((n) => n + 8)}>Show more events ▾</button>

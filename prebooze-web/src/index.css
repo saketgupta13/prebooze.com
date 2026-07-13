@@ -445,6 +445,13 @@ textarea { resize: vertical; min-height: 84px; }
 .slider-btn.left { left: -12px; } .slider-btn.right { right: -12px; }
 @media (max-width: 680px) { .slider-btn { display: none; } }
 
+/* searchable select */
+.ss { position: relative; }
+.ss-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; max-height: 220px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,.45); padding: 4px; }
+.ss-opt { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 8px 10px; border-radius: 7px; cursor: pointer; font: inherit; }
+.ss-opt:hover { background: var(--surface-2); }
+.ss-empty { padding: 10px; color: var(--muted); font-size: 13px; }
+
 /* hero slider */
 .hero-slider { position: relative; margin-bottom: 24px; }
 .hero-slide { position: relative; border-radius: 18px; overflow: hidden; min-height: 300px; display: flex; align-items: center; }

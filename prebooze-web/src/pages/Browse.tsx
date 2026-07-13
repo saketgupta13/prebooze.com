@@ -19,7 +19,7 @@ export default function Browse() {
   const [sort, setSort] = useState(SORTS[0]);
 
   const events = useMemo(() => {
-    let list = EVENTS.filter((e) => e.status === 'approved');
+    let list = EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
     if (q)
       list = list.filter(
         (e) =>
@@ -48,31 +48,26 @@ export default function Browse() {
         (a, b) => Math.min(...b.tiers.map((t) => t.price)) - Math.min(...a.tiers.map((t) => t.price))
       );
     return list;
-  }, [q, cat, price, dateF, sort]);
-
-  const cycle = (options: string[], current: string, set: (v: string) => void) => () => {
-    const idx = options.indexOf(current);
-    set(options[(idx + 1) % options.length]);
-  };
+  }, [q, cat, price, dateF, sort, city]);
 
   return (
     <main className="page">
       <div className="container">
-        <div className="chip-row" style={{ marginBottom: 20 }}>
+        <div className="chip-row" style={{ marginBottom: 20, gap: 10, alignItems: 'center' }}>
           <span className="small muted bold">Filters:</span>
-          <button className={`chip ${dateF !== DATE_FILTERS[0] ? 'on' : ''}`} onClick={cycle(DATE_FILTERS, dateF, setDateF)}>
-            {dateF} ▾
-          </button>
-          <button className={`chip ${cat !== 'Category' ? 'on' : ''}`} onClick={cycle(CATS, cat, setCat)}>
-            {cat} {cat !== 'Category' ? '✕' : '▾'}
-          </button>
-          <button className={`chip ${price !== PRICES[0] ? 'on' : ''}`} onClick={cycle(PRICES, price, setPrice)}>
-            {price} ▾
-          </button>
+          <select value={dateF} onChange={(e) => setDateF(e.target.value)} style={{ width: 'auto' }}>
+            {DATE_FILTERS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ width: 'auto' }}>
+            {CATS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <select value={price} onChange={(e) => setPrice(e.target.value)} style={{ width: 'auto' }}>
+            {PRICES.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
           <span style={{ flex: 1 }} />
-          <button className="chip" onClick={cycle(SORTS, sort, setSort)}>
-            {sort} ▾
-          </button>
+          <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ width: 'auto' }}>
+            {SORTS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
         </div>
 
         <h1 style={{ fontSize: 21, marginBottom: 18 }}>

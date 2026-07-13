@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { CITIES } from '../data/mock';
+import LocationPicker, { emptyLocation } from '../components/LocationPicker';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 
@@ -15,7 +15,8 @@ export default function LineupOnboarding() {
   const [photo, setPhoto] = useState(false);
   const [stageName, setStageName] = useState('');
   const [category, setCategory] = useState('DJ');
-  const [city, setCity] = useState(user?.city ?? 'Austin');
+  const [city, setCity] = useState(user?.city ?? '');
+  const [loc, setLoc] = useState(emptyLocation);
   const [bio, setBio] = useState('');
   const [links, setLinks] = useState('');
   const [sample, setSample] = useState('');
@@ -106,19 +107,10 @@ export default function LineupOnboarding() {
                 ))}
               </div>
             </div>
-            <div className="form-row">
-              <div className="field">
-                <span>Based in</span>
-                <select value={city} onChange={(e) => setCity(e.target.value)}>
-                  {CITIES.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <span>Links (socials / music)</span>
-                <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="ig / spotify / soundcloud" />
-              </div>
+            <LocationPicker value={loc} onChange={(v) => { setLoc(v); setCity(v.city); }} />
+            <div className="field">
+              <span>Links (socials / music)</span>
+              <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="ig / spotify / soundcloud" />
             </div>
             <div className="field">
               <span>Bio — what do you play / do?</span>

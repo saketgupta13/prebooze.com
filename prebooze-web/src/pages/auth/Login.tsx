@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
+import { COUNTRIES } from '../../data/locations';
 
 export default function Login() {
   const { setPendingPhone } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('+91');
   const [agreed, setAgreed] = useState(false);
   const [err, setErr] = useState('');
 
@@ -15,7 +17,7 @@ export default function Login() {
     const digits = phone.replace(/\D/g, '');
     if (digits.length < 10) return setErr('Enter a valid 10-digit phone number');
     if (!agreed) return setErr('Please accept the Terms & Privacy Policy');
-    setPendingPhone('+91 ' + digits.slice(-10));
+    setPendingPhone(`${code} ${digits.slice(-10)}`);
     navigate('/verify-otp', { state: location.state });
   };
 
@@ -23,8 +25,7 @@ export default function Login() {
     <main className="page">
       <div className="container auth-wrap">
         <div className="auth-visual">
-          <img src="/prebooze-logo.png" alt="Prebooze" />
-          <h2>prebooze</h2>
+          <img src="/prebooze-logo.png" alt="Prebooze" style={{ height: 120, width: 'auto' }} />
           <p className="muted small">
             Concerts · comedy · festivals · warehouse parties — from verified organizers only.
           </p>
@@ -39,10 +40,10 @@ export default function Login() {
           <div className="field">
             <span>Phone number</span>
             <div className="form-row">
-              <select style={{ flex: '0 0 88px' }} defaultValue="+91">
-                <option>+91</option>
-                <option>+1</option>
-                <option>+44</option>
+              <select style={{ flex: '0 0 116px' }} value={code} onChange={(e) => setCode(e.target.value)}>
+                {COUNTRIES.map((c) => (
+                  <option key={c.iso} value={c.dial}>{c.flag} {c.dial}</option>
+                ))}
               </select>
               <input
                 placeholder="Phone number"

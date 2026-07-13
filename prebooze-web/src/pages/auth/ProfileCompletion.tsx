@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { CITIES, INTEREST_TAGS } from '../../data/mock';
+import { INTEREST_TAGS } from '../../data/mock';
+import LocationPicker, { emptyLocation } from '../../components/LocationPicker';
 
 export default function ProfileCompletion() {
   const { user, updateUser } = useApp();
@@ -22,6 +23,7 @@ export default function ProfileCompletion() {
     socials: user?.socials ?? '',
   });
   const [interests, setInterests] = useState<string[]>(user?.interests ?? []);
+  const [loc, setLoc] = useState(emptyLocation);
   const [photo, setPhoto] = useState(false);
 
   const pct = useMemo(() => {
@@ -34,7 +36,7 @@ export default function ProfileCompletion() {
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser({ ...form, interests, profilePct: pct });
+    updateUser({ ...form, city: loc.city || form.city, interests, profilePct: pct });
     navigate('/verify-id', { state: { from } });
   };
 
@@ -91,20 +93,11 @@ export default function ProfileCompletion() {
               </select>
             </div>
           </div>
-          <div className="form-row">
-            <div className="field">
-              <span>Email</span>
-              <input type="email" value={form.email} onChange={set('email')} placeholder="you@mail.com" />
-            </div>
-            <div className="field">
-              <span>City</span>
-              <select value={form.city} onChange={set('city')}>
-                {CITIES.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-            </div>
+          <div className="field">
+            <span>Email</span>
+            <input type="email" value={form.email} onChange={set('email')} placeholder="you@mail.com" />
           </div>
+          <LocationPicker value={loc} onChange={setLoc} />
           <div className="form-row">
             <div className="field">
               <span>Profession</span>
