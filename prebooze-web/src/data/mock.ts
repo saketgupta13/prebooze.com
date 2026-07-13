@@ -1,9 +1,11 @@
 import type {
+  AttendanceRecord,
   Attendee,
   Coupon,
   Event,
   Organizer,
   Payout,
+  Person,
   Review,
   Venue,
 } from '../types';
@@ -741,3 +743,46 @@ export const SUB_TIERS: SubTier[] = [
 
 
 export const GENDER_OPTIONS = ['Female', 'Male', 'Non-binary', 'Prefer not to say'];
+
+// ---- People / social graph (followable guests behind "Who's going") ----
+export const PEOPLE: Person[] = [
+  { id: 'p1', name: 'Aisha Khan', username: 'aisha', city: 'Austin', avatarHue: 285, bio: 'Lives for warehouse sets & rooftop sundowners. DM me your guest lists.', verified: true, followers: 640 },
+  { id: 'p2', name: 'Rohit Verma', username: 'rohitv', city: 'Austin', avatarHue: 200, bio: 'Techno, tacos, and 2 AM decisions.', followers: 410 },
+  { id: 'p3', name: 'Sana Kapoor', username: 'sanak', city: 'Dallas', avatarHue: 30, bio: 'Comedy nights and indie gigs. Front row or nothing.', verified: true, followers: 980 },
+  { id: 'p4', name: 'Dev Patel', username: 'devp', city: 'Austin', avatarHue: 150, bio: 'Festival regular. Sunscreen influencer.', followers: 230 },
+  { id: 'p5', name: 'Neha Gupta', username: 'nehag', city: 'Houston', avatarHue: 330, bio: 'House heads unite.', followers: 520 },
+  { id: 'p6', name: 'Arjun Mehta', username: 'arjunm', city: 'Austin', avatarHue: 95, bio: 'Will show up for a good bassline.', followers: 175 },
+  { id: 'p7', name: 'Priya Nair', username: 'priyan', city: 'Dallas', avatarHue: 265, bio: 'Day parties > night parties. Fight me.', verified: true, followers: 1240 },
+  { id: 'p8', name: 'Vikram Rao', username: 'vikramr', city: 'Austin', avatarHue: 45, bio: 'Warehouse till sunrise.', followers: 300 },
+  { id: 'p9', name: 'Meera Joshi', username: 'meeraj', city: 'Bengaluru', avatarHue: 12, bio: 'New in town, big on plans.', followers: 88 },
+  { id: 'p10', name: 'Karan Shah', username: 'karans', city: 'Austin', avatarHue: 240, bio: 'If there’s a lineup, I’m interested.', followers: 156 },
+];
+
+// Seeded attendance across events — the crowd behind the FOMO. Seeded people are
+// visibility-public so friends light up even while your own default is Off.
+export const ATTENDANCE: AttendanceRecord[] = [
+  { personId: 'p1', eventId: 'ev-1', status: 'going' },
+  { personId: 'p2', eventId: 'ev-1', status: 'going' },
+  { personId: 'p3', eventId: 'ev-1', status: 'interested' },
+  { personId: 'p4', eventId: 'ev-1', status: 'going' },
+  { personId: 'p5', eventId: 'ev-1', status: 'interested' },
+  { personId: 'p6', eventId: 'ev-1', status: 'going' },
+  { personId: 'p1', eventId: 'ev-2', status: 'interested' },
+  { personId: 'p2', eventId: 'ev-2', status: 'going' },
+  { personId: 'p4', eventId: 'ev-2', status: 'going' },
+  { personId: 'p7', eventId: 'ev-2', status: 'going' },
+  { personId: 'p3', eventId: 'ev-5', status: 'going' },
+  { personId: 'p8', eventId: 'ev-5', status: 'going' },
+  { personId: 'p9', eventId: 'ev-5', status: 'interested' },
+  { personId: 'p10', eventId: 'ev-5', status: 'going' },
+  { personId: 'p5', eventId: 'ev-3', status: 'going' },
+  { personId: 'p6', eventId: 'ev-3', status: 'going' },
+  { personId: 'p1', eventId: 'ev-7', status: 'going' },
+  { personId: 'p9', eventId: 'ev-7', status: 'going' },
+  { personId: 'p10', eventId: 'ev-7', status: 'interested' },
+];
+
+export const personById = (id: string) => PEOPLE.find((p) => p.id === id);
+export const personByUsername = (u: string) => PEOPLE.find((p) => p.username === u);
+export const attendanceForEvent = (eventId: string) => ATTENDANCE.filter((a) => a.eventId === eventId);
+export const eventsForPerson = (personId: string) => ATTENDANCE.filter((a) => a.personId === personId);

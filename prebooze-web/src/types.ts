@@ -85,6 +85,25 @@ export interface Organizer {
   logoHue: number;
 }
 
+/** A followable guest — the social graph behind "Who's going". */
+export interface Person {
+  id: string;
+  name: string;
+  username: string; // handle for /u/:username
+  city: string;
+  avatarHue: number;
+  bio?: string;
+  verified?: boolean;
+  followers: number;
+}
+
+/** One person's relationship to one event. */
+export interface AttendanceRecord {
+  personId: string;
+  eventId: string;
+  status: 'going' | 'interested';
+}
+
 export interface Review {
   id: string;
   author: string;
@@ -175,4 +194,5 @@ export interface User {
   promoterBrand?: string;
   promoterUsername?: string;
   promoterPlan?: string;
+  attendanceVisibility?: 'off' | 'followers' | 'public'; // who can see events I'm attending (default off)
 }

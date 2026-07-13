@@ -161,6 +161,8 @@ interface AppState {
   removeCoupon: (id: string) => void;
   toggleCoupon: (id: string) => void;
   toggleFollow: (id: string) => void;
+  interested: string[]; // event ids the user marked "Interested"
+  toggleInterested: (eventId: string) => void;
   orgBalance: number;
   withdrawals: Withdrawal[];
   withdraw: (amount: number) => void;
@@ -219,8 +221,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [myEvents, setMyEvents] = useState<Event[]>(() => load('pb_my_events', []));
   const [coupons, setCoupons] = useState<Coupon[]>(() => load('pb_coupons', COUPONS));
   const [following, setFollowing] = useState<string[]>(() =>
-    load('pb_following', ['livewire', 'nightowl'])
+    load('pb_following', ['livewire', 'nightowl', 'person:p1', 'person:p2', 'person:p3'])
   );
+  const [interested, setInterested] = useState<string[]>(() => load('pb_interested', []));
   const [pendingPhone, setPendingPhone] = useState('');
   const [orgBalance, setOrgBalance] = useState<number>(() => load('pb_org_balance', 84320));
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(() => load('pb_withdrawals', []));
@@ -284,6 +287,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_following', JSON.stringify(following));
   }, [following]);
+  useEffect(() => {
+    localStorage.setItem('pb_interested', JSON.stringify(interested));
+  }, [interested]);
   useEffect(() => {
     localStorage.setItem('pb_org_balance', JSON.stringify(orgBalance));
   }, [orgBalance]);
@@ -357,6 +363,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           profilePct: 20,
           joined: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
           isOrganizer: false,
+          attendanceVisibility: 'off',
         };
         setUser(fresh);
         return 'new';
@@ -430,6 +437,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toggleFollow: (id) =>
         setFollowing((prev) =>
           prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
+        ),
+      interested,
+      toggleInterested: (eventId) =>
+        setInterested((prev) =>
+          prev.includes(eventId) ? prev.filter((e) => e !== eventId) : [eventId, ...prev]
         ),
       orgBalance,
       withdrawals,
@@ -527,7 +539,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

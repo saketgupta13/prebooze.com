@@ -17,6 +17,8 @@ import VenueDetail from './pages/VenueDetail';
 import OrganizerProfile from './pages/OrganizerProfile';
 import Organizers from './pages/Organizers';
 import Promoters from './pages/Promoters';
+import People from './pages/People';
+import PersonProfile from './pages/PersonProfile';
 import Login from './pages/auth/Login';
 import Otp from './pages/auth/Otp';
 import ProfileCompletion from './pages/auth/ProfileCompletion';
@@ -90,6 +92,8 @@ export default function App() {
         <Route path="/organizers" element={<Organizers />} />
         <Route path="/organizers/:id" element={<OrganizerProfile />} />
         <Route path="/promoters" element={<Promoters />} />
+        <Route path="/people" element={<People />} />
+        <Route path="/u/:username" element={<PersonProfile />} />
         <Route path="/lineup/onboarding" element={<LineupOnboarding />} />
         <Route path="/lineup/:slug" element={<LineupProfile />} />
         <Route path="/promoter/onboarding" element={<PromoterOnboarding />} />
