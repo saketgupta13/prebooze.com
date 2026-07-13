@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { CATEGORIES, EVENTS, FAQS, ORGANIZERS, PROMOTERS, TESTIMONIALS, TRUST_POINTS, VENUES } from '../data/mock';
 import EventCard from '../components/EventCard';
@@ -8,16 +8,47 @@ import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
 
 export default function Home() {
-  const { city } = useApp();
+  const { city, user, carts, setSelection } = useApp();
+  const navigate = useNavigate();
   const [cat, setCat] = useState('All');
   const [howTab, setHowTab] = useState<'guests' | 'organizers'>('guests');
+  const [dismissed, setDismissed] = useState(false);
 
   const published = EVENTS.filter((e) => e.status === 'approved');
   const events = cat === 'All' ? published : published.filter((e) => e.category === cat);
 
+  // Abandoned-cart recovery — the guest's most recent unfinished cart.
+  const resumeCart = user
+    ? [...carts]
+        .filter((c) => c.userPhone === user.phone && c.status !== 'completed')
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+    : undefined;
+  const resume = () => {
+    if (!resumeCart) return;
+    setSelection({ eventId: resumeCart.eventId, qty: resumeCart.qtyMap });
+    navigate('/checkout');
+  };
+
   return (
     <main className="page">
       <div className="container">
+        {resumeCart && !dismissed && (
+          <div
+            className="card"
+            style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderColor: 'var(--accent)', background: 'rgba(155,225,61,.06)' }}
+          >
+            <span style={{ fontSize: 22 }}>🛒</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="small bold">
+                You left {resumeCart.qty} ticket{resumeCart.qty > 1 ? 's' : ''} for {resumeCart.eventTitle}
+              </div>
+              <div className="tiny muted-2">Finish before they sell out · {resumeCart.tierSummary} · ₹{resumeCart.total}</div>
+            </div>
+            <button className="btn btn-pri btn-sm" onClick={resume}>Resume checkout →</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setDismissed(true)} aria-label="dismiss">✕</button>
+          </div>
+        )}
+
         {/* Hero */}
         <section className="hero">
           <span className="badge badge-accent">Featured · {city}</span>

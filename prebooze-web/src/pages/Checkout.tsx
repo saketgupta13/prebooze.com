@@ -7,7 +7,7 @@ import type { Booking } from '../types';
 const BOOKING_FEE_PER_TICKET = 1.5;
 
 export default function Checkout() {
-  const { user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, pendingPromoterRef, setPendingPromoterRef } = useApp();
+  const { user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, captureCart, setCartStatus, pendingPromoterRef, setPendingPromoterRef } = useApp();
   const navigate = useNavigate();
 
   const event = selection
@@ -60,6 +60,35 @@ export default function Checkout() {
   }, [appliedCode, coupons, subtotal]);
 
   const total = subtotal + fee - discount;
+
+  const cartId = user && selection ? `${user.phone}::${selection.eventId}` : null;
+
+  // Capture the cart on checkout entry (abandoned-cart recovery) — we already have
+  // the guest's name + WhatsApp from login.
+  useEffect(() => {
+    if (!user || !event || !selection || lines.length === 0 || expired) return;
+    captureCart({
+      id: `${user.phone}::${event.id}`,
+      userPhone: user.phone,
+      userName: user.name || 'Guest',
+      eventId: event.id,
+      eventTitle: event.title,
+      qty: ticketCount,
+      qtyMap: selection.qty,
+      tierSummary: lines.map((l) => `${l.qty}× ${l.tier.name}`).join(', '),
+      subtotal,
+      total,
+      createdAt: new Date().toISOString(),
+    });
+    // capture once per checkout entry; qty/price come from the (stable) selection
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, event, selection]);
+
+  // Hold lapsed without payment → mark the cart abandoned (recoverable).
+  useEffect(() => {
+    if (expired && cartId) setCartStatus(cartId, 'abandoned');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expired]);
 
   if (!event || !selection || lines.length === 0) {
     return (
@@ -154,6 +183,7 @@ export default function Checkout() {
         promoterRef: pendingPromoterRef ?? undefined,
       };
       addBooking(booking);
+      if (cartId) setCartStatus(cartId, 'completed');
       setSelection(null);
       setPendingPromoterRef(null);
       navigate('/confirmation/' + encodeURIComponent(id));

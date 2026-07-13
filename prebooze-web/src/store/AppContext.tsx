@@ -84,6 +84,23 @@ export interface Withdrawal {
   status: 'processing' | 'paid';
 }
 
+/** A checkout cart, tracked for hold + abandoned-cart recovery. */
+export interface CartRecord {
+  id: string; // `${phone}::${eventId}`
+  userPhone: string;
+  userName: string;
+  eventId: string;
+  eventTitle: string;
+  qty: number;
+  qtyMap: Record<string, number>; // tierId -> qty (to restore the selection)
+  tierSummary: string;
+  subtotal: number;
+  total: number;
+  createdAt: string;
+  updatedAt: string;
+  status: 'active' | 'abandoned' | 'completed';
+}
+
 export interface PromoterGuest {
   id: string;
   eventId: string;
@@ -129,6 +146,9 @@ interface AppState {
   holdExpiry: number | null; // epoch ms when the current checkout hold lapses
   startHold: () => void;
   clearHold: () => void;
+  carts: CartRecord[];
+  captureCart: (c: Omit<CartRecord, 'status' | 'updatedAt'>) => void;
+  setCartStatus: (id: string, status: CartRecord['status']) => void;
   addBooking: (b: Booking) => void;
   cancelBooking: (id: string) => void;
   checkInBooking: (id: string, count: number) => void;
@@ -193,6 +213,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<Booking[]>(() => load('pb_bookings', []));
   const [selection, setSelectionState] = useState<Selection | null>(() => load('pb_selection', null));
   const [holdExpiry, setHoldExpiry] = useState<number | null>(() => load('pb_hold_expiry', null));
+  const [carts, setCarts] = useState<CartRecord[]>(() => load('pb_carts', []));
   const [myEvents, setMyEvents] = useState<Event[]>(() => load('pb_my_events', []));
   const [coupons, setCoupons] = useState<Coupon[]>(() => load('pb_coupons', COUPONS));
   const [following, setFollowing] = useState<string[]>(() =>
@@ -249,6 +270,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_hold_expiry', JSON.stringify(holdExpiry));
   }, [holdExpiry]);
+  useEffect(() => {
+    localStorage.setItem('pb_carts', JSON.stringify(carts));
+  }, [carts]);
   useEffect(() => {
     localStorage.setItem('pb_my_events', JSON.stringify(myEvents));
   }, [myEvents]);
@@ -352,6 +376,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       holdExpiry,
       startHold: () => setHoldExpiry(Date.now() + CART_HOLD_MINUTES * 60000),
       clearHold: () => setHoldExpiry(null),
+      carts,
+      captureCart: (c) =>
+        setCarts((prev) => {
+          const existing = prev.find((x) => x.id === c.id);
+          const rec: CartRecord = {
+            ...c,
+            createdAt: existing?.createdAt ?? c.createdAt,
+            updatedAt: new Date().toISOString(),
+            status: 'active',
+          };
+          return existing ? prev.map((x) => (x.id === c.id ? rec : x)) : [rec, ...prev];
+        }),
+      setCartStatus: (id, status) =>
+        setCarts((prev) =>
+          prev.map((x) => (x.id === id ? { ...x, status, updatedAt: new Date().toISOString() } : x))
+        ),
       addBooking: (b) => setBookings((prev) => [b, ...prev]),
       cancelBooking: (id) =>
         setBookings((prev) =>
@@ -483,7 +523,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, holdExpiry, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
