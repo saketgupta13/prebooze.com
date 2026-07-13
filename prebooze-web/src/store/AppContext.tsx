@@ -99,6 +99,7 @@ export interface CartRecord {
   createdAt: string;
   updatedAt: string;
   status: 'active' | 'abandoned' | 'completed';
+  remindedAt?: string; // last time a recovery WhatsApp nudge was sent
 }
 
 export interface PromoterGuest {
@@ -149,6 +150,7 @@ interface AppState {
   carts: CartRecord[];
   captureCart: (c: Omit<CartRecord, 'status' | 'updatedAt'>) => void;
   setCartStatus: (id: string, status: CartRecord['status']) => void;
+  remindCart: (id: string) => void;
   addBooking: (b: Booking) => void;
   cancelBooking: (id: string) => void;
   checkInBooking: (id: string, count: number) => void;
@@ -392,6 +394,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCarts((prev) =>
           prev.map((x) => (x.id === id ? { ...x, status, updatedAt: new Date().toISOString() } : x))
         ),
+      remindCart: (id) =>
+        setCarts((prev) => prev.map((x) => (x.id === id ? { ...x, remindedAt: new Date().toISOString() } : x))),
       addBooking: (b) => setBookings((prev) => [b, ...prev]),
       cancelBooking: (id) =>
         setBookings((prev) =>

@@ -10,6 +10,7 @@ const NAV = [
   { to: '/organizer/live', label: '● Live monitor' },
   { to: '/organizer/reviews', label: '★ Reviews' },
   { to: '/organizer/coupons', label: '🏷 Coupons' },
+  { to: '/organizer/carts', label: '🛒 Abandoned carts' },
   { to: '/organizer/payouts', label: '💰 Payouts' },
   { to: '/organizer/team', label: '🛡 Team & roles' },
   { to: '/organizer/settings', label: '⚙ Settings' },
