@@ -116,7 +116,7 @@ export default function EventDetail() {
             </div>
 
             {/* Who's going */}
-            <div className="card" style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <div className="card" style={{ margin: '18px 0 24px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 22, fontWeight: 800 }}>
                   {going.toLocaleString('en-IN')} <span className="muted small" style={{ fontWeight: 400 }}>going</span>

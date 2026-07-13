@@ -163,6 +163,10 @@ interface AppState {
   toggleFollow: (id: string) => void;
   interested: string[]; // event ids the user marked "Interested"
   toggleInterested: (eventId: string) => void;
+  followers: string[]; // person ids who follow me (accepted)
+  followRequests: string[]; // person ids awaiting my approval
+  acceptFollowRequest: (personId: string) => void;
+  declineFollowRequest: (personId: string) => void;
   orgBalance: number;
   withdrawals: Withdrawal[];
   withdraw: (amount: number) => void;
@@ -224,6 +228,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     load('pb_following', ['livewire', 'nightowl', 'person:p1', 'person:p2', 'person:p3'])
   );
   const [interested, setInterested] = useState<string[]>(() => load('pb_interested', []));
+  const [followers, setFollowers] = useState<string[]>(() => load('pb_followers', ['p4', 'p5']));
+  const [followRequests, setFollowRequests] = useState<string[]>(() => load('pb_follow_requests', ['p6', 'p7']));
   const [pendingPhone, setPendingPhone] = useState('');
   const [orgBalance, setOrgBalance] = useState<number>(() => load('pb_org_balance', 84320));
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(() => load('pb_withdrawals', []));
@@ -290,6 +296,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_interested', JSON.stringify(interested));
   }, [interested]);
+  useEffect(() => {
+    localStorage.setItem('pb_followers', JSON.stringify(followers));
+  }, [followers]);
+  useEffect(() => {
+    localStorage.setItem('pb_follow_requests', JSON.stringify(followRequests));
+  }, [followRequests]);
   useEffect(() => {
     localStorage.setItem('pb_org_balance', JSON.stringify(orgBalance));
   }, [orgBalance]);
@@ -443,6 +455,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setInterested((prev) =>
           prev.includes(eventId) ? prev.filter((e) => e !== eventId) : [eventId, ...prev]
         ),
+      followers,
+      followRequests,
+      acceptFollowRequest: (personId) => {
+        setFollowRequests((prev) => prev.filter((x) => x !== personId));
+        setFollowers((prev) => (prev.includes(personId) ? prev : [personId, ...prev]));
+      },
+      declineFollowRequest: (personId) => setFollowRequests((prev) => prev.filter((x) => x !== personId)),
       orgBalance,
       withdrawals,
       withdraw: (amount) => {
@@ -539,7 +558,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

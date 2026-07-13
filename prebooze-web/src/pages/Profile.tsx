@@ -1,16 +1,17 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { ORGANIZERS, PAST_EVENTS, eventById } from '../data/mock';
+import { ORGANIZERS, PAST_EVENTS, eventById, personById } from '../data/mock';
 import { fmtDate } from '../data/mock';
 import Poster from '../components/Poster';
 import Stars from '../components/Stars';
 
 export default function Profile() {
-  const { user, bookings, following, toggleFollow, myEvents, updateUser } = useApp();
+  const { user, bookings, following, toggleFollow, myEvents, updateUser, followers, followRequests, acceptFollowRequest, declineFollowRequest } = useApp();
 
   if (!user) return null;
 
   const visibility = user.attendanceVisibility ?? 'off';
+  const peopleFollowing = following.filter((f) => f.startsWith('person:')).length;
   const VIS_OPTIONS: { v: 'off' | 'followers' | 'public'; label: string; desc: string }[] = [
     { v: 'off', label: 'Off', desc: 'Nobody sees you' },
     { v: 'followers', label: 'Followers', desc: 'People who follow you' },
@@ -35,9 +36,12 @@ export default function Profile() {
             <h1 style={{ fontSize: 21 }}>
               {user.name || 'New guest'} {user.idVerified && <span className="verified">✓</span>}
             </h1>
-            <div className="muted small" style={{ marginBottom: 10 }}>
+            <div className="muted small" style={{ marginBottom: 6 }}>
               {user.username ? `@${user.username} · ` : ''}
               {user.city}
+            </div>
+            <div className="small" style={{ marginBottom: 10 }}>
+              <b>{followers.length}</b> <span className="muted">followers</span> · <b>{peopleFollowing}</b> <span className="muted">following</span>
             </div>
             {user.bio && (
               <p className="muted small" style={{ marginBottom: 10 }}>
@@ -51,6 +55,36 @@ export default function Profile() {
               <button className="btn btn-ghost btn-sm">⇪ Share profile</button>
             </div>
           </div>
+
+          {followRequests.length > 0 && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginBottom: 8 }}>
+                Follow requests <span className="badge badge-pending">{followRequests.length}</span>
+              </h3>
+              {followRequests.map((id) => {
+                const p = personById(id);
+                if (!p) return null;
+                return (
+                  <div key={id} className="kv" style={{ alignItems: 'center' }}>
+                    <Link to={`/u/${p.username}`} className="k bold" style={{ color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 28, height: 28, borderRadius: '50%', background: `hsl(${p.avatarHue} 55% 45%)`, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
+                        {p.name[0]}
+                      </span>
+                      {p.name} {p.verified && <span className="verified">✓</span>}
+                    </Link>
+                    <span style={{ display: 'flex', gap: 6 }}>
+                      <button className="btn btn-pri btn-sm" onClick={() => acceptFollowRequest(id)}>Accept</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => declineFollowRequest(id)}>Decline</button>
+                    </span>
+                  </div>
+                );
+              })}
+              <div className="tiny muted-2" style={{ marginTop: 8 }}>
+                once you accept, they can see the events you’re <b>going</b> to &amp; <b>interested</b> in
+                {visibility === 'off' ? ' — set visibility to Followers below to share' : ''}
+              </div>
+            </div>
+          )}
 
           <div className="card" style={{ marginBottom: 16 }}>
             <h3 style={{ marginBottom: 8 }}>Verification status</h3>
