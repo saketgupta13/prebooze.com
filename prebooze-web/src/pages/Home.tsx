@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { CATEGORIES, EVENTS, FAQS, ORGANIZERS, PROMOTERS, TESTIMONIALS, TRUST_POINTS, VENUES } from '../data/mock';
+import { friendsGoing } from '../lib/social';
 import EventCard from '../components/EventCard';
 import Poster from '../components/Poster';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
 
 export default function Home() {
-  const { city, user, carts, setSelection } = useApp();
+  const { city, user, carts, setSelection, following } = useApp();
   const navigate = useNavigate();
   const [cat, setCat] = useState('All');
   const [howTab, setHowTab] = useState<'guests' | 'organizers'>('guests');
@@ -16,6 +17,12 @@ export default function Home() {
 
   const published = EVENTS.filter((e) => e.status === 'approved');
   const events = cat === 'All' ? published : published.filter((e) => e.category === cat);
+
+  // "Who's going" feed — events people you follow are attending.
+  const friendEvents = published
+    .map((e) => ({ event: e, friends: friendsGoing(e.id, following) }))
+    .filter((x) => x.friends.length > 0)
+    .sort((a, b) => b.friends.length - a.friends.length);
 
   // Abandoned-cart recovery — the guest's most recent unfinished cart.
   const resumeCart = user
@@ -78,6 +85,21 @@ export default function Home() {
           ))}
         </div>
         {events.length === 0 && <div className="empty">No events in this category yet.</div>}
+
+        {/* Who's going — friends feed */}
+        {friendEvents.length > 0 && (
+          <section className="section">
+            <div className="section-hd">
+              <h2>Your friends are going 👀</h2>
+              <Link to="/people">Find people →</Link>
+            </div>
+            <div className="grid-4">
+              {friendEvents.slice(0, 4).map((x) => (
+                <EventCard key={x.event.id} event={x.event} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Reels */}
         <section className="section">
