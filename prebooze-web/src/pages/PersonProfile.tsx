@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { personByUsername, eventsForPerson, eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import { useApp } from '../store/AppContext';
@@ -30,10 +31,13 @@ function AvatarStack({ people }: { people: Person[] }) {
   );
 }
 
-function PeopleCard({ title, people, empty }: { title: string; people: Person[]; empty: string }) {
+function PeopleCard({ title, people, empty, onClose }: { title: string; people: Person[]; empty: string; onClose?: () => void }) {
   return (
     <div className="card">
-      <h3 style={{ marginBottom: 8 }}>{title} <span className="badge badge-accent">{people.length}</span></h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <h3>{title} <span className="badge badge-accent">{people.length}</span></h3>
+        {onClose && <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>}
+      </div>
       {people.length === 0 ? (
         <div className="muted small">{empty}</div>
       ) : (
@@ -57,6 +61,7 @@ export default function PersonProfile() {
   const { username } = useParams();
   const { following, bookings, interested, toggleFollow } = useApp();
   const person = personByUsername(username ?? '');
+  const [openList, setOpenList] = useState<'followers' | 'following' | null>(null);
 
   if (!person) {
     return (
@@ -83,6 +88,7 @@ export default function PersonProfile() {
   const going = attending.filter((x) => x.status === 'going');
   const interestedIn = attending.filter((x) => x.status === 'interested');
   const proofNames = proof.slice(0, 2).map((p) => p.name.split(' ')[0]).join(', ');
+  const toggle = (which: 'followers' | 'following') => setOpenList((cur) => (cur === which ? null : which));
 
   const EventRow = ({ event }: { event: Event }) => {
     const venue = venueById(event.venueId);
@@ -100,6 +106,17 @@ export default function PersonProfile() {
     );
   };
 
+  const StatBtn = ({ value, label, which }: { value: number | string; label: string; which?: 'followers' | 'following' }) => (
+    <div
+      className="s"
+      onClick={which ? () => toggle(which) : undefined}
+      style={which ? { cursor: 'pointer', borderColor: openList === which ? 'var(--accent)' : undefined } : undefined}
+    >
+      <div className="v">{value}</div>
+      <div className="l">{label}{which ? ' ▾' : ''}</div>
+    </div>
+  );
+
   return (
     <main className="page">
       <div className="container">
@@ -109,7 +126,7 @@ export default function PersonProfile() {
 
         {/* Header */}
         <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
-          <div style={{ height: 96, background: `linear-gradient(135deg, hsl(${person.avatarHue} 60% 50%), hsl(${(person.avatarHue + 45) % 360} 60% 42%))` }} />
+          <div style={{ height: 84, background: `hsl(${person.avatarHue} 32% 20%)` }} />
           <div style={{ padding: '0 22px 20px', marginTop: -34 }}>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap' }}>
               <span style={{
@@ -128,14 +145,12 @@ export default function PersonProfile() {
 
             {person.bio && <p className="small" style={{ margin: '12px 0 0', maxWidth: 560 }}>{person.bio}</p>}
 
-            {/* Stats */}
             <div className="stat3" style={{ marginTop: 14, gridTemplateColumns: 'repeat(3, 1fr)' }}>
-              <div className="s"><div className="v">{person.followers.toLocaleString('en-IN')}</div><div className="l">followers</div></div>
-              <div className="s"><div className="v">{followingList.length}</div><div className="l">following</div></div>
-              <div className="s"><div className="v">{going.length}</div><div className="l">going</div></div>
+              <StatBtn value={person.followers.toLocaleString('en-IN')} label="followers" which="followers" />
+              <StatBtn value={followingList.length} label="following" which="following" />
+              <StatBtn value={going.length} label="going" />
             </div>
 
-            {/* Social proof */}
             {proof.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
                 <AvatarStack people={proof} />
@@ -146,6 +161,18 @@ export default function PersonProfile() {
             )}
           </div>
         </div>
+
+        {/* Expandable followers / following (click a stat) */}
+        {openList === 'followers' && (
+          <div style={{ marginBottom: 16 }}>
+            <PeopleCard title="Followers" people={followerList} empty="No followers yet." onClose={() => setOpenList(null)} />
+          </div>
+        )}
+        {openList === 'following' && (
+          <div style={{ marginBottom: 16 }}>
+            <PeopleCard title="Following" people={followingList} empty="Not following anyone yet." onClose={() => setOpenList(null)} />
+          </div>
+        )}
 
         {/* Two columns */}
         <div className="grid-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, alignItems: 'start' }}>
@@ -162,8 +189,6 @@ export default function PersonProfile() {
 
           <div style={{ display: 'grid', gap: 16 }}>
             <PeopleCard title="Mutual — you both follow" people={mutual} empty="No one in common yet. Follow more people to find mutuals." />
-            <PeopleCard title="Following" people={followingList} empty="Not following anyone yet." />
-            <PeopleCard title="Followers" people={followerList} empty="No followers yet." />
           </div>
         </div>
       </div>

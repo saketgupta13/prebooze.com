@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import { EVENTS, ORGANIZERS } from '../data/mock';
-import Poster from '../components/Poster';
+import { useApp } from '../store/AppContext';
+import DirectoryCard from '../components/DirectoryCard';
 
 /** Public directory of all verified organizers. */
 export default function Organizers() {
+  const { following, toggleFollow } = useApp();
   const list = [...ORGANIZERS].sort((a, b) => b.eventsHosted - a.eventsHosted);
 
   return (
@@ -17,22 +19,31 @@ export default function Organizers() {
           Verified event brands — concerts, comedy, festivals and warehouse parties near you.
         </p>
 
-        <div className="grid-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(258px, 1fr))', gap: 14 }}>
           {list.map((o) => {
+            const isFollowing = following.includes(o.id);
             const live = EVENTS.filter((e) => e.organizerId === o.id && e.status === 'approved').length;
             return (
-              <Link key={o.id} to={`/organizers/${o.id}`} className="card" style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                <Poster hue={o.logoHue} emoji="🎧" variant="square" className="" />
-                <div style={{ minWidth: 0 }}>
-                  <h3 style={{ fontSize: 15 }}>
-                    {o.brandName} {o.verified && <span className="verified">✓</span>}
-                  </h3>
-                  <div className="meta muted small">{o.city} · ★ {o.rating} · {o.eventsHosted} events hosted</div>
-                  <div className="small muted" style={{ marginTop: 4 }}>
-                    {live} live now · {o.followers.toLocaleString('en-IN')} followers
-                  </div>
-                </div>
-              </Link>
+              <DirectoryCard
+                key={o.id}
+                to={`/organizers/${o.id}`}
+                hue={o.logoHue}
+                avatarText="🎧"
+                name={o.brandName}
+                verified={o.verified}
+                meta={`${o.city} · ★ ${o.rating} · since ${o.since}`}
+                bio={o.about}
+                stats={
+                  <>
+                    <b>{o.eventsHosted}</b> events · <b>{live}</b> live now · <b>{o.followers.toLocaleString('en-IN')}</b> followers
+                  </>
+                }
+                action={
+                  <button className={`btn btn-sm btn-block ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(o.id)}>
+                    {isFollowing ? 'Following ✓' : '+ Follow'}
+                  </button>
+                }
+              />
             );
           })}
         </div>

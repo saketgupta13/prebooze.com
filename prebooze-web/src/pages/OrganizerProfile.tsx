@@ -1,6 +1,8 @@
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, ORGANIZERS, PAST_EVENTS, REVIEWS } from '../data/mock';
+import { friendsAtEvents } from '../lib/social';
+import FriendsProof from '../components/FriendsProof';
 import Poster from '../components/Poster';
 import EventCard from '../components/EventCard';
 import Stars from '../components/Stars';
@@ -25,6 +27,7 @@ export default function OrganizerProfile() {
 
   const upcoming = EVENTS.filter((e) => e.organizerId === org.id && e.status === 'approved');
   const isFollowing = following.includes(org.id);
+  const friends = friendsAtEvents(upcoming.map((e) => e.id), following);
 
   return (
     <main className="page">
@@ -55,6 +58,8 @@ export default function OrganizerProfile() {
             <button className="btn btn-ghost btn-sm">⇪ Share</button>
           </div>
         </div>
+
+        <FriendsProof people={friends} suffix="going to their events" style={{ marginBottom: 16 }} />
 
         <div className="profile-grid">
           <div>

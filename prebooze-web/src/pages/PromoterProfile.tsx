@@ -1,6 +1,8 @@
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, PROMOTERS, promoterBySlug } from '../data/mock';
+import { friendsAtEvents } from '../lib/social';
+import FriendsProof from '../components/FriendsProof';
 import Poster from '../components/Poster';
 import EventCard from '../components/EventCard';
 
@@ -23,8 +25,10 @@ export default function PromoterProfile() {
 
   const followKey = 'promoter:' + promoter.slug;
   const isFollowing = following.includes(followKey);
-  // Phase 1: sample the city's live events as "promoting"; real allow-list comes in Phase 2
-  const promoting = EVENTS.filter((e) => e.status === 'approved').slice(0, 3);
+  // Events this promoter is on the allow-list for; fall back to a sample of live events.
+  const promoted = EVENTS.filter((e) => e.promoterConfig?.allowedPromoters?.includes(promoter.slug));
+  const promoting = promoted.length ? promoted : EVENTS.filter((e) => e.status === 'approved').slice(0, 3);
+  const friends = friendsAtEvents(promoting.map((e) => e.id), following);
   const more = PROMOTERS.filter((p) => p.slug !== promoter.slug).slice(0, 3);
 
   return (
@@ -51,6 +55,8 @@ export default function PromoterProfile() {
             <button className="btn btn-ghost btn-sm">⇪ Share</button>
           </div>
         </div>
+
+        <FriendsProof people={friends} suffix="going to events they promote" style={{ marginBottom: 16 }} />
 
         <div className="profile-grid">
           <div>

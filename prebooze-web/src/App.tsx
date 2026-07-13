@@ -47,6 +47,7 @@ import Faqs from './pages/static/Faqs';
 import Blog from './pages/static/Blog';
 import BlogPost from './pages/static/BlogPost';
 import LineupProfile from './pages/LineupProfile';
+import Lineups from './pages/Lineups';
 import LineupOnboarding from './pages/LineupOnboarding';
 import PromoterProfile from './pages/PromoterProfile';
 import PromoterOnboarding from './pages/promoter/PromoterOnboarding';
@@ -94,6 +95,7 @@ export default function App() {
         <Route path="/promoters" element={<Promoters />} />
         <Route path="/people" element={<People />} />
         <Route path="/u/:username" element={<PersonProfile />} />
+        <Route path="/lineups" element={<Lineups />} />
         <Route path="/lineup/onboarding" element={<LineupOnboarding />} />
         <Route path="/lineup/:slug" element={<LineupProfile />} />
         <Route path="/promoter/onboarding" element={<PromoterOnboarding />} />

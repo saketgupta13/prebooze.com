@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import { PROMOTERS } from '../data/mock';
-import Poster from '../components/Poster';
+import { useApp } from '../store/AppContext';
+import DirectoryCard from '../components/DirectoryCard';
 
 /** Public directory of all promoters, ranked by show-up rate. */
 export default function Promoters() {
+  const { following, toggleFollow } = useApp();
   const list = [...PROMOTERS].sort((a, b) => b.showRate - a.showRate);
 
   return (
@@ -17,24 +19,34 @@ export default function Promoters() {
           Follow the crews with the best guest lists — free entry before the cutoff, always.
         </p>
 
-        <div className="grid-3">
-          {list.map((p) => (
-            <Link key={p.slug} to={`/promoter/${p.slug}`} className="card" style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-              <div style={{ width: 60, flexShrink: 0 }}>
-                <Poster hue={p.hue} emoji="📣" variant="square" />
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <h3 style={{ fontSize: 15 }}>
-                  {p.name} {p.verified && <span className="verified">✓</span>}
-                </h3>
-                <div className="meta muted small">{p.city} · {p.followers.toLocaleString('en-IN')} followers</div>
-                <div className="small" style={{ marginTop: 4 }}>
-                  <span className={p.showRate >= 70 ? 'accent bold' : 'bold'}>{p.showRate}%</span> show-rate ·{' '}
-                  {p.guestsBrought.toLocaleString('en-IN')} guests brought
-                </div>
-              </div>
-            </Link>
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(258px, 1fr))', gap: 14 }}>
+          {list.map((p) => {
+            const key = 'promoter:' + p.slug;
+            const isFollowing = following.includes(key);
+            return (
+              <DirectoryCard
+                key={p.slug}
+                to={`/promoter/${p.slug}`}
+                hue={p.hue}
+                avatarText="📣"
+                name={p.name}
+                verified={p.verified}
+                meta={`${p.city} · ${p.followers.toLocaleString('en-IN')} followers`}
+                bio={p.bio}
+                stats={
+                  <>
+                    <span className={p.showRate >= 70 ? 'accent bold' : 'bold'}>{p.showRate}%</span> show-rate ·{' '}
+                    <b>{p.guestsBrought.toLocaleString('en-IN')}</b> guests brought
+                  </>
+                }
+                action={
+                  <button className={`btn btn-sm btn-block ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(key)}>
+                    {isFollowing ? 'Following ✓' : '+ Follow'}
+                  </button>
+                }
+              />
+            );
+          })}
         </div>
       </div>
     </main>

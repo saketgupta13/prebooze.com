@@ -33,6 +33,17 @@ export function followedByYourFollows(id: string, following: string[]): Person[]
   return personFollowers(id).filter((p) => mine.has(p.id));
 }
 
+/** People you follow who are going to / interested in any of these events — social
+ * proof for organizer / promoter profiles. */
+export function friendsAtEvents(eventIds: string[], following: string[]): Person[] {
+  const mine = new Set(followedPersonIds(following));
+  const events = new Set(eventIds);
+  const ids = new Set(
+    ATTENDANCE.filter((a) => events.has(a.eventId) && mine.has(a.personId)).map((a) => a.personId)
+  );
+  return asPeople([...ids]);
+}
+
 /** The crowd number shown as "N going" — derived from confirmed ticket sales. */
 export function goingCount(event: Event): number {
   return event.tiers.reduce((a, t) => a + t.sold, 0);

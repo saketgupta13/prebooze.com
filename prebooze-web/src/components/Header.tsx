@@ -58,6 +58,7 @@ export default function Header() {
           <Link to="/browse">Events</Link>
           <Link to="/venues">Venues</Link>
           <Link to="/people">People</Link>
+          <Link to="/lineups">Line-ups</Link>
           <Link to="/blog">Blog</Link>
           <Link to="/host">Host with us</Link>
           {user && <Link to="/bookings">My Bookings</Link>}

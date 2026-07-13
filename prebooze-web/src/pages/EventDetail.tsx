@@ -112,52 +112,50 @@ export default function EventDetail() {
                     </span>
                   ))}
                 </div>
-              </div>
-            </div>
 
-            {/* Who's going */}
-            <div className="card" style={{ margin: '18px 0 24px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 22, fontWeight: 800 }}>
-                  {going.toLocaleString('en-IN')} <span className="muted small" style={{ fontWeight: 400 }}>going</span>
-                </div>
-                {friends.length > 0 ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                    <div style={{ display: 'flex' }}>
-                      {friends.slice(0, 4).map((fr, i) => (
-                        <Link
-                          key={fr.person.id}
-                          to={`/u/${fr.person.username}`}
-                          title={fr.person.name}
-                          style={{
-                            width: 28, height: 28, borderRadius: '50%',
-                            background: `hsl(${fr.person.avatarHue} 55% 45%)`, color: '#fff',
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            fontWeight: 700, fontSize: 12, marginLeft: i ? -8 : 0,
-                            border: '2px solid var(--bg)', textDecoration: 'none',
-                          }}
-                        >
-                          {fr.person.name[0]}
-                        </Link>
-                      ))}
+                {/* Hosted by + who's going — fills the space under the title */}
+                <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>
+                  <Link
+                    to={`/organizers/${organizer.id}`}
+                    className="evrow"
+                    style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
+                  >
+                    <span style={{ width: 34, height: 34, borderRadius: '50%', background: `hsl(${organizer.logoHue} 55% 45%)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🎧</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="tiny muted-2">Hosted by</div>
+                      <div className="bold small">
+                        {organizer.brandName} {organizer.verified && <span className="verified">✓</span>}{' '}
+                        <span className="muted" style={{ fontWeight: 400 }}>· ★ {organizer.rating}</span>
+                      </div>
                     </div>
-                    <span className="small">{friendLabel}</span>
+                    <span className="link small">View →</span>
+                  </Link>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
+                    {friends.length > 0 && (
+                      <div style={{ display: 'flex' }}>
+                        {friends.slice(0, 4).map((fr, i) => (
+                          <Link key={fr.person.id} to={`/u/${fr.person.username}`} title={fr.person.name} style={{ width: 28, height: 28, borderRadius: '50%', background: `hsl(${fr.person.avatarHue} 55% 45%)`, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, marginLeft: i ? -8 : 0, border: '2px solid var(--bg)', textDecoration: 'none' }}>
+                            {fr.person.name[0]}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ minWidth: 0 }}>
+                      <div className="bold small">{going.toLocaleString('en-IN')} going</div>
+                      <div className="tiny muted-2">{friends.length > 0 ? friendLabel : 'Be the first of your friends to go 👀'}</div>
+                    </div>
+                    <div style={{ flex: 1 }} />
+                    {status === 'going' ? (
+                      <span className="badge badge-accent">You're going ✓</span>
+                    ) : (
+                      <button className={`btn btn-sm ${status === 'interested' ? 'btn-pri' : 'btn-ghost'}`} onClick={() => toggleInterested(event.id)}>
+                        {status === 'interested' ? '★ Interested' : '☆ Interested'}
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <div className="tiny muted-2" style={{ marginTop: 6 }}>Be the first of your friends to go 👀</div>
-                )}
+                </div>
               </div>
-              <div style={{ flex: 1 }} />
-              {status === 'going' ? (
-                <span className="badge badge-accent">You're going ✓</span>
-              ) : (
-                <button
-                  className={`btn btn-sm ${status === 'interested' ? 'btn-pri' : 'btn-ghost'}`}
-                  onClick={() => toggleInterested(event.id)}
-                >
-                  {status === 'interested' ? '★ Interested' : '☆ Interested'}
-                </button>
-              )}
             </div>
 
             {/* About */}
@@ -176,23 +174,6 @@ export default function EventDetail() {
                 </button>
               )}
             </section>
-
-            {/* Hosted by */}
-            <div className="host-card">
-              <Poster hue={organizer.logoHue} emoji="🎧" variant="square" className="" />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="small muted">Hosted by</div>
-                <div className="bold">
-                  {organizer.brandName} {organizer.verified && <span className="verified">✓</span>}{' '}
-                  <span className="muted small">
-                    · ★ {organizer.rating} · {organizer.eventsHosted} events hosted
-                  </span>
-                </div>
-              </div>
-              <Link to={`/organizers/${organizer.id}`} className="btn btn-ghost btn-sm">
-                View organizer profile →
-              </Link>
-            </div>
 
             {/* Conditions */}
             {event.conditions.length > 0 && (
