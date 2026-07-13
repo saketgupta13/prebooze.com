@@ -6,9 +6,16 @@ import Poster from '../components/Poster';
 import Stars from '../components/Stars';
 
 export default function Profile() {
-  const { user, bookings, following, toggleFollow, myEvents } = useApp();
+  const { user, bookings, following, toggleFollow, myEvents, updateUser } = useApp();
 
   if (!user) return null;
+
+  const visibility = user.attendanceVisibility ?? 'off';
+  const VIS_OPTIONS: { v: 'off' | 'followers' | 'public'; label: string; desc: string }[] = [
+    { v: 'off', label: 'Off', desc: 'Nobody sees you' },
+    { v: 'followers', label: 'Followers', desc: 'People who follow you' },
+    { v: 'public', label: 'Public', desc: 'Anyone on Prebooze' },
+  ];
 
   const upcoming = bookings.filter((b) => {
     const ev = eventById(b.eventId) ?? myEvents.find((e) => e.id === b.eventId);
@@ -68,6 +75,27 @@ export default function Profile() {
             <div className="kv">
               <span className="k">Joined</span>
               <span>{user.joined}</span>
+            </div>
+          </div>
+
+          <div className="card" style={{ marginBottom: 16 }}>
+            <h3 style={{ marginBottom: 4 }}>Who's going — privacy</h3>
+            <p className="tiny muted-2" style={{ marginBottom: 10 }}>Choose who can see the events you're attending. Off by default.</p>
+            <div style={{ display: 'grid', gap: 6 }}>
+              {VIS_OPTIONS.map((o) => {
+                const cur = visibility === o.v;
+                return (
+                  <button
+                    key={o.v}
+                    className={`btn btn-sm ${cur ? 'btn-pri' : 'btn-ghost'}`}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
+                    onClick={() => updateUser({ attendanceVisibility: o.v })}
+                  >
+                    <span>{cur ? '✓ ' : ''}{o.label}</span>
+                    <span className="tiny" style={{ opacity: 0.75, fontWeight: 400 }}>{o.desc}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
