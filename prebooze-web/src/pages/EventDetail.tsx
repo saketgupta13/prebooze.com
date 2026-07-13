@@ -12,6 +12,7 @@ import {
   organizerById,
   venueById,
 } from '../data/mock';
+import { friendsGoing, goingCount, myStatus } from '../lib/social';
 import Poster, { categoryEmoji } from '../components/Poster';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
@@ -22,7 +23,7 @@ export default function EventDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { user, city, setSelection, myEvents, pendingPromoterRef, setPendingPromoterRef } = useApp();
+  const { user, city, setSelection, myEvents, following, bookings, interested, toggleInterested, pendingPromoterRef, setPendingPromoterRef } = useApp();
   const event = eventBySlug(slug ?? '') ?? myEvents.find((e) => e.slug === slug);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [expanded, setExpanded] = useState(false);
@@ -60,6 +61,22 @@ export default function EventDetail() {
   const ticketCount = Object.values(qty).reduce((a, b) => a + b, 0);
   const recommended = EVENTS.filter((e) => e.status === 'approved' && e.id !== event.id).slice(0, 4);
 
+  const going = goingCount(event);
+  const friends = friendsGoing(event.id, following);
+  const status = myStatus(event.id, bookings, interested);
+  const friendLabel = (() => {
+    if (friends.length === 0) return '';
+    const names = friends.map((f) => f.person.name.split(' ')[0]);
+    const head = names.slice(0, 2).join(', ');
+    const extra = friends.length > 2 ? ` +${friends.length - 2}` : '';
+    const verb = friends.every((f) => f.status === 'going')
+      ? 'going'
+      : friends.every((f) => f.status === 'interested')
+        ? 'interested'
+        : 'in';
+    return `${head}${extra} you follow ${friends.length === 1 ? 'is' : 'are'} ${verb}`;
+  })();
+
   const book = () => {
     setSelection({ eventId: event.id, qty });
     if (!user) {
@@ -96,6 +113,51 @@ export default function EventDetail() {
                   ))}
                 </div>
               </div>
+            </div>
+
+            {/* Who's going */}
+            <div className="card" style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 22, fontWeight: 800 }}>
+                  {going.toLocaleString('en-IN')} <span className="muted small" style={{ fontWeight: 400 }}>going</span>
+                </div>
+                {friends.length > 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                    <div style={{ display: 'flex' }}>
+                      {friends.slice(0, 4).map((fr, i) => (
+                        <Link
+                          key={fr.person.id}
+                          to={`/u/${fr.person.username}`}
+                          title={fr.person.name}
+                          style={{
+                            width: 28, height: 28, borderRadius: '50%',
+                            background: `hsl(${fr.person.avatarHue} 55% 45%)`, color: '#fff',
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            fontWeight: 700, fontSize: 12, marginLeft: i ? -8 : 0,
+                            border: '2px solid var(--bg)', textDecoration: 'none',
+                          }}
+                        >
+                          {fr.person.name[0]}
+                        </Link>
+                      ))}
+                    </div>
+                    <span className="small">{friendLabel}</span>
+                  </div>
+                ) : (
+                  <div className="tiny muted-2" style={{ marginTop: 6 }}>Be the first of your friends to go 👀</div>
+                )}
+              </div>
+              <div style={{ flex: 1 }} />
+              {status === 'going' ? (
+                <span className="badge badge-accent">You're going ✓</span>
+              ) : (
+                <button
+                  className={`btn btn-sm ${status === 'interested' ? 'btn-pri' : 'btn-ghost'}`}
+                  onClick={() => toggleInterested(event.id)}
+                >
+                  {status === 'interested' ? '★ Interested' : '☆ Interested'}
+                </button>
+              )}
             </div>
 
             {/* About */}
@@ -265,6 +327,15 @@ export default function EventDetail() {
                 ? 'Select tickets'
                 : `Book ${ticketCount} ticket${ticketCount > 1 ? 's' : ''} →`}
             </button>
+            {status !== 'going' && (
+              <button
+                className={`btn btn-block btn-sm ${status === 'interested' ? 'btn-pri' : 'btn-ghost'}`}
+                style={{ marginTop: 8 }}
+                onClick={() => toggleInterested(event.id)}
+              >
+                {status === 'interested' ? '★ Interested — saved' : '☆ Interested'}
+              </button>
+            )}
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
               🔒 secure checkout · free cancellation up to 48h
             </div>
