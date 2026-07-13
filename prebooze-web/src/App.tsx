@@ -19,6 +19,7 @@ import Organizers from './pages/Organizers';
 import Promoters from './pages/Promoters';
 import People from './pages/People';
 import PersonProfile from './pages/PersonProfile';
+import Testimonials from './pages/Testimonials';
 import Login from './pages/auth/Login';
 import Otp from './pages/auth/Otp';
 import ProfileCompletion from './pages/auth/ProfileCompletion';
@@ -95,6 +96,7 @@ export default function App() {
         <Route path="/promoters" element={<Promoters />} />
         <Route path="/people" element={<People />} />
         <Route path="/u/:username" element={<PersonProfile />} />
+        <Route path="/testimonials" element={<Testimonials />} />
         <Route path="/lineups" element={<Lineups />} />
         <Route path="/lineup/onboarding" element={<LineupOnboarding />} />
         <Route path="/lineup/:slug" element={<LineupProfile />} />

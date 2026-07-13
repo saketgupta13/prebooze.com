@@ -6,11 +6,13 @@ import DirectoryCard from '../components/DirectoryCard';
 
 /** Public directory of line-up artists — DJs, bands, comedians and more. */
 export default function Lineups() {
-  const { following, toggleFollow } = useApp();
-  const [catF, setCatF] = useState('All');
+  const { city, following, toggleFollow } = useApp();
   const cats = ['All', ...Array.from(new Set(LINEUPS.map((l) => l.category)))];
+  const cities = ['All', ...Array.from(new Set(LINEUPS.map((l) => l.city)))];
+  const [catF, setCatF] = useState('All');
+  const [cityF, setCityF] = useState(() => (cities.includes(city) ? city : 'All'));
   const list = [...LINEUPS]
-    .filter((l) => catF === 'All' || l.category === catF)
+    .filter((l) => (catF === 'All' || l.category === catF) && (cityF === 'All' || l.city === cityF))
     .sort((a, b) => b.followers - a.followers);
 
   return (
@@ -24,9 +26,14 @@ export default function Lineups() {
           Follow the artists, DJs and acts you love — catch them before their next set sells out.
         </p>
 
-        <div className="chip-row" style={{ marginBottom: 18 }}>
+        <div className="chip-row" style={{ marginBottom: 8 }}>
           {cats.map((c) => (
             <button key={c} className={`chip ${catF === c ? 'on' : ''}`} onClick={() => setCatF(c)}>{c}</button>
+          ))}
+        </div>
+        <div className="chip-row" style={{ marginBottom: 18 }}>
+          {cities.map((c) => (
+            <button key={c} className={`chip ${cityF === c ? 'on' : ''}`} onClick={() => setCityF(c)}>{c}</button>
           ))}
         </div>
 

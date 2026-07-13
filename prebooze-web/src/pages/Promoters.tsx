@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PROMOTERS } from '../data/mock';
 import { useApp } from '../store/AppContext';
@@ -5,8 +6,12 @@ import DirectoryCard from '../components/DirectoryCard';
 
 /** Public directory of all promoters, ranked by show-up rate. */
 export default function Promoters() {
-  const { following, toggleFollow } = useApp();
-  const list = [...PROMOTERS].sort((a, b) => b.showRate - a.showRate);
+  const { city, following, toggleFollow } = useApp();
+  const cities = ['All', ...Array.from(new Set(PROMOTERS.map((p) => p.city)))];
+  const [cityF, setCityF] = useState(() => (cities.includes(city) ? city : 'All'));
+  const list = [...PROMOTERS]
+    .filter((p) => cityF === 'All' || p.city === cityF)
+    .sort((a, b) => b.showRate - a.showRate);
 
   return (
     <main className="page">
@@ -15,9 +20,14 @@ export default function Promoters() {
           <Link to="/">Home</Link> / Promoters
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Promoters 📣</h1>
-        <p className="muted" style={{ marginBottom: 22 }}>
+        <p className="muted" style={{ marginBottom: 14 }}>
           Follow the crews with the best guest lists — free entry before the cutoff, always.
         </p>
+        <div className="chip-row" style={{ marginBottom: 18 }}>
+          {cities.map((c) => (
+            <button key={c} className={`chip ${cityF === c ? 'on' : ''}`} onClick={() => setCityF(c)}>{c}</button>
+          ))}
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(258px, 1fr))', gap: 14 }}>
           {list.map((p) => {

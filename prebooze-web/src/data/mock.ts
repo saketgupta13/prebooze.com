@@ -698,6 +698,13 @@ export const TESTIMONIALS: Testimonial[] = [
   { id: 't1', author: 'Sam Rivera', location: 'Austin', rating: 5, quote: 'Booked in 20 seconds, QR hit my WhatsApp instantly, walked straight in. Never buying paper tickets again.' },
   { id: 't2', author: 'Priya K.', location: 'Austin', rating: 5, quote: 'Found three gigs I would have missed. The city filter is so good.' },
   { id: 't3', author: 'Arjun M.', location: 'Dallas', rating: 4, quote: 'Refund landed back in minutes when my plans changed. Rare for a ticketing app.' },
+  { id: 't4', author: 'Neha G.', location: 'Houston', rating: 5, quote: 'Seeing which of my friends were going sealed it — grabbed tickets before they sold out.' },
+  { id: 't5', author: 'Dev P.', location: 'Austin', rating: 5, quote: 'The guest-list feature got me in free before the cutoff. Genuinely the best nightlife app here.' },
+  { id: 't6', author: 'Sana K.', location: 'Dallas', rating: 5, quote: 'Zero fake listings. Every event I booked was exactly as described. Trustworthy.' },
+  { id: 't7', author: 'Vikram R.', location: 'Austin', rating: 4, quote: 'Gate scan took two seconds even with a queue behind me. Smooth operation.' },
+  { id: 't8', author: 'Meera J.', location: 'Bengaluru', rating: 5, quote: 'New in town and found my scene in a week. Following people made discovery effortless.' },
+  { id: 't9', author: 'Rohit V.', location: 'Austin', rating: 5, quote: 'Cart hold timer saved me from losing my VIP spot while I finished paying. Nice touch.' },
+  { id: 't10', author: 'Karan S.', location: 'Houston', rating: 4, quote: 'Clean app, fair fees, instant tickets. Exactly what an events app should be.' },
 ];
 
 

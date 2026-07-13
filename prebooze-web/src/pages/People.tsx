@@ -8,10 +8,13 @@ import type { Person } from '../types';
 
 /** Directory of followable guests — the social graph behind "Who's going". */
 export default function People() {
-  const { following, bookings, interested, toggleFollow } = useApp();
+  const { city, following, bookings, interested, toggleFollow } = useApp();
   const [tab, setTab] = useState<'discover' | 'following'>('discover');
   const [q, setQ] = useState('');
-  const [cityF, setCityF] = useState('All');
+  const [cityF, setCityF] = useState(() => {
+    const cs = new Set(PEOPLE.map((p) => p.city));
+    return cs.has(city) ? city : 'All';
+  });
 
   const cities = ['All', ...Array.from(new Set(PEOPLE.map((p) => p.city)))];
   const myEventIds = useMemo(

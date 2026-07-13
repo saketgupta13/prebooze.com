@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { personByUsername, eventsForPerson, eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import { useApp } from '../store/AppContext';
@@ -31,7 +32,10 @@ function AvatarStack({ people }: { people: Person[] }) {
   );
 }
 
-function PeopleCard({ title, people, empty, onClose }: { title: string; people: Person[]; empty: string; onClose?: () => void }) {
+function PeopleCard({ title, people, empty, onClose, limit }: { title: string; people: Person[]; empty: string; onClose?: () => void; limit?: number; badge?: ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
+  const shown = limit && !expanded ? people.slice(0, limit) : people;
+  const hidden = people.length - shown.length;
   return (
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -41,16 +45,28 @@ function PeopleCard({ title, people, empty, onClose }: { title: string; people: 
       {people.length === 0 ? (
         <div className="muted small">{empty}</div>
       ) : (
-        people.map((p) => (
-          <Link key={p.id} to={`/u/${p.username}`} className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <Avatar hue={p.avatarHue} name={p.name} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="bold small">{p.name} {p.verified && <span className="verified">✓</span>}</div>
-              <div className="tiny muted-2">@{p.username} · {p.city}</div>
-            </div>
-            <span className="link small">View →</span>
-          </Link>
-        ))
+        <>
+          {shown.map((p) => (
+            <Link key={p.id} to={`/u/${p.username}`} className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Avatar hue={p.avatarHue} name={p.name} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="bold small">{p.name} {p.verified && <span className="verified">✓</span>}</div>
+                <div className="tiny muted-2">@{p.username} · {p.city}</div>
+              </div>
+              <span className="link small">View →</span>
+            </Link>
+          ))}
+          {hidden > 0 && (
+            <button className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 8 }} onClick={() => setExpanded(true)}>
+              Show {hidden} more
+            </button>
+          )}
+          {limit && expanded && people.length > limit && (
+            <button className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 8 }} onClick={() => setExpanded(false)}>
+              Show less
+            </button>
+          )}
+        </>
       )}
     </div>
   );
@@ -125,41 +141,38 @@ export default function PersonProfile() {
         </div>
 
         {/* Header */}
-        <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
-          <div style={{ height: 84, background: `hsl(${person.avatarHue} 32% 20%)` }} />
-          <div style={{ padding: '0 22px 20px', marginTop: -34 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap' }}>
-              <span style={{
-                width: 72, height: 72, borderRadius: '50%', background: `hsl(${person.avatarHue} 55% 45%)`,
-                color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 700, fontSize: 30, border: '4px solid var(--bg)',
-              }}>{person.name[0]}</span>
-              <div style={{ flex: 1, minWidth: 180, paddingBottom: 4 }}>
-                <h1 style={{ fontSize: 24 }}>{person.name} {person.verified && <span className="verified">✓</span>}</h1>
-                <div className="muted small">@{person.username} · {person.city}</div>
-              </div>
-              <button className={`btn ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} style={{ paddingBottom: 4 }} onClick={() => toggleFollow(key)}>
-                {isFollowing ? 'Following ✓' : '+ Follow'}
-              </button>
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <span style={{
+              width: 72, height: 72, borderRadius: '50%', background: `hsl(${person.avatarHue} 55% 45%)`,
+              color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 700, fontSize: 30,
+            }}>{person.name[0]}</span>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <h1 style={{ fontSize: 24 }}>{person.name} {person.verified && <span className="verified">✓</span>}</h1>
+              <div className="muted small">@{person.username} · {person.city}</div>
             </div>
-
-            {person.bio && <p className="small" style={{ margin: '12px 0 0', maxWidth: 560 }}>{person.bio}</p>}
-
-            <div className="stat3" style={{ marginTop: 14, gridTemplateColumns: 'repeat(3, 1fr)' }}>
-              <StatBtn value={person.followers.toLocaleString('en-IN')} label="followers" which="followers" />
-              <StatBtn value={followingList.length} label="following" which="following" />
-              <StatBtn value={going.length} label="going" />
-            </div>
-
-            {proof.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
-                <AvatarStack people={proof} />
-                <span className="small">
-                  Followed by <b>{proofNames}</b>{proof.length > 2 ? ` +${proof.length - 2}` : ''} you follow
-                </span>
-              </div>
-            )}
+            <button className={`btn ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(key)}>
+              {isFollowing ? 'Following ✓' : '+ Follow'}
+            </button>
           </div>
+
+          {person.bio && <p className="small" style={{ margin: '12px 0 0', maxWidth: 560 }}>{person.bio}</p>}
+
+          <div className="stat3" style={{ marginTop: 14, gridTemplateColumns: 'repeat(3, 1fr)' }}>
+            <StatBtn value={person.followers.toLocaleString('en-IN')} label="followers" which="followers" />
+            <StatBtn value={followingList.length} label="following" which="following" />
+            <StatBtn value={going.length} label="going" />
+          </div>
+
+          {proof.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
+              <AvatarStack people={proof} />
+              <span className="small">
+                Followed by <b>{proofNames}</b>{proof.length > 2 ? ` +${proof.length - 2}` : ''} you follow
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Expandable followers / following (click a stat) */}
@@ -188,7 +201,7 @@ export default function PersonProfile() {
           </div>
 
           <div style={{ display: 'grid', gap: 16 }}>
-            <PeopleCard title="Mutual — you both follow" people={mutual} empty="No one in common yet. Follow more people to find mutuals." />
+            <PeopleCard title="Mutual — you both follow" people={mutual} limit={5} empty="No one in common yet. Follow more people to find mutuals." />
           </div>
         </div>
       </div>
