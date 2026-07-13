@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { CITIES } from '../data/mock';
+import { EVENTS, venueById } from '../data/mock';
 
 export default function Header() {
   const { user, city, setCity, logout } = useApp();
@@ -9,6 +9,30 @@ export default function Header() {
   const [cityOpen, setCityOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [q, setQ] = useState('');
+  const [cityQuery, setCityQuery] = useState('');
+  const cityRef = useRef<HTMLDivElement>(null);
+
+  // only cities that actually have live events
+  const eventCities = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          EVENTS.filter((e) => e.status === 'approved')
+            .map((e) => venueById(e.venueId)?.city)
+            .filter((c): c is string => !!c)
+        )
+      ).sort(),
+    []
+  );
+  const filteredCities = eventCities.filter((c) => c.toLowerCase().includes(cityQuery.toLowerCase()));
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (cityRef.current && !cityRef.current.contains(e.target as Node)) { setCityOpen(false); setCityQuery(''); }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,26 +55,31 @@ export default function Header() {
           />
         </form>
 
-        <button className="hdr-city" onClick={() => setCityOpen((o) => !o)}>
+        <div className="hdr-city" ref={cityRef} onClick={() => setCityOpen((o) => !o)}>
           📍 {city} ▾
           {cityOpen && (
-            <div className="menu">
-              {CITIES.map((c) => (
-                <button
-                  key={c}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCity(c);
-                    setCityOpen(false);
-                  }}
-                >
-                  {c === city ? '✓ ' : ''}
-                  {c}
-                </button>
-              ))}
+            <div className="menu" onClick={(e) => e.stopPropagation()}>
+              <input
+                placeholder="Search city…"
+                value={cityQuery}
+                onChange={(e) => setCityQuery(e.target.value)}
+                style={{ width: '100%', marginBottom: 6, padding: '7px 10px' }}
+                autoFocus
+              />
+              <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                {filteredCities.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => { setCity(c); setCityOpen(false); setCityQuery(''); }}
+                  >
+                    {c === city ? '✓ ' : ''}{c}
+                  </button>
+                ))}
+                {filteredCities.length === 0 && <div className="ss-empty">No cities found</div>}
+              </div>
             </div>
           )}
-        </button>
+        </div>
 
         <span className="hdr-spacer" />
 

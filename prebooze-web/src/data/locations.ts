@@ -3,31 +3,36 @@ export interface Country {
   iso: string;
   dial: string;
   flag: string;
+  enabled: boolean; // available as an onboarding location (drives the login code list)
 }
 
-/** Country dial codes (India first / default). */
+/** Countries — `enabled` ones are the supported locations (India first / default).
+ * Only enabled countries appear as dial codes at login and in the location picker. */
 export const COUNTRIES: Country[] = [
-  { name: 'India', iso: 'IN', dial: '+91', flag: '🇮🇳' },
-  { name: 'United States', iso: 'US', dial: '+1', flag: '🇺🇸' },
-  { name: 'United Kingdom', iso: 'GB', dial: '+44', flag: '🇬🇧' },
-  { name: 'United Arab Emirates', iso: 'AE', dial: '+971', flag: '🇦🇪' },
-  { name: 'Canada', iso: 'CA', dial: '+1', flag: '🇨🇦' },
-  { name: 'Australia', iso: 'AU', dial: '+61', flag: '🇦🇺' },
-  { name: 'Singapore', iso: 'SG', dial: '+65', flag: '🇸🇬' },
-  { name: 'Germany', iso: 'DE', dial: '+49', flag: '🇩🇪' },
-  { name: 'France', iso: 'FR', dial: '+33', flag: '🇫🇷' },
-  { name: 'Netherlands', iso: 'NL', dial: '+31', flag: '🇳🇱' },
-  { name: 'Spain', iso: 'ES', dial: '+34', flag: '🇪🇸' },
-  { name: 'Italy', iso: 'IT', dial: '+39', flag: '🇮🇹' },
-  { name: 'Nepal', iso: 'NP', dial: '+977', flag: '🇳🇵' },
-  { name: 'Sri Lanka', iso: 'LK', dial: '+94', flag: '🇱🇰' },
-  { name: 'Bangladesh', iso: 'BD', dial: '+880', flag: '🇧🇩' },
-  { name: 'Malaysia', iso: 'MY', dial: '+60', flag: '🇲🇾' },
-  { name: 'Thailand', iso: 'TH', dial: '+66', flag: '🇹🇭' },
-  { name: 'Japan', iso: 'JP', dial: '+81', flag: '🇯🇵' },
-  { name: 'Saudi Arabia', iso: 'SA', dial: '+966', flag: '🇸🇦' },
-  { name: 'Qatar', iso: 'QA', dial: '+974', flag: '🇶🇦' },
+  { name: 'India', iso: 'IN', dial: '+91', flag: '🇮🇳', enabled: true },
+  { name: 'United States', iso: 'US', dial: '+1', flag: '🇺🇸', enabled: true },
+  { name: 'United Kingdom', iso: 'GB', dial: '+44', flag: '🇬🇧', enabled: true },
+  { name: 'United Arab Emirates', iso: 'AE', dial: '+971', flag: '🇦🇪', enabled: true },
+  { name: 'Canada', iso: 'CA', dial: '+1', flag: '🇨🇦', enabled: false },
+  { name: 'Australia', iso: 'AU', dial: '+61', flag: '🇦🇺', enabled: false },
+  { name: 'Singapore', iso: 'SG', dial: '+65', flag: '🇸🇬', enabled: false },
+  { name: 'Germany', iso: 'DE', dial: '+49', flag: '🇩🇪', enabled: false },
+  { name: 'France', iso: 'FR', dial: '+33', flag: '🇫🇷', enabled: false },
+  { name: 'Netherlands', iso: 'NL', dial: '+31', flag: '🇳🇱', enabled: false },
+  { name: 'Spain', iso: 'ES', dial: '+34', flag: '🇪🇸', enabled: false },
+  { name: 'Italy', iso: 'IT', dial: '+39', flag: '🇮🇹', enabled: false },
+  { name: 'Nepal', iso: 'NP', dial: '+977', flag: '🇳🇵', enabled: false },
+  { name: 'Sri Lanka', iso: 'LK', dial: '+94', flag: '🇱🇰', enabled: false },
+  { name: 'Bangladesh', iso: 'BD', dial: '+880', flag: '🇧🇩', enabled: false },
+  { name: 'Malaysia', iso: 'MY', dial: '+60', flag: '🇲🇾', enabled: false },
+  { name: 'Thailand', iso: 'TH', dial: '+66', flag: '🇹🇭', enabled: false },
+  { name: 'Japan', iso: 'JP', dial: '+81', flag: '🇯🇵', enabled: false },
+  { name: 'Saudi Arabia', iso: 'SA', dial: '+966', flag: '🇸🇦', enabled: false },
+  { name: 'Qatar', iso: 'QA', dial: '+974', flag: '🇶🇦', enabled: false },
 ];
+
+/** Enabled countries only — for the login code dropdown and location picker. */
+export const enabledCountries = COUNTRIES.filter((c) => c.enabled);
 
 /** country name -> states (only populated where we cascade cities). */
 export const STATES: Record<string, string[]> = {

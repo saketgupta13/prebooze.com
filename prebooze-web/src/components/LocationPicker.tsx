@@ -1,4 +1,4 @@
-import { COUNTRIES, statesFor, citiesFor } from '../data/locations';
+import { enabledCountries, statesFor, citiesFor } from '../data/locations';
 import SearchableSelect from './SearchableSelect';
 
 export interface LocationValue {
@@ -22,7 +22,7 @@ export default function LocationPicker({ value, onChange }: { value: LocationVal
           <span>Country</span>
           <SearchableSelect
             value={value.country}
-            options={COUNTRIES.map((c) => c.name)}
+            options={enabledCountries.map((c) => c.name)}
             placeholder="Search country…"
             onChange={(country) => onChange({ ...value, country, state: '', city: '' })}
           />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { COUNTRIES } from '../../data/locations';
+import { enabledCountries } from '../../data/locations';
 
 export default function Login() {
   const { setPendingPhone } = useApp();
@@ -14,10 +14,9 @@ export default function Login() {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 10) return setErr('Enter a valid 10-digit phone number');
+    if (phone.length !== 10) return setErr('Enter a valid 10-digit mobile number');
     if (!agreed) return setErr('Please accept the Terms & Privacy Policy');
-    setPendingPhone(`${code} ${digits.slice(-10)}`);
+    setPendingPhone(`${code} ${phone}`);
     navigate('/verify-otp', { state: location.state });
   };
 
@@ -41,15 +40,15 @@ export default function Login() {
             <span>Phone number</span>
             <div className="form-row">
               <select style={{ flex: '0 0 116px' }} value={code} onChange={(e) => setCode(e.target.value)}>
-                {COUNTRIES.map((c) => (
+                {enabledCountries.map((c) => (
                   <option key={c.iso} value={c.dial}>{c.flag} {c.dial}</option>
                 ))}
               </select>
               <input
-                placeholder="Phone number"
-                inputMode="tel"
+                placeholder="10-digit mobile number"
+                inputMode="numeric"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); setErr(''); }}
                 autoFocus
               />
             </div>
