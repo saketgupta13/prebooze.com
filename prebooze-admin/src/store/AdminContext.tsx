@@ -636,12 +636,20 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setLocations((prev) =>
           prev.map((c) => {
             if (c.name !== path.country) return c;
-            if (!path.state) return { ...c, enabled: !c.enabled };
+            // toggling a country cascades to all its states + cities
+            if (!path.state) {
+              const en = !c.enabled;
+              return { ...c, enabled: en, states: c.states.map((s) => ({ ...s, enabled: en, cities: s.cities.map((ci) => ({ ...ci, enabled: en })) })) };
+            }
             return {
               ...c,
               states: c.states.map((s) => {
                 if (s.name !== path.state) return s;
-                if (!path.city) return { ...s, enabled: !s.enabled };
+                // toggling a state cascades to all its cities
+                if (!path.city) {
+                  const en = !s.enabled;
+                  return { ...s, enabled: en, cities: s.cities.map((ci) => ({ ...ci, enabled: en })) };
+                }
                 return { ...s, cities: s.cities.map((ci) => (ci.name === path.city ? { ...ci, enabled: !ci.enabled } : ci)) };
               }),
             };

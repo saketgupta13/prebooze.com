@@ -216,8 +216,17 @@ const load = <T,>(key: string, fallback: T): T => {
   }
 };
 
+/** One number = one role. If a stored user somehow holds more than one elevated
+ * role (legacy data), collapse it to a plain guest. */
+function normalizeUser(u: User | null): User | null {
+  if (!u) return u;
+  const roles = [u.isOrganizer, u.isPromoter, u.isLineup].filter(Boolean).length;
+  if (roles > 1) return { ...u, isOrganizer: false, isPromoter: false, isLineup: false };
+  return u;
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => load('pb_user', null));
+  const [user, setUser] = useState<User | null>(() => normalizeUser(load('pb_user', null)));
   const [city, setCity] = useState<string>(() => load('pb_city', 'Austin'));
   const [bookings, setBookings] = useState<Booking[]>(() => load('pb_bookings', []));
   const [selection, setSelectionState] = useState<Selection | null>(() => load('pb_selection', null));
@@ -353,8 +362,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCity,
       setPendingPhone,
       loginWithOtp: () => {
-        const existing = load<User | null>('pb_known_' + pendingPhone, null);
+        const existing = normalizeUser(load<User | null>('pb_known_' + pendingPhone, null));
         if (existing) {
+          localStorage.setItem('pb_known_' + existing.phone, JSON.stringify(existing));
           setUser(existing);
           return 'existing';
         }
@@ -384,7 +394,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateUser: (patch) => {
         setUser((u) => {
           if (!u) return u;
-          const next = { ...u, ...patch };
+          const next = normalizeUser({ ...u, ...patch })!;
           localStorage.setItem('pb_known_' + next.phone, JSON.stringify(next));
           return next;
         });

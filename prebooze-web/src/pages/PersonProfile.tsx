@@ -160,7 +160,7 @@ export default function PersonProfile() {
           {person.bio && <p className="small" style={{ margin: '12px 0 0', maxWidth: 560 }}>{person.bio}</p>}
 
           <div className="stat3" style={{ marginTop: 14, gridTemplateColumns: 'repeat(3, 1fr)' }}>
-            <StatBtn value={person.followers.toLocaleString('en-IN')} label="followers" which="followers" />
+            <StatBtn value={followerList.length} label="followers" which="followers" />
             <StatBtn value={followingList.length} label="following" which="following" />
             <StatBtn value={going.length} label="going" />
           </div>
