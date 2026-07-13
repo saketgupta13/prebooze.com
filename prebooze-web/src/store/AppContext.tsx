@@ -108,6 +108,9 @@ interface Selection {
   qty: Record<string, number>; // tierId -> qty
 }
 
+/** How long paid tickets stay held on the checkout page before the hold is released. */
+export const CART_HOLD_MINUTES = 8;
+
 interface AppState {
   user: User | null;
   city: string;
@@ -123,6 +126,9 @@ interface AppState {
   updateUser: (patch: Partial<User>) => void;
   logout: () => void;
   setSelection: (s: Selection | null) => void;
+  holdExpiry: number | null; // epoch ms when the current checkout hold lapses
+  startHold: () => void;
+  clearHold: () => void;
   addBooking: (b: Booking) => void;
   cancelBooking: (id: string) => void;
   checkInBooking: (id: string, count: number) => void;
@@ -185,7 +191,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => load('pb_user', null));
   const [city, setCity] = useState<string>(() => load('pb_city', 'Austin'));
   const [bookings, setBookings] = useState<Booking[]>(() => load('pb_bookings', []));
-  const [selection, setSelection] = useState<Selection | null>(null);
+  const [selection, setSelectionState] = useState<Selection | null>(() => load('pb_selection', null));
+  const [holdExpiry, setHoldExpiry] = useState<number | null>(() => load('pb_hold_expiry', null));
   const [myEvents, setMyEvents] = useState<Event[]>(() => load('pb_my_events', []));
   const [coupons, setCoupons] = useState<Coupon[]>(() => load('pb_coupons', COUPONS));
   const [following, setFollowing] = useState<string[]>(() =>
@@ -236,6 +243,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_bookings', JSON.stringify(bookings));
   }, [bookings]);
+  useEffect(() => {
+    localStorage.setItem('pb_selection', JSON.stringify(selection));
+  }, [selection]);
+  useEffect(() => {
+    localStorage.setItem('pb_hold_expiry', JSON.stringify(holdExpiry));
+  }, [holdExpiry]);
   useEffect(() => {
     localStorage.setItem('pb_my_events', JSON.stringify(myEvents));
   }, [myEvents]);
@@ -331,7 +344,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
       },
       logout: () => setUser(null),
-      setSelection,
+      // changing the cart always resets any active hold; checkout re-arms it on entry
+      setSelection: (s) => {
+        setSelectionState(s);
+        setHoldExpiry(null);
+      },
+      holdExpiry,
+      startHold: () => setHoldExpiry(Date.now() + CART_HOLD_MINUTES * 60000),
+      clearHold: () => setHoldExpiry(null),
       addBooking: (b) => setBookings((prev) => [b, ...prev]),
       cancelBooking: (id) =>
         setBookings((prev) =>
@@ -463,7 +483,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
+    [user, city, bookings, selection, holdExpiry, myEvents, coupons, following, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

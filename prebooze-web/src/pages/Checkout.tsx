@@ -1,18 +1,32 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useApp } from '../store/AppContext';
+import { useApp, CART_HOLD_MINUTES } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import type { Booking } from '../types';
 
 const BOOKING_FEE_PER_TICKET = 1.5;
 
 export default function Checkout() {
-  const { user, selection, coupons, myEvents, addBooking, setSelection, pendingPromoterRef, setPendingPromoterRef } = useApp();
+  const { user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, pendingPromoterRef, setPendingPromoterRef } = useApp();
   const navigate = useNavigate();
 
   const event = selection
     ? (eventById(selection.eventId) ?? myEvents.find((e) => e.id === selection.eventId))
     : undefined;
+
+  // Cart hold timer — arm on entry, tick every second, release (hard) on expiry.
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
+    if (selection && holdExpiry == null) startHold();
+  }, [selection, holdExpiry, startHold]);
+  const remaining = holdExpiry ? Math.max(0, holdExpiry - now) : 0;
+  const expired = holdExpiry != null && holdExpiry <= now;
+  const lowTime = remaining <= 60000;
+  const mmss = `${String(Math.floor(remaining / 60000)).padStart(2, '0')}:${String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0')}`;
 
   const [name, setName] = useState(user?.name ?? '');
   const [gender, setGender] = useState(user?.gender ?? '');
@@ -58,6 +72,33 @@ export default function Checkout() {
           <Link to="/browse" className="btn btn-pri">
             Browse events
           </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (expired) {
+    const slug = event.slug;
+    return (
+      <main className="page">
+        <div className="container center" style={{ padding: '72px 0' }}>
+          <div className="card card-shadow" style={{ maxWidth: 460, margin: '0 auto', textAlign: 'center' }}>
+            <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}>⏱</div>
+            <h1 style={{ fontSize: 22, marginTop: 8 }}>Your hold expired</h1>
+            <p className="muted" style={{ margin: '10px 0 18px' }}>
+              We held your {ticketCount} ticket{ticketCount > 1 ? 's' : ''} for {CART_HOLD_MINUTES} minutes. Pick them
+              again to continue — popular tiers can sell out fast.
+            </p>
+            <button
+              className="btn btn-pri btn-lg"
+              onClick={() => {
+                setSelection(null);
+                navigate(`/events/${slug}`);
+              }}
+            >
+              Pick tickets again →
+            </button>
+          </div>
         </div>
       </main>
     );
@@ -126,7 +167,38 @@ export default function Checkout() {
           <Link to={`/events/${event.slug}`}>← {event.title}</Link> / Checkout · step 2 of 2 ·{' '}
           <span className="accent">🔒 secure checkout</span>
         </div>
-        <h1 style={{ fontSize: 24, marginBottom: 20 }}>Checkout</h1>
+        <h1 style={{ fontSize: 24, marginBottom: 16 }}>Checkout</h1>
+
+        {holdExpiry && !expired && (
+          <div
+            className="card"
+            style={{
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '12px 16px',
+              borderColor: lowTime ? 'var(--danger)' : 'var(--accent)',
+              background: lowTime ? 'rgba(255,90,90,.06)' : 'rgba(155,225,61,.06)',
+            }}
+          >
+            <span style={{ fontSize: 20 }}>⏳</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="small bold">
+                {ticketCount} ticket{ticketCount > 1 ? 's' : ''} held for you
+              </div>
+              <div className="tiny muted-2">
+                {lowTime ? 'Hurry — your hold is about to expire.' : 'Complete payment before the hold runs out.'}
+              </div>
+            </div>
+            <div
+              className={lowTime ? 'danger-text' : 'accent'}
+              style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}
+            >
+              {mmss}
+            </div>
+          </div>
+        )}
 
         <div className="checkout-grid">
           <div>
