@@ -353,6 +353,21 @@ export const SEED_PROMOTERS = [
   { id: 'pr5', name: 'Ghost Guestlist', contact: 'x@ghostgl.co', city: 'Dallas', status: 'rejected' as const, kyc: 'flagged', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'Flagged for fake guest activity.', guestsBrought: 0, perHeadEarned: 0, commissionEarned: 0, withdrawn: 0, payouts: [] },
 ];
 
+// Abandoned carts — guests who reached checkout but didn't pay before the hold
+// lapsed. Platform-wide dataset for admin analytics + recovery nudges.
+export const SEED_ABANDONED_CARTS = [
+  { id: 'ac1', guest: 'Riya Sharma', phone: '+91 98•••• 1120', eventId: 'e1', qty: 2, amount: 162, tiers: '2× VIP', leftAt: '9m', reminded: false, status: 'abandoned' as const },
+  { id: 'ac2', guest: 'Arjun Mehta', phone: '+91 99•••• 4432', eventId: 'e1', qty: 2, amount: 60, tiers: '2× General', leftAt: '24m', reminded: false, status: 'abandoned' as const },
+  { id: 'ac3', guest: 'Neha Gupta', phone: '+91 97•••• 8890', eventId: 'e1', qty: 1, amount: 81, tiers: '1× VIP', leftAt: '1h', reminded: true, status: 'recovered' as const },
+  { id: 'ac4', guest: 'Vikram Rao', phone: '+91 90•••• 2201', eventId: 'e2', qty: 4, amount: 480, tiers: '4× Day pass', leftAt: '18m', reminded: false, status: 'abandoned' as const },
+  { id: 'ac5', guest: 'Priya Nair', phone: '+91 98•••• 5567', eventId: 'e2', qty: 2, amount: 240, tiers: '2× Day pass', leftAt: '2h', reminded: true, status: 'abandoned' as const },
+  { id: 'ac6', guest: 'Sana Kapoor', phone: '+91 96•••• 3312', eventId: 'e2', qty: 1, amount: 320, tiers: '1× Weekend', leftAt: '3h', reminded: true, status: 'recovered' as const },
+  { id: 'ac7', guest: 'Dev Patel', phone: '+91 99•••• 7788', eventId: 'e3', qty: 3, amount: 135, tiers: '3× Entry', leftAt: '40m', reminded: false, status: 'abandoned' as const },
+  { id: 'ac8', guest: 'Ananya Iyer', phone: '+91 97•••• 1145', eventId: 'e3', qty: 2, amount: 90, tiers: '2× Entry', leftAt: '5h', reminded: false, status: 'abandoned' as const },
+  { id: 'ac9', guest: 'Rohit Sinha', phone: '+91 90•••• 9923', eventId: 'e5', qty: 2, amount: 300, tiers: '2× GA', leftAt: '1d', reminded: false, status: 'abandoned' as const },
+  { id: 'ac10', guest: 'Meera Joshi', phone: '+91 98•••• 6654', eventId: 'e5', qty: 1, amount: 150, tiers: '1× GA', leftAt: '1d', reminded: true, status: 'recovered' as const },
+];
+
 // Editable subscription tiers (admin-configurable; mirrored to the promoter app).
 export const SEED_SUB_TIERS = [
   { id: 'free', name: 'Free', price: 0, guests: 25 },

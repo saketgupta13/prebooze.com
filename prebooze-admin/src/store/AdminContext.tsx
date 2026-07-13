@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type {
+  AbandonedCart,
   AdminBooking,
   AdminReview,
   Promoter,
@@ -49,6 +50,7 @@ import {
   SEED_POLICIES,
   SEED_PROMOS,
   SEED_PROMOTERS,
+  SEED_ABANDONED_CARTS,
   SEED_SUB_TIERS,
   SEED_REVIEWS,
   SEED_TESTIMONIALS,
@@ -168,6 +170,9 @@ interface AdminState {
   removePromoter2: (id: string) => void;
   subTiers: { id: string; name: string; price: number; guests: number }[];
   updateSubTier: (id: string, patch: { name?: string; price?: number; guests?: number }) => void;
+  abandonedCarts: AbandonedCart[];
+  remindCart2: (id: string) => void;
+  bulkRemind: (ids: string[]) => void;
 }
 
 const Ctx = createContext<AdminState>(null as unknown as AdminState);
@@ -245,6 +250,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [menus, setMenusState] = usePersisted<MenuConfig>('pba_menus', SEED_MENUS);
   const [promoters, setPromoters] = usePersisted<Promoter[]>('pba_promoters', SEED_PROMOTERS, mergeWithSeed(SEED_PROMOTERS, 'id'));
   const [subTiers, setSubTiers] = usePersisted('pba_subtiers', SEED_SUB_TIERS);
+  const [abandonedCarts, setAbandonedCarts] = usePersisted<AbandonedCart[]>('pba_abandoned', SEED_ABANDONED_CARTS, mergeWithSeed(SEED_ABANDONED_CARTS, 'id'));
   const [lineupCategories, setLineupCategories] = usePersisted<string[]>('pba_lineupcats', LINEUP_CATEGORIES);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -586,6 +592,15 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setSubTiers((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
         toast('Subscription tier saved ✓');
       },
+      abandonedCarts,
+      remindCart2: (id) => {
+        setAbandonedCarts((prev) => prev.map((c) => (c.id === id ? { ...c, reminded: true } : c)));
+        toast('WhatsApp reminder sent ✓');
+      },
+      bulkRemind: (ids) => {
+        setAbandonedCarts((prev) => prev.map((c) => (ids.includes(c.id) ? { ...c, reminded: true } : c)));
+        toast(`Reminder sent to ${ids.length} guest${ids.length === 1 ? '' : 's'} ✓`);
+      },
       removeRole: (name) => {
         if (name === 'Owner') {
           toast("The Owner role can't be removed");
@@ -619,7 +634,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers]
+    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, abandonedCarts, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

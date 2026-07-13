@@ -15,7 +15,7 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 ];
 
 export default function Bookings() {
-  const { bookings, events, resolveRefund, removeBooking, toast } = useAdmin();
+  const { bookings, events, abandonedCarts, resolveRefund, removeBooking, toast } = useAdmin();
   const [params, setParams] = useSearchParams();
   const filter = (params.get('status') as FilterKey) ?? 'all';
   const [query, setQuery] = useState(params.get('q') ?? '');
@@ -100,6 +100,41 @@ export default function Bookings() {
         {list.length === 0 && <div className="trow muted">No bookings match.</div>}
       </div>
       <div className="tiny hint">Click a row for the fee breakdown, QR resend and refund actions.</div>
+
+      {/* Abandoned carts — event-wise */}
+      {(() => {
+        const open = abandonedCarts.filter((c) => c.status === 'abandoned' && (cityF === 'All' || eventCity(c.eventId) === cityF));
+        if (open.length === 0) return null;
+        const m = new Map<string, { count: number; value: number }>();
+        open.forEach((c) => {
+          const cur = m.get(c.eventId) ?? { count: 0, value: 0 };
+          cur.count += 1;
+          cur.value += c.amount;
+          m.set(c.eventId, cur);
+        });
+        const rows = [...m.entries()].sort((a, b) => b[1].value - a[1].value);
+        const totalValue = open.reduce((a, c) => a + c.amount, 0);
+        return (
+          <div className="tblwrap">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid rgba(139,195,74,.15)', flexWrap: 'wrap', gap: 6 }}>
+              <span className="display" style={{ fontWeight: 700 }}>🛒 Abandoned carts by event</span>
+              <span className="small muted">{open.length} open · ₹{fmt(totalValue)} recoverable · <Link to="/abandoned">recover →</Link></span>
+            </div>
+            <div className="thead" style={{ minWidth: 480 }}>
+              <span style={{ flex: 2 }}>Event</span>
+              <span style={{ flex: 1 }}>Carts</span>
+              <span style={{ flex: 1 }}>Recoverable</span>
+            </div>
+            {rows.map(([id, v]) => (
+              <Link key={id} to="/abandoned" className="trow clickable" style={{ minWidth: 480, textDecoration: 'none' }}>
+                <span style={{ flex: 2, fontWeight: 700 }}>{eventTitle(id)}</span>
+                <span style={{ flex: 1 }}>{v.count}</span>
+                <span style={{ flex: 1 }} className="green">₹{fmt(v.value)}</span>
+              </Link>
+            ))}
+          </div>
+        );
+      })()}
 
       {selected && (
         <Drawer onClose={() => setSelectedId(null)}>

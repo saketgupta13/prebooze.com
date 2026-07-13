@@ -172,6 +172,19 @@ export interface Promoter {
   payouts?: PromoterPayout[];
 }
 
+export interface AbandonedCart {
+  id: string;
+  guest: string;
+  phone: string;
+  eventId: string;
+  qty: number;
+  amount: number;   // recoverable ₹ (what the guest would have paid)
+  tiers: string;    // e.g. "2× VIP"
+  leftAt: string;   // human label, e.g. "12m", "2h", "1d"
+  reminded: boolean;
+  status: 'abandoned' | 'recovered';
+}
+
 export interface AdminReview {
   id: string;
   author: string;

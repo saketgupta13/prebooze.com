@@ -8,6 +8,7 @@ const MAIN_NAV = [
   { to: '/', icon: '▦', label: 'Dashboard', end: true },
   { to: '/events', icon: '🎪', label: 'Events' },
   { to: '/bookings', icon: '🎟', label: 'Bookings' },
+  { to: '/abandoned', icon: '🛒', label: 'Abandoned carts' },
   { to: '/customers', icon: '👥', label: 'Customers' },
   { to: '/organizers', icon: '🧑‍💼', label: 'Organizers' },
   { to: '/promoters', icon: '📣', label: 'Promoters' },
