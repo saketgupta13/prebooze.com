@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import LocationPicker, { emptyLocation } from '../components/LocationPicker';
+import RoleTaken from '../components/RoleTaken';
+import { existingRole } from '../lib/roles';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 
@@ -28,6 +30,8 @@ export default function LineupOnboarding() {
 
   // Same WhatsApp OTP login as guests — then this instead of the guest profile
   if (!user) return <Navigate to="/login" state={{ from: '/lineup/onboarding' }} replace />;
+  const otherRole = existingRole(user);
+  if (otherRole && otherRole !== 'lineup') return <RoleTaken has={otherRole} />;
 
   const step1Valid = stageName.trim() && bio.trim();
   const pct = done ? 100 : step === 1 ? 50 : 90;

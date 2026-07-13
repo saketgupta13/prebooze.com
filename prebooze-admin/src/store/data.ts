@@ -378,6 +378,35 @@ export const SEED_SUB_TIERS = [
 
 export const ADMIN_CITIES = ['Austin', 'Dallas', 'Houston'];
 
+// Onboarding locations — admin-managed country → state → city with enable toggles.
+const city = (name: string, enabled = true) => ({ name, enabled });
+const st = (name: string, cities: string[], enabled = true) => ({ name, enabled, cities: cities.map((c) => city(c)) });
+export const SEED_LOCATIONS = [
+  {
+    name: 'India', enabled: true, states: [
+      st('Maharashtra', ['Mumbai', 'Pune', 'Nagpur', 'Nashik']),
+      st('Karnataka', ['Bengaluru', 'Mysuru', 'Mangaluru']),
+      st('Delhi', ['New Delhi', 'Dwarka', 'Rohini']),
+      st('Tamil Nadu', ['Chennai', 'Coimbatore', 'Madurai']),
+      st('Telangana', ['Hyderabad', 'Warangal']),
+      st('Goa', ['Panaji', 'Margao']),
+    ],
+  },
+  {
+    name: 'United States', enabled: true, states: [
+      st('Texas', ['Austin', 'Dallas', 'Houston', 'San Antonio']),
+      st('California', ['Los Angeles', 'San Francisco', 'San Diego']),
+      st('New York', ['New York City', 'Buffalo']),
+    ],
+  },
+  {
+    name: 'United Arab Emirates', enabled: true, states: [
+      st('Dubai', ['Dubai']),
+      st('Abu Dhabi', ['Abu Dhabi', 'Al Ain']),
+    ],
+  },
+];
+
 export const GUEST_SITE_URL = 'http://localhost:5173';
 
 export const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');

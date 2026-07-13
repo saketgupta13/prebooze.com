@@ -6,6 +6,7 @@ import Events from './pages/Events';
 import EventEditor from './pages/EventEditor';
 import Bookings from './pages/Bookings';
 import AbandonedCarts from './pages/AbandonedCarts';
+import Locations from './pages/Locations';
 import Customers from './pages/Customers';
 import Organizers from './pages/Organizers';
 import OrganizerDetail from './pages/OrganizerDetail';
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="/promoters/tiers" element={<PromoterTiers />} />
         <Route path="/promoters/:id" element={<PromoterDetail />} />
         <Route path="/promoters/:id/edit" element={<PromoterEdit />} />
+        <Route path="/locations" element={<Locations />} />
         <Route path="/venues" element={<Venues />} />
         <Route path="/venues/new" element={<AddVenue />} />
         <Route path="/venues/:id" element={<VenueDetail />} />

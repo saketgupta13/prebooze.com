@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import LocationPicker, { emptyLocation } from '../../components/LocationPicker';
+import RoleTaken from '../../components/RoleTaken';
+import { existingRole } from '../../lib/roles';
 
 export default function Onboarding() {
   const { user, updateUser } = useApp();
@@ -28,6 +30,9 @@ export default function Onboarding() {
   const [selfie, setSelfie] = useState(false);
   const [account, setAccount] = useState('');
   const [ifsc, setIfsc] = useState('');
+
+  const otherRole = existingRole(user);
+  if (otherRole && otherRole !== 'organizer') return <RoleTaken has={otherRole} />;
 
   const step1Valid = brand.trim() && username.trim() && pan.trim();
   const step2Valid = aadhaar && selfie && account.trim() && ifsc.trim();

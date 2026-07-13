@@ -172,6 +172,11 @@ export interface Promoter {
   payouts?: PromoterPayout[];
 }
 
+export interface LocCity { name: string; enabled: boolean }
+export interface LocState { name: string; enabled: boolean; cities: LocCity[] }
+export interface LocCountry { name: string; enabled: boolean; states: LocState[] }
+export interface LocPath { country: string; state?: string; city?: string }
+
 export interface AbandonedCart {
   id: string;
   guest: string;

@@ -25,7 +25,7 @@ export default function Login() {
     <main className="page">
       <div className="container auth-wrap">
         <div className="auth-visual">
-          <img src="/prebooze-logo.png" alt="Prebooze" style={{ height: 120, width: 'auto' }} />
+          <img src="/prebooze-logo.png" alt="Prebooze" style={{ height: 66, width: 'auto' }} />
           <p className="muted small">
             Concerts · comedy · festivals · warehouse parties — from verified organizers only.
           </p>

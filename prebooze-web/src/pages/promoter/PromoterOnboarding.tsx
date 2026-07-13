@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import LocationPicker, { emptyLocation } from '../../components/LocationPicker';
+import RoleTaken from '../../components/RoleTaken';
+import { existingRole } from '../../lib/roles';
 
 /** Promoter onboarding — same 2-step pattern as organizers: PR profile → identity KYC,
  * then Pending admin review. */
@@ -23,6 +25,8 @@ export default function PromoterOnboarding() {
   const [done, setDone] = useState(false);
 
   if (!user) return <Navigate to="/login" state={{ from: '/promoter/onboarding' }} replace />;
+  const otherRole = existingRole(user);
+  if (otherRole && otherRole !== 'promoter') return <RoleTaken has={otherRole} />;
 
   const step1Valid = brand.trim() && username.trim() && bio.trim();
   const pct = done ? 100 : step === 1 ? 50 : 90;

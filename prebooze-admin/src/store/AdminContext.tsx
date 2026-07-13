@@ -4,6 +4,8 @@ import type {
   AbandonedCart,
   AdminBooking,
   AdminReview,
+  LocCountry,
+  LocPath,
   Promoter,
   BlogCategory,
   FaqItem,
@@ -51,6 +53,7 @@ import {
   SEED_PROMOS,
   SEED_PROMOTERS,
   SEED_ABANDONED_CARTS,
+  SEED_LOCATIONS,
   SEED_SUB_TIERS,
   SEED_REVIEWS,
   SEED_TESTIMONIALS,
@@ -173,6 +176,10 @@ interface AdminState {
   abandonedCarts: AbandonedCart[];
   remindCart2: (id: string) => void;
   bulkRemind: (ids: string[]) => void;
+  locations: LocCountry[];
+  addLocation: (level: 'country' | 'state' | 'city', path: LocPath, name: string) => void;
+  toggleLocation: (path: LocPath) => void;
+  removeLocation: (path: LocPath) => void;
 }
 
 const Ctx = createContext<AdminState>(null as unknown as AdminState);
@@ -251,6 +258,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [promoters, setPromoters] = usePersisted<Promoter[]>('pba_promoters', SEED_PROMOTERS, mergeWithSeed(SEED_PROMOTERS, 'id'));
   const [subTiers, setSubTiers] = usePersisted('pba_subtiers', SEED_SUB_TIERS);
   const [abandonedCarts, setAbandonedCarts] = usePersisted<AbandonedCart[]>('pba_abandoned', SEED_ABANDONED_CARTS, mergeWithSeed(SEED_ABANDONED_CARTS, 'id'));
+  const [locations, setLocations] = usePersisted<LocCountry[]>('pba_locations', SEED_LOCATIONS);
   const [lineupCategories, setLineupCategories] = usePersisted<string[]>('pba_lineupcats', LINEUP_CATEGORIES);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -601,6 +609,56 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setAbandonedCarts((prev) => prev.map((c) => (ids.includes(c.id) ? { ...c, reminded: true } : c)));
         toast(`Reminder sent to ${ids.length} guest${ids.length === 1 ? '' : 's'} ✓`);
       },
+      locations,
+      addLocation: (level, path, name) => {
+        const n = name.trim();
+        if (!n) return;
+        setLocations((prev) => {
+          if (level === 'country') {
+            return prev.some((c) => c.name === n) ? prev : [...prev, { name: n, enabled: true, states: [] }];
+          }
+          return prev.map((c) => {
+            if (c.name !== path.country) return c;
+            if (level === 'state') {
+              return c.states.some((s) => s.name === n) ? c : { ...c, states: [...c.states, { name: n, enabled: true, cities: [] }] };
+            }
+            return {
+              ...c,
+              states: c.states.map((s) =>
+                s.name !== path.state ? s : (s.cities.some((ci) => ci.name === n) ? s : { ...s, cities: [...s.cities, { name: n, enabled: true }] })
+              ),
+            };
+          });
+        });
+        toast(`${n} added ✓`);
+      },
+      toggleLocation: (path) => {
+        setLocations((prev) =>
+          prev.map((c) => {
+            if (c.name !== path.country) return c;
+            if (!path.state) return { ...c, enabled: !c.enabled };
+            return {
+              ...c,
+              states: c.states.map((s) => {
+                if (s.name !== path.state) return s;
+                if (!path.city) return { ...s, enabled: !s.enabled };
+                return { ...s, cities: s.cities.map((ci) => (ci.name === path.city ? { ...ci, enabled: !ci.enabled } : ci)) };
+              }),
+            };
+          })
+        );
+      },
+      removeLocation: (path) => {
+        setLocations((prev) => {
+          if (!path.state) return prev.filter((c) => c.name !== path.country);
+          return prev.map((c) => {
+            if (c.name !== path.country) return c;
+            if (!path.city) return { ...c, states: c.states.filter((s) => s.name !== path.state) };
+            return { ...c, states: c.states.map((s) => (s.name !== path.state ? s : { ...s, cities: s.cities.filter((ci) => ci.name !== path.city) })) };
+          });
+        });
+        toast('Location removed');
+      },
       removeRole: (name) => {
         if (name === 'Owner') {
           toast("The Owner role can't be removed");
@@ -634,7 +692,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, abandonedCarts, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts]
+    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, abandonedCarts, locations, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts, setLocations]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
