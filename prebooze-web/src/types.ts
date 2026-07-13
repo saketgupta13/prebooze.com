@@ -94,7 +94,8 @@ export interface Person {
   avatarHue: number;
   bio?: string;
   verified?: boolean;
-  followers: number;
+  followers: number;    // aggregate follower count
+  follows?: string[];   // person ids this person follows (social graph)
 }
 
 /** One person's relationship to one event. */

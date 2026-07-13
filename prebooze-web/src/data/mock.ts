@@ -746,16 +746,16 @@ export const GENDER_OPTIONS = ['Female', 'Male', 'Non-binary', 'Prefer not to sa
 
 // ---- People / social graph (followable guests behind "Who's going") ----
 export const PEOPLE: Person[] = [
-  { id: 'p1', name: 'Aisha Khan', username: 'aisha', city: 'Austin', avatarHue: 285, bio: 'Lives for warehouse sets & rooftop sundowners. DM me your guest lists.', verified: true, followers: 640 },
-  { id: 'p2', name: 'Rohit Verma', username: 'rohitv', city: 'Austin', avatarHue: 200, bio: 'Techno, tacos, and 2 AM decisions.', followers: 410 },
-  { id: 'p3', name: 'Sana Kapoor', username: 'sanak', city: 'Dallas', avatarHue: 30, bio: 'Comedy nights and indie gigs. Front row or nothing.', verified: true, followers: 980 },
-  { id: 'p4', name: 'Dev Patel', username: 'devp', city: 'Austin', avatarHue: 150, bio: 'Festival regular. Sunscreen influencer.', followers: 230 },
-  { id: 'p5', name: 'Neha Gupta', username: 'nehag', city: 'Houston', avatarHue: 330, bio: 'House heads unite.', followers: 520 },
-  { id: 'p6', name: 'Arjun Mehta', username: 'arjunm', city: 'Austin', avatarHue: 95, bio: 'Will show up for a good bassline.', followers: 175 },
-  { id: 'p7', name: 'Priya Nair', username: 'priyan', city: 'Dallas', avatarHue: 265, bio: 'Day parties > night parties. Fight me.', verified: true, followers: 1240 },
-  { id: 'p8', name: 'Vikram Rao', username: 'vikramr', city: 'Austin', avatarHue: 45, bio: 'Warehouse till sunrise.', followers: 300 },
-  { id: 'p9', name: 'Meera Joshi', username: 'meeraj', city: 'Bengaluru', avatarHue: 12, bio: 'New in town, big on plans.', followers: 88 },
-  { id: 'p10', name: 'Karan Shah', username: 'karans', city: 'Austin', avatarHue: 240, bio: 'If there’s a lineup, I’m interested.', followers: 156 },
+  { id: 'p1', name: 'Aisha Khan', username: 'aisha', city: 'Austin', avatarHue: 285, bio: 'Lives for warehouse sets & rooftop sundowners. DM me your guest lists.', verified: true, followers: 640, follows: ['p2', 'p3', 'p7', 'p5'] },
+  { id: 'p2', name: 'Rohit Verma', username: 'rohitv', city: 'Austin', avatarHue: 200, bio: 'Techno, tacos, and 2 AM decisions.', followers: 410, follows: ['p1', 'p4', 'p8', 'p6'] },
+  { id: 'p3', name: 'Sana Kapoor', username: 'sanak', city: 'Dallas', avatarHue: 30, bio: 'Comedy nights and indie gigs. Front row or nothing.', verified: true, followers: 980, follows: ['p1', 'p5', 'p7'] },
+  { id: 'p4', name: 'Dev Patel', username: 'devp', city: 'Austin', avatarHue: 150, bio: 'Festival regular. Sunscreen influencer.', followers: 230, follows: ['p1', 'p2', 'p6', 'p10'] },
+  { id: 'p5', name: 'Neha Gupta', username: 'nehag', city: 'Houston', avatarHue: 330, bio: 'House heads unite.', followers: 520, follows: ['p3', 'p6', 'p9', 'p1'] },
+  { id: 'p6', name: 'Arjun Mehta', username: 'arjunm', city: 'Austin', avatarHue: 95, bio: 'Will show up for a good bassline.', followers: 175, follows: ['p4', 'p5', 'p10', 'p2'] },
+  { id: 'p7', name: 'Priya Nair', username: 'priyan', city: 'Dallas', avatarHue: 265, bio: 'Day parties > night parties. Fight me.', verified: true, followers: 1240, follows: ['p1', 'p3', 'p2'] },
+  { id: 'p8', name: 'Vikram Rao', username: 'vikramr', city: 'Austin', avatarHue: 45, bio: 'Warehouse till sunrise.', followers: 300, follows: ['p2', 'p9', 'p10', 'p6'] },
+  { id: 'p9', name: 'Meera Joshi', username: 'meeraj', city: 'Bengaluru', avatarHue: 12, bio: 'New in town, big on plans.', followers: 88, follows: ['p5', 'p8', 'p1'] },
+  { id: 'p10', name: 'Karan Shah', username: 'karans', city: 'Austin', avatarHue: 240, bio: 'If there’s a lineup, I’m interested.', followers: 156, follows: ['p6', 'p8', 'p3'] },
 ];
 
 // Seeded attendance across events — the crowd behind the FOMO. Seeded people are
