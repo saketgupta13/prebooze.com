@@ -11,7 +11,7 @@ export interface Country {
 export const COUNTRIES: Country[] = [
   { name: 'India', iso: 'IN', dial: '+91', flag: '🇮🇳', enabled: true },
   { name: 'United States', iso: 'US', dial: '+1', flag: '🇺🇸', enabled: true },
-  { name: 'United Kingdom', iso: 'GB', dial: '+44', flag: '🇬🇧', enabled: true },
+  { name: 'United Kingdom', iso: 'GB', dial: '+44', flag: '🇬🇧', enabled: false },
   { name: 'United Arab Emirates', iso: 'AE', dial: '+971', flag: '🇦🇪', enabled: true },
   { name: 'Canada', iso: 'CA', dial: '+1', flag: '🇨🇦', enabled: false },
   { name: 'Australia', iso: 'AU', dial: '+61', flag: '🇦🇺', enabled: false },
