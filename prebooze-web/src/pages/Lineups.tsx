@@ -2,16 +2,20 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LINEUPS } from '../data/mock';
 import { useApp } from '../store/AppContext';
+import { featuredRefs, featuredFirst } from '../lib/featured';
 import DirectoryCard from '../components/DirectoryCard';
 
 /** Public directory of line-up artists — DJs, bands, comedians and more. */
 export default function Lineups() {
-  const { city, following, toggleFollow } = useApp();
+  const { city, following, toggleFollow, featured } = useApp();
+  const feat = featuredRefs(featured, 'lineup', city);
   const cats = ['All', ...Array.from(new Set(LINEUPS.filter((l) => l.city === city).map((l) => l.category)))];
   const [catF, setCatF] = useState('All');
-  const list = [...LINEUPS]
-    .filter((l) => l.city === city && (catF === 'All' || l.category === catF))
-    .sort((a, b) => b.followers - a.followers);
+  const list = featuredFirst(
+    [...LINEUPS].filter((l) => l.city === city && (catF === 'All' || l.category === catF)).sort((a, b) => b.followers - a.followers),
+    (l) => l.slug,
+    feat
+  );
 
   return (
     <main className="page">
@@ -44,6 +48,7 @@ export default function Lineups() {
                 verified={l.verified}
                 meta={`${l.category} · ${l.city}`}
                 bio={l.bio}
+                featured={feat.has(l.slug)}
                 stats={<><b>{l.followers.toLocaleString('en-IN')}</b> followers · <b>{l.eventsPlayed}</b> shows</>}
                 action={
                   <button className={`btn btn-sm btn-block ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(key)}>

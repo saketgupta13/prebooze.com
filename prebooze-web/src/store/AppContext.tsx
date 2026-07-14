@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Booking, Coupon, Event, User, Venue } from '../types';
+import type { Booking, Coupon, Event, Featured, User, Venue } from '../types';
 import { registerVenue } from '../data/mock';
-import { COUPONS, EVENTS } from '../data/mock';
+import { COUPONS, EVENTS, SEED_FEATURED } from '../data/mock';
 
 export interface GuestListEntry {
   id: string;
@@ -163,6 +163,7 @@ interface AppState {
   toggleFollow: (id: string) => void;
   interested: string[]; // event ids the user marked "Interested"
   toggleInterested: (eventId: string) => void;
+  featured: Featured[];
   followers: string[]; // person ids who follow me (accepted)
   followRequests: string[]; // person ids awaiting my approval
   acceptFollowRequest: (personId: string) => void;
@@ -238,6 +239,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     load('pb_following', ['livewire', 'nightowl', 'person:p1', 'person:p2', 'person:p3'])
   );
   const [interested, setInterested] = useState<string[]>(() => load('pb_interested', []));
+  const [featured] = useState<Featured[]>(() => load('pb_featured', SEED_FEATURED));
   const [followers, setFollowers] = useState<string[]>(() => load('pb_followers', ['p4', 'p5']));
   const [followRequests, setFollowRequests] = useState<string[]>(() => load('pb_follow_requests', ['p6', 'p7']));
   const [pendingPhone, setPendingPhone] = useState('');
@@ -461,6 +463,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setFollowing((prev) =>
           prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
         ),
+      featured,
       interested,
       toggleInterested: (eventId) =>
         setInterested((prev) =>
@@ -570,7 +573,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

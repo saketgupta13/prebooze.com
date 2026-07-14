@@ -1,14 +1,18 @@
 import { Link } from 'react-router-dom';
 import { EVENTS, ORGANIZERS } from '../data/mock';
 import { useApp } from '../store/AppContext';
+import { featuredRefs, featuredFirst } from '../lib/featured';
 import DirectoryCard from '../components/DirectoryCard';
 
 /** Public directory of verified organizers in the selected city. */
 export default function Organizers() {
-  const { city, following, toggleFollow } = useApp();
-  const list = [...ORGANIZERS]
-    .filter((o) => o.city === city)
-    .sort((a, b) => b.eventsHosted - a.eventsHosted);
+  const { city, following, toggleFollow, featured } = useApp();
+  const feat = featuredRefs(featured, 'organizer', city);
+  const list = featuredFirst(
+    [...ORGANIZERS].filter((o) => o.city === city).sort((a, b) => b.eventsHosted - a.eventsHosted),
+    (o) => o.id,
+    feat
+  );
 
   return (
     <main className="page">
@@ -35,6 +39,7 @@ export default function Organizers() {
                 verified={o.verified}
                 meta={`${o.city} · ★ ${o.rating} · since ${o.since}`}
                 bio={o.about}
+                featured={feat.has(o.id)}
                 stats={
                   <>
                     <b>{o.eventsHosted}</b> events · <b>{live}</b> live now · <b>{o.followers.toLocaleString('en-IN')}</b> followers

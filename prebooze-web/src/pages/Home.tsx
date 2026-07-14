@@ -6,6 +6,7 @@ import {
   eventsForPerson, venueById,
 } from '../data/mock';
 import { friendsGoing, personFollowKey } from '../lib/social';
+import { featuredRefs, featuredFirst } from '../lib/featured';
 import EventCard from '../components/EventCard';
 import DirectoryCard from '../components/DirectoryCard';
 import Slider from '../components/Slider';
@@ -78,7 +79,11 @@ const JOIN = [
 ];
 
 export default function Home() {
-  const { city, user, carts, setSelection, following, toggleFollow } = useApp();
+  const { city, user, carts, setSelection, following, toggleFollow, featured } = useApp();
+  const orgFeat = featuredRefs(featured, 'organizer', city);
+  const promoFeat = featuredRefs(featured, 'promoter', city);
+  const lineFeat = featuredRefs(featured, 'lineup', city);
+  const eventFeat = featuredRefs(featured, 'event', city);
   const navigate = useNavigate();
   const [cat, setCat] = useState('All');
   const [howTab, setHowTab] = useState<'guests' | 'organizers' | 'promoters' | 'lineups'>('guests');
@@ -94,18 +99,22 @@ export default function Home() {
 
   const published = EVENTS.filter((e) => e.status === 'approved');
   const soldOf = (e: typeof EVENTS[number]) => e.tiers.reduce((a, t) => a + t.sold, 0);
-  const events = (cat === 'All' ? published : published.filter((e) => e.category === cat))
-    .filter((e) => venueById(e.venueId)?.city === city)
-    .sort((a, b) => soldOf(b) - soldOf(a));
+  const events = featuredFirst(
+    (cat === 'All' ? published : published.filter((e) => e.category === cat))
+      .filter((e) => venueById(e.venueId)?.city === city)
+      .sort((a, b) => soldOf(b) - soldOf(a)),
+    (e) => e.id,
+    eventFeat
+  );
 
   // City-scoped top lists (fall back to all when a city has no seeded data yet).
   const byCity = <T extends { city: string }>(arr: T[]) => {
     const f = arr.filter((x) => x.city === city);
     return (f.length ? f : arr);
   };
-  const topOrganizers = [...byCity(ORGANIZERS)].sort((a, b) => b.eventsHosted - a.eventsHosted).slice(0, 10);
-  const topPromoters = [...byCity(PROMOTERS)].sort((a, b) => b.showRate - a.showRate).slice(0, 10);
-  const topLineups = [...byCity(LINEUPS)].sort((a, b) => b.followers - a.followers).slice(0, 10);
+  const topOrganizers = featuredFirst([...byCity(ORGANIZERS)].sort((a, b) => b.eventsHosted - a.eventsHosted), (o) => o.id, orgFeat).slice(0, 10);
+  const topPromoters = featuredFirst([...byCity(PROMOTERS)].sort((a, b) => b.showRate - a.showRate), (p) => p.slug, promoFeat).slice(0, 10);
+  const topLineups = featuredFirst([...byCity(LINEUPS)].sort((a, b) => b.followers - a.followers), (l) => l.slug, lineFeat).slice(0, 10);
   const topVenues = [...byCity(VENUES)].sort((a, b) => b.rating - a.rating).slice(0, 10);
   const cityPeople = [...byCity(PEOPLE)].sort((a, b) => b.followers - a.followers).slice(0, 10);
 
@@ -261,7 +270,7 @@ export default function Home() {
             {topOrganizers.map((o) => {
               const live = EVENTS.filter((e) => e.organizerId === o.id && e.status === 'approved').length;
               return (
-                <DirectoryCard key={o.id} to={`/organizers/${o.id}`} hue={o.logoHue} avatarText="🎧" name={o.brandName} verified={o.verified} meta={`${o.city} · ★ ${o.rating}`} bio={o.about}
+                <DirectoryCard key={o.id} to={`/organizers/${o.id}`} hue={o.logoHue} avatarText="🎧" name={o.brandName} verified={o.verified} meta={`${o.city} · ★ ${o.rating}`} bio={o.about} featured={orgFeat.has(o.id)}
                   stats={<><b>{o.eventsHosted}</b> events · <b>{live}</b> live · <b>{o.followers.toLocaleString('en-IN')}</b> followers</>}
                   action={followBtn(o.id)} />
               );
@@ -277,7 +286,7 @@ export default function Home() {
           </div>
           <Slider slideWidth={244}>
             {topPromoters.map((p) => (
-              <DirectoryCard key={p.slug} to={`/promoter/${p.slug}`} hue={p.hue} avatarText="📣" name={p.name} verified={p.verified} meta={`${p.city} · ${p.followers.toLocaleString('en-IN')} followers`} bio={p.bio}
+              <DirectoryCard key={p.slug} to={`/promoter/${p.slug}`} hue={p.hue} avatarText="📣" name={p.name} verified={p.verified} meta={`${p.city} · ${p.followers.toLocaleString('en-IN')} followers`} bio={p.bio} featured={promoFeat.has(p.slug)}
                 stats={<><span className={p.showRate >= 70 ? 'accent bold' : 'bold'}>{p.showRate}%</span> show-rate · <b>{p.guestsBrought.toLocaleString('en-IN')}</b> brought</>}
                 action={followBtn('promoter:' + p.slug)} />
             ))}
@@ -292,7 +301,7 @@ export default function Home() {
           </div>
           <Slider slideWidth={244}>
             {topLineups.map((l) => (
-              <DirectoryCard key={l.slug} to={`/lineup/${l.slug}`} hue={l.hue} avatarText={l.emoji} name={l.name} verified={l.verified} meta={`${l.category} · ${l.city}`} bio={l.bio}
+              <DirectoryCard key={l.slug} to={`/lineup/${l.slug}`} hue={l.hue} avatarText={l.emoji} name={l.name} verified={l.verified} meta={`${l.category} · ${l.city}`} bio={l.bio} featured={lineFeat.has(l.slug)}
                 stats={<><b>{l.followers.toLocaleString('en-IN')}</b> followers · <b>{l.eventsPlayed}</b> shows</>}
                 action={followBtn('lineup:' + l.slug)} />
             ))}

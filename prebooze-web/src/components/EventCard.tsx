@@ -3,16 +3,19 @@ import type { Event } from '../types';
 import { fmtDate, minPrice, venueById } from '../data/mock';
 import { useApp } from '../store/AppContext';
 import { friendsGoing, goingCount } from '../lib/social';
+import { isFeatured } from '../lib/featured';
 import Poster, { categoryEmoji } from './Poster';
 
 export default function EventCard({ event }: { event: Event }) {
-  const { following } = useApp();
+  const { following, featured } = useApp();
   const venue = venueById(event.venueId);
   const soldOut = event.tiers.every((t) => t.sold >= t.quantity);
   const going = goingCount(event);
   const friendCount = friendsGoing(event.id, following).length;
+  const feat = isFeatured(featured, 'event', event.id);
   return (
-    <Link to={`/events/${event.slug}`} className="ecard">
+    <Link to={`/events/${event.slug}`} className="ecard" style={feat ? { borderColor: 'var(--accent)', position: 'relative' } : undefined}>
+      {feat && <span className="badge badge-accent" style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, zIndex: 2 }}>★ Featured</span>}
       <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} label="Poster 3:4" />
       <div>
         <h3>{event.title}</h3>

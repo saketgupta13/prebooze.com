@@ -3,6 +3,7 @@ import type {
   Attendee,
   Coupon,
   Event,
+  Featured,
   Organizer,
   Payout,
   Person,
@@ -787,6 +788,14 @@ export const ATTENDANCE: AttendanceRecord[] = [
   { personId: 'p1', eventId: 'ev-7', status: 'going' },
   { personId: 'p9', eventId: 'ev-7', status: 'going' },
   { personId: 'p10', eventId: 'ev-7', status: 'interested' },
+];
+
+// Seeded featured placements (admin-approved) — surface first in their sliders.
+export const SEED_FEATURED: Featured[] = [
+  { id: 'f1', type: 'event', refId: 'ev-3', city: 'Austin', status: 'active', billing: 'per_event', amount: 2000, createdAt: '2026-07-01', expiresAt: '2027-01-01' },
+  { id: 'f2', type: 'organizer', refId: 'festcrew', city: 'Austin', status: 'active', billing: 'monthly', amount: 4999, createdAt: '2026-07-01', expiresAt: '2027-01-01' },
+  { id: 'f3', type: 'promoter', refId: 'nova-nights', city: 'Austin', status: 'active', billing: 'monthly', amount: 2999, createdAt: '2026-07-01', expiresAt: '2027-01-01' },
+  { id: 'f4', type: 'lineup', refId: 'fizzco', city: 'Austin', status: 'active', billing: 'monthly', amount: 1999, createdAt: '2026-07-01', expiresAt: '2027-01-01' },
 ];
 
 export const personById = (id: string) => PEOPLE.find((p) => p.id === id);

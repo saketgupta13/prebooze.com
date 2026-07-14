@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, venueById } from '../data/mock';
+import { featuredRefs, featuredFirst } from '../lib/featured';
 import EventCard from '../components/EventCard';
 
 const DATE_FILTERS = ['Any date', 'This weekend', 'This month'];
@@ -10,7 +11,7 @@ const PRICES = ['Price', 'Under ₹30', '₹30–₹80', '₹80+'];
 const SORTS = ['sorted by date', 'price low→high', 'price high→low'];
 
 export default function Browse() {
-  const { city } = useApp();
+  const { city, featured } = useApp();
   const [params] = useSearchParams();
   const q = (params.get('q') ?? '').toLowerCase();
   const [dateF, setDateF] = useState(DATE_FILTERS[0]);
@@ -47,8 +48,8 @@ export default function Browse() {
       list = [...list].sort(
         (a, b) => Math.min(...b.tiers.map((t) => t.price)) - Math.min(...a.tiers.map((t) => t.price))
       );
-    return list;
-  }, [q, cat, price, dateF, sort, city]);
+    return featuredFirst(list, (e) => e.id, featuredRefs(featured, 'event', city));
+  }, [q, cat, price, dateF, sort, city, featured]);
 
   return (
     <main className="page">

@@ -1,14 +1,18 @@
 import { Link } from 'react-router-dom';
 import { PROMOTERS } from '../data/mock';
 import { useApp } from '../store/AppContext';
+import { featuredRefs, featuredFirst } from '../lib/featured';
 import DirectoryCard from '../components/DirectoryCard';
 
 /** Public directory of promoters in the selected city, ranked by show-up rate. */
 export default function Promoters() {
-  const { city, following, toggleFollow } = useApp();
-  const list = [...PROMOTERS]
-    .filter((p) => p.city === city)
-    .sort((a, b) => b.showRate - a.showRate);
+  const { city, following, toggleFollow, featured } = useApp();
+  const feat = featuredRefs(featured, 'promoter', city);
+  const list = featuredFirst(
+    [...PROMOTERS].filter((p) => p.city === city).sort((a, b) => b.showRate - a.showRate),
+    (p) => p.slug,
+    feat
+  );
 
   return (
     <main className="page">
@@ -35,6 +39,7 @@ export default function Promoters() {
                 verified={p.verified}
                 meta={`${p.city} · ${p.followers.toLocaleString('en-IN')} followers`}
                 bio={p.bio}
+                featured={feat.has(p.slug)}
                 stats={
                   <>
                     <span className={p.showRate >= 70 ? 'accent bold' : 'bold'}>{p.showRate}%</span> show-rate ·{' '}

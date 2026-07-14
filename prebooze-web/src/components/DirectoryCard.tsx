@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 /** Consistent directory card for people / promoters / organizers / line-ups.
  * Plain card background (no banners), avatar, bio + stats + action. */
 export default function DirectoryCard({
-  to, hue, avatarText, name, verified, meta, bio, stats, extra, action,
+  to, hue, avatarText, name, verified, meta, bio, stats, extra, action, featured,
 }: {
   to: string;
   hue: number;
@@ -16,9 +16,13 @@ export default function DirectoryCard({
   stats?: ReactNode;
   extra?: ReactNode;
   action?: ReactNode;
+  featured?: boolean;
 }) {
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', borderColor: featured ? 'var(--accent)' : undefined, position: 'relative' }}>
+      {featured && (
+        <span className="badge badge-accent" style={{ position: 'absolute', top: 12, right: 12, fontSize: 10 }}>★ Featured</span>
+      )}
       <Link to={to} style={{ width: 'fit-content' }}>
         <span style={{
           width: 46, height: 46, borderRadius: '50%', flexShrink: 0,
