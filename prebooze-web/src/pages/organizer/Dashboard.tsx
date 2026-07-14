@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { EVENTS, fmtDate, venueById } from '../../data/mock';
+import { EVENTS, FEATURED_PRICING, fmtDate, venueById } from '../../data/mock';
+import PromoteCard from '../../components/PromoteCard';
 
 const SALES = [42, 55, 38, 61, 74, 52, 68, 85, 62, 91, 78, 96, 84, 108];
 
@@ -64,6 +65,8 @@ export default function Dashboard() {
           <div className="v">{(orgBookings.length + 1279).toLocaleString()}</div>
         </div>
       </div>
+
+      <PromoteCard type="organizer" refId="livewire" city="Austin" label="your brand" monthly={FEATURED_PRICING.organizerMonthly} />
 
       {/* Top selling events with city filter */}
       <div className="card" style={{ marginBottom: 18 }}>

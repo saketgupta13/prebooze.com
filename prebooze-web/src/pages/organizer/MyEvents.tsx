@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { EVENTS, fmtDate } from '../../data/mock';
+import { EVENTS, FEATURED_PRICING, fmtDate, venueById } from '../../data/mock';
+import { findFeatured } from '../../lib/featured';
 import type { EventStatus } from '../../types';
 import { categoryEmoji } from '../../components/Poster';
 
@@ -21,8 +22,20 @@ const STATUS_BADGE: Record<EventStatus, { cls: string; label: string }> = {
 };
 
 export default function MyEvents() {
-  const { myEvents } = useApp();
+  const { myEvents, featured, requestFeatured, toast } = useApp();
   const [tab, setTab] = useState<'all' | EventStatus>('all');
+
+  const featureEvent = (e: (typeof EVENTS)[number]) => {
+    requestFeatured({
+      type: 'event',
+      refId: e.id,
+      city: venueById(e.venueId)?.city ?? 'Austin',
+      billing: 'per_event',
+      amount: FEATURED_PRICING.perEvent,
+      expiresAt: e.date,
+    });
+    toast(`Payment of ₹${FEATURED_PRICING.perEvent.toLocaleString('en-IN')} received — "${e.title}" sent for featured review ✓`);
+  };
 
   const seeded = EVENTS.filter((e) => e.organizerId === 'livewire');
   // edited seeded events live in myEvents with the same id — the edit wins
@@ -55,6 +68,7 @@ export default function MyEvents() {
           const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
           const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
           const badge = STATUS_BADGE[e.status];
+          const feat = findFeatured(featured, 'event', e.id);
           return (
             <div key={e.id} className="evrow">
               <div
@@ -85,6 +99,17 @@ export default function MyEvents() {
                 </div>
               </div>
               <span className={`badge ${badge.cls}`}>{badge.label}</span>
+              {e.status === 'approved' && (
+                feat?.status === 'active' ? (
+                  <span className="badge badge-accent" title={`Featured until ${fmtDate(feat.expiresAt)}`}>★ Featured</span>
+                ) : feat?.status === 'pending' ? (
+                  <span className="badge badge-pending">★ Pending ◌</span>
+                ) : (
+                  <button className="btn btn-ghost btn-sm" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} title={`Feature on the home page — ₹${FEATURED_PRICING.perEvent}`} onClick={() => featureEvent(e)}>
+                    ★ Feature
+                  </button>
+                )
+              )}
               <Link to={`/organizer/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval">
                 ✎ Edit
               </Link>

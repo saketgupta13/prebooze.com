@@ -798,6 +798,9 @@ export const SEED_FEATURED: Featured[] = [
   { id: 'f4', type: 'lineup', refId: 'fizzco', city: 'Austin', status: 'active', billing: 'monthly', amount: 1999, createdAt: '2026-07-01', expiresAt: '2027-01-01' },
 ];
 
+/** Featured pricing (mirrors the admin-managed rates). */
+export const FEATURED_PRICING = { perEvent: 2000, organizerMonthly: 4999, promoterMonthly: 2999, lineupMonthly: 1999 };
+
 export const personById = (id: string) => PEOPLE.find((p) => p.id === id);
 export const personByUsername = (u: string) => PEOPLE.find((p) => p.username === u);
 export const attendanceForEvent = (eventId: string) => ATTENDANCE.filter((a) => a.eventId === eventId);

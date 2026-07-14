@@ -164,6 +164,7 @@ interface AppState {
   interested: string[]; // event ids the user marked "Interested"
   toggleInterested: (eventId: string) => void;
   featured: Featured[];
+  requestFeatured: (input: Omit<Featured, 'id' | 'status' | 'createdAt'>) => void;
   followers: string[]; // person ids who follow me (accepted)
   followRequests: string[]; // person ids awaiting my approval
   acceptFollowRequest: (personId: string) => void;
@@ -239,7 +240,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     load('pb_following', ['livewire', 'nightowl', 'person:p1', 'person:p2', 'person:p3'])
   );
   const [interested, setInterested] = useState<string[]>(() => load('pb_interested', []));
-  const [featured] = useState<Featured[]>(() => load('pb_featured', SEED_FEATURED));
+  const [featured, setFeatured] = useState<Featured[]>(() => load('pb_featured', SEED_FEATURED));
   const [followers, setFollowers] = useState<string[]>(() => load('pb_followers', ['p4', 'p5']));
   const [followRequests, setFollowRequests] = useState<string[]>(() => load('pb_follow_requests', ['p6', 'p7']));
   const [pendingPhone, setPendingPhone] = useState('');
@@ -308,6 +309,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_interested', JSON.stringify(interested));
   }, [interested]);
+  useEffect(() => {
+    localStorage.setItem('pb_featured', JSON.stringify(featured));
+  }, [featured]);
   useEffect(() => {
     localStorage.setItem('pb_followers', JSON.stringify(followers));
   }, [followers]);
@@ -464,6 +468,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
         ),
       featured,
+      requestFeatured: (input) =>
+        setFeatured((prev) => [
+          { ...input, id: 'ft' + Date.now(), status: 'pending' as const, createdAt: new Date().toISOString() },
+          ...prev.filter((f) => !(f.type === input.type && f.refId === input.refId)),
+        ]),
       interested,
       toggleInterested: (eventId) =>
         setInterested((prev) =>
