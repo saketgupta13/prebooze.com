@@ -50,6 +50,9 @@ import BlogPost from './pages/static/BlogPost';
 import LineupProfile from './pages/LineupProfile';
 import Lineups from './pages/Lineups';
 import LineupOnboarding from './pages/LineupOnboarding';
+import LineupLayout from './pages/lineup/LineupLayout';
+import LineupDashboard from './pages/lineup/LineupDashboard';
+import LineupSettings from './pages/lineup/LineupSettings';
 import PromoterProfile from './pages/PromoterProfile';
 import PromoterOnboarding from './pages/promoter/PromoterOnboarding';
 import PromoterLayout from './pages/promoter/PromoterLayout';
@@ -192,6 +195,12 @@ export default function App() {
           <Route path="reviews" element={<OrgReviews />} />
           <Route path="team" element={<OrgTeamRoles />} />
           <Route path="settings" element={<Settings />} />
+        </Route>
+
+        {/* Line-up (artist) console */}
+        <Route path="/artist" element={<LineupLayout />}>
+          <Route index element={<LineupDashboard />} />
+          <Route path="profile" element={<LineupSettings />} />
         </Route>
 
         {/* Promoter console */}

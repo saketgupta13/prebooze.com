@@ -37,7 +37,8 @@ export default function LineupOnboarding() {
   const pct = done ? 100 : step === 1 ? 50 : 90;
 
   const submit = () => {
-    updateUser({ isLineup: true, lineupName: stageName.trim(), lineupCategory: category });
+    const slug = stageName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    updateUser({ isLineup: true, lineupName: stageName.trim(), lineupCategory: category, lineupUsername: slug, city });
     setDone(true);
   };
 

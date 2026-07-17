@@ -91,7 +91,7 @@ export default function Header() {
         </nav>
 
         {user ? (
-          <button className="hdr-user" onClick={() => setMenuOpen((o) => !o)}>
+          <div className="hdr-user" role="button" tabIndex={0} onClick={() => setMenuOpen((o) => !o)}>
             <span className="avatar">👤</span>
             {user.name ? user.name.split(' ')[0] : 'Profile'} ▾
             {menuOpen && (
@@ -112,7 +112,12 @@ export default function Header() {
                     📣 Promoter console
                   </Link>
                 )}
-                {!user.isOrganizer && !user.isPromoter && (
+                {user.isLineup && (
+                  <Link to="/artist" onClick={() => setMenuOpen(false)}>
+                    🎤 Artist console
+                  </Link>
+                )}
+                {!user.isOrganizer && !user.isPromoter && !user.isLineup && (
                   <Link to="/host" onClick={() => setMenuOpen(false)}>
                     🎤 Host with us
                   </Link>
@@ -129,7 +134,7 @@ export default function Header() {
                 </button>
               </div>
             )}
-          </button>
+          </div>
         ) : (
           <Link to="/login" className="btn btn-pri btn-sm">
             Login
