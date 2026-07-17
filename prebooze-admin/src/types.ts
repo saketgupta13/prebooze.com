@@ -172,6 +172,26 @@ export interface Promoter {
   payouts?: PromoterPayout[];
 }
 
+export interface FeaturedRequest {
+  id: string;
+  type: 'event' | 'organizer' | 'promoter' | 'lineup';
+  name: string;
+  refId: string;
+  city: string;
+  billing: 'per_event' | 'monthly';
+  amount: number;
+  status: 'pending' | 'active' | 'rejected';
+  requestedAt: string;
+  expiresAt: string;
+}
+
+export interface FeaturedRates {
+  perEvent: number;
+  organizerMonthly: number;
+  promoterMonthly: number;
+  lineupMonthly: number;
+}
+
 export interface LocCity { name: string; enabled: boolean }
 export interface LocState { name: string; enabled: boolean; cities: LocCity[] }
 export interface LocCountry { name: string; enabled: boolean; states: LocState[] }

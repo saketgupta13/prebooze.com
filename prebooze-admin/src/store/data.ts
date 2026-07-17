@@ -376,6 +376,17 @@ export const SEED_SUB_TIERS = [
   { id: 'elite', name: 'Elite', price: 4999, guests: -1 },
 ];
 
+// Featured placements — admin approval queue + editable rates.
+export const SEED_FEATURED_RATES = { perEvent: 2000, organizerMonthly: 4999, promoterMonthly: 2999, lineupMonthly: 1999 };
+export const SEED_FEATURED_REQUESTS = [
+  { id: 'fr1', type: 'organizer' as const, name: 'FestCrew', refId: 'festcrew', city: 'Austin', billing: 'monthly' as const, amount: 4999, status: 'pending' as const, requestedAt: '17 Jul', expiresAt: '—' },
+  { id: 'fr2', type: 'event' as const, name: 'Neon Warehouse Party', refId: 'e6', city: 'Austin', billing: 'per_event' as const, amount: 2000, status: 'pending' as const, requestedAt: '16 Jul', expiresAt: '22 Aug' },
+  { id: 'fr3', type: 'lineup' as const, name: 'DJ Nova', refId: 'dj-nova', city: 'Austin', billing: 'monthly' as const, amount: 1999, status: 'pending' as const, requestedAt: '15 Jul', expiresAt: '—' },
+  { id: 'fr4', type: 'promoter' as const, name: 'Nova Nights', refId: 'nova-nights', city: 'Austin', billing: 'monthly' as const, amount: 2999, status: 'active' as const, requestedAt: '1 Jul', expiresAt: '31 Jul' },
+  { id: 'fr5', type: 'lineup' as const, name: 'FizzCo', refId: 'fizzco', city: 'Austin', billing: 'monthly' as const, amount: 1999, status: 'active' as const, requestedAt: '1 Jul', expiresAt: '31 Jul' },
+  { id: 'fr6', type: 'event' as const, name: 'Stand-up Sunday', refId: 'e3', city: 'Austin', billing: 'per_event' as const, amount: 2000, status: 'active' as const, requestedAt: '2 Jul', expiresAt: '3 Aug' },
+];
+
 export const ADMIN_CITIES = ['Austin', 'Dallas', 'Houston'];
 
 // Onboarding locations — admin-managed country → state → city with enable toggles.

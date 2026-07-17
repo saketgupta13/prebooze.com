@@ -6,6 +6,7 @@ import Events from './pages/Events';
 import EventEditor from './pages/EventEditor';
 import Bookings from './pages/Bookings';
 import AbandonedCarts from './pages/AbandonedCarts';
+import Featured from './pages/Featured';
 import Locations from './pages/Locations';
 import Customers from './pages/Customers';
 import Organizers from './pages/Organizers';
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/bookings/new" element={<ManualBooking />} />
         <Route path="/abandoned" element={<AbandonedCarts />} />
+        <Route path="/featured" element={<Featured />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/customers/new" element={<AddCustomer />} />
         <Route path="/organizers" element={<Organizers />} />
