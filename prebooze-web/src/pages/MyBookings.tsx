@@ -5,9 +5,10 @@ import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import QRCode from '../components/QRCode';
 
 export default function MyBookings() {
-  const { bookings, cancelBooking, myEvents } = useApp();
+  const { bookings, refundBooking, myEvents } = useApp();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [refundingId, setRefundingId] = useState<string | null>(null);
 
   const resolveEvent = (eventId: string) =>
     eventById(eventId) ?? myEvents.find((e) => e.id === eventId);
@@ -64,6 +65,7 @@ export default function MyBookings() {
                       {b.status === 'cancelled' && (
                         <span className="danger-text"> · cancelled</span>
                       )}
+                      {b.status === 'refunded' && <span className="accent"> · refunded</span>}
                     </div>
                   </button>
                 );
@@ -82,6 +84,8 @@ export default function MyBookings() {
                       💳 Paid ₹{selected.total} ·{' '}
                       {selected.status === 'confirmed' ? (
                         <span className="badge badge-ok">Confirmed ✓</span>
+                      ) : selected.status === 'refunded' ? (
+                        <span className="badge badge-accent">Refunded ↩</span>
                       ) : (
                         <span className="badge badge-danger">Cancelled</span>
                       )}
@@ -92,18 +96,36 @@ export default function MyBookings() {
                   </div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <button className="btn btn-ghost btn-sm">Resend to WhatsApp</button>
-                    {selected.status === 'confirmed' && (
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => {
-                          if (window.confirm('Cancel this booking? Refund lands back on your payment method.'))
-                            cancelBooking(selected.id);
-                        }}
-                      >
+                    {selected.status === 'confirmed' && refundingId !== selected.id && (
+                      <button className="btn btn-danger btn-sm" onClick={() => setRefundingId(selected.id)}>
                         Cancel booking
                       </button>
                     )}
                   </div>
+                  {selected.status === 'confirmed' && refundingId === selected.id && (
+                    <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 12, marginTop: 12 }}>
+                      <div className="small bold" style={{ marginBottom: 8 }}>
+                        Cancel &amp; refund ₹{selected.total} — where should it go?
+                      </div>
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        <button
+                          className="btn btn-pri btn-sm"
+                          onClick={() => { refundBooking(selected.id, 'wallet'); setRefundingId(null); }}
+                        >
+                          👛 Prebooze wallet — instant credit
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => { refundBooking(selected.id, 'source'); setRefundingId(null); }}
+                        >
+                          💳 Original payment method — 5–7 business days
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setRefundingId(null)}>
+                          Keep my booking
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 {selected.status === 'confirmed' && (
                   <div style={{ textAlign: 'center' }}>

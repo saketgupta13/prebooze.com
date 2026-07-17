@@ -2,7 +2,28 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react';
 import type { Booking, Coupon, Event, Featured, User, Venue } from '../types';
 import { registerVenue } from '../data/mock';
-import { COUPONS, EVENTS, SEED_FEATURED } from '../data/mock';
+import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED } from '../data/mock';
+
+export interface WalletTx {
+  id: string;
+  type: 'referral_welcome' | 'referral_reward' | 'refund' | 'spend';
+  amount: number; // positive = credit, negative = spend
+  note: string;
+  date: string;
+}
+
+export interface Referral {
+  code: string;
+  referrerPhone: string;
+  refereePhone: string;
+  refereeName?: string;
+  status: 'joined' | 'qualified';
+  createdAt: string;
+}
+
+/** Deterministic referral code for a phone number. */
+export const referralCodeFor = (phone: string) =>
+  'PB' + (parseInt(phone.replace(/\D/g, '').slice(-8) || '0', 10).toString(36).toUpperCase());
 
 export interface GuestListEntry {
   id: string;
@@ -153,6 +174,12 @@ interface AppState {
   remindCart: (id: string) => void;
   addBooking: (b: Booking) => void;
   cancelBooking: (id: string) => void;
+  refundBooking: (id: string, method: 'wallet' | 'source') => void;
+  walletTxs: WalletTx[];
+  walletBalance: number;
+  spendWallet: (amount: number, note: string) => void;
+  myReferralCode: string;
+  referrals: Referral[];
   checkInBooking: (id: string, count: number) => void;
   addEvent: (e: Event) => void;
   upsertEvent: (e: Event) => void;
@@ -241,6 +268,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const [interested, setInterested] = useState<string[]>(() => load('pb_interested', []));
   const [featured, setFeatured] = useState<Featured[]>(() => load('pb_featured', SEED_FEATURED));
+  // wallets + referrals are global (keyed by phone) so cross-user credits work in one browser
+  const [wallets, setWallets] = useState<Record<string, WalletTx[]>>(() => load('pb_wallets', {}));
+  const [referrals, setReferrals] = useState<Referral[]>(() => load('pb_referrals', []));
+  const [refCodes, setRefCodes] = useState<Record<string, string>>(() => load('pb_ref_codes', {}));
   const [followers, setFollowers] = useState<string[]>(() => load('pb_followers', ['p4', 'p5']));
   const [followRequests, setFollowRequests] = useState<string[]>(() => load('pb_follow_requests', ['p6', 'p7']));
   const [pendingPhone, setPendingPhone] = useState('');
@@ -313,6 +344,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('pb_featured', JSON.stringify(featured));
   }, [featured]);
   useEffect(() => {
+    localStorage.setItem('pb_wallets', JSON.stringify(wallets));
+  }, [wallets]);
+  useEffect(() => {
+    localStorage.setItem('pb_referrals', JSON.stringify(referrals));
+  }, [referrals]);
+  useEffect(() => {
+    localStorage.setItem('pb_ref_codes', JSON.stringify(refCodes));
+  }, [refCodes]);
+  // register the logged-in user's referral code so /r/:code can resolve it
+  useEffect(() => {
+    if (user?.phone) {
+      const c = referralCodeFor(user.phone);
+      setRefCodes((prev) => (prev[c] === user.phone ? prev : { ...prev, [c]: user.phone }));
+    }
+  }, [user?.phone]);
+  useEffect(() => {
     localStorage.setItem('pb_followers', JSON.stringify(followers));
   }, [followers]);
   useEffect(() => {
@@ -355,6 +402,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('pb_promoter_team', JSON.stringify(promoterTeam));
   }, [promoterTeam]);
 
+  const creditWallet = useCallback((phone: string, tx: Omit<WalletTx, 'id' | 'date'>) => {
+    setWallets((prev) => ({
+      ...prev,
+      [phone]: [
+        { ...tx, id: 'wtx' + Date.now() + Math.random().toString(36).slice(2, 6), date: new Date().toISOString() },
+        ...(prev[phone] ?? []),
+      ],
+    }));
+  }, []);
+
+  const walletTxs = user ? (wallets[user.phone] ?? []) : [];
+  const walletBalance = walletTxs.reduce((a, t) => a + t.amount, 0);
+
   const value = useMemo<AppState>(
     () => ({
       user,
@@ -395,6 +455,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
           attendanceVisibility: 'off',
         };
         setUser(fresh);
+        // referral attribution — welcome credit for the referee, tracked for the referrer
+        const pendingRef = load<string | null>('pb_pending_ref', null);
+        if (pendingRef) {
+          const referrerPhone = refCodes[pendingRef];
+          if (
+            referrerPhone &&
+            referrerPhone !== fresh.phone &&
+            !referrals.some((r) => r.refereePhone === fresh.phone)
+          ) {
+            setReferrals((prev) => [
+              ...prev,
+              { code: pendingRef, referrerPhone, refereePhone: fresh.phone, status: 'joined', createdAt: new Date().toISOString() },
+            ]);
+            creditWallet(fresh.phone, {
+              type: 'referral_welcome',
+              amount: REFERRAL_CONFIG.referee,
+              note: 'Welcome credit — joined via a friend’s referral link',
+            });
+          }
+          localStorage.removeItem('pb_pending_ref');
+        }
         return 'new';
       },
       updateUser: (patch) => {
@@ -432,11 +513,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ),
       remindCart: (id) =>
         setCarts((prev) => prev.map((x) => (x.id === id ? { ...x, remindedAt: new Date().toISOString() } : x))),
-      addBooking: (b) => setBookings((prev) => [b, ...prev]),
+      addBooking: (b) => {
+        setBookings((prev) => [b, ...prev]);
+        // referral qualification — the referee's first paid booking rewards the referrer
+        if (user) {
+          const r = referrals.find((x) => x.refereePhone === user.phone && x.status === 'joined');
+          if (r) {
+            setReferrals((prev) =>
+              prev.map((x) =>
+                x.refereePhone === r.refereePhone ? { ...x, status: 'qualified' as const, refereeName: user.name || undefined } : x
+              )
+            );
+            creditWallet(r.referrerPhone, {
+              type: 'referral_reward',
+              amount: REFERRAL_CONFIG.referrer,
+              note: `Referral reward — ${user.name || 'your friend'} made their first booking`,
+            });
+          }
+        }
+      },
       cancelBooking: (id) =>
         setBookings((prev) =>
           prev.map((b) => (b.id === id ? { ...b, status: 'cancelled' as const } : b))
         ),
+      refundBooking: (id, method) => {
+        const b = bookings.find((x) => x.id === id);
+        if (!b || !user) return;
+        setBookings((prev) => prev.map((x) => (x.id === id ? { ...x, status: 'refunded' as const } : x)));
+        if (method === 'wallet') {
+          creditWallet(user.phone, { type: 'refund', amount: b.total, note: `Instant refund — booking ${b.id}` });
+          toast(`₹${b.total} refunded to your wallet instantly ✓`);
+        } else {
+          toast('Refund initiated to your payment method — lands in 5–7 business days');
+        }
+      },
+      walletTxs,
+      walletBalance,
+      spendWallet: (amount, note) => {
+        if (user && amount > 0) creditWallet(user.phone, { type: 'spend', amount: -amount, note });
+      },
+      myReferralCode: user ? referralCodeFor(user.phone) : '',
+      referrals,
       checkInBooking: (id, count) =>
         setBookings((prev) =>
           prev.map((b) =>
@@ -582,7 +699,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

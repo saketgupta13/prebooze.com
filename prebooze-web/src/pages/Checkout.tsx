@@ -7,7 +7,7 @@ import type { Booking } from '../types';
 const BOOKING_FEE_PER_TICKET = 1.5;
 
 export default function Checkout() {
-  const { user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, captureCart, setCartStatus, pendingPromoterRef, setPendingPromoterRef } = useApp();
+  const { user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, captureCart, setCartStatus, pendingPromoterRef, setPendingPromoterRef, walletBalance, spendWallet } = useApp();
   const navigate = useNavigate();
 
   const event = selection
@@ -59,7 +59,9 @@ export default function Checkout() {
     return Math.min(Math.round(raw), c.maxDiscount ?? raw, subtotal);
   }, [appliedCode, coupons, subtotal]);
 
-  const total = subtotal + fee - discount;
+  const [useCredit, setUseCredit] = useState(true);
+  const creditApplied = useCredit ? Math.min(walletBalance, Math.max(0, subtotal + fee - discount)) : 0;
+  const total = subtotal + fee - discount - creditApplied;
 
   const cartId = user && selection ? `${user.phone}::${selection.eventId}` : null;
 
@@ -183,6 +185,7 @@ export default function Checkout() {
         promoterRef: pendingPromoterRef ?? undefined,
       };
       addBooking(booking);
+      if (creditApplied > 0) spendWallet(creditApplied, `Paid at checkout — ${id}`);
       if (cartId) setCartStatus(cartId, 'completed');
       setSelection(null);
       setPendingPromoterRef(null);
@@ -359,6 +362,18 @@ export default function Checkout() {
               <div className="kv">
                 <span className="k accent">Coupon {appliedCode}</span>
                 <span className="accent">−₹{discount}</span>
+              </div>
+            )}
+            {walletBalance > 0 && (
+              <label className="checkbox-row" style={{ margin: '8px 0 2px', fontSize: 13 }}>
+                <input type="checkbox" checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} />
+                👛 Use ₹{Math.min(walletBalance, Math.max(0, subtotal + fee - discount))} Prebooze credit (balance ₹{walletBalance})
+              </label>
+            )}
+            {creditApplied > 0 && (
+              <div className="kv">
+                <span className="k accent">Wallet credit</span>
+                <span className="accent">−₹{creditApplied}</span>
               </div>
             )}
             <div className="total-row">

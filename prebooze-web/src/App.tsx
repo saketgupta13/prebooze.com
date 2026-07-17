@@ -20,6 +20,9 @@ import Promoters from './pages/Promoters';
 import People from './pages/People';
 import PersonProfile from './pages/PersonProfile';
 import Testimonials from './pages/Testimonials';
+import ReferralLanding from './pages/ReferralLanding';
+import Wallet from './pages/Wallet';
+import ReferEarn from './pages/ReferEarn';
 import Login from './pages/auth/Login';
 import Otp from './pages/auth/Otp';
 import ProfileCompletion from './pages/auth/ProfileCompletion';
@@ -100,6 +103,23 @@ export default function App() {
         <Route path="/people" element={<People />} />
         <Route path="/u/:username" element={<PersonProfile />} />
         <Route path="/testimonials" element={<Testimonials />} />
+        <Route path="/r/:code" element={<ReferralLanding />} />
+        <Route
+          path="/wallet"
+          element={
+            <RequireAuth>
+              <Wallet />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/refer"
+          element={
+            <RequireAuth>
+              <ReferEarn />
+            </RequireAuth>
+          }
+        />
         <Route path="/lineups" element={<Lineups />} />
         <Route path="/lineup/onboarding" element={<LineupOnboarding />} />
         <Route path="/lineup/:slug" element={<LineupProfile />} />

@@ -102,6 +102,12 @@ export default function Header() {
                 <Link to="/bookings" onClick={() => setMenuOpen(false)}>
                   🎟 My bookings
                 </Link>
+                <Link to="/wallet" onClick={() => setMenuOpen(false)}>
+                  👛 Wallet
+                </Link>
+                <Link to="/refer" onClick={() => setMenuOpen(false)}>
+                  🎁 Refer & earn
+                </Link>
                 {user.isOrganizer && (
                   <Link to="/organizer" onClick={() => setMenuOpen(false)}>
                     ▦ Organizer console
