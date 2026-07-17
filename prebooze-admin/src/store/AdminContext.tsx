@@ -6,6 +6,8 @@ import type {
   AdminReview,
   FeaturedRequest,
   FeaturedRates,
+  AdminReferral,
+  ReferralRates,
   LocCountry,
   LocPath,
   Promoter,
@@ -58,6 +60,8 @@ import {
   SEED_LOCATIONS,
   SEED_FEATURED_REQUESTS,
   SEED_FEATURED_RATES,
+  SEED_REFERRALS,
+  SEED_REFERRAL_RATES,
   SEED_SUB_TIERS,
   SEED_REVIEWS,
   SEED_TESTIMONIALS,
@@ -189,6 +193,9 @@ interface AdminState {
   approveFeatured: (id: string) => void;
   rejectFeatured: (id: string) => void;
   updateFeaturedRate: (patch: Partial<FeaturedRates>) => void;
+  adminReferrals: AdminReferral[];
+  referralRates: ReferralRates;
+  updateReferralRate: (patch: Partial<ReferralRates>) => void;
 }
 
 const Ctx = createContext<AdminState>(null as unknown as AdminState);
@@ -270,6 +277,8 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [locations, setLocations] = usePersisted<LocCountry[]>('pba_locations', SEED_LOCATIONS);
   const [featuredRequests, setFeaturedRequests] = usePersisted<FeaturedRequest[]>('pba_featured', SEED_FEATURED_REQUESTS, mergeWithSeed(SEED_FEATURED_REQUESTS, 'id'));
   const [featuredRates, setFeaturedRates] = usePersisted<FeaturedRates>('pba_featured_rates', SEED_FEATURED_RATES);
+  const [adminReferrals] = usePersisted<AdminReferral[]>('pba_referrals', SEED_REFERRALS, mergeWithSeed(SEED_REFERRALS, 'id'));
+  const [referralRates, setReferralRates] = usePersisted<ReferralRates>('pba_referral_rates', SEED_REFERRAL_RATES);
   const [lineupCategories, setLineupCategories] = usePersisted<string[]>('pba_lineupcats', LINEUP_CATEGORIES);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -692,6 +701,12 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setFeaturedRates((prev) => ({ ...prev, ...patch }));
         toast('Featured rate saved ✓');
       },
+      adminReferrals,
+      referralRates,
+      updateReferralRate: (patch) => {
+        setReferralRates((prev) => ({ ...prev, ...patch }));
+        toast('Referral reward saved ✓');
+      },
       removeRole: (name) => {
         if (name === 'Owner') {
           toast("The Owner role can't be removed");
@@ -725,7 +740,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, abandonedCarts, locations, featuredRequests, featuredRates, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts, setLocations, setFeaturedRequests, setFeaturedRates]
+    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, abandonedCarts, locations, featuredRequests, featuredRates, adminReferrals, referralRates, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts, setLocations, setFeaturedRequests, setFeaturedRates, setReferralRates]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

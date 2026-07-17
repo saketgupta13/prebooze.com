@@ -387,6 +387,19 @@ export const SEED_FEATURED_REQUESTS = [
   { id: 'fr6', type: 'event' as const, name: 'Stand-up Sunday', refId: 'e3', city: 'Austin', billing: 'per_event' as const, amount: 2000, status: 'active' as const, requestedAt: '2 Jul', expiresAt: '3 Aug' },
 ];
 
+// Refer & earn — admin-editable rates + platform-wide referral analytics.
+export const SEED_REFERRAL_RATES = { referrer: 100, referee: 100 };
+export const SEED_REFERRALS = [
+  { id: 'rf1', referrer: 'Riya Sharma', referrerPhone: '+91 98•••• 1120', referee: 'Aman T.', refereePhone: '+91 99•••• 8811', status: 'qualified' as const, joinedAt: '12 Jul' },
+  { id: 'rf2', referrer: 'Riya Sharma', referrerPhone: '+91 98•••• 1120', referee: 'Kavya D.', refereePhone: '+91 97•••• 4420', status: 'qualified' as const, joinedAt: '10 Jul' },
+  { id: 'rf3', referrer: 'Riya Sharma', referrerPhone: '+91 98•••• 1120', referee: 'Ishaan P.', refereePhone: '+91 96•••• 7702', status: 'joined' as const, joinedAt: '16 Jul' },
+  { id: 'rf4', referrer: 'Arjun Mehta', referrerPhone: '+91 99•••• 4432', referee: 'Tara V.', refereePhone: '+91 90•••• 3391', status: 'qualified' as const, joinedAt: '9 Jul' },
+  { id: 'rf5', referrer: 'Arjun Mehta', referrerPhone: '+91 99•••• 4432', referee: 'Zoya F.', refereePhone: '+91 98•••• 5540', status: 'joined' as const, joinedAt: '15 Jul' },
+  { id: 'rf6', referrer: 'Neha Gupta', referrerPhone: '+91 97•••• 8890', referee: 'Om S.', refereePhone: '+91 91•••• 2288', status: 'qualified' as const, joinedAt: '6 Jul' },
+  { id: 'rf7', referrer: 'Neha Gupta', referrerPhone: '+91 97•••• 8890', referee: 'Lena M.', refereePhone: '+91 92•••• 6614', status: 'joined' as const, joinedAt: '17 Jul' },
+  { id: 'rf8', referrer: 'Dev Patel', referrerPhone: '+91 99•••• 7788', referee: 'Ria K.', refereePhone: '+91 93•••• 9925', status: 'joined' as const, joinedAt: '14 Jul' },
+];
+
 export const ADMIN_CITIES = ['Austin', 'Dallas', 'Houston'];
 
 // Onboarding locations — admin-managed country → state → city with enable toggles.

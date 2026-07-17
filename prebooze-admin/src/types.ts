@@ -192,6 +192,21 @@ export interface FeaturedRates {
   lineupMonthly: number;
 }
 
+export interface ReferralRates {
+  referrer: number; // ₹ credit when the friend makes their first paid booking
+  referee: number;  // ₹ welcome credit on signup
+}
+
+export interface AdminReferral {
+  id: string;
+  referrer: string;
+  referrerPhone: string;
+  referee: string;
+  refereePhone: string;
+  status: 'joined' | 'qualified';
+  joinedAt: string;
+}
+
 export interface LocCity { name: string; enabled: boolean }
 export interface LocState { name: string; enabled: boolean; cities: LocCity[] }
 export interface LocCountry { name: string; enabled: boolean; states: LocState[] }

@@ -13,6 +13,7 @@ const MAIN_NAV = [
   { to: '/organizers', icon: '🧑‍💼', label: 'Organizers' },
   { to: '/promoters', icon: '📣', label: 'Promoters' },
   { to: '/featured', icon: '⭐', label: 'Featured' },
+  { to: '/referrals', icon: '🎁', label: 'Refer & earn' },
   { to: '/venues', icon: '📍', label: 'Venues' },
   { to: '/locations', icon: '🌍', label: 'Locations' },
   { to: '/lineups', icon: '🎤', label: 'Line-ups' },
