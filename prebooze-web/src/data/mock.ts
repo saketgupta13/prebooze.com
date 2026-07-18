@@ -125,6 +125,12 @@ export const VENUES: Venue[] = [
     about: 'Underground club for house heads and after-hours sets on South Congress.',
     photoHue: 90,
   },
+  { id: 'gateway-arena', name: 'Gateway Arena', verified: true, type: 'Concert hall', locality: 'Colaba', city: 'Mumbai', address: 'Apollo Bunder Rd, Colaba, Mumbai 400001', capacity: 3200, rating: 4.6, followers: 2100, amenities: ['🅿 Parking', '♿ Accessible', '🍸 In-house bar'], about: 'Sea-facing concert hall by the Gateway — Bollywood nights, indie gigs and big-room shows.', photoHue: 210 },
+  { id: 'bandra-warehouse', name: 'Bandra Warehouse', verified: true, type: 'Warehouse', locality: 'Bandra West', city: 'Mumbai', address: 'Off Hill Rd, Bandra West, Mumbai 400050', capacity: 900, rating: 4.5, followers: 1500, amenities: ['🔊 Pro sound', '🍸 In-house bar'], about: 'Raw warehouse space for techno and after-hours — the city’s loudest floor.', photoHue: 300 },
+  { id: 'cp-club', name: 'CP Underground', verified: true, type: 'Club', locality: 'Connaught Place', city: 'Delhi', address: 'Inner Circle, Connaught Place, New Delhi 110001', capacity: 450, rating: 4.4, followers: 980, amenities: ['🍸 In-house bar', '♿ Accessible'], about: 'A basement club in the heart of CP — comedy early, house music late.', photoHue: 40 },
+  { id: 'indiranagar-social', name: 'Indiranagar Social Hall', verified: true, type: 'Club', locality: 'Indiranagar', city: 'Bengaluru', address: '100 Feet Rd, Indiranagar, Bengaluru 560038', capacity: 600, rating: 4.7, followers: 1750, amenities: ['🅿 Parking', '🍸 In-house bar'], about: 'Bengaluru’s indie living room — gigs, open mics and craft-beer nights.', photoHue: 130 },
+  { id: 'charminar-hall', name: 'Charminar Vault', verified: true, type: 'Warehouse', locality: 'Old City', city: 'Hyderabad', address: 'Near Charminar, Hyderabad 500002', capacity: 800, rating: 4.3, followers: 720, amenities: ['🔊 Pro sound'], about: 'A converted vault by the old city — techno and bass nights till late.', photoHue: 265 },
+  { id: 'orange-city-grounds', name: 'Orange City Grounds', verified: false, type: 'Open-air', locality: 'Civil Lines', city: 'Nagpur', address: 'Civil Lines, Nagpur 440001', capacity: 2500, rating: 4.2, followers: 430, amenities: ['🅿 Parking', '🍔 Food trucks'], about: 'Open-air grounds for sundowners and festival-style evenings.', photoHue: 25 },
 ];
 
 export const ORGANIZERS: Organizer[] = [
@@ -174,6 +180,10 @@ export const ORGANIZERS: Organizer[] = [
     about: 'Open-air festivals, food carnivals and day parties across Texas.',
     logoHue: 25,
   },
+  { id: 'bombaybeats', brandName: 'Bombay Beats', username: 'bombaybeats', verified: true, city: 'Mumbai', since: '2022', rating: 4.7, reviewCount: 240, eventsHosted: 31, followers: 4200, following: 120, about: 'Mumbai’s warehouse-and-rooftop collective — techno, Bollywood mashups and sea-breeze sundowners.', logoHue: 210 },
+  { id: 'delhinights', brandName: 'Delhi Nights Co.', username: 'delhinights', verified: true, city: 'Delhi', since: '2023', rating: 4.5, reviewCount: 130, eventsHosted: 18, followers: 2600, following: 85, about: 'CP basements to Hauz Khas rooftops — comedy, hip-hop and house.', logoHue: 40 },
+  { id: 'blrcollective', brandName: 'BLR Collective', username: 'blrcollective', verified: true, city: 'Bengaluru', since: '2021', rating: 4.8, reviewCount: 310, eventsHosted: 42, followers: 5100, following: 140, about: 'Bengaluru’s indie-gig machine — live bands, craft nights and open mics.', logoHue: 130 },
+  { id: 'deccanlive', brandName: 'Deccan Live', username: 'deccanlive', verified: false, city: 'Hyderabad', since: '2024', rating: 4.3, reviewCount: 48, eventsHosted: 9, followers: 900, following: 40, about: 'Hyderabad + Vidarbha circuit — bass nights and open-air sundowners.', logoHue: 265 },
 ];
 
 const defaultConditions = [
@@ -414,6 +424,24 @@ export const EVENTS: Event[] = [
     tiers: [{ id: 't1', name: 'General', price: 45, quantity: 2000, sold: 0, includes: ['Entry'] }],
     posterHue: 190,
   },
+  {
+    id: 'ev-9', slug: 'bandra-warehouse-rave', title: 'Bandra Warehouse Rave', description: 'Mumbai’s loudest floor goes all night — two rooms of techno with a sunrise chai counter outside.', category: 'Concerts', ageLimit: '21+', tags: ['Techno', '21+', 'Warehouse'], date: iso(8, 8, 22), durationHrs: 6, venueId: 'bandra-warehouse', organizerId: 'bombaybeats', status: 'approved', conditions: ['Entry only with valid QR ticket + photo ID', '21+ event — age verified at gate'], rules: [], lineup: [{ name: 'KLANG', role: 'Headline artist' }], tiers: [ { id: 't1', name: 'Early bird', price: 499, quantity: 300, sold: 300, includes: ['Entry'] }, { id: 't2', name: 'General', price: 799, quantity: 500, sold: 342, includes: ['Entry', '1 drink'] } ], posterHue: 300,
+  },
+  {
+    id: 'ev-10', slug: 'bollywood-night-gateway', title: 'Bollywood Night at the Gateway', description: 'A sea-facing Bollywood mashup night — live dhol, 2000s throwbacks and a midnight confetti drop.', category: 'Concerts', ageLimit: '18+', tags: ['Bollywood', '18+', 'Indoor'], date: iso(8, 15, 20), durationHrs: 4, venueId: 'gateway-arena', organizerId: 'bombaybeats', status: 'approved', conditions: ['Entry only with valid QR ticket + photo ID'], rules: [], lineup: [], tiers: [ { id: 't1', name: 'General', price: 599, quantity: 1500, sold: 780, includes: ['Entry'] }, { id: 't2', name: 'VIP deck', price: 1499, quantity: 200, sold: 64, includes: ['Entry', 'Sea-view deck', '2 drinks'] } ], posterHue: 210,
+  },
+  {
+    id: 'ev-11', slug: 'cp-comedy-underground', title: 'CP Comedy Underground', description: 'Five comics, one basement, zero mercy — Delhi’s sharpest open-secret comedy night.', category: 'Comedy', ageLimit: '18+', tags: ['Comedy', '18+', 'Indoor'], date: iso(8, 9, 19), durationHrs: 2, venueId: 'cp-club', organizerId: 'delhinights', status: 'approved', conditions: ['Entry only with valid QR ticket + photo ID'], rules: [], lineup: [{ name: 'Maya K.', role: 'Headline artist' }], tiers: [{ id: 't1', name: 'Entry', price: 349, quantity: 400, sold: 265, includes: ['Entry'] }], posterHue: 40,
+  },
+  {
+    id: 'ev-12', slug: 'indiranagar-indie-jam', title: 'Indiranagar Indie Jam', description: 'Three live bands, craft taps and a terrace acoustic set to close — Bengaluru’s coziest gig night.', category: 'Concerts', ageLimit: 'All ages', tags: ['Indie', 'Live band'], date: iso(8, 10, 19), durationHrs: 3, venueId: 'indiranagar-social', organizerId: 'blrcollective', status: 'approved', conditions: [], rules: [], lineup: [{ name: 'June & Co', role: 'Opening DJ' }], tiers: [{ id: 't1', name: 'Entry', price: 449, quantity: 550, sold: 391, includes: ['Entry', '1 craft pint'] }], posterHue: 130,
+  },
+  {
+    id: 'ev-13', slug: 'charminar-bass-vault', title: 'Charminar Bass Vault', description: 'Bass and breaks in a converted old-city vault — Hyderabad’s heaviest system.', category: 'Concerts', ageLimit: '21+', tags: ['Bass', '21+', 'Warehouse'], date: iso(8, 16, 21), durationHrs: 5, venueId: 'charminar-hall', organizerId: 'deccanlive', status: 'approved', conditions: ['21+ event — age verified at gate'], rules: [], lineup: [], tiers: [{ id: 't1', name: 'General', price: 699, quantity: 700, sold: 214, includes: ['Entry'] }], posterHue: 265,
+  },
+  {
+    id: 'ev-14', slug: 'orange-city-sundowner', title: 'Orange City Sundowner', description: 'Open-air sundowner on the grounds — food trucks, a golden-hour acoustic set and a night market.', category: 'Festivals', ageLimit: 'All ages', tags: ['Open-air', 'Sundowner'], date: iso(8, 23, 16), durationHrs: 6, venueId: 'orange-city-grounds', organizerId: 'deccanlive', status: 'approved', conditions: [], rules: [], lineup: [], tiers: [{ id: 't1', name: 'Day pass', price: 299, quantity: 2000, sold: 486, includes: ['Entry'] }], posterHue: 25,
+  },
 ];
 
 // Past events shown on profiles
@@ -645,6 +673,10 @@ export const LINEUPS: LineupProfileData[] = [
   { id: 'lu5', slug: 'june-and-co', name: 'June & Co', category: 'Artist', verified: false, city: 'Austin', bio: 'Unplugged trio for golden-hour rooftops. Harmonies first, everything else second.', links: ['ig/juneandco'], followers: 2900, eventsPlayed: 21, hue: 265, emoji: '🪕' },
   { id: 'lu6', slug: 'fizzco', name: 'FizzCo', category: 'Sponsor', verified: false, city: 'Austin', bio: 'Craft soda brand sponsoring stages across Texas. Find the FizzCo bar at every partner event.', links: ['fizzco.com'], followers: 900, eventsPlayed: 16, hue: 150, emoji: '🥤' },
   { id: 'lu7', slug: 'citybeat', name: 'CityBeat', category: 'Promoter', verified: true, city: 'Austin', bio: 'Promoting the loudest nights in town since 2019.', links: ['ig/citybeat'], followers: 3100, eventsPlayed: 44, hue: 60, emoji: '📣' },
+  { id: 'lu8', slug: 'dj-arjuna', name: 'DJ Arjuna', category: 'DJ', verified: true, city: 'Mumbai', bio: 'Bollywood-techno crossovers that keep both crowds on the floor. Resident at Bandra Warehouse.', links: ['ig/djarjuna'], followers: 18400, eventsPlayed: 96, hue: 210, emoji: '🎧' },
+  { id: 'lu9', slug: 'the-mirchi-band', name: 'The Mirchi Band', category: 'Band', verified: true, city: 'Delhi', bio: 'Delhi’s spice-rock four-piece — Hindi originals with brass. Loud, warm, unmissable.', links: ['ig/mirchiband'], followers: 9200, eventsPlayed: 61, hue: 10, emoji: '🎸' },
+  { id: 'lu10', slug: 'blr-strings', name: 'BLR Strings', category: 'Artist', verified: false, city: 'Bengaluru', bio: 'Acoustic trio for terrace sets and craft-brewery evenings.', links: ['ig/blrstrings'], followers: 4100, eventsPlayed: 38, hue: 130, emoji: '🪕' },
+  { id: 'lu11', slug: 'hyd-flow', name: 'HYD Flow', category: 'DJ', verified: false, city: 'Hyderabad', bio: 'Bass, breaks and Deccan drums — the vault’s favourite selector.', links: ['ig/hydflow'], followers: 2700, eventsPlayed: 22, hue: 265, emoji: '🎛' },
 ];
 
 export const lineupBySlug = (slug: string) => LINEUPS.find((l) => l.slug === slug);
@@ -729,6 +761,9 @@ export const PROMOTERS: PromoterProfileData[] = [
   { id: 'pr1', slug: 'nova-nights', name: 'Nova Nights', verified: true, city: 'Austin', bio: 'The guest list you actually want to be on. Rooftops, warehouses, after-hours. Free before 1 AM, always.', links: ['ig/novanights', 'wa/novanights'], followers: 8600, eventsPromoted: 64, guestsBrought: 12400, showRate: 78, hue: 285 },
   { id: 'pr2', slug: 'crowd-co', name: 'Crowd Co.', verified: true, city: 'Dallas', bio: 'We fill floors. Techno, house and everything loud — get on the list before the cutoff.', links: ['ig/crowdco'], followers: 4200, eventsPromoted: 38, guestsBrought: 6100, showRate: 71, hue: 150 },
   { id: 'pr3', slug: 'the-plug', name: 'The Plug', verified: false, city: 'Houston', bio: 'New in town, big lists. Comedy nights and indie gigs mostly.', links: ['ig/theplug'], followers: 1900, eventsPromoted: 12, guestsBrought: 1400, showRate: 64, hue: 40 },
+  { id: 'pr4', slug: 'bombay-guestlist', name: 'Bombay Guestlist', verified: true, city: 'Mumbai', bio: 'Bandra to Lower Parel — if there’s a list worth being on, we run it. Free before midnight.', links: ['ig/bombayguestlist'], followers: 11200, eventsPromoted: 58, guestsBrought: 15800, showRate: 81, hue: 210 },
+  { id: 'pr5', slug: 'dilli-doors', name: 'Dilli Doors', verified: true, city: 'Delhi', bio: 'CP, HKV and GK — comedy lists early, club lists late.', links: ['ig/dillidoors'], followers: 6800, eventsPromoted: 34, guestsBrought: 7200, showRate: 74, hue: 40 },
+  { id: 'pr6', slug: 'blr-lists', name: 'BLR Lists', verified: false, city: 'Bengaluru', bio: 'Indiranagar & Koramangala gig lists. Bring your crew.', links: ['ig/blrlists'], followers: 3100, eventsPromoted: 19, guestsBrought: 2900, showRate: 69, hue: 130 },
 ];
 
 export const promoterBySlug = (slug: string) => PROMOTERS.find((p) => p.slug === slug);
@@ -764,6 +799,23 @@ export const PEOPLE: Person[] = [
   { id: 'p8', name: 'Vikram Rao', username: 'vikramr', city: 'Austin', avatarHue: 45, bio: 'Warehouse till sunrise.', followers: 300, follows: ['p2', 'p9', 'p10', 'p6'] },
   { id: 'p9', name: 'Meera Joshi', username: 'meeraj', city: 'Bengaluru', avatarHue: 12, bio: 'New in town, big on plans.', followers: 88, follows: ['p5', 'p8', 'p1'] },
   { id: 'p10', name: 'Karan Shah', username: 'karans', city: 'Austin', avatarHue: 240, bio: 'If there’s a lineup, I’m interested.', followers: 156, follows: ['p6', 'p8', 'p3'] },
+  { id: 'p11', name: 'Ananya Rao', username: 'ananyar', city: 'Mumbai', avatarHue: 210, bio: 'Bandra warehouse regular. Sunrise chai after every set.', verified: true, followers: 820, follows: ['p1', 'p12'] },
+  { id: 'p12', name: 'Kabir Malhotra', username: 'kabirm', city: 'Delhi', avatarHue: 40, bio: 'Comedy basements > everything.', followers: 340, follows: ['p11'] },
+  { id: 'p13', name: 'Diya Kulkarni', username: 'diyak', city: 'Nagpur', avatarHue: 25, bio: 'Orange city, golden hours.', followers: 150, follows: ['p11', 'p9'] },
+];
+
+/** Top cities for the picker popup — landmark-style icons. */
+export const TOP_CITIES: { name: string; icon: string }[] = [
+  { name: 'Mumbai', icon: '🌉' },
+  { name: 'Delhi', icon: '🏛️' },
+  { name: 'Bengaluru', icon: '🌳' },
+  { name: 'Hyderabad', icon: '🕌' },
+  { name: 'Chennai', icon: '🎬' },
+  { name: 'Pune', icon: '🎓' },
+  { name: 'Kolkata', icon: '🌁' },
+  { name: 'Goa', icon: '🏝️' },
+  { name: 'Nagpur', icon: '🍊' },
+  { name: 'Austin', icon: '🎸' },
 ];
 
 // Seeded attendance across events — the crowd behind the FOMO. Seeded people are

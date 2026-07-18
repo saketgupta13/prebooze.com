@@ -107,11 +107,8 @@ export default function Home() {
     eventFeat
   );
 
-  // City-scoped top lists (fall back to all when a city has no seeded data yet).
-  const byCity = <T extends { city: string }>(arr: T[]) => {
-    const f = arr.filter((x) => x.city === city);
-    return (f.length ? f : arr);
-  };
+  // Strictly city-scoped top lists — empty sections are hidden.
+  const byCity = <T extends { city: string }>(arr: T[]) => arr.filter((x) => x.city === city);
   const topOrganizers = featuredFirst([...byCity(ORGANIZERS)].sort((a, b) => b.eventsHosted - a.eventsHosted), (o) => o.id, orgFeat).slice(0, 10);
   const topPromoters = featuredFirst([...byCity(PROMOTERS)].sort((a, b) => b.showRate - a.showRate), (p) => p.slug, promoFeat).slice(0, 10);
   const topLineups = featuredFirst([...byCity(LINEUPS)].sort((a, b) => b.followers - a.followers), (l) => l.slug, lineFeat).slice(0, 10);
@@ -218,6 +215,7 @@ export default function Home() {
         )}
 
         {/* People going out in the city */}
+        {cityPeople.length > 0 && (
         <section className="section">
           <div className="section-hd">
             <h2>Going out in {city} 🔥</h2>
@@ -246,6 +244,7 @@ export default function Home() {
             })}
           </Slider>
         </section>
+        )}
 
         {/* Reels */}
         <section className="section">
@@ -261,6 +260,7 @@ export default function Home() {
         </section>
 
         {/* Top organizers */}
+        {topOrganizers.length > 0 && (
         <section className="section">
           <div className="section-hd">
             <h2>Top organizers in {city}</h2>
@@ -277,8 +277,10 @@ export default function Home() {
             })}
           </Slider>
         </section>
+        )}
 
         {/* Top promoters */}
+        {topPromoters.length > 0 && (
         <section className="section">
           <div className="section-hd">
             <h2>Top promoters in {city} 📣</h2>
@@ -292,8 +294,10 @@ export default function Home() {
             ))}
           </Slider>
         </section>
+        )}
 
         {/* Top line-ups */}
+        {topLineups.length > 0 && (
         <section className="section">
           <div className="section-hd">
             <h2>Top line-ups in {city} 🎤</h2>
@@ -307,8 +311,10 @@ export default function Home() {
             ))}
           </Slider>
         </section>
+        )}
 
         {/* Trending venues */}
+        {topVenues.length > 0 && (
         <section className="section">
           <div className="section-hd">
             <h2>Top venues in {city}</h2>
@@ -329,6 +335,7 @@ export default function Home() {
             })}
           </Slider>
         </section>
+        )}
 
         {/* Why book with us */}
         <section className="section">
