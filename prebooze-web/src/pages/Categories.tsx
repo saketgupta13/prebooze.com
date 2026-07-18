@@ -1,0 +1,70 @@
+import { Link } from 'react-router-dom';
+import { useApp } from '../store/AppContext';
+import { CATEGORY_TREE, EVENTS, venueById } from '../data/mock';
+
+/** Browse-by-category directory — categories + sub-categories with live counts. */
+export default function Categories() {
+  const { city } = useApp();
+  const cityEvents = EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
+  const catCount = (cat: string) => cityEvents.filter((e) => e.category === cat).length;
+  const subCount = (cat: string, sub: string) =>
+    cityEvents.filter((e) => e.category === cat && e.subCategory === sub).length;
+
+  return (
+    <main className="page">
+      <div className="container">
+        <div className="breadcrumb">
+          <Link to="/">Home</Link> / Browse by category
+        </div>
+        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Browse by category 🗂️</h1>
+        <p className="muted" style={{ marginBottom: 22 }}>
+          Every kind of night out in <span className="accent bold">{city}</span> — pick a lane.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
+          {CATEGORY_TREE.map((c) => {
+            const total = catCount(c.name);
+            return (
+              <div key={c.name} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+                <Link to={`/browse?cat=${encodeURIComponent(c.name)}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 34 }}>{c.icon}</span>
+                    <div>
+                      <h3 style={{ fontSize: 17 }}>{c.name}</h3>
+                      <div className="tiny muted-2">
+                        {total > 0 ? `${total} event${total === 1 ? '' : 's'} in ${city}` : `coming soon in ${city}`}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+                <div className="hr" />
+                <div style={{ display: 'grid', gap: 6, flex: 1 }}>
+                  {c.subs.map((s) => {
+                    const n = subCount(c.name, s);
+                    return (
+                      <Link
+                        key={s}
+                        to={`/browse?cat=${encodeURIComponent(c.name)}&sub=${encodeURIComponent(s)}`}
+                        className="kv"
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                      >
+                        <span className="k" style={{ color: n ? 'var(--text)' : 'var(--muted-2)' }}>{s}</span>
+                        <span className={n ? 'accent bold small' : 'tiny muted-2'}>{n || '—'}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+                <Link to={`/browse?cat=${encodeURIComponent(c.name)}`} className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 12 }}>
+                  Browse {c.name.toLowerCase()} →
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+        <div className="tiny muted-2" style={{ marginTop: 14 }}>
+          counts follow your selected city · switch city from the 📍 picker in the header
+        </div>
+      </div>
+    </main>
+  );
+}

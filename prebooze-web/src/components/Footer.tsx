@@ -9,10 +9,10 @@ export default function Footer() {
           <div>
             <h4>Explore</h4>
             <Link to="/browse">Events</Link>
+            <Link to="/categories">Browse by category</Link>
             <Link to="/venues">Venues</Link>
-            <Link to="/organizers/livewire">Organizers</Link>
+            <Link to="/organizers">Organizers</Link>
             <Link to="/blog">Blog</Link>
-            <Link to="/browse">Cities</Link>
           </div>
           <div>
             <h4>Company</h4>

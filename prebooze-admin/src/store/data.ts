@@ -327,7 +327,15 @@ export const SEED_LINEUPS = [
   { id: 'lu6', name: 'CityBeat', category: 'Promoter', description: 'Promoting the loudest nights in town since 2019.', city: 'Austin', links: 'ig/citybeat', hasImage: false, followers: 3100, verified: true },
 ];
 
-export const CATEGORY_OPTIONS = ['Concerts', 'Comedy', 'Festivals', 'House parties'];
+export const CATEGORY_OPTIONS = ['Concerts', 'Comedy', 'Festivals', 'Club nights'];
+
+/** Category → sub-category tree (mirrors the guest app). */
+export const CATEGORY_SUBS: Record<string, string[]> = {
+  Concerts: ['Indie', 'Live band', 'Techno', 'Bollywood', 'EDM', 'Hip-hop'],
+  Comedy: ['Stand-up', 'Open mic', 'Improv'],
+  Festivals: ['Music festival', 'Sundowner', 'Food & drink', 'Cultural'],
+  'Club nights': ['House', 'After-hours', 'Bollywood night', 'Ladies night'],
+};
 
 export const SEED_REVIEWS = [
   { id: 'rv1', author: 'Priya S.', rating: 5, eventTitle: 'Jazz in the Park', organizer: 'LiveWire Ent.', text: 'Smooth entry, great sound, well organized.', date: '14 Jun' },

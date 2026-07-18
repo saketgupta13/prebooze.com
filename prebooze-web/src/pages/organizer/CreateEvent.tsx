@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { EVENTS, LINEUPS, PROMOTERS, VENUES, fmtDate, fmtTime } from '../../data/mock';
+import { CATEGORY_TREE, EVENTS, LINEUPS, PROMOTERS, VENUES, fmtDate, fmtTime, subsFor } from '../../data/mock';
 import type { Event, TicketTier } from '../../types';
 import Poster, { categoryEmoji } from '../../components/Poster';
 import Accordion from '../../components/Accordion';
@@ -30,6 +30,7 @@ export default function CreateEvent() {
   const [title, setTitle] = useState(editing?.title ?? '');
   const [description, setDescription] = useState(editing?.description ?? '');
   const [category, setCategory] = useState(editing?.category ?? 'Concerts');
+  const [subCategory, setSubCategory] = useState(editing?.subCategory ?? subsFor(editing?.category ?? 'Concerts')[0] ?? '');
   const [ageLimit, setAgeLimit] = useState(editing?.ageLimit ?? '18+');
   const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : '');
   const [time, setTime] = useState(() => {
@@ -121,6 +122,7 @@ export default function CreateEvent() {
     title: title.trim() || 'Untitled event',
     description: description.trim(),
     category,
+    subCategory,
     ageLimit,
     tags: [category === 'Concerts' ? 'Concert' : category, ageLimit],
     date: new Date(`${date}T${time}`).toISOString(),
@@ -295,11 +297,18 @@ export default function CreateEvent() {
           <div className="form-row">
             <div className="field">
               <span>Category</span>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option>Concerts</option>
-                <option>Comedy</option>
-                <option>Festivals</option>
-                <option>This weekend</option>
+              <select value={category} onChange={(e) => { setCategory(e.target.value); setSubCategory(subsFor(e.target.value)[0] ?? ''); }}>
+                {CATEGORY_TREE.map((c) => (
+                  <option key={c.name}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <span>Sub-category</span>
+              <select value={subCategory} onChange={(e) => setSubCategory(e.target.value)}>
+                {subsFor(category).map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
               </select>
             </div>
             <div className="field">

@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { EVENTS, venueById } from '../data/mock';
+import { CATEGORY_TREE, EVENTS, subsFor, venueById } from '../data/mock';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import EventCard from '../components/EventCard';
 
 const DATE_FILTERS = ['Any date', 'This weekend', 'This month'];
-const CATS = ['Category', 'Concerts', 'Comedy', 'Festivals'];
+const CATS = ['Category', ...CATEGORY_TREE.map((c) => c.name)];
 const PRICES = ['Price', 'Under ₹30', '₹30–₹80', '₹80+'];
 const SORTS = ['sorted by date', 'price low→high', 'price high→low'];
 
@@ -16,6 +16,7 @@ export default function Browse() {
   const q = (params.get('q') ?? '').toLowerCase();
   const [dateF, setDateF] = useState(DATE_FILTERS[0]);
   const [cat, setCat] = useState(params.get('cat') ?? 'Category');
+  const [sub, setSub] = useState(params.get('sub') ?? '');
   const [price, setPrice] = useState(PRICES[0]);
   const [sort, setSort] = useState(SORTS[0]);
 
@@ -29,6 +30,7 @@ export default function Browse() {
           e.lineup.some((l) => l.name.toLowerCase().includes(q))
       );
     if (cat !== 'Category') list = list.filter((e) => e.category === cat);
+    if (sub) list = list.filter((e) => e.subCategory === sub);
     if (price === PRICES[1]) list = list.filter((e) => Math.min(...e.tiers.map((t) => t.price)) < 30);
     if (price === PRICES[2])
       list = list.filter((e) => {
@@ -49,7 +51,17 @@ export default function Browse() {
         (a, b) => Math.min(...b.tiers.map((t) => t.price)) - Math.min(...a.tiers.map((t) => t.price))
       );
     return featuredFirst(list, (e) => e.id, featuredRefs(featured, 'event', city));
-  }, [q, cat, price, dateF, sort, city, featured]);
+  }, [q, cat, sub, price, dateF, sort, city, featured]);
+
+  // sub-category counts within the selected city + category
+  const subCounts = useMemo(() => {
+    if (cat === 'Category') return new Map<string, number>();
+    const m = new Map<string, number>();
+    EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city && e.category === cat).forEach(
+      (e) => e.subCategory && m.set(e.subCategory, (m.get(e.subCategory) ?? 0) + 1)
+    );
+    return m;
+  }, [cat, city]);
 
   return (
     <main className="page">
@@ -59,7 +71,7 @@ export default function Browse() {
           <select value={dateF} onChange={(e) => setDateF(e.target.value)} style={{ width: 'auto' }}>
             {DATE_FILTERS.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
-          <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ width: 'auto' }}>
+          <select value={cat} onChange={(e) => { setCat(e.target.value); setSub(''); }} style={{ width: 'auto' }}>
             {CATS.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
           <select value={price} onChange={(e) => setPrice(e.target.value)} style={{ width: 'auto' }}>
@@ -71,8 +83,20 @@ export default function Browse() {
           </select>
         </div>
 
+        {cat !== 'Category' && subsFor(cat).length > 0 && (
+          <div className="chip-row" style={{ marginBottom: 16 }}>
+            <button className={`chip ${sub === '' ? 'on' : ''}`} onClick={() => setSub('')}>All {cat}</button>
+            {subsFor(cat).map((s) => (
+              <button key={s} className={`chip ${sub === s ? 'on' : ''}`} onClick={() => setSub(sub === s ? '' : s)}>
+                {s} ({subCounts.get(s) ?? 0})
+              </button>
+            ))}
+          </div>
+        )}
+
         <h1 style={{ fontSize: 21, marginBottom: 18 }}>
           {events.length} event{events.length === 1 ? '' : 's'} in <span className="accent">{city}</span>
+          {sub && <span className="muted" style={{ fontWeight: 500 }}> · {sub}</span>}
           {q && (
             <span className="muted" style={{ fontWeight: 500 }}>
               {' '}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
-import { CATEGORY_OPTIONS, fmt } from '../store/data';
+import { CATEGORY_OPTIONS, CATEGORY_SUBS, fmt } from '../store/data';
 import { EVENT_STATUS, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import type { AdminEvent, Tier } from '../types';
@@ -172,9 +172,25 @@ export default function EventEditor() {
           </div>
           <div className="field">
             <label>Category</label>
-            <select className="input" value={event.category} onChange={(e) => patch({ category: e.target.value })}>
+            <select
+              className="input"
+              value={event.category}
+              onChange={(e) => patch({ category: e.target.value, subCategory: CATEGORY_SUBS[e.target.value]?.[0] ?? '' })}
+            >
               {CATEGORY_OPTIONS.map((c) => (
                 <option key={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Sub-category</label>
+            <select
+              className="input"
+              value={event.subCategory ?? CATEGORY_SUBS[event.category]?.[0] ?? ''}
+              onChange={(e) => patch({ subCategory: e.target.value })}
+            >
+              {(CATEGORY_SUBS[event.category] ?? []).map((s) => (
+                <option key={s}>{s}</option>
               ))}
             </select>
           </div>

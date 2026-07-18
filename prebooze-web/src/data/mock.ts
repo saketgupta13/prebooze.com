@@ -15,6 +15,15 @@ export const CITIES = ['Austin', 'Mumbai', 'Delhi', 'Bengaluru', 'Goa'];
 
 export const CATEGORIES = ['All', 'Concerts', 'Comedy', 'Festivals', 'This weekend'];
 
+/** Category → sub-category tree (used by browse, the categories page and event creation). */
+export const CATEGORY_TREE: { name: string; icon: string; subs: string[] }[] = [
+  { name: 'Concerts', icon: '🎸', subs: ['Indie', 'Live band', 'Techno', 'Bollywood', 'EDM', 'Hip-hop'] },
+  { name: 'Comedy', icon: '🎤', subs: ['Stand-up', 'Open mic', 'Improv'] },
+  { name: 'Festivals', icon: '🎪', subs: ['Music festival', 'Sundowner', 'Food & drink', 'Cultural'] },
+  { name: 'Club nights', icon: '🪩', subs: ['House', 'After-hours', 'Bollywood night', 'Ladies night'] },
+];
+export const subsFor = (category: string) => CATEGORY_TREE.find((c) => c.name === category)?.subs ?? [];
+
 export const INTEREST_TAGS = [
   'Concerts',
   'Techno',
@@ -218,6 +227,7 @@ export const EVENTS: Event[] = [
     description:
       "An unforgettable night of live indie music featuring the city's hottest acts. Doors open at 7 PM with a warm-up DJ set, followed by three headline performances on the main stage. Expect great sound, food trucks and a crowd that sings every word. The Wilds close the night with their new album played front-to-back, plus a few surprises we're not allowed to announce yet.",
     category: 'Concerts',
+    subCategory: 'Indie',
     ageLimit: '18+',
     tags: ['Concert', '18+', 'Indoor'],
     date: iso(7, 24, 20),
@@ -263,6 +273,7 @@ export const EVENTS: Event[] = [
     description:
       'Two stages, twelve artists, one riverside sunset. The biggest open-air festival of the summer returns with food trucks, art installations and a headline set under fireworks.',
     category: 'Festivals',
+    subCategory: 'Music festival',
     ageLimit: 'All ages',
     tags: ['Festival', 'Open-air'],
     date: iso(8, 1, 16),
@@ -295,6 +306,7 @@ export const EVENTS: Event[] = [
     description:
       'Five comics, one intimate basement room, zero chill. Doors at 7, first act at 8 — come early, the front row fills fast (if you dare).',
     category: 'Comedy',
+    subCategory: 'Stand-up',
     ageLimit: '18+',
     tags: ['Comedy', '18+', 'Indoor'],
     date: iso(8, 2, 19),
@@ -321,6 +333,7 @@ export const EVENTS: Event[] = [
     description:
       'Unplugged sessions on the rooftop — three singer-songwriters, string lights and slow sunsets over the skyline. Limited to 200 guests.',
     category: 'Concerts',
+    subCategory: 'Live band',
     ageLimit: '18+',
     tags: ['Concert', 'Rooftop'],
     date: iso(8, 7, 19),
@@ -343,6 +356,7 @@ export const EVENTS: Event[] = [
     description:
       'Raw warehouse energy. International headliner, 30k-watt sound system, lights out at 6 AM. Location shared with ticket holders 24h before doors.',
     category: 'Concerts',
+    subCategory: 'Techno',
     ageLimit: '21+',
     tags: ['Techno', '21+', 'Warehouse'],
     date: iso(8, 8, 22),
@@ -370,6 +384,7 @@ export const EVENTS: Event[] = [
     description:
       'Golden-hour house sets, craft cocktails and skyline views. The season closer of our rooftop series.',
     category: 'This weekend',
+    subCategory: 'Sundowner',
     ageLimit: '21+',
     tags: ['House', 'Rooftop', '21+'],
     date: iso(8, 15, 17),
@@ -391,6 +406,7 @@ export const EVENTS: Event[] = [
     title: 'Neon Warehouse Party',
     description: 'UV paint, neon installations and bass till late.',
     category: 'Concerts',
+    subCategory: 'Techno',
     ageLimit: '18+',
     tags: ['Party', '18+'],
     date: iso(8, 22, 21),
@@ -411,6 +427,7 @@ export const EVENTS: Event[] = [
     title: "Summer Fest '27",
     description: 'Next year, bigger. Draft in progress.',
     category: 'Festivals',
+    subCategory: 'Music festival',
     ageLimit: 'All ages',
     tags: ['Festival'],
     date: iso(12, 31, 16),
@@ -425,22 +442,28 @@ export const EVENTS: Event[] = [
     posterHue: 190,
   },
   {
-    id: 'ev-9', slug: 'bandra-warehouse-rave', title: 'Bandra Warehouse Rave', description: 'Mumbai’s loudest floor goes all night — two rooms of techno with a sunrise chai counter outside.', category: 'Concerts', ageLimit: '21+', tags: ['Techno', '21+', 'Warehouse'], date: iso(8, 8, 22), durationHrs: 6, venueId: 'bandra-warehouse', organizerId: 'bombaybeats', status: 'approved', conditions: ['Entry only with valid QR ticket + photo ID', '21+ event — age verified at gate'], rules: [], lineup: [{ name: 'KLANG', role: 'Headline artist' }], tiers: [ { id: 't1', name: 'Early bird', price: 499, quantity: 300, sold: 300, includes: ['Entry'] }, { id: 't2', name: 'General', price: 799, quantity: 500, sold: 342, includes: ['Entry', '1 drink'] } ], posterHue: 300,
+    id: 'ev-9', slug: 'bandra-warehouse-rave', title: 'Bandra Warehouse Rave', description: 'Mumbai’s loudest floor goes all night — two rooms of techno with a sunrise chai counter outside.', category: 'Concerts',
+    subCategory: 'Techno', ageLimit: '21+', tags: ['Techno', '21+', 'Warehouse'], date: iso(8, 8, 22), durationHrs: 6, venueId: 'bandra-warehouse', organizerId: 'bombaybeats', status: 'approved', conditions: ['Entry only with valid QR ticket + photo ID', '21+ event — age verified at gate'], rules: [], lineup: [{ name: 'KLANG', role: 'Headline artist' }], tiers: [ { id: 't1', name: 'Early bird', price: 499, quantity: 300, sold: 300, includes: ['Entry'] }, { id: 't2', name: 'General', price: 799, quantity: 500, sold: 342, includes: ['Entry', '1 drink'] } ], posterHue: 300,
   },
   {
-    id: 'ev-10', slug: 'bollywood-night-gateway', title: 'Bollywood Night at the Gateway', description: 'A sea-facing Bollywood mashup night — live dhol, 2000s throwbacks and a midnight confetti drop.', category: 'Concerts', ageLimit: '18+', tags: ['Bollywood', '18+', 'Indoor'], date: iso(8, 15, 20), durationHrs: 4, venueId: 'gateway-arena', organizerId: 'bombaybeats', status: 'approved', conditions: ['Entry only with valid QR ticket + photo ID'], rules: [], lineup: [], tiers: [ { id: 't1', name: 'General', price: 599, quantity: 1500, sold: 780, includes: ['Entry'] }, { id: 't2', name: 'VIP deck', price: 1499, quantity: 200, sold: 64, includes: ['Entry', 'Sea-view deck', '2 drinks'] } ], posterHue: 210,
+    id: 'ev-10', slug: 'bollywood-night-gateway', title: 'Bollywood Night at the Gateway', description: 'A sea-facing Bollywood mashup night — live dhol, 2000s throwbacks and a midnight confetti drop.', category: 'Concerts',
+    subCategory: 'Bollywood', ageLimit: '18+', tags: ['Bollywood', '18+', 'Indoor'], date: iso(8, 15, 20), durationHrs: 4, venueId: 'gateway-arena', organizerId: 'bombaybeats', status: 'approved', conditions: ['Entry only with valid QR ticket + photo ID'], rules: [], lineup: [], tiers: [ { id: 't1', name: 'General', price: 599, quantity: 1500, sold: 780, includes: ['Entry'] }, { id: 't2', name: 'VIP deck', price: 1499, quantity: 200, sold: 64, includes: ['Entry', 'Sea-view deck', '2 drinks'] } ], posterHue: 210,
   },
   {
-    id: 'ev-11', slug: 'cp-comedy-underground', title: 'CP Comedy Underground', description: 'Five comics, one basement, zero mercy — Delhi’s sharpest open-secret comedy night.', category: 'Comedy', ageLimit: '18+', tags: ['Comedy', '18+', 'Indoor'], date: iso(8, 9, 19), durationHrs: 2, venueId: 'cp-club', organizerId: 'delhinights', status: 'approved', conditions: ['Entry only with valid QR ticket + photo ID'], rules: [], lineup: [{ name: 'Maya K.', role: 'Headline artist' }], tiers: [{ id: 't1', name: 'Entry', price: 349, quantity: 400, sold: 265, includes: ['Entry'] }], posterHue: 40,
+    id: 'ev-11', slug: 'cp-comedy-underground', title: 'CP Comedy Underground', description: 'Five comics, one basement, zero mercy — Delhi’s sharpest open-secret comedy night.', category: 'Comedy',
+    subCategory: 'Stand-up', ageLimit: '18+', tags: ['Comedy', '18+', 'Indoor'], date: iso(8, 9, 19), durationHrs: 2, venueId: 'cp-club', organizerId: 'delhinights', status: 'approved', conditions: ['Entry only with valid QR ticket + photo ID'], rules: [], lineup: [{ name: 'Maya K.', role: 'Headline artist' }], tiers: [{ id: 't1', name: 'Entry', price: 349, quantity: 400, sold: 265, includes: ['Entry'] }], posterHue: 40,
   },
   {
-    id: 'ev-12', slug: 'indiranagar-indie-jam', title: 'Indiranagar Indie Jam', description: 'Three live bands, craft taps and a terrace acoustic set to close — Bengaluru’s coziest gig night.', category: 'Concerts', ageLimit: 'All ages', tags: ['Indie', 'Live band'], date: iso(8, 10, 19), durationHrs: 3, venueId: 'indiranagar-social', organizerId: 'blrcollective', status: 'approved', conditions: [], rules: [], lineup: [{ name: 'June & Co', role: 'Opening DJ' }], tiers: [{ id: 't1', name: 'Entry', price: 449, quantity: 550, sold: 391, includes: ['Entry', '1 craft pint'] }], posterHue: 130,
+    id: 'ev-12', slug: 'indiranagar-indie-jam', title: 'Indiranagar Indie Jam', description: 'Three live bands, craft taps and a terrace acoustic set to close — Bengaluru’s coziest gig night.', category: 'Concerts',
+    subCategory: 'Indie', ageLimit: 'All ages', tags: ['Indie', 'Live band'], date: iso(8, 10, 19), durationHrs: 3, venueId: 'indiranagar-social', organizerId: 'blrcollective', status: 'approved', conditions: [], rules: [], lineup: [{ name: 'June & Co', role: 'Opening DJ' }], tiers: [{ id: 't1', name: 'Entry', price: 449, quantity: 550, sold: 391, includes: ['Entry', '1 craft pint'] }], posterHue: 130,
   },
   {
-    id: 'ev-13', slug: 'charminar-bass-vault', title: 'Charminar Bass Vault', description: 'Bass and breaks in a converted old-city vault — Hyderabad’s heaviest system.', category: 'Concerts', ageLimit: '21+', tags: ['Bass', '21+', 'Warehouse'], date: iso(8, 16, 21), durationHrs: 5, venueId: 'charminar-hall', organizerId: 'deccanlive', status: 'approved', conditions: ['21+ event — age verified at gate'], rules: [], lineup: [], tiers: [{ id: 't1', name: 'General', price: 699, quantity: 700, sold: 214, includes: ['Entry'] }], posterHue: 265,
+    id: 'ev-13', slug: 'charminar-bass-vault', title: 'Charminar Bass Vault', description: 'Bass and breaks in a converted old-city vault — Hyderabad’s heaviest system.', category: 'Concerts',
+    subCategory: 'EDM', ageLimit: '21+', tags: ['Bass', '21+', 'Warehouse'], date: iso(8, 16, 21), durationHrs: 5, venueId: 'charminar-hall', organizerId: 'deccanlive', status: 'approved', conditions: ['21+ event — age verified at gate'], rules: [], lineup: [], tiers: [{ id: 't1', name: 'General', price: 699, quantity: 700, sold: 214, includes: ['Entry'] }], posterHue: 265,
   },
   {
-    id: 'ev-14', slug: 'orange-city-sundowner', title: 'Orange City Sundowner', description: 'Open-air sundowner on the grounds — food trucks, a golden-hour acoustic set and a night market.', category: 'Festivals', ageLimit: 'All ages', tags: ['Open-air', 'Sundowner'], date: iso(8, 23, 16), durationHrs: 6, venueId: 'orange-city-grounds', organizerId: 'deccanlive', status: 'approved', conditions: [], rules: [], lineup: [], tiers: [{ id: 't1', name: 'Day pass', price: 299, quantity: 2000, sold: 486, includes: ['Entry'] }], posterHue: 25,
+    id: 'ev-14', slug: 'orange-city-sundowner', title: 'Orange City Sundowner', description: 'Open-air sundowner on the grounds — food trucks, a golden-hour acoustic set and a night market.', category: 'Festivals',
+    subCategory: 'Sundowner', ageLimit: 'All ages', tags: ['Open-air', 'Sundowner'], date: iso(8, 23, 16), durationHrs: 6, venueId: 'orange-city-grounds', organizerId: 'deccanlive', status: 'approved', conditions: [], rules: [], lineup: [], tiers: [{ id: 't1', name: 'Day pass', price: 299, quantity: 2000, sold: 486, includes: ['Entry'] }], posterHue: 25,
   },
 ];
 

@@ -26,6 +26,7 @@ export interface Event {
   title: string;
   description: string;
   category: string;
+  subCategory?: string;
   ageLimit: string;
   tags: string[];
   date: string; // ISO

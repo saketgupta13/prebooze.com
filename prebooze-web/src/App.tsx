@@ -6,6 +6,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Browse from './pages/Browse';
+import Categories from './pages/Categories';
 import EventDetail from './pages/EventDetail';
 import Checkout from './pages/Checkout';
 import Confirmation from './pages/Confirmation';
@@ -94,6 +95,7 @@ export default function App() {
         {/* Guest — discovery */}
         <Route path="/" element={<Home />} />
         <Route path="/browse" element={<Browse />} />
+        <Route path="/categories" element={<Categories />} />
         <Route path="/events/:slug" element={<EventDetail />} />
         <Route path="/venues" element={<Venues />} />
         <Route path="/venues/:id" element={<VenueDetail />} />

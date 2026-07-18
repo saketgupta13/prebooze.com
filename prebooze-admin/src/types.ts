@@ -17,6 +17,7 @@ export interface AdminEvent {
   id: string;
   title: string;
   category: string;
+  subCategory?: string;
   venue: string;
   date: string;
   time: string;
