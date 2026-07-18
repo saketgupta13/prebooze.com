@@ -3,6 +3,7 @@ import { useApp } from '../store/AppContext';
 import { EVENTS, PROMOTERS, promoterBySlug } from '../data/mock';
 import { friendsAtEvents } from '../lib/social';
 import FriendsProof from '../components/FriendsProof';
+import ShareButton from '../components/ShareButton';
 import Poster from '../components/Poster';
 import EventCard from '../components/EventCard';
 
@@ -52,7 +53,7 @@ export default function PromoterProfile() {
             <button className={`btn ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(followKey)}>
               {isFollowing ? 'Following ✓' : '+ Follow'}
             </button>
-            <button className="btn btn-ghost btn-sm">⇪ Share</button>
+            <ShareButton path={`/promoter/${promoter.slug}`} />
           </div>
         </div>
 

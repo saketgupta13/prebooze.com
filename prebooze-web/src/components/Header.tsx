@@ -134,7 +134,7 @@ export default function Header() {
                   🎟 My bookings
                 </Link>
                 <Link to="/wishlist" onClick={() => setMenuOpen(false)}>
-                  ❤️ Wishlist
+                  ❤️ Wishlist & favourites
                 </Link>
                 <Link to="/wallet" onClick={() => setMenuOpen(false)}>
                   👛 Wallet

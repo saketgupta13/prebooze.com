@@ -849,10 +849,22 @@ export const TRENDING_SEARCHES = ['Techno', 'Bandra Warehouse Rave', 'Comedy nig
 
 /** Open roles for the careers page (admin-managed). */
 export const CAREER_JOBS = [
-  { id: 'job1', title: 'Senior React Engineer', team: 'Engineering', loc: 'Mumbai · Hybrid', type: 'Full-time', status: 'open' as const },
-  { id: 'job2', title: 'City Growth Manager', team: 'Growth', loc: 'Bengaluru', type: 'Full-time', status: 'open' as const },
-  { id: 'job3', title: 'Community & Promoter Ops', team: 'Operations', loc: 'Delhi', type: 'Full-time', status: 'open' as const },
-  { id: 'job4', title: 'Design Intern', team: 'Design', loc: 'Remote', type: 'Internship', status: 'open' as const },
+  { id: 'job1', title: 'Senior React Engineer', team: 'Engineering', loc: 'Mumbai · Hybrid', type: 'Full-time', status: 'open' as const,
+    about: 'Own the guest web app end-to-end — the booking flow, the social layer and the promoter tools millions of night-outs will run on.',
+    responsibilities: ['Ship features across the React + TypeScript codebase', 'Own performance: sub-second booking flows on mid-range phones', 'Pair with design on a fast, dark, native-feeling web experience', 'Mentor two mid-level engineers'],
+    requirements: ['5+ years with React (hooks, context, suspense)', 'Strong TypeScript and API design instincts', 'Shipped consumer products at scale', 'Bonus: payments / ticketing background'] },
+  { id: 'job2', title: 'City Growth Manager', team: 'Growth', loc: 'Bengaluru', type: 'Full-time', status: 'open' as const,
+    about: 'Launch and grow Prebooze in Bengaluru — organizers, promoters, venues and the first thousand nights out.',
+    responsibilities: ['Sign the city’s top organizers and venues', 'Build the promoter network from zero', 'Own city P&L and weekly growth targets', 'Run launch events with the marketing team'],
+    requirements: ['3+ years in growth / city ops (Zomato, Blinkit, Swiggy-style)', 'Deep local nightlife network', 'Comfort with targets and ambiguity'] },
+  { id: 'job3', title: 'Community & Promoter Ops', team: 'Operations', loc: 'Delhi', type: 'Full-time', status: 'open' as const,
+    about: 'Run the promoter community — onboarding, quality, payouts and keeping show-rates honest.',
+    responsibilities: ['Vet and onboard promoter crews', 'Monitor guest-list quality and fraud signals', 'Own promoter payout operations', 'Host monthly promoter meetups'],
+    requirements: ['2+ years community or marketplace ops', 'Excellent WhatsApp-speed communication', 'Nightlife native'] },
+  { id: 'job4', title: 'Design Intern', team: 'Design', loc: 'Remote', type: 'Internship', status: 'open' as const,
+    about: 'Six months shipping real product design — event pages, social banners and the design system.',
+    responsibilities: ['Design flows alongside a senior designer', 'Maintain the component library', 'Create social/banner templates for organizers'],
+    requirements: ['A portfolio with real product work', 'Figma fluency', 'Available 5 days/week'] },
 ];
 
 /** Platform highlight counters (home page). */

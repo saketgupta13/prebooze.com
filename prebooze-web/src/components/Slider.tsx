@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { Children, useRef } from 'react';
 import type { ReactNode } from 'react';
 
 /** Horizontal scroll-snap slider with prev/next controls. */
@@ -10,8 +10,12 @@ export default function Slider({ children, slideWidth = 260 }: { children: React
       <div className="slider-track" ref={ref} style={{ ['--slide-w' as string]: `${slideWidth}px` }}>
         {children}
       </div>
-      <button className="slider-btn left" onClick={() => scroll(-1)} aria-label="Previous">‹</button>
-      <button className="slider-btn right" onClick={() => scroll(1)} aria-label="Next">›</button>
+      {Children.count(children) > 4 && (
+        <>
+          <button className="slider-btn left" onClick={() => scroll(-1)} aria-label="Previous">‹</button>
+          <button className="slider-btn right" onClick={() => scroll(1)} aria-label="Next">›</button>
+        </>
+      )}
     </div>
   );
 }

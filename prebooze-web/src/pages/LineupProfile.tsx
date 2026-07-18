@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, LINEUPS, lineupBySlug } from '../data/mock';
 import Poster from '../components/Poster';
+import ShareButton from '../components/ShareButton';
 import EventCard from '../components/EventCard';
 
 /** Public line-up profile — artists, DJs, sponsors and promoters guests can follow. */
@@ -52,7 +53,7 @@ export default function LineupProfile() {
             >
               {isFollowing ? 'Following ✓' : '+ Follow'}
             </button>
-            <button className="btn btn-ghost btn-sm">⇪ Share</button>
+            <ShareButton path={`/lineup/${slug}`} />
           </div>
         </div>
 

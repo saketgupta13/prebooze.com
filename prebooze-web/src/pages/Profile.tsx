@@ -3,6 +3,7 @@ import { useApp } from '../store/AppContext';
 import { ORGANIZERS, PAST_EVENTS, VENUES, eventById, personById } from '../data/mock';
 import { fmtDate } from '../data/mock';
 import Poster from '../components/Poster';
+import ShareButton from '../components/ShareButton';
 import Stars from '../components/Stars';
 
 export default function Profile() {
@@ -53,7 +54,7 @@ export default function Profile() {
               <Link to="/profile/edit" className="btn btn-ghost btn-sm">
                 ✎ Edit
               </Link>
-              <button className="btn btn-ghost btn-sm">⇪ Share profile</button>
+              <ShareButton path={user.username ? `/u/${user.username}` : '/people'} label="⇪ Share profile" />
             </div>
           </div>
 

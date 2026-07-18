@@ -3,11 +3,12 @@ import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, VENUES } from '../data/mock';
 import Poster from '../components/Poster';
+import ShareButton from '../components/ShareButton';
 import EventCard from '../components/EventCard';
 
 export default function VenueDetail() {
   const { id } = useParams();
-  const { following, toggleFollow } = useApp();
+  const { following, toggleFollow, favVenues, toggleFavVenue } = useApp();
   const venue = VENUES.find((v) => v.id === id);
 
   if (!venue) {
@@ -51,12 +52,19 @@ export default function VenueDetail() {
             <span className="icon-round">x</span>
             <span className="icon-round">🌐</span>
             <button
+              className="btn btn-ghost btn-sm"
+              title={favVenues.includes(venue.id) ? 'Remove favourite' : 'Favourite this venue'}
+              onClick={() => toggleFavVenue(venue.id)}
+            >
+              {favVenues.includes(venue.id) ? '❤️ Favourited' : '🤍 Favourite'}
+            </button>
+            <button
               className={`btn btn-sm ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
               onClick={() => toggleFollow(followKey)}
             >
               {isFollowing ? 'Following ✓' : '+ Follow'}
             </button>
-            <button className="btn btn-ghost btn-sm">⇪ Share</button>
+            <ShareButton path={`/venues/${venue.id}`} />
           </div>
         </div>
 

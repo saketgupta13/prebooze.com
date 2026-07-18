@@ -27,6 +27,7 @@ import ReferEarn from './pages/ReferEarn';
 import Wishlist from './pages/Wishlist';
 import HelpCenter from './pages/HelpCenter';
 import Careers from './pages/Careers';
+import JobDetail from './pages/JobDetail';
 import PaymentMethods from './pages/PaymentMethods';
 import Login from './pages/auth/Login';
 import Otp from './pages/auth/Otp';
@@ -112,6 +113,7 @@ export default function App() {
         <Route path="/r/:code" element={<ReferralLanding />} />
         <Route path="/help" element={<HelpCenter />} />
         <Route path="/careers" element={<Careers />} />
+        <Route path="/careers/:jobId" element={<JobDetail />} />
         <Route
           path="/wishlist"
           element={

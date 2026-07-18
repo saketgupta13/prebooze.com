@@ -40,7 +40,9 @@ export default function Careers() {
           <div key={j.id} className="card" style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <div>
-                <h3 style={{ fontSize: 16 }}>{j.title}</h3>
+                <Link to={`/careers/${j.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <h3 style={{ fontSize: 16 }}>{j.title} <span className="link tiny">view JD →</span></h3>
+                </Link>
                 <div className="tiny muted-2">{j.team} · {j.loc} · {j.type}</div>
               </div>
               {appliedIds.has(j.id) ? (

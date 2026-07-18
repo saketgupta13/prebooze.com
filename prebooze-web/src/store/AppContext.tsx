@@ -4,6 +4,14 @@ import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayM
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED } from '../data/mock';
 
+export interface OrgReview {
+  id: string;
+  author: string;
+  rating: number;
+  text: string;
+  date: string;
+}
+
 export interface WalletTx {
   id: string;
   type: 'referral_welcome' | 'referral_reward' | 'refund' | 'spend';
@@ -194,6 +202,8 @@ interface AppState {
   joinWaitlist: (eventId: string) => void;
   jobApps: JobApplication[];
   applyJob: (a: Omit<JobApplication, 'id' | 'appliedAt'>) => void;
+  orgReviews: Record<string, OrgReview[]>;
+  addOrgReview: (orgId: string, rating: number, text: string) => void;
   checkInBooking: (id: string, count: number) => void;
   addEvent: (e: Event) => void;
   upsertEvent: (e: Event) => void;
@@ -292,6 +302,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [ticketsMap, setTicketsMap] = useState<Record<string, HelpTicket[]>>(() => load('pb_help_tickets', {}));
   const [waitlists, setWaitlists] = useState<Record<string, WaitlistEntry[]>>(() => load('pb_waitlists', {}));
   const [jobApps, setJobApps] = useState<JobApplication[]>(() => load('pb_job_apps', []));
+  const [orgReviews, setOrgReviews] = useState<Record<string, OrgReview[]>>(() => load('pb_org_reviews', {}));
   const [followers, setFollowers] = useState<string[]>(() => load('pb_followers', ['p4', 'p5']));
   const [followRequests, setFollowRequests] = useState<string[]>(() => load('pb_follow_requests', ['p6', 'p7']));
   const [pendingPhone, setPendingPhone] = useState('');
@@ -390,6 +401,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_job_apps', JSON.stringify(jobApps));
   }, [jobApps]);
+  useEffect(() => {
+    localStorage.setItem('pb_org_reviews', JSON.stringify(orgReviews));
+  }, [orgReviews]);
   // register the logged-in user's referral code so /r/:code can resolve it
   useEffect(() => {
     if (user?.phone) {
@@ -637,6 +651,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
         toast('You’re on the waitlist — we’ll ping you the moment a spot opens ✓');
       },
+      orgReviews,
+      addOrgReview: (orgId, rating, text) => {
+        if (!user) return;
+        setOrgReviews((prev) => ({
+          ...prev,
+          [orgId]: [
+            { id: 'orv' + Date.now(), author: user.name || 'Guest', rating, text, date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) },
+            ...(prev[orgId] ?? []),
+          ],
+        }));
+        toast('Review posted ✓');
+      },
       jobApps,
       applyJob: (a) => {
         setJobApps((prev) => [
@@ -801,7 +827,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, waitlists, jobApps, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, waitlists, jobApps, orgReviews, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

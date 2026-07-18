@@ -3,7 +3,7 @@ import { useAdmin } from '../store/AdminContext';
 
 /** Country → State → City manager for onboarding — add, enable/disable, remove. */
 export default function Locations() {
-  const { locations, addLocation, toggleLocation, removeLocation, toggleTopCity } = useAdmin();
+  const { locations, addLocation, toggleLocation, removeLocation, toggleTopCity, setCityIcon } = useAdmin();
   const topCount = locations.flatMap((c) => c.states.flatMap((st) => st.cities)).filter((ci) => ci.top).length;
   const [countryF, setCountryF] = useState(locations[0]?.name ?? '');
   const [stateF, setStateF] = useState('');
@@ -93,6 +93,14 @@ export default function Locations() {
             <>
               {state.cities.map((ci) => (
                 <div key={ci.name} className="trow" style={{ opacity: ci.enabled ? 1 : 0.55, gap: 6 }}>
+                  <input
+                    className="input"
+                    title="City icon (emoji) — shown on its tile in the guest city picker"
+                    style={{ width: 44, padding: '3px 6px', textAlign: 'center', fontSize: 15 }}
+                    value={ci.icon ?? ''}
+                    placeholder="🏙"
+                    onChange={(e) => setCityIcon({ country: country!.name, state: state.name, city: ci.name }, e.target.value)}
+                  />
                   <span style={{ flex: 1, fontWeight: 700 }}>{ci.name}</span>
                   <button
                     className="chip"

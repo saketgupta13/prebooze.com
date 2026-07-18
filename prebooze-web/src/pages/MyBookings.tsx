@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import QRCode from '../components/QRCode';
+import { downloadTicket } from '../lib/ticket';
 
 export default function MyBookings() {
   const { bookings, refundBooking, myEvents } = useApp();
@@ -95,7 +96,7 @@ export default function MyBookings() {
                     Guests: {selected.guests.map((g) => g.name).join(' · ')}
                   </div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <button className="btn btn-ghost btn-sm">Resend to WhatsApp</button>
+                    {selected.status === 'confirmed' && <button className="btn btn-ghost btn-sm">Resend to WhatsApp</button>}
                     {selected.status === 'confirmed' && refundingId !== selected.id && (
                       <button className="btn btn-danger btn-sm" onClick={() => setRefundingId(selected.id)}>
                         Cancel booking
@@ -131,8 +132,8 @@ export default function MyBookings() {
                   <div style={{ textAlign: 'center' }}>
                     <QRCode seed={selected.id} caption={`valid for ${selected.qty} guest${selected.qty > 1 ? 's' : ''}`} />
                     <div style={{ marginTop: 10 }}>
-                      <button className="btn btn-pri btn-sm" onClick={() => window.print()}>
-                        ⬇ Download QR
+                      <button className="btn btn-pri btn-sm" onClick={() => downloadTicket(selected, event, venue)}>
+                        ⬇ Download ticket
                       </button>
                     </div>
                   </div>

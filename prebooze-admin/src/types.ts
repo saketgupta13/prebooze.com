@@ -210,7 +210,7 @@ export interface AdminReferral {
   joinedAt: string;
 }
 
-export interface LocCity { name: string; enabled: boolean; top?: boolean }
+export interface LocCity { name: string; enabled: boolean; top?: boolean; icon?: string }
 export interface LocState { name: string; enabled: boolean; cities: LocCity[] }
 export interface LocCountry { name: string; enabled: boolean; states: LocState[] }
 export interface LocPath { country: string; state?: string; city?: string }

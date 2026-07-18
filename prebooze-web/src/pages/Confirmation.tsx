@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import QRCode from '../components/QRCode';
+import { downloadTicket } from '../lib/ticket';
 
 export default function Confirmation() {
   const { id } = useParams();
@@ -60,8 +61,8 @@ export default function Confirmation() {
             caption={`Scan at entry — valid for ${booking.qty} guest${booking.qty > 1 ? 's' : ''}`}
           />
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
-            <button className="btn btn-pri" onClick={() => window.print()}>
-              ⬇ Download QR
+            <button className="btn btn-pri" onClick={() => downloadTicket(booking, event, venue)}>
+              ⬇ Download ticket
             </button>
             <button className="btn btn-ghost">Add to calendar</button>
             <Link to="/bookings" className="btn btn-ghost">

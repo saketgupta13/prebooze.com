@@ -212,6 +212,7 @@ interface AdminState {
   toggleReel: (id: string) => void;
   removeReel: (id: string) => void;
   toggleTopCity: (path: LocPath) => void;
+  setCityIcon: (path: LocPath, icon: string) => void;
 }
 
 const Ctx = createContext<AdminState>(null as unknown as AdminState);
@@ -747,6 +748,15 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       removeReel: (id) => {
         setReels((prev) => prev.filter((r) => r.id !== id));
         toast('Reel removed');
+      },
+      setCityIcon: (path, icon) => {
+        setLocations((prev) =>
+          prev.map((c) =>
+            c.name !== path.country
+              ? c
+              : { ...c, states: c.states.map((st) => (st.name !== path.state ? st : { ...st, cities: st.cities.map((ci) => (ci.name === path.city ? { ...ci, icon: icon.slice(0, 4) } : ci)) })) }
+          )
+        );
       },
       toggleTopCity: (path) => {
         const count = locations.flatMap((c) => c.states.flatMap((st) => st.cities)).filter((ci) => ci.top).length;

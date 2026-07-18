@@ -193,11 +193,11 @@ export default function EventDetail() {
               </section>
             )}
 
-            {/* Party rules */}
+            {/* Event rules */}
             {event.rules.length > 0 && (
               <section className="section">
                 <div className="section-hd">
-                  <h2>Party rules</h2>
+                  <h2>Event rules</h2>
                 </div>
                 {event.rules.map((r, i) => (
                   <Accordion key={r.title} title={r.title} defaultOpen={i === 0}>

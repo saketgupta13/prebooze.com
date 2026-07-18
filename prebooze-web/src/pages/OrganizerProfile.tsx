@@ -1,15 +1,17 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, ORGANIZERS, PAST_EVENTS, REVIEWS } from '../data/mock';
 import { friendsAtEvents } from '../lib/social';
 import FriendsProof from '../components/FriendsProof';
+import ShareButton from '../components/ShareButton';
 import Poster from '../components/Poster';
 import EventCard from '../components/EventCard';
 import Stars from '../components/Stars';
 
 export default function OrganizerProfile() {
   const { id } = useParams();
-  const { following, toggleFollow } = useApp();
+  const { user, following, toggleFollow, orgReviews, addOrgReview, toast } = useApp();
   const org = ORGANIZERS.find((o) => o.id === id);
 
   if (!org) {
@@ -28,6 +30,7 @@ export default function OrganizerProfile() {
   const upcoming = EVENTS.filter((e) => e.organizerId === org.id && e.status === 'approved');
   const isFollowing = following.includes(org.id);
   const friends = friendsAtEvents(upcoming.map((e) => e.id), following);
+  const myReviews = orgReviews[org.id] ?? [];
 
   return (
     <main className="page">
@@ -55,7 +58,7 @@ export default function OrganizerProfile() {
             >
               {isFollowing ? 'Following ✓' : '+ Follow'}
             </button>
-            <button className="btn btn-ghost btn-sm">⇪ Share</button>
+            <ShareButton path={`/organizers/${org.id}`} />
           </div>
         </div>
 
@@ -138,8 +141,16 @@ export default function OrganizerProfile() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                   <span style={{ fontSize: 26, fontWeight: 800 }}>{org.rating}</span>
                   <Stars rating={org.rating} />
-                  <span className="muted small">· {org.reviewCount} reviews</span>
+                  <span className="muted small">· {org.reviewCount + myReviews.length} reviews</span>
                 </div>
+                <ReviewForm onSubmit={(rating, text) => { if (!user) { toast('Log in to write a review'); return; } addOrgReview(org.id, rating, text); }} loggedIn={!!user} />
+                {myReviews.map((r) => (
+                  <div key={r.id} className="review">
+                    <span className="bold">{r.author}</span> · <Stars rating={r.rating} /> ·{' '}
+                    <span className="muted-2">{r.date}</span>
+                    <div className="muted">“{r.text}”</div>
+                  </div>
+                ))}
                 {REVIEWS.map((r) => (
                   <div key={r.id} className="review">
                     <span className="bold">{r.author}</span> · <Stars rating={r.rating} /> ·{' '}
@@ -153,5 +164,47 @@ export default function OrganizerProfile() {
         </div>
       </div>
     </main>
+  );
+}
+
+/** Inline write-a-review form (star pick + text). */
+function ReviewForm({ onSubmit, loggedIn }: { onSubmit: (rating: number, text: string) => void; loggedIn: boolean }) {
+  const [rating, setRating] = useState(0);
+  const [text, setText] = useState('');
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }} onClick={() => setOpen(true)}>
+        ✍ Write a review
+      </button>
+    );
+  }
+  return (
+    <form
+      className="dashed-box"
+      style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 12, marginBottom: 14 }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!rating || !text.trim()) return;
+        onSubmit(rating, text.trim());
+        setOpen(false);
+        setRating(0);
+        setText('');
+      }}
+    >
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, filter: n <= rating ? 'none' : 'grayscale(1) opacity(.45)' }} onClick={() => setRating(n)} aria-label={`${n} star`}>
+            ⭐
+          </button>
+        ))}
+        <span className="tiny muted-2" style={{ alignSelf: 'center' }}>{rating ? `${rating}/5` : 'pick a rating'}</span>
+      </div>
+      <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="How was the event / organizer?" style={{ marginBottom: 8 }} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn btn-pri btn-sm" disabled={!rating || !text.trim() || !loggedIn}>{loggedIn ? 'Post review' : 'Log in to review'}</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </form>
   );
 }
