@@ -176,21 +176,46 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Category tiles */}
-        <div className="chip-row" style={{ marginBottom: 24, gap: 12 }}>
-          <Slider slideWidth={150}>
-            {CATEGORY_TREE.map((c) => {
-              const n = published.filter((e) => e.category === c.name && venueById(e.venueId)?.city === city).length;
-              return (
-                <Link key={c.name} to={`/browse?cat=${encodeURIComponent(c.name)}`} className="citypick-cell" style={{ textDecoration: 'none' }}>
-                  <span className="ic">{c.icon}</span>
-                  <span className="nm">{c.name}</span>
-                  <span className="ct">{n ? `${n} event${n === 1 ? '' : 's'}` : 'coming soon'}</span>
-                </Link>
-              );
-            })}
-          </Slider>
-        </div>
+        {/* Category tiles — only categories with events; slider only when >8 */}
+        {(() => {
+          const tiles = CATEGORY_TREE.map((c) => ({
+            ...c,
+            n: published.filter((e) => e.category === c.name && venueById(e.venueId)?.city === city).length,
+          })).filter((c) => c.n > 0);
+          if (tiles.length === 0) return null;
+          const cells = tiles.map((c) => (
+            <Link key={c.name} to={`/browse?cat=${encodeURIComponent(c.name)}`} className="citypick-cell" style={{ textDecoration: 'none', minWidth: 130 }}>
+              <span className="ic">{c.icon}</span>
+              <span className="nm">{c.name}</span>
+              <span className="ct">{c.n} event{c.n === 1 ? '' : 's'}</span>
+            </Link>
+          ));
+          return (
+            <div style={{ marginBottom: 24 }}>
+              {tiles.length > 8 ? (
+                <Slider slideWidth={150}>{cells}</Slider>
+              ) : (
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>{cells}</div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Highlights counter */}
+        <section className="section" style={{ marginTop: 0 }}>
+          <div className="card" style={{ padding: '26px 20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(150px, 1fr))`, gap: 16, textAlign: 'center' }}>
+              {STATS.map((s) => (
+                <div key={s.label}>
+                  <div className="accent" style={{ fontSize: 30, fontWeight: 800 }}>
+                    <CountUp value={s.value} />{s.suffix}
+                  </div>
+                  <div className="tiny muted-2" style={{ textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* Top selling events */}
         <div className="section-hd">
@@ -432,21 +457,6 @@ export default function Home() {
           ))}
         </section>
 
-        {/* Highlights counter */}
-        <section className="section">
-          <div className="card" style={{ padding: '26px 20px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(150px, 1fr))`, gap: 16, textAlign: 'center' }}>
-              {STATS.map((s) => (
-                <div key={s.label}>
-                  <div className="accent" style={{ fontSize: 30, fontWeight: 800 }}>
-                    <CountUp value={s.value} />{s.suffix}
-                  </div>
-                  <div className="tiny muted-2" style={{ textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
       </div>
     </main>
   );

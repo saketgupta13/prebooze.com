@@ -7,7 +7,7 @@ import type { Booking } from '../types';
 const BOOKING_FEE_PER_TICKET = 1.5;
 
 export default function Checkout() {
-  const { user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, captureCart, setCartStatus, pendingPromoterRef, setPendingPromoterRef, walletBalance, spendWallet, payMethods } = useApp();
+  const { user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, captureCart, setCartStatus, pendingPromoterRef, setPendingPromoterRef, walletBalance, spendWallet, payMethods, setDefaultPayMethod } = useApp();
   const navigate = useNavigate();
 
   const event = selection
@@ -185,6 +185,8 @@ export default function Checkout() {
         promoterRef: pendingPromoterRef ?? undefined,
       };
       addBooking(booking);
+      // remember the method used as the preferred (default) one
+      if (payMethods.some((m) => m.id === payMethod)) setDefaultPayMethod(payMethod);
       if (creditApplied > 0) spendWallet(creditApplied, `Paid at checkout — ${id}`);
       if (cartId) setCartStatus(cartId, 'completed');
       setSelection(null);

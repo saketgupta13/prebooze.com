@@ -9,6 +9,8 @@ import AbandonedCarts from './pages/AbandonedCarts';
 import Featured from './pages/Featured';
 import Referrals from './pages/Referrals';
 import Locations from './pages/Locations';
+import CareersAdmin from './pages/CareersAdmin';
+import Reels from './pages/Reels';
 import Customers from './pages/Customers';
 import Organizers from './pages/Organizers';
 import OrganizerDetail from './pages/OrganizerDetail';
@@ -75,6 +77,8 @@ export default function App() {
         <Route path="/promoters/:id" element={<PromoterDetail />} />
         <Route path="/promoters/:id/edit" element={<PromoterEdit />} />
         <Route path="/locations" element={<Locations />} />
+        <Route path="/careers" element={<CareersAdmin />} />
+        <Route path="/reels" element={<Reels />} />
         <Route path="/venues" element={<Venues />} />
         <Route path="/venues/new" element={<AddVenue />} />
         <Route path="/venues/:id" element={<VenueDetail />} />

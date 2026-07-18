@@ -408,6 +408,28 @@ export const SEED_REFERRALS = [
   { id: 'rf8', referrer: 'Dev Patel', referrerPhone: '+91 99•••• 7788', referee: 'Ria K.', refereePhone: '+91 93•••• 9925', status: 'joined' as const, joinedAt: '14 Jul' },
 ];
 
+// Careers — jobs + applicants (admin-managed; mirrors the guest careers page).
+export const SEED_JOBS = [
+  { id: 'job1', title: 'Senior React Engineer', team: 'Engineering', loc: 'Mumbai · Hybrid', type: 'Full-time', status: 'open' as const },
+  { id: 'job2', title: 'City Growth Manager', team: 'Growth', loc: 'Bengaluru', type: 'Full-time', status: 'open' as const },
+  { id: 'job3', title: 'Community & Promoter Ops', team: 'Operations', loc: 'Delhi', type: 'Full-time', status: 'open' as const },
+  { id: 'job4', title: 'Design Intern', team: 'Design', loc: 'Remote', type: 'Internship', status: 'open' as const },
+];
+export const SEED_APPLICANTS = [
+  { id: 'ap1', jobId: 'job1', name: 'Rahul Iyer', email: 'rahul@dev.io', phone: '+91 98•••• 2210', note: 'github.com/rahuldev — 6y React', appliedAt: '16 Jul' },
+  { id: 'ap2', jobId: 'job1', name: 'Sneha Patil', email: 'sneha@ui.dev', phone: '+91 97•••• 8841', note: 'Ex-Zomato web platform', appliedAt: '15 Jul' },
+  { id: 'ap3', jobId: 'job2', name: 'Aditya Rao', email: 'adi@growth.co', phone: '+91 96•••• 3324', note: 'Scaled 3 cities at Blinkit', appliedAt: '14 Jul' },
+  { id: 'ap4', jobId: 'job4', name: 'Mira Shah', email: 'mira@design.me', phone: '+91 90•••• 6672', note: 'behance.net/mirashah', appliedAt: '17 Jul' },
+];
+
+// Reels — videos for the guest "Things happening at events" slider.
+export const SEED_REELS = [
+  { id: 'rl1', title: 'Warehouse drop — crowd goes off', hue: 300, active: true },
+  { id: 'rl2', title: 'Sundowner golden hour', hue: 25, active: true },
+  { id: 'rl3', title: 'Front-row comedy crackup', hue: 40, active: true },
+  { id: 'rl4', title: 'Confetti finale', hue: 210, active: true },
+];
+
 export const ADMIN_CITIES = ['Austin', 'Dallas', 'Houston'];
 
 // Onboarding locations — admin-managed country → state → city with enable toggles.

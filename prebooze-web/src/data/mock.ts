@@ -372,8 +372,8 @@ export const EVENTS: Event[] = [
     ],
     tiers: [
       { id: 't1', name: 'Phase 1', price: 35, quantity: 400, sold: 400, includes: ['Entry'] },
-      { id: 't2', name: 'Phase 2', price: 49, quantity: 400, sold: 187, includes: ['Entry'] },
-      { id: 't3', name: 'Backstage', price: 110, quantity: 40, sold: 9, includes: ['Entry', 'Backstage', '2 drinks'] },
+      { id: 't2', name: 'Phase 2', price: 49, quantity: 400, sold: 400, includes: ['Entry'] },
+      { id: 't3', name: 'Backstage', price: 110, quantity: 40, sold: 40, includes: ['Entry', 'Backstage', '2 drinks'] },
     ],
     posterHue: 330,
   },
@@ -710,6 +710,7 @@ export const lineupByName = (name: string) => LINEUPS.find((l) => l.name.toLower
 // once the backend lands, the admin values drive these directly.
 export const SOCIAL_LINKS = [
   { label: 'Instagram', url: 'https://instagram.com/prebooze' },
+  { label: 'Facebook', url: 'https://facebook.com/prebooze' },
   { label: 'X', url: 'https://x.com/prebooze' },
   { label: 'YouTube', url: 'https://youtube.com/@prebooze' },
   { label: 'WhatsApp', url: 'https://wa.me/919876543210' },
@@ -845,6 +846,14 @@ export const TOP_CITIES: { name: string; icon: string }[] = [
 
 /** Shown in the search box before the user types. */
 export const TRENDING_SEARCHES = ['Techno', 'Bandra Warehouse Rave', 'Comedy night', 'DJ Arjuna', 'Sundowner', 'Bollywood'];
+
+/** Open roles for the careers page (admin-managed). */
+export const CAREER_JOBS = [
+  { id: 'job1', title: 'Senior React Engineer', team: 'Engineering', loc: 'Mumbai · Hybrid', type: 'Full-time', status: 'open' as const },
+  { id: 'job2', title: 'City Growth Manager', team: 'Growth', loc: 'Bengaluru', type: 'Full-time', status: 'open' as const },
+  { id: 'job3', title: 'Community & Promoter Ops', team: 'Operations', loc: 'Delhi', type: 'Full-time', status: 'open' as const },
+  { id: 'job4', title: 'Design Intern', team: 'Design', loc: 'Remote', type: 'Internship', status: 'open' as const },
+];
 
 /** Platform highlight counters (home page). */
 export const STATS = [

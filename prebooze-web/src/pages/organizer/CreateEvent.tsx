@@ -31,6 +31,8 @@ export default function CreateEvent() {
   const [description, setDescription] = useState(editing?.description ?? '');
   const [category, setCategory] = useState(editing?.category ?? 'Concerts');
   const [subCategory, setSubCategory] = useState(editing?.subCategory ?? subsFor(editing?.category ?? 'Concerts')[0] ?? '');
+  const [socialPost, setSocialPost] = useState(editing?.socialBanners?.post ?? false);
+  const [socialStory, setSocialStory] = useState(editing?.socialBanners?.story ?? false);
   const [ageLimit, setAgeLimit] = useState(editing?.ageLimit ?? '18+');
   const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : '');
   const [time, setTime] = useState(() => {
@@ -123,6 +125,7 @@ export default function CreateEvent() {
     description: description.trim(),
     category,
     subCategory,
+    socialBanners: { post: socialPost, story: socialStory },
     ageLimit,
     tags: [category === 'Concerts' ? 'Concert' : category, ageLimit],
     date: new Date(`${date}T${time}`).toISOString(),
@@ -318,6 +321,17 @@ export default function CreateEvent() {
                 <option>18+</option>
                 <option>21+</option>
               </select>
+            </div>
+          </div>
+          <div className="field">
+            <span>Social media banners <span className="muted-2">(shared on WhatsApp/Instagram · max 5 MB each)</span></span>
+            <div className="form-row">
+              <button type="button" className={`upload-box ${socialPost ? 'done' : ''}`} onClick={() => setSocialPost((v) => !v)}>
+                {socialPost ? '✓ Post banner uploaded (1:1)' : '⬆ Post banner — square 1:1 · ≤5 MB'}
+              </button>
+              <button type="button" className={`upload-box ${socialStory ? 'done' : ''}`} onClick={() => setSocialStory((v) => !v)}>
+                {socialStory ? '✓ Story banner uploaded (9:16)' : '⬆ Story banner — 9:16 · ≤5 MB'}
+              </button>
             </div>
           </div>
           <div className="form-row">

@@ -18,6 +18,8 @@ export interface AdminEvent {
   title: string;
   category: string;
   subCategory?: string;
+  socialPost?: boolean;
+  socialStory?: boolean;
   venue: string;
   date: string;
   time: string;
@@ -208,10 +210,36 @@ export interface AdminReferral {
   joinedAt: string;
 }
 
-export interface LocCity { name: string; enabled: boolean }
+export interface LocCity { name: string; enabled: boolean; top?: boolean }
 export interface LocState { name: string; enabled: boolean; cities: LocCity[] }
 export interface LocCountry { name: string; enabled: boolean; states: LocState[] }
 export interface LocPath { country: string; state?: string; city?: string }
+
+export interface AdminJob {
+  id: string;
+  title: string;
+  team: string;
+  loc: string;
+  type: string;
+  status: 'open' | 'closed';
+}
+
+export interface JobApplicant {
+  id: string;
+  jobId: string;
+  name: string;
+  email: string;
+  phone: string;
+  note: string;
+  appliedAt: string;
+}
+
+export interface Reel {
+  id: string;
+  title: string;
+  hue: number;
+  active: boolean;
+}
 
 export interface AbandonedCart {
   id: string;

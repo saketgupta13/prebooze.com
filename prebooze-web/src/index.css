@@ -250,8 +250,9 @@ textarea { resize: vertical; min-height: 84px; }
 }
 .hdr-logo img { height: 42px; width: auto; object-fit: contain; }
 .hdr-search {
-  flex: 1;
-  max-width: 360px;
+  flex: 2 1 340px;
+  min-width: 300px;
+  max-width: 520px;
   display: flex;
   align-items: center;
   gap: 8px;

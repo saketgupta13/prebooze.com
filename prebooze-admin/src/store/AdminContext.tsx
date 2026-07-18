@@ -8,6 +8,9 @@ import type {
   FeaturedRates,
   AdminReferral,
   ReferralRates,
+  AdminJob,
+  JobApplicant,
+  Reel,
   LocCountry,
   LocPath,
   Promoter,
@@ -62,6 +65,9 @@ import {
   SEED_FEATURED_RATES,
   SEED_REFERRALS,
   SEED_REFERRAL_RATES,
+  SEED_JOBS,
+  SEED_APPLICANTS,
+  SEED_REELS,
   SEED_SUB_TIERS,
   SEED_REVIEWS,
   SEED_TESTIMONIALS,
@@ -196,6 +202,16 @@ interface AdminState {
   adminReferrals: AdminReferral[];
   referralRates: ReferralRates;
   updateReferralRate: (patch: Partial<ReferralRates>) => void;
+  jobs: AdminJob[];
+  addJob: (j: Omit<AdminJob, 'id' | 'status'>) => void;
+  toggleJob: (id: string) => void;
+  removeJob: (id: string) => void;
+  applicants: JobApplicant[];
+  reels: Reel[];
+  addReel: (title: string) => void;
+  toggleReel: (id: string) => void;
+  removeReel: (id: string) => void;
+  toggleTopCity: (path: LocPath) => void;
 }
 
 const Ctx = createContext<AdminState>(null as unknown as AdminState);
@@ -279,6 +295,9 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [featuredRates, setFeaturedRates] = usePersisted<FeaturedRates>('pba_featured_rates', SEED_FEATURED_RATES);
   const [adminReferrals] = usePersisted<AdminReferral[]>('pba_referrals', SEED_REFERRALS, mergeWithSeed(SEED_REFERRALS, 'id'));
   const [referralRates, setReferralRates] = usePersisted<ReferralRates>('pba_referral_rates', SEED_REFERRAL_RATES);
+  const [jobs, setJobs] = usePersisted<AdminJob[]>('pba_jobs', SEED_JOBS, mergeWithSeed(SEED_JOBS, 'id'));
+  const [applicants] = usePersisted<JobApplicant[]>('pba_applicants', SEED_APPLICANTS, mergeWithSeed(SEED_APPLICANTS, 'id'));
+  const [reels, setReels] = usePersisted<Reel[]>('pba_reels', SEED_REELS, mergeWithSeed(SEED_REELS, 'id'));
   const [lineupCategories, setLineupCategories] = usePersisted<string[]>('pba_lineupcats', LINEUP_CATEGORIES);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -707,6 +726,43 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setReferralRates((prev) => ({ ...prev, ...patch }));
         toast('Referral reward saved ✓');
       },
+      jobs,
+      addJob: (j) => {
+        setJobs((prev) => [...prev, { ...j, id: 'job' + Date.now(), status: 'open' as const }]);
+        toast('Job posted ✓ — live on the careers page');
+      },
+      toggleJob: (id) =>
+        setJobs((prev) => prev.map((x) => (x.id === id ? { ...x, status: x.status === 'open' ? ('closed' as const) : ('open' as const) } : x))),
+      removeJob: (id) => {
+        setJobs((prev) => prev.filter((x) => x.id !== id));
+        toast('Job removed');
+      },
+      applicants,
+      reels,
+      addReel: (title) => {
+        setReels((prev) => [...prev, { id: 'rl' + Date.now(), title: title.trim() || 'Untitled reel', hue: Math.floor(Math.random() * 360), active: true }]);
+        toast('Video uploaded ✓ — live in the guest reels slider');
+      },
+      toggleReel: (id) => setReels((prev) => prev.map((r) => (r.id === id ? { ...r, active: !r.active } : r))),
+      removeReel: (id) => {
+        setReels((prev) => prev.filter((r) => r.id !== id));
+        toast('Reel removed');
+      },
+      toggleTopCity: (path) => {
+        const count = locations.flatMap((c) => c.states.flatMap((st) => st.cities)).filter((ci) => ci.top).length;
+        const cur = locations.find((c) => c.name === path.country)?.states.find((st) => st.name === path.state)?.cities.find((ci) => ci.name === path.city);
+        if (!cur?.top && count >= 12) {
+          toast('Top-cities limit reached (12) — unstar one first');
+          return;
+        }
+        setLocations((prev) =>
+          prev.map((c) =>
+            c.name !== path.country
+              ? c
+              : { ...c, states: c.states.map((st) => (st.name !== path.state ? st : { ...st, cities: st.cities.map((ci) => (ci.name === path.city ? { ...ci, top: !ci.top } : ci)) })) }
+          )
+        );
+      },
       removeRole: (name) => {
         if (name === 'Owner') {
           toast("The Owner role can't be removed");
@@ -740,7 +796,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, abandonedCarts, locations, featuredRequests, featuredRates, adminReferrals, referralRates, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts, setLocations, setFeaturedRequests, setFeaturedRates, setReferralRates]
+    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, abandonedCarts, locations, featuredRequests, featuredRates, adminReferrals, referralRates, jobs, applicants, reels, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts, setLocations, setFeaturedRequests, setFeaturedRates, setReferralRates, setJobs, setReels]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -42,6 +42,7 @@ export interface Event {
   posterHue: number;
   seo?: { title: string; description: string; slug: string; keywords: string[] };
   promoterConfig?: PromoterConfig;
+  socialBanners?: { post?: boolean; story?: boolean }; // 1:1 + 9:16 banners (≤5 MB)
 }
 
 export interface PromoterConfig {
@@ -218,7 +219,26 @@ export interface PayMethod {
   id: string;
   type: 'upi' | 'card';
   label: string; // e.g. "riya@upi" or "Visa •••• 4242"
+  holder?: string; // card-holder name
+  expiry?: string; // MM/YY — CVV is never stored
   isDefault: boolean;
+}
+
+export interface WaitlistEntry {
+  phone: string;
+  name: string;
+  joinedAt: string;
+  status: 'waiting' | 'offered';
+}
+
+export interface JobApplication {
+  id: string;
+  jobId: string;
+  name: string;
+  email: string;
+  phone: string;
+  note: string;
+  appliedAt: string;
 }
 
 export interface HelpTicket {

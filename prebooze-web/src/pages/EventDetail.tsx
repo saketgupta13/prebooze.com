@@ -23,7 +23,7 @@ export default function EventDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { user, city, setSelection, myEvents, following, bookings, interested, toggleInterested, pendingPromoterRef, setPendingPromoterRef } = useApp();
+  const { user, city, setSelection, myEvents, following, bookings, interested, toggleInterested, pendingPromoterRef, setPendingPromoterRef, waitlists, joinWaitlist } = useApp();
   const event = eventBySlug(slug ?? '') ?? myEvents.find((e) => e.slug === slug);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [expanded, setExpanded] = useState(false);
@@ -63,6 +63,10 @@ export default function EventDetail() {
 
   const going = goingCount(event);
   const friends = friendsGoing(event.id, following);
+  const allSoldOut = event.tiers.every((t) => t.sold >= t.quantity);
+  const queue = waitlists[event.id] ?? [];
+  const myEntry = user ? queue.find((w) => w.phone === user.phone) : undefined;
+  const myPosition = myEntry ? queue.filter((w) => w.status === 'waiting').findIndex((w) => w.phone === user?.phone) + 1 : 0;
   const status = myStatus(event.id, bookings, interested);
   const friendLabel = (() => {
     if (friends.length === 0) return '';
@@ -303,11 +307,39 @@ export default function EventDetail() {
               <span>Total</span>
               <span>₹{total}</span>
             </div>
-            <button className="btn btn-pri btn-block btn-lg" disabled={ticketCount === 0} onClick={book}>
-              {ticketCount === 0
-                ? 'Select tickets'
-                : `Book ${ticketCount} ticket${ticketCount > 1 ? 's' : ''} →`}
-            </button>
+            {allSoldOut ? (
+              <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
+                <div className="bold" style={{ marginBottom: 4 }}>Sold out 😔</div>
+                {myEntry?.status === 'offered' ? (
+                  <>
+                    <div className="accent bold small" style={{ marginBottom: 8 }}>🎉 A spot just opened up for you!</div>
+                    <div className="tiny muted-2">First come, first served — complete your booking before it's re-offered.</div>
+                  </>
+                ) : myEntry ? (
+                  <>
+                    <div className="accent bold small" style={{ marginBottom: 4 }}>You're #{myPosition} in the waitlist</div>
+                    <div className="tiny muted-2">If someone cancels, spots are offered first-come first-served. We'll ping your WhatsApp.</div>
+                  </>
+                ) : user ? (
+                  <>
+                    <p className="tiny muted" style={{ marginBottom: 10 }}>
+                      Join the waitlist — if a ticket frees up (cancellation), it's offered in queue order.
+                    </p>
+                    <button className="btn btn-pri btn-block" onClick={() => joinWaitlist(event.id)}>
+                      🎗 Join the waitlist ({queue.filter((w) => w.status === 'waiting').length} waiting)
+                    </button>
+                  </>
+                ) : (
+                  <Link to="/login" className="btn btn-pri btn-block">Log in to join the waitlist</Link>
+                )}
+              </div>
+            ) : (
+              <button className="btn btn-pri btn-block btn-lg" disabled={ticketCount === 0} onClick={book}>
+                {ticketCount === 0
+                  ? 'Select tickets'
+                  : `Book ${ticketCount} ticket${ticketCount > 1 ? 's' : ''} →`}
+              </button>
+            )}
             {status !== 'going' && (
               <button
                 className={`btn btn-block btn-sm ${status === 'interested' ? 'btn-pri' : 'btn-ghost'}`}

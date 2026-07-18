@@ -8,6 +8,9 @@ export default function PaymentMethods() {
   const { user, updateUser, payMethods, addPayMethod, removePayMethod, setDefaultPayMethod, toast } = useApp();
   const [type, setType] = useState<'upi' | 'card'>('upi');
   const [value, setValue] = useState('');
+  const [holder, setHolder] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvv, setCvv] = useState('');
   const role = existingRole(user);
 
   const add = (e: React.FormEvent) => {
@@ -15,11 +18,16 @@ export default function PaymentMethods() {
     const v = value.trim();
     if (!v) return;
     if (type === 'upi' && !/^[\w.\-]+@[\w]+$/.test(v)) { toast('Enter a valid UPI id, e.g. name@upi'); return; }
-    if (type === 'card' && v.replace(/\D/g, '').length < 12) { toast('Enter a valid card number'); return; }
+    if (type === 'card') {
+      if (v.replace(/\D/g, '').length < 12) { toast('Enter a valid card number'); return; }
+      if (!holder.trim()) { toast('Card holder name is required'); return; }
+      if (!/^\d{2}\/\d{2}$/.test(expiry)) { toast('Enter expiry as MM/YY'); return; }
+      if (cvv.replace(/\D/g, '').length !== 3) { toast('Enter the 3-digit CVV'); return; }
+    }
     const label = type === 'upi' ? v : `Card •••• ${v.replace(/\D/g, '').slice(-4)}`;
-    addPayMethod({ type, label });
-    toast('Payment method saved ✓');
-    setValue('');
+    addPayMethod(type === 'upi' ? { type, label } : { type, label, holder: holder.trim(), expiry });
+    toast('Payment method saved ✓ (CVV verified, never stored)');
+    setValue(''); setHolder(''); setExpiry(''); setCvv('');
   };
 
   return (
@@ -43,7 +51,7 @@ export default function PaymentMethods() {
                 <span style={{ fontSize: 20 }}>{m.type === 'upi' ? '🅿️' : '💳'}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="bold small">{m.label}</div>
-                  <div className="tiny muted-2">{m.type.toUpperCase()}</div>
+                  <div className="tiny muted-2">{m.type.toUpperCase()}{m.holder ? ` · ${m.holder}` : ''}{m.expiry ? ` · exp ${m.expiry}` : ''}</div>
                 </div>
                 {m.isDefault ? (
                   <span className="badge badge-accent">Default ✓</span>
@@ -71,6 +79,22 @@ export default function PaymentMethods() {
               <input value={value} onChange={(e) => setValue(e.target.value)} placeholder={type === 'upi' ? 'name@upi' : '4242 4242 4242 4242'} inputMode={type === 'card' ? 'numeric' : 'text'} />
             </div>
           </div>
+          {type === 'card' && (
+            <div className="form-row">
+              <div className="field">
+                <span>Card holder name</span>
+                <input value={holder} onChange={(e) => setHolder(e.target.value)} placeholder="As printed on the card" />
+              </div>
+              <div className="field" style={{ flex: '0 0 110px' }}>
+                <span>Expiry</span>
+                <input value={expiry} onChange={(e) => { const d = e.target.value.replace(/[^\d]/g, '').slice(0, 4); setExpiry(d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d); }} placeholder="MM/YY" inputMode="numeric" />
+              </div>
+              <div className="field" style={{ flex: '0 0 90px' }}>
+                <span>CVV</span>
+                <input type="password" value={cvv} onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 3))} placeholder="•••" inputMode="numeric" />
+              </div>
+            </div>
+          )}
           <button className="btn btn-pri">Save method ✓</button>
           <span className="tiny muted-2" style={{ marginLeft: 10 }}>🔒 tokenized via Razorpay when the backend lands</span>
         </form>

@@ -26,6 +26,8 @@ const MAIN_NAV = [
 
 const CONTENT_NAV = [
   { to: '/banners', icon: '🖼', label: 'Banners' },
+  { to: '/reels', icon: '🎬', label: 'Reels' },
+  { to: '/careers', icon: '💼', label: 'Careers' },
   { to: '/testimonials', icon: '💬', label: 'Testimonials' },
   { to: '/faqs', icon: '❓', label: 'FAQs' },
   { to: '/categories', icon: '🗂', label: 'Categories' },

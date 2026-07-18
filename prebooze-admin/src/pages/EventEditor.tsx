@@ -287,6 +287,14 @@ export default function EventEditor() {
             {event.hasBanner ? '✓ poster 3:4 uploaded' : '⬆ poster 3:4 · min 900px'}
           </button>
           <div className="ph" style={{ height: 70 }}>+ gallery photos (up to 6) · + teaser reel 9:16</div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="ph" style={{ height: 70, flex: 1, cursor: 'pointer', background: event.socialPost ? 'rgba(139,195,74,.1)' : undefined, borderColor: event.socialPost ? 'var(--green)' : undefined, color: event.socialPost ? 'var(--green)' : undefined }} onClick={() => patch({ socialPost: !event.socialPost })}>
+            {event.socialPost ? '✓ social post banner 1:1' : '⬆ social post banner 1:1 · ≤5 MB'}
+            </button>
+            <button className="ph" style={{ height: 70, flex: 1, cursor: 'pointer', background: event.socialStory ? 'rgba(139,195,74,.1)' : undefined, borderColor: event.socialStory ? 'var(--green)' : undefined, color: event.socialStory ? 'var(--green)' : undefined }} onClick={() => patch({ socialStory: !event.socialStory })}>
+            {event.socialStory ? '✓ social story banner 9:16' : '⬆ social story banner 9:16 · ≤5 MB'}
+            </button>
+          </div>
           <div className="tiny hint">poster shows on guest cards & event page · reels feed the “Things happening at events” slider</div>
         </div>
       )}

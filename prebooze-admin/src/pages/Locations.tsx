@@ -3,7 +3,8 @@ import { useAdmin } from '../store/AdminContext';
 
 /** Country → State → City manager for onboarding — add, enable/disable, remove. */
 export default function Locations() {
-  const { locations, addLocation, toggleLocation, removeLocation } = useAdmin();
+  const { locations, addLocation, toggleLocation, removeLocation, toggleTopCity } = useAdmin();
+  const topCount = locations.flatMap((c) => c.states.flatMap((st) => st.cities)).filter((ci) => ci.top).length;
   const [countryF, setCountryF] = useState(locations[0]?.name ?? '');
   const [stateF, setStateF] = useState('');
   const [newCountry, setNewCountry] = useState('');
@@ -93,6 +94,14 @@ export default function Locations() {
               {state.cities.map((ci) => (
                 <div key={ci.name} className="trow" style={{ opacity: ci.enabled ? 1 : 0.55, gap: 6 }}>
                   <span style={{ flex: 1, fontWeight: 700 }}>{ci.name}</span>
+                  <button
+                    className="chip"
+                    title="Show as a top-city tile in the guest city picker (max 12)"
+                    style={{ fontSize: 12, padding: '2px 8px', borderColor: ci.top ? 'var(--green)' : undefined }}
+                    onClick={(e) => { e.stopPropagation(); toggleTopCity({ country: country!.name, state: state.name, city: ci.name }); }}
+                  >
+                    {ci.top ? '⭐' : '☆'}
+                  </button>
                   <Toggle on={ci.enabled} onClick={() => toggleLocation({ country: country!.name, state: state.name, city: ci.name })} />
                   <Del onClick={() => removeLocation({ country: country!.name, state: state.name, city: ci.name })} />
                 </div>
@@ -106,7 +115,7 @@ export default function Locations() {
           )}
         </div>
       </div>
-      <div className="tiny hint">disabled locations are hidden from the onboarding country/state/city pickers · changes sync to the guest app when the backend lands</div>
+      <div className="tiny hint">disabled locations are hidden from onboarding pickers · ⭐ marks a city as a top-city tile in the guest picker popup ({topCount}/12 starred) · changes sync to the guest app when the backend lands</div>
     </div>
   );
 }

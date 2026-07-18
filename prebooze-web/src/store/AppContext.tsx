@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Booking, Coupon, Event, Featured, HelpTicket, PayMethod, User, Venue } from '../types';
+import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayMethod, User, Venue, WaitlistEntry } from '../types';
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED } from '../data/mock';
 
@@ -190,6 +190,10 @@ interface AppState {
   setDefaultPayMethod: (id: string) => void;
   helpTickets: HelpTicket[];
   addHelpTicket: (t: Omit<HelpTicket, 'id' | 'status' | 'createdAt'>) => void;
+  waitlists: Record<string, WaitlistEntry[]>; // eventId -> queue (FIFO)
+  joinWaitlist: (eventId: string) => void;
+  jobApps: JobApplication[];
+  applyJob: (a: Omit<JobApplication, 'id' | 'appliedAt'>) => void;
   checkInBooking: (id: string, count: number) => void;
   addEvent: (e: Event) => void;
   upsertEvent: (e: Event) => void;
@@ -286,6 +290,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [favVenues, setFavVenues] = useState<string[]>(() => load('pb_fav_venues', []));
   const [payMethodsMap, setPayMethodsMap] = useState<Record<string, PayMethod[]>>(() => load('pb_paymethods', {}));
   const [ticketsMap, setTicketsMap] = useState<Record<string, HelpTicket[]>>(() => load('pb_help_tickets', {}));
+  const [waitlists, setWaitlists] = useState<Record<string, WaitlistEntry[]>>(() => load('pb_waitlists', {}));
+  const [jobApps, setJobApps] = useState<JobApplication[]>(() => load('pb_job_apps', []));
   const [followers, setFollowers] = useState<string[]>(() => load('pb_followers', ['p4', 'p5']));
   const [followRequests, setFollowRequests] = useState<string[]>(() => load('pb_follow_requests', ['p6', 'p7']));
   const [pendingPhone, setPendingPhone] = useState('');
@@ -378,6 +384,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_help_tickets', JSON.stringify(ticketsMap));
   }, [ticketsMap]);
+  useEffect(() => {
+    localStorage.setItem('pb_waitlists', JSON.stringify(waitlists));
+  }, [waitlists]);
+  useEffect(() => {
+    localStorage.setItem('pb_job_apps', JSON.stringify(jobApps));
+  }, [jobApps]);
   // register the logged-in user's referral code so /r/:code can resolve it
   useEffect(() => {
     if (user?.phone) {
@@ -572,6 +584,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } else {
           toast('Refund initiated to your payment method — lands in 5–7 business days');
         }
+        // a spot opened — offer it to the first person waiting (FIFO)
+        setWaitlists((prev) => {
+          const q = prev[b.eventId] ?? [];
+          const idx = q.findIndex((w) => w.status === 'waiting');
+          if (idx === -1) return prev;
+          return { ...prev, [b.eventId]: q.map((w, i) => (i === idx ? { ...w, status: 'offered' as const } : w)) };
+        });
       },
       walletTxs,
       walletBalance,
@@ -604,6 +623,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...prev,
           [user.phone]: (prev[user.phone] ?? []).map((m) => ({ ...m, isDefault: m.id === id })),
         }));
+      },
+      waitlists,
+      joinWaitlist: (eventId) => {
+        if (!user) return;
+        setWaitlists((prev) => {
+          const q = prev[eventId] ?? [];
+          if (q.some((w) => w.phone === user.phone)) return prev;
+          return {
+            ...prev,
+            [eventId]: [...q, { phone: user.phone, name: user.name || 'Guest', joinedAt: new Date().toISOString(), status: 'waiting' as const }],
+          };
+        });
+        toast('You’re on the waitlist — we’ll ping you the moment a spot opens ✓');
+      },
+      jobApps,
+      applyJob: (a) => {
+        setJobApps((prev) => [
+          { ...a, id: 'app' + Date.now(), appliedAt: new Date().toISOString() },
+          ...prev,
+        ]);
+        toast('Application sent — the team will reach out on email ✓');
       },
       helpTickets: user ? (ticketsMap[user.phone] ?? []) : [],
       addHelpTicket: (t) => {
@@ -761,7 +801,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, waitlists, jobApps, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

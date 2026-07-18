@@ -18,7 +18,7 @@ export default function Footer() {
             <h4>Company</h4>
             <Link to="/about">About us</Link>
             <Link to="/host">Host with us</Link>
-            <Link to="/contact">Careers</Link>
+            <Link to="/careers">Careers</Link>
             <Link to="/contact">Contact</Link>
           </div>
           <div>
@@ -44,6 +44,8 @@ export default function Footer() {
                 >
                   {s.label === 'Instagram' ? (
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4.5" /><circle cx="17.8" cy="6.2" r="1.2" fill="currentColor" stroke="none" /></svg>
+                  ) : s.label === 'Facebook' ? (
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 22v-8h2.7l.4-3.2h-3.1V8.7c0-.9.3-1.6 1.6-1.6h1.7V4.2c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.4H7.4V14h2.7v8h3.4z" /></svg>
                   ) : s.label === 'X' ? (
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.2l7.3-8.3L1.6 2h6.4l4.4 5.9L18.9 2zm-1.1 18h1.7L7.1 3.9H5.3L17.8 20z" /></svg>
                   ) : s.label === 'YouTube' ? (
