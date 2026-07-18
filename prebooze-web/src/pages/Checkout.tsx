@@ -7,7 +7,7 @@ import type { Booking } from '../types';
 const BOOKING_FEE_PER_TICKET = 1.5;
 
 export default function Checkout() {
-  const { user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, captureCart, setCartStatus, pendingPromoterRef, setPendingPromoterRef, walletBalance, spendWallet } = useApp();
+  const { user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, captureCart, setCartStatus, pendingPromoterRef, setPendingPromoterRef, walletBalance, spendWallet, payMethods } = useApp();
   const navigate = useNavigate();
 
   const event = selection
@@ -37,7 +37,7 @@ export default function Checkout() {
   const [couponInput, setCouponInput] = useState('');
   const [couponMsg, setCouponMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
-  const [payMethod, setPayMethod] = useState('razorpay');
+  const [payMethod, setPayMethod] = useState(() => payMethods.find((m) => m.isDefault)?.id ?? 'razorpay');
   const [paying, setPaying] = useState(false);
 
   const lines = useMemo(() => {
@@ -323,6 +323,7 @@ export default function Checkout() {
             <div className="card">
               <h3 style={{ marginBottom: 14 }}>Pay with</h3>
               {[
+                ...payMethods.map((m) => ({ id: m.id, label: `${m.type === 'upi' ? '🅿️' : '💳'} ${m.label}${m.isDefault ? ' · default' : ''} (saved)` })),
                 { id: 'razorpay', label: 'Razorpay — UPI / cards / netbanking' },
                 { id: 'card', label: 'Card •••• 4242' },
                 { id: 'wallet', label: 'Apple / Google Pay' },

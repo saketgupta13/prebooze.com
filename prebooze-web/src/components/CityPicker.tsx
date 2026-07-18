@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { EVENTS, TOP_CITIES, venueById } from '../data/mock';
+import { enabledLocationCities } from '../data/locations';
 
 /** BookMyShow-style city picker — top cities with icons, search, and geo-detect. */
 export default function CityPicker({ open, onClose, autoDetect = false }: { open: boolean; onClose: () => void; autoDetect?: boolean }) {
@@ -18,8 +19,9 @@ export default function CityPicker({ open, onClose, autoDetect = false }: { open
     return m;
   }, []);
 
+  // full searchable list = event cities + top cities + every enabled admin location
   const allCities = useMemo(
-    () => Array.from(new Set([...eventCounts.keys(), ...TOP_CITIES.map((t) => t.name)])).sort(),
+    () => Array.from(new Set([...eventCounts.keys(), ...TOP_CITIES.map((t) => t.name), ...enabledLocationCities()])).sort(),
     [eventCounts]
   );
   const filtered = allCities.filter((c) => c.toLowerCase().includes(q.toLowerCase()));

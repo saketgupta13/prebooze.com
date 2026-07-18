@@ -89,3 +89,10 @@ export const CITIES: Record<string, string[]> = {
 
 export const statesFor = (country: string) => STATES[country] ?? [];
 export const citiesFor = (state: string) => CITIES[state] ?? [];
+
+/** Every city under an enabled country — mirrors the admin Locations config and
+ * feeds the city-picker's searchable list. */
+export const enabledLocationCities = (): string[] =>
+  Array.from(
+    new Set(enabledCountries.flatMap((c) => statesFor(c.name).flatMap((s) => citiesFor(s))))
+  ).sort();

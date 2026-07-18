@@ -84,6 +84,25 @@ export default function PromoterSubscription() {
           );
         })}
       </div>
+      <div className="card" style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div>
+          <h3>Auto-renew</h3>
+          <p className="muted small" style={{ marginTop: 4 }}>
+            Renew this plan automatically each month from your{' '}
+            <a href="/payment-methods" className="link">default payment method</a>.
+          </p>
+        </div>
+        <button
+          className={`chip ${user?.autoRenew ? 'on' : ''}`}
+          onClick={() => {
+            updateUser({ autoRenew: !user?.autoRenew });
+            toast(user?.autoRenew ? 'Auto-renew turned off' : 'Auto-renew on ✓');
+          }}
+        >
+          {user?.autoRenew ? 'Auto-renew ON ✓' : 'Auto-renew OFF'}
+        </button>
+      </div>
+
       <div className="tiny muted-2" style={{ marginTop: 14 }}>
         🔒 billing is simulated for now · real Razorpay subscriptions land with the backend · tiers &amp; prices are
         configurable by admin

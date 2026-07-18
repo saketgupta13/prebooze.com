@@ -24,6 +24,9 @@ import Testimonials from './pages/Testimonials';
 import ReferralLanding from './pages/ReferralLanding';
 import Wallet from './pages/Wallet';
 import ReferEarn from './pages/ReferEarn';
+import Wishlist from './pages/Wishlist';
+import HelpCenter from './pages/HelpCenter';
+import PaymentMethods from './pages/PaymentMethods';
 import Login from './pages/auth/Login';
 import Otp from './pages/auth/Otp';
 import ProfileCompletion from './pages/auth/ProfileCompletion';
@@ -106,6 +109,23 @@ export default function App() {
         <Route path="/u/:username" element={<PersonProfile />} />
         <Route path="/testimonials" element={<Testimonials />} />
         <Route path="/r/:code" element={<ReferralLanding />} />
+        <Route path="/help" element={<HelpCenter />} />
+        <Route
+          path="/wishlist"
+          element={
+            <RequireAuth>
+              <Wishlist />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/payment-methods"
+          element={
+            <RequireAuth>
+              <PaymentMethods />
+            </RequireAuth>
+          }
+        />
         <Route
           path="/wallet"
           element={

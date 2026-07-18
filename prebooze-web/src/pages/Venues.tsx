@@ -8,7 +8,7 @@ const TYPES = ['Venue type', 'Concert hall', 'Club', 'Rooftop bar', 'Open-air', 
 const CAPS = ['Capacity', 'Under 500', '500–2500', '2500+'];
 
 export default function Venues() {
-  const { city } = useApp();
+  const { city, favVenues, toggleFavVenue } = useApp();
   const [type, setType] = useState(TYPES[0]);
   const [cap, setCap] = useState(CAPS[0]);
   const [q, setQ] = useState('');
@@ -48,8 +48,17 @@ export default function Venues() {
         <div className="grid-3">
           {venues.map((v) => {
             const count = EVENTS.filter((e) => e.venueId === v.id && e.status === 'approved').length;
+            const fav = favVenues.includes(v.id);
             return (
-              <Link key={v.id} to={`/venues/${v.id}`} className="ecard">
+              <Link key={v.id} to={`/venues/${v.id}`} className="ecard" style={{ position: 'relative' }}>
+                <button
+                  aria-label={fav ? 'Remove favourite' : 'Add favourite'}
+                  title={fav ? 'Remove favourite' : 'Favourite this venue'}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavVenue(v.id); }}
+                  style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, background: 'rgba(0,0,0,.45)', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  {fav ? '❤️' : '🤍'}
+                </button>
                 <Poster hue={v.photoHue} emoji="🏛" label="venue photo" variant="landscape" />
                 <div>
                   <h3>

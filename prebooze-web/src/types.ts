@@ -211,4 +211,21 @@ export interface User {
   promoterUsername?: string;
   promoterPlan?: string;
   attendanceVisibility?: 'off' | 'followers' | 'public'; // who can see events I'm attending (default off)
+  autoRenew?: boolean; // auto-renew subscriptions / featured placements
+}
+
+export interface PayMethod {
+  id: string;
+  type: 'upi' | 'card';
+  label: string; // e.g. "riya@upi" or "Visa •••• 4242"
+  isDefault: boolean;
+}
+
+export interface HelpTicket {
+  id: string;
+  topic: string;
+  subject: string;
+  message: string;
+  status: 'open' | 'resolved';
+  createdAt: string;
 }

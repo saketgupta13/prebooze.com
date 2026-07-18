@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Booking, Coupon, Event, Featured, User, Venue } from '../types';
+import type { Booking, Coupon, Event, Featured, HelpTicket, PayMethod, User, Venue } from '../types';
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED } from '../data/mock';
 
@@ -180,6 +180,16 @@ interface AppState {
   spendWallet: (amount: number, note: string) => void;
   myReferralCode: string;
   referrals: Referral[];
+  wishlist: string[]; // event ids
+  toggleWishlist: (eventId: string) => void;
+  favVenues: string[]; // venue ids
+  toggleFavVenue: (venueId: string) => void;
+  payMethods: PayMethod[];
+  addPayMethod: (m: Omit<PayMethod, 'id' | 'isDefault'>) => void;
+  removePayMethod: (id: string) => void;
+  setDefaultPayMethod: (id: string) => void;
+  helpTickets: HelpTicket[];
+  addHelpTicket: (t: Omit<HelpTicket, 'id' | 'status' | 'createdAt'>) => void;
   checkInBooking: (id: string, count: number) => void;
   addEvent: (e: Event) => void;
   upsertEvent: (e: Event) => void;
@@ -272,6 +282,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [wallets, setWallets] = useState<Record<string, WalletTx[]>>(() => load('pb_wallets', {}));
   const [referrals, setReferrals] = useState<Referral[]>(() => load('pb_referrals', []));
   const [refCodes, setRefCodes] = useState<Record<string, string>>(() => load('pb_ref_codes', {}));
+  const [wishlist, setWishlist] = useState<string[]>(() => load('pb_wishlist', []));
+  const [favVenues, setFavVenues] = useState<string[]>(() => load('pb_fav_venues', []));
+  const [payMethodsMap, setPayMethodsMap] = useState<Record<string, PayMethod[]>>(() => load('pb_paymethods', {}));
+  const [ticketsMap, setTicketsMap] = useState<Record<string, HelpTicket[]>>(() => load('pb_help_tickets', {}));
   const [followers, setFollowers] = useState<string[]>(() => load('pb_followers', ['p4', 'p5']));
   const [followRequests, setFollowRequests] = useState<string[]>(() => load('pb_follow_requests', ['p6', 'p7']));
   const [pendingPhone, setPendingPhone] = useState('');
@@ -352,6 +366,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_ref_codes', JSON.stringify(refCodes));
   }, [refCodes]);
+  useEffect(() => {
+    localStorage.setItem('pb_wishlist', JSON.stringify(wishlist));
+  }, [wishlist]);
+  useEffect(() => {
+    localStorage.setItem('pb_fav_venues', JSON.stringify(favVenues));
+  }, [favVenues]);
+  useEffect(() => {
+    localStorage.setItem('pb_paymethods', JSON.stringify(payMethodsMap));
+  }, [payMethodsMap]);
+  useEffect(() => {
+    localStorage.setItem('pb_help_tickets', JSON.stringify(ticketsMap));
+  }, [ticketsMap]);
   // register the logged-in user's referral code so /r/:code can resolve it
   useEffect(() => {
     if (user?.phone) {
@@ -554,6 +580,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       myReferralCode: user ? referralCodeFor(user.phone) : '',
       referrals,
+      wishlist,
+      toggleWishlist: (eventId) =>
+        setWishlist((prev) => (prev.includes(eventId) ? prev.filter((e) => e !== eventId) : [eventId, ...prev])),
+      favVenues,
+      toggleFavVenue: (venueId) =>
+        setFavVenues((prev) => (prev.includes(venueId) ? prev.filter((v) => v !== venueId) : [venueId, ...prev])),
+      payMethods: user ? (payMethodsMap[user.phone] ?? []) : [],
+      addPayMethod: (m) => {
+        if (!user) return;
+        setPayMethodsMap((prev) => {
+          const cur = prev[user.phone] ?? [];
+          return { ...prev, [user.phone]: [...cur, { ...m, id: 'pm' + Date.now(), isDefault: cur.length === 0 }] };
+        });
+      },
+      removePayMethod: (id) => {
+        if (!user) return;
+        setPayMethodsMap((prev) => ({ ...prev, [user.phone]: (prev[user.phone] ?? []).filter((m) => m.id !== id) }));
+      },
+      setDefaultPayMethod: (id) => {
+        if (!user) return;
+        setPayMethodsMap((prev) => ({
+          ...prev,
+          [user.phone]: (prev[user.phone] ?? []).map((m) => ({ ...m, isDefault: m.id === id })),
+        }));
+      },
+      helpTickets: user ? (ticketsMap[user.phone] ?? []) : [],
+      addHelpTicket: (t) => {
+        if (!user) return;
+        setTicketsMap((prev) => ({
+          ...prev,
+          [user.phone]: [
+            { ...t, id: 'HT-' + Math.floor(1000 + Math.random() * 8999), status: 'open' as const, createdAt: new Date().toISOString() },
+            ...(prev[user.phone] ?? []),
+          ],
+        }));
+      },
       checkInBooking: (id, count) =>
         setBookings((prev) =>
           prev.map((b) =>
@@ -699,7 +761,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import {
-  CATEGORIES, EVENTS, FAQS, LINEUPS, ORGANIZERS, PEOPLE, PROMOTERS, TESTIMONIALS, VENUES,
+  CATEGORIES, CATEGORY_TREE, EVENTS, FAQS, LINEUPS, ORGANIZERS, PEOPLE, PROMOTERS, STATS, TESTIMONIALS, VENUES,
   eventsForPerson, venueById,
 } from '../data/mock';
 import { friendsGoing, personFollowKey } from '../lib/social';
@@ -174,6 +174,22 @@ export default function Home() {
               <button key={i} className={i === heroIdx ? 'on' : ''} onClick={() => setHeroIdx(i)} aria-label={`Slide ${i + 1}`} />
             ))}
           </div>
+        </div>
+
+        {/* Category tiles */}
+        <div className="chip-row" style={{ marginBottom: 24, gap: 12 }}>
+          <Slider slideWidth={150}>
+            {CATEGORY_TREE.map((c) => {
+              const n = published.filter((e) => e.category === c.name && venueById(e.venueId)?.city === city).length;
+              return (
+                <Link key={c.name} to={`/browse?cat=${encodeURIComponent(c.name)}`} className="citypick-cell" style={{ textDecoration: 'none' }}>
+                  <span className="ic">{c.icon}</span>
+                  <span className="nm">{c.name}</span>
+                  <span className="ct">{n ? `${n} event${n === 1 ? '' : 's'}` : 'coming soon'}</span>
+                </Link>
+              );
+            })}
+          </Slider>
         </div>
 
         {/* Top selling events */}
@@ -415,7 +431,39 @@ export default function Home() {
             <Accordion key={f.q} title={f.q} defaultOpen={i === 0}>{f.a}</Accordion>
           ))}
         </section>
+
+        {/* Highlights counter */}
+        <section className="section">
+          <div className="card" style={{ padding: '26px 20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(150px, 1fr))`, gap: 16, textAlign: 'center' }}>
+              {STATS.map((s) => (
+                <div key={s.label}>
+                  <div className="accent" style={{ fontSize: 30, fontWeight: 800 }}>
+                    <CountUp value={s.value} />{s.suffix}
+                  </div>
+                  <div className="tiny muted-2" style={{ textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   );
+}
+
+/** Animated count-up for the highlights band. */
+function CountUp({ value }: { value: number }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    const steps = 40;
+    let i = 0;
+    const t = setInterval(() => {
+      i++;
+      setN(value < 10 ? Math.round(((value * i) / steps) * 10) / 10 : Math.round((value * i) / steps));
+      if (i >= steps) clearInterval(t);
+    }, 25);
+    return () => clearInterval(t);
+  }, [value]);
+  return <>{n >= 1000 ? n.toLocaleString('en-IN') : n}</>;
 }

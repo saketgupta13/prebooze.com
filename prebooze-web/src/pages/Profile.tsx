@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { ORGANIZERS, PAST_EVENTS, eventById, personById } from '../data/mock';
+import { ORGANIZERS, PAST_EVENTS, VENUES, eventById, personById } from '../data/mock';
 import { fmtDate } from '../data/mock';
 import Poster from '../components/Poster';
 import Stars from '../components/Stars';
 
 export default function Profile() {
-  const { user, bookings, following, toggleFollow, myEvents, updateUser, followers, followRequests, acceptFollowRequest, declineFollowRequest, removeFollower } = useApp();
+  const { user, bookings, following, toggleFollow, myEvents, updateUser, followers, followRequests, acceptFollowRequest, declineFollowRequest, removeFollower, favVenues, toggleFavVenue, wishlist } = useApp();
 
   if (!user) return null;
 
@@ -164,6 +164,29 @@ export default function Profile() {
                 </button>
               </div>
             ))}
+          </div>
+
+          <div className="card" style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h3>Favourite venues ({favVenues.length})</h3>
+              <Link to="/wishlist" className="link tiny bold">❤️ Wishlist ({wishlist.length}) →</Link>
+            </div>
+            {favVenues.length === 0 ? (
+              <div className="muted small">Tap 🤍 on any <Link to="/venues" className="link">venue</Link> to save it here.</div>
+            ) : (
+              favVenues.map((id) => {
+                const v = VENUES.find((x) => x.id === id);
+                if (!v) return null;
+                return (
+                  <div key={id} className="kv" style={{ alignItems: 'center' }}>
+                    <Link to={`/venues/${v.id}`} className="k bold" style={{ color: 'var(--text)' }}>
+                      🏛 {v.name} <span className="muted" style={{ fontWeight: 400 }}>· {v.city}</span>
+                    </Link>
+                    <button className="btn btn-ghost btn-sm" onClick={() => toggleFavVenue(id)}>❤️ Saved</button>
+                  </div>
+                );
+              })
+            )}
           </div>
 
           <div className="card" style={{ marginTop: 16 }}>

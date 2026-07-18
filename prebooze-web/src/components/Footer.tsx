@@ -23,6 +23,7 @@ export default function Footer() {
           </div>
           <div>
             <h4>Support</h4>
+            <Link to="/help">Help center</Link>
             <Link to="/faqs">FAQs</Link>
             <Link to="/legal/refund-policy">Refund policy</Link>
             <Link to="/legal/terms">Terms</Link>
@@ -30,11 +31,29 @@ export default function Footer() {
           </div>
           <div>
             <h4>Follow</h4>
-            {SOCIAL_LINKS.map((s) => (
-              <a key={s.label} href={s.url} target="_blank" rel="noreferrer">
-                {s.label}
-              </a>
-            ))}
+            <div style={{ display: 'flex', gap: 10 }}>
+              {SOCIAL_LINKS.map((s) => (
+                <a
+                  key={s.label}
+                  href={s.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={s.label}
+                  aria-label={s.label}
+                  style={{ width: 36, height: 36, borderRadius: '50%', border: '1.5px solid var(--border-3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  {s.label === 'Instagram' ? (
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4.5" /><circle cx="17.8" cy="6.2" r="1.2" fill="currentColor" stroke="none" /></svg>
+                  ) : s.label === 'X' ? (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.2l7.3-8.3L1.6 2h6.4l4.4 5.9L18.9 2zm-1.1 18h1.7L7.1 3.9H5.3L17.8 20z" /></svg>
+                  ) : s.label === 'YouTube' ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.5 12 4.5 12 4.5s-7 0-8.9.6A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12 31 31 0 0 0 1 16.8a3 3 0 0 0 2.1 2.1c1.9.6 8.9.6 8.9.6s7 0 8.9-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 23.5 12 31 31 0 0 0 23 7.2zM9.8 15.3V8.7L15.9 12l-6.1 3.3z" /></svg>
+                  ) : (
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2A10 10 0 0 0 3.5 17.3L2 22l4.8-1.4A10 10 0 1 0 12 2zm5.5 14.1c-.2.7-1.3 1.3-1.9 1.4-.5.1-1.1.1-1.8-.1a16 16 0 0 1-6.9-6c-.5-.9-.9-2-.6-2.9.1-.5.6-1.2 1-1.4.3-.1.6-.1.8 0 .2.1.5 1 .6 1.3.1.2.1.5 0 .7l-.4.7c-.1.2-.2.4 0 .7a10 10 0 0 0 1.7 2.2c.7.7 1.5 1.2 2.3 1.5.3.1.5.1.7-.1l.6-.7c.2-.2.4-.3.7-.2.3.1 1.6.8 1.8.9.2.1.4.2.4.4.1.2.1.9 0 1.6z" /></svg>
+                  )}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
         <div className="ftr-base">

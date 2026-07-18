@@ -839,6 +839,20 @@ export const TOP_CITIES: { name: string; icon: string }[] = [
   { name: 'Goa', icon: '🏝️' },
   { name: 'Nagpur', icon: '🍊' },
   { name: 'Austin', icon: '🎸' },
+  { name: 'Jaipur', icon: '🏰' },
+  { name: 'Ahmedabad', icon: '🪁' },
+];
+
+/** Shown in the search box before the user types. */
+export const TRENDING_SEARCHES = ['Techno', 'Bandra Warehouse Rave', 'Comedy night', 'DJ Arjuna', 'Sundowner', 'Bollywood'];
+
+/** Platform highlight counters (home page). */
+export const STATS = [
+  { label: 'events hosted', value: 1200, suffix: '+' },
+  { label: 'tickets delivered', value: 250000, suffix: '+' },
+  { label: 'cities live', value: 6, suffix: '' },
+  { label: 'verified organizers', value: 180, suffix: '+' },
+  { label: 'avg. guest rating', value: 4.8, suffix: '★' },
 ];
 
 // Seeded attendance across events — the crowd behind the FOMO. Seeded people are
