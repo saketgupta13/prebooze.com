@@ -111,7 +111,13 @@ export default function VenueDetail() {
                 </span>
               ))}
             </div>
-            <h3 style={{ marginBottom: 8 }}>About this venue</h3>
+            {venue.timings && (
+              <>
+                <h3 style={{ marginBottom: 8 }}>🕒 Timings</h3>
+                <p className="muted small" style={{ marginBottom: 16 }}>{venue.timings}</p>
+              </>
+            )}
+            <h3 style={{ marginBottom: 8 }}>ℹ️ About this venue</h3>
             <p className="muted small">{venue.about}</p>
           </div>
         </div>

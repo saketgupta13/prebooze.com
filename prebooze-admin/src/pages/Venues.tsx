@@ -235,6 +235,8 @@ export function AddVenue() {
   const [vcity, setVcity] = useState('Austin');
   const [contact, setContact] = useState('');
   const [rules, setRules] = useState('');
+  const [about, setAbout] = useState('');
+  const [timings, setTimings] = useState('');
   const [amenities, setAmenities] = useState<string[]>([]);
   const [docs, setDocs] = useState(false);
 
@@ -254,6 +256,8 @@ export function AddVenue() {
       license: docs ? 'under review' : 'docs pending',
       verified: false,
       address: address.trim() || undefined,
+      about: about.trim() || undefined,
+      timings: timings.trim() || undefined,
     });
     navigate('/venues');
   };
@@ -284,6 +288,14 @@ export function AddVenue() {
       </div>
       <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Contact person + phone" />
       <input className="input" value={rules} onChange={(e) => setRules(e.target.value)} placeholder="House rules / notes" />
+      <div className="card" style={{ padding: 12 }}>
+        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6 }}>🕒 Timings</div>
+        <input className="input" value={timings} onChange={(e) => setTimings(e.target.value)} placeholder="e.g. Wed–Sun · 8 PM – 1 AM" />
+      </div>
+      <div className="card" style={{ padding: 12 }}>
+        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6 }}>ℹ️ About the venue</div>
+        <textarea className="input" rows={3} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Sound, vibe, what nights work best here…" />
+      </div>
       <AmenitiesEditor value={amenities} onChange={setAmenities} />
       <button
         type="button"
@@ -315,6 +327,8 @@ export function EditVenue() {
   const [type, setType] = useState(venue?.type ?? 'Indoor');
   const [contact, setContact] = useState(venue?.contact ?? '');
   const [rules, setRules] = useState(venue?.rules ?? '');
+  const [about, setAbout] = useState(venue?.about ?? '');
+  const [timings, setTimings] = useState(venue?.timings ?? '');
   const [docs, setDocs] = useState(venue?.verified ?? false);
   const [amenities, setAmenities] = useState<string[]>(venue?.amenities ?? []);
   const [seo, setSeo] = useState(venue?.seo ?? emptySeo());
@@ -341,6 +355,8 @@ export function EditVenue() {
       type,
       contact: contact.trim() || undefined,
       rules: rules.trim() || undefined,
+      about: about.trim() || undefined,
+      timings: timings.trim() || undefined,
       verified: docs,
       license: docs ? venue.license.replace('docs pending', 'under review') : venue.license,
       amenities,
@@ -388,6 +404,14 @@ export function EditVenue() {
       <div className="field">
         <label>House rules / notes</label>
         <input className="input" value={rules} onChange={(e) => setRules(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>🕒 Timings</label>
+        <input className="input" value={timings} onChange={(e) => setTimings(e.target.value)} placeholder="e.g. Wed–Sun · 8 PM – 1 AM" />
+      </div>
+      <div className="field">
+        <label>ℹ️ About the venue</label>
+        <textarea className="input" rows={3} value={about} onChange={(e) => setAbout(e.target.value)} />
       </div>
       <AmenitiesEditor value={amenities} onChange={setAmenities} />
       <button

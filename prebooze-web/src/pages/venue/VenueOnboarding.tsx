@@ -57,7 +57,8 @@ export default function VenueOnboarding() {
       rating: 0,
       followers: 0,
       amenities,
-      about: about.trim() + (timings.trim() ? ` · Timings: ${timings.trim()}` : ''),
+      about: about.trim(),
+      timings: timings.trim() || undefined,
       photoHue: Math.floor(Math.random() * 360),
     });
     updateUser({ isVenue: true, venueName: name.trim(), venueId: id });
@@ -149,11 +150,11 @@ export default function VenueOnboarding() {
               </div>
             </div>
             <div className="field">
-              <span>Timings (optional)</span>
+              <span>🕒 Timings</span>
               <input value={timings} onChange={(e) => setTimings(e.target.value)} placeholder="e.g. Wed–Sun · 8 PM – 1 AM" />
             </div>
             <div className="field">
-              <span>About the venue</span>
+              <span>ℹ️ About the venue</span>
               <textarea value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Sound, vibe, what nights work best here…" />
             </div>
             <button className="btn btn-pri btn-block btn-lg" disabled={!step1Valid}>

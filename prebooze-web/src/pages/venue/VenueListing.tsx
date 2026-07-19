@@ -18,6 +18,7 @@ export default function VenueListing() {
   const [capacity, setCapacity] = useState(String(venue?.capacity ?? ''));
   const [amenities, setAmenities] = useState<string[]>(venue?.amenities ?? []);
   const [about, setAbout] = useState(venue?.about ?? '');
+  const [timings, setTimings] = useState(venue?.timings ?? '');
   const [photos, setPhotos] = useState(false);
 
   if (!venue) {
@@ -44,6 +45,7 @@ export default function VenueListing() {
       capacity: Number(capacity),
       amenities,
       about: about.trim(),
+      timings: timings.trim() || undefined,
     });
     updateUser({ venueName: name.trim() });
     toast('Listing updated ✓ changes are live');
@@ -98,7 +100,11 @@ export default function VenueListing() {
           </div>
         </div>
         <div className="field">
-          <span>About the venue</span>
+          <span>🕒 Timings</span>
+          <input value={timings} onChange={(e) => setTimings(e.target.value)} placeholder="e.g. Wed–Sun · 8 PM – 1 AM" />
+        </div>
+        <div className="field">
+          <span>ℹ️ About the venue</span>
           <textarea value={about} onChange={(e) => setAbout(e.target.value)} />
         </div>
         <button className="btn btn-pri btn-lg">Save listing ✓</button>

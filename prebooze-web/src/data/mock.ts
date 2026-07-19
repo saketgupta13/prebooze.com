@@ -53,6 +53,7 @@ export const VENUES: Venue[] = [
     amenities: ['🅿 Parking', '♿ Accessible', '🍸 In-house bar'],
     about:
       'A landmark downtown concert hall with a 2,500 capacity main floor, mezzanine bar and one of the best sound systems in the city. Home to indie gigs, club nights and album launches since 2014.',
+    timings: 'Thu–Sun · 7 PM – 2 AM',
     photoHue: 152,
   },
   {
@@ -69,6 +70,7 @@ export const VENUES: Venue[] = [
     amenities: ['🅿 Parking', '🍔 Food trucks', '⛺ Open-air'],
     about:
       'Sprawling open-air festival grounds by the river — the go-to spot for summer festivals, food carnivals and sundowner sets.',
+    timings: 'Fri–Sun · 4 PM – 11 PM',
     photoHue: 205,
   },
   {
@@ -85,6 +87,7 @@ export const VENUES: Venue[] = [
     amenities: ['🍸 In-house bar', '♿ Accessible'],
     about:
       "Austin's tightest comedy room. Low ceilings, loud laughs — open mics on weekdays, headline specials on weekends.",
+    timings: 'Wed–Sun · 6 PM – 1 AM',
     photoHue: 28,
   },
   {
@@ -101,6 +104,7 @@ export const VENUES: Venue[] = [
     amenities: ['🍸 In-house bar', '🌇 Rooftop'],
     about:
       'Rooftop bar with skyline views, acoustic sessions and slow sunsets. Intimate capacity — shows sell out fast.',
+    timings: 'Thu–Sat · 8 PM – 3 AM',
     photoHue: 265,
   },
   {
@@ -117,6 +121,7 @@ export const VENUES: Venue[] = [
     amenities: ['🔊 30k-watt rig', '🅿 Parking'],
     about:
       'Raw industrial warehouse turned late-night techno institution. Concrete, strobes, and sound you feel in your chest.',
+    timings: 'Fri–Sat · 10 PM – 6 AM',
     photoHue: 330,
   },
   {
@@ -132,6 +137,7 @@ export const VENUES: Venue[] = [
     followers: 190,
     amenities: ['🍸 In-house bar'],
     about: 'Underground club for house heads and after-hours sets on South Congress.',
+    timings: 'Tue–Sun · 7 PM – 2 AM',
     photoHue: 90,
   },
   { id: 'gateway-arena', name: 'Gateway Arena', verified: true, type: 'Concert hall', locality: 'Colaba', city: 'Mumbai', address: 'Apollo Bunder Rd, Colaba, Mumbai 400001', capacity: 3200, rating: 4.6, followers: 2100, amenities: ['🅿 Parking', '♿ Accessible', '🍸 In-house bar'], about: 'Sea-facing concert hall by the Gateway — Bollywood nights, indie gigs and big-room shows.', photoHue: 210 },
@@ -906,6 +912,8 @@ export const SEED_FEATURED: Featured[] = [
   { id: 'f2', type: 'organizer', refId: 'festcrew', city: 'Austin', status: 'active', billing: 'monthly', amount: 4999, createdAt: '2026-07-01', expiresAt: '2027-01-01' },
   { id: 'f3', type: 'promoter', refId: 'nova-nights', city: 'Austin', status: 'active', billing: 'monthly', amount: 2999, createdAt: '2026-07-01', expiresAt: '2027-01-01' },
   { id: 'f4', type: 'lineup', refId: 'fizzco', city: 'Austin', status: 'active', billing: 'monthly', amount: 1999, createdAt: '2026-07-01', expiresAt: '2027-01-01' },
+  { id: 'f5', type: 'venue', refId: 'warehouse-9', city: 'Austin', status: 'active', billing: 'monthly', amount: 3999, createdAt: '2026-07-01', expiresAt: '2027-01-01' },
+  { id: 'f6', type: 'venue', refId: 'the-loft', city: 'Austin', status: 'active', billing: 'monthly', amount: 3999, createdAt: '2026-07-01', expiresAt: '2027-01-01' },
 ];
 
 /** Featured pricing (mirrors the admin-managed rates). */

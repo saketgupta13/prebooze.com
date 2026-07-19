@@ -68,6 +68,7 @@ export interface Venue {
   followers: number;
   amenities: string[];
   about: string;
+  timings?: string; // e.g. "Wed–Sun · 8 PM – 2 AM"
   photoHue: number;
 }
 

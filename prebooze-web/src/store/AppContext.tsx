@@ -293,7 +293,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     load('pb_following', ['livewire', 'nightowl', 'person:p1', 'person:p2', 'person:p3'])
   );
   const [interested, setInterested] = useState<string[]>(() => load('pb_interested', []));
-  const [featured, setFeatured] = useState<Featured[]>(() => load('pb_featured', SEED_FEATURED));
+  const [featured, setFeatured] = useState<Featured[]>(() => {
+    const stored = load('pb_featured', SEED_FEATURED);
+    // backfill newly seeded placements (e.g. featured venues) into old localStorage
+    const merged = [...stored];
+    SEED_FEATURED.forEach((s) => {
+      if (!merged.some((f) => f.id === s.id)) merged.push(s);
+    });
+    return merged;
+  });
   // wallets + referrals are global (keyed by phone) so cross-user credits work in one browser
   const [wallets, setWallets] = useState<Record<string, WalletTx[]>>(() => load('pb_wallets', {}));
   const [referrals, setReferrals] = useState<Referral[]>(() => load('pb_referrals', []));

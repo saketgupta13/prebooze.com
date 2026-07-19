@@ -99,6 +99,8 @@ export interface Venue {
   type?: string;
   contact?: string;
   rules?: string;
+  about?: string;
+  timings?: string;
   amenities?: string[];
   seo?: Seo;
 }
