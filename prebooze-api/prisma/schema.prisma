@@ -1,0 +1,63 @@
+// Prebooze API — Prisma schema (Phase 1: auth + users)
+// Mirrors the User shape the frontend already uses (prebooze-web/src/types.ts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ElevatedRole {
+  organizer
+  promoter
+  lineup
+  venue
+}
+
+enum AttendanceVisibility {
+  off
+  followers
+  public
+}
+
+model User {
+  id        String   @id @default(cuid())
+  phone     String   @unique // "+91 9990001111" (normalized)
+  name      String   @default("")
+  username  String   @default("")
+  email     String   @default("")
+  city      String   @default("")
+  dob       String   @default("")
+  gender    String   @default("")
+  profession String  @default("")
+  languages String   @default("")
+  bio       String   @default("")
+  socials   String   @default("")
+  interests String[] @default([])
+
+  phoneVerified Boolean @default(true)
+  idVerified    Boolean @default(false)
+  profilePct    Int     @default(20)
+
+  // one number = one elevated role (enforced in service layer too)
+  role         ElevatedRole?
+  orgBrand     String?
+  orgUsername  String?
+  lineupName   String?
+  lineupCategory String?
+  lineupUsername String?
+  promoterBrand String?
+  promoterUsername String?
+  promoterPlan String?
+  venueName    String?
+  venueId      String?
+
+  attendanceVisibility AttendanceVisibility @default(off)
+  autoRenew            Boolean              @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
