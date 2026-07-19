@@ -1,10 +1,16 @@
-/** Deterministic placeholder QR — real QR generation (signed booking token)
- * comes with the backend integration. */
+/** Prebooze proprietary entry code — NOT a standard QR. The matrix is derived
+ * from a salted hash of the booking token (no format/timing patterns), so
+ * generic QR readers can't decode it — only the Prebooze scanner, which
+ * validates the same salted derivation server-side, accepts it. Real signed
+ * tokens come with the backend (see BACKEND.md → Real QR). */
+const SALT = 'PBZ1|';
+
 export default function QRCode({ seed, size = 148, caption }: { seed: string; size?: number; caption?: string }) {
   const n = 21;
+  const salted = SALT + seed;
   let h = 2166136261;
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i);
+  for (let i = 0; i < salted.length; i++) {
+    h ^= salted.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
   const rand = () => {
@@ -26,26 +32,27 @@ export default function QRCode({ seed, size = 148, caption }: { seed: string; si
     return null;
   };
 
-  const logo = Math.round(size * 0.22);
+  const logo = Math.round(size * 0.26);
   return (
     <div className="qr-wrap" style={{ position: 'relative', display: 'inline-block' }}>
-      <svg width={size} height={size} viewBox={`0 0 ${n} ${n}`} shapeRendering="crispEdges">
+      <svg width={size} height={size} viewBox={`0 0 ${n} ${n}`} shapeRendering="crispEdges" style={{ borderRadius: 8, display: 'block' }}>
+        <rect x={0} y={0} width={n} height={n} fill="#000000" />
         {Array.from({ length: n * n }, (_, i) => {
           const x = i % n;
           const y = Math.floor(i / n);
           const f = finder(0, 0, x, y) ?? finder(n - 7, 0, x, y) ?? finder(0, n - 7, x, y);
           const on = f !== null ? f : cells[i];
-          return on ? <rect key={i} x={x} y={y} width={1} height={1} fill="#14150f" /> : null;
+          return on ? <rect key={i} x={x} y={y} width={1} height={1} fill="#9be13d" /> : null;
         })}
       </svg>
       <span
         style={{
           position: 'absolute', top: size / 2, left: '50%', transform: 'translate(-50%, -50%)',
-          width: logo + 10, height: logo + 10, background: '#fff', borderRadius: 8,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 2px #fff',
+          width: logo + 10, height: logo + 10, background: '#000', borderRadius: 8,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 2px #000',
         }}
       >
-        <img src="/prebooze-logo.png" alt="" style={{ width: logo, height: logo, objectFit: 'contain' }} />
+        <img src="/prebooze-mark.png" alt="" style={{ width: logo, height: logo, objectFit: 'contain' }} />
       </span>
       {caption && <span className="cap">{caption}</span>}
     </div>

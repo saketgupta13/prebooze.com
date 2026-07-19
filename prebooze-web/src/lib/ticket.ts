@@ -1,11 +1,14 @@
 import type { Booking, Event, Venue } from '../types';
 import { fmtDate, fmtTime } from '../data/mock';
 
-/** Same deterministic pattern as the on-screen QRCode component. */
+/** Same proprietary salted pattern as the on-screen QRCode component —
+ * only the Prebooze scanner can validate it, generic QR readers can't. */
+const SALT = 'PBZ1|';
 function qrCells(seed: string, n = 21): boolean[] {
+  const salted = SALT + seed;
   let h = 2166136261;
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i);
+  for (let i = 0; i < salted.length; i++) {
+    h ^= salted.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
   const rand = () => {
@@ -34,7 +37,7 @@ const loadLogo = (): Promise<HTMLImageElement | null> =>
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
-    img.src = '/prebooze-logo.png';
+    img.src = '/prebooze-mark.png';
   });
 
 /** Render the ticket in our design onto a canvas and download it as a PNG. */
@@ -93,11 +96,15 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   const cell = qsize / n;
   const qx = (W - qsize) / 2;
   const qy = 390;
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#000000';
   roundRect(ctx, qx - 18, qy - 18, qsize + 36, qsize + 36, 14);
   ctx.fill();
+  ctx.strokeStyle = '#9be13d';
+  ctx.lineWidth = 2;
+  roundRect(ctx, qx - 18, qy - 18, qsize + 36, qsize + 36, 14);
+  ctx.stroke();
   const cells = qrCells(booking.id);
-  ctx.fillStyle = '#14150f';
+  ctx.fillStyle = '#9be13d';
   for (let i = 0; i < n * n; i++) {
     const x = i % n;
     const y = Math.floor(i / n);
@@ -106,13 +113,13 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
     if (on) ctx.fillRect(qx + x * cell, qy + y * cell, cell + 0.5, cell + 0.5);
   }
 
-  // brand logo in the QR centre
-  const box = 74;
-  ctx.fillStyle = '#ffffff';
+  // brand bunny in the QR centre on black
+  const box = 88;
+  ctx.fillStyle = '#000000';
   roundRect(ctx, W / 2 - box / 2, qy + qsize / 2 - box / 2, box, box, 10);
   ctx.fill();
   if (logo) {
-    const pad = 8;
+    const pad = 6;
     ctx.drawImage(logo, W / 2 - box / 2 + pad, qy + qsize / 2 - box / 2 + pad, box - pad * 2, box - pad * 2);
   } else {
     ctx.fillStyle = '#9be13d';
@@ -121,6 +128,11 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
     ctx.fillText('P', W / 2, qy + qsize / 2 + 12);
     ctx.textAlign = 'left';
   }
+  ctx.fillStyle = '#7d8070';
+  ctx.font = '600 12px Manrope, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Prebooze code — scans only with the Prebooze scanner', W / 2, qy + qsize + 36);
+  ctx.textAlign = 'left';
 
   // booking id + footer
   ctx.fillStyle = '#9be13d';

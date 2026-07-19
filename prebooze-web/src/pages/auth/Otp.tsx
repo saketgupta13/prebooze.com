@@ -57,9 +57,10 @@ export default function Otp() {
     <main className="page">
       <div className="container auth-wrap">
         <div className="auth-visual">
-          <img src="/prebooze-logo.png" alt="Prebooze" />
-          <h2>prebooze</h2>
-          <p className="muted small">event collage / brand visual</p>
+          <img src="/prebooze-logo.png" alt="Prebooze" style={{ height: 66, width: 'auto' }} />
+          <p className="muted small">
+            Concerts · comedy · festivals · warehouse parties — from verified organizers only.
+          </p>
         </div>
 
         <form className="card card-shadow auth-card" onSubmit={verify} style={{ width: '100%' }}>
