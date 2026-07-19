@@ -58,19 +58,17 @@ export default function JobDetail() {
               <button className="btn btn-pri" onClick={() => setOpen(true)}>Apply now →</button>
             )}
           </div>
-          <p style={{ marginTop: 14, fontSize: 14.5 }}>{job.about}</p>
         </div>
 
         <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginBottom: 10 }}>What you'll do</h3>
-          <ul style={{ paddingLeft: 20, display: 'grid', gap: 6, fontSize: 14 }} className="muted">
+          <h3 style={{ marginBottom: 10 }}>Job description</h3>
+          <p style={{ fontSize: 14.5, marginBottom: 12 }}>{job.about}</p>
+          <div className="small bold" style={{ marginBottom: 6 }}>What you'll do</div>
+          <ul style={{ paddingLeft: 20, display: 'grid', gap: 5, fontSize: 14, marginBottom: 12 }} className="muted">
             {job.responsibilities.map((r) => <li key={r}>{r}</li>)}
           </ul>
-        </div>
-
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginBottom: 10 }}>What we're looking for</h3>
-          <ul style={{ paddingLeft: 20, display: 'grid', gap: 6, fontSize: 14 }} className="muted">
+          <div className="small bold" style={{ marginBottom: 6 }}>What we're looking for</div>
+          <ul style={{ paddingLeft: 20, display: 'grid', gap: 5, fontSize: 14 }} className="muted">
             {job.requirements.map((r) => <li key={r}>{r}</li>)}
           </ul>
         </div>

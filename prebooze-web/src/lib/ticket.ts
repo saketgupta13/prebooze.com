@@ -29,8 +29,17 @@ const finder = (cx: number, cy: number, x: number, y: number): boolean | null =>
   return null;
 };
 
+const loadLogo = (): Promise<HTMLImageElement | null> =>
+  new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = '/prebooze-logo.png';
+  });
+
 /** Render the ticket in our design onto a canvas and download it as a PNG. */
-export function downloadTicket(booking: Booking, event: Event, venue: Venue | undefined) {
+export async function downloadTicket(booking: Booking, event: Event, venue: Venue | undefined) {
+  const logo = await loadLogo();
   const W = 640;
   const H = 960;
   const c = document.createElement('canvas');
@@ -95,6 +104,22 @@ export function downloadTicket(booking: Booking, event: Event, venue: Venue | un
     const f = finder(0, 0, x, y) ?? finder(n - 7, 0, x, y) ?? finder(0, n - 7, x, y);
     const on = f !== null ? f : cells[i];
     if (on) ctx.fillRect(qx + x * cell, qy + y * cell, cell + 0.5, cell + 0.5);
+  }
+
+  // brand logo in the QR centre
+  const box = 74;
+  ctx.fillStyle = '#ffffff';
+  roundRect(ctx, W / 2 - box / 2, qy + qsize / 2 - box / 2, box, box, 10);
+  ctx.fill();
+  if (logo) {
+    const pad = 8;
+    ctx.drawImage(logo, W / 2 - box / 2 + pad, qy + qsize / 2 - box / 2 + pad, box - pad * 2, box - pad * 2);
+  } else {
+    ctx.fillStyle = '#9be13d';
+    ctx.font = '800 34px Manrope, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('P', W / 2, qy + qsize / 2 + 12);
+    ctx.textAlign = 'left';
   }
 
   // booking id + footer

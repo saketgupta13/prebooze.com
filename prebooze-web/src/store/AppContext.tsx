@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react';
 import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayMethod, User, Venue, WaitlistEntry } from '../types';
 import { registerVenue } from '../data/mock';
-import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED } from '../data/mock';
+import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, eventById } from '../data/mock';
+import { notify } from '../lib/notify';
 
 export interface OrgReview {
   id: string;
@@ -507,6 +508,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           attendanceVisibility: 'off',
         };
         setUser(fresh);
+        notify(fresh.phone, 'welcome', { name: fresh.name });
         // referral attribution — welcome credit for the referee, tracked for the referrer
         const pendingRef = load<string | null>('pb_pending_ref', null);
         if (pendingRef) {
@@ -525,6 +527,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               amount: REFERRAL_CONFIG.referee,
               note: 'Welcome credit — joined via a friend’s referral link',
             });
+            notify(fresh.phone, 'referral_welcome', { amount: String(REFERRAL_CONFIG.referee) });
           }
           localStorage.removeItem('pb_pending_ref');
         }
@@ -567,6 +570,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCarts((prev) => prev.map((x) => (x.id === id ? { ...x, remindedAt: new Date().toISOString() } : x))),
       addBooking: (b) => {
         setBookings((prev) => [b, ...prev]);
+        const ev = eventById(b.eventId) ?? myEvents.find((e) => e.id === b.eventId);
+        notify(b.whatsapp, 'booking_confirmed', { name: b.mainGuest, event: ev?.title ?? 'your event', qty: String(b.qty), id: b.id, total: String(b.total) }, user?.email || undefined);
         // referral qualification — the referee's first paid booking rewards the referrer
         if (user) {
           const r = referrals.find((x) => x.refereePhone === user.phone && x.status === 'joined');
@@ -581,6 +586,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               amount: REFERRAL_CONFIG.referrer,
               note: `Referral reward — ${user.name || 'your friend'} made their first booking`,
             });
+            notify(r.referrerPhone, 'referral_reward', { amount: String(REFERRAL_CONFIG.referrer), friend: user.name || 'Your friend' });
           }
         }
       },
@@ -595,14 +601,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (method === 'wallet') {
           creditWallet(user.phone, { type: 'refund', amount: b.total, note: `Instant refund — booking ${b.id}` });
           toast(`₹${b.total} refunded to your wallet instantly ✓`);
+          notify(user.phone, 'refund_wallet', { id: b.id, amount: String(b.total) }, user.email || undefined);
         } else {
           toast('Refund initiated to your payment method — lands in 5–7 business days');
+          notify(user.phone, 'refund_source', { id: b.id, amount: String(b.total) }, user.email || undefined);
         }
         // a spot opened — offer it to the first person waiting (FIFO)
         setWaitlists((prev) => {
           const q = prev[b.eventId] ?? [];
           const idx = q.findIndex((w) => w.status === 'waiting');
           if (idx === -1) return prev;
+          const evt = eventById(b.eventId) ?? myEvents.find((e) => e.id === b.eventId);
+          notify(q[idx].phone, 'waitlist_offer', { name: q[idx].name, event: evt?.title ?? 'the event', link: `${window.location.origin}/events/${evt?.slug ?? ''}` });
           return { ...prev, [b.eventId]: q.map((w, i) => (i === idx ? { ...w, status: 'offered' as const } : w)) };
         });
       },
@@ -674,13 +684,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       helpTickets: user ? (ticketsMap[user.phone] ?? []) : [],
       addHelpTicket: (t) => {
         if (!user) return;
+        const tid = 'HT-' + Math.floor(1000 + Math.random() * 8999);
         setTicketsMap((prev) => ({
           ...prev,
           [user.phone]: [
-            { ...t, id: 'HT-' + Math.floor(1000 + Math.random() * 8999), status: 'open' as const, createdAt: new Date().toISOString() },
+            { ...t, id: tid, status: 'open' as const, createdAt: new Date().toISOString() },
             ...(prev[user.phone] ?? []),
           ],
         }));
+        notify(user.phone, 'help_ticket', { id: tid, subject: t.subject, topic: t.topic }, user.email || undefined);
       },
       checkInBooking: (id, count) =>
         setBookings((prev) =>
@@ -713,11 +725,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
         ),
       featured,
-      requestFeatured: (input) =>
+      requestFeatured: (input) => {
+        if (user) notify(user.phone, 'featured_submitted', { amount: String(input.amount), what: `${input.type} (${input.refId})` }, user.email || undefined);
         setFeatured((prev) => [
           { ...input, id: 'ft' + Date.now(), status: 'pending' as const, createdAt: new Date().toISOString() },
           ...prev.filter((f) => !(f.type === input.type && f.refId === input.refId)),
-        ]),
+        ]);
+      },
       interested,
       toggleInterested: (eventId) =>
         setInterested((prev) =>
@@ -734,6 +748,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       orgBalance,
       withdrawals,
       withdraw: (amount) => {
+        if (user) notify(user.phone, 'organizer_payout', { amount: String(amount) }, user.email || undefined);
         setOrgBalance((b) => Math.max(0, b - amount));
         setWithdrawals((prev) => [
           {

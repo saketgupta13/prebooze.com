@@ -26,8 +26,9 @@ export default function QRCode({ seed, size = 148, caption }: { seed: string; si
     return null;
   };
 
+  const logo = Math.round(size * 0.22);
   return (
-    <div className="qr-wrap">
+    <div className="qr-wrap" style={{ position: 'relative', display: 'inline-block' }}>
       <svg width={size} height={size} viewBox={`0 0 ${n} ${n}`} shapeRendering="crispEdges">
         {Array.from({ length: n * n }, (_, i) => {
           const x = i % n;
@@ -37,6 +38,15 @@ export default function QRCode({ seed, size = 148, caption }: { seed: string; si
           return on ? <rect key={i} x={x} y={y} width={1} height={1} fill="#14150f" /> : null;
         })}
       </svg>
+      <span
+        style={{
+          position: 'absolute', top: size / 2, left: '50%', transform: 'translate(-50%, -50%)',
+          width: logo + 10, height: logo + 10, background: '#fff', borderRadius: 8,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 2px #fff',
+        }}
+      >
+        <img src="/prebooze-logo.png" alt="" style={{ width: logo, height: logo, objectFit: 'contain' }} />
+      </span>
       {caption && <span className="cap">{caption}</span>}
     </div>
   );

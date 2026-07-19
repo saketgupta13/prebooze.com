@@ -1,6 +1,7 @@
 import { useApp } from '../../store/AppContext';
 import { SUB_TIERS, fmtMoney } from '../../data/mock';
 import { guestsThisMonth, planQuota } from '../../lib/promoterEarnings';
+import { notify } from '../../lib/notify';
 
 export default function PromoterSubscription() {
   const { user, updateUser, setPromoterPlan, promoterGuests, toast } = useApp();
@@ -75,6 +76,7 @@ export default function PromoterSubscription() {
                 onClick={() => {
                   updateUser({ promoterPlan: t.id });
                   if (mySlug) setPromoterPlan(mySlug, t.id);
+                  if (user) notify(user.phone, 'subscription_receipt', { plan: t.name, price: String(t.price), quota: t.guests < 0 ? 'unlimited' : String(t.guests) }, user.email || undefined);
                   toast(`Switched to ${t.name} ✓`);
                 }}
               >
@@ -96,6 +98,7 @@ export default function PromoterSubscription() {
           className={`chip ${user?.autoRenew ? 'on' : ''}`}
           onClick={() => {
             updateUser({ autoRenew: !user?.autoRenew });
+            if (!user?.autoRenew && user) notify(user.phone, 'auto_renew_on', { what: 'promoter subscription' }, user.email || undefined);
             toast(user?.autoRenew ? 'Auto-renew turned off' : 'Auto-renew on ✓');
           }}
         >

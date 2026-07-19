@@ -62,7 +62,8 @@ export default function HelpCenter() {
   const { user, helpTickets, addHelpTicket, toast } = useApp();
   const myRole = (existingRole(user) ?? 'guest') as HelpRole;
   const [role, setRole] = useState<HelpRole>(myRole);
-  const help = HELP[role];
+  const effectiveRole = user ? myRole : role; // logged-in users only ever see their own role
+  const help = HELP[effectiveRole];
   const [topic, setTopic] = useState(help.topics[0]);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -92,16 +93,22 @@ export default function HelpCenter() {
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Help center 🛟</h1>
         <p className="muted" style={{ marginBottom: 14 }}>
-          {user ? <>Showing help for your role — <b className="accent">{HELP[myRole].label}</b>. Switch below if you need something else.</> : 'Pick who you are for the right answers.'}
+          {user ? (
+            <>Help for your account — <b className="accent">{HELP[myRole].icon} {HELP[myRole].label}</b>.</>
+          ) : (
+            'Pick who you are for the right answers.'
+          )}
         </p>
 
-        <div className="chip-row" style={{ marginBottom: 18 }}>
-          {(Object.keys(HELP) as HelpRole[]).map((r) => (
-            <button key={r} className={`chip ${role === r ? 'on' : ''}`} onClick={() => pickRole(r)}>
-              {HELP[r].icon} {HELP[r].label}{r === myRole && user ? ' (you)' : ''}
-            </button>
-          ))}
-        </div>
+        {!user && (
+          <div className="chip-row" style={{ marginBottom: 18 }}>
+            {(Object.keys(HELP) as HelpRole[]).map((r) => (
+              <button key={r} className={`chip ${role === r ? 'on' : ''}`} onClick={() => pickRole(r)}>
+                {HELP[r].icon} {HELP[r].label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="card" style={{ marginBottom: 18 }}>
           <h3 style={{ marginBottom: 10 }}>Raise a ticket <span className="badge badge-accent">{help.icon} {help.label}</span></h3>
