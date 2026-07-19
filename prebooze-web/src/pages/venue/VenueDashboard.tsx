@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { EVENTS, VENUES, fmtDate, fmtTime } from '../../data/mock';
+import { EVENTS, FEATURED_PRICING, VENUES, fmtDate, fmtTime } from '../../data/mock';
+import PromoteCard from '../../components/PromoteCard';
 
 /** Venue overview — verification status, listing health and events at a glance. */
 export default function VenueDashboard() {
@@ -47,6 +48,10 @@ export default function VenueDashboard() {
           <div className="tiny muted">Followers & favourites</div>
         </div>
       </div>
+
+      {venue && (
+        <PromoteCard type="venue" refId={venue.id} city={venue.city} label="your venue" monthly={FEATURED_PRICING.venueMonthly} />
+      )}
 
       <div className="card" style={{ marginBottom: 18 }}>
         <h3 style={{ marginBottom: 10 }}>Listing checklist</h3>

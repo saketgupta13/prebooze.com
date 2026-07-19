@@ -30,6 +30,7 @@ export interface AdminEvent {
   cap: number;
   revenue: number;
   commission: number | null; // per-event rate — no global setting
+  durationHrs?: number; // total hours
   tiers: Tier[];
   description?: string;
   rules?: string;
@@ -177,7 +178,7 @@ export interface Promoter {
 
 export interface FeaturedRequest {
   id: string;
-  type: 'event' | 'organizer' | 'promoter' | 'lineup';
+  type: 'event' | 'organizer' | 'promoter' | 'lineup' | 'venue';
   name: string;
   refId: string;
   city: string;
@@ -193,6 +194,7 @@ export interface FeaturedRates {
   organizerMonthly: number;
   promoterMonthly: number;
   lineupMonthly: number;
+  venueMonthly: number;
 }
 
 export interface ReferralRates {

@@ -85,21 +85,21 @@ export default function VenueDetail() {
 
         <div className="grid-2" style={{ alignItems: 'stretch', marginBottom: 10 }}>
           <div className="card">
-            <div
-              style={{
-                borderRadius: 10,
-                border: '1.5px dashed var(--border-dash)',
-                padding: '34px 10px',
-                textAlign: 'center',
-                color: 'var(--muted-2)',
-                marginBottom: 12,
-              }}
+            <iframe
+              title={`Map — ${venue.name}`}
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(`${venue.name}, ${venue.address}, ${venue.city}`)}&z=15&output=embed`}
+              style={{ width: '100%', height: 200, border: '1px solid var(--border)', borderRadius: 10, marginBottom: 12 }}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+            <div className="small muted" style={{ marginBottom: 10 }}>📍 {venue.address}, {venue.city}</div>
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${venue.name}, ${venue.address}, ${venue.city}`)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-pri btn-sm"
             >
-              📍 google map embed
-            </div>
-            <div className="small muted">{venue.address}</div>
-            <a href="#directions" className="link small bold">
-              Get directions →
+              🧭 Get directions →
             </a>
           </div>
           <div className="card">

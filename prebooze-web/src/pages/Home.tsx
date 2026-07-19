@@ -93,6 +93,7 @@ export default function Home() {
   const orgFeat = featuredRefs(featured, 'organizer', city);
   const promoFeat = featuredRefs(featured, 'promoter', city);
   const lineFeat = featuredRefs(featured, 'lineup', city);
+  const venueFeat = featuredRefs(featured, 'venue', city);
   const eventFeat = featuredRefs(featured, 'event', city);
   const navigate = useNavigate();
   const [cat, setCat] = useState('All');
@@ -122,7 +123,7 @@ export default function Home() {
   const topOrganizers = featuredFirst([...byCity(ORGANIZERS)].sort((a, b) => b.eventsHosted - a.eventsHosted), (o) => o.id, orgFeat).slice(0, 10);
   const topPromoters = featuredFirst([...byCity(PROMOTERS)].sort((a, b) => b.showRate - a.showRate), (p) => p.slug, promoFeat).slice(0, 10);
   const topLineups = featuredFirst([...byCity(LINEUPS)].sort((a, b) => b.followers - a.followers), (l) => l.slug, lineFeat).slice(0, 10);
-  const topVenues = [...byCity(VENUES)].sort((a, b) => b.rating - a.rating).slice(0, 10);
+  const topVenues = featuredFirst([...byCity(VENUES)].sort((a, b) => b.rating - a.rating), (v) => v.id, venueFeat).slice(0, 10);
   const cityPeople = [...byCity(PEOPLE)].sort((a, b) => b.followers - a.followers).slice(0, 10);
 
   const friendEvents = published
@@ -378,7 +379,10 @@ export default function Home() {
                 <Link key={v.id} to={`/venues/${v.id}`} className="ecard">
                   <Poster hue={v.photoHue} emoji="🏛" label="venue photo" variant="landscape" />
                   <div>
-                    <h3>{v.name} {v.verified && <span className="verified">✓</span>}</h3>
+                    <h3>
+                      {v.name} {v.verified && <span className="verified">✓</span>}{' '}
+                      {venueFeat.has(v.id) && <span className="badge badge-accent" style={{ fontSize: 10 }}>★ Featured</span>}
+                    </h3>
                     <div className="meta">★ {v.rating} · {count || v.followers % 20} events · {v.type}</div>
                   </div>
                 </Link>

@@ -385,7 +385,7 @@ export const SEED_SUB_TIERS = [
 ];
 
 // Featured placements — admin approval queue + editable rates.
-export const SEED_FEATURED_RATES = { perEvent: 2000, organizerMonthly: 4999, promoterMonthly: 2999, lineupMonthly: 1999 };
+export const SEED_FEATURED_RATES = { perEvent: 2000, organizerMonthly: 4999, promoterMonthly: 2999, lineupMonthly: 1999, venueMonthly: 3999 };
 export const SEED_FEATURED_REQUESTS = [
   { id: 'fr1', type: 'organizer' as const, name: 'FestCrew', refId: 'festcrew', city: 'Austin', billing: 'monthly' as const, amount: 4999, status: 'pending' as const, requestedAt: '17 Jul', expiresAt: '—' },
   { id: 'fr2', type: 'event' as const, name: 'Neon Warehouse Party', refId: 'e6', city: 'Austin', billing: 'per_event' as const, amount: 2000, status: 'pending' as const, requestedAt: '16 Jul', expiresAt: '22 Aug' },

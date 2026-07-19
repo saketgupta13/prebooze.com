@@ -7,7 +7,7 @@ import type { Featured } from '../types';
 export default function PromoteCard({
   type, refId, city, label, monthly,
 }: {
-  type: Extract<Featured['type'], 'organizer' | 'promoter' | 'lineup'>;
+  type: Extract<Featured['type'], 'organizer' | 'promoter' | 'lineup' | 'venue'>;
   refId: string;
   city: string;
   label: string; // e.g. "your brand", "your PR profile", "your artist profile"

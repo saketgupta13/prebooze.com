@@ -90,8 +90,8 @@ export interface Organizer {
 /** A paid featured placement — surfaces an item first in its own slider/directory. */
 export interface Featured {
   id: string;
-  type: 'event' | 'organizer' | 'promoter' | 'lineup';
-  refId: string; // event id | organizer id | promoter slug | lineup slug
+  type: 'event' | 'organizer' | 'promoter' | 'lineup' | 'venue';
+  refId: string; // event id | organizer id | promoter slug | lineup slug | venue id
   city: string;
   status: 'pending' | 'active' | 'rejected' | 'expired';
   billing: 'per_event' | 'monthly';

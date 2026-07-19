@@ -3,13 +3,14 @@ import { fmt } from '../store/data';
 import { Kpi } from '../components/ui';
 import type { FeaturedRates } from '../types';
 
-const TYPE_ICON: Record<string, string> = { event: '🎫', organizer: '🎧', promoter: '📣', lineup: '🎤' };
+const TYPE_ICON: Record<string, string> = { event: '🎫', organizer: '🎧', promoter: '📣', lineup: '🎤', venue: '🏛' };
 
 const RATE_FIELDS: { key: keyof FeaturedRates; label: string }[] = [
   { key: 'perEvent', label: 'Per event (one-off)' },
   { key: 'organizerMonthly', label: 'Organizer / month' },
   { key: 'promoterMonthly', label: 'Promoter / month' },
   { key: 'lineupMonthly', label: 'Line-up / month' },
+  { key: 'venueMonthly', label: 'Venue / month' },
 ];
 
 export default function Featured() {

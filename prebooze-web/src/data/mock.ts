@@ -909,7 +909,7 @@ export const SEED_FEATURED: Featured[] = [
 ];
 
 /** Featured pricing (mirrors the admin-managed rates). */
-export const FEATURED_PRICING = { perEvent: 2000, organizerMonthly: 4999, promoterMonthly: 2999, lineupMonthly: 1999 };
+export const FEATURED_PRICING = { perEvent: 2000, organizerMonthly: 4999, promoterMonthly: 2999, lineupMonthly: 1999, venueMonthly: 3999 };
 
 /** Refer & earn — flat, admin-editable amounts (₹ wallet credits). */
 export const REFERRAL_CONFIG = { referrer: 100, referee: 100 };

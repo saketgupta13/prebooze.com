@@ -297,7 +297,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [abandonedCarts, setAbandonedCarts] = usePersisted<AbandonedCart[]>('pba_abandoned', SEED_ABANDONED_CARTS, mergeWithSeed(SEED_ABANDONED_CARTS, 'id'));
   const [locations, setLocations] = usePersisted<LocCountry[]>('pba_locations', SEED_LOCATIONS);
   const [featuredRequests, setFeaturedRequests] = usePersisted<FeaturedRequest[]>('pba_featured', SEED_FEATURED_REQUESTS, mergeWithSeed<FeaturedRequest>(SEED_FEATURED_REQUESTS, 'id'));
-  const [featuredRates, setFeaturedRates] = usePersisted<FeaturedRates>('pba_featured_rates', SEED_FEATURED_RATES);
+  const [featuredRates, setFeaturedRates] = usePersisted<FeaturedRates>('pba_featured_rates', SEED_FEATURED_RATES, (v) => ({ ...SEED_FEATURED_RATES, ...v }));
   const [adminReferrals] = usePersisted<AdminReferral[]>('pba_referrals', SEED_REFERRALS, mergeWithSeed(SEED_REFERRALS, 'id'));
   const [referralRates, setReferralRates] = usePersisted<ReferralRates>('pba_referral_rates', SEED_REFERRAL_RATES);
   const [jobs, setJobs] = usePersisted<AdminJob[]>('pba_jobs', SEED_JOBS, mergeWithSeed<AdminJob>(SEED_JOBS, 'id'));

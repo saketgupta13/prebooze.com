@@ -217,6 +217,10 @@ export default function EventEditor() {
             <label>Start time</label>
             <input className="input" value={event.time} onChange={(e) => patch({ time: e.target.value })} placeholder="8:00 PM" />
           </div>
+          <div className="field">
+            <label>Total duration (hours)</label>
+            <input className="input" inputMode="decimal" value={event.durationHrs ?? ""} onChange={(e) => patch({ durationHrs: parseFloat(e.target.value) || undefined })} placeholder="e.g. 5" />
+          </div>
           <div className="field" style={{ gridColumn: '1 / 3' }}>
             <label>Organizer</label>
             <select className="input" value={event.organizer} onChange={(e) => patch({ organizer: e.target.value })}>

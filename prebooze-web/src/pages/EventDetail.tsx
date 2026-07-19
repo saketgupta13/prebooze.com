@@ -108,7 +108,7 @@ export default function EventDetail() {
                 <h1>{event.title}</h1>
                 <div className="detail-meta">
                   <span>📅 {fmtDate(event.date)}, {fmtTime(event.date)}</span>
-                  <span>📍 {venue.name}, {venue.city}</span>
+                  <span>📍 <Link to={`/venues/${venue.id}`} className="link">{venue.name}</Link>, {venue.city}</span>
                   <span>⏱ {event.durationHrs} hrs</span>
                 </div>
                 <div className="chip-row" style={{ alignItems: 'center' }}>

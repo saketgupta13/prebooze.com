@@ -344,12 +344,13 @@ export default function CreateEvent() {
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
             </div>
             <div className="field">
-              <span>Duration (hrs)</span>
-              <select value={duration} onChange={(e) => setDuration(e.target.value)}>
-                {['2', '3', '4', '5', '6', '8'].map((d) => (
-                  <option key={d}>{d}</option>
-                ))}
-              </select>
+              <span>Total duration (hours)</span>
+              <input
+                value={duration}
+                inputMode="decimal"
+                onChange={(e) => setDuration(e.target.value.replace(/[^0-9.]/g, '').slice(0, 4))}
+                placeholder="e.g. 5 or 6.5"
+              />
             </div>
           </div>
           <div className="field">
