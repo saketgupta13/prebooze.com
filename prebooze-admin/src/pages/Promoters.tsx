@@ -6,7 +6,6 @@ import { GradientPhoto, ORGANIZER_STATUS, SearchBox, Tag } from '../components/u
 import type { Promoter } from '../types';
 
 const earned = (p: Promoter) => (p.perHeadEarned ?? 0) + (p.commissionEarned ?? 0);
-const available = (p: Promoter) => Math.max(0, earned(p) - (p.withdrawn ?? 0));
 
 /** Promoter / PR management — mirrors Organizers: approve KYC, view, suspend. */
 export function Promoters() {

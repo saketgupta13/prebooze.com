@@ -17,7 +17,6 @@ export default function Onboarding() {
   const [contact, setContact] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
   const [altPhone, setAltPhone] = useState('');
-  const [city, setCity] = useState(user?.city ?? '');
   const [loc, setLoc] = useState(emptyLocation);
   const [types, setTypes] = useState('Concerts');
   const [about, setAbout] = useState('');
@@ -105,7 +104,7 @@ export default function Onboarding() {
                 <input value={user?.phone ?? ''} disabled />
               </div>
             </div>
-            <LocationPicker value={loc} onChange={(v) => { setLoc(v); setCity(v.city); }} />
+            <LocationPicker value={loc} onChange={setLoc} />
             <div className="field">
               <span>Event types you host</span>
               <select value={types} onChange={(e) => setTypes(e.target.value)}>

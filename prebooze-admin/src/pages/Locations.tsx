@@ -50,7 +50,7 @@ export default function Locations() {
               <Del onClick={() => { removeLocation({ country: c.name }); if (countryF === c.name) setCountryF(''); }} />
             </div>
           ))}
-          <form style={{ display: 'flex', gap: 6, marginTop: 8 }} onSubmit={(e) => { e.preventDefault(); addLocation('country', {}, newCountry); setNewCountry(''); }}>
+          <form style={{ display: 'flex', gap: 6, marginTop: 8 }} onSubmit={(e) => { e.preventDefault(); addLocation('country', { country: '' }, newCountry); setNewCountry(''); }}>
             <input className="input" style={{ padding: '5px 8px' }} value={newCountry} onChange={(e) => setNewCountry(e.target.value)} placeholder="Add country" />
             <button className="btn btn-pri btn-sm">+</button>
           </form>
