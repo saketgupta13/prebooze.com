@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react';
 import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayMethod, User, Venue, WaitlistEntry } from '../types';
 import { registerVenue } from '../data/mock';
-import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, eventById } from '../data/mock';
+import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } from '../data/mock';
 import { notify } from '../lib/notify';
 
 export interface OrgReview {
@@ -238,6 +238,7 @@ interface AppState {
   addCustomLineup: (l: { name: string; role: string }) => void;
   myVenues: Venue[];
   addMyVenue: (v: Venue) => void;
+  updateMyVenue: (id: string, patch: Partial<Venue>) => void;
   promoterGuests: PromoterGuest[];
   addPromoterGuest: (g: PromoterGuest) => void;
   checkInPromoterGuest: (id: string) => void;
@@ -274,8 +275,8 @@ const load = <T,>(key: string, fallback: T): T => {
  * role (legacy data), collapse it to a plain guest. */
 function normalizeUser(u: User | null): User | null {
   if (!u) return u;
-  const roles = [u.isOrganizer, u.isPromoter, u.isLineup].filter(Boolean).length;
-  if (roles > 1) return { ...u, isOrganizer: false, isPromoter: false, isLineup: false };
+  const roles = [u.isOrganizer, u.isPromoter, u.isLineup, u.isVenue].filter(Boolean).length;
+  if (roles > 1) return { ...u, isOrganizer: false, isPromoter: false, isLineup: false, isVenue: false };
   return u;
 }
 
@@ -776,6 +777,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addMyVenue: (v) => {
         registerVenue(v);
         setMyVenues((prev) => [...prev, v]);
+      },
+      updateMyVenue: (id, patch) => {
+        setMyVenues((prev) => prev.map((v) => (v.id === id ? { ...v, ...patch } : v)));
+        const live = VENUES.find((v) => v.id === id); // keep public pages in sync mid-session
+        if (live) Object.assign(live, patch);
       },
       promoterGuests,
       addPromoterGuest: (g) => setPromoterGuests((prev) => [g, ...prev]),

@@ -33,7 +33,7 @@ const TRUST = [
   { icon: '📍', title: 'Local to your city', desc: 'Every listing is filtered to your city — only what you can actually attend.' },
 ];
 
-const HOW: Record<'guests' | 'organizers' | 'promoters' | 'lineups', { label: string; steps: { icon: string; t: string; d: string }[] }> = {
+const HOW: Record<'guests' | 'organizers' | 'promoters' | 'lineups' | 'venues', { label: string; steps: { icon: string; t: string; d: string }[] }> = {
   guests: {
     label: 'For guests',
     steps: [
@@ -70,12 +70,22 @@ const HOW: Record<'guests' | 'organizers' | 'promoters' | 'lineups', { label: st
       { icon: '🔥', t: 'Sell out shows', d: 'Your name on the poster pulls your crowd in.' },
     ],
   },
+  venues: {
+    label: 'For venues',
+    steps: [
+      { icon: '🏛', t: 'List your venue', d: 'Photos, capacity, amenities and license — one quick form.' },
+      { icon: '✅', t: 'Get verified', d: 'Admin reviews your documents; the badge builds trust.' },
+      { icon: '📅', t: 'Host events', d: 'Organizers pick your venue while creating their events.' },
+      { icon: '📈', t: 'Fill your nights', d: 'Every event page, ticket and search points guests to you.' },
+    ],
+  },
 };
 
 const JOIN = [
   { icon: '🎤', title: 'Host events', desc: 'List your event, sell tickets, scan QR at the gate — payouts weekly.', cta: 'Host with us →', to: '/host' },
   { icon: '📣', title: 'Become a promoter', desc: 'Run guest lists with your own affiliate links and earn per head.', cta: 'Start promoting →', to: '/promoter/onboarding' },
   { icon: '🎧', title: 'Join as line-up', desc: 'DJs, bands and comedians — get a profile and get booked.', cta: 'Create artist profile →', to: '/lineup/onboarding' },
+  { icon: '🏛', title: 'List your venue', desc: 'Clubs, rooftops and warehouses — get verified and host events.', cta: 'List my venue →', to: '/venue/onboarding' },
 ];
 
 export default function Home() {
@@ -86,7 +96,7 @@ export default function Home() {
   const eventFeat = featuredRefs(featured, 'event', city);
   const navigate = useNavigate();
   const [cat, setCat] = useState('All');
-  const [howTab, setHowTab] = useState<'guests' | 'organizers' | 'promoters' | 'lineups'>('guests');
+  const [howTab, setHowTab] = useState<'guests' | 'organizers' | 'promoters' | 'lineups' | 'venues'>('guests');
   const [dismissed, setDismissed] = useState(false);
   const [heroIdx, setHeroIdx] = useState(0);
   const [eventLimit, setEventLimit] = useState(4);
@@ -437,7 +447,7 @@ export default function Home() {
           <p className="muted small" style={{ marginTop: -6, marginBottom: 14 }}>
             Whoever you are in nightlife — there’s a way in.
           </p>
-          <div className="grid-3">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
             {JOIN.map((j) => (
               <div key={j.title} className="card" style={{ display: 'flex', flexDirection: 'column', borderColor: 'var(--border)' }}>
                 <div style={{ fontSize: 30 }}>{j.icon}</div>

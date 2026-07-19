@@ -163,7 +163,12 @@ export default function Header() {
                     🎤 Artist console
                   </Link>
                 )}
-                {!user.isOrganizer && !user.isPromoter && !user.isLineup && (
+                {user.isVenue && (
+                  <Link to="/venue" onClick={() => setMenuOpen(false)}>
+                    🏛 Venue console
+                  </Link>
+                )}
+                {!user.isOrganizer && !user.isPromoter && !user.isLineup && !user.isVenue && (
                   <Link to="/host" onClick={() => setMenuOpen(false)}>
                     🎤 Host with us
                   </Link>

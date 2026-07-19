@@ -122,3 +122,11 @@ export const notifications = {
   send: (channel: 'whatsapp' | 'email', to: string, template: string, data: Record<string, string>) =>
     apiFetch<void>('/notifications/send', { body: { channel, to, template, data } }),
 };
+
+// ---------- venue partner ----------
+export const venuePartner = {
+  onboard: (v: Partial<Venue> & { licenseDoc?: string; addressProofDoc?: string }) => apiFetch<Venue>('/venue/onboard', { body: v }),
+  myListing: () => apiFetch<Venue>('/venue/listing'),
+  updateListing: (patch: Partial<Venue>) => apiFetch<Venue>('/venue/listing', { method: 'PATCH', body: patch }),
+  events: () => apiFetch<Event[]>('/venue/events'),
+};

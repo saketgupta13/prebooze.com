@@ -11,7 +11,7 @@ Recommended stack: Node (NestJS/Fastify) + Postgres + Redis (holds/OTP/queues) +
 
 ## Conventions
 - Base URL `/v1`. JSON everywhere. Auth: `Authorization: Bearer <JWT>`; errors `{ code, message }` with proper HTTP status.
-- Roles: `guest` (default), plus at most **one** elevated role per phone: `organizer | promoter | lineup` (enforced at onboarding), `admin`, `staff`.
+- Roles: `guest` (default), plus at most **one** elevated role per phone: `organizer | promoter | lineup | venue` (enforced at onboarding), `admin`, `staff`.
 - All discovery endpoints are **city-scoped** via `?city=`.
 
 ## Data model (tables)
@@ -62,6 +62,11 @@ Recommended stack: Node (NestJS/Fastify) + Postgres + Redis (holds/OTP/queues) +
 - `GET/POST /organizer/events` (create/edit → status `pending` for admin review), `GET /organizer/events/:id/attendees`
 - `GET/POST /organizer/coupons`, `GET /organizer/payouts`, `POST /organizer/withdraw` (send `organizer_payout`)
 - `GET /organizer/carts` (abandoned for their events) · `POST /organizer/carts/:id/remind` (WhatsApp deep-link nudge, no discount)
+
+### Venue partner
+- `POST /venue/onboard` — create listing (name, type, location, address, capacity, amenities, about, photos) + license & address-proof docs → status `pending` for admin review; sets the user's `venue` role (one-role rule applies).
+- `GET /venue/listing` · `PATCH /venue/listing` — the owner's listing (city changes admin-gated).
+- `GET /venue/events` — approved events booked at this venue (drives the venue console's events + stats).
 
 ### Featured
 - `POST /featured/request` — charge via Razorpay → `pending`; admin approves → `active` (city-scoped, capped, labeled). `GET /featured/rates`.

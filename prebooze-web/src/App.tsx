@@ -75,6 +75,12 @@ import PromoterSettings from './pages/promoter/PromoterSettings';
 import PromoterGuestList from './pages/promoter/PromoterGuestList';
 import GuestLanding from './pages/promoter/GuestLanding';
 import GuestPass from './pages/promoter/GuestPass';
+import VenueOnboarding from './pages/venue/VenueOnboarding';
+import VenueLayout from './pages/venue/VenueLayout';
+import VenueDashboard from './pages/venue/VenueDashboard';
+import VenueListing from './pages/venue/VenueListing';
+import VenueEvents from './pages/venue/VenueEvents';
+import VenueSettings from './pages/venue/VenueSettings';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useApp();
@@ -259,6 +265,15 @@ export default function App() {
           <Route path="leaderboard" element={<PromoterLeaderboard />} />
           <Route path="subscription" element={<PromoterSubscription />} />
           <Route path="settings" element={<PromoterSettings />} />
+        </Route>
+
+        {/* Venue-partner console */}
+        <Route path="/venue/onboarding" element={<VenueOnboarding />} />
+        <Route path="/venue" element={<VenueLayout />}>
+          <Route index element={<VenueDashboard />} />
+          <Route path="listing" element={<VenueListing />} />
+          <Route path="events" element={<VenueEvents />} />
+          <Route path="settings" element={<VenueSettings />} />
         </Route>
 
         {/* Company / static */}

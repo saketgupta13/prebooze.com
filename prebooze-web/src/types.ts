@@ -211,6 +211,9 @@ export interface User {
   promoterBrand?: string;
   promoterUsername?: string;
   promoterPlan?: string;
+  isVenue?: boolean;
+  venueName?: string;
+  venueId?: string; // links to the Venue record created at onboarding
   attendanceVisibility?: 'off' | 'followers' | 'public'; // who can see events I'm attending (default off)
   autoRenew?: boolean; // auto-renew subscriptions / featured placements
 }
