@@ -12,6 +12,7 @@ export default function JobDetail() {
   const [email, setEmail] = useState(user?.email ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [note, setNote] = useState('');
+  const [cv, setCv] = useState('');
   const [open, setOpen] = useState(false);
 
   if (!job || job.status !== 'open') {
@@ -33,7 +34,11 @@ export default function JobDetail() {
       toast('Name, email and phone are required');
       return;
     }
-    applyJob({ jobId: job.id, name: name.trim(), email: email.trim(), phone: phone.trim(), note: note.trim() });
+    if (!cv) {
+      toast('Please attach your CV / resume');
+      return;
+    }
+    applyJob({ jobId: job.id, name: name.trim(), email: email.trim(), phone: phone.trim(), note: note.trim(), cv });
     setOpen(false);
   };
 
@@ -93,6 +98,15 @@ export default function JobDetail() {
             <div className="field">
               <span>Why you? (+ portfolio / LinkedIn link)</span>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Two lines and a link is perfect…" />
+            </div>
+            <div className="field">
+              <span>CV / resume (PDF or DOC, max 5 MB)</span>
+              <div
+                className={`upload-box ${cv ? 'done' : ''}`}
+                onClick={() => setCv(cv ? '' : `${(name.trim() || 'candidate').toLowerCase().replace(/\s+/g, '-')}-cv.pdf`)}
+              >
+                {cv ? `✓ ${cv} attached · click to remove` : '⬆ upload your CV / resume'}
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn btn-pri">Submit application →</button>

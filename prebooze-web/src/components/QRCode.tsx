@@ -20,7 +20,7 @@ export default function QRCode({ seed, size = 148, caption }: { seed: string; si
     return (h >>> 0) / 4294967295;
   };
   const cells: boolean[] = [];
-  for (let i = 0; i < n * n; i++) cells.push(rand() > 0.52);
+  for (let i = 0; i < n * n; i++) cells.push(rand() > 0.58);
 
   const finder = (cx: number, cy: number, x: number, y: number) => {
     const dx = x - cx;
@@ -47,9 +47,10 @@ export default function QRCode({ seed, size = 148, caption }: { seed: string; si
       </svg>
       <span
         style={{
-          position: 'absolute', top: size / 2, left: '50%', transform: 'translate(-50%, -50%)',
+          position: 'absolute', top: 14 + size / 2, left: '50%', transform: 'translate(-50%, -50%)',
           width: logo + 10, height: logo + 10, background: '#000', borderRadius: 8,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 2px #000',
+          border: '1.5px solid #9be13d',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #000',
         }}
       >
         <img src="/prebooze-mark.png" alt="" style={{ width: logo, height: logo, objectFit: 'contain' }} />

@@ -17,7 +17,7 @@ const NAV = [
 ];
 
 export default function OrganizerLayout() {
-  const { user, toastMsg } = useApp();
+  const { user } = useApp();
 
   if (!user) return <Navigate to="/login" state={{ from: '/organizer' }} replace />;
   if (!user.isOrganizer) return <Navigate to="/organizer/onboarding" replace />;
@@ -37,26 +37,6 @@ export default function OrganizerLayout() {
           <Outlet />
         </div>
       </div>
-      {toastMsg && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 24,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--accent)',
-            color: 'var(--on-accent)',
-            padding: '10px 18px',
-            borderRadius: 999,
-            fontWeight: 700,
-            fontSize: 13,
-            zIndex: 60,
-            maxWidth: '90vw',
-          }}
-        >
-          {toastMsg}
-        </div>
-      )}
     </main>
   );
 }

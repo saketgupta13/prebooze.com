@@ -18,7 +18,7 @@ function qrCells(seed: string, n = 21): boolean[] {
     return (h >>> 0) / 4294967295;
   };
   const cells: boolean[] = [];
-  for (let i = 0; i < n * n; i++) cells.push(rand() > 0.52);
+  for (let i = 0; i < n * n; i++) cells.push(rand() > 0.58);
   return cells;
 }
 
@@ -44,7 +44,7 @@ const loadLogo = (): Promise<HTMLImageElement | null> =>
 export async function downloadTicket(booking: Booking, event: Event, venue: Venue | undefined) {
   const logo = await loadLogo();
   const W = 640;
-  const H = 960;
+  const H = 960 + Math.max(0, Math.ceil(booking.guests.length / 2) - 1) * 20; // room for the guest list
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
@@ -116,8 +116,12 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   // brand bunny in the QR centre on black
   const box = 88;
   ctx.fillStyle = '#000000';
-  roundRect(ctx, W / 2 - box / 2, qy + qsize / 2 - box / 2, box, box, 10);
+  roundRect(ctx, W / 2 - box / 2 - 3, qy + qsize / 2 - box / 2 - 3, box + 6, box + 6, 12);
   ctx.fill();
+  ctx.strokeStyle = '#9be13d';
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, W / 2 - box / 2, qy + qsize / 2 - box / 2, box, box, 10);
+  ctx.stroke();
   if (logo) {
     const pad = 6;
     ctx.drawImage(logo, W / 2 - box / 2 + pad, qy + qsize / 2 - box / 2 + pad, box - pad * 2, box - pad * 2);
@@ -134,15 +138,32 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   ctx.fillText('Prebooze code — scans only with the Prebooze scanner', W / 2, qy + qsize + 36);
   ctx.textAlign = 'left';
 
-  // booking id + footer
+  // booking id + guest list + footer
   ctx.fillStyle = '#9be13d';
   ctx.font = '800 22px Manrope, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(booking.id, W / 2, qy + qsize + 62);
+
+  ctx.fillStyle = '#edefe6';
+  ctx.font = '700 14px Manrope, sans-serif';
+  ctx.fillText(`Guests on this ticket (${booking.guests.length})`, W / 2, qy + qsize + 92);
+  ctx.fillStyle = '#b9bcab';
+  ctx.font = '600 14px Manrope, sans-serif';
+  let gy = qy + qsize + 114;
+  const names = booking.guests.map((g, i) => `${i + 1}. ${g.name}`);
+  let line = '';
+  const flush = () => { if (line) { ctx.fillText(line, W / 2, gy); gy += 20; line = ''; } };
+  for (const nm of names) {
+    const test = line ? `${line}   ${nm}` : nm;
+    if (ctx.measureText(test).width > W - 120 && line) flush();
+    line = line ? `${line}   ${nm}` : nm;
+  }
+  flush();
+
   ctx.fillStyle = '#7d8070';
   ctx.font = '600 14px Manrope, sans-serif';
-  ctx.fillText(`Scan at entry · valid for ${booking.qty} guest${booking.qty > 1 ? 's' : ''} · carry a photo ID`, W / 2, qy + qsize + 92);
-  ctx.fillText('prebooze.com', W / 2, H - 52);
+  ctx.fillText(`Scan at entry · valid for ${booking.qty} guest${booking.qty > 1 ? 's' : ''} · carry a photo ID`, W / 2, gy + 10);
+  ctx.fillText('prebooze.com', W / 2, H - 40);
   ctx.textAlign = 'left';
 
   const a = document.createElement('a');

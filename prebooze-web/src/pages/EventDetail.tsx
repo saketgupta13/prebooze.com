@@ -83,6 +83,7 @@ export default function EventDetail() {
   })();
 
   const book = () => {
+    if (user?.isVenue) return; // business account — checkout also blocks this
     setSelection({ eventId: event.id, qty });
     if (!user) {
       navigate('/login', { state: { from: '/checkout' } });
@@ -334,6 +335,10 @@ export default function EventDetail() {
                 ) : (
                   <Link to="/login" className="btn btn-pri btn-block">Log in to join the waitlist</Link>
                 )}
+              </div>
+            ) : user?.isVenue ? (
+              <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: '10px 12px', fontSize: 12.5 }} >
+                🏛 Venue accounts can't book tickets — use a personal number to attend as a guest.
               </div>
             ) : (
               <button className="btn btn-pri btn-block btn-lg" disabled={ticketCount === 0} onClick={book}>

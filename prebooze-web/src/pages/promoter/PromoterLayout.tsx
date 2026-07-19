@@ -12,7 +12,7 @@ const NAV = [
 ];
 
 export default function PromoterLayout() {
-  const { user, toastMsg } = useApp();
+  const { user } = useApp();
 
   if (!user) return <Navigate to="/login" state={{ from: '/promoter' }} replace />;
   if (!user.isPromoter) return <Navigate to="/promoter/onboarding" replace />;
@@ -32,26 +32,6 @@ export default function PromoterLayout() {
           <Outlet />
         </div>
       </div>
-      {toastMsg && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 24,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--accent)',
-            color: 'var(--on-accent)',
-            padding: '10px 18px',
-            borderRadius: 999,
-            fontWeight: 700,
-            fontSize: 13,
-            zIndex: 60,
-            maxWidth: '90vw',
-          }}
-        >
-          {toastMsg}
-        </div>
-      )}
     </main>
   );
 }

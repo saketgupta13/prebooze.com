@@ -5,6 +5,7 @@ import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { EVENT_STATUS, GradientPhoto, Kpi, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
+import MapEmbed from '../components/MapEmbed';
 
 /** Chip-based amenities editor with presets + custom add. */
 function AmenitiesEditor({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
@@ -266,6 +267,7 @@ export function AddVenue() {
       <div className="ph" style={{ height: 80, borderRadius: 10 }}>+ upload venue photos</div>
       <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Venue name" autoFocus />
       <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address / map pin 📍" />
+      <MapEmbed query={`${address}, ${vcity}`} />
       <div style={{ display: 'flex', gap: 8 }}>
         <input className="input" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="Capacity" inputMode="numeric" />
         <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
@@ -363,6 +365,7 @@ export function EditVenue() {
         <label>Address / map pin 📍</label>
         <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} />
       </div>
+      <MapEmbed query={`${address}, ${venue?.city ?? ""}`} />
       <div style={{ display: 'flex', gap: 8 }}>
         <div className="field" style={{ flex: 1 }}>
           <label>Capacity</label>

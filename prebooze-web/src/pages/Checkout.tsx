@@ -34,6 +34,8 @@ export default function Checkout() {
   const [email, setEmail] = useState(user?.email ?? '');
   const [allGuests, setAllGuests] = useState(false);
   const [guestNames, setGuestNames] = useState<string[]>([]);
+  const [guestGenders, setGuestGenders] = useState<string[]>([]);
+  const [guestPhones, setGuestPhones] = useState<string[]>([]);
   const [couponInput, setCouponInput] = useState('');
   const [couponMsg, setCouponMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
@@ -91,6 +93,21 @@ export default function Checkout() {
     if (expired && cartId) setCartStatus(cartId, 'abandoned');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expired]);
+
+  if (user?.isVenue) {
+    return (
+      <main className="page">
+        <div className="container center" style={{ padding: '80px 0' }}>
+          <h1>Venue accounts can't book tickets</h1>
+          <p className="muted" style={{ margin: '10px 0 20px' }}>
+            This number is registered as a venue partner — a business account. To book tickets as a guest, use a
+            personal number.
+          </p>
+          <Link to="/venue" className="btn btn-pri">Go to my venue dashboard →</Link>
+        </div>
+      </main>
+    );
+  }
 
   if (!event || !selection || lines.length === 0) {
     return (
@@ -160,10 +177,12 @@ export default function Checkout() {
     setTimeout(() => {
       const id = '#TKT-' + Math.floor(10000 + Math.random() * 89999);
       const guests = [
-        { name: name.trim(), checkedIn: false },
+        { name: name.trim(), checkedIn: false, gender: gender || undefined, whatsapp: whatsapp.trim() },
         ...Array.from({ length: ticketCount - 1 }, (_, i) => ({
           name: (allGuests && guestNames[i]?.trim()) || `Guest ${i + 2}`,
           checkedIn: false,
+          gender: (allGuests && guestGenders[i]) || undefined,
+          whatsapp: (allGuests && guestPhones[i]?.trim()) || undefined,
         })),
       ];
       const booking: Booking = {
@@ -272,19 +291,55 @@ export default function Checkout() {
               )}
               {allGuests &&
                 Array.from({ length: ticketCount - 1 }, (_, i) => (
-                  <div key={i} className="field">
-                    <span>Guest {i + 2} name</span>
-                    <input
-                      value={guestNames[i] ?? ''}
-                      onChange={(e) =>
-                        setGuestNames((g) => {
-                          const next = [...g];
-                          next[i] = e.target.value;
-                          return next;
-                        })
-                      }
-                      placeholder={`Guest ${i + 2}`}
-                    />
+                  <div key={i} className="form-row" style={{ alignItems: 'flex-end' }}>
+                    <div className="field">
+                      <span>Guest {i + 2} name</span>
+                      <input
+                        value={guestNames[i] ?? ''}
+                        onChange={(e) =>
+                          setGuestNames((g) => {
+                            const next = [...g];
+                            next[i] = e.target.value;
+                            return next;
+                          })
+                        }
+                        placeholder={`Guest ${i + 2}`}
+                      />
+                    </div>
+                    <div className="field">
+                      <span>Gender</span>
+                      <select
+                        value={guestGenders[i] ?? ''}
+                        onChange={(e) =>
+                          setGuestGenders((g) => {
+                            const next = [...g];
+                            next[i] = e.target.value;
+                            return next;
+                          })
+                        }
+                      >
+                        <option value="">Select…</option>
+                        <option>Female</option>
+                        <option>Male</option>
+                        <option>Non-binary</option>
+                        <option>Prefer not to say</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <span>WhatsApp number</span>
+                      <input
+                        value={guestPhones[i] ?? ''}
+                        inputMode="numeric"
+                        onChange={(e) =>
+                          setGuestPhones((g) => {
+                            const next = [...g];
+                            next[i] = e.target.value.replace(/[^\d+ ]/g, '').slice(0, 14);
+                            return next;
+                          })
+                        }
+                        placeholder="+91"
+                      />
+                    </div>
                   </div>
                 ))}
               <div className="field">

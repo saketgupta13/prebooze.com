@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import LocationPicker, { emptyLocation } from '../../components/LocationPicker';
 import RoleTaken from '../../components/RoleTaken';
+import MapEmbed from '../../components/MapEmbed';
 import { existingRole } from '../../lib/roles';
 import { notify } from '../../lib/notify';
 
@@ -136,6 +137,7 @@ export default function VenueOnboarding() {
                 <input value={capacity} inputMode="numeric" onChange={(e) => setCapacity(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="e.g. 450" />
               </div>
             </div>
+            {address.trim() && loc.city && <MapEmbed query={`${address}, ${loc.city}`} />}
             <div className="field">
               <span>Amenities</span>
               <div className="chip-row">

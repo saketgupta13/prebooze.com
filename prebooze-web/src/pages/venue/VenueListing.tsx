@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { VENUES } from '../../data/mock';
+import MapEmbed from '../../components/MapEmbed';
 
 const VENUE_TYPES = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
@@ -85,6 +86,7 @@ export default function VenueListing() {
             <input value={capacity} inputMode="numeric" onChange={(e) => setCapacity(e.target.value.replace(/\D/g, '').slice(0, 6))} />
           </div>
         </div>
+        {address.trim() && <MapEmbed query={`${address}, ${venue.city}`} />}
         <div className="field">
           <span>Amenities</span>
           <div className="chip-row">

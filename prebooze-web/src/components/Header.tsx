@@ -118,7 +118,7 @@ export default function Header() {
           <Link to="/browse">Events</Link>
           <Link to="/venues">Venues</Link>
           <Link to="/host">Host with us</Link>
-          {user && <Link to="/bookings">My Bookings</Link>}
+          {user && !user.isVenue && <Link to="/bookings">My Bookings</Link>}
         </nav>
 
         {user ? (
@@ -127,23 +127,29 @@ export default function Header() {
             {user.name ? user.name.split(' ')[0] : 'Profile'} ▾
             {menuOpen && (
               <div className="menu" onClick={(e) => e.stopPropagation()}>
-                <Link to="/profile" onClick={() => setMenuOpen(false)}>
-                  👤 My profile
-                </Link>
-                <Link to="/bookings" onClick={() => setMenuOpen(false)}>
-                  🎟 My bookings
-                </Link>
-                <Link to="/wishlist" onClick={() => setMenuOpen(false)}>
-                  ❤️ Wishlist & favourites
-                </Link>
-                <Link to="/wallet" onClick={() => setMenuOpen(false)}>
-                  👛 Wallet
-                </Link>
+                {/* Venue is a business account — guest features (booking, wishlist,
+                    wallet, referrals) are hidden; one number = one role. */}
+                {!user.isVenue && (
+                  <>
+                    <Link to="/profile" onClick={() => setMenuOpen(false)}>
+                      👤 My profile
+                    </Link>
+                    <Link to="/bookings" onClick={() => setMenuOpen(false)}>
+                      🎟 My bookings
+                    </Link>
+                    <Link to="/wishlist" onClick={() => setMenuOpen(false)}>
+                      ❤️ Wishlist & favourites
+                    </Link>
+                    <Link to="/wallet" onClick={() => setMenuOpen(false)}>
+                      👛 Wallet
+                    </Link>
+                    <Link to="/refer" onClick={() => setMenuOpen(false)}>
+                      🎁 Refer & earn
+                    </Link>
+                  </>
+                )}
                 <Link to="/payment-methods" onClick={() => setMenuOpen(false)}>
                   💳 Payment methods
-                </Link>
-                <Link to="/refer" onClick={() => setMenuOpen(false)}>
-                  🎁 Refer & earn
                 </Link>
                 <Link to="/help" onClick={() => setMenuOpen(false)}>
                   🛟 Help center

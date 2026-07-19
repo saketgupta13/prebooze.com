@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useApp } from './store/AppContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import Toast from './components/Toast';
 import Home from './pages/Home';
 import Browse from './pages/Browse';
 import Categories from './pages/Categories';
@@ -288,6 +289,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Footer />
+      <Toast />
     </>
   );
 }

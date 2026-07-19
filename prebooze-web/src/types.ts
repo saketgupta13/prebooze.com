@@ -131,6 +131,8 @@ export interface Review {
 export interface BookingGuest {
   name: string;
   checkedIn: boolean;
+  gender?: string;
+  whatsapp?: string;
 }
 
 export interface Booking {
@@ -241,6 +243,7 @@ export interface JobApplication {
   email: string;
   phone: string;
   note: string;
+  cv?: string; // uploaded CV file name
   appliedAt: string;
 }
 
