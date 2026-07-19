@@ -4,6 +4,7 @@ import { useApp } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import QRCode from '../components/QRCode';
 import { downloadTicket } from '../lib/ticket';
+import { downloadIcs } from '../lib/calendar';
 
 export default function MyBookings() {
   const { bookings, refundBooking, myEvents } = useApp();
@@ -134,6 +135,9 @@ export default function MyBookings() {
                     <div style={{ marginTop: 10 }}>
                       <button className="btn btn-pri btn-sm" onClick={() => downloadTicket(selected, event, venue)}>
                         ⬇ Download ticket
+                      </button>{' '}
+                      <button className="btn btn-ghost btn-sm" onClick={() => downloadIcs(event, venue)}>
+                        📅 Add to calendar
                       </button>
                     </div>
                   </div>

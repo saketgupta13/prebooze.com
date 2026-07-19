@@ -204,6 +204,9 @@ interface AdminState {
   updateReferralRate: (patch: Partial<ReferralRates>) => void;
   jobs: AdminJob[];
   addJob: (j: Omit<AdminJob, 'id' | 'status'>) => void;
+  updateJob: (id: string, patch: Partial<AdminJob>) => void;
+  teams: string[];
+  addTeam: (name: string) => void;
   toggleJob: (id: string) => void;
   removeJob: (id: string) => void;
   applicants: JobApplicant[];
@@ -213,6 +216,7 @@ interface AdminState {
   removeReel: (id: string) => void;
   toggleTopCity: (path: LocPath) => void;
   setCityIcon: (path: LocPath, icon: string) => void;
+  uploadCityIcon: (path: LocPath) => void;
 }
 
 const Ctx = createContext<AdminState>(null as unknown as AdminState);
@@ -299,6 +303,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = usePersisted<AdminJob[]>('pba_jobs', SEED_JOBS, mergeWithSeed(SEED_JOBS, 'id'));
   const [applicants] = usePersisted<JobApplicant[]>('pba_applicants', SEED_APPLICANTS, mergeWithSeed(SEED_APPLICANTS, 'id'));
   const [reels, setReels] = usePersisted<Reel[]>('pba_reels', SEED_REELS, mergeWithSeed(SEED_REELS, 'id'));
+  const [teams, setTeams] = usePersisted<string[]>('pba_teams', ['Engineering', 'Design', 'Growth', 'Operations', 'Support']);
   const [lineupCategories, setLineupCategories] = usePersisted<string[]>('pba_lineupcats', LINEUP_CATEGORIES);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -732,6 +737,17 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setJobs((prev) => [...prev, { ...j, id: 'job' + Date.now(), status: 'open' as const }]);
         toast('Job posted ✓ — live on the careers page');
       },
+      updateJob: (id, patch) => {
+        setJobs((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+        toast('Job updated ✓');
+      },
+      teams,
+      addTeam: (name) => {
+        const n = name.trim();
+        if (!n) return;
+        setTeams((prev) => (prev.includes(n) ? prev : [...prev, n]));
+        toast(`Team "${n}" created ✓`);
+      },
       toggleJob: (id) =>
         setJobs((prev) => prev.map((x) => (x.id === id ? { ...x, status: x.status === 'open' ? ('closed' as const) : ('open' as const) } : x))),
       removeJob: (id) => {
@@ -748,6 +764,16 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       removeReel: (id) => {
         setReels((prev) => prev.filter((r) => r.id !== id));
         toast('Reel removed');
+      },
+      uploadCityIcon: (path) => {
+        setLocations((prev) =>
+          prev.map((cn) =>
+            cn.name !== path.country
+              ? cn
+              : { ...cn, states: cn.states.map((st) => (st.name !== path.state ? st : { ...st, cities: st.cities.map((ci) => (ci.name === path.city ? { ...ci, iconUploaded: !ci.iconUploaded } : ci)) })) }
+          )
+        );
+        toast('City icon image uploaded ✓');
       },
       setCityIcon: (path, icon) => {
         setLocations((prev) =>
@@ -806,7 +832,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, abandonedCarts, locations, featuredRequests, featuredRates, adminReferrals, referralRates, jobs, applicants, reels, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts, setLocations, setFeaturedRequests, setFeaturedRates, setReferralRates, setJobs, setReels]
+    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, abandonedCarts, locations, featuredRequests, featuredRates, adminReferrals, referralRates, jobs, applicants, reels, teams, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts, setLocations, setFeaturedRequests, setFeaturedRates, setReferralRates, setJobs, setReels, setTeams]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

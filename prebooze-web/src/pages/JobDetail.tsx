@@ -48,7 +48,9 @@ export default function JobDetail() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
             <div>
               <h1 style={{ fontSize: 24 }}>{job.title}</h1>
-              <div className="muted small" style={{ marginTop: 4 }}>{job.team} · {job.loc} · {job.type}</div>
+              <div className="muted small" style={{ marginTop: 4 }}>
+                {job.team} · {job.loc} · {job.type} · <span className="tag" style={{ fontSize: 10.5 }}>Job ID: {job.id}</span>
+              </div>
             </div>
             {applied ? (
               <span className="badge badge-ok">Applied ✓</span>

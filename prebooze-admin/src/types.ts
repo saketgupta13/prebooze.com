@@ -210,7 +210,7 @@ export interface AdminReferral {
   joinedAt: string;
 }
 
-export interface LocCity { name: string; enabled: boolean; top?: boolean; icon?: string }
+export interface LocCity { name: string; enabled: boolean; top?: boolean; icon?: string; iconUploaded?: boolean }
 export interface LocState { name: string; enabled: boolean; cities: LocCity[] }
 export interface LocCountry { name: string; enabled: boolean; states: LocState[] }
 export interface LocPath { country: string; state?: string; city?: string }
@@ -222,6 +222,7 @@ export interface AdminJob {
   loc: string;
   type: string;
   status: 'open' | 'closed';
+  about?: string;
 }
 
 export interface JobApplicant {

@@ -18,6 +18,7 @@ import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
 import Stepper from '../components/Stepper';
 import EventCard from '../components/EventCard';
+import ShareButton from '../components/ShareButton';
 
 export default function EventDetail() {
   const { slug } = useParams();
@@ -109,12 +110,13 @@ export default function EventDetail() {
                   <span>📍 {venue.name}, {venue.city}</span>
                   <span>⏱ {event.durationHrs} hrs</span>
                 </div>
-                <div className="chip-row">
+                <div className="chip-row" style={{ alignItems: 'center' }}>
                   {event.tags.map((t) => (
                     <span key={t} className="tag">
                       {t}
                     </span>
                   ))}
+                  <ShareButton path={`/events/${event.slug}`} text={`${event.title} 🎟️ — book on Prebooze:`} />
                 </div>
 
                 {/* Hosted by + who's going — fills the space under the title */}

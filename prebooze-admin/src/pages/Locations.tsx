@@ -3,7 +3,7 @@ import { useAdmin } from '../store/AdminContext';
 
 /** Country → State → City manager for onboarding — add, enable/disable, remove. */
 export default function Locations() {
-  const { locations, addLocation, toggleLocation, removeLocation, toggleTopCity, setCityIcon } = useAdmin();
+  const { locations, addLocation, toggleLocation, removeLocation, toggleTopCity, setCityIcon, uploadCityIcon } = useAdmin();
   const topCount = locations.flatMap((c) => c.states.flatMap((st) => st.cities)).filter((ci) => ci.top).length;
   const [countryF, setCountryF] = useState(locations[0]?.name ?? '');
   const [stateF, setStateF] = useState('');
@@ -101,6 +101,14 @@ export default function Locations() {
                     placeholder="🏙"
                     onChange={(e) => setCityIcon({ country: country!.name, state: state.name, city: ci.name }, e.target.value)}
                   />
+                  <button
+                    className="chip"
+                    title={ci.iconUploaded ? 'Icon image uploaded — click to remove' : 'Upload an icon image (PNG/SVG · ≤1 MB)'}
+                    style={{ fontSize: 11, padding: '2px 8px', borderColor: ci.iconUploaded ? 'var(--green)' : undefined, color: ci.iconUploaded ? 'var(--green)' : undefined }}
+                    onClick={(e) => { e.stopPropagation(); uploadCityIcon({ country: country!.name, state: state.name, city: ci.name }); }}
+                  >
+                    {ci.iconUploaded ? '🖼 ✓' : '⬆'}
+                  </button>
                   <span style={{ flex: 1, fontWeight: 700 }}>{ci.name}</span>
                   <button
                     className="chip"

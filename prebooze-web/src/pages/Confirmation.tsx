@@ -4,6 +4,7 @@ import { useApp } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import QRCode from '../components/QRCode';
 import { downloadTicket } from '../lib/ticket';
+import { downloadIcs } from '../lib/calendar';
 
 export default function Confirmation() {
   const { id } = useParams();
@@ -64,7 +65,7 @@ export default function Confirmation() {
             <button className="btn btn-pri" onClick={() => downloadTicket(booking, event, venue)}>
               ⬇ Download ticket
             </button>
-            <button className="btn btn-ghost">Add to calendar</button>
+            <button className="btn btn-ghost" onClick={() => downloadIcs(event, venue)}>📅 Add to calendar</button>
             <Link to="/bookings" className="btn btn-ghost">
               View booking
             </Link>
