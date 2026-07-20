@@ -106,3 +106,201 @@ model KycSubmission {
 
   createdAt DateTime @default(now())
 }
+
+// ============================================================================
+// Phase 2 — Catalog (read-only discovery world). Mirrors prebooze-web's
+// src/data/mock.ts shapes exactly so the seed script is a straight port and
+// the frontend's src/api/index.ts `catalog` group can swap to these with no
+// response-shape changes.
+// ============================================================================
+
+enum EventStatus {
+  approved
+  pending
+  rejected
+  draft
+}
+
+enum FeaturedType {
+  event
+  organizer
+  promoter
+  lineup
+  venue
+}
+
+enum FeaturedStatus {
+  pending
+  active
+  rejected
+  expired
+}
+
+enum FeaturedBilling {
+  per_event
+  monthly
+}
+
+model Venue {
+  id         String   @id // slug-style id, e.g. "arena-hall" — matches existing frontend ids
+  name       String
+  verified   Boolean  @default(false)
+  type       String
+  locality   String   @default("")
+  city       String
+  address    String
+  capacity   Int
+  rating     Float    @default(0)
+  followers  Int      @default(0)
+  amenities  String[] @default([])
+  about      String
+  timings    String?
+  photoHue   Int
+  events     Event[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Organizer {
+  id           String  @id
+  brandName    String
+  username     String  @unique
+  verified     Boolean @default(false)
+  city         String
+  since        String
+  rating       Float   @default(0)
+  reviewCount  Int     @default(0)
+  eventsHosted Int     @default(0)
+  followers    Int     @default(0)
+  following    Int     @default(0)
+  about        String
+  logoHue      Int
+  events       Event[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Promoter {
+  id             String  @id
+  slug           String  @unique
+  name           String
+  verified       Boolean @default(false)
+  city           String
+  bio            String
+  links          String[] @default([])
+  followers      Int     @default(0)
+  eventsPromoted Int     @default(0)
+  guestsBrought  Int     @default(0)
+  showRate       Int     @default(0) // % of guests who actually arrived
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Lineup {
+  id           String  @id
+  slug         String  @unique
+  name         String
+  category     String
+  verified     Boolean @default(false)
+  city         String
+  bio          String
+  links        String[] @default([])
+  followers    Int     @default(0)
+  eventsPlayed Int     @default(0)
+  hue          Int
+  emoji        String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Person {
+  id        String   @id
+  name      String
+  username  String   @unique
+  city      String
+  avatarHue Int
+  bio       String?
+  verified  Boolean  @default(false)
+  followers Int      @default(0)
+  follows   String[] @default([]) // person ids — the follow graph itself lands properly in Phase 6 (Social)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  name String   @id
+  icon String
+  subs String[] @default([])
+  sort Int      @default(0)
+}
+
+model City {
+  name   String  @id
+  icon   String?
+  top    Boolean @default(false) // shows in the Top-12 picker
+  sort   Int     @default(0)
+}
+
+model TrendingSearch {
+  term String @id
+  sort Int    @default(0)
+}
+
+model Event {
+  id            String      @id
+  slug          String      @unique
+  title         String
+  description   String
+  category      String
+  subCategory   String?
+  ageLimit      String
+  tags          String[]    @default([])
+  date          DateTime
+  durationHrs   Float
+  venueId       String
+  venue         Venue       @relation(fields: [venueId], references: [id])
+  organizerId   String
+  organizer     Organizer   @relation(fields: [organizerId], references: [id])
+  status        EventStatus @default(pending)
+  rejectionReason String?
+  conditions    String[]    @default([])
+  rules         Json        @default("[]") // PartyRule[] — {title, body}[]
+  lineup        Json        @default("[]") // LineupItem[] — {name, role}[]
+  posterHue     Int
+  seo           Json?       // {title, description, slug, keywords}
+  promoterConfig Json?      // PromoterConfig — see prebooze-web/src/types.ts
+  socialBanners Json?       // {post?, story?}
+  tiers         TicketTier[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TicketTier {
+  id          String @id @default(cuid())
+  eventId     String
+  event       Event  @relation(fields: [eventId], references: [id])
+  name        String
+  price       Int    // ₹, integer
+  quantity    Int
+  sold        Int    @default(0)
+  includes    String[] @default([])
+  description String?
+}
+
+model Featured {
+  id        String          @id @default(cuid())
+  type      FeaturedType
+  refId     String          // event id | organizer id | promoter slug | lineup slug | venue id
+  city      String
+  status    FeaturedStatus  @default(pending)
+  billing   FeaturedBilling
+  amount    Int
+  createdAt DateTime        @default(now())
+  expiresAt DateTime
+}

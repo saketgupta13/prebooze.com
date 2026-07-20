@@ -9,7 +9,11 @@ The frontends (`prebooze-web`, `prebooze-admin`) are feature-complete on mock da
 
 Recommended stack: Node (NestJS/Fastify) + Postgres + Redis (holds/OTP/queues) + Razorpay + AiSensy (WhatsApp, a Meta BSP) + Resend. All money in integer paise server-side.
 
-**Status:** `prebooze-api/` (NestJS) is scaffolded and live locally — Prisma/Postgres + Redis. Working end-to-end: `/v1/auth/otp` + `/v1/auth/verify` + `/v1/me` (dev WhatsApp provider; real sends activate once `AISENSY_API_KEY` is set), and the full **Identity & KYC** module below (guest auto-verify, role manual-submit, admin review queue) — see that section for the policy and endpoints.
+**Status:** `prebooze-api/` (NestJS) is scaffolded and live locally — Prisma/Postgres + Redis. Working end-to-end and curl-verified:
+- **Auth**: `/v1/auth/otp` + `/v1/auth/verify` + `/v1/me` (dev WhatsApp provider; real sends activate once `AISENSY_API_KEY` is set)
+- **Identity & KYC**: guest auto-verify, role manual-submit, admin review queue — see that section for the policy and endpoints
+- **Catalog** (Phase 2): all of Discovery below is live against seeded Postgres data — `prisma/seed.ts` ports `prebooze-web/src/data/mock.ts` 1:1 (same ids/slugs, so existing frontend links resolve unchanged); run `npm run seed` after any migration. Not yet wired into the frontend (still mock-mode by default) — flip `VITE_API_URL` when ready.
+- Not yet started: Bookings/holds/waitlist, Wallet & payments, Referrals, Social, Promoter/Organizer/Venue-partner action endpoints (their *data* is seeded and readable via Catalog, but the write-side actions below are still spec-only), Featured request/approval actions, Support/careers, Admin API (beyond `/admin/kyc`), Payments, Real QR, Cron jobs.
 
 ## Conventions
 - Base URL `/v1`. JSON everywhere. Auth: `Authorization: Bearer <JWT>`; errors `{ code, message }` with proper HTTP status.
