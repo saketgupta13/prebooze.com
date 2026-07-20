@@ -37,6 +37,7 @@ import type {
   SitePage,
   StaffMember,
   Venue,
+  KycApplication,
 } from '../types';
 import {
   LINEUP_CATEGORIES,
@@ -75,6 +76,7 @@ import {
   SEED_SETTINGS,
   SEED_STAFF,
   SEED_VENUES,
+  SEED_KYC_APPLICATIONS,
   PERM_MODULES,
 } from './data';
 
@@ -119,6 +121,9 @@ interface AdminState {
   updateOrganizer: (id: string, patch: Partial<Organizer>) => void;
   addVenue: (v: Venue) => void;
   updateVenue: (id: string, patch: Partial<Venue>) => void;
+  kycApplications: KycApplication[];
+  approveKycApplication: (id: string) => void;
+  rejectKycApplication: (id: string, reason: string) => void;
   addPromo: (p: Promo) => void;
   updatePromo: (code: string, patch: Partial<Promo>) => void;
   runPayoutBatch: (eventIds: string[]) => void;
@@ -260,6 +265,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [customers, setCustomers] = usePersisted('pba_customers', SEED_CUSTOMERS);
   const [organizers, setOrganizers] = usePersisted('pba_organizers', SEED_ORGANIZERS, mergeWithSeed(SEED_ORGANIZERS, 'id'));
   const [venues, setVenues] = usePersisted('pba_venues', SEED_VENUES, mergeWithSeed(SEED_VENUES, 'id'));
+  const [kycApplications, setKycApplications] = usePersisted<KycApplication[]>('pba_kyc', SEED_KYC_APPLICATIONS, mergeWithSeed<KycApplication>(SEED_KYC_APPLICATIONS, 'id'));
   const [promos, setPromos] = usePersisted('pba_promos', SEED_PROMOS, mergeWithSeed(SEED_PROMOS, 'code'));
   const [banners, setBanners] = usePersisted('pba_banners', SEED_BANNERS, (list) =>
     mergeWithSeed(SEED_BANNERS, 'title')(list).map((b, i) => ({ ...b, id: b.id ?? 'b' + (i + 1) }))
@@ -322,6 +328,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       customers,
       organizers,
       venues,
+      kycApplications,
       promos,
       banners,
       categories,
@@ -415,6 +422,52 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       addVenue: (v) => {
         setVenues((prev) => [...prev, v]);
         toast('Venue added — Docs pending until license reviewed ✓');
+      },
+      approveKycApplication: (id) => {
+        const app = kycApplications.find((k) => k.id === id);
+        if (!app || app.status !== 'pending') return;
+        const newId = `${app.kind}-${Date.now()}`;
+        if (app.kind === 'organizer') {
+          setOrganizers((prev) => [
+            ...prev,
+            {
+              id: newId, name: app.payload.brand ?? app.applicantName, contact: app.applicantPhone, city: app.city,
+              events: 0, kyc: 'verified', status: 'approved', contactPerson: app.applicantName,
+              phone: app.applicantPhone, gstin: app.payload.gstin, pan: app.payload.pan, bankLast4: app.payload.bankLast4,
+            },
+          ]);
+        } else if (app.kind === 'promoter') {
+          setPromoters((prev) => [
+            {
+              id: newId, name: app.payload.brand ?? app.applicantName, contact: app.applicantPhone, city: app.city,
+              status: 'approved', kyc: 'verified', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0,
+              bio: app.payload.audience ?? '',
+            },
+            ...prev,
+          ]);
+        } else if (app.kind === 'lineup') {
+          setLineups((prev) => [
+            { id: newId, name: app.payload.name ?? app.applicantName, category: app.payload.category ?? 'Artist', description: '', city: app.city, links: app.payload.links, hasImage: false, followers: 0, verified: true },
+            ...prev,
+          ]);
+        } else if (app.kind === 'venue') {
+          setVenues((prev) => [
+            ...prev,
+            {
+              id: newId, name: app.payload.name ?? app.applicantName, city: app.city,
+              capacity: Number(app.payload.capacity) || app.payload.capacity || '—', events: 0,
+              license: 'valid', verified: true, address: app.payload.address, type: app.payload.type,
+            },
+          ]);
+        }
+        setKycApplications((prev) => prev.map((k) => (k.id === id ? { ...k, status: 'approved', reviewedBy: 'admin@prebooze.com' } : k)));
+        toast(`${app.applicantName} approved as ${app.kind} ✓`);
+      },
+      rejectKycApplication: (id, reason) => {
+        setKycApplications((prev) =>
+          prev.map((k) => (k.id === id ? { ...k, status: 'rejected', reviewedBy: 'admin@prebooze.com', reviewNote: reason } : k)),
+        );
+        toast('Application rejected');
       },
       updateVenue: (id, patch) => {
         setVenues((prev) => prev.map((v) => (v.id === id ? { ...v, ...patch } : v)));
@@ -832,7 +885,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, abandonedCarts, locations, featuredRequests, featuredRates, adminReferrals, referralRates, jobs, applicants, reels, teams, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts, setLocations, setFeaturedRequests, setFeaturedRates, setReferralRates, setJobs, setReels, setTeams]
+    [session, events, bookings, customers, organizers, venues, kycApplications, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, abandonedCarts, locations, featuredRequests, featuredRates, adminReferrals, referralRates, jobs, applicants, reels, teams, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setKycApplications, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts, setLocations, setFeaturedRequests, setFeaturedRates, setReferralRates, setJobs, setReels, setTeams]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

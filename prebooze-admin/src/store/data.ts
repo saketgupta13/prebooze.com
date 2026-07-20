@@ -5,6 +5,7 @@ import type {
   Blog,
   Category,
   Customer,
+  KycApplication,
   Organizer,
   Promo,
   SitePage,
@@ -317,6 +318,42 @@ export const SEED_MENUS = {
 };
 
 export const LINEUP_CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
+
+/** Incoming elevated-role applications awaiting manual review — see
+ * Verifications.tsx. Approving one creates the live entity in the matching
+ * directory (Organizers/Promoters/Line-ups/Venues); rejecting just closes it. */
+export const SEED_KYC_APPLICATIONS: KycApplication[] = [
+  {
+    id: 'kyc1', kind: 'organizer' as const, applicantName: 'Rhea Kapoor', applicantPhone: '+91 90011 22334', city: 'Austin',
+    payload: { brand: 'Skyline Sessions', username: 'skylinesessions', gstin: '29AASFS1234R1Z8', pan: 'AASFS1234R', bankLast4: '4821' },
+    documents: [{ type: 'Government ID', note: 'Aadhaar front · uploaded' }, { type: 'Selfie match', note: 'captured · pending review' }],
+    status: 'pending' as const, submittedAt: '2 hours ago',
+  },
+  {
+    id: 'kyc2', kind: 'promoter' as const, applicantName: 'Arjun Mehta', applicantPhone: '+91 98220 11445', city: 'Austin',
+    payload: { brand: 'Loudmouth PR', username: 'loudmouthpr', audience: '15k Instagram · 4k WhatsApp broadcast' },
+    documents: [{ type: 'Government ID', note: 'PAN card · uploaded' }, { type: 'Selfie match', note: 'captured · pending review' }],
+    status: 'pending' as const, submittedAt: '5 hours ago',
+  },
+  {
+    id: 'kyc3', kind: 'venue' as const, applicantName: 'Devika Rao', applicantPhone: '+91 99001 55223', city: 'Mumbai',
+    payload: { name: 'Marine Drive Loft', type: 'Rooftop', capacity: '300', address: 'Marine Drive, Mumbai' },
+    documents: [{ type: 'Operating license', note: 'uploaded · unreadable scan' }, { type: 'Address proof', note: 'uploaded' }],
+    status: 'pending' as const, submittedAt: '1 day ago',
+  },
+  {
+    id: 'kyc4', kind: 'lineup' as const, applicantName: 'DJ Current', applicantPhone: '+91 97400 88112', city: 'Bengaluru',
+    payload: { name: 'DJ Current', category: 'DJ', links: 'ig/djcurrent · soundcloud/djcurrent' },
+    documents: [{ type: 'Government ID', note: 'Driving licence · uploaded' }, { type: 'Selfie match', note: 'captured · pending review' }],
+    status: 'pending' as const, submittedAt: '1 day ago',
+  },
+  {
+    id: 'kyc5', kind: 'organizer' as const, applicantName: 'Sunil Verma', applicantPhone: '+91 90090 44556', city: 'Delhi',
+    payload: { brand: 'Capital Nights', username: 'capitalnights', gstin: '07ABCVX9988R1Z2', pan: 'ABCVX9988R', bankLast4: '2290' },
+    documents: [{ type: 'Government ID', note: 'Aadhaar front · uploaded' }, { type: 'Selfie match', note: 'captured · matched' }],
+    status: 'rejected' as const, submittedAt: '3 days ago', reviewedBy: 'admin@prebooze.com', reviewNote: 'GSTIN does not match business name on record',
+  },
+];
 
 export const SEED_LINEUPS = [
   { id: 'lu1', name: 'DJ Nova', category: 'DJ', description: 'Opening sets that fill the floor before 9 PM. House & disco edits.', city: 'Austin', links: 'ig/djnova · soundcloud/djnova', hasImage: true, followers: 4200, verified: true },

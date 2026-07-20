@@ -102,6 +102,7 @@ h1.display, .display {
 }
 .tag-green { border-color: var(--green); color: var(--green); }
 .tag-red { border-color: var(--red); color: var(--red); }
+.tag-amber { border-color: #d99a2b; color: #d99a2b; }
 .tag-dim { border-color: var(--hint); color: var(--hint); }
 
 /* ===== Cards / KPIs ===== */

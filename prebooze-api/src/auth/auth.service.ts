@@ -55,6 +55,11 @@ export function toApiUser(u: User) {
     venueId: u.venueId ?? undefined,
     attendanceVisibility: u.attendanceVisibility,
     autoRenew: u.autoRenew,
+    // null = never applied for a role; 'pending' | 'approved' | 'rejected' otherwise.
+    // Pair with orgBrand/promoterBrand/lineupName/venueName (set immediately on
+    // submit) to know *which* role is pending — the elevated role flags above
+    // only flip true once an admin approves.
+    roleStatus: u.roleStatus ?? undefined,
   };
 }
 
@@ -83,7 +88,15 @@ export class AuthService {
       'EX',
       OTP_TTL_S,
     );
-    await this.wa.sendOtp(phone, code);
+    try {
+      await this.wa.sendOtp(phone, code);
+    } catch {
+      // Never let a dead WhatsApp integration lock everyone out of login —
+      // surface a clean, actionable error instead of a raw 500, and drop the
+      // now-undeliverable code so it can't be brute-forced.
+      await this.redis.del(`otp:${requestId}`);
+      throw new BadRequestException("Couldn't send your code right now — please try again shortly");
+    }
 
     // In dev (no live WhatsApp) return the code so the flow is testable end-to-end.
     return this.wa.live ? { requestId } : { requestId, devCode: code };
@@ -121,31 +134,21 @@ export class AuthService {
     return toApiUser(user);
   }
 
+  /** Plain profile fields only. `idVerified` is granted exclusively by the
+   * automatic guest KYC check (POST /kyc/guest); `role`/`roleStatus` are
+   * granted exclusively by an admin approving a KycSubmission
+   * (POST /admin/kyc/:id/approve) — see kyc/kyc.service.ts. Neither can be
+   * set here, by design: identity and role trust must not be self-declared. */
   async updateMe(userId: string, patch: Record<string, unknown>) {
     const current = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!current) throw new UnauthorizedException();
 
-    // translate frontend role flags to the single-role column; one number = one role
     const data: Record<string, unknown> = {};
     const allowed = [
       'name', 'username', 'email', 'city', 'dob', 'gender', 'profession', 'languages',
-      'bio', 'socials', 'interests', 'idVerified', 'profilePct', 'attendanceVisibility',
-      'autoRenew', 'orgBrand', 'orgUsername', 'lineupName', 'lineupCategory',
-      'lineupUsername', 'promoterBrand', 'promoterUsername', 'promoterPlan',
-      'venueName', 'venueId',
+      'bio', 'socials', 'interests', 'attendanceVisibility', 'autoRenew',
     ];
     for (const k of allowed) if (k in patch) data[k] = patch[k];
-
-    const roleFlag = (['isOrganizer', 'isPromoter', 'isLineup', 'isVenue'] as const).find(
-      (f) => patch[f] === true,
-    );
-    if (roleFlag) {
-      const role = { isOrganizer: 'organizer', isPromoter: 'promoter', isLineup: 'lineup', isVenue: 'venue' }[roleFlag];
-      if (current.role && current.role !== role) {
-        throw new BadRequestException('This number already holds a role — one number, one role');
-      }
-      data.role = role;
-    }
 
     const user = await this.prisma.user.update({ where: { id: userId }, data });
     return toApiUser(user);

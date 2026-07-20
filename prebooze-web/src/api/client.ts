@@ -42,3 +42,18 @@ export async function apiFetch<T>(path: string, options: { method?: string; body
   }
   return res.status === 204 ? (undefined as T) : res.json();
 }
+
+/** Multipart upload — for KYC document + selfie submissions. */
+export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
+  if (!API_URL) throw new ApiError(0, 'OFFLINE', 'Backend not configured (VITE_API_URL missing) — running in mock mode');
+  const res = await fetch(API_URL + path, {
+    method: 'POST',
+    headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : undefined,
+    body: form, // browser sets multipart/form-data + boundary automatically
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, err.code ?? 'ERROR', err.message ?? res.statusText);
+  }
+  return res.json();
+}

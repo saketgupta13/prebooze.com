@@ -172,6 +172,10 @@ interface AppState {
   setPendingPhone: (p: string) => void;
   loginWithOtp: () => 'new' | 'existing';
   updateUser: (patch: Partial<User>) => void;
+  // Submits an elevated-role application for manual review — never activates
+  // the role directly. Guest ID verification is separate (see idVerified /
+  // the automatic flow in IdVerification.tsx) and unaffected by this.
+  submitRoleApplication: (kind: 'organizer' | 'promoter' | 'lineup' | 'venue', patch: Partial<User>) => void;
   logout: () => void;
   setSelection: (s: Selection | null) => void;
   holdExpiry: number | null; // epoch ms when the current checkout hold lapses
@@ -546,6 +550,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser((u) => {
           if (!u) return u;
           const next = normalizeUser({ ...u, ...patch })!;
+          localStorage.setItem('pb_known_' + next.phone, JSON.stringify(next));
+          return next;
+        });
+      },
+      submitRoleApplication: (kind, patch) => {
+        setUser((u) => {
+          if (!u) return u;
+          const next = normalizeUser({ ...u, ...patch, pendingRole: kind, roleStatus: 'pending', roleRejectionReason: undefined })!;
           localStorage.setItem('pb_known_' + next.phone, JSON.stringify(next));
           return next;
         });

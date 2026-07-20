@@ -6,7 +6,7 @@ import RoleTaken from '../../components/RoleTaken';
 import { existingRole } from '../../lib/roles';
 
 export default function Onboarding() {
-  const { user, updateUser } = useApp();
+  const { user, submitRoleApplication } = useApp();
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -38,8 +38,8 @@ export default function Onboarding() {
   const pct = step === 1 ? 50 : 90;
 
   const submit = () => {
-    updateUser({ isOrganizer: true, orgBrand: brand.trim(), orgUsername: username.trim() });
-    navigate('/organizer');
+    submitRoleApplication('organizer', { orgBrand: brand.trim(), orgUsername: username.trim() });
+    navigate('/organizer'); // console redirects to a "pending review" screen until the team approves
   };
 
   return (
@@ -155,7 +155,7 @@ export default function Onboarding() {
                 onClick={() => setAadhaar((v) => !v)}
                 style={{ marginBottom: 10 }}
               >
-                {aadhaar ? '✓ Aadhaar uploaded · verified with UIDAI' : '⬆ upload Aadhaar front'}
+                {aadhaar ? '✓ Aadhaar uploaded' : '⬆ upload Aadhaar front'}
               </div>
               <div className={`upload-box ${selfie ? 'done' : ''}`} onClick={() => setSelfie((v) => !v)}>
                 {selfie ? '✓ Selfie captured' : '📷 Capture selfie'}
@@ -176,7 +176,7 @@ export default function Onboarding() {
               </div>
               {account && ifsc && (
                 <div className="small" style={{ color: '#4fd394' }}>
-                  ✓ penny-drop verification passed
+                  ✓ bank details captured — verified during manual review
                 </div>
               )}
             </div>
@@ -190,7 +190,7 @@ export default function Onboarding() {
               </button>
             </div>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-              🔒 reviewed by admin · usually approved within 24h (instant in this demo)
+              🔒 reviewed manually by our team · usually approved within 24h
             </div>
           </div>
         )}

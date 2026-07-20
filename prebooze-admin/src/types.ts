@@ -5,6 +5,25 @@ export type OrganizerStatus = 'approved' | 'pending' | 'rejected';
 export type Gender = 'all' | 'women' | 'men' | 'other';
 export type Role = 'admin' | 'staff';
 
+// Elevated-role signups (organizer/promoter/lineup/venue) are always manual —
+// a human on the team reviews every application here before it becomes a
+// live entity in Organizers/Promoters/Line-ups/Venues. Guest ID verification
+// is the one automatic path and doesn't go through this queue.
+export type KycKind = 'organizer' | 'promoter' | 'lineup' | 'venue';
+export interface KycApplication {
+  id: string;
+  kind: KycKind;
+  applicantName: string;
+  applicantPhone: string;
+  city: string;
+  payload: Record<string, string>; // brand/username/gstin/bio/etc — role-specific
+  documents: { type: string; note: string }[]; // e.g. "Government ID", "Selfie", "Operating license"
+  status: OrganizerStatus; // approved / pending / rejected
+  submittedAt: string;
+  reviewedBy?: string;
+  reviewNote?: string;
+}
+
 export interface Tier {
   name: string;
   price: number;

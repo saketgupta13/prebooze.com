@@ -12,6 +12,7 @@ import Locations from './pages/Locations';
 import CareersAdmin from './pages/CareersAdmin';
 import Reels from './pages/Reels';
 import Customers from './pages/Customers';
+import Verifications from './pages/Verifications';
 import Organizers from './pages/Organizers';
 import OrganizerDetail from './pages/OrganizerDetail';
 import AddOrganizer from './pages/AddOrganizer';
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="/referrals" element={<Referrals />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/customers/new" element={<AddCustomer />} />
+        <Route path="/verifications" element={<Verifications />} />
         <Route path="/organizers" element={<Organizers />} />
         <Route path="/organizers/new" element={<AddOrganizer />} />
         <Route path="/organizers/:id" element={<OrganizerDetail />} />

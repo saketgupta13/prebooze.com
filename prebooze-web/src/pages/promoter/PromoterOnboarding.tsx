@@ -8,7 +8,7 @@ import { existingRole } from '../../lib/roles';
 /** Promoter onboarding — same 2-step pattern as organizers: PR profile → identity KYC,
  * then Pending admin review. */
 export default function PromoterOnboarding() {
-  const { user, updateUser } = useApp();
+  const { user, submitRoleApplication } = useApp();
   const [step, setStep] = useState<1 | 2>(1);
 
   const [logo, setLogo] = useState(false);
@@ -32,7 +32,7 @@ export default function PromoterOnboarding() {
   const pct = done ? 100 : step === 1 ? 50 : 90;
 
   const submit = () => {
-    updateUser({ isPromoter: true, promoterBrand: brand.trim(), promoterUsername: username.trim(), promoterPlan: 'free' });
+    submitRoleApplication('promoter', { promoterBrand: brand.trim(), promoterUsername: username.trim(), promoterPlan: 'free' });
     setDone(true);
   };
 
@@ -122,13 +122,13 @@ export default function PromoterOnboarding() {
             <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginBottom: 12 }}>1 · Government ID</h3>
               <div className={`upload-box ${idDoc ? 'done' : ''}`} onClick={() => setIdDoc((v) => !v)}>
-                {idDoc ? '✓ ID uploaded · verified' : '⬆ upload Aadhaar / passport front'}
+                {idDoc ? '✓ ID uploaded' : '⬆ upload Aadhaar / passport front'}
               </div>
             </div>
             <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginBottom: 12 }}>2 · Selfie match</h3>
               <div className={`upload-box ${selfie ? 'done' : ''}`} onClick={() => setSelfie((v) => !v)} style={{ padding: 30 }}>
-                {selfie ? '✓ Selfie captured — matched' : '🤳 camera frame — face in oval · 📷 Capture selfie'}
+                {selfie ? '✓ Selfie captured' : '🤳 camera frame — face in oval · 📷 Capture selfie'}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>

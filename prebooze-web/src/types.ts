@@ -217,6 +217,13 @@ export interface User {
   isVenue?: boolean;
   venueName?: string;
   venueId?: string; // links to the Venue record created at onboarding
+  // Elevated roles (organizer/promoter/lineup/venue) are always manually
+  // reviewed by the team — the isOrganizer/isPromoter/isLineup/isVenue flags
+  // above only flip true once approved. Guest ID verification (idVerified)
+  // stays automatic and is unaffected by this. See BACKEND.md "Identity & KYC".
+  pendingRole?: 'organizer' | 'promoter' | 'lineup' | 'venue';
+  roleStatus?: 'pending' | 'approved' | 'rejected';
+  roleRejectionReason?: string;
   attendanceVisibility?: 'off' | 'followers' | 'public'; // who can see events I'm attending (default off)
   autoRenew?: boolean; // auto-renew subscriptions / featured placements
 }

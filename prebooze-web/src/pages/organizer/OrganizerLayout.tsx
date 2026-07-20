@@ -1,5 +1,6 @@
 import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
+import PendingReview, { RejectedReview } from '../../components/PendingReview';
 
 const NAV = [
   { to: '/organizer', label: '▦ Dashboard', end: true },
@@ -20,7 +21,11 @@ export default function OrganizerLayout() {
   const { user } = useApp();
 
   if (!user) return <Navigate to="/login" state={{ from: '/organizer' }} replace />;
-  if (!user.isOrganizer) return <Navigate to="/organizer/onboarding" replace />;
+  if (!user.isOrganizer) {
+    if (user.pendingRole === 'organizer' && user.roleStatus === 'pending') return <PendingReview role="organizer" />;
+    if (user.pendingRole === 'organizer' && user.roleStatus === 'rejected') return <RejectedReview role="organizer" reason={user.roleRejectionReason} />;
+    return <Navigate to="/organizer/onboarding" replace />;
+  }
 
   return (
     <main className="page">

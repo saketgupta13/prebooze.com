@@ -1,5 +1,6 @@
 import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
+import PendingReview, { RejectedReview } from '../../components/PendingReview';
 
 const NAV = [
   { to: '/promoter', label: '▦ Dashboard', end: true },
@@ -15,7 +16,11 @@ export default function PromoterLayout() {
   const { user } = useApp();
 
   if (!user) return <Navigate to="/login" state={{ from: '/promoter' }} replace />;
-  if (!user.isPromoter) return <Navigate to="/promoter/onboarding" replace />;
+  if (!user.isPromoter) {
+    if (user.pendingRole === 'promoter' && user.roleStatus === 'pending') return <PendingReview role="promoter" />;
+    if (user.pendingRole === 'promoter' && user.roleStatus === 'rejected') return <RejectedReview role="promoter" reason={user.roleRejectionReason} />;
+    return <Navigate to="/promoter/onboarding" replace />;
+  }
 
   return (
     <main className="page">

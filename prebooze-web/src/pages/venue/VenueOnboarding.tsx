@@ -15,7 +15,7 @@ const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'
 /** Venue-partner onboarding — same 2-step pattern as other roles:
  * listing details → license & documents, then Pending admin review. */
 export default function VenueOnboarding() {
-  const { user, updateUser, addMyVenue } = useApp();
+  const { user, submitRoleApplication, addMyVenue } = useApp();
   const [step, setStep] = useState<1 | 2>(1);
 
   const [photos, setPhotos] = useState(false);
@@ -61,7 +61,7 @@ export default function VenueOnboarding() {
       timings: timings.trim() || undefined,
       photoHue: Math.floor(Math.random() * 360),
     });
-    updateUser({ isVenue: true, venueName: name.trim(), venueId: id });
+    submitRoleApplication('venue', { venueName: name.trim(), venueId: id });
     notify(user.phone, 'welcome', { name: name.trim() }, user.email || undefined);
     setDone(true);
   };

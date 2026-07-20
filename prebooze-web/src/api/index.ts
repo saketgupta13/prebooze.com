@@ -1,7 +1,7 @@
 /** Typed API surface — one function per backend endpoint (see BACKEND.md).
  * These are the real connections: point VITE_API_URL at the server and every
  * feature swaps from localStorage to live data. */
-import { apiFetch } from './client';
+import { apiFetch, apiUpload } from './client';
 import type {
   Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayMethod, Person, User, Venue, WaitlistEntry,
 } from '../types';
@@ -14,6 +14,28 @@ export const auth = {
   me: () => apiFetch<User>('/me'),
   updateMe: (patch: Partial<User>) => apiFetch<User>('/me', { method: 'PATCH', body: patch }),
   logout: () => apiFetch<void>('/auth/logout', { method: 'POST' }),
+};
+
+// ---------- identity & role verification ----------
+// Guest ID verification is automatic (OCR + face-match). Organizer/promoter/
+// lineup/venue applications are always manual — a human on the team reviews
+// every one in the admin panel; submitting never grants the role directly.
+// See BACKEND.md "Identity & KYC".
+export const kyc = {
+  submitGuest: (idDoc: File, selfie: File) => {
+    const form = new FormData();
+    form.append('idDoc', idDoc);
+    form.append('selfie', selfie);
+    return apiUpload<{ status: 'approved' | 'rejected'; score: number; reason?: string }>('/kyc/guest', form);
+  },
+  submitRole: (kind: 'organizer' | 'promoter' | 'lineup' | 'venue', payload: Record<string, unknown>, documents: File[]) => {
+    const form = new FormData();
+    form.append('kind', kind);
+    form.append('payload', JSON.stringify(payload));
+    documents.forEach((f) => form.append('documents', f));
+    return apiUpload<{ status: 'pending'; user: User }>('/kyc/role', form);
+  },
+  myStatus: () => apiFetch<{ id: string; kind: string; status: string; createdAt: string; reviewNote?: string }[]>('/kyc/me'),
 };
 
 // ---------- discovery ----------

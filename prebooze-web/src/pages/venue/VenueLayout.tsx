@@ -1,5 +1,6 @@
 import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
+import PendingReview, { RejectedReview } from '../../components/PendingReview';
 
 const NAV = [
   { to: '/venue', label: '▦ Dashboard', end: true },
@@ -12,7 +13,11 @@ export default function VenueLayout() {
   const { user } = useApp();
 
   if (!user) return <Navigate to="/login" state={{ from: '/venue' }} replace />;
-  if (!user.isVenue) return <Navigate to="/venue/onboarding" replace />;
+  if (!user.isVenue) {
+    if (user.pendingRole === 'venue' && user.roleStatus === 'pending') return <PendingReview role="venue" />;
+    if (user.pendingRole === 'venue' && user.roleStatus === 'rejected') return <RejectedReview role="venue" reason={user.roleRejectionReason} />;
+    return <Navigate to="/venue/onboarding" replace />;
+  }
 
   return (
     <main className="page">

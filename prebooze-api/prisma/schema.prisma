@@ -23,6 +23,22 @@ enum AttendanceVisibility {
   public
 }
 
+// guest = automatic (ID doc + selfie, vendor-checked); the elevated roles are
+// always manual — a human on the team reviews every submission (see BACKEND.md).
+enum KycKind {
+  guest
+  organizer
+  promoter
+  lineup
+  venue
+}
+
+enum KycStatus {
+  pending  // guest: auto-check running or fell back to manual; roles: awaiting team review
+  approved
+  rejected
+}
+
 model User {
   id        String   @id @default(cuid())
   phone     String   @unique // "+91 9990001111" (normalized)
@@ -42,8 +58,11 @@ model User {
   idVerified    Boolean @default(false)
   profilePct    Int     @default(20)
 
-  // one number = one elevated role (enforced in service layer too)
+  // one number = one elevated role (enforced in service layer too).
+  // `role` is only ever set by an admin approving a KycSubmission — never
+  // directly by the user — so it doubles as "is this role actually live".
   role         ElevatedRole?
+  roleStatus   KycStatus?    // null = never applied; mirrors the latest submission's status
   orgBrand     String?
   orgUsername  String?
   lineupName   String?
@@ -58,6 +77,32 @@ model User {
   attendanceVisibility AttendanceVisibility @default(off)
   autoRenew            Boolean              @default(false)
 
+  kycSubmissions KycSubmission[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model KycSubmission {
+  id     String    @id @default(cuid())
+  userId String
+  user   User      @relation(fields: [userId], references: [id])
+  kind   KycKind
+  status KycStatus @default(pending)
+
+  // role-specific fields captured at submission time (brand name, GSTIN,
+  // bank account + IFSC, etc.) — free-form so each role's form can differ
+  payload Json @default("{}")
+
+  // uploaded file references: [{ "type": "id_doc" | "selfie" | "license" | ..., "path": "..." }]
+  documents Json @default("[]")
+
+  // set on the guest path by the (currently dev-stub) auto-check
+  autoScore Int?
+
+  reviewedBy String? // admin user id/email — manual reviews only
+  reviewNote String?
+  reviewedAt DateTime?
+
+  createdAt DateTime @default(now())
 }
