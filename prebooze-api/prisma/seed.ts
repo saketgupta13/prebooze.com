@@ -129,6 +129,11 @@ const EVENTS: SeedEvent[] = [
   { id: 'ev-14', slug: 'orange-city-sundowner', title: 'Orange City Sundowner', description: 'Open-air sundowner on the grounds — food trucks, a golden-hour acoustic set and a night market.', category: 'Festivals', subCategory: 'Sundowner', ageLimit: 'All ages', tags: ['Open-air', 'Sundowner'], date: iso(8, 23, 16), durationHrs: 6, venueId: 'orange-city-grounds', organizerId: 'deccanlive', status: 'approved', conditions: [], rules: [], lineup: [], tiers: [{ id: 't1', name: 'Day pass', price: 299, quantity: 2000, sold: 486, includes: ['Entry'] }], posterHue: 25 },
 ];
 
+const COUPONS = [
+  { id: 'c1', code: 'FIRST50', type: 'percent', value: 50, maxDiscount: 100, usageLimit: 500, used: 182, perUserLimit: 1, eventScope: 'all', validTill: new Date('2026-08-31'), firstTimeOnly: true, status: 'active' },
+  { id: 'c2', code: 'VIPLOVE', type: 'flat', value: 200, usageLimit: 100, used: 34, perUserLimit: 1, eventScope: 'Indie Night Live', validTill: new Date('2026-07-24'), firstTimeOnly: false, status: 'paused' },
+];
+
 const SEED_FEATURED = [
   { id: 'f1', type: 'event' as const, refId: 'ev-3', city: 'Austin', status: 'active' as const, billing: 'per_event' as const, amount: 2000, expiresAt: new Date('2027-01-01') },
   { id: 'f2', type: 'organizer' as const, refId: 'festcrew', city: 'Austin', status: 'active' as const, billing: 'monthly' as const, amount: 4999, expiresAt: new Date('2027-01-01') },
@@ -174,8 +179,9 @@ async function main() {
   }
 
   for (const f of SEED_FEATURED) await db.featured.upsert({ where: { id: f.id }, create: f, update: f });
+  for (const c of COUPONS) await db.coupon.upsert({ where: { id: c.id }, create: c, update: c });
 
-  console.log(`Seeded: ${VENUES.length} venues, ${ORGANIZERS.length} organizers, ${PROMOTERS.length} promoters, ${LINEUPS.length} lineups, ${PEOPLE.length} people, ${EVENTS.length} events, ${SEED_FEATURED.length} featured.`);
+  console.log(`Seeded: ${VENUES.length} venues, ${ORGANIZERS.length} organizers, ${PROMOTERS.length} promoters, ${LINEUPS.length} lineups, ${PEOPLE.length} people, ${EVENTS.length} events, ${SEED_FEATURED.length} featured, ${COUPONS.length} coupons.`);
 }
 
 main()

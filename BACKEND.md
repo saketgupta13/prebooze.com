@@ -13,7 +13,8 @@ Recommended stack: Node (NestJS/Fastify) + Postgres + Redis (holds/OTP/queues) +
 - **Auth**: `/v1/auth/otp` + `/v1/auth/verify` + `/v1/me` (dev WhatsApp provider; real sends activate once `AISENSY_API_KEY` is set)
 - **Identity & KYC**: guest auto-verify, role manual-submit, admin review queue — see that section for the policy and endpoints
 - **Catalog** (Phase 2): all of Discovery below is live against seeded Postgres data — `prisma/seed.ts` ports `prebooze-web/src/data/mock.ts` 1:1 (same ids/slugs, so existing frontend links resolve unchanged); run `npm run seed` after any migration. Not yet wired into the frontend (still mock-mode by default) — flip `VITE_API_URL` when ready.
-- Not yet started: Bookings/holds/waitlist, Wallet & payments, Referrals, Social, Promoter/Organizer/Venue-partner action endpoints (their *data* is seeded and readable via Catalog, but the write-side actions below are still spec-only), Featured request/approval actions, Support/careers, Admin API (beyond `/admin/kyc`), Payments, Real QR, Cron jobs.
+- **Bookings, holds, waitlist** (Phase 3): the full lifecycle is live and curl-verified — hold → quote (Razorpay order with the final amount) → create (atomic overselling guard, coupon, wallet credit, referral qualification, signed-QR ticket) → list → cancel (refund + inventory restore + FIFO waitlist offer) → check-in. `RazorpayService` follows the same dev-stub pattern as WhatsApp/KYC: unset `RAZORPAY_KEY_ID`/`SECRET` and the whole flow (orders, signature "verification", refunds) simulates instantly — no live gateway needed to test or develop against.
+- Not yet started: `GET /wallet` (balance/ledger read endpoint — the ledger itself is written by bookings), Pay Methods CRUD, Referrals claim/list, Social, Promoter/Organizer/Venue-partner write-side console actions (their *data* is seeded and readable via Catalog), Featured request/approval actions, Support/careers, Admin API (beyond `/admin/kyc`), Cron jobs (hold-expiry → abandoned-cart marking doesn't exist yet — Redis just silently drops expired holds today).
 
 ## Conventions
 - Base URL `/v1`. JSON everywhere. Auth: `Authorization: Bearer <JWT>`; errors `{ code, message }` with proper HTTP status.
@@ -45,11 +46,14 @@ Recommended stack: Node (NestJS/Fastify) + Postgres + Redis (holds/OTP/queues) +
 - `GET /venues?city`, `GET /organizers?city`, `GET /promoters?city`, `GET /lineups?city`, `GET /people?city`
 - `GET /featured?city` (active, in-window), `GET /categories` (tree + counts), `GET /cities` (event counts + top flags + icons from locations), `GET /search?q` (typed multi-entity suggestions), `GET /search/trending`
 
-### Bookings, holds, waitlist
-- `POST /bookings/hold` `{eventId, qty{tierId:n}}` → `{holdId, expiresAt}` — reserve inventory in Redis, TTL 8 min; release on expiry (mark cart abandoned → recovery flows).
-- `POST /bookings` `{holdId, guests, whatsapp, couponCode?, walletCredit?, payMethodId?, promoterRef?}` — verify Razorpay payment, decrement `sold`, debit wallet, mark coupon use, qualify referral (first paid booking → credit referrer), attribute promoter commission, complete cart, send `booking_confirmed`.
-- `GET /bookings` · `POST /bookings/:id/cancel` `{refundTo: wallet|source}` — wallet → instant `wallet_txs` credit; source → Razorpay refund; then **offer the freed spot FIFO** to the first `waiting` waitlist entry (send `waitlist_offer`) . `POST /bookings/:id/check-in` (organizer/staff scope).
-- `POST /events/:id/waitlist` (join, only when sold out; unique per user) · `GET /events/:id/waitlist`.
+### Bookings, holds, waitlist — ✅ live (Phase 3), curl-verified end-to-end
+- `POST /bookings/hold` `{eventId, qty:{tierId:n}}` → `{holdId, expiresAt}` — Redis-only, TTL 8 min (`HoldsService`). Validates tier existence + current availability at hold time as a soft check; the **hard** overselling guard is the atomic `tier.sold` update inside the booking transaction below, not the hold itself — two people can hold the same last ticket, only one will win at confirm time.
+- `POST /bookings/quote` `{holdId, couponCode?, walletCredit?}` → `{subtotal, fee, discount, walletCreditUsed, total, razorpayOrderId?, razorpayKeyId?}` — call this before showing the Razorpay checkout widget; creates the Razorpay order with the **final** post-coupon/post-wallet-credit amount (Razorpay requires the order amount to match what's charged). Read-only — doesn't touch the hold or DB.
+- `POST /bookings` `{holdId, mainGuest, whatsapp, guests?, couponCode?, walletCredit?, promoterRef?, razorpay?:{orderId,paymentId,signature}}` — re-derives pricing server-side (never trusts client amounts, same logic as `quote`), verifies the Razorpay signature, atomically guards + increments `sold` per tier, writes the booking (with a signed QR JWT, `tierBreakdown` for later inventory restoration), debits wallet, bumps coupon `used`, qualifies a pending referral on the buyer's first paid booking (credits the referrer, see Identity note below — this is real money, not KYC), sends `booking_confirmed`. `payMethodId` (saved cards/UPI) isn't wired yet — Pay Methods CRUD is still spec-only, see Wallet & payments below.
+- `GET /bookings` · `POST /bookings/:id/cancel` `{refundTo: wallet|source}` — sets `refunded`, **restores tier.sold** per `tierBreakdown` (the freed spot is real inventory, not cosmetic), wallet → instant `wallet_txs` credit; source → `RazorpayService.refund`; then **offers the freed spot FIFO** to the first `waiting` waitlist entry (flips it to `offered`, sends `waitlist_offer`).
+- `POST /bookings/check-in` `{token}` — verifies the booking's signed QR JWT, rejects if not `confirmed` or already checked in, marks `checkedIn`+`checkedInAt`. One QR per booking (covers every guest on it), not per-guest — matches the ticket design.
+- `POST /events/:id/waitlist` (auth required; dedupes per user via a DB unique constraint) · `GET /events/:id/waitlist` (**public** — the event page shows the waiting count to logged-out guests too).
+- Not yet built: abandoned-cart marking on hold expiry (Redis TTL just silently expires the hold today — no `carts` row or recovery notification yet), promoter-commission ledger entries (`promoterRef` is stored on the booking but nothing reads it yet), `GET /wallet` and referral-claim endpoints (see Wallet & payments / Referrals below).
 
 ### Wallet & payments
 - `GET /wallet` → balance + ledger. Credits are spend-only.
@@ -97,14 +101,14 @@ Everything the admin panel does today against its seed: **the manual verificatio
 
 `prebooze-api`'s admin endpoints currently gate on a placeholder shared-secret header (`x-admin-secret` = `ADMIN_API_SECRET`) rather than real staff accounts — swap for proper admin/staff auth + the permission matrix when the admin-panel API phase starts; every admin action already records who acted (`reviewed_by`) so the audit trail carries over unchanged.
 
-## Payments (Razorpay)
-Order create server-side → frontend checkout with `VITE_RAZORPAY_KEY_ID` → webhook verifies signature → booking finalize. Refunds via API. Subscriptions for promoter plans + monthly featured (auto-renew cron). Webhooks: `payment.captured`, `refund.processed`, `subscription.charged`.
+## Payments (Razorpay) — ✅ order + client-verified signature live; webhooks not yet built
+`RazorpayService` (`src/payments/razorpay.service.ts`): order create server-side (`POST /bookings/quote`) → frontend checkout with `VITE_RAZORPAY_KEY_ID` → client posts back `{orderId, paymentId, signature}` on `POST /bookings`, verified synchronously via HMAC-SHA256(orderId|paymentId, key_secret) before the booking is written. Refunds via `RazorpayService.refund`. **Gap to close before real money**: this trusts the client's checkout-success callback; add the `payment.captured` webhook (Razorpay → our server, independent of the client finishing the round trip) so a payment that succeeds but never makes it back to the browser (closed tab, crash) still finalizes the booking, and add `refund.processed` to reconcile refund state. Subscriptions for promoter plans + monthly featured (auto-renew cron) — not built yet.
 
-## Real QR
-Replace the deterministic placeholder with a signed token QR: `qr = JWT{bookingId, eventId, qty, exp}`; scanner posts the token to `/bookings/check-in`. Promoter passes: short-lived rotating token (5 s window) validated server-side.
+## Real QR — ✅ live
+Every booking gets a signed `qrToken` at creation: `JWT { bookingId }`, 30-day expiry, one per booking (covers every guest on it — matches the ticket design, not per-guest). `POST /bookings/check-in {token}` verifies the signature, confirms the booking is `confirmed` and not already checked in, then marks it. Promoter guest-pass rotating tokens (5 s window) — not built yet, that's promoter console write-side work.
 
 ## Cron / jobs
 Hold expiry sweep, abandoned-cart marker, waitlist FIFO offers with 15-min claim windows, weekly organizer payouts (Mon), monthly promoter quota reset, auto-renew billing, featured expiry.
 
 ## Env (server)
-`DATABASE_URL, REDIS_URL, JWT_SECRET, RAZORPAY_KEY_ID/SECRET/WEBHOOK_SECRET, AISENSY_API_KEY, RESEND_API_KEY, GEOCODER_URL, ADMIN_API_SECRET` (placeholder admin gate — see Admin API), `KYC_VENDOR_API_KEY` (unset = dev stub; guest-only checks — see Identity & KYC).
+`DATABASE_URL, REDIS_URL, JWT_SECRET, RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET` (unset = dev stub — orders/signature-check/refunds simulate instantly, no live gateway needed; `RAZORPAY_WEBHOOK_SECRET` reserved for when the webhook above is built), `AISENSY_API_KEY, RESEND_API_KEY, GEOCODER_URL, ADMIN_API_SECRET` (placeholder admin gate — see Admin API), `KYC_VENDOR_API_KEY` (unset = dev stub; guest-only checks — see Identity & KYC), `WEB_APP_URL` (used to build the waitlist-offer WhatsApp link).

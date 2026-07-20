@@ -78,6 +78,11 @@ model User {
   autoRenew            Boolean              @default(false)
 
   kycSubmissions KycSubmission[]
+  bookings       Booking[]
+  walletTxs      WalletTx[]
+  waitlistEntries WaitlistEntry[]
+  referralsMade  Referral[]      @relation("Referrer")
+  referralJoined Referral?       @relation("Referee")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -276,6 +281,8 @@ model Event {
   promoterConfig Json?      // PromoterConfig — see prebooze-web/src/types.ts
   socialBanners Json?       // {post?, story?}
   tiers         TicketTier[]
+  bookings      Booking[]
+  waitlistEntries WaitlistEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -303,4 +310,101 @@ model Featured {
   amount    Int
   createdAt DateTime        @default(now())
   expiresAt DateTime
+}
+
+// ============================================================================
+// Phase 3 — Bookings, holds (Redis, not modeled here — TTL 8 min, see
+// bookings/holds.service.ts), waitlist, wallet, referrals, coupons, real QR.
+// ============================================================================
+
+enum BookingStatus {
+  confirmed
+  cancelled
+  refunded
+}
+
+enum RefundMethod {
+  wallet
+  source
+}
+
+model Booking {
+  id      String        @id // "#TKT-xxxxx"
+  userId  String
+  user    User          @relation(fields: [userId], references: [id])
+  eventId String
+  event   Event         @relation(fields: [eventId], references: [id])
+
+  tierName      String // display summary, e.g. "2× General"
+  tierBreakdown Json   // {tierId: qty} — exact per-tier split, used to restore inventory on cancel
+  qty           Int
+  subtotal Int
+  fee      Int
+  discount Int @default(0)
+  total    Int
+
+  couponCode String?
+  status     BookingStatus @default(confirmed)
+  guests     Json          // BookingGuest[] — {name, checkedIn, gender?, whatsapp?} (see prebooze-web/src/types.ts)
+  mainGuest  String
+  whatsapp   String
+
+  promoterRef      String? // promoter slug credited with this sale (affiliate commission)
+  walletCreditUsed Int     @default(0)
+  paymentId        String? // Razorpay payment id (or dev-stub id — see RazorpayService)
+  refundedTo       RefundMethod?
+
+  qrToken     String    // signed JWT — POST /bookings/check-in validates this server-side
+  checkedIn   Boolean   @default(false)
+  checkedInAt DateTime?
+
+  createdAt DateTime @default(now())
+}
+
+model WaitlistEntry {
+  id       String   @id @default(cuid())
+  eventId  String
+  event    Event    @relation(fields: [eventId], references: [id])
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  status   String   @default("waiting") // waiting | offered
+  joinedAt DateTime @default(now())
+
+  @@unique([eventId, userId]) // one entry per person per event
+}
+
+model Coupon {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  type          String   // percent | flat
+  value         Int
+  maxDiscount   Int?
+  usageLimit    Int
+  used          Int      @default(0)
+  perUserLimit  Int
+  eventScope    String   // 'all' or an event id
+  validTill     DateTime
+  firstTimeOnly Boolean  @default(false)
+  status        String   @default("active") // active | paused
+}
+
+model WalletTx {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // welcome | referral_welcome | referral_reward | refund | spend
+  amount    Int      // negative for spend
+  note      String
+  createdAt DateTime @default(now())
+}
+
+model Referral {
+  id         String   @id @default(cuid())
+  code       String
+  referrerId String
+  referrer   User     @relation("Referrer", fields: [referrerId], references: [id])
+  refereeId  String   @unique // a phone can only ever be referred once
+  referee    User     @relation("Referee", fields: [refereeId], references: [id])
+  status     String   @default("joined") // joined | qualified (qualifies on referee's first paid booking)
+  createdAt  DateTime @default(now())
 }
