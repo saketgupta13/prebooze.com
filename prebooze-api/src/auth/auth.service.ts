@@ -6,6 +6,7 @@ import type { User } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { REDIS } from '../redis.provider';
 import { WhatsappService } from '../notifications/whatsapp';
+import { referralCodeFor } from '../referrals/referral.constants';
 
 const OTP_TTL_S = 300; // 5 minutes
 const MAX_VERIFY_ATTEMPTS = 5;
@@ -122,7 +123,7 @@ export class AuthService {
 
     const existing = await this.prisma.user.findUnique({ where: { phone: rec.phone } });
     const user =
-      existing ?? (await this.prisma.user.create({ data: { phone: rec.phone } }));
+      existing ?? (await this.prisma.user.create({ data: { phone: rec.phone, referralCode: referralCodeFor(rec.phone) } }));
 
     const token = await this.jwt.signAsync({ sub: user.id, phone: user.phone });
     return { token, user: toApiUser(user), isNew: !existing };

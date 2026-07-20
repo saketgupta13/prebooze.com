@@ -77,12 +77,18 @@ model User {
   attendanceVisibility AttendanceVisibility @default(off)
   autoRenew            Boolean              @default(false)
 
+  // deterministic from phone ("PB" + base36 of the last 8 digits) — set once
+  // at first login, see AuthService — lets /referrals/claim resolve a code
+  // straight to its owner without scanning every user
+  referralCode String? @unique
+
   kycSubmissions KycSubmission[]
   bookings       Booking[]
   walletTxs      WalletTx[]
   waitlistEntries WaitlistEntry[]
   referralsMade  Referral[]      @relation("Referrer")
   referralJoined Referral?       @relation("Referee")
+  payMethods     PayMethod[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -407,4 +413,22 @@ model Referral {
   referee    User     @relation("Referee", fields: [refereeId], references: [id])
   status     String   @default("joined") // joined | qualified (qualifies on referee's first paid booking)
   createdAt  DateTime @default(now())
+}
+
+// ============================================================================
+// Phase 4 — Wallet & payments, referrals (the rest of the money-adjacent
+// account surface; the wallet ledger itself is written by bookings.service).
+// ============================================================================
+
+model PayMethod {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  type      String  // upi | card
+  label     String  // "riya@upi" or "Visa •••• 4242"
+  holder    String? // card-holder name
+  expiry    String? // MM/YY — CVV is never accepted or stored, see PATCH note in wallet.service.ts
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
 }

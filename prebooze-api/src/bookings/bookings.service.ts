@@ -6,9 +6,9 @@ import { PrismaService } from '../prisma.service';
 import { HoldsService } from './holds.service';
 import { RazorpayService } from '../payments/razorpay.service';
 import { WhatsappService } from '../notifications/whatsapp';
+import { REFERRAL_REFERRER_REWARD } from '../referrals/referral.constants';
 
 const FEE_PER_TICKET = 1.5; // ₹, matches prebooze-web's BOOKING_FEE_PER_TICKET
-const REFERRAL_REWARD = 100; // ₹, matches prebooze-web's REFERRAL_CONFIG.referrer
 
 export interface CreateBookingInput {
   holdId: string;
@@ -18,6 +18,7 @@ export interface CreateBookingInput {
   couponCode?: string;
   walletCredit?: number; // ₹ the user wants to apply from their balance
   promoterRef?: string;
+  payMethodId?: string; // saved card/UPI used at checkout — becomes the default
   razorpay?: { orderId: string; paymentId: string; signature: string };
 }
 
@@ -163,6 +164,14 @@ export class BookingsService {
       if (couponRow) {
         await tx.coupon.update({ where: { id: couponRow.id }, data: { used: { increment: 1 } } });
       }
+      // paying with a saved method sets it default
+      if (input.payMethodId) {
+        const method = await tx.payMethod.findUnique({ where: { id: input.payMethodId } });
+        if (method && method.userId === userId && !method.isDefault) {
+          await tx.payMethod.updateMany({ where: { userId }, data: { isDefault: false } });
+          await tx.payMethod.update({ where: { id: input.payMethodId }, data: { isDefault: true } });
+        }
+      }
     });
 
     await this.holds.release(input.holdId);
@@ -179,13 +188,13 @@ export class BookingsService {
           data: {
             userId: referral.referrerId,
             type: 'referral_reward',
-            amount: REFERRAL_REWARD,
+            amount: REFERRAL_REFERRER_REWARD,
             note: `Referral reward — ${user.name || 'your friend'} made their first booking`,
           },
         }),
       ]);
       const referrer = await this.prisma.user.findUnique({ where: { id: referral.referrerId } });
-      if (referrer) await this.wa.send(referrer.phone, 'referral_reward', [String(REFERRAL_REWARD), user.name || 'Your friend']).catch(() => {});
+      if (referrer) await this.wa.send(referrer.phone, 'referral_reward', [String(REFERRAL_REFERRER_REWARD), user.name || 'Your friend']).catch(() => {});
     }
 
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true } } } });
