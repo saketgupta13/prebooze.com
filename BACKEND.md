@@ -7,7 +7,9 @@ The frontends (`prebooze-web`, `prebooze-admin`) are feature-complete on mock da
 - `prebooze-web/src/lib/notify.ts` + `src/config/messaging.ts` — messaging templates + provider config; in backend mode each send POSTs `/notifications/send`.
 - `prebooze-web/.env.example` — all environment configuration.
 
-Recommended stack: Node (NestJS/Fastify) + Postgres + Redis (holds/OTP/queues) + Razorpay + Meta WhatsApp Cloud API + Resend. All money in integer paise server-side.
+Recommended stack: Node (NestJS/Fastify) + Postgres + Redis (holds/OTP/queues) + Razorpay + AiSensy (WhatsApp, a Meta BSP) + Resend. All money in integer paise server-side.
+
+**Status:** `prebooze-api/` (NestJS) is scaffolded and live locally — Prisma/Postgres + Redis, `/v1/auth/otp` + `/v1/auth/verify` + `/v1/me` working end-to-end with a dev WhatsApp provider (real sends activate once `AISENSY_API_KEY` is set).
 
 ## Conventions
 - Base URL `/v1`. JSON everywhere. Auth: `Authorization: Bearer <JWT>`; errors `{ code, message }` with proper HTTP status.
@@ -89,4 +91,4 @@ Replace the deterministic placeholder with a signed token QR: `qr = JWT{bookingI
 Hold expiry sweep, abandoned-cart marker, waitlist FIFO offers with 15-min claim windows, weekly organizer payouts (Mon), monthly promoter quota reset, auto-renew billing, featured expiry.
 
 ## Env (server)
-`DATABASE_URL, REDIS_URL, JWT_SECRET, RAZORPAY_KEY_ID/SECRET/WEBHOOK_SECRET, WA_ACCESS_TOKEN, WA_PHONE_NUMBER_ID, RESEND_API_KEY, GEOCODER_URL`.
+`DATABASE_URL, REDIS_URL, JWT_SECRET, RAZORPAY_KEY_ID/SECRET/WEBHOOK_SECRET, AISENSY_API_KEY, RESEND_API_KEY, GEOCODER_URL`.

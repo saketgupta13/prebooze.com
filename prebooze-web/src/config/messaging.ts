@@ -4,9 +4,8 @@
 export const MESSAGING = {
   apiUrl: import.meta.env.VITE_API_URL ?? '',
   whatsapp: {
-    provider: import.meta.env.VITE_WA_PROVIDER ?? 'meta_cloud', // meta_cloud | gupshup | twilio
-    phoneNumberId: import.meta.env.VITE_WA_PHONE_NUMBER_ID ?? '',
-    // access tokens live server-side only — the frontend never holds them
+    provider: import.meta.env.VITE_WA_PROVIDER ?? 'aisensy', // aisensy (Meta BSP)
+    // AiSensy API key lives server-side only (prebooze-api/.env) — the frontend never holds it
   },
   email: {
     provider: import.meta.env.VITE_EMAIL_PROVIDER ?? 'resend', // resend | ses | sendgrid

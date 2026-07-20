@@ -1,46 +1,43 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-/** WhatsApp sender — provider-agnostic. With no WA_ACCESS_TOKEN configured we
- * run the dev provider (logs the message); the Meta Cloud API implementation
- * slots in once the business number + templates are approved. */
+/** WhatsApp sender — provider-agnostic. With no AISENSY_API_KEY configured we
+ * run the dev provider (logs the OTP); AiSensy (a Meta BSP) handles the
+ * business/template approval and forwards to the Meta Cloud API for us. */
 @Injectable()
 export class WhatsappService {
   private readonly log = new Logger('WhatsApp');
 
   get live(): boolean {
-    return Boolean(process.env.WA_ACCESS_TOKEN && process.env.WA_PHONE_NUMBER_ID);
+    return Boolean(process.env.AISENSY_API_KEY);
+  }
+
+  /** Send an approved AiSensy campaign/template to one recipient.
+   * `params` fill the template's numbered variables in order, e.g. {{1}}. */
+  async send(phone: string, campaignName: string, params: string[]): Promise<void> {
+    const destination = phone.replace(/[^\d]/g, '');
+    if (!this.live) {
+      this.log.log(`[dev] ${campaignName} -> ${phone}: ${params.join(' | ')}`);
+      return;
+    }
+    const res = await fetch('https://backend.aisensy.com/campaign/t1/api/v2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: process.env.AISENSY_API_KEY,
+        campaignName,
+        destination,
+        userName: 'Prebooze',
+        templateParams: params,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      this.log.error(`AiSensy send failed ${res.status}: ${body}`);
+      throw new Error('WhatsApp send failed');
+    }
   }
 
   async sendOtp(phone: string, code: string): Promise<void> {
-    if (!this.live) {
-      this.log.log(`[dev] OTP for ${phone}: ${code}`);
-      return;
-    }
-    const to = phone.replace(/[^\d]/g, '');
-    const res = await fetch(
-      `https://graph.facebook.com/v21.0/${process.env.WA_PHONE_NUMBER_ID}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to,
-          type: 'template',
-          template: {
-            name: 'otp', // pre-approved HSM template
-            language: { code: 'en' },
-            components: [{ type: 'body', parameters: [{ type: 'text', text: code }] }],
-          },
-        }),
-      },
-    );
-    if (!res.ok) {
-      const body = await res.text();
-      this.log.error(`WA send failed ${res.status}: ${body}`);
-      throw new Error('WhatsApp send failed');
-    }
+    return this.send(phone, 'otp', [code]);
   }
 }
