@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp, CART_HOLD_MINUTES } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import type { Booking } from '../types';
+import { existingRole, roleHome, roleLabel } from '../lib/roles';
 
 const BOOKING_FEE_PER_TICKET = 1.5;
 
@@ -94,16 +95,17 @@ export default function Checkout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expired]);
 
-  if (user?.isVenue) {
+  const heldRole = existingRole(user);
+  if (heldRole) {
     return (
       <main className="page">
         <div className="container center" style={{ padding: '80px 0' }}>
-          <h1>Venue accounts can't book tickets</h1>
+          <h1>{roleLabel(heldRole)[0].toUpperCase() + roleLabel(heldRole).slice(1)} accounts can't book tickets</h1>
           <p className="muted" style={{ margin: '10px 0 20px' }}>
-            This number is registered as a venue partner — a business account. To book tickets as a guest, use a
-            personal number.
+            This number is registered as a {roleLabel(heldRole)} — a business account. To book tickets as a guest,
+            use a personal number.
           </p>
-          <Link to="/venue" className="btn btn-pri">Go to my venue dashboard →</Link>
+          <Link to={roleHome[heldRole]} className="btn btn-pri">Go to my {roleLabel(heldRole)} space →</Link>
         </div>
       </main>
     );

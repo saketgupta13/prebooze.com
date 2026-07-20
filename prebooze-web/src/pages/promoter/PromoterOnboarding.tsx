@@ -1,28 +1,44 @@
-import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import LocationPicker, { emptyLocation } from '../../components/LocationPicker';
+import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import RoleTaken from '../../components/RoleTaken';
 import { existingRole } from '../../lib/roles';
+import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
+
+const DRAFT_ID = 'promoter';
+type Draft = {
+  logo: boolean; brand: string; username: string; loc: LocationValue; bio: string; links: string;
+  audience: string; idDoc: boolean; selfie: boolean;
+};
+const emptyDraft: Draft = {
+  logo: false, brand: '', username: '', loc: emptyLocation(), bio: '', links: '', audience: '',
+  idDoc: false, selfie: false,
+};
 
 /** Promoter onboarding — same 2-step pattern as organizers: PR profile → identity KYC,
  * then Pending admin review. */
 export default function PromoterOnboarding() {
   const { user, submitRoleApplication } = useApp();
+  const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
 
-  const [logo, setLogo] = useState(false);
-  const [brand, setBrand] = useState('');
-  const [username, setUsername] = useState('');
-  const [city, setCity] = useState(user?.city ?? '');
-  const [loc, setLoc] = useState(emptyLocation);
-  const [bio, setBio] = useState('');
-  const [links, setLinks] = useState('');
-  const [audience, setAudience] = useState('');
+  const draft0 = loadDraft(DRAFT_ID, emptyDraft);
+  const [logo, setLogo] = useState(draft0.logo);
+  const [brand, setBrand] = useState(draft0.brand);
+  const [username, setUsername] = useState(draft0.username);
+  const [loc, setLoc] = useState(draft0.loc);
+  const [bio, setBio] = useState(draft0.bio);
+  const [links, setLinks] = useState(draft0.links);
+  const [audience, setAudience] = useState(draft0.audience);
 
-  const [idDoc, setIdDoc] = useState(false);
-  const [selfie, setSelfie] = useState(false);
+  const [idDoc, setIdDoc] = useState(draft0.idDoc);
+  const [selfie, setSelfie] = useState(draft0.selfie);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    saveDraft(DRAFT_ID, { logo, brand, username, loc, bio, links, audience, idDoc, selfie });
+  }, [logo, brand, username, loc, bio, links, audience, idDoc, selfie]);
 
   if (!user) return <Navigate to="/login" state={{ from: '/promoter/onboarding' }} replace />;
   const otherRole = existingRole(user);
@@ -33,6 +49,7 @@ export default function PromoterOnboarding() {
 
   const submit = () => {
     submitRoleApplication('promoter', { promoterBrand: brand.trim(), promoterUsername: username.trim(), promoterPlan: 'free' });
+    clearDraft(DRAFT_ID);
     setDone(true);
   };
 
@@ -48,7 +65,7 @@ export default function PromoterOnboarding() {
             guests can follow you.
           </p>
           <div className="card" style={{ textAlign: 'left', marginBottom: 18 }}>
-            <div className="kv"><span className="k">Profile</span><span>{brand} · {city}</span></div>
+            <div className="kv"><span className="k">Profile</span><span>{brand} · {loc.city}</span></div>
             <div className="kv"><span className="k">Plan</span><span>Free · 25 guests / month</span></div>
             <div className="kv"><span className="k">Status</span><span className="badge badge-pending">Pending review ◌ · ~24h</span></div>
           </div>
@@ -96,7 +113,7 @@ export default function PromoterOnboarding() {
                 <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@novanights" />
               </div>
             </div>
-            <LocationPicker value={loc} onChange={(v) => { setLoc(v); setCity(v.city); }} />
+            <LocationPicker value={loc} onChange={setLoc} />
             <div className="field">
               <span>Links (socials / WhatsApp)</span>
               <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="ig / wa / telegram" />
@@ -109,9 +126,14 @@ export default function PromoterOnboarding() {
               <span>Audience size / reach (optional)</span>
               <input value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="e.g. 8k on Instagram, 2k WhatsApp broadcast" />
             </div>
-            <button className="btn btn-pri btn-block btn-lg" disabled={!step1Valid}>
-              Save & continue → verification
-            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>
+                ← Back
+              </button>
+              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!step1Valid}>
+                Save & continue → verification
+              </button>
+            </div>
           </form>
         ) : (
           <div>

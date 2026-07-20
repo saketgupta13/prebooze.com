@@ -1,34 +1,46 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import LocationPicker, { emptyLocation } from '../../components/LocationPicker';
+import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import RoleTaken from '../../components/RoleTaken';
 import { existingRole } from '../../lib/roles';
+import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
+
+const DRAFT_ID = 'organizer';
+type Draft = {
+  logo: boolean; brand: string; username: string; loc: LocationValue; types: string; about: string;
+  links: string; gstin: string; pan: string; aadhaar: boolean; selfie: boolean; account: string; ifsc: string;
+};
+const emptyDraft: Draft = {
+  logo: false, brand: '', username: '', loc: emptyLocation(), types: 'Concerts', about: '',
+  links: '', gstin: '', pan: '', aadhaar: false, selfie: false, account: '', ifsc: '',
+};
 
 export default function Onboarding() {
   const { user, submitRoleApplication } = useApp();
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
 
-  // Step 1 — business profile
-  const [logo, setLogo] = useState(false);
-  const [brand, setBrand] = useState(user?.orgBrand ?? '');
-  const [username, setUsername] = useState(user?.orgUsername ?? '');
-  const [contact, setContact] = useState(user?.name ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
-  const [altPhone, setAltPhone] = useState('');
-  const [loc, setLoc] = useState(emptyLocation);
-  const [types, setTypes] = useState('Concerts');
-  const [about, setAbout] = useState('');
-  const [links, setLinks] = useState('');
-  const [gstin, setGstin] = useState('');
-  const [pan, setPan] = useState('');
+  const draft0 = loadDraft(DRAFT_ID, emptyDraft);
+  const [logo, setLogo] = useState(draft0.logo);
+  const [brand, setBrand] = useState(user?.orgBrand || draft0.brand);
+  const [username, setUsername] = useState(user?.orgUsername || draft0.username);
+  const [loc, setLoc] = useState(draft0.loc);
+  const [types, setTypes] = useState(draft0.types);
+  const [about, setAbout] = useState(draft0.about);
+  const [links, setLinks] = useState(draft0.links);
+  const [gstin, setGstin] = useState(draft0.gstin);
+  const [pan, setPan] = useState(draft0.pan);
 
   // Step 2 — KYC + bank
-  const [aadhaar, setAadhaar] = useState(false);
-  const [selfie, setSelfie] = useState(false);
-  const [account, setAccount] = useState('');
-  const [ifsc, setIfsc] = useState('');
+  const [aadhaar, setAadhaar] = useState(draft0.aadhaar);
+  const [selfie, setSelfie] = useState(draft0.selfie);
+  const [account, setAccount] = useState(draft0.account);
+  const [ifsc, setIfsc] = useState(draft0.ifsc);
+
+  useEffect(() => {
+    saveDraft(DRAFT_ID, { logo, brand, username, loc, types, about, links, gstin, pan, aadhaar, selfie, account, ifsc });
+  }, [logo, brand, username, loc, types, about, links, gstin, pan, aadhaar, selfie, account, ifsc]);
 
   const otherRole = existingRole(user);
   if (otherRole && otherRole !== 'organizer') return <RoleTaken has={otherRole} />;
@@ -39,6 +51,7 @@ export default function Onboarding() {
 
   const submit = () => {
     submitRoleApplication('organizer', { orgBrand: brand.trim(), orgUsername: username.trim() });
+    clearDraft(DRAFT_ID);
     navigate('/organizer'); // console redirects to a "pending review" screen until the team approves
   };
 
@@ -77,31 +90,11 @@ export default function Onboarding() {
             <div className="form-row">
               <div className="field">
                 <span>Organizer / brand name</span>
-                <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand name" />
+                <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand name" autoFocus />
               </div>
               <div className="field">
                 <span>Username</span>
                 <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@brand" />
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="field">
-                <span>Contact person name</span>
-                <input value={contact} onChange={(e) => setContact(e.target.value)} />
-              </div>
-              <div className="field">
-                <span>Email</span>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="field">
-                <span>Alternate phone number</span>
-                <input value={altPhone} onChange={(e) => setAltPhone(e.target.value)} />
-              </div>
-              <div className="field">
-                <span>WhatsApp</span>
-                <input value={user?.phone ?? ''} disabled />
               </div>
             </div>
             <LocationPicker value={loc} onChange={setLoc} />
@@ -138,9 +131,14 @@ export default function Onboarding() {
               </div>
             </div>
 
-            <button className="btn btn-pri btn-block btn-lg" disabled={!step1Valid}>
-              Save & continue → KYC
-            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>
+                ← Back
+              </button>
+              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!step1Valid}>
+                Save & continue → KYC
+              </button>
+            </div>
           </form>
         ) : (
           <div>

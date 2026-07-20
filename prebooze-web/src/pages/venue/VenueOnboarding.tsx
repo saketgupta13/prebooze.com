@@ -1,36 +1,53 @@
-import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import LocationPicker, { emptyLocation } from '../../components/LocationPicker';
+import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import RoleTaken from '../../components/RoleTaken';
 import MapEmbed from '../../components/MapEmbed';
 import { existingRole } from '../../lib/roles';
 import { notify } from '../../lib/notify';
+import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
 
 const VENUE_TYPES = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
 
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+const DRAFT_ID = 'venue';
+type Draft = {
+  photos: boolean; name: string; vtype: string; loc: LocationValue; address: string; capacity: string;
+  amenities: string[]; timings: string; about: string; license: boolean; addressProof: boolean;
+};
+const emptyDraft: Draft = {
+  photos: false, name: '', vtype: VENUE_TYPES[0], loc: emptyLocation(), address: '', capacity: '',
+  amenities: [], timings: '', about: '', license: false, addressProof: false,
+};
+
 /** Venue-partner onboarding — same 2-step pattern as other roles:
  * listing details → license & documents, then Pending admin review. */
 export default function VenueOnboarding() {
   const { user, submitRoleApplication, addMyVenue } = useApp();
+  const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
 
-  const [photos, setPhotos] = useState(false);
-  const [name, setName] = useState('');
-  const [vtype, setVtype] = useState(VENUE_TYPES[0]);
-  const [loc, setLoc] = useState(emptyLocation);
-  const [address, setAddress] = useState('');
-  const [capacity, setCapacity] = useState('');
-  const [amenities, setAmenities] = useState<string[]>([]);
-  const [timings, setTimings] = useState('');
-  const [about, setAbout] = useState('');
+  const draft0 = loadDraft(DRAFT_ID, emptyDraft);
+  const [photos, setPhotos] = useState(draft0.photos);
+  const [name, setName] = useState(draft0.name);
+  const [vtype, setVtype] = useState(draft0.vtype);
+  const [loc, setLoc] = useState(draft0.loc);
+  const [address, setAddress] = useState(draft0.address);
+  const [capacity, setCapacity] = useState(draft0.capacity);
+  const [amenities, setAmenities] = useState<string[]>(draft0.amenities);
+  const [timings, setTimings] = useState(draft0.timings);
+  const [about, setAbout] = useState(draft0.about);
 
-  const [license, setLicense] = useState(false);
-  const [addressProof, setAddressProof] = useState(false);
+  const [license, setLicense] = useState(draft0.license);
+  const [addressProof, setAddressProof] = useState(draft0.addressProof);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    saveDraft(DRAFT_ID, { photos, name, vtype, loc, address, capacity, amenities, timings, about, license, addressProof });
+  }, [photos, name, vtype, loc, address, capacity, amenities, timings, about, license, addressProof]);
 
   if (!user) return <Navigate to="/login" state={{ from: '/venue/onboarding' }} replace />;
   const otherRole = existingRole(user);
@@ -63,6 +80,7 @@ export default function VenueOnboarding() {
     });
     submitRoleApplication('venue', { venueName: name.trim(), venueId: id });
     notify(user.phone, 'welcome', { name: name.trim() }, user.email || undefined);
+    clearDraft(DRAFT_ID);
     setDone(true);
   };
 
@@ -157,9 +175,14 @@ export default function VenueOnboarding() {
               <span>ℹ️ About the venue</span>
               <textarea value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Sound, vibe, what nights work best here…" />
             </div>
-            <button className="btn btn-pri btn-block btn-lg" disabled={!step1Valid}>
-              Save & continue → documents
-            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>
+                ← Back
+              </button>
+              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!step1Valid}>
+                Save & continue → documents
+              </button>
+            </div>
           </form>
         ) : (
           <div>

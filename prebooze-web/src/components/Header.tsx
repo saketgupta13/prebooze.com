@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, LINEUPS, ORGANIZERS, TRENDING_SEARCHES, VENUES } from '../data/mock';
 import CityPicker from './CityPicker';
+import { existingRole } from '../lib/roles';
 
 export default function Header() {
   const { user, city, logout } = useApp();
+  const heldRole = existingRole(user);
   const navigate = useNavigate();
   const [cityOpen, setCityOpen] = useState(false);
   const [autoDetect, setAutoDetect] = useState(false);
@@ -117,8 +119,8 @@ export default function Header() {
         <nav className="hdr-links">
           <Link to="/browse">Events</Link>
           <Link to="/venues">Venues</Link>
-          <Link to="/host">Host with us</Link>
-          {user && !user.isVenue && <Link to="/bookings">My Bookings</Link>}
+          {!heldRole && <Link to="/host">Host with us</Link>}
+          {user && !heldRole && <Link to="/bookings">My Bookings</Link>}
         </nav>
 
         {user ? (
@@ -127,9 +129,10 @@ export default function Header() {
             {user.name ? user.name.split(' ')[0] : 'Profile'} ▾
             {menuOpen && (
               <div className="menu" onClick={(e) => e.stopPropagation()}>
-                {/* Venue is a business account — guest features (booking, wishlist,
+                {/* Any elevated role (organizer/promoter/lineup/venue) is a
+                    business/role account — guest features (booking, wishlist,
                     wallet, referrals) are hidden; one number = one role. */}
-                {!user.isVenue && (
+                {!heldRole && (
                   <>
                     <Link to="/profile" onClick={() => setMenuOpen(false)}>
                       👤 My profile
@@ -174,7 +177,7 @@ export default function Header() {
                     🏛 Venue console
                   </Link>
                 )}
-                {!user.isOrganizer && !user.isPromoter && !user.isLineup && !user.isVenue && (
+                {!heldRole && (
                   <Link to="/host" onClick={() => setMenuOpen(false)}>
                     🎤 Host with us
                   </Link>

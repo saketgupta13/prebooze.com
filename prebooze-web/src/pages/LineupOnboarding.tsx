@@ -1,32 +1,47 @@
-import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import LocationPicker, { emptyLocation } from '../components/LocationPicker';
+import LocationPicker, { emptyLocation, type LocationValue } from '../components/LocationPicker';
 import RoleTaken from '../components/RoleTaken';
 import { existingRole } from '../lib/roles';
+import { loadDraft, saveDraft, clearDraft } from '../lib/formDraft';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
+const DRAFT_ID = 'lineup';
+type Draft = {
+  photo: boolean; stageName: string; category: string; loc: LocationValue; bio: string; links: string;
+  sample: string; idDoc: boolean; selfie: boolean;
+};
+const emptyDraft: Draft = {
+  photo: false, stageName: '', category: 'DJ', loc: emptyLocation(), bio: '', links: '', sample: '',
+  idDoc: false, selfie: false,
+};
 
 /** Line-up onboarding — same 2-step pattern as organizer onboarding:
  * 1 · stage profile → 2 · identity verification → profile goes live after review. */
 export default function LineupOnboarding() {
   const { user, submitRoleApplication } = useApp();
+  const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
 
   // Step 1 — stage profile
-  const [photo, setPhoto] = useState(false);
-  const [stageName, setStageName] = useState('');
-  const [category, setCategory] = useState('DJ');
-  const [city, setCity] = useState(user?.city ?? '');
-  const [loc, setLoc] = useState(emptyLocation);
-  const [bio, setBio] = useState('');
-  const [links, setLinks] = useState('');
-  const [sample, setSample] = useState('');
+  const draft0 = loadDraft(DRAFT_ID, emptyDraft);
+  const [photo, setPhoto] = useState(draft0.photo);
+  const [stageName, setStageName] = useState(draft0.stageName);
+  const [category, setCategory] = useState(draft0.category);
+  const [loc, setLoc] = useState(draft0.loc);
+  const [bio, setBio] = useState(draft0.bio);
+  const [links, setLinks] = useState(draft0.links);
+  const [sample, setSample] = useState(draft0.sample);
 
   // Step 2 — verification
-  const [idDoc, setIdDoc] = useState(false);
-  const [selfie, setSelfie] = useState(false);
+  const [idDoc, setIdDoc] = useState(draft0.idDoc);
+  const [selfie, setSelfie] = useState(draft0.selfie);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    saveDraft(DRAFT_ID, { photo, stageName, category, loc, bio, links, sample, idDoc, selfie });
+  }, [photo, stageName, category, loc, bio, links, sample, idDoc, selfie]);
 
   // Same WhatsApp OTP login as guests — then this instead of the guest profile
   if (!user) return <Navigate to="/login" state={{ from: '/lineup/onboarding' }} replace />;
@@ -38,7 +53,8 @@ export default function LineupOnboarding() {
 
   const submit = () => {
     const slug = stageName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    submitRoleApplication('lineup', { lineupName: stageName.trim(), lineupCategory: category, lineupUsername: slug, city });
+    submitRoleApplication('lineup', { lineupName: stageName.trim(), lineupCategory: category, lineupUsername: slug, city: loc.city });
+    clearDraft(DRAFT_ID);
     setDone(true);
   };
 
@@ -54,7 +70,7 @@ export default function LineupOnboarding() {
             follow you.
           </p>
           <div className="card" style={{ textAlign: 'left', marginBottom: 18 }}>
-            <div className="kv"><span className="k">Profile</span><span>{stageName} · {category} · {city}</span></div>
+            <div className="kv"><span className="k">Profile</span><span>{stageName} · {category} · {loc.city}</span></div>
             <div className="kv"><span className="k">Status</span><span className="badge badge-pending">Pending review ◌ · ~24h</span></div>
             <div className="kv"><span className="k">Next</span><span>we WhatsApp you when you're live</span></div>
           </div>
@@ -112,7 +128,7 @@ export default function LineupOnboarding() {
                 ))}
               </div>
             </div>
-            <LocationPicker value={loc} onChange={(v) => { setLoc(v); setCity(v.city); }} />
+            <LocationPicker value={loc} onChange={setLoc} />
             <div className="field">
               <span>Links (socials / music)</span>
               <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="ig / spotify / soundcloud" />
@@ -125,9 +141,14 @@ export default function LineupOnboarding() {
               <span>Sample set / showreel link (optional)</span>
               <input value={sample} onChange={(e) => setSample(e.target.value)} placeholder="youtube / soundcloud link" />
             </div>
-            <button className="btn btn-pri btn-block btn-lg" disabled={!step1Valid}>
-              Save & continue → verification
-            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>
+                ← Back
+              </button>
+              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!step1Valid}>
+                Save & continue → verification
+              </button>
+            </div>
           </form>
         ) : (
           <div>

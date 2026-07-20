@@ -13,6 +13,7 @@ import {
   venueById,
 } from '../data/mock';
 import { friendsGoing, goingCount, myStatus } from '../lib/social';
+import { existingRole, roleLabel } from '../lib/roles';
 import Poster, { categoryEmoji } from '../components/Poster';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
@@ -83,7 +84,7 @@ export default function EventDetail() {
   })();
 
   const book = () => {
-    if (user?.isVenue) return; // business account — checkout also blocks this
+    if (existingRole(user)) return; // business/elevated-role account — checkout also blocks this
     setSelection({ eventId: event.id, qty });
     if (!user) {
       navigate('/login', { state: { from: '/checkout' } });
@@ -336,9 +337,9 @@ export default function EventDetail() {
                   <Link to="/login" className="btn btn-pri btn-block">Log in to join the waitlist</Link>
                 )}
               </div>
-            ) : user?.isVenue ? (
+            ) : existingRole(user) ? (
               <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: '10px 12px', fontSize: 12.5 }} >
-                🏛 Venue accounts can't book tickets — use a personal number to attend as a guest.
+                🔒 {roleLabel(existingRole(user)!)[0].toUpperCase() + roleLabel(existingRole(user)!).slice(1)} accounts can't book tickets — use a personal number to attend as a guest.
               </div>
             ) : (
               <button className="btn btn-pri btn-block btn-lg" disabled={ticketCount === 0} onClick={book}>
