@@ -7,6 +7,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { WalletModule } from './wallet/wallet.module';
 import { ReferralsModule } from './referrals/referrals.module';
+import { SocialModule } from './social/social.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ReferralsModule } from './referrals/referrals.module';
     BookingsModule,
     WalletModule,
     ReferralsModule,
+    SocialModule,
   ],
   controllers: [AppController],
 })

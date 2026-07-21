@@ -34,25 +34,25 @@ enum KycKind {
 }
 
 enum KycStatus {
-  pending  // guest: auto-check running or fell back to manual; roles: awaiting team review
+  pending // guest: auto-check running or fell back to manual; roles: awaiting team review
   approved
   rejected
 }
 
 model User {
-  id        String   @id @default(cuid())
-  phone     String   @unique // "+91 9990001111" (normalized)
-  name      String   @default("")
-  username  String   @default("")
-  email     String   @default("")
-  city      String   @default("")
-  dob       String   @default("")
-  gender    String   @default("")
-  profession String  @default("")
-  languages String   @default("")
-  bio       String   @default("")
-  socials   String   @default("")
-  interests String[] @default([])
+  id         String   @id @default(cuid())
+  phone      String   @unique // "+91 9990001111" (normalized)
+  name       String   @default("")
+  username   String   @default("")
+  email      String   @default("")
+  city       String   @default("")
+  dob        String   @default("")
+  gender     String   @default("")
+  profession String   @default("")
+  languages  String   @default("")
+  bio        String   @default("")
+  socials    String   @default("")
+  interests  String[] @default([])
 
   phoneVerified Boolean @default(true)
   idVerified    Boolean @default(false)
@@ -61,18 +61,18 @@ model User {
   // one number = one elevated role (enforced in service layer too).
   // `role` is only ever set by an admin approving a KycSubmission — never
   // directly by the user — so it doubles as "is this role actually live".
-  role         ElevatedRole?
-  roleStatus   KycStatus?    // null = never applied; mirrors the latest submission's status
-  orgBrand     String?
-  orgUsername  String?
-  lineupName   String?
-  lineupCategory String?
-  lineupUsername String?
-  promoterBrand String?
+  role             ElevatedRole?
+  roleStatus       KycStatus? // null = never applied; mirrors the latest submission's status
+  orgBrand         String?
+  orgUsername      String?
+  lineupName       String?
+  lineupCategory   String?
+  lineupUsername   String?
+  promoterBrand    String?
   promoterUsername String?
-  promoterPlan String?
-  venueName    String?
-  venueId      String?
+  promoterPlan     String?
+  venueName        String?
+  venueId          String?
 
   attendanceVisibility AttendanceVisibility @default(off)
   autoRenew            Boolean              @default(false)
@@ -82,13 +82,18 @@ model User {
   // straight to its owner without scanning every user
   referralCode String? @unique
 
-  kycSubmissions KycSubmission[]
-  bookings       Booking[]
-  walletTxs      WalletTx[]
+  kycSubmissions  KycSubmission[]
+  bookings        Booking[]
+  walletTxs       WalletTx[]
   waitlistEntries WaitlistEntry[]
-  referralsMade  Referral[]      @relation("Referrer")
-  referralJoined Referral?       @relation("Referee")
-  payMethods     PayMethod[]
+  referralsMade   Referral[]       @relation("Referrer")
+  referralJoined  Referral?        @relation("Referee")
+  payMethods      PayMethod[]
+  follows         Follow[]
+  eventInterests  EventInterest[]
+  eventWishlists  EventWishlist[]
+  venueFavourites VenueFavourite[]
+  orgReviews      OrgReview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -153,21 +158,21 @@ enum FeaturedBilling {
 }
 
 model Venue {
-  id         String   @id // slug-style id, e.g. "arena-hall" — matches existing frontend ids
-  name       String
-  verified   Boolean  @default(false)
-  type       String
-  locality   String   @default("")
-  city       String
-  address    String
-  capacity   Int
-  rating     Float    @default(0)
-  followers  Int      @default(0)
-  amenities  String[] @default([])
-  about      String
-  timings    String?
-  photoHue   Int
-  events     Event[]
+  id        String   @id // slug-style id, e.g. "arena-hall" — matches existing frontend ids
+  name      String
+  verified  Boolean  @default(false)
+  type      String
+  locality  String   @default("")
+  city      String
+  address   String
+  capacity  Int
+  rating    Float    @default(0)
+  followers Int      @default(0)
+  amenities String[] @default([])
+  about     String
+  timings   String?
+  photoHue  Int
+  events    Event[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -194,33 +199,33 @@ model Organizer {
 }
 
 model Promoter {
-  id             String  @id
-  slug           String  @unique
+  id             String   @id
+  slug           String   @unique
   name           String
-  verified       Boolean @default(false)
+  verified       Boolean  @default(false)
   city           String
   bio            String
   links          String[] @default([])
-  followers      Int     @default(0)
-  eventsPromoted Int     @default(0)
-  guestsBrought  Int     @default(0)
-  showRate       Int     @default(0) // % of guests who actually arrived
+  followers      Int      @default(0)
+  eventsPromoted Int      @default(0)
+  guestsBrought  Int      @default(0)
+  showRate       Int      @default(0) // % of guests who actually arrived
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Lineup {
-  id           String  @id
-  slug         String  @unique
+  id           String   @id
+  slug         String   @unique
   name         String
   category     String
-  verified     Boolean @default(false)
+  verified     Boolean  @default(false)
   city         String
   bio          String
   links        String[] @default([])
-  followers    Int     @default(0)
-  eventsPlayed Int     @default(0)
+  followers    Int      @default(0)
+  eventsPlayed Int      @default(0)
   hue          Int
   emoji        String
 
@@ -237,7 +242,7 @@ model Person {
   bio       String?
   verified  Boolean  @default(false)
   followers Int      @default(0)
-  follows   String[] @default([]) // person ids — the follow graph itself lands properly in Phase 6 (Social)
+  follows   String[] @default([]) // static seed graph only — real follows live in the Follow model (Phase 5)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -251,10 +256,10 @@ model Category {
 }
 
 model City {
-  name   String  @id
-  icon   String?
-  top    Boolean @default(false) // shows in the Top-12 picker
-  sort   Int     @default(0)
+  name String  @id
+  icon String?
+  top  Boolean @default(false) // shows in the Top-12 picker
+  sort Int     @default(0)
 }
 
 model TrendingSearch {
@@ -263,31 +268,31 @@ model TrendingSearch {
 }
 
 model Event {
-  id            String      @id
-  slug          String      @unique
-  title         String
-  description   String
-  category      String
-  subCategory   String?
-  ageLimit      String
-  tags          String[]    @default([])
-  date          DateTime
-  durationHrs   Float
-  venueId       String
-  venue         Venue       @relation(fields: [venueId], references: [id])
-  organizerId   String
-  organizer     Organizer   @relation(fields: [organizerId], references: [id])
-  status        EventStatus @default(pending)
+  id              String          @id
+  slug            String          @unique
+  title           String
+  description     String
+  category        String
+  subCategory     String?
+  ageLimit        String
+  tags            String[]        @default([])
+  date            DateTime
+  durationHrs     Float
+  venueId         String
+  venue           Venue           @relation(fields: [venueId], references: [id])
+  organizerId     String
+  organizer       Organizer       @relation(fields: [organizerId], references: [id])
+  status          EventStatus     @default(pending)
   rejectionReason String?
-  conditions    String[]    @default([])
-  rules         Json        @default("[]") // PartyRule[] — {title, body}[]
-  lineup        Json        @default("[]") // LineupItem[] — {name, role}[]
-  posterHue     Int
-  seo           Json?       // {title, description, slug, keywords}
-  promoterConfig Json?      // PromoterConfig — see prebooze-web/src/types.ts
-  socialBanners Json?       // {post?, story?}
-  tiers         TicketTier[]
-  bookings      Booking[]
+  conditions      String[]        @default([])
+  rules           Json            @default("[]") // PartyRule[] — {title, body}[]
+  lineup          Json            @default("[]") // LineupItem[] — {name, role}[]
+  posterHue       Int
+  seo             Json? // {title, description, slug, keywords}
+  promoterConfig  Json? // PromoterConfig — see prebooze-web/src/types.ts
+  socialBanners   Json? // {post?, story?}
+  tiers           TicketTier[]
+  bookings        Booking[]
   waitlistEntries WaitlistEntry[]
 
   createdAt DateTime @default(now())
@@ -295,13 +300,13 @@ model Event {
 }
 
 model TicketTier {
-  id          String @id @default(cuid())
+  id          String   @id @default(cuid())
   eventId     String
-  event       Event  @relation(fields: [eventId], references: [id])
+  event       Event    @relation(fields: [eventId], references: [id])
   name        String
-  price       Int    // ₹, integer
+  price       Int // ₹, integer
   quantity    Int
-  sold        Int    @default(0)
+  sold        Int      @default(0)
   includes    String[] @default([])
   description String?
 }
@@ -309,7 +314,7 @@ model TicketTier {
 model Featured {
   id        String          @id @default(cuid())
   type      FeaturedType
-  refId     String          // event id | organizer id | promoter slug | lineup slug | venue id
+  refId     String // event id | organizer id | promoter slug | lineup slug | venue id
   city      String
   status    FeaturedStatus  @default(pending)
   billing   FeaturedBilling
@@ -335,32 +340,32 @@ enum RefundMethod {
 }
 
 model Booking {
-  id      String        @id // "#TKT-xxxxx"
+  id      String @id // "#TKT-xxxxx"
   userId  String
-  user    User          @relation(fields: [userId], references: [id])
+  user    User   @relation(fields: [userId], references: [id])
   eventId String
-  event   Event         @relation(fields: [eventId], references: [id])
+  event   Event  @relation(fields: [eventId], references: [id])
 
   tierName      String // display summary, e.g. "2× General"
-  tierBreakdown Json   // {tierId: qty} — exact per-tier split, used to restore inventory on cancel
+  tierBreakdown Json // {tierId: qty} — exact per-tier split, used to restore inventory on cancel
   qty           Int
-  subtotal Int
-  fee      Int
-  discount Int @default(0)
-  total    Int
+  subtotal      Int
+  fee           Int
+  discount      Int    @default(0)
+  total         Int
 
   couponCode String?
   status     BookingStatus @default(confirmed)
-  guests     Json          // BookingGuest[] — {name, checkedIn, gender?, whatsapp?} (see prebooze-web/src/types.ts)
+  guests     Json // BookingGuest[] — {name, checkedIn, gender?, whatsapp?} (see prebooze-web/src/types.ts)
   mainGuest  String
   whatsapp   String
 
   promoterRef      String? // promoter slug credited with this sale (affiliate commission)
-  walletCreditUsed Int     @default(0)
+  walletCreditUsed Int           @default(0)
   paymentId        String? // Razorpay payment id (or dev-stub id — see RazorpayService)
   refundedTo       RefundMethod?
 
-  qrToken     String    // signed JWT — POST /bookings/check-in validates this server-side
+  qrToken     String // signed JWT — POST /bookings/check-in validates this server-side
   checkedIn   Boolean   @default(false)
   checkedInAt DateTime?
 
@@ -382,13 +387,13 @@ model WaitlistEntry {
 model Coupon {
   id            String   @id @default(cuid())
   code          String   @unique
-  type          String   // percent | flat
+  type          String // percent | flat
   value         Int
   maxDiscount   Int?
   usageLimit    Int
   used          Int      @default(0)
   perUserLimit  Int
-  eventScope    String   // 'all' or an event id
+  eventScope    String // 'all' or an event id
   validTill     DateTime
   firstTimeOnly Boolean  @default(false)
   status        String   @default("active") // active | paused
@@ -398,8 +403,8 @@ model WalletTx {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
-  type      String   // welcome | referral_welcome | referral_reward | refund | spend
-  amount    Int      // negative for spend
+  type      String // welcome | referral_welcome | referral_reward | refund | spend
+  amount    Int // negative for spend
   note      String
   createdAt DateTime @default(now())
 }
@@ -424,11 +429,70 @@ model PayMethod {
   id        String  @id @default(cuid())
   userId    String
   user      User    @relation(fields: [userId], references: [id])
-  type      String  // upi | card
-  label     String  // "riya@upi" or "Visa •••• 4242"
+  type      String // upi | card
+  label     String // "riya@upi" or "Visa •••• 4242"
   holder    String? // card-holder name
   expiry    String? // MM/YY — CVV is never accepted or stored, see PATCH note in wallet.service.ts
   isDefault Boolean @default(false)
 
   createdAt DateTime @default(now())
+}
+
+// ============================================================================
+// Phase 5 — Social. Follows are instant/accepted for every followee type
+// (person/organizer/promoter/venue/lineup) — there's no private-account
+// gating in this product yet, so the frontend's follow-requests UI (built
+// ahead of any real trigger for it) is served by a stub that's honestly
+// always empty rather than modeled with a real approval table. See
+// social.service.ts and BACKEND.md "Social" for the reasoning.
+// ============================================================================
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation(fields: [followerId], references: [id])
+  followeeKey String // "person:<id>" | "promoter:<slug>" | "lineup:<slug>" | bare venue/organizer id
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followeeKey])
+}
+
+model EventInterest {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  eventId   String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, eventId])
+}
+
+model EventWishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  eventId   String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, eventId])
+}
+
+model VenueFavourite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  venueId   String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, venueId])
+}
+
+model OrgReview {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  organizerId String
+  rating      Int
+  text        String
+  createdAt   DateTime @default(now())
 }
