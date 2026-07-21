@@ -134,6 +134,25 @@ const COUPONS = [
   { id: 'c2', code: 'VIPLOVE', type: 'flat', value: 200, usageLimit: 100, used: 34, perUserLimit: 1, eventScope: 'Indie Night Live', validTill: new Date('2026-07-24'), firstTimeOnly: false, status: 'paused' },
 ];
 
+const CAREER_JOBS = [
+  { id: 'job1', title: 'Senior React Engineer', team: 'Engineering', loc: 'Mumbai · Hybrid', type: 'Full-time', status: 'open',
+    about: 'Own the guest web app end-to-end — the booking flow, the social layer and the promoter tools millions of night-outs will run on.',
+    responsibilities: ['Ship features across the React + TypeScript codebase', 'Own performance: sub-second booking flows on mid-range phones', 'Pair with design on a fast, dark, native-feeling web experience', 'Mentor two mid-level engineers'],
+    requirements: ['5+ years with React (hooks, context, suspense)', 'Strong TypeScript and API design instincts', 'Shipped consumer products at scale', 'Bonus: payments / ticketing background'] },
+  { id: 'job2', title: 'City Growth Manager', team: 'Growth', loc: 'Bengaluru', type: 'Full-time', status: 'open',
+    about: 'Launch and grow Prebooze in Bengaluru — organizers, promoters, venues and the first thousand nights out.',
+    responsibilities: ['Sign the city’s top organizers and venues', 'Build the promoter network from zero', 'Own city P&L and weekly growth targets', 'Run launch events with the marketing team'],
+    requirements: ['3+ years in growth / city ops (Zomato, Blinkit, Swiggy-style)', 'Deep local nightlife network', 'Comfort with targets and ambiguity'] },
+  { id: 'job3', title: 'Community & Promoter Ops', team: 'Operations', loc: 'Delhi', type: 'Full-time', status: 'open',
+    about: 'Run the promoter community — onboarding, quality, payouts and keeping show-rates honest.',
+    responsibilities: ['Vet and onboard promoter crews', 'Monitor guest-list quality and fraud signals', 'Own promoter payout operations', 'Host monthly promoter meetups'],
+    requirements: ['2+ years community or marketplace ops', 'Excellent WhatsApp-speed communication', 'Nightlife native'] },
+  { id: 'job4', title: 'Design Intern', team: 'Design', loc: 'Remote', type: 'Internship', status: 'open',
+    about: 'Six months shipping real product design — event pages, social banners and the design system.',
+    responsibilities: ['Design flows alongside a senior designer', 'Maintain the component library', 'Create social/banner templates for organizers'],
+    requirements: ['A portfolio with real product work', 'Figma fluency', 'Available 5 days/week'] },
+];
+
 const SEED_FEATURED = [
   { id: 'f1', type: 'event' as const, refId: 'ev-3', city: 'Austin', status: 'active' as const, billing: 'per_event' as const, amount: 2000, expiresAt: new Date('2027-01-01') },
   { id: 'f2', type: 'organizer' as const, refId: 'festcrew', city: 'Austin', status: 'active' as const, billing: 'monthly' as const, amount: 4999, expiresAt: new Date('2027-01-01') },
@@ -180,8 +199,9 @@ async function main() {
 
   for (const f of SEED_FEATURED) await db.featured.upsert({ where: { id: f.id }, create: f, update: f });
   for (const c of COUPONS) await db.coupon.upsert({ where: { id: c.id }, create: c, update: c });
+  for (const j of CAREER_JOBS) await db.careerJob.upsert({ where: { id: j.id }, create: j, update: j });
 
-  console.log(`Seeded: ${VENUES.length} venues, ${ORGANIZERS.length} organizers, ${PROMOTERS.length} promoters, ${LINEUPS.length} lineups, ${PEOPLE.length} people, ${EVENTS.length} events, ${SEED_FEATURED.length} featured, ${COUPONS.length} coupons.`);
+  console.log(`Seeded: ${VENUES.length} venues, ${ORGANIZERS.length} organizers, ${PROMOTERS.length} promoters, ${LINEUPS.length} lineups, ${PEOPLE.length} people, ${EVENTS.length} events, ${SEED_FEATURED.length} featured, ${COUPONS.length} coupons, ${CAREER_JOBS.length} career jobs.`);
 }
 
 main()

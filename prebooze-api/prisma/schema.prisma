@@ -98,6 +98,7 @@ model User {
   carts            Cart[]
   promoterProfile  Promoter? // set once this user's promoter KYC is approved
   lineupProfile    Lineup? // set once this user's lineup KYC is approved
+  helpTickets      HelpTicket[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -630,4 +631,53 @@ model PromoterWithdrawal {
   promoter   Promoter @relation(fields: [promoterId], references: [id])
   amount     Int
   createdAt  DateTime @default(now())
+}
+
+// ============================================================================
+// Support, careers — Featured itself was already modeled in Phase 2 (the
+// read side, GET /featured, has been live since then); this just adds the
+// write side plus two small standalone domains with no earlier phase to
+// belong to.
+// ============================================================================
+
+model HelpTicket {
+  id      String @id
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+  role    String // the caller's User.role at submission time (or "guest"), set server-side — not client input
+  topic   String
+  subject String
+  message String
+  status  String @default("open") // open | resolved
+
+  createdAt DateTime @default(now())
+}
+
+model CareerJob {
+  id               String           @id
+  title            String
+  team             String
+  loc              String
+  type             String // Full-time | Internship | ...
+  status           String           @default("open") // open | closed
+  about            String
+  responsibilities String[]         @default([])
+  requirements     String[]         @default([])
+  applications     JobApplication[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model JobApplication {
+  id    String    @id @default(cuid())
+  jobId String
+  job   CareerJob @relation(fields: [jobId], references: [id])
+  name  String
+  email String
+  phone String
+  note  String
+  cv    String? // filename/reference only — no file upload wired up, see BACKEND.md
+
+  appliedAt DateTime @default(now())
 }

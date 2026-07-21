@@ -11,6 +11,9 @@ import { SocialModule } from './social/social.module';
 import { OrganizerModule } from './organizer/organizer.module';
 import { PromoterModule } from './promoter/promoter.module';
 import { VenueModule } from './venue/venue.module';
+import { FeaturedModule } from './featured/featured.module';
+import { SupportModule } from './support/support.module';
+import { CareersModule } from './careers/careers.module';
 
 @Module({
   imports: [
@@ -25,6 +28,9 @@ import { VenueModule } from './venue/venue.module';
     OrganizerModule,
     PromoterModule,
     VenueModule,
+    FeaturedModule,
+    SupportModule,
+    CareersModule,
   ],
   controllers: [AppController],
 })
