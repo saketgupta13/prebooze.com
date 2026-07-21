@@ -864,3 +864,11 @@ model MenuConfig {
 
   updatedAt DateTime @updatedAt
 }
+
+// Admin API, slice 6 — careers admin. CareerJob/JobApplication already
+// existed (the Featured/Support/Careers slice) with a public read + apply
+// surface; this just adds the admin write side + a simple reference list
+// of valid team names for the job-creation form's dropdown.
+model CareerTeam {
+  name String @id
+}

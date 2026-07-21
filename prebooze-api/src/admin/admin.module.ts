@@ -5,12 +5,14 @@ import { AdminCustomersController } from './customers.controller';
 import { AdminOrganizersController, AdminPromotersController, AdminLineupsController, AdminVenuesController } from './directory.controller';
 import { AdminCmsController } from './cms.controller';
 import { AdminLocationsController } from './locations.controller';
+import { AdminCareersController } from './careers-admin.controller';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffService } from './staff.service';
 import { CustomersService } from './customers.service';
 import { DirectoryService } from './directory.service';
 import { CmsService } from './cms.service';
 import { LocationsService } from './locations.service';
+import { CareersAdminService } from './careers-admin.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { OwnerOnlyGuard } from './owner-only.guard';
 import { PermissionGuard } from './permission.guard';
@@ -30,6 +32,7 @@ import { PrismaService } from '../prisma.service';
     AdminVenuesController,
     AdminCmsController,
     AdminLocationsController,
+    AdminCareersController,
   ],
   providers: [
     StaffAuthService,
@@ -38,6 +41,7 @@ import { PrismaService } from '../prisma.service';
     DirectoryService,
     CmsService,
     LocationsService,
+    CareersAdminService,
     StaffAuthGuard,
     OwnerOnlyGuard,
     PermissionGuard,

@@ -174,6 +174,15 @@ const CAREER_JOBS = [
     requirements: ['A portfolio with real product work', 'Figma fluency', 'Available 5 days/week'] },
 ];
 
+// Admin API careers slice — ported from prebooze-admin/src/store/data.ts.
+const SEED_CAREER_TEAMS = ['Engineering', 'Design', 'Growth', 'Operations', 'Support'];
+const SEED_APPLICANTS = [
+  { id: 'ap1', jobId: 'job1', name: 'Rahul Iyer', email: 'rahul@dev.io', phone: '+91 98•••• 2210', note: 'github.com/rahuldev — 6y React' },
+  { id: 'ap2', jobId: 'job1', name: 'Sneha Patil', email: 'sneha@ui.dev', phone: '+91 97•••• 8841', note: 'Ex-Zomato web platform' },
+  { id: 'ap3', jobId: 'job2', name: 'Aditya Rao', email: 'adi@growth.co', phone: '+91 96•••• 3324', note: 'Scaled 3 cities at Blinkit' },
+  { id: 'ap4', jobId: 'job4', name: 'Mira Shah', email: 'mira@design.me', phone: '+91 90•••• 6672', note: 'behance.net/mirashah' },
+];
+
 // Mirrors prebooze-admin's src/store/data.ts PERM_MODULES/SEED_ROLES exactly.
 const PERM_MODULES = [
   'Payments & payouts', 'Refunds', 'Event commission (per event)', 'Events & approvals',
@@ -348,6 +357,8 @@ async function main() {
   for (const f of SEED_FEATURED) await db.featured.upsert({ where: { id: f.id }, create: f, update: f });
   for (const c of COUPONS) await db.coupon.upsert({ where: { id: c.id }, create: c, update: c });
   for (const j of CAREER_JOBS) await db.careerJob.upsert({ where: { id: j.id }, create: j, update: j });
+  for (const name of SEED_CAREER_TEAMS) await db.careerTeam.upsert({ where: { name }, create: { name }, update: {} });
+  for (const a of SEED_APPLICANTS) await db.jobApplication.upsert({ where: { id: a.id }, create: a, update: a });
 
   for (const [name, permissions] of Object.entries(SEED_ROLES)) {
     await db.staffRole.upsert({ where: { name }, create: { name, permissions }, update: { permissions } });
