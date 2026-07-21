@@ -54,4 +54,9 @@ export class ContentController {
   reels() {
     return this.content.reels();
   }
+
+  @Get('settings')
+  settings() {
+    return this.content.platformInfo();
+  }
 }

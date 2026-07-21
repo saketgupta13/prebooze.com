@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
+import { NotificationsService } from '../admin/notifications.service';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService — a cart still `active` past this is abandoned
 
@@ -47,6 +48,7 @@ export class OrganizerService {
   constructor(
     private prisma: PrismaService,
     private wa: WhatsappService,
+    private notifications: NotificationsService,
   ) {}
 
   private async myOrganizer(userId: string) {
@@ -128,6 +130,12 @@ export class OrganizerService {
       create: { id: eventId, slug: slug!, ...data },
       update: data,
     });
+
+    // only on the transition INTO pending — an edit re-saved while already
+    // pending shouldn't re-notify on every keystroke-driven autosave
+    if (status === 'pending' && existing?.status !== 'pending') {
+      await this.notifications.notify('⚠', `"${data.title}" submitted for approval by ${org.brandName}`, '/admin/events?status=pending');
+    }
 
     // same merge rule as above: omitting `tiers` entirely (e.g. a status-only
     // resubmit) must leave existing tiers alone, not wipe them

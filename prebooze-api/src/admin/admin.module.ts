@@ -11,6 +11,8 @@ import { AdminLedgerController } from './ledger.controller';
 import { AdminReportsController, AdminSettingsController } from './reports.controller';
 import { AdminGuestListController, AdminGuestListEntryController } from './guestlist.controller';
 import { AdminLiveMonitorController } from './live-monitor.controller';
+import { AdminNotificationsController } from './notifications.controller';
+import { AdminDashboardController } from './dashboard.controller';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffService } from './staff.service';
 import { CustomersService } from './customers.service';
@@ -23,6 +25,8 @@ import { LedgerService } from './ledger.service';
 import { ReportsService } from './reports.service';
 import { GuestListService } from './guestlist.service';
 import { LiveMonitorService } from './live-monitor.service';
+import { NotificationsService } from './notifications.service';
+import { DashboardService } from './dashboard.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { OwnerOnlyGuard } from './owner-only.guard';
 import { PermissionGuard } from './permission.guard';
@@ -50,6 +54,8 @@ import { PrismaService } from '../prisma.service';
     AdminGuestListController,
     AdminGuestListEntryController,
     AdminLiveMonitorController,
+    AdminNotificationsController,
+    AdminDashboardController,
   ],
   providers: [
     StaffAuthService,
@@ -64,6 +70,8 @@ import { PrismaService } from '../prisma.service';
     ReportsService,
     GuestListService,
     LiveMonitorService,
+    NotificationsService,
+    DashboardService,
     StaffAuthGuard,
     OwnerOnlyGuard,
     PermissionGuard,

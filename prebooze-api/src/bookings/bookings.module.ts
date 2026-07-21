@@ -9,11 +9,12 @@ import { redisProvider } from '../redis.provider';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StaffAuthGuard } from '../admin/staff-auth.guard';
 import { PermissionGuard } from '../admin/permission.guard';
+import { NotificationsService } from '../admin/notifications.service';
 
 // JwtModule is registered `global: true` in AuthModule, so JwtService is
 // already available here without importing it again (see kyc.module.ts).
 @Module({
   controllers: [BookingsController, AdminBookingsController],
-  providers: [BookingsService, HoldsService, RazorpayService, WhatsappService, PrismaService, redisProvider, JwtAuthGuard, StaffAuthGuard, PermissionGuard],
+  providers: [BookingsService, HoldsService, RazorpayService, WhatsappService, PrismaService, redisProvider, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService],
 })
 export class BookingsModule {}

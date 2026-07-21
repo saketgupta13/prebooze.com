@@ -448,10 +448,47 @@ model CheckInLog {
  * both new bookings' fee and the Reports P&L's GST line, instead of Reports
  * silently guessing at numbers nothing else in the system uses. */
 model PlatformSettings {
-  id         String   @id @default("main")
-  bookingFee Float    @default(1.5) // ₹ per ticket — matches the pre-existing FEE_PER_TICKET constant exactly
-  gstPct     Int      @default(18)
-  updatedAt  DateTime @updatedAt
+  id         String @id @default("main")
+  bookingFee Float  @default(1.5) // ₹ per ticket — matches the pre-existing FEE_PER_TICKET constant exactly
+  gstPct     Int    @default(18)
+
+  // Settings slice (Admin API 11) — the rest of prebooze-admin's Settings
+  // page. feeLabel/absorbedBy are display-only (no consumer reads them
+  // yet — same "give it something real to hold" reasoning as elsewhere).
+  // maintenanceMode and salesPaused (the platform-wide "Pause all ticket
+  // sales", distinct from the per-event Event.salesPaused) are enforced for
+  // real in BookingsService.priceHold().
+  feeLabel        String  @default("Convenience fee")
+  absorbedBy      String  @default("Organizer") // Organizer | Guest | Split
+  payoutDay       String  @default("Friday")
+  autoPayout      Boolean @default(true)
+  weeklyEmail     Boolean @default(true)
+  whatsappAlerts  Boolean @default(true)
+  require2fa      Boolean @default(false)
+  maintenanceMode Boolean @default(false)
+  salesPaused     Boolean @default(false)
+  socials         Json    @default("{\"instagram\":\"\",\"x\":\"\",\"youtube\":\"\",\"whatsapp\":\"\",\"facebook\":\"\"}")
+  siteSeo         Json    @default("{\"title\":\"\",\"description\":\"\",\"keywords\":\"\"}")
+  contact         Json    @default("{\"email\":\"\",\"phone\":\"\",\"address\":\"\",\"organizerEmail\":\"\"}")
+  footerCopyright String  @default("")
+
+  updatedAt DateTime @updatedAt
+}
+
+/** Real system-event feed for the admin bell icon — event submitted for
+ * approval, refund requested, role KYC submitted. `read` is a single shared
+ * flag (a small-team shared inbox, matching the mock exactly — no per-staff
+ * read receipts). Deliberately doesn't cover every notification type the
+ * mock shows: "license expires" has no expiry field anywhere on Venue, and
+ * "blog goes live" has no scheduled-publish concept on Blog — inventing
+ * either would be a new field with nothing else in the system backing it. */
+model AdminNotification {
+  id        String   @id @default(cuid())
+  icon      String
+  text      String
+  to        String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model TicketTier {

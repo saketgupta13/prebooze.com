@@ -62,4 +62,14 @@ export class ContentService {
   async reels() {
     return this.prisma.reel.findMany({ where: { active: true }, orderBy: { createdAt: 'desc' } });
   }
+
+  /** Guest-relevant slice of PlatformSettings only — never the financial/ops
+   * fields (bookingFee, gstPct, payoutDay, autoPayout, ...), which are
+   * admin-internal. prebooze-web has no consumer for this yet (its Contact
+   * page is still hardcoded), added proactively same as the rest of this
+   * public content surface. */
+  async platformInfo() {
+    const s = await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
+    return { maintenanceMode: s.maintenanceMode, socials: s.socials, siteSeo: s.siteSeo, contact: s.contact, footerCopyright: s.footerCopyright };
+  }
 }

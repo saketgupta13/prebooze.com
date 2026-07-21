@@ -1,11 +1,35 @@
 import { Injectable } from '@nestjs/common';
-import type { BookingStatus } from '@prisma/client';
+import type { BookingStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 
 // Statuses that still hold inventory / haven't had their revenue reversed —
 // mirrors the same set BookingsService treats as "not yet given back" (see
 // finalizeRefund vs. the refund_requested holding pattern).
 const LIVE_BOOKING_STATUSES: BookingStatus[] = ['confirmed', 'refund_requested'];
+
+export interface SettingsInput {
+  bookingFee?: number;
+  gstPct?: number;
+  feeLabel?: string;
+  absorbedBy?: string;
+  payoutDay?: string;
+  autoPayout?: boolean;
+  weeklyEmail?: boolean;
+  whatsappAlerts?: boolean;
+  require2fa?: boolean;
+  maintenanceMode?: boolean;
+  salesPaused?: boolean;
+  socials?: Record<string, string>;
+  siteSeo?: Record<string, string>;
+  contact?: Record<string, string>;
+  footerCopyright?: string;
+}
+
+const SETTINGS_FIELDS: (keyof SettingsInput)[] = [
+  'bookingFee', 'gstPct', 'feeLabel', 'absorbedBy', 'payoutDay', 'autoPayout',
+  'weeklyEmail', 'whatsappAlerts', 'require2fa', 'maintenanceMode', 'salesPaused',
+  'socials', 'siteSeo', 'contact', 'footerCopyright',
+];
 
 @Injectable()
 export class ReportsService {
@@ -19,14 +43,15 @@ export class ReportsService {
     });
   }
 
-  async updateSettings(body: { bookingFee?: number; gstPct?: number }) {
-    const data: { bookingFee?: number; gstPct?: number } = {};
-    if (body.bookingFee !== undefined) data.bookingFee = body.bookingFee;
-    if (body.gstPct !== undefined) data.gstPct = body.gstPct;
+  async updateSettings(body: SettingsInput) {
+    const data: Prisma.PlatformSettingsUpdateInput = {};
+    for (const key of SETTINGS_FIELDS) {
+      if (body[key] !== undefined) (data as Record<string, unknown>)[key] = body[key];
+    }
     return this.prisma.platformSettings.upsert({
       where: { id: 'main' },
       update: data,
-      create: { id: 'main', ...data },
+      create: { id: 'main', ...(data as Record<string, unknown>) },
     });
   }
 

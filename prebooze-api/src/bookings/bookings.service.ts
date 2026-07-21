@@ -7,6 +7,7 @@ import { HoldsService } from './holds.service';
 import { RazorpayService } from '../payments/razorpay.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { REFERRAL_REFERRER_REWARD } from '../referrals/referral.constants';
+import { NotificationsService } from '../admin/notifications.service';
 
 const FALLBACK_FEE_PER_TICKET = 1.5; // ₹ — used only if PlatformSettings row is somehow missing
 
@@ -30,6 +31,7 @@ export class BookingsService {
     private razorpay: RazorpayService,
     private jwt: JwtService,
     private wa: WhatsappService,
+    private notifications: NotificationsService,
   ) {}
 
   async createHold(userId: string, eventId: string, qty: Record<string, number>) {
@@ -44,6 +46,10 @@ export class BookingsService {
 
     const event = await this.prisma.event.findUnique({ where: { id: hold.eventId }, include: { tiers: true } });
     if (!event) throw new NotFoundException('Event not found');
+
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+    if (settings?.maintenanceMode) throw new BadRequestException('Prebooze is temporarily down for maintenance — please check back shortly');
+    if (settings?.salesPaused) throw new BadRequestException('Ticket sales are currently paused platform-wide');
     if (event.salesPaused) throw new BadRequestException('Ticket sales are currently paused for this event');
 
     const lines = Object.entries(hold.qty)
@@ -57,7 +63,6 @@ export class BookingsService {
 
     const qty = lines.reduce((a, l) => a + l.qty, 0);
     const subtotal = lines.reduce((a, l) => a + l.qty * l.tier.price, 0);
-    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
     const fee = Math.round(qty * (settings?.bookingFee ?? FALLBACK_FEE_PER_TICKET));
 
     // ---- coupon ----
@@ -256,6 +261,7 @@ export class BookingsService {
       await this.prisma.booking.update({ where: { id }, data: { status: 'refund_requested', refundedTo: 'source' } });
       const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
       await this.wa.send(user.phone, 'refund_requested', [id, String(booking.total)]).catch(() => {});
+      await this.notifications.notify('↩', `Refund requested — booking ${id} · ₹${booking.total}`, '/admin/bookings?status=refund_requested');
       return this.prisma.booking.findUniqueOrThrow({ where: { id } });
     }
 

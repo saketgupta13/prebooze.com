@@ -7,7 +7,7 @@ import { WhatsappService } from '../notifications/whatsapp';
 const PLAN_QUOTA: Record<string, number> = { free: 25, starter: 150, pro: 500, elite: -1 };
 const MIN_WITHDRAW = 500; // ₹, matches prebooze-web's PromoterEarnings.tsx
 const NO_SHOW_BLOCK_THRESHOLD = 3; // matches promoterFraud.ts
-const PROMOTER_COMMISSION_RATE = 0.08; // matches promoterEarnings.ts
+export const PROMOTER_COMMISSION_RATE = 0.08; // matches promoterEarnings.ts
 
 interface PromoterConfig {
   enabled: boolean;

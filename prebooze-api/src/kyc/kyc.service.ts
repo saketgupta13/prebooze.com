@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma.service';
 import { StorageService } from './storage.service';
 import { KycProviderService } from './kyc-provider.service';
 import { toApiUser } from '../auth/auth.service';
+import { NotificationsService } from '../admin/notifications.service';
 
 const ROLE_KINDS = ['organizer', 'promoter', 'lineup', 'venue'] as const;
 type RoleKind = (typeof ROLE_KINDS)[number];
@@ -14,6 +15,7 @@ export class KycService {
     private prisma: PrismaService,
     private storage: StorageService,
     private provider: KycProviderService,
+    private notifications: NotificationsService,
   ) {}
 
   // ---------- guest: automatic ----------
@@ -78,6 +80,9 @@ export class KycService {
         documents: documents as unknown as Prisma.InputJsonValue,
       },
     });
+
+    const displayName = (payload.brandName as string) || (payload.name as string) || user.name || user.phone;
+    await this.notifications.notify('🛡', `${displayName} submitted ${kind} KYC docs for review`, '/admin/kyc');
 
     // store the self-reported profile fields immediately (display only — the
     // elevated `role` itself stays unset until a human approves)

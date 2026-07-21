@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Patch, Query, UseGuards } from '@nestjs/common';
 import { ReportsService } from './reports.service';
+import type { SettingsInput } from './reports.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
 import { RequirePermission } from './permission.decorator';
@@ -31,7 +32,7 @@ export class AdminSettingsController {
 
   @Patch()
   @RequirePermission(MODULE, 'edit')
-  update(@Body() body: { bookingFee?: number; gstPct?: number }) {
+  update(@Body() body: SettingsInput) {
     return this.reports.updateSettings(body);
   }
 }

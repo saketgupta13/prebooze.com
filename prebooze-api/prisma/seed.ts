@@ -214,7 +214,26 @@ const SEED_EVENT_FINANCE: Record<string, { commission: number; paidOut: boolean 
   'ev-9': { commission: 15, paidOut: false },
   'ev-10': { commission: 10, paidOut: false },
 };
-const SEED_PLATFORM_SETTINGS = { bookingFee: 1.5, gstPct: 18 };
+// bookingFee/gstPct deliberately kept at the pre-existing values (see the
+// comment on PlatformSettings.bookingFee in schema.prisma), the rest ported
+// from prebooze-admin's SEED_SETTINGS.
+const SEED_PLATFORM_SETTINGS = {
+  bookingFee: 1.5,
+  gstPct: 18,
+  feeLabel: 'Convenience fee',
+  absorbedBy: 'Organizer',
+  payoutDay: 'Friday',
+  autoPayout: true,
+  weeklyEmail: true,
+  whatsappAlerts: true,
+  require2fa: false,
+  maintenanceMode: false,
+  salesPaused: false,
+  socials: { instagram: 'instagram.com/prebooze', x: 'x.com/prebooze', youtube: 'youtube.com/@prebooze', whatsapp: 'wa.me/919876543210', facebook: '' },
+  siteSeo: { title: "Prebooze — Your city's events, one tap away", description: 'Book tickets to concerts, comedy, festivals and parties from verified organizers. WhatsApp tickets, QR entry.', keywords: 'events, tickets, concerts, nightlife, austin' },
+  contact: { email: 'help@prebooze.com', phone: '+91 98765 43210', address: '4th Floor, Cowork Hub, Koramangala, Bengaluru', organizerEmail: 'organizers@prebooze.com' },
+  footerCopyright: '© 2026 Prebooze Inc. · All rights reserved',
+};
 
 // Guest list slice (Admin API 10) — ported from prebooze-admin's SEED_GUEST_LIST,
 // re-pointed at real event ids and filled in with required phone numbers (the
