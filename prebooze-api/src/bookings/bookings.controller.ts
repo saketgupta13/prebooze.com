@@ -1,7 +1,10 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import type { CreateBookingInput } from './bookings.service';
+import { StaffAuthGuard } from '../admin/staff-auth.guard';
+import { PermissionGuard } from '../admin/permission.guard';
+import { RequirePermission } from '../admin/permission.decorator';
 
 type AuthedReq = { user: { sub: string } };
 
@@ -57,5 +60,35 @@ export class BookingsController {
   @Get('events/:id/waitlist')
   waitlist(@Param('id') id: string) {
     return this.bookings.waitlist(id);
+  }
+}
+
+@Controller('admin/bookings')
+@UseGuards(StaffAuthGuard, PermissionGuard)
+export class AdminBookingsController {
+  constructor(private bookings: BookingsService) {}
+
+  @Get()
+  @RequirePermission('Payments & payouts', 'view')
+  list(@Query('status') status?: string) {
+    return this.bookings.adminList(status);
+  }
+
+  @Get(':id')
+  @RequirePermission('Payments & payouts', 'view')
+  get(@Param('id') id: string) {
+    return this.bookings.adminGet(decodeURIComponent(id));
+  }
+
+  @Post(':id/refund/approve')
+  @RequirePermission('Refunds', 'approve')
+  approveRefund(@Param('id') id: string) {
+    return this.bookings.adminApproveRefund(decodeURIComponent(id));
+  }
+
+  @Post(':id/refund/decline')
+  @RequirePermission('Refunds', 'approve')
+  declineRefund(@Param('id') id: string) {
+    return this.bookings.adminDeclineRefund(decodeURIComponent(id));
   }
 }

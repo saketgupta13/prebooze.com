@@ -57,6 +57,7 @@ model User {
   phoneVerified Boolean @default(true)
   idVerified    Boolean @default(false)
   profilePct    Int     @default(20)
+  blocked       Boolean @default(false) // admin action — see AdminCustomersController; enforced at booking creation
 
   // one number = one elevated role (enforced in service layer too).
   // `role` is only ever set by an admin approving a KycSubmission — never
@@ -364,6 +365,7 @@ enum BookingStatus {
   confirmed
   cancelled
   refunded
+  refund_requested // source refunds only — see BookingsService.cancel; wallet refunds go straight to refunded
 }
 
 enum RefundMethod {

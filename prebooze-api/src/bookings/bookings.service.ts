@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { randomInt } from 'crypto';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, Booking } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { HoldsService } from './holds.service';
 import { RazorpayService } from '../payments/razorpay.service';
@@ -102,6 +102,9 @@ export class BookingsService {
   }
 
   async create(userId: string, input: CreateBookingInput) {
+    const buyer = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (buyer.blocked) throw new ForbiddenException('This account is blocked from booking — contact support');
+
     const { event, lines, qty, subtotal, fee, discount, couponRow, walletCreditUsed, total } =
       await this.priceHold(userId, input.holdId, input.couponCode, input.walletCredit);
 
@@ -224,11 +227,51 @@ export class BookingsService {
     });
   }
 
+  /** Wallet refunds stay instant (low-risk, reversible, in-house money) —
+   * unchanged from the original design. Refunds to the original payment
+   * source now require admin sign-off first (BACKEND.md "Admin API" —
+   * bookings/refunds/customers slice): this only records the request and
+   * flips the booking to `refund_requested`. Nothing about the sale is
+   * undone yet — inventory, the organizer's ledger, and the waitlist all
+   * stay untouched until an admin actually approves, so a decline can put
+   * the booking back exactly as it was with nothing to unwind. */
   async cancel(userId: string, id: string, refundTo: 'wallet' | 'source') {
     const booking = await this.prisma.booking.findUnique({ where: { id } });
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.userId !== userId) throw new ForbiddenException();
     if (booking.status !== 'confirmed') throw new BadRequestException('This booking is not eligible for refund');
+
+    if (refundTo === 'source') {
+      await this.prisma.booking.update({ where: { id }, data: { status: 'refund_requested', refundedTo: 'source' } });
+      const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      await this.wa.send(user.phone, 'refund_requested', [id, String(booking.total)]).catch(() => {});
+      return this.prisma.booking.findUniqueOrThrow({ where: { id } });
+    }
+
+    return this.finalizeRefund(booking, 'wallet');
+  }
+
+  /** Staff-only — see AdminBookingsController. Actually moves the money:
+   * inventory restore, organizer ledger reversal, the real Razorpay refund
+   * call, and the FIFO waitlist offer all happen here, not at request time. */
+  async adminApproveRefund(id: string) {
+    const booking = await this.prisma.booking.findUnique({ where: { id } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.status !== 'refund_requested') throw new BadRequestException('This booking has no pending refund request');
+    return this.finalizeRefund(booking, 'source');
+  }
+
+  /** Staff-only. Nothing was touched at request time, so declining is just
+   * reverting the status — matches the mock's resolveRefund(false) exactly. */
+  async adminDeclineRefund(id: string) {
+    const booking = await this.prisma.booking.findUnique({ where: { id } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.status !== 'refund_requested') throw new BadRequestException('This booking has no pending refund request');
+    return this.prisma.booking.update({ where: { id }, data: { status: 'confirmed', refundedTo: null } });
+  }
+
+  private async finalizeRefund(booking: Booking, refundTo: 'wallet' | 'source') {
+    const { id, userId } = booking;
 
     await this.prisma.$transaction(async (tx) => {
       await tx.booking.update({ where: { id }, data: { status: 'refunded', refundedTo: refundTo } });
@@ -277,6 +320,24 @@ export class BookingsService {
     }
 
     return this.prisma.booking.findUniqueOrThrow({ where: { id } });
+  }
+
+  // ---------- admin: bookings list/detail ----------
+  async adminList(status?: string) {
+    return this.prisma.booking.findMany({
+      where: status ? { status: status as never } : undefined,
+      include: { user: { select: { name: true, phone: true } }, event: { select: { title: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async adminGet(id: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      include: { user: { select: { name: true, phone: true } }, event: { include: { venue: true } } },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    return booking;
   }
 
   async checkIn(qrToken: string) {
