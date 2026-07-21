@@ -147,6 +147,17 @@ export class KycService {
       if (user && !existing) ops.push(this.prisma.promoter.create({ data: await this.newPromoterRow(user) }));
     }
 
+    // Unlike organizer/promoter, the Venue catalog row already exists —
+    // VenueService.onboard creates it (unverified) at submission time, not
+    // at approval time, so it shows up in the directory (and is pickable by
+    // organizers creating events) immediately. Approval just flips the
+    // verified badge on. venueId comes from the submission payload rather
+    // than a fresh user lookup, since it was captured there at onboard time.
+    if (sub.kind === 'venue') {
+      const venueId = (sub.payload as { venueId?: string } | null)?.venueId;
+      if (venueId) ops.push(this.prisma.venue.update({ where: { id: venueId }, data: { verified: true } }));
+    }
+
     await this.prisma.$transaction(ops);
     return { ok: true };
   }

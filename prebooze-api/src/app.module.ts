@@ -10,6 +10,7 @@ import { ReferralsModule } from './referrals/referrals.module';
 import { SocialModule } from './social/social.module';
 import { OrganizerModule } from './organizer/organizer.module';
 import { PromoterModule } from './promoter/promoter.module';
+import { VenueModule } from './venue/venue.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { PromoterModule } from './promoter/promoter.module';
     SocialModule,
     OrganizerModule,
     PromoterModule,
+    VenueModule,
   ],
   controllers: [AppController],
 })
