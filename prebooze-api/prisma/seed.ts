@@ -191,6 +191,18 @@ const SEED_REELS = [
   { id: 'rl4', title: 'Confetti finale', hue: 210, active: true },
 ];
 
+// Admin API finance ledger slice — ported from prebooze-admin/src/store/data.ts.
+const SEED_LEDGER = [
+  { id: 'l1', kind: 'expense', category: 'Marketing', amount: 18500, note: 'Instagram ads — Summer Fest' },
+  { id: 'l2', kind: 'expense', category: 'Staff & salaries', amount: 64000, note: 'Gate crew + support, June' },
+  { id: 'l3', kind: 'income', category: 'Sponsorship', amount: 40000, note: 'FizzCo — Indie Night Live' },
+  { id: 'l4', kind: 'expense', category: 'Office & tools', amount: 9200, note: 'SaaS + coworking, June' },
+];
+const SEED_LEDGER_CATEGORIES = {
+  income: ['Ticket commission', 'Booking fees', 'Sponsorship', 'Other income'],
+  expense: ['Marketing', 'Staff & salaries', 'Office & tools', 'Refund losses', 'Other expense'],
+};
+
 // Mirrors prebooze-admin's src/store/data.ts PERM_MODULES/SEED_ROLES exactly.
 const PERM_MODULES = [
   'Payments & payouts', 'Refunds', 'Event commission (per event)', 'Events & approvals',
@@ -368,6 +380,10 @@ async function main() {
   for (const name of SEED_CAREER_TEAMS) await db.careerTeam.upsert({ where: { name }, create: { name }, update: {} });
   for (const a of SEED_APPLICANTS) await db.jobApplication.upsert({ where: { id: a.id }, create: a, update: a });
   for (const r of SEED_REELS) await db.reel.upsert({ where: { id: r.id }, create: r, update: r });
+  for (const e of SEED_LEDGER) await db.ledgerEntry.upsert({ where: { id: e.id }, create: e, update: e });
+  for (const [kind, names] of Object.entries(SEED_LEDGER_CATEGORIES)) {
+    for (const name of names) await db.ledgerCategory.upsert({ where: { kind_name: { kind, name } }, create: { kind, name }, update: {} });
+  }
 
   for (const [name, permissions] of Object.entries(SEED_ROLES)) {
     await db.staffRole.upsert({ where: { name }, create: { name, permissions }, update: { permissions } });

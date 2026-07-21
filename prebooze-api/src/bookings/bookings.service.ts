@@ -183,6 +183,15 @@ export class BookingsService {
         data: { organizerId: event.organizerId, type: 'sale', amount: subtotal, eventId: event.id, eventTitle: event.title, note: `Booking ${id}` },
       });
 
+      // platform's own finance ledger (Admin API finance ledger slice) —
+      // the booking fee IS the platform's revenue, auto-posted so finance
+      // staff see real numbers instead of an empty manual scratchpad
+      if (fee > 0) {
+        await tx.ledgerEntry.create({
+          data: { kind: 'income', category: 'Booking fees', amount: fee, note: `Booking ${id}`, auto: true },
+        });
+      }
+
       // paying with a saved method sets it default
       if (input.payMethodId) {
         const method = await tx.payMethod.findUnique({ where: { id: input.payMethodId } });
@@ -293,6 +302,14 @@ export class BookingsService {
       if (event) {
         await tx.organizerLedgerTx.create({
           data: { organizerId: event.organizerId, type: 'refund', amount: -booking.subtotal, eventId: booking.eventId, eventTitle: event.title, note: `Refund — booking ${id}` },
+        });
+      }
+
+      // reverse the platform's own "Booking fees" income the same way —
+      // the refund gives back booking.total in full, fee included
+      if (booking.fee > 0) {
+        await tx.ledgerEntry.create({
+          data: { kind: 'expense', category: 'Refund losses', amount: booking.fee, note: `Refund — booking ${id}`, auto: true },
         });
       }
     });

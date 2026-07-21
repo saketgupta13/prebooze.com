@@ -887,3 +887,35 @@ model Reel {
 
   createdAt DateTime @default(now())
 }
+
+// ============================================================================
+// Admin API, slice 8 — finance ledger. Prebooze's own internal P&L (staff
+// salaries, marketing spend, sponsorship income, ...), not to be confused
+// with OrganizerLedgerTx (an organizer's per-event earnings, Phase 6) or
+// PromoterWithdrawal — this is the platform's own books. The mock's `auto`
+// field ("auto-posted, e.g. ticket commission — not editable") is a real
+// feature here, not a stub: BookingsService now auto-posts a "Booking
+// fees" income entry on every confirmed booking and reverses it as a
+// "Refund losses" expense when a refund is finalized — the same instinct
+// as the OrganizerLedgerTx sale/refund pair, just for platform fee revenue
+// instead of an organizer's ticket revenue.
+// ============================================================================
+
+model LedgerEntry {
+  id       String  @id @default(cuid())
+  kind     String // income | expense
+  category String
+  amount   Int
+  note     String?
+  auto     Boolean @default(false) // auto-posted from real activity — never client-editable or deletable
+
+  createdAt DateTime @default(now())
+}
+
+model LedgerCategory {
+  id   String @id @default(cuid())
+  kind String // income | expense
+  name String
+
+  @@unique([kind, name])
+}
