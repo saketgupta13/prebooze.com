@@ -2,7 +2,9 @@ import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nest
 import { OrganizerService } from './organizer.service';
 import type { EventInput } from './organizer.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
-import { AdminGuard } from '../kyc/admin.guard';
+import { StaffAuthGuard } from '../admin/staff-auth.guard';
+import { PermissionGuard } from '../admin/permission.guard';
+import { RequirePermission } from '../admin/permission.decorator';
 
 type AuthedReq = { user: { sub: string } };
 
@@ -60,23 +62,27 @@ export class OrganizerController {
 /** Minimal review queue that closes the loop opened by POST /organizer/events
  * — a full events-approve admin console is separate Admin API work (see
  * BACKEND.md), this is just enough to unblock organizer-created events from
- * going live. Same placeholder shared-secret gate as /admin/kyc. */
+ * going live. Real staff auth + the "Events & approvals" permission, as of
+ * the Admin API auth slice — previously gated on the placeholder secret. */
 @Controller('admin/events')
-@UseGuards(AdminGuard)
+@UseGuards(StaffAuthGuard, PermissionGuard)
 export class AdminEventsController {
   constructor(private organizer: OrganizerService) {}
 
   @Get()
+  @RequirePermission('Events & approvals', 'view')
   list(@Query('status') status?: string) {
     return this.organizer.listForAdmin(status);
   }
 
   @Post(':id/approve')
+  @RequirePermission('Events & approvals', 'approve')
   approve(@Param('id') id: string) {
     return this.organizer.adminApprove(id);
   }
 
   @Post(':id/reject')
+  @RequirePermission('Events & approvals', 'approve')
   reject(@Param('id') id: string, @Body('reason') reason: string) {
     return this.organizer.adminReject(id, reason);
   }

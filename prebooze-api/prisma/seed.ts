@@ -2,6 +2,7 @@
  * frontend's existing links (e.g. /events/indie-night-live) resolve unchanged
  * once VITE_API_URL is set. Re-run anytime: everything upserts. */
 import { PrismaClient } from '@prisma/client';
+import { hashPassword } from '../src/admin/password.util';
 
 const db = new PrismaClient();
 
@@ -153,6 +154,50 @@ const CAREER_JOBS = [
     requirements: ['A portfolio with real product work', 'Figma fluency', 'Available 5 days/week'] },
 ];
 
+// Mirrors prebooze-admin's src/store/data.ts PERM_MODULES/SEED_ROLES exactly.
+const PERM_MODULES = [
+  'Payments & payouts', 'Refunds', 'Event commission (per event)', 'Events & approvals',
+  'Content (banners / blogs / pages)', 'Customers & organizers', 'Gate check-in',
+];
+const perm = (view: boolean, edit: boolean, approve: boolean) => ({ view, edit, approve });
+const allOn = () => Object.fromEntries(PERM_MODULES.map((m) => [m, perm(true, true, true)]));
+
+const SEED_ROLES: Record<string, Record<string, { view: boolean; edit: boolean; approve: boolean }>> = {
+  Owner: allOn(),
+  Manager: { ...allOn(), 'Payments & payouts': perm(true, true, false) },
+  Finance: {
+    'Payments & payouts': perm(true, true, true), Refunds: perm(true, true, true),
+    'Event commission (per event)': perm(true, true, false), 'Events & approvals': perm(true, false, false),
+    'Content (banners / blogs / pages)': perm(true, false, false), 'Customers & organizers': perm(true, false, false),
+    'Gate check-in': perm(false, false, false),
+  },
+  Content: {
+    'Payments & payouts': perm(false, false, false), Refunds: perm(false, false, false),
+    'Event commission (per event)': perm(false, false, false), 'Events & approvals': perm(true, false, false),
+    'Content (banners / blogs / pages)': perm(true, true, true), 'Customers & organizers': perm(true, false, false),
+    'Gate check-in': perm(false, false, false),
+  },
+  Support: {
+    'Payments & payouts': perm(false, false, false), Refunds: perm(true, true, false),
+    'Event commission (per event)': perm(false, false, false), 'Events & approvals': perm(true, false, false),
+    'Content (banners / blogs / pages)': perm(true, false, false), 'Customers & organizers': perm(true, true, false),
+    'Gate check-in': perm(true, false, false),
+  },
+  'Scanner only': {
+    'Payments & payouts': perm(false, false, false), Refunds: perm(false, false, false),
+    'Event commission (per event)': perm(false, false, false), 'Events & approvals': perm(false, false, false),
+    'Content (banners / blogs / pages)': perm(false, false, false), 'Customers & organizers': perm(false, false, false),
+    'Gate check-in': perm(true, true, false),
+  },
+};
+
+// Dev-only bootstrap account — the very first Owner has to come from
+// somewhere, since creating staff requires an already-logged-in Owner.
+// Rotate this password before any real deployment.
+const SEED_STAFF = [
+  { id: 'staff-owner', name: 'Owner', email: 'owner@prebooze.com', password: 'prebooze123', roleName: 'Owner', city: 'Mumbai' },
+];
+
 const SEED_FEATURED = [
   { id: 'f1', type: 'event' as const, refId: 'ev-3', city: 'Austin', status: 'active' as const, billing: 'per_event' as const, amount: 2000, expiresAt: new Date('2027-01-01') },
   { id: 'f2', type: 'organizer' as const, refId: 'festcrew', city: 'Austin', status: 'active' as const, billing: 'monthly' as const, amount: 4999, expiresAt: new Date('2027-01-01') },
@@ -201,7 +246,19 @@ async function main() {
   for (const c of COUPONS) await db.coupon.upsert({ where: { id: c.id }, create: c, update: c });
   for (const j of CAREER_JOBS) await db.careerJob.upsert({ where: { id: j.id }, create: j, update: j });
 
-  console.log(`Seeded: ${VENUES.length} venues, ${ORGANIZERS.length} organizers, ${PROMOTERS.length} promoters, ${LINEUPS.length} lineups, ${PEOPLE.length} people, ${EVENTS.length} events, ${SEED_FEATURED.length} featured, ${COUPONS.length} coupons, ${CAREER_JOBS.length} career jobs.`);
+  for (const [name, permissions] of Object.entries(SEED_ROLES)) {
+    await db.staffRole.upsert({ where: { name }, create: { name, permissions }, update: { permissions } });
+  }
+  for (const s of SEED_STAFF) {
+    const { password, ...rest } = s;
+    await db.staff.upsert({
+      where: { id: rest.id },
+      create: { ...rest, passwordHash: hashPassword(password) },
+      update: { name: rest.name, roleName: rest.roleName, city: rest.city },
+    });
+  }
+
+  console.log(`Seeded: ${VENUES.length} venues, ${ORGANIZERS.length} organizers, ${PROMOTERS.length} promoters, ${LINEUPS.length} lineups, ${PEOPLE.length} people, ${EVENTS.length} events, ${SEED_FEATURED.length} featured, ${COUPONS.length} coupons, ${CAREER_JOBS.length} career jobs, ${Object.keys(SEED_ROLES).length} staff roles, ${SEED_STAFF.length} staff.`);
 }
 
 main()

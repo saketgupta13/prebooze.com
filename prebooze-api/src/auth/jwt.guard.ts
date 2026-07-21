@@ -11,7 +11,13 @@ export class JwtAuthGuard implements CanActivate {
     const token = header.startsWith('Bearer ') ? header.slice(7) : '';
     if (!token) throw new UnauthorizedException('Missing token');
     try {
-      req.user = await this.jwt.verifyAsync(token);
+      const payload = await this.jwt.verifyAsync(token);
+      // guest and staff tokens share the same signing secret (see
+      // admin/staff-auth.guard.ts) — reject a staff token presented here
+      // outright rather than letting `req.user.sub` come back undefined and
+      // fail ambiguously downstream.
+      if (!payload.sub || !payload.phone) throw new Error('not a guest token');
+      req.user = payload;
       return true;
     } catch {
       throw new UnauthorizedException('Invalid or expired token');

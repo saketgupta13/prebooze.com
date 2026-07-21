@@ -681,3 +681,37 @@ model JobApplication {
 
   appliedAt DateTime @default(now())
 }
+
+// ============================================================================
+// Admin API, slice 1 — real staff/admin authentication + the permission
+// matrix, replacing the placeholder x-admin-secret gate (AdminGuard) that
+// /admin/kyc, /admin/events and /admin/featured used until now. Mirrors
+// prebooze-admin's AdminContext.tsx RoleMatrix/StaffMember shapes — role
+// *names* (Owner, Manager, Finance, Content, "Scanner only", or any custom
+// name an Owner creates) are the actual permission unit, not the coarse
+// admin/staff login-tab distinction, which the mock never actually wires
+// into any real enforcement (see BACKEND.md "Admin API").
+// ============================================================================
+
+model StaffRole {
+  name        String  @id // "Owner", "Manager", "Finance", "Content", "Scanner only", ...
+  permissions Json // { [moduleName]: { view: bool, edit: bool, approve: bool } } — see PERM_MODULES in BACKEND.md
+  staff       Staff[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Staff {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String // scrypt salt:hash, see src/admin/password.util.ts — no new dependency for this
+  roleName     String
+  role         StaffRole @relation(fields: [roleName], references: [name])
+  city         String?
+  lastActiveAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

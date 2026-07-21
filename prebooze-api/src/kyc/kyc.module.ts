@@ -5,12 +5,14 @@ import { StorageService } from './storage.service';
 import { KycProviderService } from './kyc-provider.service';
 import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
-import { AdminGuard } from './admin.guard';
+import { StaffAuthGuard } from '../admin/staff-auth.guard';
+import { PermissionGuard } from '../admin/permission.guard';
 
 // JwtModule is registered `global: true` in AuthModule, so JwtService (used
-// by JwtAuthGuard here) is already available without importing it again.
+// by JwtAuthGuard/StaffAuthGuard here) is already available without
+// importing it again.
 @Module({
   controllers: [KycController, AdminKycController],
-  providers: [KycService, StorageService, KycProviderService, PrismaService, JwtAuthGuard, AdminGuard],
+  providers: [KycService, StorageService, KycProviderService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard],
 })
 export class KycModule {}

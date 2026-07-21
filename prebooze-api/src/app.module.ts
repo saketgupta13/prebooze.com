@@ -14,6 +14,7 @@ import { VenueModule } from './venue/venue.module';
 import { FeaturedModule } from './featured/featured.module';
 import { SupportModule } from './support/support.module';
 import { CareersModule } from './careers/careers.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { CareersModule } from './careers/careers.module';
     FeaturedModule,
     SupportModule,
     CareersModule,
+    AdminModule,
   ],
   controllers: [AppController],
 })

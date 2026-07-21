@@ -1,7 +1,9 @@
 import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { FeaturedService } from './featured.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
-import { AdminGuard } from '../kyc/admin.guard';
+import { StaffAuthGuard } from '../admin/staff-auth.guard';
+import { PermissionGuard } from '../admin/permission.guard';
+import { RequirePermission } from '../admin/permission.decorator';
 
 type AuthedReq = { user: { sub: string } };
 
@@ -21,25 +23,30 @@ export class FeaturedController {
   }
 }
 
-/** Minimal review queue, same reasoning and same placeholder admin gate as
- * /admin/events (Phase 6) — a full featured queue + rates console is
- * separate Admin API work. */
+/** Minimal review queue, same reasoning as /admin/events (Phase 6) — a full
+ * featured queue + admin-editable rates console is separate Admin API work.
+ * Real staff auth as of the Admin API auth slice; mapped to "Content
+ * (banners / blogs / pages)" — the closest PERM_MODULES fit, since Featured
+ * isn't its own module in the mock's RoleMatrix either. */
 @Controller('admin/featured')
-@UseGuards(AdminGuard)
+@UseGuards(StaffAuthGuard, PermissionGuard)
 export class AdminFeaturedController {
   constructor(private featured: FeaturedService) {}
 
   @Get()
+  @RequirePermission('Content (banners / blogs / pages)', 'view')
   list(@Query('status') status?: string) {
     return this.featured.listForAdmin(status);
   }
 
   @Post(':id/approve')
+  @RequirePermission('Content (banners / blogs / pages)', 'approve')
   approve(@Param('id') id: string) {
     return this.featured.adminApprove(id);
   }
 
   @Post(':id/reject')
+  @RequirePermission('Content (banners / blogs / pages)', 'approve')
   reject(@Param('id') id: string) {
     return this.featured.adminReject(id);
   }

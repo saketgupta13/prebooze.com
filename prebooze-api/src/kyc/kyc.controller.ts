@@ -4,7 +4,9 @@ import {
 import { FileFieldsInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { KycService } from './kyc.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
-import { AdminGuard } from './admin.guard';
+import { StaffAuthGuard, StaffTokenPayload } from '../admin/staff-auth.guard';
+import { PermissionGuard } from '../admin/permission.guard';
+import { RequirePermission } from '../admin/permission.decorator';
 
 @Controller('kyc')
 export class KycController {
@@ -42,27 +44,31 @@ export class KycController {
   }
 }
 
+// KYC approvals grant elevated roles, which is squarely a "who's allowed to
+// do business as an organizer/promoter/etc on this platform" decision — the
+// closest fit in PERM_MODULES is "Customers & organizers", not a dedicated
+// module of its own (the mock's RoleMatrix never modeled a KYC-specific
+// permission). See BACKEND.md "Admin API".
 @Controller('admin/kyc')
-@UseGuards(AdminGuard)
+@UseGuards(StaffAuthGuard, PermissionGuard)
 export class AdminKycController {
   constructor(private kyc: KycService) {}
 
   @Get()
+  @RequirePermission('Customers & organizers', 'view')
   list(@Query('status') status?: string) {
     return this.kyc.listForAdmin(status);
   }
 
   @Post(':id/approve')
-  approve(@Param('id') id: string, @Req() req: { headers: Record<string, string> }) {
-    return this.kyc.approve(id, req.headers['x-admin-user'] ?? 'admin');
+  @RequirePermission('Customers & organizers', 'approve')
+  approve(@Param('id') id: string, @Req() req: { staff: StaffTokenPayload }) {
+    return this.kyc.approve(id, req.staff.email);
   }
 
   @Post(':id/reject')
-  reject(
-    @Param('id') id: string,
-    @Body('reason') reason: string,
-    @Req() req: { headers: Record<string, string> },
-  ) {
-    return this.kyc.reject(id, req.headers['x-admin-user'] ?? 'admin', reason ?? '');
+  @RequirePermission('Customers & organizers', 'approve')
+  reject(@Param('id') id: string, @Body('reason') reason: string, @Req() req: { staff: StaffTokenPayload }) {
+    return this.kyc.reject(id, req.staff.email, reason ?? '');
   }
 }
