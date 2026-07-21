@@ -872,3 +872,18 @@ model MenuConfig {
 model CareerTeam {
   name String @id
 }
+
+// Admin API, slice 7 — reels. The mock's Reel type (title/hue/active) has
+// no video reference at all, not even a boolean placeholder like Banner's
+// old hasImage — this is a "coming soon" content type with no playback
+// infra implied anywhere. videoUrl is added anyway, optional, same "give a
+// real backend something to hold" reasoning as imageUrl/bannerUrl (slice 4).
+model Reel {
+  id       String  @id @default(cuid())
+  title    String
+  hue      Int
+  active   Boolean @default(true)
+  videoUrl String?
+
+  createdAt DateTime @default(now())
+}

@@ -58,4 +58,8 @@ export class ContentService {
   async menu() {
     return (await this.prisma.menuConfig.findUnique({ where: { id: 'main' } })) ?? { header: [], footer: [] };
   }
+
+  async reels() {
+    return this.prisma.reel.findMany({ where: { active: true }, orderBy: { createdAt: 'desc' } });
+  }
 }

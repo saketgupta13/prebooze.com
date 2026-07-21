@@ -183,6 +183,14 @@ const SEED_APPLICANTS = [
   { id: 'ap4', jobId: 'job4', name: 'Mira Shah', email: 'mira@design.me', phone: '+91 90•••• 6672', note: 'behance.net/mirashah' },
 ];
 
+// Admin API reels slice — ported from prebooze-admin/src/store/data.ts.
+const SEED_REELS = [
+  { id: 'rl1', title: 'Warehouse drop — crowd goes off', hue: 300, active: true },
+  { id: 'rl2', title: 'Sundowner golden hour', hue: 25, active: true },
+  { id: 'rl3', title: 'Front-row comedy crackup', hue: 40, active: true },
+  { id: 'rl4', title: 'Confetti finale', hue: 210, active: true },
+];
+
 // Mirrors prebooze-admin's src/store/data.ts PERM_MODULES/SEED_ROLES exactly.
 const PERM_MODULES = [
   'Payments & payouts', 'Refunds', 'Event commission (per event)', 'Events & approvals',
@@ -359,6 +367,7 @@ async function main() {
   for (const j of CAREER_JOBS) await db.careerJob.upsert({ where: { id: j.id }, create: j, update: j });
   for (const name of SEED_CAREER_TEAMS) await db.careerTeam.upsert({ where: { name }, create: { name }, update: {} });
   for (const a of SEED_APPLICANTS) await db.jobApplication.upsert({ where: { id: a.id }, create: a, update: a });
+  for (const r of SEED_REELS) await db.reel.upsert({ where: { id: r.id }, create: r, update: r });
 
   for (const [name, permissions] of Object.entries(SEED_ROLES)) {
     await db.staffRole.upsert({ where: { name }, create: { name, permissions }, update: { permissions } });

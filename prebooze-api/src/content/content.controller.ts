@@ -49,4 +49,9 @@ export class ContentController {
   menu() {
     return this.content.menu();
   }
+
+  @Get('reels')
+  reels() {
+    return this.content.reels();
+  }
 }
