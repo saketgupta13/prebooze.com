@@ -3,10 +3,12 @@ import { StaffAuthController } from './staff-auth.controller';
 import { AdminStaffController, AdminRolesController } from './staff.controller';
 import { AdminCustomersController } from './customers.controller';
 import { AdminOrganizersController, AdminPromotersController, AdminLineupsController, AdminVenuesController } from './directory.controller';
+import { AdminCmsController } from './cms.controller';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffService } from './staff.service';
 import { CustomersService } from './customers.service';
 import { DirectoryService } from './directory.service';
+import { CmsService } from './cms.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { OwnerOnlyGuard } from './owner-only.guard';
 import { PermissionGuard } from './permission.guard';
@@ -24,8 +26,9 @@ import { PrismaService } from '../prisma.service';
     AdminPromotersController,
     AdminLineupsController,
     AdminVenuesController,
+    AdminCmsController,
   ],
-  providers: [StaffAuthService, StaffService, CustomersService, DirectoryService, StaffAuthGuard, OwnerOnlyGuard, PermissionGuard, PrismaService],
+  providers: [StaffAuthService, StaffService, CustomersService, DirectoryService, CmsService, StaffAuthGuard, OwnerOnlyGuard, PermissionGuard, PrismaService],
   exports: [StaffAuthGuard, PermissionGuard],
 })
 export class AdminModule {}

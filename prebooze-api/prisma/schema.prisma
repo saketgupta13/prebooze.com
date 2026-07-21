@@ -740,3 +740,99 @@ model Staff {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ============================================================================
+// Admin API, slice 4 — content CMS. Unlike financial records (bookings),
+// deleting content is a normal, safe operation — every model here supports
+// a real DELETE, unlike the deliberate no-hard-delete stance on bookings.
+// `hasImage`/`hasBanner` booleans in the mock are placeholder toggles for a
+// real upload flow that doesn't exist yet — stored as an optional image URL
+// reference instead, giving a real backend something to actually serve.
+// ============================================================================
+
+model Banner {
+  id          String  @id @default(cuid())
+  title       String
+  statusLabel String  @default("")
+  heading     String?
+  description String?
+  ctaLabel    String?
+  ctaLink     String?
+  imageUrl    String?
+  active      Boolean @default(true)
+  sort        Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BlogCategory {
+  id        String  @id @default(cuid())
+  name      String  @unique
+  bannerUrl String?
+  seo       Json?
+}
+
+model Blog {
+  id        String  @id @default(cuid())
+  title     String
+  meta      String  @default("")
+  status    String  @default("draft") // published | draft | scheduled
+  category  String?
+  content   String?
+  bannerUrl String?
+  seo       Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SitePage {
+  slug     String  @id
+  title    String
+  content  String?
+  navGroup String?
+  seo      Json?
+
+  updatedAt DateTime @updatedAt
+}
+
+model Testimonial {
+  id       String  @id @default(cuid())
+  author   String
+  location String
+  rating   Int
+  quote    String
+  featured Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+model FaqItem {
+  id       String @id @default(cuid())
+  question String
+  answer   String
+  audience String // guests | organizers
+  sort     Int    @default(0)
+}
+
+model Policy {
+  id       String @id @default(cuid())
+  title    String
+  slug     String @unique
+  sections Json // {heading, body}[]
+  seo      Json?
+
+  updatedAt DateTime @updatedAt
+}
+
+/**
+ * Singleton — one row, id="main". Header nav + footer link groups.
+ */
+model MenuConfig {
+  id     String @id @default("main")
+  header Json // MenuLink[] — {label, to}[]
+  footer Json // FooterGroup[]
+
+  updatedAt DateTime @updatedAt
+}

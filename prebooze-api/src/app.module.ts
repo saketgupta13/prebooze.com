@@ -15,6 +15,7 @@ import { FeaturedModule } from './featured/featured.module';
 import { SupportModule } from './support/support.module';
 import { CareersModule } from './careers/careers.module';
 import { AdminModule } from './admin/admin.module';
+import { ContentModule } from './content/content.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { AdminModule } from './admin/admin.module';
     SupportModule,
     CareersModule,
     AdminModule,
+    ContentModule,
   ],
   controllers: [AppController],
 })

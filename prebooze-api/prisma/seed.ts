@@ -198,6 +198,77 @@ const SEED_STAFF = [
   { id: 'staff-owner', name: 'Owner', email: 'owner@prebooze.com', password: 'prebooze123', roleName: 'Owner', city: 'Mumbai' },
 ];
 
+// Content CMS seed data — ported from prebooze-admin/src/store/data.ts
+// (the authoritative shape for this content, not prebooze-web's separate
+// static arrays, which don't have ids or the fields this schema needs).
+const SEED_BANNERS = [
+  { id: 'b1', title: 'Summer Fest hero', statusLabel: 'Live · #1', heading: "Summer Fest '26 is here", description: 'Two stages, twelve artists, fireworks over the river.', ctaLabel: 'Get day passes →', ctaLink: '/events/summer-fest-26', active: true, sort: 0 },
+  { id: 'b2', title: 'Host with us', statusLabel: 'Live · #2', heading: 'Turn your events into income', description: 'List in minutes, get paid weekly.', ctaLabel: 'Join as organizer', ctaLink: '/host', active: true, sort: 1 },
+  { id: 'b3', title: 'Diwali promo', statusLabel: 'Scheduled', heading: 'Diwali nights, 25% off', description: 'Use DIWALI25 at checkout.', ctaLabel: 'Browse events', ctaLink: '/browse', active: false, sort: 2 },
+];
+
+const SEED_BLOG_CATEGORIES = [
+  { id: 'bc1', name: 'City guide' },
+  { id: 'bc2', name: 'For organizers' },
+  { id: 'bc3', name: 'Venues' },
+];
+
+const SEED_BLOGS = [
+  { id: 'bl1', title: 'Top 10 gigs this monsoon', meta: 'by Dev P. · 2.1k views', status: 'published', category: 'City guide', content: 'The monsoon has a way of thinning the crowds and thickening the atmosphere…' },
+  { id: 'bl2', title: 'How to host a sold-out show', meta: 'by Dev P. · targets organizers', status: 'draft', category: 'For organizers', content: 'We looked at every sold-out event on Prebooze in the last six months…' },
+  { id: 'bl3', title: 'Venue spotlight: Riverside', meta: 'scheduled 12 Jul, 9 AM', status: 'scheduled', category: 'Venues', content: 'Some venues host events; Riverside Grounds hosts summers…' },
+];
+
+const SEED_PAGES = [
+  { slug: '/about', title: 'About us' },
+  { slug: '/host', title: 'Host with us' },
+  { slug: '/refunds', title: 'Refund policy' },
+  { slug: '/corporate', title: 'Corporate events' },
+  { slug: '/faqs', title: 'FAQs', navGroup: 'Support' },
+];
+
+const SEED_TESTIMONIALS = [
+  { id: 't1', author: 'Sam Rivera', location: 'Austin', rating: 5, quote: 'Booked in 20 seconds, QR hit my WhatsApp instantly, walked straight in. Never buying paper tickets again.', featured: true },
+  { id: 't2', author: 'Priya K.', location: 'Austin', rating: 5, quote: 'Found three gigs I would have missed. The city filter is so good.', featured: true },
+  { id: 't3', author: 'Arjun M.', location: 'Dallas', rating: 4, quote: 'Refund landed back in minutes when my plans changed. Rare for a ticketing app.', featured: true },
+  { id: 't4', author: 'Nia T.', location: 'Houston', rating: 5, quote: 'Group QR for all four of us meant no bottleneck at the gate. Smart.', featured: false },
+];
+
+const SEED_FAQS = [
+  { id: 'f1', question: 'How do I get my ticket?', answer: 'Sent instantly to your WhatsApp — also downloadable as a QR from My Bookings.', audience: 'guests', sort: 0 },
+  { id: 'f2', question: 'Can I cancel a booking?', answer: 'Yes — free cancellation up to 48 hours before the event. Refunds land back on your payment method instantly.', audience: 'guests', sort: 1 },
+  { id: 'f3', question: 'Do I need an account to book?', answer: 'You log in with your WhatsApp number and an OTP — no passwords. Your number is your account.', audience: 'guests', sort: 2 },
+  { id: 'f4', question: 'How do organizers get verified?', answer: 'Every organizer completes identity KYC (Aadhaar + selfie) and bank verification before their events go live.', audience: 'organizers', sort: 3 },
+  { id: 'f5', question: 'When do organizers get paid?', answer: 'Automatic weekly payouts every Monday, with per-event settlement after the event completes.', audience: 'organizers', sort: 4 },
+];
+
+const policyDoc = (id: string, title: string, slug: string, sections: string[]) => ({
+  id, title, slug,
+  sections: sections.map((h) => ({ heading: h, body: 'Placeholder copy — final legal language to be drafted and reviewed by counsel before launch. It describes, in plain terms, the rights and responsibilities that apply here.' })),
+});
+const SEED_POLICIES = [
+  policyDoc('terms', 'Terms & Conditions', '/legal/terms', ['Introduction', 'Account & eligibility', 'Booking & payments', 'Cancellations', 'Conduct at events', 'Liability']),
+  policyDoc('privacy', 'Privacy Policy', '/legal/privacy', ['Data we collect', 'How we use it', 'Sharing & WhatsApp', 'Government ID data', 'Your rights']),
+  policyDoc('organizer-policy', 'Organizer Policy', '/legal/organizer-policy', ['Verification & KYC', 'Listing standards', 'Payouts & fees', 'Approval & rejection', 'Suspension']),
+  policyDoc('guest-policy', 'Guest Policy', '/legal/guest-policy', ['Entry requirements', 'Age & ID checks', 'Ticket transfers', 'Code of conduct', 'Bans & reporting']),
+  policyDoc('refund-policy', 'Refund Policy', '/legal/refund-policy', ['Cancellation window', 'Refund timelines', 'Event cancelled by organizer', 'Non-refundable cases']),
+  policyDoc('disclaimer', 'Disclaimer', '/legal/disclaimer', ['Third-party events', 'No warranty', 'Assumption of risk']),
+];
+
+const SEED_MENU = {
+  header: [
+    { label: 'Events', to: '/browse' },
+    { label: 'Venues', to: '/venues' },
+    { label: 'Blog', to: '/blog' },
+    { label: 'Host with us', to: '/host' },
+  ],
+  footer: [
+    { title: 'Explore', links: [{ label: 'Events', to: '/browse' }, { label: 'Venues', to: '/venues' }, { label: 'Blog', to: '/blog' }] },
+    { title: 'Company', links: [{ label: 'About us', to: '/about' }, { label: 'Host with us', to: '/host' }, { label: 'Contact', to: '/contact' }] },
+    { title: 'Support', links: [{ label: 'FAQs', to: '/faqs' }, { label: 'Refund policy', to: '/legal/refund-policy' }, { label: 'Terms', to: '/legal/terms' }, { label: 'Privacy', to: '/legal/privacy' }] },
+  ],
+};
+
 const SEED_FEATURED = [
   { id: 'f1', type: 'event' as const, refId: 'ev-3', city: 'Austin', status: 'active' as const, billing: 'per_event' as const, amount: 2000, expiresAt: new Date('2027-01-01') },
   { id: 'f2', type: 'organizer' as const, refId: 'festcrew', city: 'Austin', status: 'active' as const, billing: 'monthly' as const, amount: 4999, expiresAt: new Date('2027-01-01') },
@@ -258,7 +329,16 @@ async function main() {
     });
   }
 
-  console.log(`Seeded: ${VENUES.length} venues, ${ORGANIZERS.length} organizers, ${PROMOTERS.length} promoters, ${LINEUPS.length} lineups, ${PEOPLE.length} people, ${EVENTS.length} events, ${SEED_FEATURED.length} featured, ${COUPONS.length} coupons, ${CAREER_JOBS.length} career jobs, ${Object.keys(SEED_ROLES).length} staff roles, ${SEED_STAFF.length} staff.`);
+  for (const b of SEED_BANNERS) await db.banner.upsert({ where: { id: b.id }, create: b, update: b });
+  for (const c of SEED_BLOG_CATEGORIES) await db.blogCategory.upsert({ where: { id: c.id }, create: c, update: c });
+  for (const b of SEED_BLOGS) await db.blog.upsert({ where: { id: b.id }, create: b, update: b });
+  for (const p of SEED_PAGES) await db.sitePage.upsert({ where: { slug: p.slug }, create: p, update: p });
+  for (const t of SEED_TESTIMONIALS) await db.testimonial.upsert({ where: { id: t.id }, create: t, update: t });
+  for (const f of SEED_FAQS) await db.faqItem.upsert({ where: { id: f.id }, create: f, update: f });
+  for (const p of SEED_POLICIES) await db.policy.upsert({ where: { id: p.id }, create: p, update: p });
+  await db.menuConfig.upsert({ where: { id: 'main' }, create: { id: 'main', ...SEED_MENU }, update: SEED_MENU });
+
+  console.log(`Seeded: ${VENUES.length} venues, ${ORGANIZERS.length} organizers, ${PROMOTERS.length} promoters, ${LINEUPS.length} lineups, ${PEOPLE.length} people, ${EVENTS.length} events, ${SEED_FEATURED.length} featured, ${COUPONS.length} coupons, ${CAREER_JOBS.length} career jobs, ${Object.keys(SEED_ROLES).length} staff roles, ${SEED_STAFF.length} staff, ${SEED_BANNERS.length} banners, ${SEED_BLOGS.length} blogs, ${SEED_PAGES.length} pages, ${SEED_TESTIMONIALS.length} testimonials, ${SEED_FAQS.length} faqs, ${SEED_POLICIES.length} policies.`);
 }
 
 main()
