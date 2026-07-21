@@ -102,6 +102,26 @@ const TOP_CITIES = [
 ];
 const OTHER_CITIES = ['Dallas', 'Houston']; // referenced by events/promoters/people but not in the Top-12 picker
 
+// Admin API locations slice — Country/State hierarchy layered on top of the
+// same City rows seeded above (linked by name after both exist below).
+const SEED_LOCATIONS = [
+  {
+    country: 'India',
+    states: {
+      Maharashtra: ['Mumbai', 'Pune', 'Nagpur'],
+      Delhi: ['Delhi'],
+      Karnataka: ['Bengaluru'],
+      Telangana: ['Hyderabad'],
+      'Tamil Nadu': ['Chennai'],
+      'West Bengal': ['Kolkata'],
+      Goa: ['Goa'],
+      Rajasthan: ['Jaipur'],
+      Gujarat: ['Ahmedabad'],
+    },
+  },
+  { country: 'United States', states: { Texas: ['Austin', 'Dallas', 'Houston'] } },
+];
+
 const TRENDING_SEARCHES = ['Techno', 'Bandra Warehouse Rave', 'Comedy night', 'DJ Arjuna', 'Sundowner', 'Bollywood'];
 
 type SeedTier = { id: string; name: string; price: number; quantity: number; sold: number; includes: string[] };
@@ -289,6 +309,18 @@ async function main() {
   let sort = 0;
   for (const c of TOP_CITIES) await db.city.upsert({ where: { name: c.name }, create: { ...c, top: true, sort: sort++ }, update: { ...c, top: true, sort: sort - 1 } });
   for (const name of OTHER_CITIES) await db.city.upsert({ where: { name }, create: { name, top: false, sort: sort++ }, update: {} });
+
+  for (const { country, states } of SEED_LOCATIONS) {
+    const countryRow = await db.country.upsert({ where: { name: country }, create: { name: country }, update: {} });
+    for (const [stateName, cities] of Object.entries(states)) {
+      const stateRow = await db.state.upsert({
+        where: { countryId_name: { countryId: countryRow.id, name: stateName } },
+        create: { countryId: countryRow.id, name: stateName },
+        update: {},
+      });
+      for (const cityName of cities) await db.city.update({ where: { name: cityName }, data: { stateId: stateRow.id } });
+    }
+  }
 
   sort = 0;
   for (const term of TRENDING_SEARCHES) await db.trendingSearch.upsert({ where: { term }, create: { term, sort: sort++ }, update: { sort: sort - 1 } });

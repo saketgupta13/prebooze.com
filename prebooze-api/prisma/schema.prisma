@@ -310,10 +310,38 @@ model Category {
 }
 
 model City {
-  name String  @id
-  icon String?
-  top  Boolean @default(false) // shows in the Top-12 picker
-  sort Int     @default(0)
+  name    String  @id
+  icon    String?
+  top     Boolean @default(false) // shows in the Top-12 picker — max 12, enforced in AdminLocationsService
+  sort    Int     @default(0)
+  enabled Boolean @default(true) // Admin API locations slice — disabled cities drop out of the public GET /cities
+
+  // Optional link into the Country/State admin-management hierarchy below.
+  // Deliberately not the FK every other model uses for "city" (User.city,
+  // Venue.city, Organizer.city, ...) — those stay plain strings; changing
+  // that would touch nearly every model for no real benefit. This hierarchy
+  // is purely an admin-organizing overlay on top of the same flat City rows
+  // everything else already references by name.
+  stateId String?
+  state   State?  @relation(fields: [stateId], references: [id], onDelete: SetNull)
+}
+
+model Country {
+  id      String  @id @default(cuid())
+  name    String  @unique
+  enabled Boolean @default(true)
+  states  State[]
+}
+
+model State {
+  id        String  @id @default(cuid())
+  name      String
+  enabled   Boolean @default(true)
+  countryId String
+  country   Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  cities    City[]
+
+  @@unique([countryId, name])
 }
 
 model TrendingSearch {

@@ -128,7 +128,9 @@ export class CatalogService {
   }
 
   async cities() {
-    const cities = await this.prisma.city.findMany({ orderBy: { sort: 'asc' } });
+    // `enabled` (Admin API locations slice) — a disabled city drops out of
+    // the public picker entirely, matching the mock's cascading toggle.
+    const cities = await this.prisma.city.findMany({ where: { enabled: true }, orderBy: { sort: 'asc' } });
     const counts = await this.prisma.event.groupBy({
       by: ['venueId'],
       where: { status: 'approved' },
