@@ -203,6 +203,19 @@ const SEED_LEDGER_CATEGORIES = {
   expense: ['Marketing', 'Staff & salaries', 'Office & tools', 'Refund losses', 'Other expense'],
 };
 
+// Reports slice — per-event commission % + payout flag, first real data behind
+// the "Event commission (per event)" permission module. Only set on a few
+// live/sold events so Reports has something real to show without claiming a
+// take-rate on every event (null = not set, same semantics as the mock).
+const SEED_EVENT_FINANCE: Record<string, { commission: number; paidOut: boolean }> = {
+  'ev-1': { commission: 10, paidOut: true },
+  'ev-2': { commission: 8, paidOut: false },
+  'ev-5': { commission: 12, paidOut: true },
+  'ev-9': { commission: 15, paidOut: false },
+  'ev-10': { commission: 10, paidOut: false },
+};
+const SEED_PLATFORM_SETTINGS = { bookingFee: 1.5, gstPct: 18 };
+
 // Mirrors prebooze-admin's src/store/data.ts PERM_MODULES/SEED_ROLES exactly.
 const PERM_MODULES = [
   'Payments & payouts', 'Refunds', 'Event commission (per event)', 'Events & approvals',
@@ -374,6 +387,8 @@ async function main() {
     }
   }
 
+  for (const [id, fin] of Object.entries(SEED_EVENT_FINANCE)) await db.event.update({ where: { id }, data: fin });
+
   for (const f of SEED_FEATURED) await db.featured.upsert({ where: { id: f.id }, create: f, update: f });
   for (const c of COUPONS) await db.coupon.upsert({ where: { id: c.id }, create: c, update: c });
   for (const j of CAREER_JOBS) await db.careerJob.upsert({ where: { id: j.id }, create: j, update: j });
@@ -405,6 +420,7 @@ async function main() {
   for (const f of SEED_FAQS) await db.faqItem.upsert({ where: { id: f.id }, create: f, update: f });
   for (const p of SEED_POLICIES) await db.policy.upsert({ where: { id: p.id }, create: p, update: p });
   await db.menuConfig.upsert({ where: { id: 'main' }, create: { id: 'main', ...SEED_MENU }, update: SEED_MENU });
+  await db.platformSettings.upsert({ where: { id: 'main' }, create: { id: 'main', ...SEED_PLATFORM_SETTINGS }, update: {} });
 
   console.log(`Seeded: ${VENUES.length} venues, ${ORGANIZERS.length} organizers, ${PROMOTERS.length} promoters, ${LINEUPS.length} lineups, ${PEOPLE.length} people, ${EVENTS.length} events, ${SEED_FEATURED.length} featured, ${COUPONS.length} coupons, ${CAREER_JOBS.length} career jobs, ${Object.keys(SEED_ROLES).length} staff roles, ${SEED_STAFF.length} staff, ${SEED_BANNERS.length} banners, ${SEED_BLOGS.length} blogs, ${SEED_PAGES.length} pages, ${SEED_TESTIMONIALS.length} testimonials, ${SEED_FAQS.length} faqs, ${SEED_POLICIES.length} policies.`);
 }

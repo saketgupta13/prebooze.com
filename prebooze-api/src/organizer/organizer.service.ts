@@ -361,6 +361,20 @@ export class OrganizerService {
     return this.prisma.event.update({ where: { id: eventId }, data: { status: 'rejected', rejectionReason: reason ?? '' } });
   }
 
+  // ---------- admin: per-event commission + payout flag (Reports slice) ----------
+  async adminSetCommission(eventId: string, commission: number | null) {
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    if (commission != null && (commission < 0 || commission > 100)) throw new BadRequestException('commission must be between 0 and 100');
+    return this.prisma.event.update({ where: { id: eventId }, data: { commission } });
+  }
+
+  async adminSetPaidOut(eventId: string, paidOut: boolean) {
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    return this.prisma.event.update({ where: { id: eventId }, data: { paidOut } });
+  }
+
   async remindCart(userId: string, id: string) {
     const org = await this.myOrganizer(userId);
     const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: true } });

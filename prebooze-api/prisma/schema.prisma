@@ -379,8 +379,32 @@ model Event {
   carts           Cart[]
   promoterGuests  PromoterGuest[]
 
+  // Reports slice (Admin API 9). Finally backs the "Event commission (per
+  // event)" permission module that's existed since the staff-auth slice with
+  // no endpoint — null means no take-rate set yet (mirrors OrganizerLedgerTx's
+  // documented "no commission modeled" placeholder; this is that placeholder
+  // becoming real, per-event and opt-in rather than a platform-wide default).
+  // paidOut is a reports-only flag for whether this event's organizer payout
+  // has gone out — independent of the organizer's own withdraw flow
+  // (OrganizerLedgerTx), which already lets them pull their full subtotal
+  // regardless of this flag.
+  commission Int?
+  paidOut    Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/** Platform-wide financial config — singleton row (id "main"). Previously
+ * hardcoded (FEE_PER_TICKET in bookings.service.ts, no GST modeling at all);
+ * made real for the Reports slice so admin-editable settings actually drive
+ * both new bookings' fee and the Reports P&L's GST line, instead of Reports
+ * silently guessing at numbers nothing else in the system uses. */
+model PlatformSettings {
+  id         String   @id @default("main")
+  bookingFee Float    @default(1.5) // ₹ per ticket — matches the pre-existing FEE_PER_TICKET constant exactly
+  gstPct     Int      @default(18)
+  updatedAt  DateTime @updatedAt
 }
 
 model TicketTier {

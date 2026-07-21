@@ -8,7 +8,7 @@ import { RazorpayService } from '../payments/razorpay.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { REFERRAL_REFERRER_REWARD } from '../referrals/referral.constants';
 
-const FEE_PER_TICKET = 1.5; // ₹, matches prebooze-web's BOOKING_FEE_PER_TICKET
+const FALLBACK_FEE_PER_TICKET = 1.5; // ₹ — used only if PlatformSettings row is somehow missing
 
 export interface CreateBookingInput {
   holdId: string;
@@ -56,7 +56,8 @@ export class BookingsService {
 
     const qty = lines.reduce((a, l) => a + l.qty, 0);
     const subtotal = lines.reduce((a, l) => a + l.qty * l.tier.price, 0);
-    const fee = Math.round(qty * FEE_PER_TICKET);
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+    const fee = Math.round(qty * (settings?.bookingFee ?? FALLBACK_FEE_PER_TICKET));
 
     // ---- coupon ----
     let discount = 0;

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { OrganizerService } from './organizer.service';
 import type { EventInput } from './organizer.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -85,5 +85,19 @@ export class AdminEventsController {
   @RequirePermission('Events & approvals', 'approve')
   reject(@Param('id') id: string, @Body('reason') reason: string) {
     return this.organizer.adminReject(id, reason);
+  }
+
+  // Reports slice: finally backs the "Event commission (per event)" permission
+  // module that's existed since the staff-auth slice with no endpoint.
+  @Patch(':id/commission')
+  @RequirePermission('Event commission (per event)', 'edit')
+  setCommission(@Param('id') id: string, @Body('commission') commission: number | null) {
+    return this.organizer.adminSetCommission(id, commission);
+  }
+
+  @Patch(':id/paid-out')
+  @RequirePermission('Payments & payouts', 'edit')
+  setPaidOut(@Param('id') id: string, @Body('paidOut') paidOut: boolean) {
+    return this.organizer.adminSetPaidOut(id, paidOut);
   }
 }
