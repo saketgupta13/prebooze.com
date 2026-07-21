@@ -158,6 +158,20 @@ export class KycService {
       if (venueId) ops.push(this.prisma.venue.update({ where: { id: venueId }, data: { verified: true } }));
     }
 
+    // same reasoning as organizer/promoter — GET /lineups and the public
+    // /lineup/:slug profile both read from the Lineup catalog table, so a
+    // freshly-approved artist/DJ needs a row there to actually show up
+    // anywhere. Everything else about their console (dashboard, profile
+    // edits) already rides on existing generic endpoints — see BACKEND.md
+    // "Identity & KYC" for why Lineup never needed its own console section.
+    if (sub.kind === 'lineup') {
+      const [user, existing] = await Promise.all([
+        this.prisma.user.findUnique({ where: { id: sub.userId } }),
+        this.prisma.lineup.findUnique({ where: { userId: sub.userId } }),
+      ]);
+      if (user && !existing) ops.push(this.prisma.lineup.create({ data: await this.newLineupRow(user) }));
+    }
+
     await this.prisma.$transaction(ops);
     return { ok: true };
   }
@@ -228,6 +242,60 @@ export class KycService {
       name: user.promoterBrand || user.name || 'Promoter',
       city: user.city || '',
       bio: '',
+      userId: user.id,
+    };
+  }
+
+  /** Same slug-collision-safe scheme again, keyed off lineupUsername/lineupName.
+   * bio/city are pulled from the plain User fields — LineupSettings.tsx saves
+   * artist-profile edits through the generic PATCH /me, not a dedicated
+   * endpoint, so those are the live source of truth even post-approval. */
+  private async newLineupRow(user: {
+    id: string;
+    lineupName: string | null;
+    lineupCategory: string | null;
+    lineupUsername: string | null;
+    name: string;
+    city: string;
+    bio: string;
+  }) {
+    const base = (user.lineupUsername || user.lineupName || user.name || 'lineup')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'lineup';
+
+    const uniqueSlug = async () => {
+      let candidate = base;
+      let n = 1;
+      while (await this.prisma.lineup.findUnique({ where: { slug: candidate } })) {
+        candidate = `${base}-${++n}`;
+      }
+      return candidate;
+    };
+    const uniqueId = async () => {
+      let candidate = 'lu-' + base;
+      let n = 1;
+      while (await this.prisma.lineup.findUnique({ where: { id: candidate } })) {
+        candidate = `lu-${base}-${++n}`;
+      }
+      return candidate;
+    };
+
+    const category = user.lineupCategory || 'Artist';
+    const emoji: Record<string, string> = { DJ: '🎧', Band: '🎸', Comedian: '🎤', Artist: '🎨', Sponsor: '⭐', Promoter: '📣', Host: '🎙' };
+
+    let h = 0;
+    for (const c of user.id) h = (h * 31 + c.charCodeAt(0)) % 360;
+
+    return {
+      id: await uniqueId(),
+      slug: await uniqueSlug(),
+      name: user.lineupName || user.name || 'Lineup',
+      category,
+      city: user.city || '',
+      bio: user.bio || '',
+      hue: h,
+      emoji: emoji[category] ?? '🎤',
       userId: user.id,
     };
   }

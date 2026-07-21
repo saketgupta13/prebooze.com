@@ -97,6 +97,7 @@ model User {
   organizerProfile Organizer? // set once this user's organizer KYC is approved
   carts            Cart[]
   promoterProfile  Promoter? // set once this user's promoter KYC is approved
+  lineupProfile    Lineup? // set once this user's lineup KYC is approved
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -250,6 +251,12 @@ model Lineup {
   eventsPlayed Int      @default(0)
   hue          Int
   emoji        String
+
+  // same pattern as Organizer/Promoter.userId (Phases 6-7) — provisioned
+  // automatically when this user's lineup KYC is approved, see
+  // KycService.approve. Seeded demo lineups have no owning user, hence optional.
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
