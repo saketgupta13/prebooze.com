@@ -375,6 +375,13 @@ export class OrganizerService {
     return this.prisma.event.update({ where: { id: eventId }, data: { paidOut } });
   }
 
+  // ---------- admin: pause gate sales (Live Monitor slice) ----------
+  async adminSetSalesPaused(eventId: string, paused: boolean) {
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    return this.prisma.event.update({ where: { id: eventId }, data: { salesPaused: paused } });
+  }
+
   async remindCart(userId: string, id: string) {
     const org = await this.myOrganizer(userId);
     const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: true } });

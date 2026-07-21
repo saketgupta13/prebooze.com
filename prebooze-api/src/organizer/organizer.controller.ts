@@ -100,4 +100,12 @@ export class AdminEventsController {
   setPaidOut(@Param('id') id: string, @Body('paidOut') paidOut: boolean) {
     return this.organizer.adminSetPaidOut(id, paidOut);
   }
+
+  // Live Monitor slice: "Pause gate sales" — mapped onto the only real sales
+  // channel this backend has (online booking), enforced in priceHold().
+  @Patch(':id/pause-sales')
+  @RequirePermission('Gate check-in', 'edit')
+  setSalesPaused(@Param('id') id: string, @Body('paused') paused: boolean) {
+    return this.organizer.adminSetSalesPaused(id, paused);
+  }
 }

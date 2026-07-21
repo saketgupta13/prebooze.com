@@ -44,6 +44,7 @@ export class BookingsService {
 
     const event = await this.prisma.event.findUnique({ where: { id: hold.eventId }, include: { tiers: true } });
     if (!event) throw new NotFoundException('Event not found');
+    if (event.salesPaused) throw new BadRequestException('Ticket sales are currently paused for this event');
 
     const lines = Object.entries(hold.qty)
       .filter(([, n]) => n > 0)
@@ -363,17 +364,39 @@ export class BookingsService {
     try {
       payload = await this.jwt.verifyAsync(qrToken);
     } catch {
+      await this.logCheckIn({ ok: false, reason: 'invalid or expired QR' });
       throw new BadRequestException('Invalid or expired ticket QR');
     }
     const booking = await this.prisma.booking.findUnique({ where: { id: payload.bookingId } });
-    if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.status !== 'confirmed') throw new BadRequestException(`Ticket is ${booking.status}, not valid for entry`);
-    if (booking.checkedIn) throw new BadRequestException('Already checked in — ' + booking.checkedInAt?.toISOString());
+    if (!booking) {
+      await this.logCheckIn({ ok: false, reason: 'invalid QR — booking not found' });
+      throw new NotFoundException('Booking not found');
+    }
+    if (booking.status !== 'confirmed') {
+      await this.logCheckIn({ ok: false, reason: `ticket is ${booking.status}, not valid for entry`, eventId: booking.eventId, bookingId: booking.id, guestName: booking.mainGuest, tierName: booking.tierName });
+      throw new BadRequestException(`Ticket is ${booking.status}, not valid for entry`);
+    }
+    if (booking.checkedIn) {
+      await this.logCheckIn({ ok: false, reason: `duplicate QR — already scanned ${booking.checkedInAt?.toISOString()}`, eventId: booking.eventId, bookingId: booking.id, guestName: booking.mainGuest, tierName: booking.tierName });
+      throw new BadRequestException('Already checked in — ' + booking.checkedInAt?.toISOString());
+    }
 
-    return this.prisma.booking.update({
+    const updated = await this.prisma.booking.update({
       where: { id: booking.id },
       data: { checkedIn: true, checkedInAt: new Date() },
     });
+    await this.logCheckIn({ ok: true, reason: 'checked in', eventId: booking.eventId, bookingId: booking.id, guestName: booking.mainGuest, tierName: booking.tierName, headcount: booking.qty });
+    return updated;
+  }
+
+  /** Feeds the admin Live Monitor's gate feed + "rejected QRs" KPI — written
+   * on every branch above, success or rejection, so that page has something
+   * real to read instead of the mock's simulated setInterval feed. Never
+   * blocks the actual check-in on a logging failure. */
+  private async logCheckIn(data: { ok: boolean; reason: string; eventId?: string; bookingId?: string; guestName?: string; tierName?: string; headcount?: number }) {
+    await this.prisma.checkInLog
+      .create({ data: { ok: data.ok, reason: data.reason, eventId: data.eventId, bookingId: data.bookingId, guestName: data.guestName, tierName: data.tierName, headcount: data.headcount ?? 1 } })
+      .catch(() => {});
   }
 
   // ---------- waitlist ----------

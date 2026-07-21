@@ -373,11 +373,13 @@ model Event {
   seo             Json? // {title, description, slug, keywords}
   promoterConfig  Json? // PromoterConfig — see prebooze-web/src/types.ts
   socialBanners   Json? // {post?, story?}
-  tiers           TicketTier[]
-  bookings        Booking[]
-  waitlistEntries WaitlistEntry[]
-  carts           Cart[]
-  promoterGuests  PromoterGuest[]
+  tiers            TicketTier[]
+  bookings         Booking[]
+  waitlistEntries  WaitlistEntry[]
+  carts            Cart[]
+  promoterGuests   PromoterGuest[]
+  guestListEntries GuestListEntry[]
+  checkInLogs      CheckInLog[]
 
   // Reports slice (Admin API 9). Finally backs the "Event commission (per
   // event)" permission module that's existed since the staff-auth slice with
@@ -391,8 +393,53 @@ model Event {
   commission Int?
   paidOut    Boolean @default(false)
 
+  // Guest list / Live monitor slice (Admin API 10). "Pause gate sales" in the
+  // mock's ops screen — mapped onto the only real sales channel this backend
+  // has (online booking, no separate walk-up/gate channel is modeled) —
+  // enforced in BookingsService.priceHold(), shared by quote() and create().
+  salesPaused Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/** Admin's own free-entry list per event — artists, press, promoters and VIPs
+ * who skip tickets entirely. Separate from PromoterGuest (Phase 7's
+ * promoter-driven guest capture, which does consume a per-head payout
+ * budget) — this is staff-added, no payout implications, doesn't touch
+ * ticket inventory. */
+model GuestListEntry {
+  id         String   @id @default(cuid())
+  eventId    String
+  event      Event    @relation(fields: [eventId], references: [id])
+  name       String
+  phone      String
+  plusOnes   Int      @default(0)
+  companions Json     @default("[]") // {name, phone}[]
+  addedBy    String
+  arrived    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+/** Every gate check-in attempt, success or rejection — written by
+ * BookingsService.checkIn() on every branch. Didn't exist before the Live
+ * Monitor slice; without it, "rejected QRs" and the gate feed would have had
+ * nothing real to read from (the mock's own LiveMonitor.tsx admits this:
+ * "Feed is simulated locally until the check-in websocket exists"). eventId
+ * is nullable only for the one branch where a QR fails JWT verification
+ * before any booking can be resolved, so which event it belonged to is
+ * genuinely unknown. */
+model CheckInLog {
+  id        String   @id @default(cuid())
+  eventId   String?
+  event     Event?   @relation(fields: [eventId], references: [id])
+  bookingId String?
+  ok        Boolean
+  reason    String
+  guestName String?
+  tierName  String?
+  headcount Int      @default(1)
+  createdAt DateTime @default(now())
 }
 
 /** Platform-wide financial config — singleton row (id "main"). Previously

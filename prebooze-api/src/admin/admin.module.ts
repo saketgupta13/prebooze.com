@@ -9,6 +9,8 @@ import { AdminCareersController } from './careers-admin.controller';
 import { AdminReelsController } from './reels.controller';
 import { AdminLedgerController } from './ledger.controller';
 import { AdminReportsController, AdminSettingsController } from './reports.controller';
+import { AdminGuestListController, AdminGuestListEntryController } from './guestlist.controller';
+import { AdminLiveMonitorController } from './live-monitor.controller';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffService } from './staff.service';
 import { CustomersService } from './customers.service';
@@ -19,6 +21,8 @@ import { CareersAdminService } from './careers-admin.service';
 import { ReelsService } from './reels.service';
 import { LedgerService } from './ledger.service';
 import { ReportsService } from './reports.service';
+import { GuestListService } from './guestlist.service';
+import { LiveMonitorService } from './live-monitor.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { OwnerOnlyGuard } from './owner-only.guard';
 import { PermissionGuard } from './permission.guard';
@@ -43,6 +47,9 @@ import { PrismaService } from '../prisma.service';
     AdminLedgerController,
     AdminReportsController,
     AdminSettingsController,
+    AdminGuestListController,
+    AdminGuestListEntryController,
+    AdminLiveMonitorController,
   ],
   providers: [
     StaffAuthService,
@@ -55,6 +62,8 @@ import { PrismaService } from '../prisma.service';
     ReelsService,
     LedgerService,
     ReportsService,
+    GuestListService,
+    LiveMonitorService,
     StaffAuthGuard,
     OwnerOnlyGuard,
     PermissionGuard,

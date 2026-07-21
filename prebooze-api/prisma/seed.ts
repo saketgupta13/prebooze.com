@@ -216,6 +216,15 @@ const SEED_EVENT_FINANCE: Record<string, { commission: number; paidOut: boolean 
 };
 const SEED_PLATFORM_SETTINGS = { bookingFee: 1.5, gstPct: 18 };
 
+// Guest list slice (Admin API 10) — ported from prebooze-admin's SEED_GUEST_LIST,
+// re-pointed at real event ids and filled in with required phone numbers (the
+// mock's own add-guest form already requires phone for every companion; the
+// seed rows predate that and left some blank).
+const SEED_GUEST_LIST = [
+  { id: 'gl1', eventId: 'ev-1', name: 'Rhea Kapoor', phone: '+91 9876500101', plusOnes: 1, companions: [{ name: 'Aditya Kapoor', phone: '+91 9876500102' }], addedBy: 'owner@prebooze.com', arrived: false },
+  { id: 'gl2', eventId: 'ev-1', name: 'DJ Nova (artist)', phone: '+91 9876500103', plusOnes: 2, companions: [{ name: 'Tour manager', phone: '+91 9876500104' }, { name: 'Photographer', phone: '+91 9876500105' }], addedBy: 'owner@prebooze.com', arrived: true },
+];
+
 // Mirrors prebooze-admin's src/store/data.ts PERM_MODULES/SEED_ROLES exactly.
 const PERM_MODULES = [
   'Payments & payouts', 'Refunds', 'Event commission (per event)', 'Events & approvals',
@@ -421,6 +430,7 @@ async function main() {
   for (const p of SEED_POLICIES) await db.policy.upsert({ where: { id: p.id }, create: p, update: p });
   await db.menuConfig.upsert({ where: { id: 'main' }, create: { id: 'main', ...SEED_MENU }, update: SEED_MENU });
   await db.platformSettings.upsert({ where: { id: 'main' }, create: { id: 'main', ...SEED_PLATFORM_SETTINGS }, update: {} });
+  for (const g of SEED_GUEST_LIST) await db.guestListEntry.upsert({ where: { id: g.id }, create: g, update: g });
 
   console.log(`Seeded: ${VENUES.length} venues, ${ORGANIZERS.length} organizers, ${PROMOTERS.length} promoters, ${LINEUPS.length} lineups, ${PEOPLE.length} people, ${EVENTS.length} events, ${SEED_FEATURED.length} featured, ${COUPONS.length} coupons, ${CAREER_JOBS.length} career jobs, ${Object.keys(SEED_ROLES).length} staff roles, ${SEED_STAFF.length} staff, ${SEED_BANNERS.length} banners, ${SEED_BLOGS.length} blogs, ${SEED_PAGES.length} pages, ${SEED_TESTIMONIALS.length} testimonials, ${SEED_FAQS.length} faqs, ${SEED_POLICIES.length} policies.`);
 }
