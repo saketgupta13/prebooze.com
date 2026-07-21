@@ -96,6 +96,7 @@ model User {
   orgReviews       OrgReview[]
   organizerProfile Organizer? // set once this user's organizer KYC is approved
   carts            Cart[]
+  promoterProfile  Promoter? // set once this user's promoter KYC is approved
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -222,6 +223,16 @@ model Promoter {
   guestsBrought  Int      @default(0)
   showRate       Int      @default(0) // % of guests who actually arrived
 
+  // same pattern as Organizer.userId (Phase 6) — provisioned automatically
+  // when this user's promoter KYC is approved, see KycService.approve.
+  // Seeded demo promoters have no owning user, hence optional.
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id])
+  planId String  @default("free") // SUB_TIERS id — free|starter|pro|elite
+
+  team        PromoterTeamMember[]
+  withdrawals PromoterWithdrawal[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -306,6 +317,7 @@ model Event {
   bookings        Booking[]
   waitlistEntries WaitlistEntry[]
   carts           Cart[]
+  promoterGuests  PromoterGuest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -564,4 +576,51 @@ model OrganizerLedgerTx {
   eventTitle  String?
   note        String?
   createdAt   DateTime  @default(now())
+}
+
+// ============================================================================
+// Phase 7 — Promoter console: guest-list capture + fraud guards, check-in,
+// earnings (computed live from PromoterGuest/Booking, not a stored ledger —
+// unlike OrganizerLedgerTx, there's nothing here that isn't already
+// reconstructible from those two tables), team, subscription.
+// ============================================================================
+
+/**
+ * A free-entry list signup. Joined to Promoter by slug (not a FK) — same
+ * convention as Booking.promoterRef, since a promoter's slug is the join key
+ * used everywhere (affiliate links, event.promoterConfig.allowedPromoters).
+ */
+model PromoterGuest {
+  id           String    @id
+  eventId      String
+  event        Event     @relation(fields: [eventId], references: [id])
+  promoterSlug String
+  name         String
+  phone        String
+  age          String
+  gender       String
+  subPromoter  String? // sub-promoter handle credited within the team (?via=)
+  arrived      Boolean   @default(false)
+  arrivedAt    DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+model PromoterTeamMember {
+  id         String   @id @default(cuid())
+  promoterId String
+  promoter   Promoter @relation(fields: [promoterId], references: [id])
+  handle     String
+  name       String
+  hue        Int
+  createdAt  DateTime @default(now())
+
+  @@unique([promoterId, handle])
+}
+
+model PromoterWithdrawal {
+  id         String   @id @default(cuid())
+  promoterId String
+  promoter   Promoter @relation(fields: [promoterId], references: [id])
+  amount     Int
+  createdAt  DateTime @default(now())
 }

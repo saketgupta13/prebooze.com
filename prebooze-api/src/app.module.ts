@@ -9,6 +9,7 @@ import { WalletModule } from './wallet/wallet.module';
 import { ReferralsModule } from './referrals/referrals.module';
 import { SocialModule } from './social/social.module';
 import { OrganizerModule } from './organizer/organizer.module';
+import { PromoterModule } from './promoter/promoter.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { OrganizerModule } from './organizer/organizer.module';
     ReferralsModule,
     SocialModule,
     OrganizerModule,
+    PromoterModule,
   ],
   controllers: [AppController],
 })

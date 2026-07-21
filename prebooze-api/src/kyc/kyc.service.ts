@@ -136,6 +136,17 @@ export class KycService {
       if (user && !existing) ops.push(this.prisma.organizer.create({ data: await this.newOrganizerRow(user) }));
     }
 
+    // same reasoning for promoter — PromoterGuest.promoterSlug and
+    // Booking.promoterRef both join against Promoter.slug, and a fresh
+    // approval has no row to be found by that slug yet.
+    if (sub.kind === 'promoter') {
+      const [user, existing] = await Promise.all([
+        this.prisma.user.findUnique({ where: { id: sub.userId } }),
+        this.prisma.promoter.findUnique({ where: { userId: sub.userId } }),
+      ]);
+      if (user && !existing) ops.push(this.prisma.promoter.create({ data: await this.newPromoterRow(user) }));
+    }
+
     await this.prisma.$transaction(ops);
     return { ok: true };
   }
@@ -169,6 +180,43 @@ export class KycService {
       since: String(new Date().getFullYear()),
       about: '',
       logoHue: h,
+      userId: user.id,
+    };
+  }
+
+  /** Same slug-collision-safe scheme as newOrganizerRow, but keyed off
+   * promoterUsername/promoterBrand — Promoter.id and .slug are both
+   * slug-style but distinct fields (seeded promoters use short ids like
+   * "pr1" with a separate human slug), so both need picking. */
+  private async newPromoterRow(user: { id: string; promoterBrand: string | null; promoterUsername: string | null; name: string; city: string }) {
+    const base = (user.promoterUsername || user.promoterBrand || user.name || 'promoter')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'promoter';
+
+    const uniqueSlug = async () => {
+      let candidate = base;
+      let n = 1;
+      while (await this.prisma.promoter.findUnique({ where: { slug: candidate } })) {
+        candidate = `${base}-${++n}`;
+      }
+      return candidate;
+    };
+    const uniqueId = async () => {
+      let candidate = 'pr-' + base;
+      let n = 1;
+      while (await this.prisma.promoter.findUnique({ where: { id: candidate } })) {
+        candidate = `pr-${base}-${++n}`;
+      }
+      return candidate;
+    };
+
+    return {
+      id: await uniqueId(),
+      slug: await uniqueSlug(),
+      name: user.promoterBrand || user.name || 'Promoter',
+      city: user.city || '',
+      bio: '',
       userId: user.id,
     };
   }
