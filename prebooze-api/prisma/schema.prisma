@@ -82,18 +82,20 @@ model User {
   // straight to its owner without scanning every user
   referralCode String? @unique
 
-  kycSubmissions  KycSubmission[]
-  bookings        Booking[]
-  walletTxs       WalletTx[]
-  waitlistEntries WaitlistEntry[]
-  referralsMade   Referral[]       @relation("Referrer")
-  referralJoined  Referral?        @relation("Referee")
-  payMethods      PayMethod[]
-  follows         Follow[]
-  eventInterests  EventInterest[]
-  eventWishlists  EventWishlist[]
-  venueFavourites VenueFavourite[]
-  orgReviews      OrgReview[]
+  kycSubmissions   KycSubmission[]
+  bookings         Booking[]
+  walletTxs        WalletTx[]
+  waitlistEntries  WaitlistEntry[]
+  referralsMade    Referral[]       @relation("Referrer")
+  referralJoined   Referral?        @relation("Referee")
+  payMethods       PayMethod[]
+  follows          Follow[]
+  eventInterests   EventInterest[]
+  eventWishlists   EventWishlist[]
+  venueFavourites  VenueFavourite[]
+  orgReviews       OrgReview[]
+  organizerProfile Organizer? // set once this user's organizer KYC is approved
+  carts            Cart[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -193,6 +195,15 @@ model Organizer {
   about        String
   logoHue      Int
   events       Event[]
+
+  // links this catalog row to the real User who owns the console — created
+  // automatically the moment their organizer KYC is approved (see
+  // KycService.approve). Seeded demo organizers (livewire, nightowl, ...)
+  // have no owning user, hence optional.
+  userId  String?             @unique
+  user    User?               @relation(fields: [userId], references: [id])
+  coupons Coupon[]
+  ledger  OrganizerLedgerTx[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -294,6 +305,7 @@ model Event {
   tiers           TicketTier[]
   bookings        Booking[]
   waitlistEntries WaitlistEntry[]
+  carts           Cart[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -393,10 +405,17 @@ model Coupon {
   usageLimit    Int
   used          Int      @default(0)
   perUserLimit  Int
-  eventScope    String // 'all' or an event id
+  eventScope    String // 'all' or an event title
   validTill     DateTime
   firstTimeOnly Boolean  @default(false)
   status        String   @default("active") // active | paused
+
+  // null = platform-wide promo (e.g. FIRST50, created outside any one
+  // organizer's console); set = an organizer's own coupon, in which case
+  // "all" scopes to all of *that organizer's* events, not the whole
+  // platform — enforced in BookingsService.priceHold, not just here.
+  organizerId String?
+  organizer   Organizer? @relation(fields: [organizerId], references: [id])
 }
 
 model WalletTx {
@@ -495,4 +514,54 @@ model OrgReview {
   rating      Int
   text        String
   createdAt   DateTime @default(now())
+}
+
+// ============================================================================
+// Phase 6 — Organizer console: event create/edit (+ the minimal admin
+// approve/reject that closes the loop), attendees, coupons, payouts, and
+// abandoned-cart recovery.
+// ============================================================================
+
+/**
+ * One row per hold created (see HoldsService.create) — Redis owns the live
+ * TTL/reservation, this is the durable trail that lets abandoned-cart
+ * recovery work without a cron: a cart counts as "abandoned" if it's the
+ * *most recent* hold for that user+event, still `active`, and older than
+ * the hold TTL — evaluated lazily at read time in OrganizerService.carts,
+ * not written by a background job.
+ */
+model Cart {
+  id         String    @id @default(cuid())
+  holdId     String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  eventId    String
+  event      Event     @relation(fields: [eventId], references: [id])
+  qtyMap     Json // tierId -> qty, mirrors the hold
+  subtotal   Int
+  total      Int
+  status     String    @default("active") // active | completed
+  remindedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+/**
+ * Organizer earnings ledger. Credited with the booking subtotal (not the
+ * booking fee, which is platform revenue) when a booking on their event is
+ * confirmed, debited on cancellation/refund and on withdrawal. No
+ * commission/take-rate is modeled yet — organizers are credited the full
+ * ticket subtotal — see BACKEND.md "Organizer" for why that's a deliberate
+ * placeholder, not an oversight.
+ */
+model OrganizerLedgerTx {
+  id          String    @id @default(cuid())
+  organizerId String
+  organizer   Organizer @relation(fields: [organizerId], references: [id])
+  type        String // sale | refund | withdrawal
+  amount      Int // + credit, - debit
+  eventId     String?
+  eventTitle  String?
+  note        String?
+  createdAt   DateTime  @default(now())
 }

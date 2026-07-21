@@ -8,6 +8,7 @@ import { BookingsModule } from './bookings/bookings.module';
 import { WalletModule } from './wallet/wallet.module';
 import { ReferralsModule } from './referrals/referrals.module';
 import { SocialModule } from './social/social.module';
+import { OrganizerModule } from './organizer/organizer.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { SocialModule } from './social/social.module';
     WalletModule,
     ReferralsModule,
     SocialModule,
+    OrganizerModule,
   ],
   controllers: [AppController],
 })

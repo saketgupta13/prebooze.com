@@ -66,6 +66,11 @@ export class BookingsService {
       if (!couponRow) throw new BadRequestException('Invalid coupon code');
       if (couponRow.status !== 'active') throw new BadRequestException('This coupon is no longer active');
       if (couponRow.validTill < new Date()) throw new BadRequestException('This coupon has expired');
+      // an organizer's own coupon only ever applies to their events — "all"
+      // scopes to all of *that organizer's* events, not the whole platform
+      if (couponRow.organizerId && couponRow.organizerId !== event.organizerId) {
+        throw new BadRequestException('This coupon does not apply to this event');
+      }
       if (couponRow.eventScope !== 'all' && couponRow.eventScope !== event.title) {
         throw new BadRequestException('This coupon does not apply to this event');
       }
@@ -164,6 +169,17 @@ export class BookingsService {
       if (couponRow) {
         await tx.coupon.update({ where: { id: couponRow.id }, data: { used: { increment: 1 } } });
       }
+
+      // abandoned-cart recovery: this hold converted, so it's no longer a cart to nudge
+      await tx.cart.updateMany({ where: { holdId: input.holdId }, data: { status: 'completed' } });
+
+      // organizer earnings ledger — credited the ticket subtotal, not the
+      // booking fee (that's platform revenue); no commission/take-rate
+      // modeled yet, see OrganizerLedgerTx in schema.prisma
+      await tx.organizerLedgerTx.create({
+        data: { organizerId: event.organizerId, type: 'sale', amount: subtotal, eventId: event.id, eventTitle: event.title, note: `Booking ${id}` },
+      });
+
       // paying with a saved method sets it default
       if (input.payMethodId) {
         const method = await tx.payMethod.findUnique({ where: { id: input.payMethodId } });
@@ -226,6 +242,14 @@ export class BookingsService {
       if (refundTo === 'wallet') {
         await tx.walletTx.create({
           data: { userId, type: 'refund', amount: booking.total, note: `Instant refund — booking ${id}` },
+        });
+      }
+
+      // reverse the organizer's earnings credit from the original sale
+      const event = await tx.event.findUnique({ where: { id: booking.eventId }, select: { organizerId: true, title: true } });
+      if (event) {
+        await tx.organizerLedgerTx.create({
+          data: { organizerId: event.organizerId, type: 'refund', amount: -booking.subtotal, eventId: booking.eventId, eventTitle: event.title, note: `Refund — booking ${id}` },
         });
       }
     });

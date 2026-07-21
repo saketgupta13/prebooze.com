@@ -114,7 +114,7 @@ export class KycService {
     if (!sub) throw new NotFoundException();
     if (sub.kind === 'guest') throw new BadRequestException('Guest verification is automatic, nothing to approve');
 
-    await this.prisma.$transaction([
+    const ops: Prisma.PrismaPromise<unknown>[] = [
       this.prisma.kycSubmission.update({
         where: { id },
         data: { status: 'approved', reviewedBy, reviewedAt: new Date() },
@@ -123,8 +123,54 @@ export class KycService {
         where: { id: sub.userId },
         data: { role: sub.kind as never, roleStatus: 'approved' },
       }),
-    ]);
+    ];
+
+    // approving an organizer needs a live Organizer catalog row to exist —
+    // Event.organizerId is a hard FK into Organizer, not User, so without
+    // this an approved organizer couldn't create their first event.
+    if (sub.kind === 'organizer') {
+      const [user, existing] = await Promise.all([
+        this.prisma.user.findUnique({ where: { id: sub.userId } }),
+        this.prisma.organizer.findUnique({ where: { userId: sub.userId } }),
+      ]);
+      if (user && !existing) ops.push(this.prisma.organizer.create({ data: await this.newOrganizerRow(user) }));
+    }
+
+    await this.prisma.$transaction(ops);
     return { ok: true };
+  }
+
+  /** Picks a free slug-style id/username for a newly-approved organizer,
+   * falling back to a numeric suffix on collision (e.g. two organizers both
+   * picking "nightowl" at KYC time — the seeded catalog isn't reserved). */
+  private async newOrganizerRow(user: { id: string; orgBrand: string | null; orgUsername: string | null; name: string; city: string }) {
+    const base = (user.orgUsername || user.orgBrand || user.name || 'organizer')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'organizer';
+
+    const unique = async (field: 'id' | 'username') => {
+      let candidate = base;
+      let n = 1;
+      while (await this.prisma.organizer.findUnique({ where: { [field]: candidate } as never })) {
+        candidate = `${base}-${++n}`;
+      }
+      return candidate;
+    };
+
+    let h = 0;
+    for (const c of user.id) h = (h * 31 + c.charCodeAt(0)) % 360;
+
+    return {
+      id: await unique('id'),
+      brandName: user.orgBrand || user.name || 'Organizer',
+      username: await unique('username'),
+      city: user.city || '',
+      since: String(new Date().getFullYear()),
+      about: '',
+      logoHue: h,
+      userId: user.id,
+    };
   }
 
   async reject(id: string, reviewedBy: string, reason: string) {

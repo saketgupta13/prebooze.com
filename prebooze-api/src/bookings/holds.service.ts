@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import type Redis from 'ioredis';
+import type { Prisma } from '@prisma/client';
 import { REDIS } from '../redis.provider';
 import { PrismaService } from '../prisma.service';
 
@@ -27,16 +28,25 @@ export class HoldsService {
     const event = await this.prisma.event.findUnique({ where: { id: eventId }, include: { tiers: true } });
     if (!event || event.status !== 'approved') throw new NotFoundException('Event not found');
 
+    let subtotal = 0;
     for (const [tierId, n] of Object.entries(qty)) {
       if (n <= 0) continue;
       const tier = event.tiers.find((t) => t.id === tierId);
       if (!tier) throw new BadRequestException(`Unknown ticket tier ${tierId}`);
       if (tier.sold + n > tier.quantity) throw new BadRequestException(`Not enough "${tier.name}" tickets left`);
+      subtotal += tier.price * n;
     }
 
     const holdId = randomBytes(16).toString('hex');
     const data: HoldData = { eventId, qty, userId };
     await this.redis.set(`hold:${holdId}`, JSON.stringify(data), 'EX', HOLD_TTL_S);
+
+    // Durable trail for abandoned-cart recovery (see Cart in schema.prisma) —
+    // best-effort, must never block a checkout over a tracking write.
+    await this.prisma.cart
+      .create({ data: { holdId, userId, eventId, qtyMap: qty as Prisma.InputJsonValue, subtotal, total: subtotal } })
+      .catch(() => {});
+
     return { holdId, expiresAt: new Date(Date.now() + HOLD_TTL_S * 1000).toISOString() };
   }
 
