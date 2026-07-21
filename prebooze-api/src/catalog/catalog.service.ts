@@ -3,6 +3,18 @@ import { PrismaService } from '../prisma.service';
 
 type FeaturedType = 'event' | 'organizer' | 'promoter' | 'lineup' | 'venue';
 
+// Excludes the admin-only/private fields added for the Admin API
+// directory-CRUD slice (contactPerson, phone, gstin, pan, bankLast4) — every
+// one of these catalog reads is public and unauthenticated, those must never
+// leak here. `contact` (a business email) stays public, same as a storefront
+// listing a "contact us" address.
+const PUBLIC_ORGANIZER_SELECT = {
+  id: true, brandName: true, username: true, verified: true, city: true, since: true,
+  rating: true, reviewCount: true, eventsHosted: true, followers: true, following: true,
+  about: true, logoHue: true, contact: true, eventTypes: true, links: true, seo: true,
+  createdAt: true, updatedAt: true,
+} as const;
+
 @Injectable()
 export class CatalogService {
   constructor(private prisma: PrismaService) {}
@@ -30,7 +42,7 @@ export class CatalogService {
         ...(q.sub ? { subCategory: q.sub } : {}),
         ...(q.search ? { title: { contains: q.search, mode: 'insensitive' } } : {}),
       },
-      include: { tiers: true, venue: true, organizer: true },
+      include: { tiers: true, venue: true, organizer: { select: PUBLIC_ORGANIZER_SELECT } },
       orderBy: { date: 'asc' },
     });
 
@@ -54,7 +66,7 @@ export class CatalogService {
   async event(slug: string) {
     const event = await this.prisma.event.findUnique({
       where: { slug },
-      include: { tiers: true, venue: true, organizer: true },
+      include: { tiers: true, venue: true, organizer: { select: PUBLIC_ORGANIZER_SELECT } },
     });
     if (!event) throw new NotFoundException('Event not found');
     return event;
@@ -62,11 +74,25 @@ export class CatalogService {
 
   // ---------- directories ----------
   async venues(city?: string) {
-    return this.prisma.venue.findMany({ where: city ? { city } : {}, orderBy: { rating: 'desc' } });
+    // `license` (operating-license reference, directory-CRUD slice) excluded
+    // — same reasoning as PUBLIC_ORGANIZER_SELECT.
+    return this.prisma.venue.findMany({
+      where: city ? { city } : {},
+      orderBy: { rating: 'desc' },
+      select: {
+        id: true, name: true, verified: true, type: true, locality: true, city: true, address: true,
+        capacity: true, rating: true, followers: true, amenities: true, about: true, timings: true,
+        photoHue: true, contact: true, rules: true, seo: true, createdAt: true, updatedAt: true,
+      },
+    });
   }
 
   async organizers(city?: string) {
-    const rows = await this.prisma.organizer.findMany({ where: city ? { city } : {}, orderBy: { eventsHosted: 'desc' } });
+    const rows = await this.prisma.organizer.findMany({
+      where: city ? { city } : {},
+      orderBy: { eventsHosted: 'desc' },
+      select: PUBLIC_ORGANIZER_SELECT,
+    });
     if (!city) return rows;
     const featured = await this.activeFeaturedRefs('organizer', city);
     return this.sortFeaturedFirst(rows, (o) => o.id, featured);

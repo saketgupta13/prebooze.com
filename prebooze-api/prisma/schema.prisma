@@ -180,6 +180,14 @@ model Venue {
   photoHue  Int
   events    Event[]
 
+  // admin/directory-CRUD-slice additions. `license` is the operating-license
+  // reference — compliance data, kept out of the public catalog select
+  // below, same reasoning as Organizer.gstin/pan/bankLast4.
+  license String?
+  contact String?
+  rules   String?
+  seo     Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -209,6 +217,19 @@ model Organizer {
   coupons Coupon[]
   ledger  OrganizerLedgerTx[]
 
+  // admin-only business/compliance fields — prebooze-admin's Organizer type
+  // (src/types.ts) has no equivalent in the pre-Admin-API schema; added for
+  // the directory CRUD slice. Never shown on the public catalog response.
+  contact       String  @default("") // business contact email
+  contactPerson String?
+  phone         String?
+  eventTypes    String?
+  links         String?
+  gstin         String?
+  pan           String?
+  bankLast4     String?
+  seo           Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -235,6 +256,8 @@ model Promoter {
 
   team        PromoterTeamMember[]
   withdrawals PromoterWithdrawal[]
+
+  contact String? // business contact email — public, added for the directory CRUD slice
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

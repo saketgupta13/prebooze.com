@@ -134,7 +134,13 @@ export class VenueService {
     const venue = await this.myVenue(userId);
     return this.prisma.event.findMany({
       where: { venueId: venue.id, status: 'approved' },
-      include: { tiers: true, organizer: true },
+      // a venue partner isn't the organizer's staff — never expose the
+      // organizer's contact/GSTIN/PAN/bank fields (Admin API directory
+      // slice) through this console, same reasoning as the public catalog.
+      include: {
+        tiers: true,
+        organizer: { select: { id: true, brandName: true, username: true, verified: true, city: true, about: true, logoHue: true, contact: true } },
+      },
       orderBy: { date: 'asc' },
     });
   }

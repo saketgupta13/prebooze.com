@@ -1,0 +1,125 @@
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { DirectoryService } from './directory.service';
+import { StaffAuthGuard } from './staff-auth.guard';
+import { PermissionGuard } from './permission.guard';
+import { RequirePermission } from './permission.decorator';
+
+@Controller('admin/organizers')
+@UseGuards(StaffAuthGuard, PermissionGuard)
+export class AdminOrganizersController {
+  constructor(private directory: DirectoryService) {}
+
+  @Get()
+  @RequirePermission('Customers & organizers', 'view')
+  list() {
+    return this.directory.listOrganizers();
+  }
+
+  @Post()
+  @RequirePermission('Customers & organizers', 'edit')
+  create(@Body() body: Parameters<DirectoryService['createOrganizer']>[0]) {
+    return this.directory.createOrganizer(body);
+  }
+
+  @Patch(':id')
+  @RequirePermission('Customers & organizers', 'edit')
+  update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.directory.updateOrganizer(id, body);
+  }
+
+  @Post(':id/verify')
+  @RequirePermission('Customers & organizers', 'approve')
+  setVerified(@Param('id') id: string, @Body('verified') verified: boolean) {
+    return this.directory.setOrganizerVerified(id, verified);
+  }
+}
+
+@Controller('admin/promoters')
+@UseGuards(StaffAuthGuard, PermissionGuard)
+export class AdminPromotersController {
+  constructor(private directory: DirectoryService) {}
+
+  @Get()
+  @RequirePermission('Customers & organizers', 'view')
+  list() {
+    return this.directory.listPromoters();
+  }
+
+  @Post()
+  @RequirePermission('Customers & organizers', 'edit')
+  create(@Body() body: Parameters<DirectoryService['createPromoter']>[0]) {
+    return this.directory.createPromoter(body);
+  }
+
+  @Patch(':id')
+  @RequirePermission('Customers & organizers', 'edit')
+  update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.directory.updatePromoter(id, body);
+  }
+
+  @Post(':id/verify')
+  @RequirePermission('Customers & organizers', 'approve')
+  setVerified(@Param('id') id: string, @Body('verified') verified: boolean) {
+    return this.directory.setPromoterVerified(id, verified);
+  }
+}
+
+@Controller('admin/lineups')
+@UseGuards(StaffAuthGuard, PermissionGuard)
+export class AdminLineupsController {
+  constructor(private directory: DirectoryService) {}
+
+  @Get()
+  @RequirePermission('Customers & organizers', 'view')
+  list() {
+    return this.directory.listLineups();
+  }
+
+  @Post()
+  @RequirePermission('Customers & organizers', 'edit')
+  create(@Body() body: Parameters<DirectoryService['createLineup']>[0]) {
+    return this.directory.createLineup(body);
+  }
+
+  @Patch(':id')
+  @RequirePermission('Customers & organizers', 'edit')
+  update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.directory.updateLineup(id, body);
+  }
+
+  @Post(':id/verify')
+  @RequirePermission('Customers & organizers', 'approve')
+  setVerified(@Param('id') id: string, @Body('verified') verified: boolean) {
+    return this.directory.setLineupVerified(id, verified);
+  }
+}
+
+@Controller('admin/venues')
+@UseGuards(StaffAuthGuard, PermissionGuard)
+export class AdminVenuesController {
+  constructor(private directory: DirectoryService) {}
+
+  @Get()
+  @RequirePermission('Customers & organizers', 'view')
+  list() {
+    return this.directory.listVenues();
+  }
+
+  @Post()
+  @RequirePermission('Customers & organizers', 'edit')
+  create(@Body() body: Parameters<DirectoryService['createVenue']>[0]) {
+    return this.directory.createVenue(body);
+  }
+
+  @Patch(':id')
+  @RequirePermission('Customers & organizers', 'edit')
+  update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.directory.updateVenue(id, body);
+  }
+
+  @Post(':id/verify')
+  @RequirePermission('Customers & organizers', 'approve')
+  setVerified(@Param('id') id: string, @Body('verified') verified: boolean) {
+    return this.directory.setVenueVerified(id, verified);
+  }
+}
