@@ -309,7 +309,16 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       return { ...b, guests };
     });
   });
-  const [customers, setCustomers] = usePersisted('pba_customers', SEED_CUSTOMERS, mergeWithSeed(SEED_CUSTOMERS, 'id'));
+  const [customers, setCustomers] = usePersisted('pba_customers', SEED_CUSTOMERS, (list) =>
+    // Customers is guests-only — the old "Organizers" segment was removed
+    // (Organizers already has its own directory). mergeWithSeed backfills
+    // new fields but never prunes a stored record that's no longer in the
+    // seed at all, so anyone whose localStorage predates that removal would
+    // keep seeing the old organizer-segment row (e.g. "LiveWire Ent.")
+    // forever. Enforce the actual invariant directly instead of relying on
+    // id-matching pruning: drop anything that isn't segment 'guests'.
+    mergeWithSeed(SEED_CUSTOMERS, 'id')(list).filter((c) => c.segment === 'guests')
+  );
   const [organizers, setOrganizers] = usePersisted(
     'pba_organizers', SEED_ORGANIZERS,
     compose(mergeWithSeed(SEED_ORGANIZERS, 'id'), unmaskStoredPhones(SEED_ORGANIZERS, 'id', ['phone']))
