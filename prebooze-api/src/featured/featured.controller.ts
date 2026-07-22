@@ -23,30 +23,28 @@ export class FeaturedController {
   }
 }
 
-/** Minimal review queue, same reasoning as /admin/events (Phase 6). Real
- * staff auth as of the Admin API auth slice; the review queue is mapped to
- * "Content (banners / blogs / pages)" — the closest PERM_MODULES fit, since
- * Featured isn't its own module in the mock's RoleMatrix either. Rates are
- * gated on "Payments & payouts" instead — pricing config, not content. */
+/** Minimal review queue, same reasoning as /admin/events (Phase 6). Rates
+ * are gated on "Payments & payouts" — pricing config, not the placement
+ * queue itself. */
 @Controller('admin/featured')
 @UseGuards(StaffAuthGuard, PermissionGuard)
 export class AdminFeaturedController {
   constructor(private featured: FeaturedService) {}
 
   @Get()
-  @RequirePermission('Content (banners / blogs / pages)', 'view')
+  @RequirePermission('Featured', 'view')
   list(@Query('status') status?: string) {
     return this.featured.listForAdmin(status);
   }
 
   @Post(':id/approve')
-  @RequirePermission('Content (banners / blogs / pages)', 'approve')
+  @RequirePermission('Featured', 'approve')
   approve(@Param('id') id: string) {
     return this.featured.adminApprove(id);
   }
 
   @Post(':id/reject')
-  @RequirePermission('Content (banners / blogs / pages)', 'approve')
+  @RequirePermission('Featured', 'approve')
   reject(@Param('id') id: string) {
     return this.featured.adminReject(id);
   }

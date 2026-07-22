@@ -241,3 +241,109 @@ export function SearchBox({ value, onChange, placeholder, style }: {
     </div>
   );
 }
+
+/** Real city filter — sourced from the admin-managed Locations tree's
+ * enabled cities, not whatever happens to appear in a given page's own
+ * data (the old per-page pattern) or the tiny hardcoded ADMIN_CITIES list. */
+export function CityFilterDropdown({ value, onChange, cities, style }: {
+  value: string;
+  onChange: (v: string) => void;
+  cities: string[];
+  style?: React.CSSProperties;
+}) {
+  return (
+    <select className="input" style={{ width: 160, ...style }} value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="All">All cities</option>
+      {cities.map((c) => (
+        <option key={c} value={c}>{c}</option>
+      ))}
+    </select>
+  );
+}
+
+/** A real, lightweight SVG line chart — no charting dependency. Each series
+ * is normalized to a shared 0..max Y scale and drawn as a polyline. */
+export function LineChart({ series, height = 140, labels }: {
+  series: { label: string; color: string; points: number[] }[];
+  height?: number;
+  labels?: string[];
+}) {
+  const width = 100; // viewBox units — scales responsively via the svg's own width:100%
+  const allValues = series.flatMap((s) => s.points);
+  const max = Math.max(1, ...allValues);
+  const n = Math.max(1, series[0]?.points.length ?? 1);
+  const toXY = (points: number[]) =>
+    points.map((v, i) => `${(i / Math.max(1, n - 1)) * width},${height - (v / max) * (height - 16) - 8}`).join(' ');
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none" style={{ overflow: 'visible' }}>
+        <line x1="0" y1={height - 8} x2={width} y2={height - 8} stroke="rgba(139,195,74,.15)" strokeWidth="0.3" />
+        {series.map((s) => (
+          <polyline key={s.label} points={toXY(s.points)} fill="none" stroke={s.color} strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
+        ))}
+      </svg>
+      <div style={{ display: 'flex', gap: 14, marginTop: 6, flexWrap: 'wrap' }}>
+        {series.map((s) => (
+          <span key={s.label} className="tiny" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, display: 'inline-block' }} />
+            <span className="muted">{s.label}</span>
+          </span>
+        ))}
+      </div>
+      {labels && labels.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+          <span className="tiny muted">{labels[0]}</span>
+          <span className="tiny muted">{labels[labels.length - 1]}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A real SVG donut chart via stroke-dasharray segments — no dependency. */
+export function DonutChart({ data, size = 100 }: {
+  data: { label: string; value: number; color: string }[];
+  size?: number;
+}) {
+  const total = data.reduce((a, d) => a + d.value, 0);
+  const r = 15.9155; // circumference-100 trick: 2*pi*r ≈ 100
+  let offset = 0;
+  return (
+    <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <svg viewBox="0 0 36 36" width={size} height={size}>
+        <circle cx="18" cy="18" r={r} fill="none" stroke="rgba(139,195,74,.1)" strokeWidth="4" />
+        {total > 0 &&
+          data.map((d) => {
+            const pct = (d.value / total) * 100;
+            const el = (
+              <circle
+                key={d.label}
+                cx="18"
+                cy="18"
+                r={r}
+                fill="none"
+                stroke={d.color}
+                strokeWidth="4"
+                strokeDasharray={`${pct} ${100 - pct}`}
+                strokeDashoffset={-offset}
+                transform="rotate(-90 18 18)"
+              />
+            );
+            offset += pct;
+            return el;
+          })}
+      </svg>
+      <div className="stack" style={{ gap: 3 }}>
+        {data.filter((d) => d.value > 0).map((d) => (
+          <span key={d.label} className="tiny" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: d.color, display: 'inline-block' }} />
+            <span className="muted">{d.label}</span>
+            <span>{total > 0 ? Math.round((d.value / total) * 100) : 0}%</span>
+          </span>
+        ))}
+        {total === 0 && <span className="tiny muted">No data in range</span>}
+      </div>
+    </div>
+  );
+}

@@ -22,6 +22,7 @@ export default function Promos() {
   const [value, setValue] = useState('');
   const [maxCap, setMaxCap] = useState('');
   const [gender, setGender] = useState<Gender>('all');
+  const [description, setDescription] = useState('');
 
   const create = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +44,7 @@ export default function Promos() {
     addPromo({
       code: c,
       discountLabel: promoLabel(ptype, v, ptype === 'percent' ? cap : undefined),
+      description: description.trim() || undefined,
       scope: 'all events',
       gender,
       usedLabel: '0/∞',
@@ -55,6 +57,7 @@ export default function Promos() {
     setValue('');
     setMaxCap('');
     setGender('all');
+    setDescription('');
   };
 
   return (
@@ -73,7 +76,10 @@ export default function Promos() {
         </div>
         {promos.map((p) => (
           <div key={p.code} className="trow" style={{ minWidth: 560 }}>
-            <span style={{ flex: 1.2, fontWeight: 700 }}>{p.code}</span>
+            <span style={{ flex: 1.2, fontWeight: 700 }}>
+              {p.code}
+              {p.description && <span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>{p.description}</span>}
+            </span>
             <span style={{ flex: 1.3 }} className="muted">{p.discountLabel}</span>
             <span style={{ flex: 1.2 }} className="muted">{p.scope}</span>
             <span style={{ flex: 1 }} className="muted">{audienceLabel(p.gender)}</span>
@@ -136,6 +142,12 @@ export default function Promos() {
             />
           )}
         </div>
+        <input
+          className="input"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Description — shown to staff and on the guest checkout screen"
+        />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <span className="small" style={{ fontWeight: 700, color: '#c7cbb9' }}>Audience — gender:</span>
           {GENDERS.map((g) => (

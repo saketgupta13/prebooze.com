@@ -2,18 +2,19 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
-import { GradientPhoto, ORGANIZER_STATUS, SearchBox, Tag } from '../components/ui';
+import { CityFilterDropdown, GradientPhoto, ORGANIZER_STATUS, SearchBox, Tag } from '../components/ui';
+import { enabledCityNames } from '../store/data';
 import type { Promoter } from '../types';
 
 const earned = (p: Promoter) => (p.perHeadEarned ?? 0) + (p.commissionEarned ?? 0);
 
 /** Promoter / PR management — mirrors Organizers: approve KYC, view, suspend. */
 export function Promoters() {
-  const { promoters, subTiers, setPromoterStatus2 } = useAdmin();
+  const { promoters, subTiers, setPromoterStatus2, locations } = useAdmin();
   const navigate = useNavigate();
   const [cityF, setCityF] = useState('All');
   const [query, setQuery] = useState('');
-  const cities = ['All', ...new Set(promoters.map((p) => p.city))];
+  const cities = enabledCityNames(locations);
   const pending = promoters.filter((p) => p.status === 'pending').length;
   const planName = (id: string) => subTiers.find((t) => t.id === id)?.name ?? id;
 
@@ -77,9 +78,7 @@ export function Promoters() {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <SearchBox value={query} onChange={setQuery} placeholder="Search promoters…" style={{ flex: 1, minWidth: 180 }} />
-        {cities.map((c) => (
-          <button key={c} className={`chip ${cityF === c ? 'on' : ''}`} onClick={() => setCityF(c)}>{c}</button>
-        ))}
+        <CityFilterDropdown value={cityF} onChange={setCityF} cities={cities} />
       </div>
 
       <div className="tblwrap">

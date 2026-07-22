@@ -44,30 +44,25 @@ export class KycController {
   }
 }
 
-// KYC approvals grant elevated roles, which is squarely a "who's allowed to
-// do business as an organizer/promoter/etc on this platform" decision — the
-// closest fit in PERM_MODULES is "Customers & organizers", not a dedicated
-// module of its own (the mock's RoleMatrix never modeled a KYC-specific
-// permission). See BACKEND.md "Admin API".
 @Controller('admin/kyc')
 @UseGuards(StaffAuthGuard, PermissionGuard)
 export class AdminKycController {
   constructor(private kyc: KycService) {}
 
   @Get()
-  @RequirePermission('Customers & organizers', 'view')
+  @RequirePermission('Verifications (KYC)', 'view')
   list(@Query('status') status?: string) {
     return this.kyc.listForAdmin(status);
   }
 
   @Post(':id/approve')
-  @RequirePermission('Customers & organizers', 'approve')
+  @RequirePermission('Verifications (KYC)', 'approve')
   approve(@Param('id') id: string, @Req() req: { staff: StaffTokenPayload }) {
     return this.kyc.approve(id, req.staff.email);
   }
 
   @Post(':id/reject')
-  @RequirePermission('Customers & organizers', 'approve')
+  @RequirePermission('Verifications (KYC)', 'approve')
   reject(@Param('id') id: string, @Body('reason') reason: string, @Req() req: { staff: StaffTokenPayload }) {
     return this.kyc.reject(id, req.staff.email, reason ?? '');
   }

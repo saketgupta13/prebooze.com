@@ -2,17 +2,18 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
-import { GradientPhoto, ImagePicker, SearchBox, Tag } from '../components/ui';
+import { CityFilterDropdown, GradientPhoto, ImagePicker, SearchBox, Tag } from '../components/ui';
+import { enabledCityNames } from '../store/data';
 
 /** Line-ups directory — artists, DJs, bands, sponsors, promoters and hosts
  * that events can book and guests can follow. */
 export function Lineups() {
-  const { lineups, lineupCategories, events } = useAdmin();
+  const { lineups, lineupCategories, events, locations } = useAdmin();
   const navigate = useNavigate();
   const [cat, setCat] = useState('All');
   const [cityF, setCityF] = useState('All');
   const [query, setQuery] = useState('');
-  const cities = ['All', ...new Set(lineups.map((l) => l.city).filter(Boolean) as string[])];
+  const cities = enabledCityNames(locations);
 
   const list = useMemo(() => {
     let l = lineups;
@@ -41,16 +42,7 @@ export function Lineups() {
         {['All', ...lineupCategories].map((c) => (
           <button key={c} className={`chip ${cat === c ? 'on' : ''}`} onClick={() => setCat(c)}>{c}</button>
         ))}
-        <select
-          className="chip"
-          style={{ appearance: 'none', cursor: 'pointer', background: cityF !== 'All' ? 'var(--green)' : 'var(--bg)', color: cityF !== 'All' ? 'var(--on-green)' : '#c7cbb9' }}
-          value={cityF}
-          onChange={(e) => setCityF(e.target.value)}
-        >
-          {cities.map((c) => (
-            <option key={c} value={c}>{c === 'All' ? 'City ▾' : c}</option>
-          ))}
-        </select>
+        <CityFilterDropdown value={cityF} onChange={setCityF} cities={cities} />
       </div>
 
       <div className="tblwrap">

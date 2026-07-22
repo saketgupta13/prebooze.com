@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
-import { ORGANIZER_STATUS, Tag } from '../components/ui';
+import { enabledCityNames } from '../store/data';
+import { CityFilterDropdown, ORGANIZER_STATUS, Tag } from '../components/ui';
 
 export default function Organizers() {
-  const { organizers, setOrganizerStatus, removeOrganizer } = useAdmin();
+  const { organizers, setOrganizerStatus, removeOrganizer, locations } = useAdmin();
   const [cityF, setCityF] = useState('All');
-  const cities = ['All', ...new Set(organizers.map((o) => o.city).filter((c) => c !== '—'))];
+  const cities = enabledCityNames(locations);
   const navigate = useNavigate();
   const pending = organizers.filter((o) => o.status === 'pending').length;
 
@@ -24,11 +25,7 @@ export default function Organizers() {
         <Link to="/organizers/new" className="btn btn-pri">+ Add organizer</Link>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {cities.map((c) => (
-          <button key={c} className={`chip ${cityF === c ? 'on' : ''}`} onClick={() => setCityF(c)}>{c}</button>
-        ))}
-      </div>
+      <CityFilterDropdown value={cityF} onChange={setCityF} cities={cities} />
 
       <div className="tblwrap">
         <div className="thead" style={{ minWidth: 680 }}>

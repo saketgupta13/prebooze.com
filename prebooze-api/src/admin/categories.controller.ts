@@ -4,10 +4,7 @@ import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
 import { RequirePermission } from './permission.decorator';
 
-// Closest fit — same reasoning as Careers/Reels: a reference list feeding
-// public-facing content (category landing pages), not literally event or
-// payment data.
-const MODULE = 'Content (banners / blogs / pages)';
+const MODULE = 'Content'; // grouped with the rest of the CMS content types
 
 @Controller('admin/categories')
 @UseGuards(StaffAuthGuard, PermissionGuard)

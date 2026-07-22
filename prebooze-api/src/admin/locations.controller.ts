@@ -4,11 +4,7 @@ import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
 import { RequirePermission } from './permission.decorator';
 
-// Locations isn't its own PERM_MODULES entry either (same situation as KYC
-// and Featured before it) — "Customers & organizers" is the closest fit
-// left; city/country availability shapes who can even sign up as an
-// organizer/venue in a given market, which is squarely that module's turf.
-const MODULE = 'Customers & organizers';
+const MODULE = 'Locations'; // own module as of the expanded-permissions slice
 
 @Controller('admin/locations')
 @UseGuards(StaffAuthGuard, PermissionGuard)

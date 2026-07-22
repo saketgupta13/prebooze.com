@@ -4,7 +4,7 @@ import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
 import { RequirePermission } from './permission.decorator';
 
-const MODULE = 'Content (banners / blogs / pages)';
+const MODULE = 'Reels';
 
 @Controller('admin/reels')
 @UseGuards(StaffAuthGuard, PermissionGuard)

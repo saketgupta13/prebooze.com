@@ -4,6 +4,7 @@ import { useAdmin } from '../store/AdminContext';
 import { CATEGORY_OPTIONS, CATEGORY_SUBS, fmt } from '../store/data';
 import { EVENT_STATUS, GalleryPicker, ImagePicker, Tag, VideoPicker } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
+import WysiwygEditor from '../components/WysiwygEditor';
 import type { AdminEvent, Tier } from '../types';
 
 type EditorTab = 'basics' | 'tickets' | 'media' | 'rules' | 'commission' | 'lineup' | 'seo';
@@ -162,13 +163,7 @@ export default function EventEditor() {
           </div>
           <div className="field" style={{ gridColumn: '1 / 3' }}>
             <label>Description</label>
-            <textarea
-              className="input"
-              style={{ minHeight: 64, resize: 'vertical' }}
-              value={event.description ?? ''}
-              onChange={(e) => patch({ description: e.target.value })}
-              placeholder="What should guests expect?"
-            />
+            <WysiwygEditor value={event.description ?? ''} onChange={(html) => patch({ description: html })} minHeight={100} />
           </div>
           <div className="field">
             <label>Category</label>

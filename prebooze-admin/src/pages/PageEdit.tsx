@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import SeoFields, { emptySeo } from '../components/SeoFields';
+import WysiwygEditor from '../components/WysiwygEditor';
+
+const DEFAULT_CONTENT = '<h2>Heading block</h2><p>Text block — write the page copy here…</p><p><a href="/browse">Browse events →</a></p>';
 
 export default function PageEdit() {
   const { pid } = useParams(); // slug without the leading slash
@@ -12,9 +15,7 @@ export default function PageEdit() {
   const [title, setTitle] = useState(page?.title ?? '');
   const [slug, setSlug] = useState(page?.slug ?? '');
   const [navGroup, setNavGroup] = useState(page?.navGroup ?? 'Company');
-  const [content, setContent] = useState(
-    page?.content ?? 'Heading block\n\nText block — write the page copy here…\n\n[CTA block: Browse events → /browse]'
-  );
+  const [content, setContent] = useState(page?.content ?? DEFAULT_CONTENT);
   const [seo, setSeo] = useState(page?.seo ?? emptySeo());
 
   if (!page) {
@@ -70,8 +71,8 @@ export default function PageEdit() {
           </div>
         </div>
         <div className="field">
-          <label>Content — block-based (heading / text / image / FAQ / CTA)</label>
-          <textarea className="input" style={{ minHeight: 160, resize: 'vertical' }} value={content} onChange={(e) => setContent(e.target.value)} />
+          <label>Content</label>
+          <WysiwygEditor value={content} onChange={setContent} minHeight={160} />
         </div>
       </div>
 

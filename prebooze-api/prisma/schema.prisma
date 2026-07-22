@@ -646,6 +646,10 @@ model Coupon {
   // not a separate system, just with gender-audience targeting added.
   // "all" = no restriction. Enforced in BookingsService.priceHold.
   gender String @default("all")
+
+  // Staff-facing note about what the code is for — shown to staff and on
+  // the guest checkout screen, not enforced anywhere.
+  description String?
 }
 
 /** Admin API "categories" slice — Event.category stays a plain string

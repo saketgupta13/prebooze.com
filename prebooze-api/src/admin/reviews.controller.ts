@@ -4,9 +4,7 @@ import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
 import { RequirePermission } from './permission.decorator';
 
-// Closest fit — reviews are organizer-reputation content, same reasoning
-// used for KYC before it.
-const MODULE = 'Customers & organizers';
+const MODULE = 'Reviews'; // own module as of the expanded-permissions slice
 
 @Controller('admin/reviews')
 @UseGuards(StaffAuthGuard, PermissionGuard)

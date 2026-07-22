@@ -69,19 +69,19 @@ export class AdminBookingsController {
   constructor(private bookings: BookingsService) {}
 
   @Get()
-  @RequirePermission('Payments & payouts', 'view')
+  @RequirePermission('Bookings', 'view')
   list(@Query('status') status?: string) {
     return this.bookings.adminList(status);
   }
 
   @Post()
-  @RequirePermission('Payments & payouts', 'edit')
+  @RequirePermission('Bookings', 'edit')
   create(@Body() body: Parameters<BookingsService['adminCreate']>[0]) {
     return this.bookings.adminCreate(body);
   }
 
   @Get(':id')
-  @RequirePermission('Payments & payouts', 'view')
+  @RequirePermission('Bookings', 'view')
   get(@Param('id') id: string) {
     return this.bookings.adminGet(decodeURIComponent(id));
   }

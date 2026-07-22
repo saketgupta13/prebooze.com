@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { useAdmin } from '../store/AdminContext';
-import { PERM_MODULES } from '../store/data';
+import { enabledCityNames, PERM_MODULES } from '../store/data';
 import { Tag } from '../components/ui';
 import type { PermSet } from '../types';
 
 const PERM_KEYS: (keyof PermSet)[] = ['view', 'edit', 'approve'];
 
 export default function StaffRoles() {
-  const { staff, roles, addStaff, updateStaffRole, removeStaff, setRolePerm, addRole, removeRole, toast } = useAdmin();
+  const { staff, roles, addStaff, updateStaffRole, removeStaff, setRolePerm, addRole, removeRole, toast, locations } = useAdmin();
   const roleNames = Object.keys(roles);
+  const cities = enabledCityNames(locations);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('Support');
-  const [inviteCity, setInviteCity] = useState('Austin');
+  const [inviteCity, setInviteCity] = useState(cities[0] ?? 'Austin');
   const [selectedRole, setSelectedRole] = useState('Finance');
   const [showAddRole, setShowAddRole] = useState(false);
   const [newRole, setNewRole] = useState('');
@@ -53,7 +54,7 @@ export default function StaffRoles() {
             ))}
           </select>
           <select className="input" style={{ width: 120 }} value={inviteCity} onChange={(e) => setInviteCity(e.target.value)}>
-            {['Austin', 'Dallas', 'Houston'].map((c) => (
+            {cities.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>

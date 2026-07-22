@@ -4,9 +4,7 @@ import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
 import { RequirePermission } from './permission.decorator';
 
-// No exact PERM_MODULES fit — promo codes are revenue-impacting financial
-// config, same reasoning as PlatformSettings.bookingFee/gstPct.
-const MODULE = 'Payments & payouts';
+const MODULE = 'Promo codes'; // own module as of the expanded-permissions slice
 
 @Controller('admin/promos')
 @UseGuards(StaffAuthGuard, PermissionGuard)

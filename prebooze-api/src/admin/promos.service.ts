@@ -13,7 +13,7 @@ export class PromosService {
     return this.prisma.coupon.findMany({ where: { organizerId: null }, orderBy: { validTill: 'desc' } });
   }
 
-  async create(body: { code?: string; type?: 'percent' | 'flat'; value?: number; maxDiscount?: number; usageLimit?: number; perUserLimit?: number; eventScope?: string; validTill?: string; firstTimeOnly?: boolean; gender?: string }) {
+  async create(body: { code?: string; type?: 'percent' | 'flat'; value?: number; maxDiscount?: number; usageLimit?: number; perUserLimit?: number; eventScope?: string; validTill?: string; firstTimeOnly?: boolean; gender?: string; description?: string }) {
     if (!body.code?.trim()) throw new BadRequestException('code is required');
     const code = body.code.trim().toUpperCase();
     if (await this.prisma.coupon.findUnique({ where: { code } })) throw new BadRequestException(`${code} already exists`);
@@ -33,12 +33,13 @@ export class PromosService {
         validTill: body.validTill ? new Date(body.validTill) : new Date(Date.now() + 30 * 86400000),
         firstTimeOnly: body.firstTimeOnly ?? false,
         gender: body.gender ?? 'all',
+        description: body.description?.trim() || undefined,
         organizerId: null,
       },
     });
   }
 
-  async update(code: string, body: { value?: number; maxDiscount?: number; usageLimit?: number; perUserLimit?: number; eventScope?: string; validTill?: string; firstTimeOnly?: boolean; gender?: string; status?: 'active' | 'paused' }) {
+  async update(code: string, body: { value?: number; maxDiscount?: number; usageLimit?: number; perUserLimit?: number; eventScope?: string; validTill?: string; firstTimeOnly?: boolean; gender?: string; status?: 'active' | 'paused'; description?: string }) {
     const promo = await this.prisma.coupon.findFirst({ where: { code: code.toUpperCase(), organizerId: null } });
     if (!promo) throw new NotFoundException('Promo not found');
     const { validTill, ...rest } = body;

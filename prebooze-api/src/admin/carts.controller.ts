@@ -4,8 +4,7 @@ import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
 import { RequirePermission } from './permission.decorator';
 
-// Closest fit — recovering abandoned carts is guest/customer outreach.
-const MODULE = 'Customers & organizers';
+const MODULE = 'Abandoned carts'; // own module as of the expanded-permissions slice
 
 @Controller('admin/carts')
 @UseGuards(StaffAuthGuard, PermissionGuard)

@@ -132,6 +132,7 @@ export interface Venue {
 export interface Promo {
   code: string;
   discountLabel: string;
+  description?: string;
   scope: string;
   gender: Gender;
   usedLabel: string;
@@ -269,6 +270,7 @@ export interface Reel {
   title: string;
   hue: number;
   active: boolean;
+  videoDataUrl?: string;
 }
 
 export interface AbandonedCart {
@@ -284,12 +286,15 @@ export interface AbandonedCart {
   status: 'abandoned' | 'recovered';
 }
 
+export type ReviewTargetType = 'organizer' | 'promoter' | 'venue' | 'lineup';
+
 export interface AdminReview {
   id: string;
   author: string;
   rating: number;
   eventTitle: string;
-  organizer: string;
+  targetType: ReviewTargetType;
+  targetName: string;
   text: string;
   date: string;
 }

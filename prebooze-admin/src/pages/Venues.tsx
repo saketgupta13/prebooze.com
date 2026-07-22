@@ -1,9 +1,9 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
-import { ADMIN_CITIES, AMENITY_PRESETS } from '../store/data';
+import { AMENITY_PRESETS, enabledCityNames } from '../store/data';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
-import { EVENT_STATUS, GradientPhoto, Kpi, Tag } from '../components/ui';
+import { CityFilterDropdown, EVENT_STATUS, GradientPhoto, Kpi, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import MapEmbed from '../components/MapEmbed';
 
@@ -53,10 +53,10 @@ function AmenitiesEditor({ value, onChange }: { value: string[]; onChange: (v: s
 }
 
 export function Venues() {
-  const { venues, removeVenue } = useAdmin();
+  const { venues, removeVenue, locations } = useAdmin();
   const navigate = useNavigate();
   const [city, setCity] = useState('All');
-  const cities = ['All', ...new Set(venues.map((v) => v.city))];
+  const cities = enabledCityNames(locations);
   const list = city === 'All' ? venues : venues.filter((v) => v.city === city);
 
   return (
@@ -65,11 +65,7 @@ export function Venues() {
         <h1 className="page-title">Venues</h1>
         <Link to="/venues/new" className="btn btn-pri">+ Add venue</Link>
       </div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {cities.map((c) => (
-          <button key={c} className={`chip ${city === c ? 'on' : ''}`} onClick={() => setCity(c)}>{c}</button>
-        ))}
-      </div>
+      <CityFilterDropdown value={city} onChange={setCity} cities={cities} />
 
       <div className="tblwrap">
         <div className="thead" style={{ minWidth: 560 }}>
@@ -226,13 +222,14 @@ export function VenueDetail() {
 }
 
 export function AddVenue() {
-  const { addVenue, toast } = useAdmin();
+  const { addVenue, toast, locations } = useAdmin();
   const navigate = useNavigate();
+  const cities = enabledCityNames(locations);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [capacity, setCapacity] = useState('');
   const [type, setType] = useState('Indoor');
-  const [vcity, setVcity] = useState('Austin');
+  const [vcity, setVcity] = useState(cities[0] ?? 'Austin');
   const [contact, setContact] = useState('');
   const [rules, setRules] = useState('');
   const [about, setAbout] = useState('');
@@ -281,7 +278,7 @@ export function AddVenue() {
           <option>Warehouse</option>
         </select>
         <select className="input" value={vcity} onChange={(e) => setVcity(e.target.value)}>
-          {ADMIN_CITIES.map((c) => (
+          {cities.map((c) => (
             <option key={c}>{c}</option>
           ))}
         </select>

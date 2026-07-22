@@ -267,40 +267,70 @@ const SEED_GUEST_LIST = [
   { id: 'gl2', eventId: 'ev-1', name: 'DJ Nova (artist)', phone: '+91 9876500103', plusOnes: 2, companions: [{ name: 'Tour manager', phone: '+91 9876500104' }, { name: 'Photographer', phone: '+91 9876500105' }], addedBy: 'owner@prebooze.com', arrived: true },
 ];
 
-// Mirrors prebooze-admin's src/store/data.ts PERM_MODULES/SEED_ROLES exactly.
+// Mirrors prebooze-admin's src/store/data.ts PERM_MODULES/SEED_ROLES exactly
+// — expanded from 7 broad buckets to one module per admin section (Admin
+// API "expanded permissions" slice). Staff & roles itself is deliberately
+// NOT a module — stays Owner-only, same anti-privilege-escalation reasoning
+// as always.
 const PERM_MODULES = [
-  'Payments & payouts', 'Refunds', 'Event commission (per event)', 'Events & approvals',
-  'Content (banners / blogs / pages)', 'Customers & organizers', 'Gate check-in',
+  'Dashboard', 'Events & approvals', 'Event commission (per event)', 'Bookings', 'Refunds',
+  'Payments & payouts', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
+  'Verifications (KYC)', 'Reviews', 'Locations', 'Abandoned carts', 'Featured', 'Content',
+  'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Reports',
 ];
 const perm = (view: boolean, edit: boolean, approve: boolean) => ({ view, edit, approve });
 const allOn = () => Object.fromEntries(PERM_MODULES.map((m) => [m, perm(true, true, true)]));
 
 const SEED_ROLES: Record<string, Record<string, { view: boolean; edit: boolean; approve: boolean }>> = {
   Owner: allOn(),
-  Manager: { ...allOn(), 'Payments & payouts': perm(true, true, false) },
+  Manager: {
+    ...allOn(),
+    Bookings: perm(true, true, false), 'Payments & payouts': perm(true, true, false),
+    'Promo codes': perm(true, true, false), Reports: perm(true, true, false),
+  },
   Finance: {
-    'Payments & payouts': perm(true, true, true), Refunds: perm(true, true, true),
-    'Event commission (per event)': perm(true, true, false), 'Events & approvals': perm(true, false, false),
-    'Content (banners / blogs / pages)': perm(true, false, false), 'Customers & organizers': perm(true, false, false),
-    'Gate check-in': perm(false, false, false),
+    Dashboard: perm(true, false, false), 'Events & approvals': perm(true, false, false),
+    'Event commission (per event)': perm(true, true, false), Bookings: perm(true, true, true),
+    Refunds: perm(true, true, true), 'Payments & payouts': perm(true, true, true),
+    Customers: perm(true, false, false), Organizers: perm(true, false, false), Promoters: perm(true, false, false),
+    Lineups: perm(true, false, false), Venues: perm(true, false, false), 'Verifications (KYC)': perm(true, false, false),
+    Reviews: perm(true, false, false), Locations: perm(true, false, false), 'Abandoned carts': perm(true, false, false),
+    Featured: perm(true, false, false), Content: perm(true, false, false), Careers: perm(true, false, false),
+    Reels: perm(true, false, false), 'Promo codes': perm(true, true, true), 'Gate check-in': perm(false, false, false),
+    Reports: perm(true, true, true),
   },
   Content: {
-    'Payments & payouts': perm(false, false, false), Refunds: perm(false, false, false),
-    'Event commission (per event)': perm(false, false, false), 'Events & approvals': perm(true, false, false),
-    'Content (banners / blogs / pages)': perm(true, true, true), 'Customers & organizers': perm(true, false, false),
-    'Gate check-in': perm(false, false, false),
+    Dashboard: perm(true, false, false), 'Events & approvals': perm(true, false, false),
+    'Event commission (per event)': perm(false, false, false), Bookings: perm(false, false, false),
+    Refunds: perm(false, false, false), 'Payments & payouts': perm(false, false, false),
+    Customers: perm(true, false, false), Organizers: perm(true, false, false), Promoters: perm(true, false, false),
+    Lineups: perm(true, false, false), Venues: perm(true, false, false), 'Verifications (KYC)': perm(true, false, false),
+    Reviews: perm(true, false, false), Locations: perm(true, false, false), 'Abandoned carts': perm(true, false, false),
+    Featured: perm(true, true, true), Content: perm(true, true, true), Careers: perm(true, true, true),
+    Reels: perm(true, true, true), 'Promo codes': perm(false, false, false), 'Gate check-in': perm(false, false, false),
+    Reports: perm(false, false, false),
   },
   Support: {
-    'Payments & payouts': perm(false, false, false), Refunds: perm(true, true, false),
-    'Event commission (per event)': perm(false, false, false), 'Events & approvals': perm(true, false, false),
-    'Content (banners / blogs / pages)': perm(true, false, false), 'Customers & organizers': perm(true, true, false),
-    'Gate check-in': perm(true, false, false),
+    Dashboard: perm(true, false, false), 'Events & approvals': perm(true, false, false),
+    'Event commission (per event)': perm(false, false, false), Bookings: perm(false, false, false),
+    Refunds: perm(true, true, false), 'Payments & payouts': perm(false, false, false),
+    Customers: perm(true, true, false), Organizers: perm(true, true, false), Promoters: perm(true, true, false),
+    Lineups: perm(true, true, false), Venues: perm(true, true, false), 'Verifications (KYC)': perm(true, true, false),
+    Reviews: perm(true, true, false), Locations: perm(true, true, false), 'Abandoned carts': perm(true, true, false),
+    Featured: perm(true, false, false), Content: perm(true, false, false), Careers: perm(true, false, false),
+    Reels: perm(true, false, false), 'Promo codes': perm(false, false, false), 'Gate check-in': perm(true, false, false),
+    Reports: perm(false, false, false),
   },
   'Scanner only': {
-    'Payments & payouts': perm(false, false, false), Refunds: perm(false, false, false),
-    'Event commission (per event)': perm(false, false, false), 'Events & approvals': perm(false, false, false),
-    'Content (banners / blogs / pages)': perm(false, false, false), 'Customers & organizers': perm(false, false, false),
-    'Gate check-in': perm(true, true, false),
+    Dashboard: perm(true, false, false), 'Events & approvals': perm(false, false, false),
+    'Event commission (per event)': perm(false, false, false), Bookings: perm(false, false, false),
+    Refunds: perm(false, false, false), 'Payments & payouts': perm(false, false, false),
+    Customers: perm(false, false, false), Organizers: perm(false, false, false), Promoters: perm(false, false, false),
+    Lineups: perm(false, false, false), Venues: perm(false, false, false), 'Verifications (KYC)': perm(false, false, false),
+    Reviews: perm(false, false, false), Locations: perm(false, false, false), 'Abandoned carts': perm(false, false, false),
+    Featured: perm(false, false, false), Content: perm(false, false, false), Careers: perm(false, false, false),
+    Reels: perm(false, false, false), 'Promo codes': perm(false, false, false), 'Gate check-in': perm(true, true, false),
+    Reports: perm(false, false, false),
   },
 };
 

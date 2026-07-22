@@ -4,13 +4,28 @@ import { hashPassword, randomTempPassword } from './password.util';
 
 // Mirrors prebooze-admin's src/store/data.ts PERM_MODULES exactly.
 const PERM_MODULES = [
-  'Payments & payouts',
-  'Refunds',
-  'Event commission (per event)',
+  'Dashboard',
   'Events & approvals',
-  'Content (banners / blogs / pages)',
-  'Customers & organizers',
+  'Event commission (per event)',
+  'Bookings',
+  'Refunds',
+  'Payments & payouts',
+  'Customers',
+  'Organizers',
+  'Promoters',
+  'Lineups',
+  'Venues',
+  'Verifications (KYC)',
+  'Reviews',
+  'Locations',
+  'Abandoned carts',
+  'Featured',
+  'Content',
+  'Careers',
+  'Reels',
+  'Promo codes',
   'Gate check-in',
+  'Reports',
 ];
 
 @Injectable()

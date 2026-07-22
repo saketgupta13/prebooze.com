@@ -10,19 +10,19 @@ export class AdminCustomersController {
   constructor(private customers: CustomersService) {}
 
   @Get()
-  @RequirePermission('Customers & organizers', 'view')
+  @RequirePermission('Customers', 'view')
   list(@Query('segment') segment?: 'guests' | 'organizers') {
     return this.customers.list(segment);
   }
 
   @Post()
-  @RequirePermission('Customers & organizers', 'edit')
+  @RequirePermission('Customers', 'edit')
   create(@Body() body: Parameters<CustomersService['create']>[0]) {
     return this.customers.create(body);
   }
 
   @Patch(':id/block')
-  @RequirePermission('Customers & organizers', 'edit')
+  @RequirePermission('Customers', 'edit')
   setBlocked(@Param('id') id: string, @Body('blocked') blocked: boolean) {
     return this.customers.setBlocked(id, blocked);
   }

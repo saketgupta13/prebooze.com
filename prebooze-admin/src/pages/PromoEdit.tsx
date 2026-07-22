@@ -23,6 +23,7 @@ export default function PromoEdit() {
   const [maxCap, setMaxCap] = useState(promo?.maxCap ? String(promo.maxCap) : '');
   const [scope, setScope] = useState(promo?.scope ?? 'all events');
   const [gender, setGender] = useState<Gender>(promo?.gender ?? 'all');
+  const [description, setDescription] = useState(promo?.description ?? '');
 
   if (!promo) {
     return (
@@ -55,6 +56,7 @@ export default function PromoEdit() {
       maxCap: type === 'percent' ? numCap : undefined,
       scope,
       gender,
+      description: description.trim() || undefined,
       discountLabel: promoLabel(type, numValue, type === 'percent' ? numCap : undefined),
     });
     navigate('/promos');
@@ -123,6 +125,10 @@ export default function PromoEdit() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="display" style={{ fontWeight: 700 }}>Scope &amp; audience</div>
+        <div className="field">
+          <label>Description</label>
+          <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Shown to staff and on the guest checkout screen" />
+        </div>
         <div className="field">
           <label>Applies to</label>
           <select className="input" value={scope} onChange={(e) => setScope(e.target.value)}>

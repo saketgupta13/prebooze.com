@@ -171,6 +171,7 @@ interface AdminState {
   removeRole: (name: string) => void;
   removeVenue: (id: string) => void;
   reviews: AdminReview[];
+  addReview: (r: Omit<AdminReview, 'id'>) => void;
   updateReview: (id: string, patch: Partial<AdminReview>) => void;
   removeReview: (id: string) => void;
   testimonials: Testimonial[];
@@ -216,7 +217,7 @@ interface AdminState {
   removeJob: (id: string) => void;
   applicants: JobApplicant[];
   reels: Reel[];
-  addReel: (title: string) => void;
+  addReel: (title: string, videoDataUrl: string) => void;
   toggleReel: (id: string) => void;
   removeReel: (id: string) => void;
   toggleTopCity: (path: LocPath) => void;
@@ -631,6 +632,10 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Venue removed');
       },
       reviews,
+      addReview: (r) => {
+        setReviews((prev) => [{ ...r, id: 'rv' + Date.now() }, ...prev]);
+        toast('Review added ✓');
+      },
       updateReview: (id, patch) => {
         setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
         toast('Review updated ✓');
@@ -809,8 +814,8 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       },
       applicants,
       reels,
-      addReel: (title) => {
-        setReels((prev) => [...prev, { id: 'rl' + Date.now(), title: title.trim() || 'Untitled reel', hue: Math.floor(Math.random() * 360), active: true }]);
+      addReel: (title, videoDataUrl) => {
+        setReels((prev) => [...prev, { id: 'rl' + Date.now(), title: title.trim() || 'Untitled reel', hue: Math.floor(Math.random() * 360), active: true, videoDataUrl }]);
         toast('Video uploaded ✓ — live in the guest reels slider');
       },
       toggleReel: (id) => setReels((prev) => prev.map((r) => (r.id === id ? { ...r, active: !r.active } : r))),

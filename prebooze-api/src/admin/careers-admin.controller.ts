@@ -4,11 +4,7 @@ import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
 import { RequirePermission } from './permission.decorator';
 
-// Careers isn't a PERM_MODULES entry either — "Content (banners / blogs /
-// pages)" is the closest fit, same reasoning as Featured before it: job
-// listings are public-facing marketing/recruiting content, not literally
-// event, payment, or customer data.
-const MODULE = 'Content (banners / blogs / pages)';
+const MODULE = 'Careers'; // own module as of the expanded-permissions slice
 
 @Controller('admin/careers')
 @UseGuards(StaffAuthGuard, PermissionGuard)

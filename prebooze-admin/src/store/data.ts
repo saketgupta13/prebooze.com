@@ -6,6 +6,7 @@ import type {
   Category,
   Customer,
   KycApplication,
+  LocCountry,
   Organizer,
   Promo,
   SitePage,
@@ -167,14 +168,36 @@ export const SEED_STAFF: StaffMember[] = [
 
 import type { RoleMatrix, Settings } from '../types';
 
+// Expanded from the original 7 broad buckets to one module per admin
+// section, so a role can be scoped to exactly what it needs — e.g. a
+// "Locations" editor no longer also gets Reviews/Verifications/Abandoned
+// carts just because they used to share the "Customers & organizers"
+// catch-all. Staff & roles itself is deliberately NOT a module here — it
+// stays Owner-only (see AdminStaffController/AdminRolesController), same
+// anti-privilege-escalation reasoning as before this expansion.
 export const PERM_MODULES = [
-  'Payments & payouts',
-  'Refunds',
-  'Event commission (per event)',
+  'Dashboard',
   'Events & approvals',
-  'Content (banners / blogs / pages)',
-  'Customers & organizers',
+  'Event commission (per event)',
+  'Bookings',
+  'Refunds',
+  'Payments & payouts',
+  'Customers',
+  'Organizers',
+  'Promoters',
+  'Lineups',
+  'Venues',
+  'Verifications (KYC)',
+  'Reviews',
+  'Locations',
+  'Abandoned carts',
+  'Featured',
+  'Content',
+  'Careers',
+  'Reels',
+  'Promo codes',
   'Gate check-in',
+  'Reports',
 ];
 
 const perms = (view: boolean, edit: boolean, approve: boolean) => ({ view, edit, approve });
@@ -184,43 +207,106 @@ export const SEED_ROLES: RoleMatrix = {
   Owner: allOn(),
   Manager: {
     ...allOn(),
+    Bookings: perms(true, true, false),
     'Payments & payouts': perms(true, true, false),
+    'Promo codes': perms(true, true, false),
+    Reports: perms(true, true, false),
   },
   Finance: {
-    'Payments & payouts': perms(true, true, true),
-    Refunds: perms(true, true, true),
-    'Event commission (per event)': perms(true, true, false),
+    Dashboard: perms(true, false, false),
     'Events & approvals': perms(true, false, false),
-    'Content (banners / blogs / pages)': perms(true, false, false),
-    'Customers & organizers': perms(true, false, false),
+    'Event commission (per event)': perms(true, true, false),
+    Bookings: perms(true, true, true),
+    Refunds: perms(true, true, true),
+    'Payments & payouts': perms(true, true, true),
+    Customers: perms(true, false, false),
+    Organizers: perms(true, false, false),
+    Promoters: perms(true, false, false),
+    Lineups: perms(true, false, false),
+    Venues: perms(true, false, false),
+    'Verifications (KYC)': perms(true, false, false),
+    Reviews: perms(true, false, false),
+    Locations: perms(true, false, false),
+    'Abandoned carts': perms(true, false, false),
+    Featured: perms(true, false, false),
+    Content: perms(true, false, false),
+    Careers: perms(true, false, false),
+    Reels: perms(true, false, false),
+    'Promo codes': perms(true, true, true),
     'Gate check-in': perms(false, false, false),
+    Reports: perms(true, true, true),
   },
   Content: {
-    'Payments & payouts': perms(false, false, false),
-    Refunds: perms(false, false, false),
-    'Event commission (per event)': perms(false, false, false),
+    Dashboard: perms(true, false, false),
     'Events & approvals': perms(true, false, false),
-    'Content (banners / blogs / pages)': perms(true, true, true),
-    'Customers & organizers': perms(true, false, false),
+    'Event commission (per event)': perms(false, false, false),
+    Bookings: perms(false, false, false),
+    Refunds: perms(false, false, false),
+    'Payments & payouts': perms(false, false, false),
+    Customers: perms(true, false, false),
+    Organizers: perms(true, false, false),
+    Promoters: perms(true, false, false),
+    Lineups: perms(true, false, false),
+    Venues: perms(true, false, false),
+    'Verifications (KYC)': perms(true, false, false),
+    Reviews: perms(true, false, false),
+    Locations: perms(true, false, false),
+    'Abandoned carts': perms(true, false, false),
+    Featured: perms(true, true, true),
+    Content: perms(true, true, true),
+    Careers: perms(true, true, true),
+    Reels: perms(true, true, true),
+    'Promo codes': perms(false, false, false),
     'Gate check-in': perms(false, false, false),
+    Reports: perms(false, false, false),
   },
   Support: {
-    'Payments & payouts': perms(false, false, false),
-    Refunds: perms(true, true, false),
-    'Event commission (per event)': perms(false, false, false),
+    Dashboard: perms(true, false, false),
     'Events & approvals': perms(true, false, false),
-    'Content (banners / blogs / pages)': perms(true, false, false),
-    'Customers & organizers': perms(true, true, false),
+    'Event commission (per event)': perms(false, false, false),
+    Bookings: perms(false, false, false),
+    Refunds: perms(true, true, false),
+    'Payments & payouts': perms(false, false, false),
+    Customers: perms(true, true, false),
+    Organizers: perms(true, true, false),
+    Promoters: perms(true, true, false),
+    Lineups: perms(true, true, false),
+    Venues: perms(true, true, false),
+    'Verifications (KYC)': perms(true, true, false),
+    Reviews: perms(true, true, false),
+    Locations: perms(true, true, false),
+    'Abandoned carts': perms(true, true, false),
+    Featured: perms(true, false, false),
+    Content: perms(true, false, false),
+    Careers: perms(true, false, false),
+    Reels: perms(true, false, false),
+    'Promo codes': perms(false, false, false),
     'Gate check-in': perms(true, false, false),
+    Reports: perms(false, false, false),
   },
   'Scanner only': {
-    'Payments & payouts': perms(false, false, false),
-    Refunds: perms(false, false, false),
-    'Event commission (per event)': perms(false, false, false),
+    Dashboard: perms(true, false, false),
     'Events & approvals': perms(false, false, false),
-    'Content (banners / blogs / pages)': perms(false, false, false),
-    'Customers & organizers': perms(false, false, false),
+    'Event commission (per event)': perms(false, false, false),
+    Bookings: perms(false, false, false),
+    Refunds: perms(false, false, false),
+    'Payments & payouts': perms(false, false, false),
+    Customers: perms(false, false, false),
+    Organizers: perms(false, false, false),
+    Promoters: perms(false, false, false),
+    Lineups: perms(false, false, false),
+    Venues: perms(false, false, false),
+    'Verifications (KYC)': perms(false, false, false),
+    Reviews: perms(false, false, false),
+    Locations: perms(false, false, false),
+    'Abandoned carts': perms(false, false, false),
+    Featured: perms(false, false, false),
+    Content: perms(false, false, false),
+    Careers: perms(false, false, false),
+    Reels: perms(false, false, false),
+    'Promo codes': perms(false, false, false),
     'Gate check-in': perms(true, true, false),
+    Reports: perms(false, false, false),
   },
 };
 
@@ -374,13 +460,21 @@ export const CATEGORY_SUBS: Record<string, string[]> = {
   'Club nights': ['House', 'After-hours', 'Bollywood night', 'Ladies night'],
 };
 
+// targetType covers every reviewable role except guests (guests are the
+// reviewers, never the subject) — organizer reviews existed already;
+// promoter/venue/lineup are new as of the "review option for all roles" slice.
 export const SEED_REVIEWS = [
-  { id: 'rv1', author: 'Priya S.', rating: 5, eventTitle: 'Jazz in the Park', organizer: 'LiveWire Ent.', text: 'Smooth entry, great sound, well organized.', date: '14 Jun' },
-  { id: 'rv2', author: 'Marco T.', rating: 4, eventTitle: 'NYE Countdown', organizer: 'LiveWire Ent.', text: 'Fun night — queue at the bar was long.', date: '2 Jan' },
-  { id: 'rv3', author: 'Alex K.', rating: 5, eventTitle: 'Indie Night Live', organizer: 'LiveWire Ent.', text: 'QR entry took seconds. Best gig this year.', date: '2 Jul' },
-  { id: 'rv4', author: 'Nikita R.', rating: 2, eventTitle: 'Techno Tuesday', organizer: 'FestCrew', text: 'Sound was great but entry took 40 minutes.', date: '20 Jun' },
-  { id: 'rv5', author: 'Dev M.', rating: 4, eventTitle: 'Stand-up Sunday', organizer: 'NightOwl Co.', text: 'Maya K. destroyed. Seats a bit cramped.', date: '28 Jun' },
-  { id: 'rv6', author: 'anon_user_99', rating: 1, eventTitle: "Summer Fest '26", organizer: 'FestCrew', text: 'SCAM!!! buy tickets from my site instead www.fake-tickets.example', date: '1 Jul' },
+  { id: 'rv1', author: 'Priya S.', rating: 5, eventTitle: 'Jazz in the Park', targetType: 'organizer' as const, targetName: 'LiveWire Ent.', text: 'Smooth entry, great sound, well organized.', date: '14 Jun' },
+  { id: 'rv2', author: 'Marco T.', rating: 4, eventTitle: 'NYE Countdown', targetType: 'organizer' as const, targetName: 'LiveWire Ent.', text: 'Fun night — queue at the bar was long.', date: '2 Jan' },
+  { id: 'rv3', author: 'Alex K.', rating: 5, eventTitle: 'Indie Night Live', targetType: 'organizer' as const, targetName: 'LiveWire Ent.', text: 'QR entry took seconds. Best gig this year.', date: '2 Jul' },
+  { id: 'rv4', author: 'Nikita R.', rating: 2, eventTitle: 'Techno Tuesday', targetType: 'organizer' as const, targetName: 'FestCrew', text: 'Sound was great but entry took 40 minutes.', date: '20 Jun' },
+  { id: 'rv5', author: 'Dev M.', rating: 4, eventTitle: 'Stand-up Sunday', targetType: 'organizer' as const, targetName: 'NightOwl Co.', text: 'Maya K. destroyed. Seats a bit cramped.', date: '28 Jun' },
+  { id: 'rv6', author: 'anon_user_99', rating: 1, eventTitle: "Summer Fest '26", targetType: 'organizer' as const, targetName: 'FestCrew', text: 'SCAM!!! buy tickets from my site instead www.fake-tickets.example', date: '1 Jul' },
+  { id: 'rv7', author: 'Sana K.', rating: 5, eventTitle: 'Indie Night Live', targetType: 'promoter' as const, targetName: 'Nova Nights', text: 'Got us straight in on the guest list, no drama.', date: '3 Jul' },
+  { id: 'rv8', author: 'Rohit V.', rating: 3, eventTitle: 'Techno Tuesday', targetType: 'promoter' as const, targetName: 'Crowd Co.', text: 'List had our names but the +1 wasn’t noted.', date: '21 Jun' },
+  { id: 'rv9', author: 'Meera J.', rating: 5, eventTitle: 'Jazz in the Park', targetType: 'venue' as const, targetName: 'Arena Hall', text: 'Great sound system, easy to find, clean.', date: '15 Jun' },
+  { id: 'rv10', author: 'Kabir S.', rating: 2, eventTitle: 'NYE Countdown', targetType: 'venue' as const, targetName: 'Riverside Grounds', text: 'Parking was a nightmare, venue itself was fine.', date: '3 Jan' },
+  { id: 'rv11', author: 'Ishaan P.', rating: 5, eventTitle: 'Stand-up Sunday', targetType: 'lineup' as const, targetName: 'Maya K.', text: 'Funniest set I’ve seen live, worth every rupee.', date: '29 Jun' },
 ];
 
 export const SEED_PROMOTERS = [
@@ -468,6 +562,39 @@ export const SEED_REELS = [
 ];
 
 export const ADMIN_CITIES = ['Austin', 'Dallas', 'Houston'];
+
+/** Every enabled city across the admin-managed Locations tree, alphabetized
+ * — the real source city filter dropdowns should read from (replacing the
+ * old per-page pattern of deriving a city list from whatever happens to
+ * appear in that page's own data, or the tiny hardcoded ADMIN_CITIES). The
+ * cascade in toggleLocation already keeps a city's own `enabled` flag in
+ * sync with its parent state/country, so checking just city.enabled here is
+ * sufficient — no need to re-check the whole ancestor chain. */
+export function enabledCityNames(locations: LocCountry[]): string[] {
+  const names = new Set<string>();
+  for (const country of locations) for (const state of country.states) for (const c of state.cities) if (c.enabled) names.add(c.name);
+  return [...names].sort();
+}
+
+/** AdminEvent.date is a year-less "24 Jul" string (mock data has no real
+ * year field) — assumes the current year, which is good enough for a
+ * dev-seed dataset that's always "this year" relative to itself. Used by
+ * Reports' date-range filter/charts, the one place this app needs to treat
+ * event dates as real Dates instead of just display strings. */
+export function parseEventDate(dateStr: string): Date {
+  const d = new Date(`${dateStr} ${new Date().getFullYear()}`);
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+
+/** No real uploaded files exist in this mock (there's no backend behind
+ * this app) — a real KYC document previewer still needs something real to
+ * render rather than nothing, so this generates an actual image (not a
+ * fake boolean) representing the document, labeled with its type/note. */
+export function placeholderDocImage(label: string, sub: string): string {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320"><rect width="100%" height="100%" fill="#20221a"/><rect x="8" y="8" width="464" height="304" fill="none" stroke="#3a3d2e" stroke-width="2" stroke-dasharray="6 6"/><text x="50%" y="46%" text-anchor="middle" fill="#8bc34a" font-size="22" font-family="sans-serif" font-weight="700">${esc(label)}</text><text x="50%" y="58%" text-anchor="middle" fill="#9a9d8c" font-size="13" font-family="sans-serif">${esc(sub)}</text></svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
 
 // Onboarding locations — admin-managed country → state → city with enable toggles.
 const city = (name: string, enabled = true) => ({ name, enabled });
