@@ -376,6 +376,7 @@ export interface Settings {
   whatsappAlerts: boolean;
   require2fa: boolean;
   maintenanceMode: boolean;
+  salesPaused: boolean;
   socials: { instagram: string; x: string; youtube: string; whatsapp: string; facebook: string };
   siteSeo: Seo;
   contact: { email: string; phone: string; address: string; organizerEmail: string };

@@ -1,46 +1,36 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
-import { fmt } from '../store/data';
-import { CUSTOMER_STATUS, Drawer, SearchBox, Tag } from '../components/ui';
+import { enabledCityNames, fmt } from '../store/data';
+import { CityFilterDropdown, CUSTOMER_STATUS, SearchBox, Tag } from '../components/ui';
 
 export default function Customers() {
-  const { customers, toggleBlockCustomer, removeCustomer, toast } = useAdmin();
+  const { customers, locations } = useAdmin();
   const navigate = useNavigate();
-  const [segment, setSegment] = useState<'guests' | 'organizers'>('guests');
   const [query, setQuery] = useState('');
   const [cityF, setCityF] = useState('All');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const cities = ['All', ...new Set(customers.map((c) => c.city).filter((c) => c !== '—'))];
+  const cities = enabledCityNames(locations);
 
   const list = useMemo(() => {
-    let l = customers.filter((c) => c.segment === segment);
+    let l = customers;
     if (cityF !== 'All') l = l.filter((c) => c.city === cityF);
     if (query.trim()) {
       const q = query.toLowerCase();
       l = l.filter((c) => c.name.toLowerCase().includes(q));
     }
     return l;
-  }, [customers, segment, cityF, query]);
-
-  const selected = customers.find((c) => c.id === selectedId);
+  }, [customers, cityF, query]);
 
   return (
     <div className="stack fade" style={{ maxWidth: 1100 }}>
       <div className="page-hd">
         <h1 className="page-title">Customers</h1>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <button className={`chip ${segment === 'guests' ? 'on' : ''}`} onClick={() => setSegment('guests')}>Guests</button>
-          <button className={`chip ${segment === 'organizers' ? 'on' : ''}`} onClick={() => setSegment('organizers')}>Organizers</button>
-          <Link to="/customers/new" className="btn btn-pri btn-sm">+ Add customer</Link>
-        </div>
+        <Link to="/customers/new" className="btn btn-pri btn-sm">+ Add customer</Link>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <SearchBox value={query} onChange={setQuery} placeholder="name / phone / email…" style={{ maxWidth: 340, flex: 1, minWidth: 180 }} />
-        {cities.map((c) => (
-          <button key={c} className={`chip ${cityF === c ? 'on' : ''}`} onClick={() => setCityF(c)}>{c}</button>
-        ))}
+        <CityFilterDropdown value={cityF} onChange={setCityF} cities={cities} />
       </div>
 
       <div className="tblwrap">
@@ -53,7 +43,7 @@ export default function Customers() {
           <span style={{ flex: 1 }}>Status</span>
         </div>
         {list.map((c) => (
-          <div key={c.id} className="trow clickable" style={{ minWidth: 560 }} onClick={() => setSelectedId(c.id)}>
+          <div key={c.id} className="trow clickable" style={{ minWidth: 560 }} onClick={() => navigate(`/customers/${c.id}`)}>
             <span style={{ flex: 1.8, fontWeight: 700 }}>{c.name} {c.verified && '✓'}</span>
             <span style={{ flex: 0.8 }} className="muted">{c.gender}</span>
             <span style={{ flex: 1 }} className="muted">{c.city}</span>
@@ -64,56 +54,7 @@ export default function Customers() {
         ))}
         {list.length === 0 && <div className="trow muted">No customers match.</div>}
       </div>
-      <div className="tiny hint">Click a row for the profile drawer: verification, booking history, WhatsApp, block.</div>
-
-      {selected && (
-        <Drawer onClose={() => setSelectedId(null)}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <b className="display" style={{ fontSize: 15 }}>{selected.name} {selected.verified && '✓'}</b>
-            <span onClick={() => setSelectedId(null)} style={{ cursor: 'pointer', color: 'var(--muted)' }}>✕</span>
-          </div>
-          <div className="small muted">
-            {selected.city} · {selected.gender} · {CUSTOMER_STATUS[selected.status].label}
-          </div>
-          <hr />
-          <div style={{ display: 'flex', gap: 6, textAlign: 'center' }}>
-            <div style={{ flex: 1, border: '1px solid rgba(139,195,74,.25)', borderRadius: 8, padding: 8 }}>
-              <b>{selected.bookings}</b>
-              <br />
-              <span className="tiny muted">bookings</span>
-            </div>
-            <div style={{ flex: 1, border: '1px solid rgba(139,195,74,.25)', borderRadius: 8, padding: 8 }}>
-              <b>₹{fmt(selected.spend)}</b>
-              <br />
-              <span className="tiny muted">spend</span>
-            </div>
-          </div>
-          <div className="small" style={{ fontWeight: 700 }}>Recent</div>
-          <div className="small muted">
-            🎟 Indie Night Live · 24 Jul
-            <br />
-            🎟 Summer Fest '26 · 1 Aug
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <button className="btn btn-ghost btn-sm" onClick={() => toast('Opening WhatsApp chat…')}>💬 WhatsApp</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/bookings?q=${encodeURIComponent(selected.name)}`)}>View bookings</button>
-          </div>
-          <button className="btn btn-danger" onClick={() => toggleBlockCustomer(selected.id)}>
-            {selected.status === 'blocked' ? 'Unblock customer' : 'Block customer'}
-          </button>
-          <button
-            className="btn btn-danger btn-sm"
-            onClick={() => {
-              if (window.confirm(`Permanently remove ${selected.name}? Their bookings stay on record.`)) {
-                removeCustomer(selected.id);
-                setSelectedId(null);
-              }
-            }}
-          >
-            ✕ Remove customer
-          </button>
-        </Drawer>
-      )}
+      <div className="tiny hint">Click a row for the full profile: verification, booking history, WhatsApp, block.</div>
     </div>
   );
 }

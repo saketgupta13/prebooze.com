@@ -71,7 +71,6 @@ export const SEED_CUSTOMERS: Customer[] = [
   { id: 'c2', name: 'Priya K.', verified: true, gender: 'F', city: 'Austin', bookings: 6, spend: 7400, status: 'active', segment: 'guests' },
   { id: 'c3', name: 'Arjun M.', verified: false, gender: 'M', city: 'Dallas', bookings: 2, spend: 1100, status: 'unverified', segment: 'guests' },
   { id: 'c4', name: 'R. Gupta', verified: false, gender: '—', city: 'Austin', bookings: 1, spend: 0, status: 'blocked', segment: 'guests' },
-  { id: 'c5', name: 'LiveWire Ent.', verified: true, gender: '—', city: 'Austin', bookings: 18, spend: 0, status: 'active', segment: 'organizers' },
 ];
 
 export const SEED_ORGANIZERS: Organizer[] = [
@@ -321,6 +320,7 @@ export const SEED_SETTINGS: Settings = {
   whatsappAlerts: true,
   require2fa: false,
   maintenanceMode: false,
+  salesPaused: false,
   socials: {
     instagram: 'instagram.com/prebooze',
     x: 'x.com/prebooze',

@@ -189,8 +189,14 @@ export default function Settings() {
             }}
           />
         </Row>
-        <Row label="Pause all ticket sales" hint="every live event stops selling until resumed">
-          <button className="btn btn-danger btn-sm" onClick={() => toast('All ticket sales paused')}>Pause all</button>
+        <Row label="Pause all ticket sales" hint="platform-wide kill switch — every event stops selling until resumed">
+          <Toggle
+            on={settings.salesPaused}
+            onChange={() => {
+              set({ salesPaused: !settings.salesPaused });
+              toast(settings.salesPaused ? 'Ticket sales resumed ✓' : 'All ticket sales paused platform-wide');
+            }}
+          />
         </Row>
       </div>
     </div>

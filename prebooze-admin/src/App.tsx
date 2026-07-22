@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Events from './pages/Events';
 import EventEditor from './pages/EventEditor';
 import Bookings from './pages/Bookings';
+import BookingDetail from './pages/BookingDetail';
 import AbandonedCarts from './pages/AbandonedCarts';
 import Featured from './pages/Featured';
 import Referrals from './pages/Referrals';
@@ -12,6 +13,7 @@ import Locations from './pages/Locations';
 import CareersAdmin from './pages/CareersAdmin';
 import Reels from './pages/Reels';
 import Customers from './pages/Customers';
+import CustomerDetail from './pages/CustomerDetail';
 import Verifications from './pages/Verifications';
 import VerificationDetail from './pages/VerificationDetail';
 import Organizers from './pages/Organizers';
@@ -61,11 +63,13 @@ export default function App() {
         <Route path="/events/:id/guestlist" element={<GuestList />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/bookings/new" element={<ManualBooking />} />
+        <Route path="/bookings/:id" element={<BookingDetail />} />
         <Route path="/abandoned" element={<AbandonedCarts />} />
         <Route path="/featured" element={<Featured />} />
         <Route path="/referrals" element={<Referrals />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/customers/new" element={<AddCustomer />} />
+        <Route path="/customers/:id" element={<CustomerDetail />} />
         <Route path="/verifications" element={<Verifications />} />
         <Route path="/verifications/:id" element={<VerificationDetail />} />
         <Route path="/organizers" element={<Organizers />} />

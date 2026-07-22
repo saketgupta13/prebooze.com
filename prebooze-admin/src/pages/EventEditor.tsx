@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
-import { CATEGORY_OPTIONS, CATEGORY_SUBS, fmt } from '../store/data';
+import { CATEGORY_OPTIONS, CATEGORY_SUBS, fmt, GUEST_SITE_URL } from '../store/data';
 import { EVENT_STATUS, GalleryPicker, ImagePicker, Tag, VideoPicker } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import WysiwygEditor from '../components/WysiwygEditor';
@@ -136,7 +136,24 @@ export default function EventEditor() {
             ● Live monitor →
           </Link>
         )}
-        <button className="btn btn-ghost btn-sm" onClick={() => toast('Opening guest preview…')}>Preview as guest</button>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            if (!event.title.trim()) {
+              toast('Add an event title first');
+              return;
+            }
+            // prebooze-admin and the guest site are separate mock stores with
+            // no shared backend, so there's no permalink that's guaranteed to
+            // resolve — searching the guest site by title is the most honest
+            // real preview available (finds it if it's also seeded there,
+            // shows real "no results" otherwise, rather than a fake toast or
+            // a link that 404s for anything admin-only).
+            window.open(`${GUEST_SITE_URL}/browse?q=${encodeURIComponent(event.title.trim())}`, '_blank', 'noopener');
+          }}
+        >
+          Preview as guest
+        </button>
         {isCreate ? (
           <>
             <button className="btn btn-ghost btn-sm" onClick={() => save('draft')}>Save draft</button>
