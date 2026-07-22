@@ -197,7 +197,7 @@ export default function LiveMonitor() {
         >
           <div className="field" style={{ flex: 1.6, minWidth: 160 }}>
             <label>Guest name or booking #</label>
-            <input className="input" value={ciName} onChange={(e) => setCiName(e.target.value)} placeholder="e.g. Sam Rivera or #8412" autoFocus />
+            <input className="input" value={ciName} onChange={(e) => setCiName(e.target.value)} placeholder="e.g. Sam Rivera or #9001" autoFocus />
           </div>
           <div className="field" style={{ width: 130 }}>
             <label>Guests</label>

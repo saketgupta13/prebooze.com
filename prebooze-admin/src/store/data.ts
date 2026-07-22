@@ -61,25 +61,46 @@ export const SEED_EVENTS: AdminEvent[] = [
 
 export const SEED_BOOKINGS: AdminBooking[] = [
   {
-    id: '#8412', guest: 'Sam Rivera', phone: '+91 98000 37210', eventId: 'e1', qty: 2, amount: 1450, status: 'refund_requested', method: 'UPI',
-    guests: [{ name: 'Sam Rivera', phone: '+91 98000 37210', verified: true }, { name: 'Alex Kim', phone: '+91 98111 20034' }],
-  },
-  {
-    id: '#8420', guest: 'Priya K.', phone: '+91 87000 74330', eventId: 'e2', qty: 4, amount: 2900, status: 'paid', method: 'Card',
+    id: '#9001', guest: 'Sam Rivera', phone: '+91 98000 37210', eventId: 'e1', qty: 3, amount: 1466, status: 'paid', method: 'UPI',
     guests: [
-      { name: 'Priya K.', phone: '+91 87000 74330', verified: true },
-      { name: 'Meera S.', phone: '+91 98222 30045' },
-      { name: 'Tara J.', phone: '+91 98333 40056' },
-      { name: 'Ishaan V.', phone: '+91 98444 50067' },
+      { name: 'Sam Rivera', phone: '+91 98000 37210', verified: true },
+      { name: 'Neha Kapoor', phone: '+91 98212 34567' },
+      { name: 'Rohan Bhatt', phone: '+91 99323 45678' },
     ],
   },
   {
-    id: '#8419', guest: 'Arjun M.', phone: '+91 99001 11118', eventId: 'e1', qty: 1, amount: 580, status: 'checked_in', method: 'UPI',
-    guests: [{ name: 'Arjun M.', phone: '+91 99001 11118' }],
+    id: '#9002', guest: 'Priya K.', phone: '+91 87000 74330', eventId: 'e2', qty: 2, amount: 1461, status: 'checked_in', method: 'Card',
+    guests: [
+      { name: 'Priya K.', phone: '+91 87000 74330', verified: true },
+      { name: 'Kabir Anand', phone: '+91 97434 56789' },
+    ],
   },
   {
-    id: '#8415', guest: 'Nia T.', phone: '+91 76001 48902', eventId: 'e2', qty: 2, amount: 1160, status: 'refunded', method: 'UPI',
-    guests: [{ name: 'Nia T.', phone: '+91 76001 48902', verified: true }, { name: 'Zoya R.', phone: '+91 98555 60078' }],
+    id: '#9003', guest: 'Arjun M.', phone: '+91 99001 11118', eventId: 'e5', qty: 1, amount: 335, status: 'refund_requested', method: 'UPI',
+    guests: [{ name: 'Arjun M.', phone: '+91 99001 11118', verified: true }],
+  },
+  {
+    id: '#9004', guest: 'R. Gupta', phone: '+91 90112 23344', eventId: 'e1', qty: 2, amount: 940, status: 'refunded', method: 'UPI',
+    guests: [
+      { name: 'R. Gupta', phone: '+91 90112 23344' },
+      { name: 'Divya Nair', phone: '+91 96545 67890' },
+    ],
+  },
+  {
+    id: '#9005', guest: 'Meera Iyer', phone: '+91 95656 78901', eventId: 'e2', qty: 4, amount: 2782, status: 'paid', method: 'Card',
+    guests: [
+      { name: 'Meera Iyer', phone: '+91 95656 78901', verified: true },
+      { name: 'Farhan Sheikh', phone: '+91 94767 89012' },
+      { name: 'Ananya Rao', phone: '+91 93878 90123' },
+      { name: 'Vikram Sethi', phone: '+91 92989 01234' },
+    ],
+  },
+  {
+    id: '#9006', guest: 'Ishita Malhotra', phone: '+91 91090 12345', eventId: 'e5', qty: 2, amount: 661, status: 'checked_in', method: 'UPI',
+    guests: [
+      { name: 'Ishita Malhotra', phone: '+91 91090 12345', verified: true },
+      { name: 'Aditya Kulkarni', phone: '+91 90101 23456' },
+    ],
   },
 ];
 
@@ -117,7 +138,7 @@ export const promoLabel = (type: 'percent' | 'flat', value: number, maxCap?: num
 
 export const SEED_NOTIFICATIONS = [
   { id: 'n1', icon: '⚠', text: '“Stand-up Sunday” submitted for approval by NightOwl Co.', time: '2h ago', read: false, to: '/events?tab=pending' },
-  { id: 'n2', icon: '↩', text: 'Refund requested — booking #8412 · ₹1,450 · “can\'t attend”', time: '3h ago', read: false, to: '/bookings?status=refund_requested' },
+  { id: 'n2', icon: '↩', text: 'Refund requested — booking #9003 · ₹335 · “can\'t attend”', time: '3h ago', read: false, to: '/bookings?status=refund_requested' },
   { id: 'n3', icon: '🛡', text: 'Sunset Sessions submitted KYC docs for review', time: '5h ago', read: false, to: '/organizers' },
   { id: 'n4', icon: '📄', text: 'Comedy Cave license expires 12 Aug — docs pending', time: '1d ago', read: true, to: '/venues' },
   { id: 'n5', icon: '💸', text: '2 organizer payouts due Friday · ₹2.9L total', time: '1d ago', read: true, to: '/payments' },
