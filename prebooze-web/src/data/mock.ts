@@ -8,6 +8,7 @@ import type {
   Payout,
   Person,
   Review,
+  ReviewTargetType,
   Venue,
 } from '../types';
 
@@ -723,23 +724,31 @@ export const SOCIAL_LINKS = [
 ];
 
 
-// ---- Organizer reviews (moderated by admin; organizers view-only) ----
-export interface OrgReview {
+// ---- Reviews across every reviewable role (moderated by admin; the role
+// being reviewed only ever gets a read-only view of its own). Guests are
+// never reviewable — there's no `targetType: 'guest'`. ----
+export interface SeedReview {
   id: string;
   author: string;
   rating: number;
-  eventTitle: string;
-  organizerId: string;
+  eventTitle?: string;
+  targetType: ReviewTargetType;
+  targetId: string; // organizer id, promoter/lineup slug, or venue id — matches each profile's own url param
   text: string;
   date: string;
 }
 
-export const ORG_REVIEWS: OrgReview[] = [
-  { id: 'rv1', author: 'Priya S.', rating: 5, eventTitle: 'Jazz in the Park', organizerId: 'livewire', text: 'Smooth entry, great sound, well organized.', date: '14 Jun' },
-  { id: 'rv2', author: 'Marco T.', rating: 4, eventTitle: 'NYE Countdown', organizerId: 'livewire', text: 'Fun night — queue at the bar was long.', date: '2 Jan' },
-  { id: 'rv3', author: 'Alex K.', rating: 5, eventTitle: 'Indie Night Live', organizerId: 'livewire', text: 'QR entry took seconds. Best gig this year.', date: '2 Jul' },
-  { id: 'rv4', author: 'Nikita R.', rating: 2, eventTitle: 'Techno Bunker', organizerId: 'nightowl', text: 'Sound was great but entry took 40 minutes.', date: '20 Jun' },
-  { id: 'rv5', author: 'Dev M.', rating: 4, eventTitle: 'Stand-up Sunday', organizerId: 'nightowl', text: 'Maya K. destroyed. Seats a bit cramped.', date: '28 Jun' },
+export const SEED_REVIEWS: SeedReview[] = [
+  { id: 'rv1', author: 'Priya S.', rating: 5, eventTitle: 'Jazz in the Park', targetType: 'organizer', targetId: 'livewire', text: 'Smooth entry, great sound, well organized.', date: '14 Jun' },
+  { id: 'rv2', author: 'Marco T.', rating: 4, eventTitle: 'NYE Countdown', targetType: 'organizer', targetId: 'livewire', text: 'Fun night — queue at the bar was long.', date: '2 Jan' },
+  { id: 'rv3', author: 'Alex K.', rating: 5, eventTitle: 'Indie Night Live', targetType: 'organizer', targetId: 'livewire', text: 'QR entry took seconds. Best gig this year.', date: '2 Jul' },
+  { id: 'rv4', author: 'Nikita R.', rating: 2, eventTitle: 'Techno Bunker', targetType: 'organizer', targetId: 'nightowl', text: 'Sound was great but entry took 40 minutes.', date: '20 Jun' },
+  { id: 'rv5', author: 'Dev M.', rating: 4, eventTitle: 'Stand-up Sunday', targetType: 'organizer', targetId: 'nightowl', text: 'Maya K. destroyed. Seats a bit cramped.', date: '28 Jun' },
+  { id: 'rv6', author: 'Sana R.', rating: 5, targetType: 'promoter', targetId: 'nova-nights', text: 'On the list within a minute of messaging, zero drama at the door.', date: '9 Jun' },
+  { id: 'rv7', author: 'Yusuf T.', rating: 4, targetType: 'promoter', targetId: 'nova-nights', text: 'Great lists but the after-1AM cutoff caught us out once.', date: '18 May' },
+  { id: 'rv8', author: 'Meera D.', rating: 5, targetType: 'venue', targetId: 'arena-hall', text: 'Sound system is genuinely one of the best in the city. Easy parking too.', date: '30 Jun' },
+  { id: 'rv9', author: 'Owen P.', rating: 3, targetType: 'venue', targetId: 'arena-hall', text: 'Good venue but the bar queue gets brutal after 11.', date: '11 Jun' },
+  { id: 'rv10', author: 'Zoe K.', rating: 5, targetType: 'lineup', targetId: 'dj-nova', text: 'Opened the floor perfectly, set flowed all night.', date: '22 Jun' },
 ];
 
 /** Register a runtime-created venue so venueById() keeps working everywhere. */

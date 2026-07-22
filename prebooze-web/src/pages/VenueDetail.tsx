@@ -5,6 +5,7 @@ import { EVENTS, VENUES } from '../data/mock';
 import Poster from '../components/Poster';
 import ShareButton from '../components/ShareButton';
 import EventCard from '../components/EventCard';
+import ReviewsSection from '../components/ReviewsSection';
 
 export default function VenueDetail() {
   const { id } = useParams();
@@ -139,6 +140,8 @@ export default function VenueDetail() {
             <div className="empty">No published events here right now.</div>
           )}
         </section>
+
+        <ReviewsSection targetType="venue" targetId={venue.id} prompt="How was this venue — sound, entry, staff?" />
       </div>
     </main>
   );

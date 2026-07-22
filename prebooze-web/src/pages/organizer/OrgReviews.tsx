@@ -1,9 +1,13 @@
-import { ORG_REVIEWS } from '../../data/mock';
+import { SEED_REVIEWS } from '../../data/mock';
+import { useApp } from '../../store/AppContext';
 import Stars from '../../components/Stars';
 
 /** Organizer's reviews — view-only. Moderation (edit/remove) is admin-only. */
 export default function OrgReviews() {
-  const mine = ORG_REVIEWS.filter((r) => r.organizerId === 'livewire');
+  const { reviews } = useApp();
+  const seedMine = SEED_REVIEWS.filter((r) => r.targetType === 'organizer' && r.targetId === 'livewire');
+  const guestMine = reviews['organizer:livewire'] ?? [];
+  const mine = [...guestMine, ...seedMine];
   const avg = mine.length ? mine.reduce((a, r) => a + r.rating, 0) / mine.length : 0;
 
   return (

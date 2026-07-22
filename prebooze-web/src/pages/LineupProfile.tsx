@@ -4,6 +4,7 @@ import { EVENTS, LINEUPS, lineupBySlug } from '../data/mock';
 import Poster from '../components/Poster';
 import ShareButton from '../components/ShareButton';
 import EventCard from '../components/EventCard';
+import ReviewsSection from '../components/ReviewsSection';
 
 /** Public line-up profile — artists, DJs, sponsors and promoters guests can follow. */
 export default function LineupProfile() {
@@ -137,6 +138,8 @@ export default function LineupProfile() {
                 </div>
               </section>
             )}
+
+            <ReviewsSection targetType="lineup" targetId={lineup.slug} prompt="How was their set?" />
           </div>
         </div>
       </div>

@@ -1,17 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayMethod, User, Venue, WaitlistEntry } from '../types';
+import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayMethod, ReviewTargetType, User, Venue, WaitlistEntry } from '../types';
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } from '../data/mock';
 import { notify } from '../lib/notify';
 
-export interface OrgReview {
+export interface GuestReview {
   id: string;
   author: string;
   rating: number;
+  eventTitle?: string;
   text: string;
   date: string;
 }
+
+export const reviewKey = (targetType: ReviewTargetType, targetId: string) => `${targetType}:${targetId}`;
 
 export interface WalletTx {
   id: string;
@@ -207,8 +210,9 @@ interface AppState {
   joinWaitlist: (eventId: string) => void;
   jobApps: JobApplication[];
   applyJob: (a: Omit<JobApplication, 'id' | 'appliedAt'>) => void;
-  orgReviews: Record<string, OrgReview[]>;
-  addOrgReview: (orgId: string, rating: number, text: string) => void;
+  /** keyed by `reviewKey(targetType, targetId)` — covers organizer/promoter/venue/lineup, never guests. */
+  reviews: Record<string, GuestReview[]>;
+  addReview: (targetType: ReviewTargetType, targetId: string, rating: number, text: string, eventTitle?: string) => void;
   checkInBooking: (id: string, count: number) => void;
   addEvent: (e: Event) => void;
   upsertEvent: (e: Event) => void;
@@ -316,7 +320,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [ticketsMap, setTicketsMap] = useState<Record<string, HelpTicket[]>>(() => load('pb_help_tickets', {}));
   const [waitlists, setWaitlists] = useState<Record<string, WaitlistEntry[]>>(() => load('pb_waitlists', {}));
   const [jobApps, setJobApps] = useState<JobApplication[]>(() => load('pb_job_apps', []));
-  const [orgReviews, setOrgReviews] = useState<Record<string, OrgReview[]>>(() => load('pb_org_reviews', {}));
+  const [reviews, setReviews] = useState<Record<string, GuestReview[]>>(() => load('pb_reviews', {}));
   const [followers, setFollowers] = useState<string[]>(() => load('pb_followers', ['p4', 'p5']));
   const [followRequests, setFollowRequests] = useState<string[]>(() => load('pb_follow_requests', ['p6', 'p7']));
   const [pendingPhone, setPendingPhone] = useState('');
@@ -416,8 +420,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('pb_job_apps', JSON.stringify(jobApps));
   }, [jobApps]);
   useEffect(() => {
-    localStorage.setItem('pb_org_reviews', JSON.stringify(orgReviews));
-  }, [orgReviews]);
+    localStorage.setItem('pb_reviews', JSON.stringify(reviews));
+  }, [reviews]);
   // register the logged-in user's referral code so /r/:code can resolve it
   useEffect(() => {
     if (user?.phone) {
@@ -682,14 +686,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
         toast('You’re on the waitlist — we’ll ping you the moment a spot opens ✓');
       },
-      orgReviews,
-      addOrgReview: (orgId, rating, text) => {
+      reviews,
+      addReview: (targetType, targetId, rating, text, eventTitle) => {
         if (!user) return;
-        setOrgReviews((prev) => ({
+        const key = reviewKey(targetType, targetId);
+        setReviews((prev) => ({
           ...prev,
-          [orgId]: [
-            { id: 'orv' + Date.now(), author: user.name || 'Guest', rating, text, date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) },
-            ...(prev[orgId] ?? []),
+          [key]: [
+            { id: 'grv' + Date.now(), author: user.name || 'Guest', rating, eventTitle, text, date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) },
+            ...(prev[key] ?? []),
           ],
         }));
         toast('Review posted ✓');
@@ -868,7 +873,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       },
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, waitlists, jobApps, orgReviews, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, waitlists, jobApps, reviews, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

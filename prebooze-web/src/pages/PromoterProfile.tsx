@@ -6,6 +6,7 @@ import FriendsProof from '../components/FriendsProof';
 import ShareButton from '../components/ShareButton';
 import Poster from '../components/Poster';
 import EventCard from '../components/EventCard';
+import ReviewsSection from '../components/ReviewsSection';
 
 /** Public promoter profile — followable, shows the events they're promoting. */
 export default function PromoterProfile() {
@@ -122,6 +123,8 @@ export default function PromoterProfile() {
                 ))}
               </div>
             </section>
+
+            <ReviewsSection targetType="promoter" targetId={promoter.slug} prompt="How was this promoter's guest list?" />
           </div>
         </div>
       </div>

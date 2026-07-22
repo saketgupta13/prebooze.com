@@ -131,6 +131,9 @@ export interface Review {
   text: string;
 }
 
+/** Every role a guest can leave a review on — guests themselves are never reviewable. */
+export type ReviewTargetType = 'organizer' | 'promoter' | 'venue' | 'lineup';
+
 export interface BookingGuest {
   name: string;
   checkedIn: boolean;

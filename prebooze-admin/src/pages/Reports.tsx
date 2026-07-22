@@ -77,7 +77,17 @@ export default function Reports() {
   const inRange = (d: Date, start: Date, end: Date) => d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
 
   const rangeEvents = useMemo(() => cityEvents.filter((e) => inRange(parseEventDate(e.date), fromDate, toDate)), [cityEvents, fromDate, toDate]);
-  const rangeLedger = useMemo(() => ledger.filter((l) => inRange(parseEventDate(l.date), fromDate, toDate)), [ledger, fromDate, toDate]);
+  // LedgerEntry has no city field — it's Prebooze's own company-wide book
+  // (staff salaries, marketing, sponsorships...), not per-event. Blending it
+  // into a single city's P&L would misrepresent company overhead as that
+  // city's own numbers (e.g. a city with zero events would still show the
+  // full platform's "other income", making the filter look disconnected) —
+  // so it's included only in the All-cities view, and a note in the UI says
+  // so explicitly rather than leaving it silently unfiltered-looking.
+  const rangeLedger = useMemo(
+    () => (cityF === 'All' ? ledger.filter((l) => inRange(parseEventDate(l.date), fromDate, toDate)) : []),
+    [ledger, fromDate, toDate, cityF]
+  );
 
   const fin = useMemo(() => computeFin(rangeEvents, rangeLedger, settings.bookingFee, settings.gstPct), [rangeEvents, rangeLedger, settings]);
 
@@ -86,9 +96,9 @@ export default function Reports() {
     const prevEnd = new Date(fromDate.getTime() - 1);
     const prevStart = new Date(prevEnd.getTime() - spanMs);
     const prevEvents = cityEvents.filter((e) => inRange(parseEventDate(e.date), prevStart, prevEnd));
-    const prevLedger = ledger.filter((l) => inRange(parseEventDate(l.date), prevStart, prevEnd));
+    const prevLedger = cityF === 'All' ? ledger.filter((l) => inRange(parseEventDate(l.date), prevStart, prevEnd)) : [];
     return computeFin(prevEvents, prevLedger, settings.bookingFee, settings.gstPct);
-  }, [compare, cityEvents, ledger, fromDate, spanMs, settings]);
+  }, [compare, cityEvents, ledger, fromDate, spanMs, settings, cityF]);
 
   const top = [...rangeEvents].filter((e) => e.revenue > 0).sort((a, b) => b.revenue - a.revenue).slice(0, 3);
 
@@ -119,7 +129,7 @@ export default function Reports() {
     let rows: (string | number)[][];
     if (chip === 'Profit & loss') {
       rows = [
-        ['Prebooze — Profit & loss statement', period],
+        ['Prebooze — Profit & loss statement', period, cityF === 'All' ? 'All cities' : cityF],
         ['Section', 'Line', 'Amount (₹)'],
         ['Income', 'Ticket commission (auto)', Math.round(fin.commissionIncome)],
         ['Income', 'Booking fees (auto)', Math.round(fin.feeIncome)],
@@ -133,7 +143,7 @@ export default function Reports() {
       ];
     } else if (chip === 'Balance sheet') {
       rows = [
-        ['Prebooze — Balance sheet', period],
+        ['Prebooze — Balance sheet', period, cityF === 'All' ? 'All cities' : cityF],
         ['Section', 'Line', 'Amount (₹)'],
         ['Assets', 'Cash & bank', Math.round(fin.cash)],
         ['Liabilities', 'Organizer payouts due', Math.round(fin.payoutsDue)],
@@ -180,7 +190,12 @@ export default function Reports() {
       {chip === 'Profit & loss' ? (
         <div className="card" style={{ maxWidth: 640 }}>
           <div className="display" style={{ fontWeight: 700, marginBottom: 4 }}>Profit &amp; loss statement</div>
-          <div className="tiny muted" style={{ marginBottom: 10 }}>period: {from} – {to} · accrual basis · commission &amp; fees auto-posted from ticket sales</div>
+          <div className="tiny muted" style={{ marginBottom: 10 }}>period: {from} – {to} · {cityF === 'All' ? 'all cities' : cityF} · accrual basis · commission &amp; fees auto-posted from ticket sales</div>
+          {cityF !== 'All' && (
+            <div className="tiny hint" style={{ marginBottom: 10 }}>
+              Showing {cityF}'s ticket commission &amp; booking fees only — other income and expenses are company-wide overhead not attributed to a single city, and only appear in the All-cities view.
+            </div>
+          )}
           <Line label="Income" value="" bold />
           <Line label="Ticket commission (auto)" value={`₹${fmt(fin.commissionIncome)}`} indent />
           <Line label="Booking fees (auto)" value={`₹${fmt(fin.feeIncome)}`} indent />
@@ -201,10 +216,16 @@ export default function Reports() {
           </div>
         </div>
       ) : chip === 'Balance sheet' ? (
-        <div className="two-col" style={{ maxWidth: 900 }}>
+        <div className="stack" style={{ maxWidth: 900, gap: 10 }}>
+          {cityF !== 'All' && (
+            <div className="tiny hint">
+              Showing {cityF}'s ticket cash flow only — other income and expenses are company-wide overhead not attributed to a single city, and only appear in the All-cities view.
+            </div>
+          )}
+          <div className="two-col">
           <div className="card">
             <div className="display" style={{ fontWeight: 700, marginBottom: 4 }}>Assets</div>
-            <div className="tiny muted" style={{ marginBottom: 10 }}>as of {to}</div>
+            <div className="tiny muted" style={{ marginBottom: 10 }}>as of {to} · {cityF === 'All' ? 'all cities' : cityF}</div>
             <Line label="Cash & bank (collections − payouts − expenses)" value={`₹${fmt(fin.cash)}`} indent delta={prevFin ? deltaPct(fin.cash, prevFin.cash) : undefined} />
             <Line label="Receivables (gateway settlements in transit)" value="not modeled" indent />
             <Line label="Security deposits (venues)" value="not modeled" indent />
@@ -218,6 +239,7 @@ export default function Reports() {
             <Line label="Total liabilities" value={`₹${fmt(fin.payoutsDue + fin.gstPayable)}`} bold red />
             <div style={{ height: 10 }} />
             <Line label="Owner's equity (balancing)" value={`₹${fmt(fin.cash - (fin.payoutsDue + fin.gstPayable))}`} bold />
+          </div>
           </div>
         </div>
       ) : (

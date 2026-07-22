@@ -5,7 +5,7 @@ import { apiFetch, apiUpload } from './client';
 import type {
   Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayMethod, Person, User, Venue, WaitlistEntry,
 } from '../types';
-import type { CartRecord, OrgReview, PromoterGuest, Referral, SubPromoter, WalletTx } from '../store/AppContext';
+import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, WalletTx } from '../store/AppContext';
 
 // ---------- auth ----------
 export const auth = {
@@ -93,7 +93,7 @@ export const social = {
   interested: (eventId: string, on: boolean) => apiFetch<void>(`/events/${eventId}/interested`, { body: { on } }),
   wishlist: (eventId: string, on: boolean) => apiFetch<void>(`/events/${eventId}/wishlist`, { body: { on } }),
   favVenue: (venueId: string, on: boolean) => apiFetch<void>(`/venues/${venueId}/favourite`, { body: { on } }),
-  reviewOrganizer: (orgId: string, rating: number, text: string) => apiFetch<OrgReview>(`/organizers/${orgId}/reviews`, { body: { rating, text } }),
+  reviewOrganizer: (orgId: string, rating: number, text: string) => apiFetch<GuestReview>(`/organizers/${orgId}/reviews`, { body: { rating, text } }),
 };
 
 // ---------- promoter ----------

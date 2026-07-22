@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAdmin } from '../store/AdminContext';
-import { SearchBox } from '../components/ui';
+import { CityFilterDropdown, SearchBox } from '../components/ui';
+import { enabledCityNames } from '../store/data';
 import type { ReviewTargetType } from '../types';
 
 const Star = ({ n }: { n: number }) => (
@@ -20,9 +21,11 @@ const TYPES: ReviewTargetType[] = ['organizer', 'promoter', 'venue', 'lineup'];
  * reviews and can add, edit or remove them. Those roles only ever get a
  * read-only view on their side. Guests are never reviewable. */
 export default function Reviews() {
-  const { reviews, addReview, updateReview, removeReview, toast, organizers, promoters, venues, lineups } = useAdmin();
+  const { reviews, addReview, updateReview, removeReview, toast, organizers, promoters, venues, lineups, locations } = useAdmin();
   const [type, setType] = useState<'All' | ReviewTargetType>('All');
+  const [cityF, setCityF] = useState('All');
   const [query, setQuery] = useState('');
+  const cities = enabledCityNames(locations);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [editRating, setEditRating] = useState(5);
@@ -42,15 +45,28 @@ export default function Reviews() {
     lineup: lineups.map((l) => l.name),
   };
 
+  // Reviews only store targetType/targetName, not city — resolve it live from
+  // each role's own directory so the filter always reflects real city data
+  // (never goes stale if a business moves city or gets renamed).
+  const cityByTarget = useMemo(() => {
+    const m = new Map<string, string>();
+    organizers.forEach((o) => m.set(`organizer:${o.name}`, o.city));
+    promoters.forEach((p) => m.set(`promoter:${p.name}`, p.city));
+    venues.forEach((v) => m.set(`venue:${v.name}`, v.city));
+    lineups.forEach((l) => l.city && m.set(`lineup:${l.name}`, l.city));
+    return m;
+  }, [organizers, promoters, venues, lineups]);
+
   const list = useMemo(() => {
     let l = reviews;
     if (type !== 'All') l = l.filter((r) => r.targetType === type);
+    if (cityF !== 'All') l = l.filter((r) => cityByTarget.get(`${r.targetType}:${r.targetName}`) === cityF);
     if (query.trim()) {
       const q = query.toLowerCase();
       l = l.filter((r) => (r.author + r.eventTitle + r.targetName + r.text).toLowerCase().includes(q));
     }
     return l;
-  }, [reviews, type, query]);
+  }, [reviews, type, cityF, cityByTarget, query]);
 
   const avg = list.length ? (list.reduce((a, r) => a + r.rating, 0) / list.length).toFixed(1) : '—';
 
@@ -139,10 +155,11 @@ export default function Reviews() {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <SearchBox value={query} onChange={setQuery} placeholder="Search author / event / target / text…" style={{ flex: 1, minWidth: 180 }} />
-        <button className={`chip ${type === 'All' ? 'on' : ''}`} onClick={() => setType('All')}>All</button>
+        <button className={`chip ${type === 'All' ? 'on' : ''}`} onClick={() => setType('All')}>All roles</button>
         {TYPES.map((t) => (
           <button key={t} className={`chip ${type === t ? 'on' : ''}`} onClick={() => setType(t)}>{TYPE_LABEL[t]}</button>
         ))}
+        <CityFilterDropdown value={cityF} onChange={setCityF} cities={cities} />
       </div>
 
       <div className="stack" style={{ gap: 8 }}>
