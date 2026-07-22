@@ -4,6 +4,7 @@ import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { CityFilterDropdown, GradientPhoto, ImagePicker, SearchBox, Tag } from '../components/ui';
 import { enabledCityNames } from '../store/data';
+import WysiwygEditor from '../components/WysiwygEditor';
 
 /** Line-ups directory — artists, DJs, bands, sponsors, promoters and hosts
  * that events can book and guests can follow. */
@@ -193,7 +194,7 @@ export function LineupEdit() {
 
         <div className="field">
           <label>Description — shows on their public profile</label>
-          <textarea className="input" style={{ minHeight: 72, resize: 'vertical' }} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Who are they, what do they play/do?" />
+          <WysiwygEditor value={description} onChange={setDescription} minHeight={72} />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <div className="field" style={{ flex: 1 }}>

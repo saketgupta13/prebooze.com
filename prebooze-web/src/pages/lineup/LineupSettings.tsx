@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../../store/AppContext';
+import WysiwygEditor from '../../components/WysiwygEditor';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 
@@ -47,7 +48,7 @@ export default function LineupSettings() {
         </div>
         <div className="field">
           <span>Bio</span>
-          <textarea value={form.bio} onChange={set('bio')} placeholder="What do you play / do? Two lines that make a booker say yes…" />
+          <WysiwygEditor value={form.bio} onChange={(html) => setForm((f) => ({ ...f, bio: html }))} minHeight={80} />
         </div>
         <div className="field">
           <span>Links (socials / music)</span>

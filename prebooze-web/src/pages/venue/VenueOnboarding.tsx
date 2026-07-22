@@ -7,6 +7,7 @@ import MapEmbed from '../../components/MapEmbed';
 import { existingRole } from '../../lib/roles';
 import { notify } from '../../lib/notify';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
+import WysiwygEditor from '../../components/WysiwygEditor';
 
 const VENUE_TYPES = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
@@ -173,7 +174,7 @@ export default function VenueOnboarding() {
             </div>
             <div className="field">
               <span>ℹ️ About the venue</span>
-              <textarea value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Sound, vibe, what nights work best here…" />
+              <WysiwygEditor value={about} onChange={setAbout} minHeight={80} />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>

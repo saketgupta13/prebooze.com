@@ -78,7 +78,7 @@ export default function PromoterProfile() {
             </div>
             <div className="card">
               <h3 style={{ marginBottom: 8 }}>About</h3>
-              <p className="muted small">{promoter.bio}</p>
+              <div className="muted small rich-text" dangerouslySetInnerHTML={{ __html: promoter.bio }} />
               <div className="hr" />
               <div className="kv"><span className="k">Based in</span><span>{promoter.city}</span></div>
               <div className="kv"><span className="k">Show-up rate</span><span className="accent bold">{promoter.showRate}%</span></div>

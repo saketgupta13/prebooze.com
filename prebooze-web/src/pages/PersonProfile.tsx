@@ -157,7 +157,7 @@ export default function PersonProfile() {
             </button>
           </div>
 
-          {person.bio && <p className="small" style={{ margin: '12px 0 0', maxWidth: 560 }}>{person.bio}</p>}
+          {person.bio && <div className="small rich-text" style={{ margin: '12px 0 0', maxWidth: 560 }} dangerouslySetInnerHTML={{ __html: person.bio }} />}
 
           <div className="stat3" style={{ marginTop: 14, gridTemplateColumns: 'repeat(3, 1fr)' }}>
             <StatBtn value={followerList.length} label="followers" which="followers" />

@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import { ImagePicker } from '../components/ui';
+import { stripHtml } from '../store/data';
+import WysiwygEditor from '../components/WysiwygEditor';
 
 /** Create / edit a blog post — cover banner, title, category, content and SEO. */
 export function BlogEditor() {
@@ -104,15 +106,9 @@ export function BlogEditor() {
         </div>
         <div className="field">
           <label>Content — rich text (embed event cards with [event: slug])</label>
-          <textarea
-            className="input"
-            style={{ minHeight: 220, resize: 'vertical', lineHeight: 1.7 }}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={'Write the story…\n\n[event: indie-night-live]'}
-          />
+          <WysiwygEditor value={content} onChange={setContent} minHeight={220} />
         </div>
-        <div className="tiny hint">{content.trim().split(/\s+/).filter(Boolean).length} words · ~{Math.max(1, Math.round(content.trim().split(/\s+/).filter(Boolean).length / 200))} min read</div>
+        <div className="tiny hint">{stripHtml(content).trim().split(/\s+/).filter(Boolean).length} words · ~{Math.max(1, Math.round(stripHtml(content).trim().split(/\s+/).filter(Boolean).length / 200))} min read</div>
       </div>
 
       <SeoFields seo={seo} onChange={setSeo} slug={slug} fallbackTitle={title || 'Blog post'} />

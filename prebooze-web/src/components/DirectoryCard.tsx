@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { stripHtml } from '../lib/richtext';
 
 /** Consistent directory card for people / promoters / organizers / line-ups.
  * Plain card background (no banners), avatar, bio + stats + action. */
@@ -36,7 +37,7 @@ export default function DirectoryCard({
       <div className="tiny muted-2">{meta}</div>
       {bio && (
         <p className="tiny muted" style={{ margin: '8px 0 0', minHeight: '2.6em', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-          {bio}
+          {stripHtml(bio)}
         </p>
       )}
       {stats && <div className="tiny muted-2" style={{ marginTop: 8 }}>{stats}</div>}

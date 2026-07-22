@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
+import WysiwygEditor from '../components/WysiwygEditor';
 
 /** Add promoter — admin onboards a PR directly: profile + plan + KYC toggles.
  * Lands as Pending review until approved. */
@@ -77,7 +78,7 @@ export default function AddPromoter() {
         </div>
         <div className="field">
           <label>Bio</label>
-          <textarea className="input" style={{ minHeight: 56, resize: 'vertical' }} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="What kind of nights do they run?" />
+          <WysiwygEditor value={bio} onChange={setBio} minHeight={56} />
         </div>
 
         <div className="dashed-box" style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11.5 }}>

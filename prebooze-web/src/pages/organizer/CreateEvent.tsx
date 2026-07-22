@@ -6,6 +6,7 @@ import type { Event, TicketTier } from '../../types';
 import Poster, { categoryEmoji } from '../../components/Poster';
 import Accordion from '../../components/Accordion';
 import { FileDropBox, GalleryDropBox } from '../../components/FileDropBox';
+import WysiwygEditor from '../../components/WysiwygEditor';
 
 const STEPS = ['1 Basics', '2 Tickets', '3 Rules & line-up', '4 Promoters', '5 SEO & publish'];
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
@@ -298,11 +299,7 @@ export default function CreateEvent() {
           </div>
           <div className="field">
             <span>Description</span>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description — what should guests expect?"
-            />
+            <WysiwygEditor value={description} onChange={setDescription} minHeight={100} />
           </div>
           <div className="form-row">
             <div className="field">

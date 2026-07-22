@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAdmin } from '../store/AdminContext';
+import WysiwygEditor from '../components/WysiwygEditor';
 
 /** Careers — post/edit/close jobs, create teams, review applicants. */
 export default function CareersAdmin() {
@@ -68,7 +69,7 @@ export default function CareersAdmin() {
         </div>
         <div className="field" style={{ flexBasis: '100%' }}>
           <label>Job description</label>
-          <textarea className="input" style={{ minHeight: 56, resize: 'vertical' }} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="What the role owns, who it reports to, what great looks like…" />
+          <WysiwygEditor value={about} onChange={setAbout} minHeight={56} />
         </div>
         <button className="btn btn-pri" style={{ height: 38 }}>{editingId ? 'Save changes ✓' : '+ Post job'}</button>
       </form>
@@ -118,7 +119,9 @@ export default function CareersAdmin() {
               </div>
               {openJob === j.id && (
                 <div style={{ padding: '4px 16px 12px', borderBottom: '1px solid rgba(139,195,74,.12)' }}>
-                  {j.about && <div className="tiny muted" style={{ marginBottom: 6 }}>JD: {j.about}</div>}
+                  {j.about && (
+                    <div className="tiny muted wysiwyg-body" style={{ marginBottom: 6 }} dangerouslySetInnerHTML={{ __html: j.about }} />
+                  )}
                   {apps.length === 0 ? (
                     <div className="muted small">No applicants yet.</div>
                   ) : (

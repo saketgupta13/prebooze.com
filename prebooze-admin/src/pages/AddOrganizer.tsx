@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
+import WysiwygEditor from '../components/WysiwygEditor';
 
 /** Add organizer — same full onboarding steps as the organizer-facing flow:
  * 1 · business profile → 2 · KYC & bank → review & invite. */
@@ -128,7 +129,7 @@ export default function AddOrganizer() {
           </div>
           <div className="field">
             <label>About the brand</label>
-            <textarea className="input" style={{ minHeight: 56, resize: 'vertical' }} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="What do they host?" />
+            <WysiwygEditor value={about} onChange={setAbout} minHeight={56} />
           </div>
           <div className="field">
             <label>Website & social links</label>

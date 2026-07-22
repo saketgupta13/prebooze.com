@@ -26,11 +26,10 @@ const TOGGLE_CMDS = new Set(['bold', 'italic', 'underline', 'insertUnorderedList
 
 /** A real, dependency-free WYSIWYG — contentEditable + document.execCommand.
  * Still broadly supported despite being long-deprecated, and pulling in a
- * full editor library (Tiptap/Quill/Slate) for a handful of description
- * fields didn't seem worth the dependency, consistent with how lean the rest
- * of this stack stays (scrypt over bcrypt, no chart library, etc.). Stores
- * real HTML, not a plain-text placeholder string. */
-export default function WysiwygEditor({ value, onChange, minHeight = 160 }: {
+ * full editor library (Tiptap/Quill/Slate) for a handful of description/
+ * about fields didn't seem worth the dependency, consistent with how lean
+ * the rest of this stack stays. Stores real HTML, not a plain-text string. */
+export default function WysiwygEditor({ value, onChange, minHeight = 140 }: {
   value: string;
   onChange: (html: string) => void;
   minHeight?: number;
@@ -72,7 +71,7 @@ export default function WysiwygEditor({ value, onChange, minHeight = 160 }: {
   // fights the DOM (cursor jumps, wiped edits on re-render) — so the
   // element's HTML is only ever set imperatively here, never via React's
   // own render, and only when the value changed from *outside* this editor
-  // (e.g. switching which event/page is being edited), not on every
+  // (e.g. switching which profile/event is being edited), not on every
   // keystroke echoed back through onChange.
   useEffect(() => {
     if (ref.current && value !== lastValue.current && document.activeElement !== ref.current) {
@@ -109,18 +108,17 @@ export default function WysiwygEditor({ value, onChange, minHeight = 160 }: {
     padding: '3px 9px',
     fontSize: 11.5,
     fontWeight: 700,
-    background: isActive ? 'var(--green)' : undefined,
+    background: isActive ? 'var(--accent)' : undefined,
     color: isActive ? 'var(--bg)' : undefined,
-    borderColor: isActive ? 'var(--green)' : undefined,
+    borderColor: isActive ? 'var(--accent)' : undefined,
   });
 
   return (
     <div>
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6, alignItems: 'center' }}>
         <select
-          className="input"
           title="Paragraph style"
-          style={{ width: 118, padding: '3px 6px', fontSize: 11.5, fontWeight: 700 }}
+          style={{ width: 120, padding: '3px 6px', fontSize: 11.5, fontWeight: 700 }}
           value={block}
           onMouseDown={(e) => e.preventDefault()}
           onChange={(e) => {
@@ -169,7 +167,7 @@ export default function WysiwygEditor({ value, onChange, minHeight = 160 }: {
       </div>
       <div
         ref={ref}
-        className="input wysiwyg-body"
+        className="wysiwyg-body rich-text"
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}

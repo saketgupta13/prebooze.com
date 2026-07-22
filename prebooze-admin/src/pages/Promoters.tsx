@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
-import { fmt } from '../store/data';
+import { fmt, stripHtml } from '../store/data';
 import { CityFilterDropdown, GradientPhoto, ORGANIZER_STATUS, SearchBox, Tag } from '../components/ui';
 import { enabledCityNames } from '../store/data';
 import type { Promoter } from '../types';
@@ -166,7 +166,7 @@ export function PromoterDetail() {
         <Link to={`/promoters/${p.id}/edit`} className="btn btn-ghost btn-sm">Edit</Link>
         <button className="btn btn-ghost btn-sm" onClick={() => toast('Message sent to promoter ✓')}>Message</button>
       </div>
-      <div className="small muted">{p.contact} · {p.city} · {p.bio ?? ''}</div>
+      <div className="small muted">{p.contact} · {p.city} · {stripHtml(p.bio ?? '')}</div>
 
       <div className="kpi-grid">
         <div className="kpi"><div className="l">Plan</div><div className="v">{planName}</div></div>

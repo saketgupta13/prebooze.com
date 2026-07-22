@@ -576,6 +576,13 @@ export function enabledCityNames(locations: LocCountry[]): string[] {
   return [...names].sort();
 }
 
+/** Plain-text preview of a WysiwygEditor field (description/about/bio) for
+ * compact contexts — list rows, one-line summaries — where rendering the
+ * real HTML would show literal tags instead of formatted text. */
+export function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 /** AdminEvent.date is a year-less "24 Jul" string (mock data has no real
  * year field) — assumes the current year, which is good enough for a
  * dev-seed dataset that's always "this year" relative to itself. Used by

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
+import WysiwygEditor from '../components/WysiwygEditor';
 
 /** Edit an existing promoter's profile, plan and status. */
 export default function PromoterEdit() {
@@ -97,7 +98,7 @@ export default function PromoterEdit() {
         </div>
         <div className="field">
           <label>Bio</label>
-          <textarea className="input" style={{ minHeight: 56, resize: 'vertical' }} value={bio} onChange={(e) => setBio(e.target.value)} />
+          <WysiwygEditor value={bio} onChange={setBio} minHeight={56} />
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <Link to={`/promoters/${p.id}`} className="btn btn-ghost">Cancel</Link>

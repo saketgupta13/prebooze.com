@@ -5,6 +5,7 @@ import LocationPicker, { emptyLocation, type LocationValue } from '../components
 import RoleTaken from '../components/RoleTaken';
 import { existingRole } from '../lib/roles';
 import { loadDraft, saveDraft, clearDraft } from '../lib/formDraft';
+import WysiwygEditor from '../components/WysiwygEditor';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 const DRAFT_ID = 'lineup';
@@ -135,7 +136,7 @@ export default function LineupOnboarding() {
             </div>
             <div className="field">
               <span>Bio — what do you play / do?</span>
-              <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Two lines that make a booker say yes…" />
+              <WysiwygEditor value={bio} onChange={setBio} minHeight={80} />
             </div>
             <div className="field">
               <span>Sample set / showreel link (optional)</span>

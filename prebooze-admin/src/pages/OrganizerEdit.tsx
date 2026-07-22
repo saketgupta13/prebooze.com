@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { ORGANIZER_STATUS, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
+import WysiwygEditor from '../components/WysiwygEditor';
 
 /** Edit organizer — mirrors the organizer onboarding flow: business profile then KYC & bank. */
 export default function OrganizerEdit() {
@@ -108,7 +109,7 @@ export default function OrganizerEdit() {
         </div>
         <div className="field">
           <label>About the brand</label>
-          <textarea className="input" style={{ minHeight: 60, resize: 'vertical' }} value={form.about} onChange={set('about')} />
+          <WysiwygEditor value={form.about} onChange={(html) => setForm((f) => ({ ...f, about: html }))} minHeight={60} />
         </div>
         <div className="field">
           <label>Website & social links</label>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { VENUES } from '../../data/mock';
 import MapEmbed from '../../components/MapEmbed';
+import WysiwygEditor from '../../components/WysiwygEditor';
 
 const VENUE_TYPES = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
@@ -105,7 +106,7 @@ export default function VenueListing() {
         </div>
         <div className="field">
           <span>ℹ️ About the venue</span>
-          <textarea value={about} onChange={(e) => setAbout(e.target.value)} />
+          <WysiwygEditor value={about} onChange={setAbout} minHeight={80} />
         </div>
         <button className="btn btn-pri btn-lg">Save listing ✓</button>
         <span className="tiny muted-2" style={{ marginLeft: 10 }}>city changes go through support — keeps the directory clean</span>

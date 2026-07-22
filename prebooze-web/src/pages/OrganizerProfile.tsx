@@ -42,9 +42,7 @@ export default function OrganizerProfile() {
             <div className="muted small">
               @{org.username} · {org.city} · since {org.since}
             </div>
-            <p className="muted small" style={{ marginTop: 6, maxWidth: 480 }}>
-              {org.about}
-            </p>
+            <div className="muted small rich-text" style={{ marginTop: 6, maxWidth: 480 }} dangerouslySetInnerHTML={{ __html: org.about }} />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <span className="icon-round">ig</span>

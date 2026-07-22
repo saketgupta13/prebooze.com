@@ -119,7 +119,7 @@ export default function VenueDetail() {
               </>
             )}
             <h3 style={{ marginBottom: 8 }}>ℹ️ About this venue</h3>
-            <p className="muted small">{venue.about}</p>
+            <div className="muted small rich-text" dangerouslySetInnerHTML={{ __html: venue.about }} />
           </div>
         </div>
 

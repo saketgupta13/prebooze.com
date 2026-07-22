@@ -6,6 +6,7 @@ import { fmt } from '../store/data';
 import { CityFilterDropdown, EVENT_STATUS, GradientPhoto, Kpi, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import MapEmbed from '../components/MapEmbed';
+import WysiwygEditor from '../components/WysiwygEditor';
 
 /** Chip-based amenities editor with presets + custom add. */
 function AmenitiesEditor({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
@@ -291,7 +292,7 @@ export function AddVenue() {
       </div>
       <div className="card" style={{ padding: 12 }}>
         <div className="tiny" style={{ fontWeight: 700, marginBottom: 6 }}>ℹ️ About the venue</div>
-        <textarea className="input" rows={3} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Sound, vibe, what nights work best here…" />
+        <WysiwygEditor value={about} onChange={setAbout} minHeight={60} />
       </div>
       <AmenitiesEditor value={amenities} onChange={setAmenities} />
       <button
@@ -408,7 +409,7 @@ export function EditVenue() {
       </div>
       <div className="field">
         <label>ℹ️ About the venue</label>
-        <textarea className="input" rows={3} value={about} onChange={(e) => setAbout(e.target.value)} />
+        <WysiwygEditor value={about} onChange={setAbout} minHeight={60} />
       </div>
       <AmenitiesEditor value={amenities} onChange={setAmenities} />
       <button

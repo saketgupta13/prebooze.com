@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAdmin } from '../store/AdminContext';
 import SeoFields, { emptySeo } from '../components/SeoFields';
+import WysiwygEditor from '../components/WysiwygEditor';
 
 /** Policy / legal document editor — one place for Terms, Privacy, Refund, etc. */
 export default function Policies() {
@@ -67,12 +68,7 @@ export default function Policies() {
                 ✕
               </button>
             </div>
-            <textarea
-              className="input"
-              style={{ minHeight: 72, resize: 'vertical' }}
-              value={sec.body}
-              onChange={(e) => setSection(i, { body: e.target.value })}
-            />
+            <WysiwygEditor value={sec.body} onChange={(html) => setSection(i, { body: html })} minHeight={72} />
           </div>
         ))}
         <button

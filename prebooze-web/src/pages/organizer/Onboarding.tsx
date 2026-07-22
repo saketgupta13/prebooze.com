@@ -5,6 +5,7 @@ import LocationPicker, { emptyLocation, type LocationValue } from '../../compone
 import RoleTaken from '../../components/RoleTaken';
 import { existingRole } from '../../lib/roles';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
+import WysiwygEditor from '../../components/WysiwygEditor';
 
 const DRAFT_ID = 'organizer';
 type Draft = {
@@ -110,11 +111,7 @@ export default function Onboarding() {
             </div>
             <div className="field">
               <span>About your brand</span>
-              <textarea
-                value={about}
-                onChange={(e) => setAbout(e.target.value)}
-                placeholder="About your brand — what do you host?"
-              />
+              <WysiwygEditor value={about} onChange={setAbout} minHeight={80} />
             </div>
             <div className="field">
               <span>Website & social links</span>

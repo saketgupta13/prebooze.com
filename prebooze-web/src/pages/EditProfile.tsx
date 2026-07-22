@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { CITIES, INTEREST_TAGS } from '../data/mock';
+import WysiwygEditor from '../components/WysiwygEditor';
 
 export default function EditProfile() {
   const { user, updateUser } = useApp();
@@ -106,7 +107,7 @@ export default function EditProfile() {
           </div>
           <div className="field">
             <span>Bio</span>
-            <textarea value={form.bio} onChange={set('bio')} />
+            <WysiwygEditor value={form.bio} onChange={(html) => setForm((f) => ({ ...f, bio: html }))} minHeight={70} />
           </div>
           <div className="field">
             <span>Social links</span>

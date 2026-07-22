@@ -5,6 +5,7 @@ import LocationPicker, { emptyLocation, type LocationValue } from '../../compone
 import RoleTaken from '../../components/RoleTaken';
 import { existingRole } from '../../lib/roles';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
+import WysiwygEditor from '../../components/WysiwygEditor';
 
 const DRAFT_ID = 'promoter';
 type Draft = {
@@ -120,7 +121,7 @@ export default function PromoterOnboarding() {
             </div>
             <div className="field">
               <span>Bio — what nights do you run?</span>
-              <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Rooftops, warehouses, free before 1 AM…" />
+              <WysiwygEditor value={bio} onChange={setBio} minHeight={80} />
             </div>
             <div className="field">
               <span>Audience size / reach (optional)</span>

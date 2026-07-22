@@ -46,9 +46,7 @@ export default function Profile() {
               <b>{followers.length}</b> <span className="muted">followers</span> · <b>{peopleFollowing}</b> <span className="muted">following</span>
             </div>
             {user.bio && (
-              <p className="muted small" style={{ marginBottom: 10 }}>
-                {user.bio}
-              </p>
+              <div className="muted small rich-text" style={{ marginBottom: 10 }} dangerouslySetInnerHTML={{ __html: user.bio }} />
             )}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
               <Link to="/profile/edit" className="btn btn-ghost btn-sm">

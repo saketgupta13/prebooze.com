@@ -76,7 +76,7 @@ export default function LineupProfile() {
             </div>
             <div className="card">
               <h3 style={{ marginBottom: 8 }}>About</h3>
-              <p className="muted small">{lineup.bio}</p>
+              <div className="muted small rich-text" dangerouslySetInnerHTML={{ __html: lineup.bio }} />
               <div className="hr" />
               <div className="kv">
                 <span className="k">Category</span>

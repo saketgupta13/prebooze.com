@@ -14,6 +14,7 @@ import {
 } from '../data/mock';
 import { friendsGoing, goingCount, myStatus } from '../lib/social';
 import { existingRole, roleLabel } from '../lib/roles';
+import { stripHtml } from '../lib/richtext';
 import Poster, { categoryEmoji } from '../components/Poster';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
@@ -171,12 +172,12 @@ export default function EventDetail() {
               <div className="section-hd">
                 <h2>About this event</h2>
               </div>
-              <p className="muted" style={{ fontSize: 14 }}>
-                {expanded || event.description.length <= 220
-                  ? event.description
-                  : event.description.slice(0, 220) + '…'}
-              </p>
-              {event.description.length > 220 && (
+              <div
+                className="muted rich-text"
+                style={{ fontSize: 14, maxHeight: expanded ? 'none' : 90, overflow: 'hidden' }}
+                dangerouslySetInnerHTML={{ __html: event.description }}
+              />
+              {stripHtml(event.description).length > 220 && (
                 <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={() => setExpanded((e) => !e)}>
                   {expanded ? 'Show less ▴' : 'Read more ▾'}
                 </button>

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { INTEREST_TAGS } from '../../data/mock';
 import LocationPicker, { emptyLocation } from '../../components/LocationPicker';
+import WysiwygEditor from '../../components/WysiwygEditor';
 
 export default function ProfileCompletion() {
   const { user, updateUser } = useApp();
@@ -110,7 +111,7 @@ export default function ProfileCompletion() {
           </div>
           <div className="field">
             <span>Bio</span>
-            <textarea value={form.bio} onChange={set('bio')} placeholder="Bio — tell people what you're into…" />
+            <WysiwygEditor value={form.bio} onChange={(html) => setForm((f) => ({ ...f, bio: html }))} minHeight={70} />
           </div>
           <div className="field">
             <span>Social links</span>
