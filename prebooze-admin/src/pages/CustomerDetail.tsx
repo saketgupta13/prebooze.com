@@ -3,6 +3,8 @@ import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { BOOKING_STATUS, CUSTOMER_STATUS, Kpi, Tag } from '../components/ui';
 
+const waLink = (phone: string, message: string) => `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+
 /** Full customer detail — profile, KPIs and real booking history, matched
  * by guest name (the same key the mock's own booking records use — there's
  * no shared customer id on a booking, this mirrors how the old drawer's
@@ -10,7 +12,7 @@ import { BOOKING_STATUS, CUSTOMER_STATUS, Kpi, Tag } from '../components/ui';
 export default function CustomerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { customers, bookings, events, toggleBlockCustomer, removeCustomer, toast } = useAdmin();
+  const { customers, bookings, events, toggleBlockCustomer, removeCustomer } = useAdmin();
 
   const customer = customers.find((c) => c.id === id);
   if (!customer) {
@@ -33,7 +35,16 @@ export default function CustomerDetail() {
         <h1 className="display" style={{ fontSize: 18 }}>{customer.name} {customer.verified && '✓'}</h1>
         <Tag {...CUSTOMER_STATUS[customer.status]} />
         <div style={{ flex: 1 }} />
-        <button className="btn btn-ghost btn-sm" onClick={() => toast('Opening WhatsApp chat…')}>💬 WhatsApp</button>
+        {customer.phone ? (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => window.open(waLink(customer.phone!, `Hey ${customer.name.split(' ')[0]}, this is the Prebooze team 👋`), '_blank', 'noopener')}
+          >
+            💬 WhatsApp
+          </button>
+        ) : (
+          <button className="btn btn-ghost btn-sm" disabled title="No phone number on file">💬 WhatsApp</button>
+        )}
         <button className="btn btn-danger btn-sm" onClick={() => toggleBlockCustomer(customer.id)}>
           {customer.status === 'blocked' ? 'Unblock customer' : 'Block customer'}
         </button>

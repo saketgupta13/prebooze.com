@@ -60,21 +60,38 @@ export const SEED_EVENTS: AdminEvent[] = [
 ];
 
 export const SEED_BOOKINGS: AdminBooking[] = [
-  { id: '#8412', guest: 'Sam Rivera', phone: '+91 98••• ••210', eventId: 'e1', qty: 2, amount: 1450, status: 'refund_requested', method: 'UPI', guests: ['Sam Rivera ✓ (main)', 'Alex Kim'] },
-  { id: '#8420', guest: 'Priya K.', phone: '+91 87••• ••330', eventId: 'e2', qty: 4, amount: 2900, status: 'paid', method: 'Card', guests: ['Priya K. ✓ (main)', 'Meera S.', 'Tara J.', 'Ishaan V.'] },
-  { id: '#8419', guest: 'Arjun M.', phone: '+91 99••• ••118', eventId: 'e1', qty: 1, amount: 580, status: 'checked_in', method: 'UPI', guests: ['Arjun M. (main)'] },
-  { id: '#8415', guest: 'Nia T.', phone: '+91 76••• ••902', eventId: 'e2', qty: 2, amount: 1160, status: 'refunded', method: 'UPI', guests: ['Nia T. ✓ (main)', 'Zoya R.'] },
+  {
+    id: '#8412', guest: 'Sam Rivera', phone: '+91 98000 37210', eventId: 'e1', qty: 2, amount: 1450, status: 'refund_requested', method: 'UPI',
+    guests: [{ name: 'Sam Rivera', phone: '+91 98000 37210', verified: true }, { name: 'Alex Kim', phone: '+91 98111 20034' }],
+  },
+  {
+    id: '#8420', guest: 'Priya K.', phone: '+91 87000 74330', eventId: 'e2', qty: 4, amount: 2900, status: 'paid', method: 'Card',
+    guests: [
+      { name: 'Priya K.', phone: '+91 87000 74330', verified: true },
+      { name: 'Meera S.', phone: '+91 98222 30045' },
+      { name: 'Tara J.', phone: '+91 98333 40056' },
+      { name: 'Ishaan V.', phone: '+91 98444 50067' },
+    ],
+  },
+  {
+    id: '#8419', guest: 'Arjun M.', phone: '+91 99001 11118', eventId: 'e1', qty: 1, amount: 580, status: 'checked_in', method: 'UPI',
+    guests: [{ name: 'Arjun M.', phone: '+91 99001 11118' }],
+  },
+  {
+    id: '#8415', guest: 'Nia T.', phone: '+91 76001 48902', eventId: 'e2', qty: 2, amount: 1160, status: 'refunded', method: 'UPI',
+    guests: [{ name: 'Nia T.', phone: '+91 76001 48902', verified: true }, { name: 'Zoya R.', phone: '+91 98555 60078' }],
+  },
 ];
 
 export const SEED_CUSTOMERS: Customer[] = [
-  { id: 'c1', name: 'Sam Rivera', verified: true, gender: 'M', city: 'Austin', bookings: 14, spend: 18200, status: 'active', segment: 'guests' },
-  { id: 'c2', name: 'Priya K.', verified: true, gender: 'F', city: 'Austin', bookings: 6, spend: 7400, status: 'active', segment: 'guests' },
-  { id: 'c3', name: 'Arjun M.', verified: false, gender: 'M', city: 'Dallas', bookings: 2, spend: 1100, status: 'unverified', segment: 'guests' },
-  { id: 'c4', name: 'R. Gupta', verified: false, gender: '—', city: 'Austin', bookings: 1, spend: 0, status: 'blocked', segment: 'guests' },
+  { id: 'c1', name: 'Sam Rivera', verified: true, gender: 'M', city: 'Austin', bookings: 14, spend: 18200, status: 'active', segment: 'guests', phone: '+91 98000 37210' },
+  { id: 'c2', name: 'Priya K.', verified: true, gender: 'F', city: 'Austin', bookings: 6, spend: 7400, status: 'active', segment: 'guests', phone: '+91 87000 74330' },
+  { id: 'c3', name: 'Arjun M.', verified: false, gender: 'M', city: 'Dallas', bookings: 2, spend: 1100, status: 'unverified', segment: 'guests', phone: '+91 99001 11118' },
+  { id: 'c4', name: 'R. Gupta', verified: false, gender: '—', city: 'Austin', bookings: 1, spend: 0, status: 'blocked', segment: 'guests', phone: '+91 90112 23344' },
 ];
 
 export const SEED_ORGANIZERS: Organizer[] = [
-  { id: 'o1', name: 'LiveWire Ent.', contact: 'contact@livewire.co', city: 'Austin', events: 18, kyc: 'verified', status: 'approved', contactPerson: 'Jordan Lee', phone: '+91 98••• ••442', eventTypes: 'Concerts, Festivals', about: "Austin's indie-music collective — 18 shows and counting.", links: 'livewire.co / ig / X', gstin: '29ABCDE1234F1Z5', pan: 'ABCDE1234F', bankLast4: '8821' },
+  { id: 'o1', name: 'LiveWire Ent.', contact: 'contact@livewire.co', city: 'Austin', events: 18, kyc: 'verified', status: 'approved', contactPerson: 'Jordan Lee', phone: '+91 98001 85442', eventTypes: 'Concerts, Festivals', about: "Austin's indie-music collective — 18 shows and counting.", links: 'livewire.co / ig / X', gstin: '29ABCDE1234F1Z5', pan: 'ABCDE1234F', bankLast4: '8821' },
   { id: 'o2', name: 'FestCrew', contact: 'hello@festcrew.io', city: 'Austin', events: 11, kyc: 'verified', status: 'approved' },
   { id: 'o3', name: 'NightOwl Co.', contact: 'bookings@nightowl.co', city: 'Dallas', events: 2, kyc: 'pending', status: 'pending' },
   { id: 'o4', name: 'Sunset Sessions', contact: 'team@sunsetsessions.com', city: 'Houston', events: 0, kyc: 'submitted', status: 'pending' },
@@ -82,7 +99,7 @@ export const SEED_ORGANIZERS: Organizer[] = [
 ];
 
 export const SEED_VENUES: Venue[] = [
-  { id: 'v1', name: 'Arena Hall', city: 'Austin', capacity: 400, events: 18, license: "valid till Mar '27", verified: true, address: '123 5th St, Austin, TX', type: 'Indoor', contact: 'Ravi N. · +91 98••• ••400', rules: 'No outside food, 11 PM curfew', amenities: ['Parking', 'Accessible', 'In-house bar', 'Coat check'] },
+  { id: 'v1', name: 'Arena Hall', city: 'Austin', capacity: 400, events: 18, license: "valid till Mar '27", verified: true, address: '123 5th St, Austin, TX', type: 'Indoor', contact: 'Ravi N. · +91 98002 22400', rules: 'No outside food, 11 PM curfew', amenities: ['Parking', 'Accessible', 'In-house bar', 'Coat check'] },
   { id: 'v2', name: 'Riverside Grounds', city: 'Austin', capacity: 2000, events: 11, license: "valid till Jan '27", verified: true, address: 'Riverside Park, Austin, TX', amenities: ['Parking', 'Food trucks', 'Open-air'] },
   { id: 'v3', name: 'Comedy Cave', city: 'Dallas', capacity: 180, events: 9, license: 'expires 12 Aug ⚠', verified: false, address: '88 6th St, Dallas, TX', amenities: ['In-house bar', 'Accessible'] },
   { id: 'v4', name: 'The Loft', city: 'Houston', capacity: 120, events: 7, license: "valid till Nov '26", verified: true, address: '5th & Lamar, Houston, TX', amenities: ['Rooftop', 'In-house bar'] },
@@ -145,7 +162,7 @@ export const SEED_LEDGER_CATEGORIES = {
 };
 
 export const SEED_GUEST_LIST = [
-  { id: 'g1', eventId: 'e1', name: 'Rhea Kapoor', phone: '+91 98••• ••771', plusOnes: 1, companions: [{ name: 'Aditya Kapoor', phone: '+91 98••• ••772' }], addedBy: 'Admin', arrived: false },
+  { id: 'g1', eventId: 'e1', name: 'Rhea Kapoor', phone: '+91 98002 59771', plusOnes: 1, companions: [{ name: 'Aditya Kapoor', phone: '+91 98002 96772' }], addedBy: 'Admin', arrived: false },
   { id: 'g2', eventId: 'e1', name: 'DJ Nova (artist)', plusOnes: 2, companions: [{ name: 'Tour manager' }, { name: 'Photographer' }], addedBy: 'Admin', arrived: true },
 ];
 
@@ -495,16 +512,16 @@ export const SEED_PROMOTERS = [
 // Abandoned carts — guests who reached checkout but didn't pay before the hold
 // lapsed. Platform-wide dataset for admin analytics + recovery nudges.
 export const SEED_ABANDONED_CARTS = [
-  { id: 'ac1', guest: 'Riya Sharma', phone: '+91 98•••• 1120', eventId: 'e1', qty: 2, amount: 162, tiers: '2× VIP', leftAt: '9m', reminded: false, status: 'abandoned' as const },
-  { id: 'ac2', guest: 'Arjun Mehta', phone: '+91 99•••• 4432', eventId: 'e1', qty: 2, amount: 60, tiers: '2× General', leftAt: '24m', reminded: false, status: 'abandoned' as const },
-  { id: 'ac3', guest: 'Neha Gupta', phone: '+91 97•••• 8890', eventId: 'e1', qty: 1, amount: 81, tiers: '1× VIP', leftAt: '1h', reminded: true, status: 'recovered' as const },
-  { id: 'ac4', guest: 'Vikram Rao', phone: '+91 90•••• 2201', eventId: 'e2', qty: 4, amount: 480, tiers: '4× Day pass', leftAt: '18m', reminded: false, status: 'abandoned' as const },
-  { id: 'ac5', guest: 'Priya Nair', phone: '+91 98•••• 5567', eventId: 'e2', qty: 2, amount: 240, tiers: '2× Day pass', leftAt: '2h', reminded: true, status: 'abandoned' as const },
-  { id: 'ac6', guest: 'Sana Kapoor', phone: '+91 96•••• 3312', eventId: 'e2', qty: 1, amount: 320, tiers: '1× Weekend', leftAt: '3h', reminded: true, status: 'recovered' as const },
-  { id: 'ac7', guest: 'Dev Patel', phone: '+91 99•••• 7788', eventId: 'e3', qty: 3, amount: 135, tiers: '3× Entry', leftAt: '40m', reminded: false, status: 'abandoned' as const },
-  { id: 'ac8', guest: 'Ananya Iyer', phone: '+91 97•••• 1145', eventId: 'e3', qty: 2, amount: 90, tiers: '2× Entry', leftAt: '5h', reminded: false, status: 'abandoned' as const },
-  { id: 'ac9', guest: 'Rohit Sinha', phone: '+91 90•••• 9923', eventId: 'e5', qty: 2, amount: 300, tiers: '2× GA', leftAt: '1d', reminded: false, status: 'abandoned' as const },
-  { id: 'ac10', guest: 'Meera Joshi', phone: '+91 98•••• 6654', eventId: 'e5', qty: 1, amount: 150, tiers: '1× GA', leftAt: '1d', reminded: true, status: 'recovered' as const },
+  { id: 'ac1', guest: 'Riya Sharma', phone: '+91 98033 31120', eventId: 'e1', qty: 2, amount: 162, tiers: '2× VIP', leftAt: '9m', reminded: false, status: 'abandoned' as const },
+  { id: 'ac2', guest: 'Arjun Mehta', phone: '+91 99037 04432', eventId: 'e1', qty: 2, amount: 60, tiers: '2× General', leftAt: '24m', reminded: false, status: 'abandoned' as const },
+  { id: 'ac3', guest: 'Neha Gupta', phone: '+91 97040 78890', eventId: 'e1', qty: 1, amount: 81, tiers: '1× VIP', leftAt: '1h', reminded: true, status: 'recovered' as const },
+  { id: 'ac4', guest: 'Vikram Rao', phone: '+91 90044 42201', eventId: 'e2', qty: 4, amount: 480, tiers: '4× Day pass', leftAt: '18m', reminded: false, status: 'abandoned' as const },
+  { id: 'ac5', guest: 'Priya Nair', phone: '+91 98048 15567', eventId: 'e2', qty: 2, amount: 240, tiers: '2× Day pass', leftAt: '2h', reminded: true, status: 'abandoned' as const },
+  { id: 'ac6', guest: 'Sana Kapoor', phone: '+91 96051 83312', eventId: 'e2', qty: 1, amount: 320, tiers: '1× Weekend', leftAt: '3h', reminded: true, status: 'recovered' as const },
+  { id: 'ac7', guest: 'Dev Patel', phone: '+91 99055 57788', eventId: 'e3', qty: 3, amount: 135, tiers: '3× Entry', leftAt: '40m', reminded: false, status: 'abandoned' as const },
+  { id: 'ac8', guest: 'Ananya Iyer', phone: '+91 97059 21145', eventId: 'e3', qty: 2, amount: 90, tiers: '2× Entry', leftAt: '5h', reminded: false, status: 'abandoned' as const },
+  { id: 'ac9', guest: 'Rohit Sinha', phone: '+91 90062 99923', eventId: 'e5', qty: 2, amount: 300, tiers: '2× GA', leftAt: '1d', reminded: false, status: 'abandoned' as const },
+  { id: 'ac10', guest: 'Meera Joshi', phone: '+91 98066 66654', eventId: 'e5', qty: 1, amount: 150, tiers: '1× GA', leftAt: '1d', reminded: true, status: 'recovered' as const },
 ];
 
 // Editable subscription tiers (admin-configurable; mirrored to the promoter app).
@@ -529,14 +546,14 @@ export const SEED_FEATURED_REQUESTS = [
 // Refer & earn — admin-editable rates + platform-wide referral analytics.
 export const SEED_REFERRAL_RATES = { referrer: 100, referee: 100 };
 export const SEED_REFERRALS = [
-  { id: 'rf1', referrer: 'Riya Sharma', referrerPhone: '+91 98•••• 1120', referee: 'Aman T.', refereePhone: '+91 99•••• 8811', status: 'qualified' as const, joinedAt: '12 Jul' },
-  { id: 'rf2', referrer: 'Riya Sharma', referrerPhone: '+91 98•••• 1120', referee: 'Kavya D.', refereePhone: '+91 97•••• 4420', status: 'qualified' as const, joinedAt: '10 Jul' },
-  { id: 'rf3', referrer: 'Riya Sharma', referrerPhone: '+91 98•••• 1120', referee: 'Ishaan P.', refereePhone: '+91 96•••• 7702', status: 'joined' as const, joinedAt: '16 Jul' },
-  { id: 'rf4', referrer: 'Arjun Mehta', referrerPhone: '+91 99•••• 4432', referee: 'Tara V.', refereePhone: '+91 90•••• 3391', status: 'qualified' as const, joinedAt: '9 Jul' },
-  { id: 'rf5', referrer: 'Arjun Mehta', referrerPhone: '+91 99•••• 4432', referee: 'Zoya F.', refereePhone: '+91 98•••• 5540', status: 'joined' as const, joinedAt: '15 Jul' },
-  { id: 'rf6', referrer: 'Neha Gupta', referrerPhone: '+91 97•••• 8890', referee: 'Om S.', refereePhone: '+91 91•••• 2288', status: 'qualified' as const, joinedAt: '6 Jul' },
-  { id: 'rf7', referrer: 'Neha Gupta', referrerPhone: '+91 97•••• 8890', referee: 'Lena M.', refereePhone: '+91 92•••• 6614', status: 'joined' as const, joinedAt: '17 Jul' },
-  { id: 'rf8', referrer: 'Dev Patel', referrerPhone: '+91 99•••• 7788', referee: 'Ria K.', refereePhone: '+91 93•••• 9925', status: 'joined' as const, joinedAt: '14 Jul' },
+  { id: 'rf1', referrer: 'Riya Sharma', referrerPhone: '+91 98033 31120', referee: 'Aman T.', refereePhone: '+91 99070 38811', status: 'qualified' as const, joinedAt: '12 Jul' },
+  { id: 'rf2', referrer: 'Riya Sharma', referrerPhone: '+91 98033 31120', referee: 'Kavya D.', refereePhone: '+91 97074 04420', status: 'qualified' as const, joinedAt: '10 Jul' },
+  { id: 'rf3', referrer: 'Riya Sharma', referrerPhone: '+91 98033 31120', referee: 'Ishaan P.', refereePhone: '+91 96077 77702', status: 'joined' as const, joinedAt: '16 Jul' },
+  { id: 'rf4', referrer: 'Arjun Mehta', referrerPhone: '+91 99037 04432', referee: 'Tara V.', refereePhone: '+91 90081 43391', status: 'qualified' as const, joinedAt: '9 Jul' },
+  { id: 'rf5', referrer: 'Arjun Mehta', referrerPhone: '+91 99037 04432', referee: 'Zoya F.', refereePhone: '+91 98085 15540', status: 'joined' as const, joinedAt: '15 Jul' },
+  { id: 'rf6', referrer: 'Neha Gupta', referrerPhone: '+91 97040 78890', referee: 'Om S.', refereePhone: '+91 91088 82288', status: 'qualified' as const, joinedAt: '6 Jul' },
+  { id: 'rf7', referrer: 'Neha Gupta', referrerPhone: '+91 97040 78890', referee: 'Lena M.', refereePhone: '+91 92092 56614', status: 'joined' as const, joinedAt: '17 Jul' },
+  { id: 'rf8', referrer: 'Dev Patel', referrerPhone: '+91 99055 57788', referee: 'Ria K.', refereePhone: '+91 93096 29925', status: 'joined' as const, joinedAt: '14 Jul' },
 ];
 
 // Careers — jobs + applicants (admin-managed; mirrors the guest careers page).
@@ -547,10 +564,10 @@ export const SEED_JOBS = [
   { id: 'job4', title: 'Design Intern', team: 'Design', loc: 'Remote', type: 'Internship', status: 'open' as const },
 ];
 export const SEED_APPLICANTS = [
-  { id: 'ap1', jobId: 'job1', name: 'Rahul Iyer', email: 'rahul@dev.io', phone: '+91 98•••• 2210', note: 'github.com/rahuldev — 6y React', appliedAt: '16 Jul' },
-  { id: 'ap2', jobId: 'job1', name: 'Sneha Patil', email: 'sneha@ui.dev', phone: '+91 97•••• 8841', note: 'Ex-Zomato web platform', appliedAt: '15 Jul' },
-  { id: 'ap3', jobId: 'job2', name: 'Aditya Rao', email: 'adi@growth.co', phone: '+91 96•••• 3324', note: 'Scaled 3 cities at Blinkit', appliedAt: '14 Jul' },
-  { id: 'ap4', jobId: 'job4', name: 'Mira Shah', email: 'mira@design.me', phone: '+91 90•••• 6672', note: 'behance.net/mirashah', appliedAt: '17 Jul' },
+  { id: 'ap1', jobId: 'job1', name: 'Rahul Iyer', email: 'rahul@dev.io', phone: '+91 98099 92210', note: 'github.com/rahuldev — 6y React', appliedAt: '16 Jul' },
+  { id: 'ap2', jobId: 'job1', name: 'Sneha Patil', email: 'sneha@ui.dev', phone: '+91 97103 68841', note: 'Ex-Zomato web platform', appliedAt: '15 Jul' },
+  { id: 'ap3', jobId: 'job2', name: 'Aditya Rao', email: 'adi@growth.co', phone: '+91 96107 33324', note: 'Scaled 3 cities at Blinkit', appliedAt: '14 Jul' },
+  { id: 'ap4', jobId: 'job4', name: 'Mira Shah', email: 'mira@design.me', phone: '+91 90111 06672', note: 'behance.net/mirashah', appliedAt: '17 Jul' },
 ];
 
 // Reels — videos for the guest "Things happening at events" slider.

@@ -74,7 +74,7 @@ export interface AdminBooking {
   amount: number;
   status: BookingStatus;
   method: string;
-  guests: string[]; // every attendee on the group QR (main guest first)
+  guests: { name: string; phone?: string; verified?: boolean }[]; // every attendee on the group QR (main guest first) — full name + phone, never masked for admin
 }
 
 export interface Customer {

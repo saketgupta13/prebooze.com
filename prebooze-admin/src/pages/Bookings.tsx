@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
-import { fmt } from '../store/data';
-import { BOOKING_STATUS, SearchBox, Tag } from '../components/ui';
+import { enabledCityNames, fmt } from '../store/data';
+import { BOOKING_STATUS, CityFilterDropdown, SearchBox, Tag } from '../components/ui';
 import type { BookingStatus } from '../types';
 
 type FilterKey = 'all' | BookingStatus;
@@ -15,13 +15,13 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 ];
 
 export default function Bookings() {
-  const { bookings, events, abandonedCarts, toast } = useAdmin();
+  const { bookings, events, abandonedCarts, locations, toast } = useAdmin();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const filter = (params.get('status') as FilterKey) ?? 'all';
   const [query, setQuery] = useState(params.get('q') ?? '');
   const [cityF, setCityF] = useState('All');
-  const cities = ['All', ...new Set(events.map((e) => e.city))];
+  const cities = enabledCityNames(locations);
   const eventCity = (id: string) => events.find((e) => e.id === id)?.city ?? '';
 
   const eventTitle = (id: string) => events.find((e) => e.id === id)?.title ?? '';
@@ -59,16 +59,7 @@ export default function Bookings() {
             {f.label}
           </button>
         ))}
-        <select
-          className="chip"
-          style={{ appearance: 'none', cursor: 'pointer', background: cityF !== 'All' ? 'var(--green)' : 'var(--bg)', color: cityF !== 'All' ? 'var(--on-green)' : '#c7cbb9' }}
-          value={cityF}
-          onChange={(e) => setCityF(e.target.value)}
-        >
-          {cities.map((c) => (
-            <option key={c} value={c}>{c === 'All' ? 'City ▾' : c}</option>
-          ))}
-        </select>
+        <CityFilterDropdown value={cityF} onChange={setCityF} cities={cities} />
       </div>
 
       <div className="tblwrap">
@@ -87,7 +78,7 @@ export default function Bookings() {
             onClick={() => navigate(`/bookings/${encodeURIComponent(b.id)}`)}
           >
             <span style={{ flex: 1, fontWeight: 700 }}>{b.id}</span>
-            <span style={{ flex: 1.6 }}>{b.guest} · {b.phone.slice(0, 9)}…</span>
+            <span style={{ flex: 1.6 }}>{b.guest} · {b.phone}</span>
             <span style={{ flex: 1.8 }} className="muted">{eventTitle(b.eventId)}</span>
             <span style={{ flex: 1 }}>{b.qty} · ₹{fmt(b.amount)}</span>
             <span style={{ flex: 1 }}><Tag {...BOOKING_STATUS[b.status]} /></span>

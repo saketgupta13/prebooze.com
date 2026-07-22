@@ -2,6 +2,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { BOOKING_STATUS, Tag } from '../components/ui';
+import QRCode from '../components/QRCode';
+
+const waLink = (phone: string, message: string) => `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
 
 /** Full booking detail — fee breakdown, group QR guest list, refund and
  * support actions. Same data the old drawer showed, just given a real page
@@ -24,7 +27,7 @@ export default function BookingDetail() {
   const event = events.find((e) => e.id === booking.eventId);
   const fee = booking.qty * 30;
   const gst = Math.round(fee * 0.18);
-  const guestList = booking.guests ?? [`${booking.guest} (main)`];
+  const guestList = booking.guests ?? [{ name: booking.guest, phone: booking.phone, verified: true }];
 
   return (
     <div className="stack fade" style={{ maxWidth: 720, gap: 14 }}>
@@ -78,18 +81,27 @@ export default function BookingDetail() {
         <div className="stack" style={{ gap: 4 }}>
           {guestList.map((g, i) => (
             <div
-              key={g}
+              key={g.name + i}
               style={{
                 display: 'flex', gap: 8, alignItems: 'center',
-                border: '1px solid rgba(139,195,74,.2)', borderRadius: 6, padding: '5px 9px', fontSize: 12,
+                border: '1px solid rgba(139,195,74,.2)', borderRadius: 6, padding: '6px 9px', fontSize: 12,
               }}
             >
               <span className="muted">{i + 1}.</span>
-              <span style={{ flex: 1 }}>{g}</span>
+              <span style={{ flex: 1, fontWeight: 700 }}>
+                {g.name} {i === 0 && <span className="tiny muted" style={{ fontWeight: 400 }}>(main)</span>} {g.verified && '✓'}
+              </span>
+              <span className="muted">{g.phone ?? 'no phone on file'}</span>
             </div>
           ))}
         </div>
-        <div className="tiny hint">one QR covers the whole group — partial check-in supported</div>
+        <div className="tiny hint">full name and mobile number for every attendee — never masked for admin</div>
+      </div>
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+        <div className="display" style={{ fontWeight: 700, alignSelf: 'flex-start' }}>Group entry QR</div>
+        <QRCode seed={booking.id} caption={`valid for ${guestList.length} guest${guestList.length > 1 ? 's' : ''}`} />
+        <div className="tiny hint">one QR covers the whole group — partial check-in supported at the gate</div>
       </div>
 
       {booking.status === 'refund_requested' && (
@@ -107,7 +119,20 @@ export default function BookingDetail() {
       )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => toast('Ticket resent via WhatsApp ✓')}>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            // prebooze-admin has no live backend wiring (mock/localStorage
+            // only, same as the rest of this app) so a real AiSensy template
+            // send isn't reachable from here — a real wa.me deep link with
+            // the actual ticket details is the most honest "real" resend
+            // available: it genuinely opens WhatsApp with a real, sendable
+            // message to the guest's real number, not a fake toast.
+            const msg = `Hey ${booking.guest.split(' ')[0]}, resending your Prebooze ticket for ${event?.title ?? 'your event'} — booking ${booking.id}, ${booking.qty} × ticket. See you there! 🎟`;
+            window.open(waLink(booking.phone, msg), '_blank', 'noopener');
+            toast('WhatsApp opened with the ticket message ✓');
+          }}
+        >
           Resend ticket via WhatsApp
         </button>
         <button

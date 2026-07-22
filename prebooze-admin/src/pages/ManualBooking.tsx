@@ -60,7 +60,10 @@ export default function ManualBooking() {
     const extra = others
       .slice(0, qty - 1)
       .filter((o) => o.name.trim())
-      .map((o) => `${o.name.trim()}${o.gender !== '—' ? ` (${o.gender})` : ''}${o.whatsapp.trim() ? ` · ${o.whatsapp.trim()}` : ''}`);
+      .map((o) => ({
+        name: `${o.name.trim()}${o.gender !== '—' ? ` (${o.gender})` : ''}`,
+        phone: o.whatsapp.trim() || undefined,
+      }));
     addBooking({
       id: '#' + Math.floor(8500 + Math.random() * 999),
       guest: guest.trim(),
@@ -70,7 +73,10 @@ export default function ManualBooking() {
       amount: totals.total,
       status: isComp ? 'checked_in' : 'paid',
       method: isComp ? 'Comp' : method + ' (manual)',
-      guests: [`${guest.trim()}${gender !== '—' ? ` (${gender})` : ''} ✓ (main)`, ...extra],
+      guests: [
+        { name: `${guest.trim()}${gender !== '—' ? ` (${gender})` : ''}`, phone: phone.trim(), verified: true },
+        ...extra,
+      ],
     });
     updateEvent(event.id, {
       sold: event.sold + qty,
