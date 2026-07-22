@@ -347,8 +347,36 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       return { ...g, phone, companions };
     })
   );
-  const [roles, setRoles] = usePersisted('pba_roles', SEED_ROLES);
-  const [notifications, setNotifications] = usePersisted<Notification[]>('pba_notifications', SEED_NOTIFICATIONS);
+  const [roles, setRoles] = usePersisted('pba_roles', SEED_ROLES, (stored) => {
+    // PERM_MODULES expanded from 7 broad buckets to 22 per-section modules
+    // in an earlier slice — a role matrix stored before that change is
+    // missing every one of the 15 new module keys entirely (not just
+    // holding a stale value for them), and PermissionGuard's optional-
+    // chained lookup treats a missing module as fail-closed, so every new
+    // module would silently deny access for every role. Seed provides the
+    // full current module set as the base; any stored per-module value
+    // (including hand-edited custom permissions) overlays on top, so real
+    // admin edits to the matrix survive, only the missing modules backfill.
+    const merged: typeof SEED_ROLES = {};
+    for (const roleName of Object.keys(SEED_ROLES)) {
+      merged[roleName] = { ...SEED_ROLES[roleName], ...(stored[roleName] ?? {}) };
+    }
+    // preserve any custom role the admin created beyond the seeded set
+    for (const roleName of Object.keys(stored)) {
+      if (!merged[roleName]) merged[roleName] = stored[roleName];
+    }
+    return merged;
+  });
+  const [notifications, setNotifications] = usePersisted<Notification[]>('pba_notifications', SEED_NOTIFICATIONS, (list) =>
+    list.map((n) => {
+      const base = SEED_NOTIFICATIONS.find((x) => x.id === n.id);
+      // one seeded notification's text cited a booking id that's since been
+      // replaced (see the bookings migration above) — refresh just that one
+      // stored record from the seed rather than leaving it pointing at an
+      // id that no longer exists anywhere in the app.
+      return base && n.text.includes('#8412') ? { ...n, text: base.text } : n;
+    })
+  );
   const [settings, setSettings] = usePersisted('pba_settings', SEED_SETTINGS, (v) => ({
     ...SEED_SETTINGS,
     ...v,
@@ -357,7 +385,20 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     contact: { ...SEED_SETTINGS.contact, ...(v as Partial<typeof SEED_SETTINGS>).contact },
   }));
   const [lineups, setLineups] = usePersisted<Lineup[]>('pba_lineups', SEED_LINEUPS);
-  const [reviews, setReviews] = usePersisted<AdminReview[]>('pba_reviews', SEED_REVIEWS);
+  const [reviews, setReviews] = usePersisted<AdminReview[]>('pba_reviews', SEED_REVIEWS, (list) =>
+    // schema migration: reviews stored before targetType/targetName existed
+    // were organizer-only, shaped { organizer: string, ... } — anything
+    // still in that old shape is missing targetType entirely, which would
+    // break TYPE_LABEL[r.targetType] lookups on the Reviews page. Convert
+    // in place (organizer reviews only, since that was the only kind that
+    // could exist under the old schema) rather than discarding real
+    // admin-authored review content.
+    list.map((r) => {
+      if ('targetType' in r && r.targetType) return r;
+      const old = r as unknown as { organizer?: string };
+      return { ...r, targetType: 'organizer' as const, targetName: old.organizer ?? 'Unknown' };
+    })
+  );
   const [testimonials, setTestimonials] = usePersisted<Testimonial[]>('pba_testimonials', SEED_TESTIMONIALS);
   const [faqs, setFaqs] = usePersisted<FaqItem[]>('pba_faqs', SEED_FAQS);
   const [policies, setPolicies] = usePersisted<Policy[]>('pba_policies', SEED_POLICIES);

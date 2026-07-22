@@ -320,7 +320,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [ticketsMap, setTicketsMap] = useState<Record<string, HelpTicket[]>>(() => load('pb_help_tickets', {}));
   const [waitlists, setWaitlists] = useState<Record<string, WaitlistEntry[]>>(() => load('pb_waitlists', {}));
   const [jobApps, setJobApps] = useState<JobApplication[]>(() => load('pb_job_apps', []));
-  const [reviews, setReviews] = useState<Record<string, GuestReview[]>>(() => load('pb_reviews', {}));
+  const [reviews, setReviews] = useState<Record<string, GuestReview[]>>(() => {
+    const current = load<Record<string, GuestReview[]> | null>('pb_reviews', null);
+    if (current) return current;
+    // reviews used to be organizer-only under the key 'pb_org_reviews',
+    // keyed by plain organizer id — migrate any pre-existing data into the
+    // current reviewKey('organizer', id) shape instead of silently
+    // dropping a guest's own already-written reviews when this key was
+    // renamed for the promoter/venue/lineup generalization.
+    const old = load<Record<string, GuestReview[]> | null>('pb_org_reviews', null);
+    if (!old) return {};
+    const migrated: Record<string, GuestReview[]> = {};
+    for (const [orgId, list] of Object.entries(old)) migrated[reviewKey('organizer', orgId)] = list;
+    return migrated;
+  });
   const [followers, setFollowers] = useState<string[]>(() => load('pb_followers', ['p4', 'p5']));
   const [followRequests, setFollowRequests] = useState<string[]>(() => load('pb_follow_requests', ['p6', 'p7']));
   const [pendingPhone, setPendingPhone] = useState('');
