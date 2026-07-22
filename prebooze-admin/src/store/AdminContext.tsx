@@ -245,6 +245,29 @@ function mergeWithSeed<T extends object>(seed: T[], idKey: keyof T) {
     });
 }
 
+/** Counterpart to mergeWithSeed for the "never mask phone numbers for
+ * admin" fix: mergeWithSeed's "stored values win" rule means a bullet-
+ * masked phone ('+91 98••• ••210') already sitting in someone's
+ * localStorage from before that fix would keep winning over the now-real
+ * seed value forever, since the field isn't missing, just wrong. Pulls the
+ * real value from the matching seed record specifically when the stored
+ * field still contains the mask, leaving every other stored edit alone. */
+function unmaskStoredPhones<T extends Record<string, unknown>>(seed: T[], idKey: keyof T, phoneKeys: (keyof T)[]) {
+  return (list: T[]) =>
+    list.map((item) => {
+      const base = seed.find((x) => x[idKey] === item[idKey]);
+      if (!base) return item;
+      const patch: Partial<T> = {};
+      for (const k of phoneKeys) {
+        const v = item[k];
+        if (typeof v === 'string' && v.includes('••')) patch[k] = base[k];
+      }
+      return Object.keys(patch).length ? { ...item, ...patch } : item;
+    });
+}
+
+const compose = <T,>(...fns: ((v: T) => T)[]) => (v: T) => fns.reduce((acc, fn) => fn(acc), v);
+
 function usePersisted<T>(key: string, seed: T, migrate?: (v: T) => T) {
   const [value, setValue] = useState<T>(() => {
     const v = load(key, seed);
@@ -259,13 +282,42 @@ function usePersisted<T>(key: string, seed: T, migrate?: (v: T) => T) {
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = usePersisted<Session | null>('pba_session', null);
   const [events, setEvents] = usePersisted('pba_events', SEED_EVENTS, mergeWithSeed(SEED_EVENTS, 'id'));
-  const [bookings, setBookings] = usePersisted('pba_bookings', SEED_BOOKINGS, (list) =>
-    // schema migration: bookings stored before the guests field existed
-    list.map((b) => ({ ...b, guests: b.guests ?? [`${b.guest} (main)`] }))
+  const [bookings, setBookings] = usePersisted('pba_bookings', SEED_BOOKINGS, (list) => {
+    // one-time refresh: the very first demo booking set (#8412/#8420/#8419/
+    // #8415) predates both the structured-guests schema and the real-name
+    // refresh — rather than trying to patch those specific old records
+    // forward field by field, just replace the whole stored list with the
+    // current seed if any of those old ids are still sitting in localStorage.
+    // Safe to do broadly: anything a user actually creates through Manual
+    // booking gets a randomly generated id in a different range, so this
+    // never touches real, user-created bookings — only this one recognizable
+    // batch of stale demo data.
+    const STALE_DEMO_IDS = new Set(['#8412', '#8420', '#8419', '#8415']);
+    if (list.some((b) => STALE_DEMO_IDS.has(b.id))) return SEED_BOOKINGS;
+    // schema migration: bookings stored before `guests` was a structured
+    // {name, phone, verified} array (either missing entirely, or an older
+    // flat display-string array like "Sam Rivera ✓ (main)") — normalize
+    // either shape into the current one instead of leaving raw strings
+    // where BookingDetail.tsx now expects real objects.
+    return list.map((b) => {
+      const raw = (b.guests as unknown as (string | { name: string; phone?: string; verified?: boolean })[]) ?? [`${b.guest} (main)`];
+      const guests = raw.map((g) =>
+        typeof g === 'string'
+          ? { name: g.replace(/\s*✓?\s*\(main\)\s*$/i, '').trim() || b.guest, phone: b.phone, verified: g.includes('✓') }
+          : g
+      );
+      return { ...b, guests };
+    });
+  });
+  const [customers, setCustomers] = usePersisted('pba_customers', SEED_CUSTOMERS, mergeWithSeed(SEED_CUSTOMERS, 'id'));
+  const [organizers, setOrganizers] = usePersisted(
+    'pba_organizers', SEED_ORGANIZERS,
+    compose(mergeWithSeed(SEED_ORGANIZERS, 'id'), unmaskStoredPhones(SEED_ORGANIZERS, 'id', ['phone']))
   );
-  const [customers, setCustomers] = usePersisted('pba_customers', SEED_CUSTOMERS);
-  const [organizers, setOrganizers] = usePersisted('pba_organizers', SEED_ORGANIZERS, mergeWithSeed(SEED_ORGANIZERS, 'id'));
-  const [venues, setVenues] = usePersisted('pba_venues', SEED_VENUES, mergeWithSeed(SEED_VENUES, 'id'));
+  const [venues, setVenues] = usePersisted(
+    'pba_venues', SEED_VENUES,
+    compose(mergeWithSeed(SEED_VENUES, 'id'), unmaskStoredPhones(SEED_VENUES, 'id', ['contact']))
+  );
   const [kycApplications, setKycApplications] = usePersisted<KycApplication[]>('pba_kyc', SEED_KYC_APPLICATIONS, mergeWithSeed<KycApplication>(SEED_KYC_APPLICATIONS, 'id'));
   const [promos, setPromos] = usePersisted('pba_promos', SEED_PROMOS, mergeWithSeed(SEED_PROMOS, 'code'));
   const [banners, setBanners] = usePersisted('pba_banners', SEED_BANNERS, (list) =>
@@ -283,7 +335,18 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [blogCategories, setBlogCategories] = usePersisted<BlogCategory[]>('pba_blogcats', SEED_BLOG_CATEGORIES);
   const [ledger, setLedger] = usePersisted<LedgerEntry[]>('pba_ledger', SEED_LEDGER);
   const [ledgerCategories, setLedgerCategories] = usePersisted('pba_ledgercats', SEED_LEDGER_CATEGORIES);
-  const [guestList, setGuestList] = usePersisted<GuestEntry[]>('pba_guestlist', SEED_GUEST_LIST);
+  const [guestList, setGuestList] = usePersisted<GuestEntry[]>('pba_guestlist', SEED_GUEST_LIST, (list) =>
+    list.map((g) => {
+      const base = SEED_GUEST_LIST.find((x) => x.id === g.id);
+      if (!base) return g;
+      const phone = typeof g.phone === 'string' && g.phone.includes('••') ? base.phone : g.phone;
+      const companions = g.companions?.map((c, i) => {
+        const baseC = base.companions?.[i];
+        return baseC && typeof c.phone === 'string' && c.phone.includes('••') ? { ...c, phone: baseC.phone } : c;
+      });
+      return { ...g, phone, companions };
+    })
+  );
   const [roles, setRoles] = usePersisted('pba_roles', SEED_ROLES);
   const [notifications, setNotifications] = usePersisted<Notification[]>('pba_notifications', SEED_NOTIFICATIONS);
   const [settings, setSettings] = usePersisted('pba_settings', SEED_SETTINGS, (v) => ({
@@ -301,14 +364,23 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [menus, setMenusState] = usePersisted<MenuConfig>('pba_menus', SEED_MENUS);
   const [promoters, setPromoters] = usePersisted<Promoter[]>('pba_promoters', SEED_PROMOTERS, mergeWithSeed<Promoter>(SEED_PROMOTERS, 'id'));
   const [subTiers, setSubTiers] = usePersisted('pba_subtiers', SEED_SUB_TIERS);
-  const [abandonedCarts, setAbandonedCarts] = usePersisted<AbandonedCart[]>('pba_abandoned', SEED_ABANDONED_CARTS, mergeWithSeed(SEED_ABANDONED_CARTS, 'id'));
+  const [abandonedCarts, setAbandonedCarts] = usePersisted<AbandonedCart[]>(
+    'pba_abandoned', SEED_ABANDONED_CARTS,
+    compose(mergeWithSeed(SEED_ABANDONED_CARTS, 'id'), unmaskStoredPhones(SEED_ABANDONED_CARTS, 'id', ['phone']))
+  );
   const [locations, setLocations] = usePersisted<LocCountry[]>('pba_locations', SEED_LOCATIONS);
   const [featuredRequests, setFeaturedRequests] = usePersisted<FeaturedRequest[]>('pba_featured', SEED_FEATURED_REQUESTS, mergeWithSeed<FeaturedRequest>(SEED_FEATURED_REQUESTS, 'id'));
   const [featuredRates, setFeaturedRates] = usePersisted<FeaturedRates>('pba_featured_rates', SEED_FEATURED_RATES, (v) => ({ ...SEED_FEATURED_RATES, ...v }));
-  const [adminReferrals] = usePersisted<AdminReferral[]>('pba_referrals', SEED_REFERRALS, mergeWithSeed(SEED_REFERRALS, 'id'));
+  const [adminReferrals] = usePersisted<AdminReferral[]>(
+    'pba_referrals', SEED_REFERRALS,
+    compose(mergeWithSeed(SEED_REFERRALS, 'id'), unmaskStoredPhones(SEED_REFERRALS, 'id', ['referrerPhone', 'refereePhone']))
+  );
   const [referralRates, setReferralRates] = usePersisted<ReferralRates>('pba_referral_rates', SEED_REFERRAL_RATES);
   const [jobs, setJobs] = usePersisted<AdminJob[]>('pba_jobs', SEED_JOBS, mergeWithSeed<AdminJob>(SEED_JOBS, 'id'));
-  const [applicants] = usePersisted<JobApplicant[]>('pba_applicants', SEED_APPLICANTS, mergeWithSeed(SEED_APPLICANTS, 'id'));
+  const [applicants] = usePersisted<JobApplicant[]>(
+    'pba_applicants', SEED_APPLICANTS,
+    compose(mergeWithSeed(SEED_APPLICANTS, 'id'), unmaskStoredPhones(SEED_APPLICANTS, 'id', ['phone']))
+  );
   const [reels, setReels] = usePersisted<Reel[]>('pba_reels', SEED_REELS, mergeWithSeed(SEED_REELS, 'id'));
   const [teams, setTeams] = usePersisted<string[]>('pba_teams', ['Engineering', 'Design', 'Growth', 'Operations', 'Support']);
   const [lineupCategories, setLineupCategories] = usePersisted<string[]>('pba_lineupcats', LINEUP_CATEGORIES);
