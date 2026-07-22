@@ -81,6 +81,12 @@ export class BookingsService {
       if (couponRow.eventScope !== 'all' && couponRow.eventScope !== event.title) {
         throw new BadRequestException('This coupon does not apply to this event');
       }
+      if (couponRow.gender !== 'all') {
+        const buyer = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+        if (buyer.gender.toLowerCase() !== couponRow.gender.toLowerCase()) {
+          throw new BadRequestException('This promo code is not available for your profile');
+        }
+      }
       if (couponRow.used >= couponRow.usageLimit) throw new BadRequestException('This coupon has been fully redeemed');
       const raw = couponRow.type === 'percent' ? (subtotal * couponRow.value) / 100 : couponRow.value;
       discount = Math.min(Math.round(raw), couponRow.maxDiscount ?? raw, subtotal);
@@ -217,19 +223,21 @@ export class BookingsService {
     // ---- referral qualification: referee's first paid booking rewards the referrer ----
     const referral = await this.prisma.referral.findUnique({ where: { refereeId: userId } });
     if (referral && referral.status === 'joined') {
+      const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+      const reward = settings?.referralReferrer ?? REFERRAL_REFERRER_REWARD;
       await this.prisma.$transaction([
         this.prisma.referral.update({ where: { id: referral.id }, data: { status: 'qualified' } }),
         this.prisma.walletTx.create({
           data: {
             userId: referral.referrerId,
             type: 'referral_reward',
-            amount: REFERRAL_REFERRER_REWARD,
+            amount: reward,
             note: `Referral reward — ${user.name || 'your friend'} made their first booking`,
           },
         }),
       ]);
       const referrer = await this.prisma.user.findUnique({ where: { id: referral.referrerId } });
-      if (referrer) await this.wa.send(referrer.phone, 'referral_reward', [String(REFERRAL_REFERRER_REWARD), user.name || 'Your friend']).catch(() => {});
+      if (referrer) await this.wa.send(referrer.phone, 'referral_reward', [String(reward), user.name || 'Your friend']).catch(() => {});
     }
 
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true } } } });

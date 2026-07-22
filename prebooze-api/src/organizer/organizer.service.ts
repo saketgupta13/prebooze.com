@@ -390,6 +390,17 @@ export class OrganizerService {
     return this.prisma.event.update({ where: { id: eventId }, data: { salesPaused: paused } });
   }
 
+  // ---------- admin: poster image (Payments/media-upload slice) ----------
+  // Narrow and deliberate — NOT full admin event CRUD (EventEditor.tsx's
+  // addEvent/updateEvent cover title/tiers/venue/lineup/rules/etc., a much
+  // bigger surface mirroring the whole organizer upsertEvent; see
+  // BACKEND.md for why that's flagged as a separate, undecided gap).
+  async adminSetPoster(eventId: string, posterUrl: string | null) {
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    return this.prisma.event.update({ where: { id: eventId }, data: { posterUrl } });
+  }
+
   async remindCart(userId: string, id: string) {
     const org = await this.myOrganizer(userId);
     const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: true } });

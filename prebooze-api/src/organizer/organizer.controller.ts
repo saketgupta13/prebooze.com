@@ -108,4 +108,10 @@ export class AdminEventsController {
   setSalesPaused(@Param('id') id: string, @Body('paused') paused: boolean) {
     return this.organizer.adminSetSalesPaused(id, paused);
   }
+
+  @Patch(':id/poster')
+  @RequirePermission('Events & approvals', 'edit')
+  setPoster(@Param('id') id: string, @Body('posterUrl') posterUrl: string | null) {
+    return this.organizer.adminSetPoster(id, posterUrl);
+  }
 }

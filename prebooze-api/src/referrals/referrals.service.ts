@@ -46,12 +46,14 @@ export class ReferralsService {
       data: { code: code.toUpperCase(), referrerId: referrer.id, refereeId: userId, status: 'joined' },
     });
 
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+    const welcome = settings?.referralReferee ?? REFERRAL_REFEREE_WELCOME;
     await this.prisma.walletTx.create({
-      data: { userId, type: 'referral_welcome', amount: REFERRAL_REFEREE_WELCOME, note: "Welcome credit — joined via a friend's referral link" },
+      data: { userId, type: 'referral_welcome', amount: welcome, note: "Welcome credit — joined via a friend's referral link" },
     });
 
     const referee = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    await this.wa.send(referee.phone, 'referral_welcome', [String(REFERRAL_REFEREE_WELCOME)]).catch(() => {});
+    await this.wa.send(referee.phone, 'referral_welcome', [String(welcome)]).catch(() => {});
 
     return referral;
   }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
+import { ImagePicker } from '../components/ui';
 
 /** Add / edit a home banner — image upload, heading, description and CTA button link. */
 export default function BannerEdit() {
@@ -15,7 +16,8 @@ export default function BannerEdit() {
   const [description, setDescription] = useState(existing?.description ?? '');
   const [ctaLabel, setCtaLabel] = useState(existing?.ctaLabel ?? 'Book now →');
   const [ctaLink, setCtaLink] = useState(existing?.ctaLink ?? '/browse');
-  const [hasImage, setHasImage] = useState(existing?.hasImage ?? false);
+  const [imageDataUrl, setImageDataUrl] = useState(existing?.imageDataUrl ?? '');
+  const hasImage = !!imageDataUrl;
   const [status, setStatus] = useState(existing?.statusLabel ?? 'Scheduled');
 
   if (!isCreate && !existing) {
@@ -52,6 +54,7 @@ export default function BannerEdit() {
       ctaLabel: ctaLabel.trim() || 'Book now →',
       ctaLink,
       hasImage,
+      imageDataUrl,
       statusLabel: status,
     };
     if (isCreate) addBanner({ id: 'b' + Date.now(), ...patch });
@@ -82,37 +85,17 @@ export default function BannerEdit() {
       </div>
 
       {/* Upload + live preview */}
-      <button
-        type="button"
-        onClick={() => setHasImage((v) => !v)}
-        style={{
-          border: hasImage ? '1px solid var(--green)' : '1.5px dashed rgba(139,195,74,.4)',
-          borderRadius: 12,
-          background: hasImage
-            ? 'linear-gradient(120deg, rgba(139,195,74,.25), rgba(139,195,74,.06))'
-            : 'repeating-linear-gradient(45deg,#181b10 0 10px,#14160d 10px 20px)',
-          aspectRatio: '16 / 5',
-          cursor: 'pointer',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          justifyContent: 'center',
-          gap: 6,
-          padding: '18px 24px',
-          textAlign: 'left',
-        }}
+      <ImagePicker
+        value={imageDataUrl}
+        onChange={setImageDataUrl}
+        aspectRatio="16 / 5"
+        label="⬆ click to upload banner image · 16:5 · min 1600px wide"
       >
-        {hasImage ? (
-          <>
-            <span className="display" style={{ fontSize: 22, color: 'var(--text)' }}>{heading || 'Banner heading…'}</span>
-            <span className="small muted">{description || 'Banner description…'}</span>
-            <span className="btn btn-pri btn-sm" style={{ marginTop: 4 }}>{ctaLabel || 'Book now →'}</span>
-            <span className="tiny hint" style={{ marginTop: 4 }}>✓ image 16:5 uploaded — click to replace · live preview</span>
-          </>
-        ) : (
-          <span className="hint" style={{ margin: 'auto', fontSize: 12 }}>⬆ click to upload banner image · 16:5 · min 1600px wide</span>
-        )}
-      </button>
+        <span className="display" style={{ fontSize: 22, color: '#fff' }}>{heading || 'Banner heading…'}</span>
+        <span className="small" style={{ color: 'rgba(255,255,255,.85)' }}>{description || 'Banner description…'}</span>
+        <span className="btn btn-pri btn-sm" style={{ marginTop: 4 }}>{ctaLabel || 'Book now →'}</span>
+        <span className="tiny" style={{ marginTop: 4, color: 'rgba(255,255,255,.7)' }}>✓ image 16:5 uploaded — click to replace · live preview</span>
+      </ImagePicker>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', gap: 8 }}>

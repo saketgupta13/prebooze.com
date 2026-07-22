@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import SeoFields, { emptySeo } from '../components/SeoFields';
+import { ImagePicker } from '../components/ui';
 
 const ICONS = ['🎵', '😂', '🎪', '🏠', '🎤', '🎧', '🍷', '⚽', '🎭', '🏷'];
 
@@ -15,7 +16,8 @@ export default function CategoryEdit() {
 
   const [catName, setCatName] = useState(existing?.name ?? '');
   const [icon, setIcon] = useState(existing?.icon ?? '🏷');
-  const [hasImage, setHasImage] = useState(existing?.hasImage ?? false);
+  const [imageDataUrl, setImageDataUrl] = useState(existing?.imageDataUrl ?? '');
+  const hasImage = !!imageDataUrl;
   const [seo, setSeo] = useState(existing?.seo ?? emptySeo());
 
   if (!isCreate && !existing) {
@@ -40,9 +42,9 @@ export default function CategoryEdit() {
       return;
     }
     if (isCreate) {
-      addCategory({ icon, name: catName.trim(), count: 0, hasImage, seo });
+      addCategory({ icon, name: catName.trim(), count: 0, hasImage, imageDataUrl, seo });
     } else {
-      updateCategory(existing!.name, { icon, name: catName.trim(), hasImage, seo });
+      updateCategory(existing!.name, { icon, name: catName.trim(), hasImage, imageDataUrl, seo });
     }
     navigate('/categories');
   };
@@ -83,14 +85,14 @@ export default function CategoryEdit() {
             />
           </div>
         </div>
-        <button
-          type="button"
-          className={hasImage ? 'dashed-box' : 'ph'}
-          style={{ height: 72, borderRadius: 10, cursor: 'pointer', background: 'none', color: hasImage ? 'var(--green)' : undefined, fontSize: 11.5, textAlign: 'center' }}
-          onClick={() => setHasImage((v) => !v)}
+        <ImagePicker
+          value={imageDataUrl}
+          onChange={setImageDataUrl}
+          height={72}
+          label="+ upload cover image 16:5 — shown on the category landing page"
         >
-          {hasImage ? '✓ cover image 16:5 uploaded — shown on the category landing page' : '+ upload cover image 16:5 — shown on the category landing page'}
-        </button>
+          <span className="tiny" style={{ margin: 'auto', color: '#fff' }}>✓ cover image 16:5 uploaded — click to replace</span>
+        </ImagePicker>
         <div className="tiny hint">category = browse filter chip + facet + SEO landing page at {slug}</div>
       </div>
 

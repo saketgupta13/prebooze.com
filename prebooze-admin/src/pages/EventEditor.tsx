@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { CATEGORY_OPTIONS, CATEGORY_SUBS, fmt } from '../store/data';
-import { EVENT_STATUS, Tag } from '../components/ui';
+import { EVENT_STATUS, ImagePicker, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import type { AdminEvent, Tier } from '../types';
 
@@ -283,13 +283,13 @@ export default function EventEditor() {
 
       {tab === 'media' && (
         <div className="stack" style={{ gap: 10 }}>
-          <button
-            className="ph"
-            style={{ height: 160, width: 130, borderRadius: 8, cursor: 'pointer', background: event.hasBanner ? 'rgba(139,195,74,.1)' : undefined, borderColor: event.hasBanner ? 'var(--green)' : undefined, color: event.hasBanner ? 'var(--green)' : undefined }}
-            onClick={() => patch({ hasBanner: !event.hasBanner })}
-          >
-            {event.hasBanner ? '✓ poster 3:4 uploaded' : '⬆ poster 3:4 · min 900px'}
-          </button>
+          <ImagePicker
+            value={event.posterDataUrl}
+            onChange={(dataUrl) => patch({ hasBanner: true, posterDataUrl: dataUrl })}
+            height={160}
+            width={130}
+            label="⬆ poster 3:4 · min 900px"
+          />
           <div className="ph" style={{ height: 70 }}>+ gallery photos (up to 6) · + teaser reel 9:16</div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="ph" style={{ height: 70, flex: 1, cursor: 'pointer', background: event.socialPost ? 'rgba(139,195,74,.1)' : undefined, borderColor: event.socialPost ? 'var(--green)' : undefined, color: event.socialPost ? 'var(--green)' : undefined }} onClick={() => patch({ socialPost: !event.socialPost })}>

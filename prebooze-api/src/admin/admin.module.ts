@@ -13,6 +13,13 @@ import { AdminGuestListController, AdminGuestListEntryController } from './guest
 import { AdminLiveMonitorController } from './live-monitor.controller';
 import { AdminNotificationsController } from './notifications.controller';
 import { AdminDashboardController } from './dashboard.controller';
+import { AdminPromosController } from './promos.controller';
+import { AdminReviewsController } from './reviews.controller';
+import { AdminReferralsController } from './referrals-admin.controller';
+import { AdminCategoriesController } from './categories.controller';
+import { AdminCartsController } from './carts.controller';
+import { AdminPaymentsController } from './payments.controller';
+import { MediaController } from './media.controller';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffService } from './staff.service';
 import { CustomersService } from './customers.service';
@@ -27,10 +34,18 @@ import { GuestListService } from './guestlist.service';
 import { LiveMonitorService } from './live-monitor.service';
 import { NotificationsService } from './notifications.service';
 import { DashboardService } from './dashboard.service';
+import { PromosService } from './promos.service';
+import { ReviewsService } from './reviews.service';
+import { ReferralsAdminService } from './referrals-admin.service';
+import { CategoriesService } from './categories.service';
+import { CartsService } from './carts.service';
+import { PaymentsService } from './payments.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { OwnerOnlyGuard } from './owner-only.guard';
 import { PermissionGuard } from './permission.guard';
 import { PrismaService } from '../prisma.service';
+import { StorageService } from '../kyc/storage.service';
+import { WhatsappService } from '../notifications/whatsapp';
 
 // JwtModule is registered `global: true` in AuthModule, so JwtService is
 // already available here without importing it again (see kyc.module.ts).
@@ -56,6 +71,13 @@ import { PrismaService } from '../prisma.service';
     AdminLiveMonitorController,
     AdminNotificationsController,
     AdminDashboardController,
+    AdminPromosController,
+    AdminReviewsController,
+    AdminReferralsController,
+    AdminCategoriesController,
+    AdminCartsController,
+    AdminPaymentsController,
+    MediaController,
   ],
   providers: [
     StaffAuthService,
@@ -72,6 +94,14 @@ import { PrismaService } from '../prisma.service';
     LiveMonitorService,
     NotificationsService,
     DashboardService,
+    PromosService,
+    ReviewsService,
+    ReferralsAdminService,
+    CategoriesService,
+    CartsService,
+    PaymentsService,
+    StorageService,
+    WhatsappService,
     StaffAuthGuard,
     OwnerOnlyGuard,
     PermissionGuard,

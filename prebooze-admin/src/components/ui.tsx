@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { BookingStatus, CustomerStatus, EventStatus, OrganizerStatus } from '../types';
 
@@ -77,6 +78,63 @@ export function Drawer({ onClose, children }: { onClose: () => void; children: R
       <div className="overlay" onClick={onClose} />
       <div className="drawer">{children}</div>
     </>
+  );
+}
+
+/** A real file picker with a real preview — reads the picked file into a
+ * data URL via FileReader (no backend session exists client-side yet to
+ * authorize a real upload call, see BACKEND.md's media-upload slice), which
+ * replaces the old fake toggle-a-boolean "upload" buttons across Banners,
+ * Events and Categories. `children` renders on top of the picked image
+ * (e.g. BannerEdit's live heading/description/CTA preview); omit it for a
+ * plain "✓ uploaded" badge. */
+export function ImagePicker({ value, onChange, aspectRatio = '16 / 5', height, width, label, children }: {
+  value?: string;
+  onChange: (dataUrl: string) => void;
+  aspectRatio?: string;
+  height?: number;
+  width?: number;
+  label: string;
+  children?: ReactNode;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onChange(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+  return (
+    <button
+      type="button"
+      onClick={() => inputRef.current?.click()}
+      style={{
+        border: value ? '1px solid var(--green)' : '1.5px dashed rgba(139,195,74,.4)',
+        borderRadius: 12,
+        aspectRatio: height ? undefined : aspectRatio,
+        height,
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        gap: 6,
+        padding: value ? '18px 24px' : '18px 24px',
+        textAlign: 'left',
+        backgroundImage: value ? `linear-gradient(rgba(10,12,7,.35), rgba(10,12,7,.55)), url(${value})` : 'repeating-linear-gradient(45deg,#181b10 0 10px,#14160d 10px 20px)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+        width: width ?? '100%',
+      }}
+    >
+      <input ref={inputRef} type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
+      {value ? (children ?? <span className="tiny hint">✓ image uploaded — click to replace</span>) : (
+        <span className="hint" style={{ margin: 'auto', fontSize: 12 }}>{label}</span>
+      )}
+    </button>
   );
 }
 

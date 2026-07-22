@@ -1,8 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { GUEST_SITE_URL } from '../store/data';
 import NotificationsPanel from './NotificationsPanel';
+
+interface SearchResult {
+  type: string;
+  label: string;
+  sub: string;
+  to: string;
+}
 
 const MAIN_NAV = [
   { to: '/', icon: '▦', label: 'Dashboard', end: true },
@@ -47,10 +54,33 @@ const MOBILE_NAV = [
 ];
 
 export default function AdminLayout() {
-  const { session, logout, notifications } = useAdmin();
+  const { session, logout, notifications, events, bookings, organizers, venues, promoters, customers } = useAdmin();
   const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [focused, setFocused] = useState(false);
+  const searchWrapRef = useRef<HTMLDivElement>(null);
   const unread = notifications.filter((n) => !n.read).length;
+
+  const results = useMemo<SearchResult[]>(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const out: SearchResult[] = [];
+    for (const e of events) if (e.title.toLowerCase().includes(q)) out.push({ type: 'Event', label: e.title, sub: e.city, to: `/events/${e.id}` });
+    for (const o of organizers) if (o.name.toLowerCase().includes(q)) out.push({ type: 'Organizer', label: o.name, sub: o.city, to: `/organizers/${o.id}` });
+    for (const v of venues) if (v.name.toLowerCase().includes(q)) out.push({ type: 'Venue', label: v.name, sub: v.city, to: `/venues/${v.id}` });
+    for (const p of promoters) if (p.name.toLowerCase().includes(q)) out.push({ type: 'Promoter', label: p.name, sub: p.city, to: `/promoters/${p.id}` });
+    for (const b of bookings) if (b.id.toLowerCase().includes(q) || b.guest.toLowerCase().includes(q) || b.phone.includes(q)) out.push({ type: 'Booking', label: b.id, sub: b.guest, to: `/bookings?q=${encodeURIComponent(b.id)}` });
+    for (const c of customers) if (c.name.toLowerCase().includes(q) || (c.phone ?? '').includes(q)) out.push({ type: 'Customer', label: c.name, sub: c.phone ?? '', to: '/customers' });
+    return out.slice(0, 8);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, events, organizers, venues, promoters, bookings, customers]);
+
+  const goTo = (r: SearchResult) => {
+    navigate(r.to);
+    setQuery('');
+    setFocused(false);
+  };
 
   if (!session) return <Navigate to="/login" replace />;
 
@@ -61,16 +91,45 @@ export default function AdminLayout() {
           <img src="/logo.png" alt="Prebooze" />
           <span className="role-tag">{session.role === 'staff' ? 'STAFF' : 'ADMIN'}</span>
         </div>
-        <div className="search-box hide-mobile" style={{ flex: 1, maxWidth: 420 }}>
+        <div ref={searchWrapRef} className="search-box hide-mobile" style={{ flex: 1, maxWidth: 420, position: 'relative' }}>
           <span style={{ opacity: 0.6 }}>🔍</span>
           <input
             placeholder="Search bookings, events, users…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setTimeout(() => setFocused(false), 120)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                navigate('/bookings');
-              }
+              if (e.key === 'Enter' && results[0]) goTo(results[0]);
+              if (e.key === 'Escape') { setQuery(''); setFocused(false); }
             }}
           />
+          {focused && query.trim().length >= 2 && (
+            <div
+              className="card"
+              style={{
+                position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 50,
+                padding: 6, maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2,
+              }}
+            >
+              {results.length === 0 && <div className="tiny muted" style={{ padding: '6px 8px' }}>No matches for "{query}"</div>}
+              {results.map((r, i) => (
+                <button
+                  key={r.type + r.label + i}
+                  onMouseDown={() => goTo(r)}
+                  style={{ display: 'flex', justifyContent: 'space-between', gap: 8, textAlign: 'left', background: 'none', border: 'none', padding: '6px 8px', borderRadius: 6, cursor: 'pointer', color: 'var(--text)' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(139,195,74,.1)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                >
+                  <span style={{ fontSize: 12.5 }}>
+                    <span className="tiny muted" style={{ marginRight: 6 }}>{r.type}</span>
+                    {r.label}
+                  </span>
+                  <span className="tiny muted">{r.sub}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div style={{ flex: 1 }} />
         <button

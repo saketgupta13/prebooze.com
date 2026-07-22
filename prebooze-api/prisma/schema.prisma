@@ -399,6 +399,14 @@ model Event {
   // enforced in BookingsService.priceHold(), shared by quote() and create().
   salesPaused Boolean @default(false)
 
+  // Payments/payout-batch slice. posterUrl is the real image reference
+  // behind EventEditor's poster-upload toggle (same "give it something
+  // real to hold" move as Banner.imageUrl in the CMS slice) — the gallery
+  // photos / social banners / teaser reel toggles on the same page stayed
+  // fake, see BACKEND.md for why. payoutUtr is set once by a payout batch.
+  posterUrl String?
+  payoutUtr String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -471,6 +479,13 @@ model PlatformSettings {
   siteSeo         Json    @default("{\"title\":\"\",\"description\":\"\",\"keywords\":\"\"}")
   contact         Json    @default("{\"email\":\"\",\"phone\":\"\",\"address\":\"\",\"organizerEmail\":\"\"}")
   footerCopyright String  @default("")
+
+  // Referrals admin slice — these were hardcoded constants
+  // (REFERRAL_REFEREE_WELCOME / REFERRAL_REFERRER_REWARD) with no admin
+  // control at all; now the single source of truth both the referral
+  // service and the "Refer & earn" analytics page read from.
+  referralReferee  Int @default(100)
+  referralReferrer Int @default(100)
 
   updatedAt DateTime @updatedAt
 }
@@ -597,6 +612,24 @@ model Coupon {
   // platform — enforced in BookingsService.priceHold, not just here.
   organizerId String?
   organizer   Organizer? @relation(fields: [organizerId], references: [id])
+
+  // Admin API "Promo codes" slice — prebooze-admin's Promo type turned out
+  // to be the same concept as a platform-wide Coupon (organizerId null),
+  // not a separate system, just with gender-audience targeting added.
+  // "all" = no restriction. Enforced in BookingsService.priceHold.
+  gender String @default("all")
+}
+
+/** Admin API "categories" slice — Event.category stays a plain string
+ * (same "additive, not a replacement" reasoning as Locations/City) — this
+ * is just the reference list that feeds the category picker + each
+ * category's own landing-page icon/image/SEO, same pattern as CareerTeam
+ * and BlogCategory before it. */
+model EventCategory {
+  name     String  @id
+  icon     String  @default("🏷")
+  imageUrl String?
+  seo      Json?
 }
 
 model WalletTx {

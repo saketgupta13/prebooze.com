@@ -55,6 +55,7 @@ export interface AdminEvent {
   rules?: string;
   lineup?: string;
   hasBanner?: boolean;
+  posterDataUrl?: string;
   paidOut?: boolean;
   payoutUtr?: string;
   seo?: Seo;
@@ -306,6 +307,7 @@ export interface Banner {
   ctaLabel?: string;
   ctaLink?: string;
   hasImage?: boolean;
+  imageDataUrl?: string;
 }
 
 export interface Category {
@@ -313,6 +315,7 @@ export interface Category {
   name: string;
   count: number;
   hasImage?: boolean;
+  imageDataUrl?: string;
   seo?: Seo;
 }
 

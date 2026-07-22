@@ -176,6 +176,21 @@ const CAREER_JOBS = [
 
 // Admin API careers slice — ported from prebooze-admin/src/store/data.ts.
 const SEED_CAREER_TEAMS = ['Engineering', 'Design', 'Growth', 'Operations', 'Support'];
+
+// Admin API categories slice — matches the categories EVENTS actually uses.
+const SEED_EVENT_CATEGORIES = [
+  { name: 'Concerts', icon: '🎵' },
+  { name: 'Festivals', icon: '🎪' },
+  { name: 'Comedy', icon: '😂' },
+  { name: 'This weekend', icon: '🏠' },
+];
+
+// Admin API promos slice — a gender-targeted platform-wide promo, ported
+// alongside the existing FIRST50/VIPLOVE coupons (already organizerId: null
+// where relevant, which already made them "promos" before this slice).
+const SEED_PROMOS = [
+  { id: 'promo1', code: 'LADIESNIGHT', type: 'percent', value: 30, maxDiscount: 150, usageLimit: 200, used: 12, perUserLimit: 1, eventScope: 'all', validTill: new Date('2026-09-30'), firstTimeOnly: false, status: 'active', gender: 'women' },
+];
 const SEED_APPLICANTS = [
   { id: 'ap1', jobId: 'job1', name: 'Rahul Iyer', email: 'rahul@dev.io', phone: '+91 98•••• 2210', note: 'github.com/rahuldev — 6y React' },
   { id: 'ap2', jobId: 'job1', name: 'Sneha Patil', email: 'sneha@ui.dev', phone: '+91 97•••• 8841', note: 'Ex-Zomato web platform' },
@@ -421,6 +436,8 @@ async function main() {
   for (const c of COUPONS) await db.coupon.upsert({ where: { id: c.id }, create: c, update: c });
   for (const j of CAREER_JOBS) await db.careerJob.upsert({ where: { id: j.id }, create: j, update: j });
   for (const name of SEED_CAREER_TEAMS) await db.careerTeam.upsert({ where: { name }, create: { name }, update: {} });
+  for (const c of SEED_EVENT_CATEGORIES) await db.eventCategory.upsert({ where: { name: c.name }, create: c, update: {} });
+  for (const p of SEED_PROMOS) await db.coupon.upsert({ where: { id: p.id }, create: p, update: p });
   for (const a of SEED_APPLICANTS) await db.jobApplication.upsert({ where: { id: a.id }, create: a, update: a });
   for (const r of SEED_REELS) await db.reel.upsert({ where: { id: r.id }, create: r, update: r });
   for (const e of SEED_LEDGER) await db.ledgerEntry.upsert({ where: { id: e.id }, create: e, update: e });
