@@ -3,6 +3,7 @@ import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { Kpi, Tag } from '../components/ui';
 import type { LedgerEntry } from '../types';
+import { downloadCsv } from '../lib/csv';
 
 /** Income & expenses ledger. Ticket commission (and booking fees) post automatically
  * from event sales; everything else is entered manually with its own category. */
@@ -52,6 +53,19 @@ export default function Finance() {
 
   const cats = ledgerCategories[kind];
 
+  const exportCsv = () => {
+    const rows: (string | number)[][] = [
+      ['Date', 'Kind', 'Category', 'Amount (₹)', 'Note', 'Auto-posted'],
+      ...list.map((e) => [e.date, e.kind, e.category, e.amount, e.note ?? '', e.auto ? 'yes' : 'no']),
+      [],
+      ['Total income', '', '', income],
+      ['Total expenses', '', '', expenses],
+      ['Net profit', '', '', income - expenses],
+    ];
+    downloadCsv(`prebooze-ledger-${filter}-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+    toast('Ledger exported as CSV ✓');
+  };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseInt(amount.replace(/\D/g, ''), 10);
@@ -75,7 +89,7 @@ export default function Finance() {
     <div className="stack fade" style={{ maxWidth: 1000, gap: 14 }}>
       <div className="page-hd">
         <h1 className="page-title">Income &amp; expenses</h1>
-        <button className="btn btn-ghost btn-sm" onClick={() => toast('Ledger exported as CSV ✓')}>⬇ Export</button>
+        <button className="btn btn-ghost btn-sm" onClick={exportCsv}>⬇ Export</button>
       </div>
 
       <div className="kpi-grid">

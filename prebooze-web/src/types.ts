@@ -42,7 +42,9 @@ export interface Event {
   posterHue: number;
   seo?: { title: string; description: string; slug: string; keywords: string[] };
   promoterConfig?: PromoterConfig;
-  socialBanners?: { post?: boolean; story?: boolean }; // 1:1 + 9:16 banners (≤5 MB)
+  socialBanners?: { post?: boolean; postDataUrl?: string; story?: boolean; storyDataUrl?: string }; // 1:1 + 9:16 banners (≤5 MB)
+  bannerDataUrl?: string; // portrait 3:4 banner — shown on cards & event page
+  galleryDataUrls?: string[]; // up to 6 gallery photos
 }
 
 export interface PromoterConfig {

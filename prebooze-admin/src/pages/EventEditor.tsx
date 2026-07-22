@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { CATEGORY_OPTIONS, CATEGORY_SUBS, fmt } from '../store/data';
-import { EVENT_STATUS, ImagePicker, Tag } from '../components/ui';
+import { EVENT_STATUS, GalleryPicker, ImagePicker, Tag, VideoPicker } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import type { AdminEvent, Tier } from '../types';
 
@@ -290,14 +290,36 @@ export default function EventEditor() {
             width={130}
             label="⬆ poster 3:4 · min 900px"
           />
-          <div className="ph" style={{ height: 70 }}>+ gallery photos (up to 6) · + teaser reel 9:16</div>
+          <div className="field">
+            <label>Gallery photos (up to 6)</label>
+            <GalleryPicker
+              value={event.galleryDataUrls ?? []}
+              onChange={(urls) => patch({ galleryDataUrls: urls })}
+              label="+ add"
+            />
+          </div>
+          <VideoPicker
+            value={event.teaserDataUrl}
+            onChange={(dataUrl) => patch({ teaserDataUrl: dataUrl })}
+            label="⬆ teaser reel · 9:16"
+          />
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="ph" style={{ height: 70, flex: 1, cursor: 'pointer', background: event.socialPost ? 'rgba(139,195,74,.1)' : undefined, borderColor: event.socialPost ? 'var(--green)' : undefined, color: event.socialPost ? 'var(--green)' : undefined }} onClick={() => patch({ socialPost: !event.socialPost })}>
-            {event.socialPost ? '✓ social post banner 1:1' : '⬆ social post banner 1:1 · ≤5 MB'}
-            </button>
-            <button className="ph" style={{ height: 70, flex: 1, cursor: 'pointer', background: event.socialStory ? 'rgba(139,195,74,.1)' : undefined, borderColor: event.socialStory ? 'var(--green)' : undefined, color: event.socialStory ? 'var(--green)' : undefined }} onClick={() => patch({ socialStory: !event.socialStory })}>
-            {event.socialStory ? '✓ social story banner 9:16' : '⬆ social story banner 9:16 · ≤5 MB'}
-            </button>
+            <ImagePicker
+              value={event.socialPostDataUrl}
+              onChange={(dataUrl) => patch({ socialPost: true, socialPostDataUrl: dataUrl })}
+              height={70}
+              label="⬆ social post banner 1:1 · ≤5 MB"
+            >
+              <span className="tiny" style={{ margin: 'auto', color: '#fff' }}>✓ social post banner 1:1</span>
+            </ImagePicker>
+            <ImagePicker
+              value={event.socialStoryDataUrl}
+              onChange={(dataUrl) => patch({ socialStory: true, socialStoryDataUrl: dataUrl })}
+              height={70}
+              label="⬆ social story banner 9:16 · ≤5 MB"
+            >
+              <span className="tiny" style={{ margin: 'auto', color: '#fff' }}>✓ social story banner 9:16</span>
+            </ImagePicker>
           </div>
           <div className="tiny hint">poster shows on guest cards & event page · reels feed the “Things happening at events” slider</div>
         </div>

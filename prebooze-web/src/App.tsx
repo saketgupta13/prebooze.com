@@ -5,6 +5,7 @@ import { useApp } from './store/AppContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
+import CookieConsent from './components/CookieConsent';
 import Home from './pages/Home';
 import Browse from './pages/Browse';
 import Categories from './pages/Categories';
@@ -290,6 +291,7 @@ export default function App() {
       </Routes>
       <Footer />
       <Toast />
+      <CookieConsent />
     </>
   );
 }

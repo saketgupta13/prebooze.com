@@ -65,6 +65,7 @@ export default function Footer() {
           <Link to="/legal/guest-policy">Guest policy</Link>
           <Link to="/legal/organizer-policy">Organizer policy</Link>
           <Link to="/legal/disclaimer">Disclaimer</Link>
+          <Link to="/legal/cookies">Cookies</Link>
         </div>
       </div>
     </footer>

@@ -53,6 +53,18 @@ const MOBILE_NAV = [
   { to: '/promos', icon: '⋯', label: 'More' },
 ];
 
+// A few sections that live outside MAIN_NAV/CONTENT_NAV (no sidebar chip of
+// their own) but should still be jump-to-able by name.
+const EXTRA_NAV = [
+  { to: '/staff', icon: '🧑‍💻', label: 'Staff & roles' },
+  { to: '/settings', icon: '⚙', label: 'Settings' },
+  { to: '/profile', icon: '👤', label: 'Profile' },
+];
+
+// Every admin section, searchable by name — "jump to X" rather than
+// searching data records (that's the second half of the search results).
+const SECTION_NAV = [...MAIN_NAV, ...CONTENT_NAV, ...EXTRA_NAV];
+
 export default function AdminLayout() {
   const { session, logout, notifications, events, bookings, organizers, venues, promoters, customers } = useAdmin();
   const navigate = useNavigate();
@@ -65,14 +77,22 @@ export default function AdminLayout() {
   const results = useMemo<SearchResult[]>(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
-    const out: SearchResult[] = [];
-    for (const e of events) if (e.title.toLowerCase().includes(q)) out.push({ type: 'Event', label: e.title, sub: e.city, to: `/events/${e.id}` });
-    for (const o of organizers) if (o.name.toLowerCase().includes(q)) out.push({ type: 'Organizer', label: o.name, sub: o.city, to: `/organizers/${o.id}` });
-    for (const v of venues) if (v.name.toLowerCase().includes(q)) out.push({ type: 'Venue', label: v.name, sub: v.city, to: `/venues/${v.id}` });
-    for (const p of promoters) if (p.name.toLowerCase().includes(q)) out.push({ type: 'Promoter', label: p.name, sub: p.city, to: `/promoters/${p.id}` });
-    for (const b of bookings) if (b.id.toLowerCase().includes(q) || b.guest.toLowerCase().includes(q) || b.phone.includes(q)) out.push({ type: 'Booking', label: b.id, sub: b.guest, to: `/bookings?q=${encodeURIComponent(b.id)}` });
-    for (const c of customers) if (c.name.toLowerCase().includes(q) || (c.phone ?? '').includes(q)) out.push({ type: 'Customer', label: c.name, sub: c.phone ?? '', to: '/customers' });
-    return out.slice(0, 8);
+
+    // Section matches first — "jump to X" beats fuzzy record search when
+    // the query looks like a page name (e.g. typing "staff" or "reports").
+    const sections: SearchResult[] = SECTION_NAV.filter((s) => s.label.toLowerCase().includes(q)).map((s) => ({
+      type: 'Section', label: s.label, sub: s.to, to: s.to,
+    }));
+
+    const records: SearchResult[] = [];
+    for (const e of events) if (e.title.toLowerCase().includes(q)) records.push({ type: 'Event', label: e.title, sub: e.city, to: `/events/${e.id}` });
+    for (const o of organizers) if (o.name.toLowerCase().includes(q)) records.push({ type: 'Organizer', label: o.name, sub: o.city, to: `/organizers/${o.id}` });
+    for (const v of venues) if (v.name.toLowerCase().includes(q)) records.push({ type: 'Venue', label: v.name, sub: v.city, to: `/venues/${v.id}` });
+    for (const p of promoters) if (p.name.toLowerCase().includes(q)) records.push({ type: 'Promoter', label: p.name, sub: p.city, to: `/promoters/${p.id}` });
+    for (const b of bookings) if (b.id.toLowerCase().includes(q) || b.guest.toLowerCase().includes(q) || b.phone.includes(q)) records.push({ type: 'Booking', label: b.id, sub: b.guest, to: `/bookings?q=${encodeURIComponent(b.id)}` });
+    for (const c of customers) if (c.name.toLowerCase().includes(q) || (c.phone ?? '').includes(q)) records.push({ type: 'Customer', label: c.name, sub: c.phone ?? '', to: '/customers' });
+
+    return [...sections.slice(0, 3), ...records].slice(0, 8);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, events, organizers, venues, promoters, bookings, customers]);
 

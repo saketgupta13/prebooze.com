@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
+import { downloadCsv } from '../lib/csv';
 
 const CHIPS = ['Sales', 'Profit & loss', 'Balance sheet', 'Commission by event', 'GST / tax', 'Refunds', 'Attendance', 'Promos'];
 
@@ -50,6 +51,27 @@ export default function Reports() {
 
   const top = [...cityEvents].filter((e) => e.revenue > 0).sort((a, b) => b.revenue - a.revenue).slice(0, 3);
 
+  const exportCsv = () => {
+    const rows: (string | number)[][] = [
+      ['Prebooze — Profit & loss statement'],
+      ['Section', 'Line', 'Amount (₹)'],
+      ['Income', 'Ticket commission (auto)', Math.round(fin.commissionIncome)],
+      ['Income', 'Booking fees (auto)', Math.round(fin.feeIncome)],
+      ['Income', 'Other income (sponsorships etc.)', Math.round(fin.otherIncome)],
+      ['Income', 'Total income', Math.round(fin.totalIncome)],
+      ...[...fin.expensesByCat.entries()].map(([cat, amt]) => ['Expenses', cat, -Math.round(amt)]),
+      ['Expenses', 'GST payable on platform fees', -Math.round(fin.gstPayable)],
+      ['Expenses', 'Total expenses', -Math.round(fin.totalExpenses + fin.gstPayable)],
+      ['Summary', 'Net profit', Math.round(fin.netProfit)],
+      ['Summary', 'Cash & bank', Math.round(fin.cash)],
+      [],
+      ['Top selling events', 'City', 'Revenue (₹)'],
+      ...top.map((e) => [e.title, e.city, e.revenue]),
+    ];
+    downloadCsv(`prebooze-report-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+    toast('Report exported ✓');
+  };
+
   return (
     <div className="stack fade" style={{ maxWidth: 1100 }}>
       <div className="page-hd">
@@ -57,7 +79,7 @@ export default function Reports() {
         <div style={{ display: 'flex', gap: 6 }}>
           <span className="chip">1 Jun – 8 Jul ▾</span>
           <span className="chip">vs prev. period</span>
-          <button className="btn btn-ghost btn-sm" onClick={() => toast('Export started ✓')}>⬇ Export</button>
+          <button className="btn btn-ghost btn-sm" onClick={exportCsv}>⬇ Export</button>
         </div>
       </div>
 

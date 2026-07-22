@@ -38,7 +38,9 @@ export interface AdminEvent {
   category: string;
   subCategory?: string;
   socialPost?: boolean;
+  socialPostDataUrl?: string;
   socialStory?: boolean;
+  socialStoryDataUrl?: string;
   venue: string;
   date: string;
   time: string;
@@ -56,6 +58,8 @@ export interface AdminEvent {
   lineup?: string;
   hasBanner?: boolean;
   posterDataUrl?: string;
+  galleryDataUrls?: string[];
+  teaserDataUrl?: string;
   paidOut?: boolean;
   payoutUtr?: string;
   seo?: Seo;

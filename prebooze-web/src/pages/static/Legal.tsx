@@ -32,6 +32,10 @@ const PAGES: Record<string, { title: string; sections: string[] }> = {
     title: 'Disclaimer',
     sections: ['Third-party events', 'No warranty', 'Assumption of risk'],
   },
+  cookies: {
+    title: 'Cookie Policy',
+    sections: ['What cookies are', 'Essential cookies', 'Analytics cookies', 'Managing your preferences'],
+  },
 };
 
 // Placeholder copy — real legal text must be drafted/reviewed by counsel before launch.

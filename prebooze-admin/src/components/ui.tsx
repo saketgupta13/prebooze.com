@@ -139,6 +139,95 @@ export function ImagePicker({ value, onChange, aspectRatio = '16 / 5', height, w
   );
 }
 
+/** Multiple real photos (up to `max`), each read into its own data URL via
+ * FileReader — same "real file, real preview" reasoning as ImagePicker,
+ * just for a repeatable slot instead of one. */
+export function GalleryPicker({ value, onChange, max = 6, label }: {
+  value: string[];
+  onChange: (urls: string[]) => void;
+  max?: number;
+  label: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const onFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []).slice(0, Math.max(0, max - value.length));
+    if (!files.length) return;
+    Promise.all(
+      files.map(
+        (file) =>
+          new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          }),
+      ),
+    ).then((urls) => onChange([...value, ...urls]));
+    e.target.value = '';
+  };
+  const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
+
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {value.map((url, i) => (
+        <div key={i} style={{ position: 'relative', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--green)' }}>
+          <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <button
+            type="button"
+            onClick={() => remove(i)}
+            style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 10, cursor: 'pointer', lineHeight: '18px', padding: 0 }}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+      {value.length < max && (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="ph"
+          style={{ width: 64, height: 64, borderRadius: 8, cursor: 'pointer', fontSize: 10, textAlign: 'center' }}
+        >
+          {label}
+        </button>
+      )}
+      <input ref={inputRef} type="file" accept="image/*" multiple onChange={onFiles} style={{ display: 'none' }} />
+    </div>
+  );
+}
+
+/** A real video file read into a data URL, with a real inline <video>
+ * preview — same reasoning as ImagePicker, for the one video-shaped upload
+ * slot (event teaser reels) this app has. */
+export function VideoPicker({ value, onChange, label }: {
+  value?: string;
+  onChange: (dataUrl: string) => void;
+  label: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onChange(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+  return (
+    <div>
+      <input ref={inputRef} type="file" accept="video/*" onChange={onFile} style={{ display: 'none' }} />
+      {value ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <video src={value} muted style={{ width: 90, height: 90 * 16 / 9, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--green)' }} />
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => inputRef.current?.click()}>Replace reel</button>
+        </div>
+      ) : (
+        <button type="button" className="ph" style={{ height: 70, width: '100%', cursor: 'pointer' }} onClick={() => inputRef.current?.click()}>
+          {label}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function SearchBox({ value, onChange, placeholder, style }: {
   value: string;
   onChange: (v: string) => void;

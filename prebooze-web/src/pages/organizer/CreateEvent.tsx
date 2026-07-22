@@ -5,6 +5,7 @@ import { CATEGORY_TREE, EVENTS, LINEUPS, PROMOTERS, VENUES, fmtDate, fmtTime, su
 import type { Event, TicketTier } from '../../types';
 import Poster, { categoryEmoji } from '../../components/Poster';
 import Accordion from '../../components/Accordion';
+import { FileDropBox, GalleryDropBox } from '../../components/FileDropBox';
 
 const STEPS = ['1 Basics', '2 Tickets', '3 Rules & line-up', '4 Promoters', '5 SEO & publish'];
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
@@ -26,13 +27,16 @@ export default function CreateEvent() {
   const [preview, setPreview] = useState(false);
 
   // Step 1 — basics
-  const [banner, setBanner] = useState(!!editing);
+  const [bannerDataUrl, setBannerDataUrl] = useState(editing?.bannerDataUrl ?? '');
+  const [galleryDataUrls, setGalleryDataUrls] = useState<string[]>(editing?.galleryDataUrls ?? []);
   const [title, setTitle] = useState(editing?.title ?? '');
   const [description, setDescription] = useState(editing?.description ?? '');
   const [category, setCategory] = useState(editing?.category ?? 'Concerts');
   const [subCategory, setSubCategory] = useState(editing?.subCategory ?? subsFor(editing?.category ?? 'Concerts')[0] ?? '');
-  const [socialPost, setSocialPost] = useState(editing?.socialBanners?.post ?? false);
-  const [socialStory, setSocialStory] = useState(editing?.socialBanners?.story ?? false);
+  const [socialPostDataUrl, setSocialPostDataUrl] = useState(editing?.socialBanners?.postDataUrl ?? '');
+  const [socialStoryDataUrl, setSocialStoryDataUrl] = useState(editing?.socialBanners?.storyDataUrl ?? '');
+  const socialPost = !!socialPostDataUrl;
+  const socialStory = !!socialStoryDataUrl;
   const [ageLimit, setAgeLimit] = useState(editing?.ageLimit ?? '18+');
   const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : '');
   const [time, setTime] = useState(() => {
@@ -125,7 +129,9 @@ export default function CreateEvent() {
     description: description.trim(),
     category,
     subCategory,
-    socialBanners: { post: socialPost, story: socialStory },
+    socialBanners: { post: socialPost, postDataUrl: socialPostDataUrl, story: socialStory, storyDataUrl: socialStoryDataUrl },
+    bannerDataUrl,
+    galleryDataUrls,
     ageLimit,
     tags: [category === 'Concerts' ? 'Concert' : category, ageLimit],
     date: new Date(`${date}T${time}`).toISOString(),
@@ -276,14 +282,15 @@ export default function CreateEvent() {
 
       {step === 0 && (
         <div className="card">
-          <div
-            className={`upload-box ${banner ? 'done' : ''}`}
-            onClick={() => setBanner((v) => !v)}
+          <FileDropBox
+            value={bannerDataUrl}
+            onChange={setBannerDataUrl}
             style={{ marginBottom: 16, padding: 30 }}
-          >
-            {banner
-              ? '✓ Banner uploaded'
-              : '⬆ portrait banner · 3:4 · min 900px — shown on cards & event page'}
+            label="⬆ portrait banner · 3:4 · min 900px — shown on cards & event page"
+          />
+          <div className="field">
+            <span>Gallery photos <span className="muted-2">(up to 6)</span></span>
+            <GalleryDropBox value={galleryDataUrls} onChange={setGalleryDataUrls} />
           </div>
           <div className="field">
             <span>Event title</span>
@@ -326,12 +333,18 @@ export default function CreateEvent() {
           <div className="field">
             <span>Social media banners <span className="muted-2">(shared on WhatsApp/Instagram · max 5 MB each)</span></span>
             <div className="form-row">
-              <button type="button" className={`upload-box ${socialPost ? 'done' : ''}`} onClick={() => setSocialPost((v) => !v)}>
-                {socialPost ? '✓ Post banner uploaded (1:1)' : '⬆ Post banner — square 1:1 · ≤5 MB'}
-              </button>
-              <button type="button" className={`upload-box ${socialStory ? 'done' : ''}`} onClick={() => setSocialStory((v) => !v)}>
-                {socialStory ? '✓ Story banner uploaded (9:16)' : '⬆ Story banner — 9:16 · ≤5 MB'}
-              </button>
+              <FileDropBox
+                value={socialPostDataUrl}
+                onChange={setSocialPostDataUrl}
+                label="⬆ Post banner — square 1:1 · ≤5 MB"
+                doneLabel="✓ Post banner uploaded (1:1)"
+              />
+              <FileDropBox
+                value={socialStoryDataUrl}
+                onChange={setSocialStoryDataUrl}
+                label="⬆ Story banner — 9:16 · ≤5 MB"
+                doneLabel="✓ Story banner uploaded (9:16)"
+              />
             </div>
           </div>
           <div className="form-row">
