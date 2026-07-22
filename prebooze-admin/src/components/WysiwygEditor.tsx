@@ -122,7 +122,6 @@ export default function WysiwygEditor({ value, onChange, minHeight = 160 }: {
           title="Paragraph style"
           style={{ width: 118, padding: '3px 6px', fontSize: 11.5, fontWeight: 700 }}
           value={block}
-          onMouseDown={(e) => e.preventDefault()}
           onChange={(e) => {
             // execCommand's formatBlock wants the tag wrapped in angle
             // brackets on some browsers (Safari/Firefox) and the bare name
