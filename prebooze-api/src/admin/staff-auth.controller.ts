@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffAuthGuard, StaffTokenPayload } from './staff-auth.guard';
 
@@ -16,5 +16,17 @@ export class StaffAuthController {
   @UseGuards(StaffAuthGuard)
   me(@Req() req: { staff: StaffTokenPayload }) {
     return this.staffAuth.me(req.staff.staffId);
+  }
+
+  @Patch('me')
+  @UseGuards(StaffAuthGuard)
+  updateMe(@Req() req: { staff: StaffTokenPayload }, @Body() body: { name?: string; email?: string }) {
+    return this.staffAuth.updateMe(req.staff.staffId, body);
+  }
+
+  @Post('me/password')
+  @UseGuards(StaffAuthGuard)
+  changePassword(@Req() req: { staff: StaffTokenPayload }, @Body('currentPassword') currentPassword: string, @Body('newPassword') newPassword: string) {
+    return this.staffAuth.changeMyPassword(req.staff.staffId, currentPassword, newPassword);
   }
 }

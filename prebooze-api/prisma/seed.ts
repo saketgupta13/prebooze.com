@@ -185,6 +185,14 @@ const SEED_EVENT_CATEGORIES = [
   { name: 'This weekend', icon: '🏠' },
 ];
 
+// Admin API sub-tiers slice — matches PLAN_QUOTA's ids exactly (free/starter/pro/elite).
+const SEED_SUB_TIERS = [
+  { id: 'free', name: 'Free', price: 0, guests: 25 },
+  { id: 'starter', name: 'Starter', price: 999, guests: 150 },
+  { id: 'pro', name: 'Pro', price: 2499, guests: 500 },
+  { id: 'elite', name: 'Elite', price: 4999, guests: -1 },
+];
+
 // Admin API promos slice — a gender-targeted platform-wide promo, ported
 // alongside the existing FIRST50/VIPLOVE coupons (already organizerId: null
 // where relevant, which already made them "promos" before this slice).
@@ -437,6 +445,7 @@ async function main() {
   for (const j of CAREER_JOBS) await db.careerJob.upsert({ where: { id: j.id }, create: j, update: j });
   for (const name of SEED_CAREER_TEAMS) await db.careerTeam.upsert({ where: { name }, create: { name }, update: {} });
   for (const c of SEED_EVENT_CATEGORIES) await db.eventCategory.upsert({ where: { name: c.name }, create: c, update: {} });
+  for (const t of SEED_SUB_TIERS) await db.subTier.upsert({ where: { id: t.id }, create: t, update: {} });
   for (const p of SEED_PROMOS) await db.coupon.upsert({ where: { id: p.id }, create: p, update: p });
   for (const a of SEED_APPLICANTS) await db.jobApplication.upsert({ where: { id: a.id }, create: a, update: a });
   for (const r of SEED_REELS) await db.reel.upsert({ where: { id: r.id }, create: r, update: r });

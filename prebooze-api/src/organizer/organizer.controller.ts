@@ -75,6 +75,21 @@ export class AdminEventsController {
     return this.organizer.listForAdmin(status);
   }
 
+  // Full admin event CRUD — closes the gap flagged in the media-upload
+  // slice: EventEditor.tsx's addEvent/updateEvent cover the whole event
+  // surface (title/tiers/venue/lineup/rules/etc.), not just approve/reject.
+  @Post()
+  @RequirePermission('Events & approvals', 'edit')
+  create(@Body() body: Parameters<OrganizerService['adminUpsertEvent']>[0]) {
+    return this.organizer.adminUpsertEvent(body);
+  }
+
+  @Patch(':id')
+  @RequirePermission('Events & approvals', 'edit')
+  update(@Param('id') id: string, @Body() body: Omit<Parameters<OrganizerService['adminUpsertEvent']>[0], 'id'>) {
+    return this.organizer.adminUpsertEvent({ ...body, id });
+  }
+
   @Post(':id/approve')
   @RequirePermission('Events & approvals', 'approve')
   approve(@Param('id') id: string) {

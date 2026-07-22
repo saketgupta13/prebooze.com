@@ -20,6 +20,7 @@ import { AdminCategoriesController } from './categories.controller';
 import { AdminCartsController } from './carts.controller';
 import { AdminPaymentsController } from './payments.controller';
 import { MediaController } from './media.controller';
+import { AdminSubTiersController } from './sub-tiers.controller';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffService } from './staff.service';
 import { CustomersService } from './customers.service';
@@ -40,6 +41,7 @@ import { ReferralsAdminService } from './referrals-admin.service';
 import { CategoriesService } from './categories.service';
 import { CartsService } from './carts.service';
 import { PaymentsService } from './payments.service';
+import { SubTiersService } from './sub-tiers.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { OwnerOnlyGuard } from './owner-only.guard';
 import { PermissionGuard } from './permission.guard';
@@ -78,6 +80,7 @@ import { WhatsappService } from '../notifications/whatsapp';
     AdminCartsController,
     AdminPaymentsController,
     MediaController,
+    AdminSubTiersController,
   ],
   providers: [
     StaffAuthService,
@@ -100,6 +103,7 @@ import { WhatsappService } from '../notifications/whatsapp';
     CategoriesService,
     CartsService,
     PaymentsService,
+    SubTiersService,
     StorageService,
     WhatsappService,
     StaffAuthGuard,

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { FeaturedService } from './featured.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StaffAuthGuard } from '../admin/staff-auth.guard';
@@ -23,11 +23,11 @@ export class FeaturedController {
   }
 }
 
-/** Minimal review queue, same reasoning as /admin/events (Phase 6) — a full
- * featured queue + admin-editable rates console is separate Admin API work.
- * Real staff auth as of the Admin API auth slice; mapped to "Content
- * (banners / blogs / pages)" — the closest PERM_MODULES fit, since Featured
- * isn't its own module in the mock's RoleMatrix either. */
+/** Minimal review queue, same reasoning as /admin/events (Phase 6). Real
+ * staff auth as of the Admin API auth slice; the review queue is mapped to
+ * "Content (banners / blogs / pages)" — the closest PERM_MODULES fit, since
+ * Featured isn't its own module in the mock's RoleMatrix either. Rates are
+ * gated on "Payments & payouts" instead — pricing config, not content. */
 @Controller('admin/featured')
 @UseGuards(StaffAuthGuard, PermissionGuard)
 export class AdminFeaturedController {
@@ -49,5 +49,11 @@ export class AdminFeaturedController {
   @RequirePermission('Content (banners / blogs / pages)', 'approve')
   reject(@Param('id') id: string) {
     return this.featured.adminReject(id);
+  }
+
+  @Patch('rates')
+  @RequirePermission('Payments & payouts', 'edit')
+  updateRates(@Body() body: Parameters<FeaturedService['updateRates']>[0]) {
+    return this.featured.updateRates(body);
   }
 }

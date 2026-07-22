@@ -487,7 +487,30 @@ model PlatformSettings {
   referralReferee  Int @default(100)
   referralReferrer Int @default(100)
 
+  // Featured rates slice — FeaturedService's RATES was a hardcoded constant
+  // with a public read (GET /featured/rates, already in prebooze-web's
+  // contract) but no admin write, flagged in that file's own comment as
+  // "separate Admin API work" and never actually built until now.
+  featuredPerEvent         Int @default(2000)
+  featuredOrganizerMonthly Int @default(4999)
+  featuredPromoterMonthly  Int @default(2999)
+  featuredLineupMonthly    Int @default(1999)
+  featuredVenueMonthly     Int @default(3999)
+
   updatedAt DateTime @updatedAt
+}
+
+/** Promoter subscription plans — PromoterService's PLAN_QUOTA (guest-add
+ * quota per plan) was a hardcoded constant; `price` didn't exist as a
+ * concept anywhere despite prebooze-admin's PromoterTiers.tsx expecting to
+ * edit it. Subscription billing itself still isn't wired up (same
+ * documented gap as Featured billing) — price is stored/admin-editable
+ * but nothing charges it yet. */
+model SubTier {
+  id     String @id
+  name   String
+  price  Int
+  guests Int // -1 = unlimited
 }
 
 /** Real system-event feed for the admin bell icon — event submitted for
@@ -572,6 +595,11 @@ model Booking {
   walletCreditUsed Int           @default(0)
   paymentId        String? // Razorpay payment id (or dev-stub id — see RazorpayService)
   refundedTo       RefundMethod?
+
+  // Manual/admin booking creation slice — null means "the normal guest
+  // checkout flow" (Razorpay/dev-stub, implied by paymentId). Set only for
+  // staff-recorded phone orders/walk-ups/comps (BookingsService.adminCreate).
+  paymentMethod String?
 
   qrToken     String // signed JWT — POST /bookings/check-in validates this server-side
   checkedIn   Boolean   @default(false)

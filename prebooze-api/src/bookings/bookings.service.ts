@@ -6,8 +6,9 @@ import { PrismaService } from '../prisma.service';
 import { HoldsService } from './holds.service';
 import { RazorpayService } from '../payments/razorpay.service';
 import { WhatsappService } from '../notifications/whatsapp';
-import { REFERRAL_REFERRER_REWARD } from '../referrals/referral.constants';
+import { REFERRAL_REFERRER_REWARD, referralCodeFor } from '../referrals/referral.constants';
 import { NotificationsService } from '../admin/notifications.service';
+import { normalizePhone } from '../auth/auth.service';
 
 const FALLBACK_FEE_PER_TICKET = 1.5; // ₹ — used only if PlatformSettings row is somehow missing
 
@@ -240,6 +241,95 @@ export class BookingsService {
       if (referrer) await this.wa.send(referrer.phone, 'referral_reward', [String(reward), user.name || 'Your friend']).catch(() => {});
     }
 
+    return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true } } } });
+  }
+
+  /** Staff-recorded phone orders/walk-ups/comps — bypasses the hold/QR
+   * checkout session and Razorpay entirely, unlike the guest flow above.
+   * Finds-or-creates the buyer by phone the same way OTP signup does (an
+   * admin-onboarded customer and a later real signup on the same number
+   * resolve to one account, never two). Reuses the same fee formula as
+   * guest checkout (bookingFee × qty, no separate GST add-on charged to the
+   * guest) rather than reproducing the mock's one-off fee formula, for
+   * consistency with every other booking in the system. Comp bookings
+   * (subtotal 0) skip the organizer ledger credit — nothing was actually
+   * sold — and skip the platform fee too. */
+  async adminCreate(input: {
+    eventId: string;
+    tierId: string;
+    qty: number;
+    guestName: string;
+    phone: string;
+    gender?: string;
+    others?: { name: string; gender?: string; whatsapp?: string }[];
+    method: string;
+  }) {
+    if (!input.guestName?.trim() || !input.phone?.trim()) throw new BadRequestException('Guest name and phone are required');
+    if (!input.qty || input.qty < 1) throw new BadRequestException('qty must be at least 1');
+
+    const event = await this.prisma.event.findUnique({ where: { id: input.eventId }, include: { tiers: true } });
+    if (!event) throw new NotFoundException('Event not found');
+    const tier = event.tiers.find((t) => t.id === input.tierId);
+    if (!tier) throw new BadRequestException('Unknown ticket tier');
+    if (tier.quantity - tier.sold < input.qty) throw new BadRequestException(`Only ${tier.quantity - tier.sold} left in "${tier.name}"`);
+
+    const phone = normalizePhone(input.phone);
+    const buyer =
+      (await this.prisma.user.findUnique({ where: { phone } })) ??
+      (await this.prisma.user.create({ data: { phone, name: input.guestName.trim(), referralCode: referralCodeFor(phone) } }));
+
+    const isComp = input.method.toLowerCase().includes('comp');
+    const subtotal = isComp ? 0 : tier.price * input.qty;
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+    const fee = isComp ? 0 : Math.round(input.qty * (settings?.bookingFee ?? FALLBACK_FEE_PER_TICKET));
+    const total = subtotal + fee;
+
+    const id = '#TKT-' + randomInt(10000, 99999);
+    const guests = [
+      { name: input.guestName.trim(), checkedIn: false, gender: input.gender },
+      ...(input.others ?? []).slice(0, input.qty - 1).filter((o) => o.name?.trim()).map((o) => ({ name: o.name.trim(), checkedIn: false, gender: o.gender, whatsapp: o.whatsapp })),
+    ];
+    const qrToken = await this.jwt.signAsync({ bookingId: id }, { expiresIn: '30d' });
+
+    await this.prisma.$transaction(async (tx) => {
+      const res = await tx.ticketTier.updateMany({
+        where: { id: tier.id, sold: { lte: tier.quantity - input.qty } },
+        data: { sold: { increment: input.qty } },
+      });
+      if (res.count === 0) throw new BadRequestException(`"${tier.name}" sold out`);
+
+      await tx.booking.create({
+        data: {
+          id,
+          userId: buyer.id,
+          eventId: event.id,
+          tierName: `${input.qty}× ${tier.name}`,
+          tierBreakdown: { [tier.id]: input.qty } as Prisma.InputJsonValue,
+          qty: input.qty,
+          subtotal,
+          fee,
+          total,
+          guests: guests as unknown as Prisma.InputJsonValue,
+          mainGuest: input.guestName.trim(),
+          whatsapp: phone,
+          paymentMethod: isComp ? 'Comp' : input.method,
+          qrToken,
+        },
+      });
+
+      if (subtotal > 0) {
+        await tx.organizerLedgerTx.create({
+          data: { organizerId: event.organizerId, type: 'sale', amount: subtotal, eventId: event.id, eventTitle: event.title, note: `Booking ${id} (manual)` },
+        });
+      }
+      if (fee > 0) {
+        await tx.ledgerEntry.create({
+          data: { kind: 'income', category: 'Booking fees', amount: fee, note: `Booking ${id} (manual)`, auto: true },
+        });
+      }
+    });
+
+    await this.wa.send(phone, 'booking_confirmed', [input.guestName.trim(), event.title, String(input.qty), id, String(total)]).catch(() => {});
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true } } } });
   }
 

@@ -86,7 +86,7 @@ export class PromoterService {
     if (listCount >= cfg.cap) throw new BadRequestException('Sorry — this free-entry list is full');
 
     const promoter = await this.prisma.promoter.findUnique({ where: { slug: promoterSlug } });
-    const quota = PLAN_QUOTA[promoter?.planId ?? 'free'] ?? PLAN_QUOTA.free;
+    const quota = await this.planQuota(promoter?.planId ?? 'free');
     if (quota >= 0) {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -218,6 +218,14 @@ export class PromoterService {
     return this.prisma.promoterTeamMember.create({
       data: { promoterId: promoter.id, handle: m.handle.trim(), name: m.name?.trim() || m.handle.trim(), hue: m.hue ?? 0 },
     });
+  }
+
+  /** DB-first, PLAN_QUOTA as fallback only if the SubTier row is somehow
+   * missing — admin's PromoterTiers.tsx (Admin API "sub-tiers" slice) edits
+   * SubTier.guests for real now instead of this being a fixed constant. */
+  private async planQuota(planId: string): Promise<number> {
+    const tier = await this.prisma.subTier.findUnique({ where: { id: planId } });
+    return tier?.guests ?? PLAN_QUOTA[planId] ?? PLAN_QUOTA.free;
   }
 
   // ---------- subscription ----------

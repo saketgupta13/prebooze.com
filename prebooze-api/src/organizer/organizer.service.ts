@@ -78,9 +78,12 @@ export class OrganizerService {
 
   /** Create or edit. Status is client-controllable only between draft/pending
    * — approved/rejected are review outcomes and can only ever be set by
-   * POST /admin/events/:id/{approve,reject}, never by the organizer directly. */
-  async upsertEvent(userId: string, input: EventInput) {
-    const org = await this.myOrganizer(userId);
+   * POST /admin/events/:id/{approve,reject}, never directly here (organizer
+   * or admin path alike). Shared by both OrganizerController's self-serve
+   * upsertEvent and AdminEventsController's admin "god mode" create/edit
+   * (see adminUpsertEvent below) — same merge-not-replace semantics either
+   * way, just a different source of truth for organizerId/ownership. */
+  private async saveEvent(organizerId: string, organizerBrandName: string, input: EventInput) {
     if (!input.title?.trim()) throw new BadRequestException('title is required');
     if (!input.venueId) throw new BadRequestException('venueId is required');
     const venue = await this.prisma.venue.findUnique({ where: { id: input.venueId } });
@@ -94,7 +97,6 @@ export class OrganizerService {
     if (eventId) {
       existing = await this.prisma.event.findUnique({ where: { id: eventId } });
       if (!existing) throw new NotFoundException('Event not found');
-      if (existing.organizerId !== org.id) throw new ForbiddenException();
       slug = existing.slug; // stable once created, even if the title changes
     } else {
       eventId = 'ev-' + randomBytes(6).toString('hex');
@@ -114,7 +116,7 @@ export class OrganizerService {
       date: input.date ? new Date(input.date) : (existing?.date ?? new Date()),
       durationHrs: input.durationHrs ?? existing?.durationHrs ?? 0,
       venueId: input.venueId,
-      organizerId: org.id,
+      organizerId,
       status: status as never,
       conditions: input.conditions ?? existing?.conditions ?? [],
       rules: (input.rules ?? existing?.rules ?? []) as Prisma.InputJsonValue,
@@ -134,7 +136,7 @@ export class OrganizerService {
     // only on the transition INTO pending — an edit re-saved while already
     // pending shouldn't re-notify on every keystroke-driven autosave
     if (status === 'pending' && existing?.status !== 'pending') {
-      await this.notifications.notify('⚠', `"${data.title}" submitted for approval by ${org.brandName}`, '/admin/events?status=pending');
+      await this.notifications.notify('⚠', `"${data.title}" submitted for approval by ${organizerBrandName}`, '/admin/events?status=pending');
     }
 
     // same merge rule as above: omitting `tiers` entirely (e.g. a status-only
@@ -143,6 +145,29 @@ export class OrganizerService {
     else if (!existing) throw new BadRequestException('At least one ticket tier is required');
 
     return this.prisma.event.findUniqueOrThrow({ where: { id: eventId }, include: { tiers: true, venue: true } });
+  }
+
+  async upsertEvent(userId: string, input: EventInput) {
+    const org = await this.myOrganizer(userId);
+    if (input.id) {
+      const existing = await this.prisma.event.findUnique({ where: { id: input.id } });
+      if (existing && existing.organizerId !== org.id) throw new ForbiddenException();
+    }
+    return this.saveEvent(org.id, org.brandName, input);
+  }
+
+  /** Admin "god mode" create/edit — closes the gap left by slice 3's
+   * directory CRUD (organizers/promoters/lineups/venues), which didn't
+   * cover events: only the approve/reject queue + narrow field patches
+   * (commission/paid-out/pause-sales/poster) existed before this. Unlike
+   * the organizer path, there's no ownership check — admin can create or
+   * edit any organizer's event directly, same "god mode" reasoning as the
+   * rest of the directory CRUD slice. */
+  async adminUpsertEvent(input: EventInput & { organizerId: string }) {
+    if (!input.organizerId) throw new BadRequestException('organizerId is required');
+    const org = await this.prisma.organizer.findUnique({ where: { id: input.organizerId } });
+    if (!org) throw new BadRequestException('Unknown organizer');
+    return this.saveEvent(org.id, org.brandName, input);
   }
 
   private async syncTiers(eventId: string, tiers: TierInput[]) {

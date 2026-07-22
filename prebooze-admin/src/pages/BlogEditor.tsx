@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import SeoFields, { emptySeo } from '../components/SeoFields';
+import { ImagePicker } from '../components/ui';
 
 /** Create / edit a blog post — cover banner, title, category, content and SEO. */
 export function BlogEditor() {
@@ -13,7 +14,8 @@ export function BlogEditor() {
 
   const [title, setTitle] = useState(existing?.title ?? '');
   const [category, setCategory] = useState(existing?.category ?? blogCategories[0]?.name ?? 'City guide');
-  const [hasBanner, setHasBanner] = useState(existing?.hasBanner ?? false);
+  const [bannerDataUrl, setBannerDataUrl] = useState(existing?.bannerDataUrl ?? '');
+  const hasBanner = !!bannerDataUrl;
   const [content, setContent] = useState(existing?.content ?? '');
   const [status, setStatus] = useState(existing?.status ?? 'draft');
   const [seo, setSeo] = useState(existing?.seo ?? emptySeo());
@@ -47,6 +49,7 @@ export function BlogEditor() {
       title: title.trim(),
       category,
       hasBanner,
+      bannerDataUrl,
       content,
       status,
       seo,
@@ -67,14 +70,14 @@ export function BlogEditor() {
       </div>
 
       {/* Cover banner (required) */}
-      <button
-        type="button"
-        className={hasBanner ? 'dashed-box' : 'ph'}
-        style={{ aspectRatio: '16 / 6', borderRadius: 12, cursor: 'pointer', background: hasBanner ? 'linear-gradient(120deg, rgba(139,195,74,.2), rgba(139,195,74,.05))' : undefined, color: hasBanner ? 'var(--green)' : undefined, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        onClick={() => setHasBanner((v) => !v)}
+      <ImagePicker
+        value={bannerDataUrl}
+        onChange={setBannerDataUrl}
+        aspectRatio="16 / 6"
+        label="⬆ upload cover banner · 16:6 · required for every post"
       >
-        {hasBanner ? '✓ cover banner uploaded (16:6) — click to replace' : '⬆ upload cover banner · 16:6 · required for every post'}
-      </button>
+        <span className="tiny" style={{ margin: 'auto', color: '#fff' }}>✓ cover banner uploaded (16:6) — click to replace</span>
+      </ImagePicker>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="field">
@@ -128,7 +131,8 @@ export function BlogEditor() {
 export function BlogCategories() {
   const { blogCategories, blogs, addBlogCategory, toast } = useAdmin();
   const [name, setName] = useState('');
-  const [hasBanner, setHasBanner] = useState(false);
+  const [bannerDataUrl, setBannerDataUrl] = useState('');
+  const hasBanner = !!bannerDataUrl;
   const [seo, setSeo] = useState(emptySeo());
 
   const slug = '/blog/category/' + (name || 'name').toLowerCase().replace(/\s+/g, '-');
@@ -143,9 +147,9 @@ export function BlogCategories() {
       toast('That blog category already exists');
       return;
     }
-    addBlogCategory({ id: 'bc' + Date.now(), name: name.trim(), hasBanner, seo });
+    addBlogCategory({ id: 'bc' + Date.now(), name: name.trim(), hasBanner, bannerDataUrl, seo });
     setName('');
-    setHasBanner(false);
+    setBannerDataUrl('');
     setSeo(emptySeo());
   };
 
@@ -179,14 +183,9 @@ export function BlogCategories() {
           <label>Category name</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Nightlife tips" />
         </div>
-        <button
-          type="button"
-          className="dashed-box"
-          style={{ background: 'none', textAlign: 'left', cursor: 'pointer', color: hasBanner ? 'var(--green)' : 'var(--muted)', fontSize: 11.5 }}
-          onClick={() => setHasBanner((v) => !v)}
-        >
-          {hasBanner ? '✓ category banner uploaded (16:5)' : '+ upload category banner 16:5 — tops the category page'}
-        </button>
+        <ImagePicker value={bannerDataUrl} onChange={setBannerDataUrl} aspectRatio="16 / 5" height={60} label="+ upload category banner 16:5 — tops the category page">
+          <span className="tiny" style={{ margin: 'auto', color: '#fff' }}>✓ category banner uploaded (16:5)</span>
+        </ImagePicker>
         <SeoFields seo={seo} onChange={setSeo} slug={slug} fallbackTitle={`${name || 'Category'} — Prebooze Blog`} />
         <button type="submit" className="btn btn-pri" style={{ alignSelf: 'flex-start' }}>Create category</button>
       </form>

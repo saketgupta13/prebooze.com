@@ -147,6 +147,7 @@ export interface BlogCategory {
   id: string;
   name: string;
   hasBanner?: boolean;
+  bannerDataUrl?: string;
   seo?: Seo;
 }
 
@@ -327,6 +328,7 @@ export interface Blog {
   category?: string;
   content?: string;
   hasBanner?: boolean;
+  bannerDataUrl?: string;
   seo?: Seo;
 }
 
@@ -419,6 +421,7 @@ export interface Lineup {
   city?: string;
   links?: string;
   hasImage?: boolean;
+  imageDataUrl?: string;
   followers: number;
   verified: boolean;
 }

@@ -88,12 +88,13 @@ export function Drawer({ onClose, children }: { onClose: () => void; children: R
  * Events and Categories. `children` renders on top of the picked image
  * (e.g. BannerEdit's live heading/description/CTA preview); omit it for a
  * plain "✓ uploaded" badge. */
-export function ImagePicker({ value, onChange, aspectRatio = '16 / 5', height, width, label, children }: {
+export function ImagePicker({ value, onChange, aspectRatio = '16 / 5', height, width, radius = 12, label, children }: {
   value?: string;
   onChange: (dataUrl: string) => void;
   aspectRatio?: string;
   height?: number;
   width?: number;
+  radius?: number | string;
   label: string;
   children?: ReactNode;
 }) {
@@ -111,7 +112,7 @@ export function ImagePicker({ value, onChange, aspectRatio = '16 / 5', height, w
       onClick={() => inputRef.current?.click()}
       style={{
         border: value ? '1px solid var(--green)' : '1.5px dashed rgba(139,195,74,.4)',
-        borderRadius: 12,
+        borderRadius: radius,
         aspectRatio: height ? undefined : aspectRatio,
         height,
         cursor: 'pointer',

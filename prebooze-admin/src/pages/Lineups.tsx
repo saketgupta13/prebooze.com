@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
-import { GradientPhoto, SearchBox, Tag } from '../components/ui';
+import { GradientPhoto, ImagePicker, SearchBox, Tag } from '../components/ui';
 
 /** Line-ups directory — artists, DJs, bands, sponsors, promoters and hosts
  * that events can book and guests can follow. */
@@ -97,7 +97,8 @@ export function LineupEdit() {
   const [description, setDescription] = useState(existing?.description ?? '');
   const [city, setCity] = useState(existing?.city ?? '');
   const [links, setLinks] = useState(existing?.links ?? '');
-  const [hasImage, setHasImage] = useState(existing?.hasImage ?? false);
+  const [imageDataUrl, setImageDataUrl] = useState(existing?.imageDataUrl ?? '');
+  const hasImage = !!imageDataUrl;
   const [verified, setVerified] = useState(existing?.verified ?? false);
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCat, setNewCat] = useState('');
@@ -128,6 +129,7 @@ export function LineupEdit() {
       city: city.trim() || undefined,
       links: links.trim() || undefined,
       hasImage,
+      imageDataUrl,
       verified,
     };
     if (isCreate) addLineup({ id: 'lu' + Date.now(), followers: 0, ...patch });
@@ -159,14 +161,9 @@ export function LineupEdit() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={() => setHasImage((v) => !v)}
-            style={{ width: 76, height: 76, borderRadius: '50%', flex: 'none', cursor: 'pointer', border: hasImage ? '2px solid var(--green)' : '1.5px dashed rgba(139,195,74,.4)', background: hasImage ? 'radial-gradient(ellipse at 30% 25%, rgba(139,195,74,.5), transparent 60%), #14160d' : '#0f100a', color: hasImage ? 'var(--green)' : 'var(--hint)', fontSize: 10 }}
-            title="Profile image"
-          >
-            {hasImage ? '✓ photo' : '+ photo'}
-          </button>
+          <ImagePicker value={imageDataUrl} onChange={setImageDataUrl} width={76} height={76} radius="50%" label="+ photo">
+            <span style={{ margin: 'auto', fontSize: 16 }}>✓</span>
+          </ImagePicker>
           <div className="field" style={{ flex: 1 }}>
             <label>Name / title</label>
             <input className="input" style={{ fontSize: 15, fontWeight: 700 }} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. DJ Nova" autoFocus={isCreate} />

@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { normalizePhone } from '../auth/auth.service';
+import { referralCodeFor } from '../referrals/referral.constants';
 
 @Injectable()
 export class CustomersService {
@@ -37,6 +39,32 @@ export class CustomersService {
         segment: u.role ? 'organizers' : 'guests',
       };
     });
+  }
+
+  /** Manual onboarding — walk-ups, phone bookings, VIP guests added by
+   * staff, no OTP round trip. Marks phoneVerified since staff is vouching
+   * for the number directly (mirrors the mock's "becomes their WhatsApp
+   * login" framing). If the phone already has an account, that account is
+   * returned/updated rather than erroring — a staffer re-adding someone by
+   * phone shouldn't create a duplicate. */
+  async create(body: { name?: string; phone?: string; email?: string; city?: string; gender?: string; verified?: boolean }) {
+    if (!body.name?.trim()) throw new BadRequestException('Customer name is required');
+    if (!body.phone?.trim()) throw new BadRequestException('Phone number is required — it becomes their WhatsApp login');
+    const phone = normalizePhone(body.phone);
+
+    const existing = await this.prisma.user.findUnique({ where: { phone } });
+    const data = {
+      name: body.name.trim(),
+      email: body.email?.trim() ?? '',
+      city: body.city?.trim() ?? '',
+      gender: body.gender?.trim() ?? '',
+      idVerified: body.verified ?? false,
+      phoneVerified: true,
+    };
+    const user = existing
+      ? await this.prisma.user.update({ where: { id: existing.id }, data })
+      : await this.prisma.user.create({ data: { phone, referralCode: referralCodeFor(phone), ...data } });
+    return user;
   }
 
   async setBlocked(id: string, blocked: boolean) {

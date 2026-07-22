@@ -6,8 +6,11 @@ import { WhatsappService } from '../notifications/whatsapp';
  * frontend contract (src/api/index.ts featured.rates()) omits venueMonthly
  * even though Featured.type includes 'venue' and the mock pricing table has
  * it — included here anyway since a venue partner requesting featured
- * placement needs a real rate, not a gap. */
-const RATES = { perEvent: 2000, organizerMonthly: 4999, promoterMonthly: 2999, lineupMonthly: 1999, venueMonthly: 3999 };
+ * placement needs a real rate, not a gap. Used only as the seed default now
+ * — real rates live on PlatformSettings, admin-editable (Admin API
+ * "featured rates" slice — this was flagged in this file's own comment as
+ * "separate Admin API work" and left a hardcoded constant until now). */
+const FALLBACK_RATES = { perEvent: 2000, organizerMonthly: 4999, promoterMonthly: 2999, lineupMonthly: 1999, venueMonthly: 3999 };
 
 type FeaturedType = 'event' | 'organizer' | 'promoter' | 'lineup' | 'venue';
 
@@ -72,7 +75,8 @@ export class FeaturedService {
     if (input.type !== 'event' && input.billing !== 'monthly') throw new BadRequestException(`${input.type} can only be featured monthly`);
 
     const { city, expiresAt } = await this.resolveTarget(userId, input.type, input.refId);
-    const amount = input.billing === 'per_event' ? RATES.perEvent : RATES[`${input.type}Monthly` as keyof typeof RATES];
+    const rates = await this.rates();
+    const amount = input.billing === 'per_event' ? rates.perEvent : rates[`${input.type}Monthly` as keyof typeof rates];
 
     // matches the mock's requestFeatured: a fresh request replaces whatever
     // pending/active/expired record already existed for this exact item
@@ -87,8 +91,26 @@ export class FeaturedService {
     return row;
   }
 
-  rates() {
-    return RATES;
+  async rates() {
+    const s = await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
+    return {
+      perEvent: s.featuredPerEvent,
+      organizerMonthly: s.featuredOrganizerMonthly,
+      promoterMonthly: s.featuredPromoterMonthly,
+      lineupMonthly: s.featuredLineupMonthly,
+      venueMonthly: s.featuredVenueMonthly,
+    };
+  }
+
+  async updateRates(body: Partial<typeof FALLBACK_RATES>) {
+    const data: Record<string, number> = {};
+    if (body.perEvent !== undefined) data.featuredPerEvent = body.perEvent;
+    if (body.organizerMonthly !== undefined) data.featuredOrganizerMonthly = body.organizerMonthly;
+    if (body.promoterMonthly !== undefined) data.featuredPromoterMonthly = body.promoterMonthly;
+    if (body.lineupMonthly !== undefined) data.featuredLineupMonthly = body.lineupMonthly;
+    if (body.venueMonthly !== undefined) data.featuredVenueMonthly = body.venueMonthly;
+    await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: data, create: { id: 'main', ...data } });
+    return this.rates();
   }
 
   // ---------- admin: minimal review queue, same pattern as /admin/events ----------

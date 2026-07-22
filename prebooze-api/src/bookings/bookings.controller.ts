@@ -74,6 +74,12 @@ export class AdminBookingsController {
     return this.bookings.adminList(status);
   }
 
+  @Post()
+  @RequirePermission('Payments & payouts', 'edit')
+  create(@Body() body: Parameters<BookingsService['adminCreate']>[0]) {
+    return this.bookings.adminCreate(body);
+  }
+
   @Get(':id')
   @RequirePermission('Payments & payouts', 'view')
   get(@Param('id') id: string) {
