@@ -283,23 +283,29 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = usePersisted<Session | null>('pba_session', null);
   const [events, setEvents] = usePersisted('pba_events', SEED_EVENTS, mergeWithSeed(SEED_EVENTS, 'id'));
   const [bookings, setBookings] = usePersisted('pba_bookings', SEED_BOOKINGS, (list) => {
-    // one-time refresh: the very first demo booking set (#8412/#8420/#8419/
-    // #8415) predates both the structured-guests schema and the real-name
-    // refresh — rather than trying to patch those specific old records
-    // forward field by field, just replace the whole stored list with the
-    // current seed if any of those old ids are still sitting in localStorage.
-    // Safe to do broadly: anything a user actually creates through Manual
-    // booking gets a randomly generated id in a different range, so this
-    // never touches real, user-created bookings — only this one recognizable
-    // batch of stale demo data.
+    // Drop the very first demo booking set (#8412/#8420/#8419/#8415) —
+    // predates both the structured-guests schema and the real-name refresh
+    // — surgically, by id, rather than replacing the whole stored array.
+    // A previous version of this migration did `return SEED_BOOKINGS`
+    // whenever any stale id was found, which silently destroyed any real
+    // booking a user had already created if it happened to be sitting
+    // alongside the stale demo rows at the time — a real data-loss bug,
+    // not just a display one. Filtering by id keeps every real booking
+    // (Manual-booking ids are randomly generated in a different range, so
+    // they never collide with the stale set) and only backfills the fresh
+    // seed bookings that aren't already present, exactly once.
     const STALE_DEMO_IDS = new Set(['#8412', '#8420', '#8419', '#8415']);
-    if (list.some((b) => STALE_DEMO_IDS.has(b.id))) return SEED_BOOKINGS;
+    const withoutStale = list.filter((b) => !STALE_DEMO_IDS.has(b.id));
+    const hadStale = withoutStale.length !== list.length;
+    const withFreshSeed = hadStale
+      ? [...SEED_BOOKINGS.filter((sb) => !withoutStale.some((b) => b.id === sb.id)), ...withoutStale]
+      : withoutStale;
     // schema migration: bookings stored before `guests` was a structured
     // {name, phone, verified} array (either missing entirely, or an older
     // flat display-string array like "Sam Rivera ✓ (main)") — normalize
     // either shape into the current one instead of leaving raw strings
     // where BookingDetail.tsx now expects real objects.
-    return list.map((b) => {
+    return withFreshSeed.map((b) => {
       const raw = (b.guests as unknown as (string | { name: string; phone?: string; verified?: boolean })[]) ?? [`${b.guest} (main)`];
       const guests = raw.map((g) =>
         typeof g === 'string'
@@ -441,6 +447,34 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     setToastMsg(msg);
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToastMsg(null), 2200);
+  }, []);
+
+  // Reconcile customers against bookings once on mount: every real booking
+  // guest should have a customer record (this is the one place admin looks
+  // for guests), but the two are separately-seeded/persisted arrays with no
+  // live link, so a booking added directly to the seed (or created before
+  // this reconciliation existed) can leave its guest with no customer at
+  // all. addBooking finds-or-creates going forward; this catches anything
+  // that predates that fix, matched by name (case-insensitive), the same
+  // key CustomerDetail already uses.
+  useEffect(() => {
+    setCustomers((prev) => {
+      const existingNames = new Set(prev.map((c) => c.name.toLowerCase()));
+      const missing: Customer[] = [];
+      for (const b of bookings) {
+        const key = b.guest.toLowerCase();
+        if (existingNames.has(key)) continue;
+        existingNames.add(key);
+        const event = events.find((e) => e.id === b.eventId);
+        missing.push({
+          id: 'c-booking-' + key.replace(/[^a-z0-9]+/g, '-'), name: b.guest, verified: true, gender: '—',
+          city: event?.city ?? '—', bookings: 1, spend: b.amount, status: 'active', segment: 'guests', phone: b.phone,
+        });
+      }
+      return missing.length ? [...prev, ...missing] : prev;
+    });
+    // run once on mount only — addBooking keeps this in sync for anything created afterward
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value = useMemo<AdminState>(
@@ -697,6 +731,26 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setGuestList((prev) => prev.map((g) => (g.id === id ? { ...g, arrived: !g.arrived } : g))),
       addBooking: (b) => {
         setBookings((prev) => [b, ...prev]);
+        // find-or-create the matching customer by name (the same key
+        // CustomerDetail already uses to match a customer to their booking
+        // history) so every real booking guest shows up in Customers —
+        // without this, a booking could exist for someone with no customer
+        // record at all, invisible in the one place admin looks for guests.
+        setCustomers((prev) => {
+          const idx = prev.findIndex((c) => c.name.toLowerCase() === b.guest.toLowerCase());
+          if (idx === -1) {
+            const event = events.find((e) => e.id === b.eventId);
+            return [
+              ...prev,
+              {
+                id: 'c' + Date.now(), name: b.guest, verified: true, gender: '—',
+                city: event?.city ?? '—', bookings: 1, spend: b.amount, status: 'active',
+                segment: 'guests', phone: b.phone,
+              },
+            ];
+          }
+          return prev.map((c, i) => (i === idx ? { ...c, bookings: c.bookings + 1, spend: c.spend + b.amount, phone: c.phone ?? b.phone } : c));
+        });
         toast(`Manual booking ${b.id} created ✓`);
       },
       lineups,
