@@ -14,7 +14,7 @@ const TABS: { key: EditorTab; label: string }[] = [
   { key: 'media', label: '3 · Media' },
   { key: 'rules', label: '4 · Rules' },
   { key: 'commission', label: '5 · Commission' },
-  { key: 'lineup', label: '6 · Line-up' },
+  { key: 'lineup', label: '6 · Line-up & Promoters' },
   { key: 'seo', label: '7 · SEO' },
 ];
 
@@ -44,7 +44,7 @@ export default function EventEditor() {
   const { id } = useParams();
   const isCreate = !id;
   const navigate = useNavigate();
-  const { events, venues, organizers, settings, addEvent, updateEvent, approveEvent, rejectEvent, toast } = useAdmin();
+  const { events, venues, organizers, promoters, settings, addEvent, updateEvent, approveEvent, rejectEvent, toast } = useAdmin();
   const [tab, setTab] = useState<EditorTab>('basics');
   const [draft, setDraft] = useState<AdminEvent>(() => ({
     ...EMPTY_EVENT,
@@ -426,6 +426,33 @@ export default function EventEditor() {
             </div>
           )}
           <div className="tiny hint">shown as chips with photos on the guest event page</div>
+
+          <div className="field" style={{ marginTop: 6 }}>
+            <label>Promoters allowed to run guest lists for this event</label>
+            {promoters.length === 0 ? (
+              <div className="tiny muted">No promoters yet — add one under Promoters first.</div>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {promoters.map((p) => {
+                  const active = (event.allowedPromoters ?? []).includes(p.id);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`chip ${active ? 'on' : ''}`}
+                      onClick={() => {
+                        const cur = event.allowedPromoters ?? [];
+                        patch({ allowedPromoters: active ? cur.filter((id) => id !== p.id) : [...cur, p.id] });
+                      }}
+                    >
+                      📣 {p.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="tiny hint" style={{ marginTop: 4 }}>organizer's own console still picks a subset of these per guest list — this sets who's eligible at all</div>
+          </div>
         </div>
       )}
     </div>

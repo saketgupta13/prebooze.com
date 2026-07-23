@@ -56,6 +56,7 @@ export interface AdminEvent {
   description?: string;
   rules?: string;
   lineup?: string;
+  allowedPromoters?: string[]; // promoter ids permitted to run guest lists for this event
   hasBanner?: boolean;
   posterDataUrl?: string;
   galleryDataUrls?: string[];
