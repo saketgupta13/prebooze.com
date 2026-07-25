@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { EVENTS, FEATURED_PRICING, fmtDate, venueById } from '../../data/mock';
+import { FEATURED_PRICING, fmtDate, venueById } from '../../data/mock';
 import { findFeatured } from '../../lib/featured';
-import type { EventStatus } from '../../types';
+import { organizer } from '../../api';
+import { ApiError } from '../../api/client';
+import type { Event, EventStatus } from '../../types';
 import { categoryEmoji } from '../../components/Poster';
 
 const TABS: { key: 'all' | EventStatus; label: string }[] = [
@@ -21,11 +23,28 @@ const STATUS_BADGE: Record<EventStatus, { cls: string; label: string }> = {
   draft: { cls: 'badge-outline', label: 'Draft' },
 };
 
+/** Real event list (GET /organizer/events) — this is the one organizer page
+ * wired to the real backend so far; commission is admin-set and read-only
+ * (see BACKEND.md), so an honest display needs real data, not the mock
+ * store. Note: "+ Create event"/"✎ Edit" still open the older mock-only
+ * flow (CreateEvent.tsx) — a real event created here won't show up in this
+ * list until that flow is wired too, tracked as separate follow-up work. */
 export default function MyEvents() {
-  const { myEvents, featured, requestFeatured, toast } = useApp();
+  const { featured, requestFeatured, toast } = useApp();
   const [tab, setTab] = useState<'all' | EventStatus>('all');
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
 
-  const featureEvent = (e: (typeof EVENTS)[number]) => {
+  useEffect(() => {
+    organizer
+      .events()
+      .then(setEvents)
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load events'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const featureEvent = (e: Event) => {
     requestFeatured({
       type: 'event',
       refId: e.id,
@@ -37,10 +56,7 @@ export default function MyEvents() {
     toast(`Payment of ₹${FEATURED_PRICING.perEvent.toLocaleString('en-IN')} received — "${e.title}" sent for featured review ✓`);
   };
 
-  const seeded = EVENTS.filter((e) => e.organizerId === 'livewire');
-  // edited seeded events live in myEvents with the same id — the edit wins
-  const all = [...myEvents, ...seeded.filter((s) => !myEvents.some((m) => m.id === s.id))];
-  const list = tab === 'all' ? all : all.filter((e) => e.status === tab);
+  const list = tab === 'all' ? events : events.filter((e) => e.status === tab);
 
   return (
     <div>
@@ -53,7 +69,7 @@ export default function MyEvents() {
 
       <div className="tabs">
         {TABS.map((t) => {
-          const count = t.key === 'all' ? all.length : all.filter((e) => e.status === t.key).length;
+          const count = t.key === 'all' ? events.length : events.filter((e) => e.status === t.key).length;
           return (
             <button key={t.key} className={tab === t.key ? 'on' : ''} onClick={() => setTab(t.key)}>
               {t.label} ({count})
@@ -63,7 +79,9 @@ export default function MyEvents() {
       </div>
 
       <div className="card">
-        {list.length === 0 && <div className="empty">Nothing here yet.</div>}
+        {loading && <div className="empty">Loading…</div>}
+        {err && <div className="danger-text small">✕ {err}</div>}
+        {!loading && !err && list.length === 0 && <div className="empty">Nothing here yet.</div>}
         {list.map((e) => {
           const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
           const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
@@ -96,6 +114,7 @@ export default function MyEvents() {
                   ) : (
                     `${fmtDate(e.date)} · ${sold.toLocaleString()}/${cap.toLocaleString()} sold`
                   )}
+                  {e.commission != null && <> · platform commission {e.commission}%</>}
                 </div>
               </div>
               <span className={`badge ${badge.cls}`}>{badge.label}</span>

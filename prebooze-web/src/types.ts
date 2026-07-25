@@ -45,6 +45,10 @@ export interface Event {
   socialBanners?: { post?: boolean; postDataUrl?: string; story?: boolean; storyDataUrl?: string }; // 1:1 + 9:16 banners (≤5 MB)
   bannerDataUrl?: string; // portrait 3:4 banner — shown on cards & event page
   galleryDataUrls?: string[]; // up to 6 gallery photos
+  // Admin-negotiated per-event platform take-rate — set exclusively by an
+  // admin (see PATCH /organizer/:id/commission), read-only everywhere else
+  // including here. null/undefined = not set yet.
+  commission?: number | null;
 }
 
 export interface PromoterConfig {
