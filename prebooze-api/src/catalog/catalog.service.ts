@@ -15,6 +15,20 @@ const PUBLIC_ORGANIZER_SELECT = {
   createdAt: true, updatedAt: true,
 } as const;
 
+// Excludes the admin-only/private fields added for the Reports/Payments
+// slices (commission, paidOut, payoutUtr — a privately negotiated take-rate
+// and internal payout bookkeeping) and the rejection note (only meaningful
+// for a non-approved event, which should never reach a guest anyway) — same
+// reasoning as PUBLIC_ORGANIZER_SELECT above. This was previously leaking
+// via a bare `include` that pulled every raw Event column.
+const PUBLIC_EVENT_SELECT = {
+  id: true, slug: true, title: true, description: true, category: true, subCategory: true,
+  ageLimit: true, tags: true, date: true, durationHrs: true, venueId: true, status: true,
+  conditions: true, rules: true, lineup: true, posterHue: true, seo: true, promoterConfig: true,
+  socialBanners: true, salesPaused: true, posterUrl: true, createdAt: true, updatedAt: true,
+  tiers: true, venue: true, organizer: { select: PUBLIC_ORGANIZER_SELECT },
+} as const;
+
 @Injectable()
 export class CatalogService {
   constructor(private prisma: PrismaService) {}
@@ -42,7 +56,7 @@ export class CatalogService {
         ...(q.sub ? { subCategory: q.sub } : {}),
         ...(q.search ? { title: { contains: q.search, mode: 'insensitive' } } : {}),
       },
-      include: { tiers: true, venue: true, organizer: { select: PUBLIC_ORGANIZER_SELECT } },
+      select: PUBLIC_EVENT_SELECT,
       orderBy: { date: 'asc' },
     });
 
@@ -66,9 +80,9 @@ export class CatalogService {
   async event(slug: string) {
     const event = await this.prisma.event.findUnique({
       where: { slug },
-      include: { tiers: true, venue: true, organizer: { select: PUBLIC_ORGANIZER_SELECT } },
+      select: PUBLIC_EVENT_SELECT,
     });
-    if (!event) throw new NotFoundException('Event not found');
+    if (!event || event.status !== 'approved') throw new NotFoundException('Event not found');
     return event;
   }
 

@@ -4,6 +4,8 @@ import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayM
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } from '../data/mock';
 import { notify } from '../lib/notify';
+import { auth, referrals as referralsApi } from '../api';
+import { isBackendEnabled, setToken, clearToken } from '../api/client';
 
 export interface GuestReview {
   id: string;
@@ -173,7 +175,8 @@ interface AppState {
   pendingPhone: string;
   setCity: (c: string) => void;
   setPendingPhone: (p: string) => void;
-  loginWithOtp: () => 'new' | 'existing';
+  requestOtp: (phone: string) => Promise<void>;
+  loginWithOtp: (code: string) => Promise<'new' | 'existing'>;
   updateUser: (patch: Partial<User>) => void;
   // Submits an elevated-role application for manual review — never activates
   // the role directly. Guest ID verification is separate (see idVerified /
@@ -337,6 +340,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [followers, setFollowers] = useState<string[]>(() => load('pb_followers', ['p4', 'p5']));
   const [followRequests, setFollowRequests] = useState<string[]>(() => load('pb_follow_requests', ['p6', 'p7']));
   const [pendingPhone, setPendingPhone] = useState('');
+  const [pendingRequestId, setPendingRequestId] = useState('');
   const [orgBalance, setOrgBalance] = useState<number>(() => load('pb_org_balance', 84320));
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(() => load('pb_withdrawals', []));
   const [team, setTeam] = useState<TeamMember[]>(() =>
@@ -510,7 +514,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       pendingPhone,
       setCity,
       setPendingPhone,
-      loginWithOtp: () => {
+      requestOtp: async (phone) => {
+        setPendingPhone(phone);
+        if (!isBackendEnabled()) return;
+        const res = await auth.requestOtp(phone);
+        setPendingRequestId(res.requestId);
+      },
+      loginWithOtp: async (code) => {
+        if (isBackendEnabled()) {
+          const { token, user: apiUser, isNew } = await auth.verifyOtp(pendingRequestId, code);
+          setToken(token);
+          setUser(normalizeUser(apiUser));
+          if (isNew) {
+            const pendingRef = load<string | null>('pb_pending_ref', null);
+            if (pendingRef) {
+              referralsApi.claim(pendingRef).catch(() => {});
+              localStorage.removeItem('pb_pending_ref');
+            }
+          }
+          return isNew ? 'new' : 'existing';
+        }
+        // ---- offline/mock mode (no VITE_API_URL) — unchanged local fallback ----
         const existing = normalizeUser(load<User | null>('pb_known_' + pendingPhone, null));
         if (existing) {
           localStorage.setItem('pb_known_' + existing.phone, JSON.stringify(existing));
@@ -579,7 +603,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return next;
         });
       },
-      logout: () => setUser(null),
+      logout: () => {
+        setUser(null);
+        clearToken();
+      },
       // changing the cart always resets any active hold; checkout re-arms it on entry
       setSelection: (s) => {
         setSelectionState(s);

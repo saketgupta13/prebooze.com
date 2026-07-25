@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
+import { ApiError } from '../../api/client';
 
 export default function Otp() {
-  const { pendingPhone, loginWithOtp } = useApp();
+  const { pendingPhone, loginWithOtp, requestOtp } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [digits, setDigits] = useState(['', '', '', '']);
   const [timer, setTimer] = useState(24);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -41,15 +44,35 @@ export default function Otp() {
     if (d && i < 3) refs.current[i + 1]?.focus();
   };
 
-  const verify = (e: React.FormEvent) => {
+  const verify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (digits.some((d) => !d)) return;
-    const result = loginWithOtp();
-    const from = (location.state as { from?: string } | null)?.from;
-    if (result === 'new') {
-      navigate('/complete-profile', { state: { from } });
-    } else {
-      navigate(from ?? '/');
+    setErr('');
+    setBusy(true);
+    try {
+      const result = await loginWithOtp(digits.join(''));
+      const from = (location.state as { from?: string } | null)?.from;
+      if (result === 'new') {
+        navigate('/complete-profile', { state: { from } });
+      } else {
+        navigate(from ?? '/');
+      }
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Invalid code — please try again');
+      setDigits(['', '', '', '']);
+      refs.current[0]?.focus();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resend = async () => {
+    setTimer(24);
+    setErr('');
+    try {
+      await requestOtp(pendingPhone);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Couldn't resend code — please try again");
     }
   };
 
@@ -71,8 +94,6 @@ export default function Otp() {
           <p className="muted small" style={{ margin: '6px 0 4px' }}>
             Sent via WhatsApp 💬 to <span className="bold">{masked}</span>
           </p>
-          <p className="tiny accent">Demo: any 4 digits work</p>
-
           <div className="otp-boxes">
             {digits.map((d, i) => (
               <input
@@ -88,6 +109,12 @@ export default function Otp() {
             ))}
           </div>
 
+          {err && (
+            <div className="danger-text small" style={{ marginBottom: 12 }}>
+              ✕ {err}
+            </div>
+          )}
+
           <div className="small muted center" style={{ marginBottom: 16 }}>
             {timer > 0 ? (
               <>Resend in 0:{String(timer).padStart(2, '0')} · </>
@@ -97,7 +124,7 @@ export default function Otp() {
                   type="button"
                   className="link bold"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }}
-                  onClick={() => setTimer(24)}
+                  onClick={resend}
                 >
                   Resend code
                 </button>{' '}
@@ -109,8 +136,8 @@ export default function Otp() {
             </Link>
           </div>
 
-          <button className="btn btn-pri btn-block btn-lg" disabled={digits.some((d) => !d)}>
-            Verify & continue
+          <button className="btn btn-pri btn-block btn-lg" disabled={busy || digits.some((d) => !d)}>
+            {busy ? 'Verifying…' : 'Verify & continue'}
           </button>
         </form>
       </div>

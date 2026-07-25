@@ -2,22 +2,32 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { enabledCountries } from '../../data/locations';
+import { ApiError } from '../../api/client';
 
 export default function Login() {
-  const { setPendingPhone } = useApp();
+  const { requestOtp } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('+91');
   const [agreed, setAgreed] = useState(false);
   const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (phone.length !== 10) return setErr('Enter a valid 10-digit mobile number');
     if (!agreed) return setErr('Please accept the Terms & Privacy Policy');
-    setPendingPhone(`${code} ${phone}`);
-    navigate('/verify-otp', { state: location.state });
+    setErr('');
+    setBusy(true);
+    try {
+      await requestOtp(`${code} ${phone}`);
+      navigate('/verify-otp', { state: location.state });
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Couldn't send code — please try again");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -74,7 +84,9 @@ export default function Login() {
             </div>
           )}
 
-          <button className="btn btn-whatsapp btn-block btn-lg">Get OTP on WhatsApp 💬</button>
+          <button className="btn btn-whatsapp btn-block btn-lg" disabled={busy}>
+            {busy ? 'Sending…' : 'Get OTP on WhatsApp 💬'}
+          </button>
           <div className="tiny muted-2 center" style={{ marginTop: 12 }}>
             WhatsApp OTP only — no password, no SMS
           </div>
