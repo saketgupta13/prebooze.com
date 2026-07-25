@@ -59,6 +59,8 @@ import LocationsLive from './pages/LocationsLive';
 import CareersReferralsLive from './pages/CareersReferralsLive';
 import InvoicesLive from './pages/InvoicesLive';
 import EmailTemplatesLive from './pages/EmailTemplatesLive';
+import EventOpsLive from './pages/EventOpsLive';
+import AbandonedCartsLive from './pages/AbandonedCartsLive';
 import AddPromoter from './pages/AddPromoter';
 import PromoterEdit from './pages/PromoterEdit';
 import Testimonials from './pages/Testimonials';
@@ -117,6 +119,8 @@ export default function App() {
         <Route path="/careers-referrals-live" element={<CareersReferralsLive />} />
         <Route path="/invoices-live" element={<InvoicesLive />} />
         <Route path="/email-templates-live" element={<EmailTemplatesLive />} />
+        <Route path="/event-ops-live" element={<EventOpsLive />} />
+        <Route path="/abandoned-carts-live" element={<AbandonedCartsLive />} />
         <Route path="/promoters/:id" element={<PromoterDetail />} />
         <Route path="/promoters/:id/edit" element={<PromoterEdit />} />
         <Route path="/locations" element={<Locations />} />

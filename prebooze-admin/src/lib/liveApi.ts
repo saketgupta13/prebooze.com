@@ -496,4 +496,30 @@ export const liveEmailTemplates = {
   sendNow: (id: string, to: string) => liveFetch<{ ok: true }>(`/admin/email-templates/${id}/send`, { method: 'POST', body: { to } }),
 };
 
+export interface LiveGuestListEntry { id: string; name: string; phone: string; plusOnes: number; arrived: boolean; }
+export const liveGuestList = {
+  list: (eventId: string) => liveFetch<{ entries: LiveGuestListEntry[]; namesCount: number; totalHeads: number; arrived: number }>(`/admin/events/${eventId}/guest-list`),
+  add: (eventId: string, body: { name: string; phone: string; plusOnes?: number }) => liveFetch<LiveGuestListEntry>(`/admin/events/${eventId}/guest-list`, { body }),
+  toggleArrived: (id: string) => liveFetch<LiveGuestListEntry>(`/admin/guest-list/${id}/toggle-arrived`, { method: 'POST' }),
+  remove: (id: string) => liveFetch<{ ok: true }>(`/admin/guest-list/${id}`, { method: 'DELETE' }),
+};
+
+export interface LiveCart { id: string; guest: string; phone: string; eventId: string; eventTitle: string; amount: number; reminded: boolean; createdAt: string; }
+export const liveCarts = {
+  list: (eventId?: string) => liveFetch<LiveCart[]>('/admin/carts' + (eventId ? `?eventId=${eventId}` : '')),
+  remind: (id: string) => liveFetch<{ ok: true }>(`/admin/carts/${id}/remind`, { method: 'POST' }),
+  bulkRemind: (ids: string[]) => liveFetch<{ ok: true; count: number }>('/admin/carts/bulk-remind', { body: { ids } }),
+};
+
+export interface LiveMonitor { total: number; checkedIn: number; remaining: number; pct: number; rejected: number; scanRate: number; }
+export const liveLiveMonitor = {
+  get: (eventId: string) => liveFetch<LiveMonitor>(`/admin/events/${eventId}/live`),
+  checkIn: (eventId: string, name: string, count?: number) => liveFetch<unknown>(`/admin/events/${eventId}/live/check-in`, { body: { name, count } }),
+};
+
+export const liveManualBooking = {
+  create: (body: { eventId: string; tierId: string; qty: number; guestName: string; phone: string; gender?: string; method: string }) =>
+    liveFetch<unknown>('/admin/bookings', { body }),
+};
+
 export { LiveApiError };
