@@ -4,9 +4,10 @@ import { SupportService } from './support.service';
 import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { WhatsappService } from '../notifications/whatsapp';
+import { EmailService } from '../notifications/email';
 
 @Module({
   controllers: [SupportController],
-  providers: [SupportService, PrismaService, JwtAuthGuard, WhatsappService],
+  providers: [SupportService, PrismaService, JwtAuthGuard, WhatsappService, EmailService],
 })
 export class SupportModule {}

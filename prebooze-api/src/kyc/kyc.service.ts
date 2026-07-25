@@ -5,6 +5,9 @@ import { StorageService } from './storage.service';
 import { KycProviderService } from './kyc-provider.service';
 import { toApiUser } from '../auth/auth.service';
 import { NotificationsService } from '../admin/notifications.service';
+import { EmailService } from '../notifications/email';
+import { KYC_ROLE_LABEL } from '../notifications/email-templates';
+import { StaffAlertsService } from '../notifications/staff-alerts';
 
 const ROLE_KINDS = ['organizer', 'promoter', 'lineup', 'venue'] as const;
 type RoleKind = (typeof ROLE_KINDS)[number];
@@ -16,6 +19,8 @@ export class KycService {
     private storage: StorageService,
     private provider: KycProviderService,
     private notifications: NotificationsService,
+    private email: EmailService,
+    private staffAlerts: StaffAlertsService,
   ) {}
 
   // ---------- guest: automatic ----------
@@ -83,6 +88,7 @@ export class KycService {
 
     const displayName = (payload.brandName as string) || (payload.name as string) || user.name || user.phone;
     await this.notifications.notify('🛡', `${displayName} submitted ${kind} KYC docs for review`, '/admin/kyc');
+    await this.staffAlerts.alert(`🛡 ${displayName} submitted ${kind} KYC docs for review`).catch(() => {});
 
     // store the self-reported profile fields immediately (display only — the
     // elevated `role` itself stays unset until a human approves)
@@ -178,6 +184,13 @@ export class KycService {
     }
 
     await this.prisma.$transaction(ops);
+
+    const applicant = await this.prisma.user.findUnique({ where: { id: sub.userId } });
+    if (applicant) {
+      await this.email.sendTemplate(applicant.email, 'kyc_approved', {
+        name: applicant.name, roleLabel: KYC_ROLE_LABEL[sub.kind] ?? sub.kind,
+      }).catch(() => {});
+    }
     return { ok: true };
   }
 
@@ -317,6 +330,16 @@ export class KycService {
       }),
       this.prisma.user.update({ where: { id: sub.userId }, data: { roleStatus: 'rejected' } }),
     ]);
+
+    const applicant = await this.prisma.user.findUnique({ where: { id: sub.userId } });
+    if (applicant) {
+      const reasonBlock = reason
+        ? `<p style="background:rgba(255,107,94,.08);border:1px solid rgba(255,107,94,.25);border-radius:8px;padding:10px 12px;">${reason}</p>`
+        : '';
+      await this.email.sendTemplate(applicant.email, 'kyc_rejected', {
+        name: applicant.name, roleLabel: KYC_ROLE_LABEL[sub.kind] ?? sub.kind, reasonBlock,
+      }).catch(() => {});
+    }
     return { ok: true };
   }
 }

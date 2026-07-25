@@ -57,6 +57,26 @@ export class OrganizerController {
   remindCart(@Req() req: AuthedReq, @Param('id') id: string) {
     return this.organizer.remindCart(req.user.sub, id);
   }
+
+  @Get('subscription/tiers')
+  subscriptionTiers() {
+    return this.organizer.subscriptionTiers();
+  }
+
+  @Get('subscription')
+  mySubscription(@Req() req: AuthedReq) {
+    return this.organizer.mySubscription(req.user.sub);
+  }
+
+  @Post('subscription')
+  subscribe(@Req() req: AuthedReq, @Body('tierId') tierId: string) {
+    return this.organizer.subscribe(req.user.sub, tierId);
+  }
+
+  @Post('subscription/cancel')
+  cancelSubscription(@Req() req: AuthedReq) {
+    return this.organizer.cancelSubscription(req.user.sub);
+  }
 }
 
 /** Minimal review queue that closes the loop opened by POST /organizer/events

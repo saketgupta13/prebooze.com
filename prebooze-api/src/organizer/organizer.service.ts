@@ -3,7 +3,10 @@ import { randomBytes } from 'crypto';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
+import { EmailService } from '../notifications/email';
+import { money } from '../notifications/email-templates';
 import { NotificationsService } from '../admin/notifications.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService — a cart still `active` past this is abandoned
 
@@ -48,8 +51,30 @@ export class OrganizerService {
   constructor(
     private prisma: PrismaService,
     private wa: WhatsappService,
+    private email: EmailService,
     private notifications: NotificationsService,
+    private subscriptions: SubscriptionsService,
   ) {}
+
+  // ---------- subscription (Razorpay-billed organizer plans) ----------
+  async subscriptionTiers() {
+    return this.subscriptions.tiers('organizer');
+  }
+
+  async mySubscription(userId: string) {
+    const org = await this.myOrganizer(userId);
+    return this.subscriptions.current('organizer', org.id);
+  }
+
+  async subscribe(userId: string, tierId: string) {
+    const org = await this.myOrganizer(userId);
+    return this.subscriptions.subscribe('organizer', org.id, tierId);
+  }
+
+  async cancelSubscription(userId: string) {
+    const org = await this.myOrganizer(userId);
+    return this.subscriptions.cancel('organizer', org.id);
+  }
 
   private async myOrganizer(userId: string) {
     const org = await this.prisma.organizer.findUnique({ where: { userId } });
@@ -314,7 +339,12 @@ export class OrganizerService {
     });
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (user) await this.wa.send(user.phone, 'organizer_payout', [String(amount)]).catch(() => {});
+    if (user) {
+      await this.wa.send(user.phone, 'organizer_payout', [String(amount)]).catch(() => {});
+      await this.email.sendTemplate(user.email, 'payout_processed', {
+        name: user.name, amount: money(amount), role: 'organizer',
+      }).catch(() => {});
+    }
     return { ok: true };
   }
 

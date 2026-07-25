@@ -44,9 +44,24 @@ export class PromoterController {
     return this.promoter.addTeamMember(req.user.sub, body);
   }
 
+  @Get('subscription/tiers')
+  subscriptionTiers() {
+    return this.promoter.subscriptionTiers();
+  }
+
+  @Get('subscription')
+  mySubscription(@Req() req: AuthedReq) {
+    return this.promoter.mySubscription(req.user.sub);
+  }
+
   @Post('subscription')
-  subscribe(@Req() req: AuthedReq, @Body('planId') planId: string) {
-    return this.promoter.subscribe(req.user.sub, planId);
+  subscribe(@Req() req: AuthedReq, @Body('tierId') tierId: string) {
+    return this.promoter.subscribe(req.user.sub, tierId);
+  }
+
+  @Post('subscription/cancel')
+  cancelSubscription(@Req() req: AuthedReq) {
+    return this.promoter.cancelSubscription(req.user.sub);
   }
 }
 

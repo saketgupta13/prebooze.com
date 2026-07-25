@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import WysiwygEditor from '../components/WysiwygEditor';
+import SeoFields, { emptySeo } from '../components/SeoFields';
 
 /** Edit an existing promoter's profile, plan and status. */
 export default function PromoterEdit() {
@@ -17,6 +18,7 @@ export default function PromoterEdit() {
   const [status, setStatus] = useState(p?.status ?? 'pending');
   const [kyc, setKyc] = useState(p?.kyc ?? 'pending');
   const [bio, setBio] = useState(p?.bio ?? '');
+  const [seo, setSeo] = useState(p?.seo ?? emptySeo());
 
   if (!p) {
     return (
@@ -41,6 +43,7 @@ export default function PromoterEdit() {
       status,
       kyc,
       bio: bio.trim() || undefined,
+      seo,
     });
     navigate(`/promoters/${p.id}`);
   };
@@ -100,6 +103,14 @@ export default function PromoterEdit() {
           <label>Bio</label>
           <WysiwygEditor value={bio} onChange={setBio} minHeight={56} />
         </div>
+
+        <SeoFields
+          seo={seo}
+          onChange={setSeo}
+          slug={'/promoters/' + p.id}
+          fallbackTitle={`${name || 'Promoter'} — guest lists & events`}
+        />
+
         <div style={{ display: 'flex', gap: 10 }}>
           <Link to={`/promoters/${p.id}`} className="btn btn-ghost">Cancel</Link>
           <button type="submit" className="btn btn-pri" style={{ flex: 1, padding: 10 }}>Save changes</button>

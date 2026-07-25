@@ -5,6 +5,7 @@ import { fmt } from '../store/data';
 import { CityFilterDropdown, GradientPhoto, ImagePicker, SearchBox, Tag } from '../components/ui';
 import { enabledCityNames } from '../store/data';
 import WysiwygEditor from '../components/WysiwygEditor';
+import SeoFields, { emptySeo } from '../components/SeoFields';
 
 /** Line-ups directory — artists, DJs, bands, sponsors, promoters and hosts
  * that events can book and guests can follow. */
@@ -27,9 +28,7 @@ export function Lineups() {
     return l;
   }, [lineups, cat, cityF, query]);
 
-  const eventCount = (name: string) =>
-    events.filter((e) => (e.lineup ?? '').toLowerCase().includes(name.toLowerCase())).length +
-    (name === 'DJ Nova' || name === 'The Wilds' ? 2 : name === 'FizzCo' || name === 'CityBeat' ? 1 : 0);
+  const eventCount = (lineupId: string) => events.filter((e) => (e.lineupIds ?? []).includes(lineupId)).length;
 
   return (
     <div className="stack fade" style={{ maxWidth: 1000 }}>
@@ -64,7 +63,7 @@ export function Lineups() {
             <span style={{ flex: 1 }}><Tag label={l.category} cls={['Artist', 'DJ', 'Band', 'Comedian'].includes(l.category) ? 'tag-green' : ''} /></span>
             <span style={{ flex: 1 }} className="muted">{l.city ?? '—'}</span>
             <span style={{ flex: 1 }}>{fmt(l.followers)}</span>
-            <span style={{ flex: 1 }}>{eventCount(l.name)}</span>
+            <span style={{ flex: 1 }}>{eventCount(l.id)}</span>
             <span style={{ flex: 1 }}>{l.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Unverified" cls="" />}</span>
           </div>
         ))}
@@ -93,6 +92,7 @@ export function LineupEdit() {
   const [imageDataUrl, setImageDataUrl] = useState(existing?.imageDataUrl ?? '');
   const hasImage = !!imageDataUrl;
   const [verified, setVerified] = useState(existing?.verified ?? false);
+  const [seo, setSeo] = useState(existing?.seo ?? emptySeo());
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCat, setNewCat] = useState('');
 
@@ -124,6 +124,7 @@ export function LineupEdit() {
       hasImage,
       imageDataUrl,
       verified,
+      seo,
     };
     if (isCreate) addLineup({ id: 'lu' + Date.now(), followers: 0, ...patch });
     else updateLineup(existing!.id, patch);
@@ -211,6 +212,13 @@ export function LineupEdit() {
           Verified line-up ✓ (identity checked by admin)
         </label>
       </div>
+
+      <SeoFields
+        seo={seo}
+        onChange={setSeo}
+        slug={'/lineups/' + (existing?.id ?? 'new')}
+        fallbackTitle={`${name || 'Line-up'} — follow on Prebooze`}
+      />
 
       <div className="tiny hint">appears in event editors' line-up pickers and as a followable profile on the guest site</div>
 

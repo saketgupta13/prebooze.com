@@ -1,7 +1,16 @@
 import { Link } from 'react-router-dom';
-import { SOCIAL_LINKS } from '../data/mock';
+import { usePlatformInfo } from '../lib/usePlatformInfo';
 
 export default function Footer() {
+  const { socials, footerCopyright } = usePlatformInfo();
+  const socialList = [
+    { label: 'Instagram', url: socials.instagram },
+    { label: 'Facebook', url: socials.facebook },
+    { label: 'X', url: socials.x },
+    { label: 'YouTube', url: socials.youtube },
+    { label: 'WhatsApp', url: socials.whatsapp },
+  ].filter((s) => s.url);
+
   return (
     <footer className="ftr">
       <div className="container">
@@ -32,7 +41,7 @@ export default function Footer() {
           <div>
             <h4>Follow</h4>
             <div style={{ display: 'flex', gap: 10 }}>
-              {SOCIAL_LINKS.map((s) => (
+              {socialList.map((s) => (
                 <a
                   key={s.label}
                   href={s.url}
@@ -60,7 +69,7 @@ export default function Footer() {
         </div>
         <div className="ftr-base">
           <img src="/prebooze-logo.png" alt="" />
-          <span>© 2026 Prebooze Inc. · All rights reserved</span>
+          <span>{footerCopyright}</span>
           <span style={{ flex: 1 }} />
           <Link to="/legal/guest-policy">Guest policy</Link>
           <Link to="/legal/organizer-policy">Organizer policy</Link>

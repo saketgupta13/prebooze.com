@@ -1,6 +1,10 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
+import { EmailService } from '../notifications/email';
+import { money } from '../notifications/email-templates';
+import { InvoicesService } from '../invoices/invoices.service';
+import { RazorpayService } from '../payments/razorpay.service';
 
 /** Mirrors prebooze-web's FEATURED_PRICING (src/data/mock.ts). The typed
  * frontend contract (src/api/index.ts featured.rates()) omits venueMonthly
@@ -23,6 +27,9 @@ export class FeaturedService {
   constructor(
     private prisma: PrismaService,
     private wa: WhatsappService,
+    private email: EmailService,
+    private invoices: InvoicesService,
+    private razorpay: RazorpayService,
   ) {}
 
   /** Resolves ownership + the server-trusted city/expiry for a request —
@@ -63,12 +70,12 @@ export class FeaturedService {
     }
   }
 
-  /** No billing is wired up here — same documented gap as Promoter
-   * subscription (Phase 7). The frontend's typed contract
-   * (`featured.request(input: Omit<Featured,'id'|'status'|'createdAt'>)`)
-   * has no room for a Razorpay order/confirmation, unlike bookings' two-step
-   * quote()/create() — so unlike bookings, there's no payment to verify or
-   * simulate here, just a pending request recorded for admin review. */
+  /** Creates the request AND a real Razorpay order for the amount owed —
+   * the request stays `paid: false` until `confirmPayment` verifies a real
+   * checkout signature; `adminApprove` refuses to approve an unpaid one.
+   * Previously this only ever recorded a pending request with an invoice
+   * nobody was ever actually charged for — same documented gap as Promoter
+   * subscription used to be before real Razorpay billing landed there. */
   async request(userId: string, input: { type: FeaturedType; refId: string; billing: 'per_event' | 'monthly' }) {
     if (!input.type || !input.refId) throw new BadRequestException('type and refId are required');
     if (input.type === 'event' && input.billing !== 'per_event') throw new BadRequestException('Events are featured per-event, not monthly');
@@ -78,17 +85,57 @@ export class FeaturedService {
     const rates = await this.rates();
     const amount = input.billing === 'per_event' ? rates.perEvent : rates[`${input.type}Monthly` as keyof typeof rates];
 
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+    const gstPct = settings?.gstPct ?? 0;
+    const gstAmount = Math.round((amount * gstPct) / 100);
+    const total = amount + gstAmount;
+
     // matches the mock's requestFeatured: a fresh request replaces whatever
     // pending/active/expired record already existed for this exact item
     await this.prisma.featured.deleteMany({ where: { type: input.type as never, refId: input.refId } });
-    const row = await this.prisma.featured.create({
+    let row = await this.prisma.featured.create({
       data: { type: input.type as never, refId: input.refId, city, billing: input.billing as never, amount, expiresAt },
     });
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (user) await this.wa.send(user.phone, 'featured_submitted', [String(amount), `${input.type} (${input.refId})`]).catch(() => {});
+    const { orderId } = await this.razorpay.createOrder(total * 100, row.id);
+    row = await this.prisma.featured.update({ where: { id: row.id }, data: { razorpayOrderId: orderId } });
 
-    return row;
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (user) {
+      const itemLabel = `${input.type} (${input.refId})`;
+      await this.wa.send(user.phone, 'featured_submitted', [String(amount), itemLabel]).catch(() => {});
+      await this.email.sendTemplate(user.email, 'featured_submitted', {
+        name: user.name, amount: money(amount), itemLabel,
+      }).catch(() => {});
+
+      await this.invoices.create({
+        type: 'featured', refId: row.id, role: input.type === 'event' ? 'organizer' : input.type,
+        payerName: user.name, payerEmail: user.email, payerPhone: user.phone, city,
+        description: `Featured placement — ${itemLabel}`,
+        subtotal: amount, gstPct, gstAmount, total,
+      }).catch(() => {});
+    }
+
+    return { ...row, razorpayOrder: { orderId, amount: total * 100, keyId: process.env.RAZORPAY_KEY_ID || undefined } };
+  }
+
+  /** Verifies the checkout-returned signature against the order created in
+   * `request()` and marks the placement payable-for-review. Re-checks
+   * ownership the same way `request()` did — Featured has no userId column
+   * (refId + type is the only link back to an owner), so this is the only
+   * way to confirm the caller confirming payment is the same one who made
+   * the request. */
+  async confirmPayment(userId: string, id: string, proof: { paymentId: string; signature: string }) {
+    const row = await this.prisma.featured.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException('Featured request not found');
+    await this.resolveTarget(userId, row.type as FeaturedType, row.refId); // throws if not the owner
+    if (!row.razorpayOrderId) throw new BadRequestException('This request has no payment to confirm');
+    if (row.paid) return row;
+
+    const valid = this.razorpay.verifyPaymentSignature(row.razorpayOrderId, proof.paymentId, proof.signature);
+    if (!valid) throw new BadRequestException('Payment verification failed');
+
+    return this.prisma.featured.update({ where: { id }, data: { paid: true, paymentId: proof.paymentId } });
   }
 
   async rates() {
@@ -124,6 +171,7 @@ export class FeaturedService {
   async adminApprove(id: string) {
     const row = await this.prisma.featured.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Featured request not found');
+    if (!row.paid) throw new BadRequestException('Cannot approve a featured request that hasn’t been paid for yet');
     return this.prisma.featured.update({ where: { id }, data: { status: 'active' } });
   }
 
@@ -131,5 +179,91 @@ export class FeaturedService {
     const row = await this.prisma.featured.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Featured request not found');
     return this.prisma.featured.update({ where: { id }, data: { status: 'rejected' } });
+  }
+
+  /** Manual "remind" action for a lapsed placement (Admin > Featured >
+   * Expired tab) — resolves whichever role actually owns `refId` (an event's
+   * "owner" is its organizer, since events don't have their own login) and
+   * sends the featured_expired_reminder template. Doesn't require `status`
+   * to already be 'expired' — a manual reminder is still a reasonable admin
+   * action on an about-to-expire active placement, not just a lapsed one. */
+  async adminRemind(id: string) {
+    const row = await this.prisma.featured.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException('Featured request not found');
+
+    const target = await this.resolveOwnerAndLabel(row.type as FeaturedType, row.refId);
+    if (!target?.email) throw new BadRequestException('No contact email on file for this placement’s owner');
+
+    await this.email
+      .sendTemplate(target.email, 'featured_expired_reminder', {
+        name: target.name,
+        itemLabel: target.itemLabel,
+        expiredOn: row.expiresAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+      })
+      .catch((err) => {
+        throw new BadRequestException(`Reminder email failed to send: ${(err as Error).message}`);
+      });
+
+    return { ok: true, sentTo: target.email };
+  }
+
+  /** Automatic — called daily by CronService.featuredExpiringSoonTick.
+   * Distinct from adminRemind above: this fires proactively on *active*
+   * placements within 3 days of expiry (not yet lapsed), and only once per
+   * placement (`expiryReminderSentAt` gates re-sends) rather than being a
+   * manual, repeatable admin action. */
+  async remindExpiringSoon(): Promise<{ remindedCount: number }> {
+    const in3Days = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.featured.findMany({
+      where: { status: 'active', expiresAt: { lte: in3Days, gt: new Date() }, expiryReminderSentAt: null },
+    });
+
+    let remindedCount = 0;
+    for (const row of rows) {
+      const target = await this.resolveOwnerAndLabel(row.type as FeaturedType, row.refId);
+      if (!target?.email) continue;
+      await this.email
+        .sendTemplate(target.email, 'featured_expiring_soon', {
+          name: target.name,
+          itemLabel: target.itemLabel,
+          expiresOn: row.expiresAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+        })
+        .catch(() => {});
+      await this.prisma.featured.update({ where: { id: row.id }, data: { expiryReminderSentAt: new Date() } });
+      remindedCount++;
+    }
+    return { remindedCount };
+  }
+
+  private async resolveOwnerAndLabel(type: FeaturedType, refId: string): Promise<{ email: string | null; name: string; itemLabel: string } | null> {
+    if (type === 'event') {
+      const event = await this.prisma.event.findUnique({ where: { id: refId }, include: { organizer: true } });
+      if (!event) return null;
+      const owner = event.organizer.userId ? await this.prisma.user.findUnique({ where: { id: event.organizer.userId } }) : null;
+      return { email: owner?.email ?? null, name: event.organizer.brandName, itemLabel: event.title };
+    }
+    if (type === 'organizer') {
+      const org = await this.prisma.organizer.findUnique({ where: { id: refId } });
+      if (!org) return null;
+      const owner = org.userId ? await this.prisma.user.findUnique({ where: { id: org.userId } }) : null;
+      return { email: owner?.email ?? null, name: org.brandName, itemLabel: org.brandName };
+    }
+    if (type === 'promoter') {
+      const p = await this.prisma.promoter.findFirst({ where: { OR: [{ id: refId }, { slug: refId }] } });
+      if (!p) return null;
+      const owner = p.userId ? await this.prisma.user.findUnique({ where: { id: p.userId } }) : null;
+      return { email: owner?.email ?? null, name: p.name, itemLabel: p.name };
+    }
+    if (type === 'lineup') {
+      const l = await this.prisma.lineup.findFirst({ where: { OR: [{ id: refId }, { slug: refId }] } });
+      if (!l) return null;
+      const owner = l.userId ? await this.prisma.user.findUnique({ where: { id: l.userId } }) : null;
+      return { email: owner?.email ?? null, name: l.name, itemLabel: l.name };
+    }
+    // venue: linked in the reverse direction (User.venueId), no Venue.userId FK
+    const venue = await this.prisma.venue.findUnique({ where: { id: refId } });
+    if (!venue) return null;
+    const owner = await this.prisma.user.findFirst({ where: { venueId: refId } });
+    return { email: owner?.email ?? null, name: venue.name, itemLabel: venue.name };
   }
 }

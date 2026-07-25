@@ -1,9 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { EmailService } from '../notifications/email';
 
 @Injectable()
 export class CareersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private email: EmailService,
+  ) {}
 
   async jobs() {
     return this.prisma.careerJob.findMany({ where: { status: 'open' }, orderBy: { createdAt: 'asc' } });
@@ -19,7 +23,7 @@ export class CareersService {
     const job = await this.prisma.careerJob.findUnique({ where: { id: body.jobId } });
     if (!job) throw new NotFoundException('Unknown job');
 
-    return this.prisma.jobApplication.create({
+    const application = await this.prisma.jobApplication.create({
       data: {
         jobId: body.jobId,
         name: body.name.trim(),
@@ -29,5 +33,11 @@ export class CareersService {
         cv: body.cv,
       },
     });
+
+    await this.email.sendTemplate(application.email, 'job_application', {
+      name: application.name, jobTitle: job.title,
+    }).catch(() => {});
+
+    return application;
   }
 }

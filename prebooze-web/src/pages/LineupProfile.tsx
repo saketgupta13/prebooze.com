@@ -5,12 +5,16 @@ import Poster from '../components/Poster';
 import ShareButton from '../components/ShareButton';
 import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
+import { useSeo } from '../lib/useSeo';
+import { useEntitySeo } from '../lib/useEntitySeo';
 
 /** Public line-up profile — artists, DJs, sponsors and promoters guests can follow. */
 export default function LineupProfile() {
   const { slug } = useParams();
   const { following, toggleFollow } = useApp();
   const lineup = lineupBySlug(slug ?? '');
+  const liveSeo = useEntitySeo('lineup', slug);
+  useSeo(liveSeo, lineup?.name);
 
   if (!lineup) {
     return (

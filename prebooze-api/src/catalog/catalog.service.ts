@@ -116,6 +116,48 @@ export class CatalogService {
     return this.prisma.person.findMany({ where: city ? { city } : {}, orderBy: { followers: 'desc' } });
   }
 
+  // ---------- per-entity SEO lookups ----------
+  // Slim, id-or-slug tolerant reads for prebooze-web's useEntitySeo hook —
+  // these entities don't have a full public detail-by-id route (only list
+  // endpoints above), and adding one is out of scope; this just lets a
+  // profile page merge in the admin-authored seo override for the one field
+  // it actually needs, same "live wins per-field, else fall back" pattern
+  // as usePlatformInfo. Always returns a valid seo shape (empty strings, not
+  // null/404) on no match — returning JS `null` here serializes to an empty
+  // response body, not the JSON literal "null", which broke res.json() on
+  // the frontend; an empty-but-valid object is also exactly what useSeo
+  // already treats as "no override, fall back to fallbackTitle".
+  private static readonly EMPTY_SEO = { title: '', description: '', keywords: '' };
+
+  async venueSeo(id: string) {
+    const v = await this.prisma.venue.findUnique({ where: { id }, select: { seo: true } });
+    return (v?.seo as typeof CatalogService.EMPTY_SEO) ?? CatalogService.EMPTY_SEO;
+  }
+
+  async organizerSeo(idOrUsername: string) {
+    const o = await this.prisma.organizer.findFirst({
+      where: { OR: [{ id: idOrUsername }, { username: idOrUsername }] },
+      select: { seo: true },
+    });
+    return (o?.seo as typeof CatalogService.EMPTY_SEO) ?? CatalogService.EMPTY_SEO;
+  }
+
+  async promoterSeo(idOrSlug: string) {
+    const p = await this.prisma.promoter.findFirst({
+      where: { OR: [{ id: idOrSlug }, { slug: idOrSlug }] },
+      select: { seo: true },
+    });
+    return (p?.seo as typeof CatalogService.EMPTY_SEO) ?? CatalogService.EMPTY_SEO;
+  }
+
+  async lineupSeo(idOrSlug: string) {
+    const l = await this.prisma.lineup.findFirst({
+      where: { OR: [{ id: idOrSlug }, { slug: idOrSlug }] },
+      select: { seo: true },
+    });
+    return (l?.seo as typeof CatalogService.EMPTY_SEO) ?? CatalogService.EMPTY_SEO;
+  }
+
   async featured(city?: string) {
     return this.prisma.featured.findMany({
       where: { status: 'active', expiresAt: { gt: new Date() }, ...(city ? { city } : {}) },

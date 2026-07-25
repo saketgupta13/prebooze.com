@@ -15,6 +15,7 @@ import {
 import { friendsGoing, goingCount, myStatus } from '../lib/social';
 import { existingRole, roleLabel } from '../lib/roles';
 import { stripHtml } from '../lib/richtext';
+import { useSeo } from '../lib/useSeo';
 import Poster, { categoryEmoji } from '../components/Poster';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
@@ -28,6 +29,7 @@ export default function EventDetail() {
   const [params] = useSearchParams();
   const { user, city, setSelection, myEvents, following, bookings, interested, toggleInterested, pendingPromoterRef, setPendingPromoterRef, waitlists, joinWaitlist } = useApp();
   const event = eventBySlug(slug ?? '') ?? myEvents.find((e) => e.slug === slug);
+  useSeo(event?.seo, event?.title);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [expanded, setExpanded] = useState(false);
 

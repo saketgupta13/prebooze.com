@@ -5,7 +5,11 @@ import type {
   Blog,
   Category,
   Customer,
+  EmailTemplateDef,
+  GuestEntry,
+  InvoiceRecord,
   KycApplication,
+  Lineup,
   LocCountry,
   Organizer,
   Promo,
@@ -56,6 +60,14 @@ export const SEED_EVENTS: AdminEvent[] = [
     date: '12 Aug', time: '9:00 PM', organizer: 'FestCrew', city: 'Houston', status: 'live',
     sold: 88, cap: 120, revenue: 26400, commission: 9,
     tiers: [{ name: 'General', price: 300, qty: 120, sold: 88 }],
+  },
+  {
+    id: 'e6', title: 'Integration Full Test Event', category: 'Concerts', venue: 'Integration Test Arena',
+    date: '15 Aug', time: '8:00 PM', organizer: 'Integration Test Organizer', city: 'Austin', status: 'live',
+    sold: 0, cap: 250, revenue: 0, commission: 10,
+    tiers: [{ name: 'General', price: 300, qty: 250, sold: 0 }],
+    lineupIds: ['lu7'],
+    allowedPromoters: ['pr6'],
   },
 ];
 
@@ -117,6 +129,7 @@ export const SEED_ORGANIZERS: Organizer[] = [
   { id: 'o3', name: 'NightOwl Co.', contact: 'bookings@nightowl.co', city: 'Dallas', events: 2, kyc: 'pending', status: 'pending' },
   { id: 'o4', name: 'Sunset Sessions', contact: 'team@sunsetsessions.com', city: 'Houston', events: 0, kyc: 'submitted', status: 'pending' },
   { id: 'o5', name: 'Rowdy Promotions', contact: 'info@rowdyprom.com', city: 'Austin', events: 0, kyc: 'flagged', status: 'rejected' },
+  { id: 'o6', name: 'Integration Test Organizer', contact: 'test@organizer.example', city: 'Austin', events: 1, kyc: 'verified', status: 'approved' },
 ];
 
 export const SEED_VENUES: Venue[] = [
@@ -124,6 +137,7 @@ export const SEED_VENUES: Venue[] = [
   { id: 'v2', name: 'Riverside Grounds', city: 'Austin', capacity: 2000, events: 11, license: "valid till Jan '27", verified: true, address: 'Riverside Park, Austin, TX', amenities: ['Parking', 'Food trucks', 'Open-air'] },
   { id: 'v3', name: 'Comedy Cave', city: 'Dallas', capacity: 180, events: 9, license: 'expires 12 Aug ⚠', verified: false, address: '88 6th St, Dallas, TX', amenities: ['In-house bar', 'Accessible'] },
   { id: 'v4', name: 'The Loft', city: 'Houston', capacity: 120, events: 7, license: "valid till Nov '26", verified: true, address: '5th & Lamar, Houston, TX', amenities: ['Rooftop', 'In-house bar'] },
+  { id: 'v5', name: 'Integration Test Arena', city: 'Austin', capacity: 250, events: 1, license: "valid till Dec '27", verified: true, address: '99 Test St, Austin, TX', type: 'Indoor', contact: 'Test Contact · +91 90000 00001', amenities: ['Parking', 'In-house bar'] },
 ];
 
 export const SEED_PROMOS: Promo[] = [
@@ -152,10 +166,11 @@ export const SEED_BANNERS: Banner[] = [
 ];
 
 export const SEED_CATEGORIES: Category[] = [
-  { icon: '🎵', name: 'Concerts', count: 22 },
-  { icon: '😂', name: 'Comedy', count: 9 },
-  { icon: '🎪', name: 'Festivals', count: 6 },
-  { icon: '🏠', name: 'House parties', count: 0 },
+  { icon: '🎵', name: 'Concerts', count: 22, subCategories: ['Indie', 'Live band', 'Techno', 'Bollywood', 'EDM', 'Hip-hop'] },
+  { icon: '😂', name: 'Comedy', count: 9, subCategories: ['Stand-up', 'Open mic', 'Improv'] },
+  { icon: '🎪', name: 'Festivals', count: 6, subCategories: ['Music festival', 'Sundowner', 'Food & drink', 'Cultural'] },
+  { icon: '🪩', name: 'Club nights', count: 0, subCategories: ['House', 'After-hours', 'Bollywood night', 'Ladies night'] },
+  { icon: '🏠', name: 'House parties', count: 0, subCategories: [] },
 ];
 
 export const SEED_BLOGS: Blog[] = [
@@ -182,7 +197,7 @@ export const SEED_LEDGER_CATEGORIES = {
   expense: ['Marketing', 'Staff & salaries', 'Office & tools', 'Refund losses', 'Other expense'],
 };
 
-export const SEED_GUEST_LIST = [
+export const SEED_GUEST_LIST: GuestEntry[] = [
   { id: 'g1', eventId: 'e1', name: 'Rhea Kapoor', phone: '+91 98002 59771', plusOnes: 1, companions: [{ name: 'Aditya Kapoor', phone: '+91 98002 96772' }], addedBy: 'Admin', arrived: false },
   { id: 'g2', eventId: 'e1', name: 'DJ Nova (artist)', plusOnes: 2, companions: [{ name: 'Tour manager' }, { name: 'Photographer' }], addedBy: 'Admin', arrived: true },
 ];
@@ -479,24 +494,15 @@ export const SEED_KYC_APPLICATIONS: KycApplication[] = [
   },
 ];
 
-export const SEED_LINEUPS = [
+export const SEED_LINEUPS: Lineup[] = [
   { id: 'lu1', name: 'DJ Nova', category: 'DJ', description: 'Opening sets that fill the floor before 9 PM. House & disco edits.', city: 'Austin', links: 'ig/djnova · soundcloud/djnova', hasImage: true, followers: 4200, verified: true },
   { id: 'lu2', name: 'The Wilds', category: 'Band', description: 'Indie four-piece. New album “Night Maps” out now — headline set plays it front to back.', city: 'Austin', links: 'ig/thewilds · spotify/thewilds', hasImage: true, followers: 12800, verified: true },
   { id: 'lu3', name: 'Maya K.', category: 'Comedian', description: 'Sharp crowd-work, zero mercy for the front row.', city: 'Dallas', links: 'ig/mayak', hasImage: true, followers: 6100, verified: true },
   { id: 'lu4', name: 'KLANG', category: 'DJ', description: 'Berlin-schooled techno. 6 AM finisher.', city: 'Berlin', links: 'ig/klang · ra.co/klang', hasImage: true, followers: 22000, verified: true },
   { id: 'lu5', name: 'FizzCo', category: 'Sponsor', description: 'Craft soda brand sponsoring stages across Texas.', city: 'Austin', links: 'fizzco.com', hasImage: false, followers: 900, verified: false },
   { id: 'lu6', name: 'CityBeat', category: 'Promoter', description: 'Promoting the loudest nights in town since 2019.', city: 'Austin', links: 'ig/citybeat', hasImage: false, followers: 3100, verified: true },
+  { id: 'lu7', name: 'Integration Test DJ', category: 'DJ', description: 'Seeded to verify the line-up assignment flow.', city: 'Austin', links: '', hasImage: false, followers: 0, verified: true },
 ];
-
-export const CATEGORY_OPTIONS = ['Concerts', 'Comedy', 'Festivals', 'Club nights'];
-
-/** Category → sub-category tree (mirrors the guest app). */
-export const CATEGORY_SUBS: Record<string, string[]> = {
-  Concerts: ['Indie', 'Live band', 'Techno', 'Bollywood', 'EDM', 'Hip-hop'],
-  Comedy: ['Stand-up', 'Open mic', 'Improv'],
-  Festivals: ['Music festival', 'Sundowner', 'Food & drink', 'Cultural'],
-  'Club nights': ['House', 'After-hours', 'Bollywood night', 'Ladies night'],
-};
 
 // targetType covers every reviewable role except guests (guests are the
 // reviewers, never the subject) — organizer reviews existed already;
@@ -528,6 +534,7 @@ export const SEED_PROMOTERS = [
   { id: 'pr3', name: 'The Plug', contact: 'team@theplug.co', city: 'Houston', status: 'pending' as const, kyc: 'submitted', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'New in town, big lists.', guestsBrought: 1400, perHeadEarned: 0, commissionEarned: 0, withdrawn: 0, payouts: [] },
   { id: 'pr4', name: 'Hype House ATX', contact: 'info@hypehouse.co', city: 'Austin', status: 'pending' as const, kyc: 'submitted', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'College nights & day parties.', guestsBrought: 0, perHeadEarned: 0, commissionEarned: 0, withdrawn: 0, payouts: [] },
   { id: 'pr5', name: 'Ghost Guestlist', contact: 'x@ghostgl.co', city: 'Dallas', status: 'rejected' as const, kyc: 'flagged', plan: 'free', guestsThisMonth: 0, eventsPromoted: 0, showRate: 0, bio: 'Flagged for fake guest activity.', guestsBrought: 0, perHeadEarned: 0, commissionEarned: 0, withdrawn: 0, payouts: [] },
+  { id: 'pr6', name: 'Integration Test Promo Crew', contact: 'test@promocrew.example', city: 'Austin', status: 'approved' as const, kyc: 'verified', plan: 'starter', guestsThisMonth: 0, eventsPromoted: 1, showRate: 0, bio: 'Seeded to verify the promoter-assignment flow.', guestsBrought: 0, perHeadEarned: 0, commissionEarned: 0, withdrawn: 0, payouts: [] },
 ];
 
 // Abandoned carts — guests who reached checkout but didn't pay before the hold
@@ -562,6 +569,8 @@ export const SEED_FEATURED_REQUESTS = [
   { id: 'fr4', type: 'promoter' as const, name: 'Nova Nights', refId: 'nova-nights', city: 'Austin', billing: 'monthly' as const, amount: 2999, status: 'active' as const, requestedAt: '1 Jul', expiresAt: '31 Jul' },
   { id: 'fr5', type: 'lineup' as const, name: 'FizzCo', refId: 'fizzco', city: 'Austin', billing: 'monthly' as const, amount: 1999, status: 'active' as const, requestedAt: '1 Jul', expiresAt: '31 Jul' },
   { id: 'fr6', type: 'event' as const, name: 'Stand-up Sunday', refId: 'e3', city: 'Austin', billing: 'per_event' as const, amount: 2000, status: 'active' as const, requestedAt: '2 Jul', expiresAt: '3 Aug' },
+  { id: 'fr7', type: 'venue' as const, name: 'Indiranagar Social', refId: 'indiranagar-social', city: 'Bengaluru', billing: 'monthly' as const, amount: 3999, status: 'expired' as const, requestedAt: '1 Jun', expiresAt: '30 Jun' },
+  { id: 'fr8', type: 'promoter' as const, name: 'Admin Promo Crew', refId: 'pr-admin-promo-crew', city: 'Chennai', billing: 'monthly' as const, amount: 2999, status: 'expired' as const, requestedAt: '5 Jun', expiresAt: '5 Jul' },
 ];
 
 // Refer & earn — admin-editable rates + platform-wide referral analytics.
@@ -671,5 +680,47 @@ export const SEED_LOCATIONS = [
 ];
 
 export const GUEST_SITE_URL = 'http://localhost:5173';
+
+// Mirrors prebooze-api/src/notifications/email-templates.ts's TEMPLATE_DEFS
+// exactly (id, subject/body copy, {{token}} contract) — the real backend is
+// the actual source of truth for what gets sent; this is admin's own
+// mock/localStorage copy, same "mirror the shape, mock the wiring" pattern
+// as every other admin module until this page is wired to the live API.
+export const EMAIL_TEMPLATE_DEFS: EmailTemplateDef[] = [
+  { id: 'welcome', name: 'Welcome', category: 'Guest', trigger: 'Guest sets an email on their profile for the first time', defaultSubject: 'Welcome to Prebooze 🎉', defaultBody: `<p>Hey {{name}},</p><p>You're in. Browse what's on tonight, follow your favourite organizers and promoters, and check in with a QR at the door — no printing, no hassle.</p>`, ctaLabel: 'Browse events →', tokens: ['name'] },
+  { id: 'booking_confirmed', name: 'Booking confirmed', category: 'Guest', trigger: 'A booking is created and payment succeeds', defaultSubject: 'Booked ✓ {{eventTitle}}', defaultBody: `<p>Hey {{name}},</p><p>Your booking for <b>{{eventTitle}}</b> is confirmed.</p><table role="presentation" width="100%"><tr><td>Booking ID</td><td align="right">{{bookingId}}</td></tr><tr><td>Tickets</td><td align="right">{{qty}}</td></tr><tr><td>Paid</td><td align="right">{{total}}</td></tr></table><p>Your QR ticket is in the app under My tickets — show it at the door.</p>`, ctaLabel: 'View my ticket →', tokens: ['name', 'eventTitle', 'bookingId', 'qty', 'total'] },
+  { id: 'refund_requested', name: 'Refund requested', category: 'Guest', trigger: 'Guest requests a refund to their original payment source', defaultSubject: 'Refund requested — {{bookingId}}', defaultBody: `<p>Hey {{name}},</p><p>We've received your refund request for booking <b>{{bookingId}}</b> ({{amount}}). Our team reviews these — you'll get another email the moment it's approved.</p>`, tokens: ['name', 'bookingId', 'amount'] },
+  { id: 'refund_processed', name: 'Refund processed', category: 'Guest', trigger: 'Admin approves a refund, or an instant wallet refund completes', defaultSubject: 'Refunded ✓ {{bookingId}}', defaultBody: `<p>Hey {{name}},</p><p><b>{{amount}}</b> for booking <b>{{bookingId}}</b> has been refunded {{refundNote}}</p>`, tokens: ['name', 'bookingId', 'amount', 'refundNote'] },
+  { id: 'waitlist_offer', name: 'Waitlist spot opened', category: 'Guest', trigger: 'A refund frees a spot and the FIFO waitlist offers it to the next guest', defaultSubject: 'A spot opened up — {{eventTitle}}', defaultBody: `<p>Hey {{name}},</p><p>A ticket just freed up for <b>{{eventTitle}}</b>, and you're first on the waitlist. Grab it before it's gone.</p>`, ctaLabel: 'Book now →', tokens: ['name', 'eventTitle', 'eventUrl'] },
+  { id: 'cart_reminder', name: 'Abandoned cart reminder', category: 'Guest', trigger: 'Admin (or an organizer) sends a nudge from Abandoned carts', defaultSubject: "Still want in? {{eventTitle}}", defaultBody: `<p>Hey {{name}},</p><p>You were this close to booking <b>{{eventTitle}}</b> — your spot isn't held forever. Finish up before it sells out.</p>`, ctaLabel: 'Complete booking →', tokens: ['name', 'eventTitle', 'eventUrl'] },
+  { id: 'referral_welcome', name: 'Referral welcome credit', category: 'Guest', trigger: "A new guest claims a friend's referral code", defaultSubject: '{{amount}} wallet credit — welcome!', defaultBody: `<p>Hey {{name}},</p><p>Thanks for joining via a friend's link — <b>{{amount}}</b> is already in your Prebooze wallet, ready to use on your next booking.</p>`, tokens: ['name', 'amount'] },
+  { id: 'referral_reward', name: 'Referral reward earned', category: 'Guest', trigger: 'A referred friend completes their first paid booking', defaultSubject: '{{amount}} referral reward earned 🎉', defaultBody: `<p>Hey {{name}},</p><p>{{friendName}} made their first booking through your referral link — <b>{{amount}}</b> just landed in your wallet.</p>`, tokens: ['name', 'amount', 'friendName'] },
+  { id: 'help_ticket', name: 'Support ticket received', category: 'Guest', trigger: 'A guest, organizer or promoter raises a help ticket', defaultSubject: "We've got your message — {{ticketId}}", defaultBody: `<p>Hey {{name}},</p><p>Your message "<b>{{ticketSubject}}</b>" has been logged as <b>{{ticketId}}</b>. Our team typically replies within a few hours.</p>`, tokens: ['name', 'ticketId', 'ticketSubject'] },
+  { id: 'kyc_approved', name: 'KYC approved', category: 'Roles', trigger: 'Admin approves an organizer / promoter / venue / line-up application', defaultSubject: "You're approved as a {{roleLabel}} on Prebooze ✓", defaultBody: `<p>Hey {{name}},</p><p>Good news — your {{roleLabel}} application is approved. Your console is live now.</p>`, ctaLabel: 'Open your console →', tokens: ['name', 'roleLabel'] },
+  { id: 'kyc_rejected', name: 'KYC rejected', category: 'Roles', trigger: 'Admin rejects a role application, with a reason', defaultSubject: 'Update on your {{roleLabel}} application', defaultBody: `<p>Hey {{name}},</p><p>Your {{roleLabel}} application wasn't approved this time.</p>{{reasonBlock}}<p>You're welcome to fix the above and reapply any time.</p>`, tokens: ['name', 'roleLabel', 'reasonBlock'] },
+  { id: 'payout_processed', name: 'Payout processed', category: 'Roles', trigger: 'An organizer or promoter withdraws their balance', defaultSubject: 'Payout sent — {{amount}}', defaultBody: `<p>Hey {{name}},</p><p><b>{{amount}}</b> is on its way to your bank account. As an active {{role}} on Prebooze, thanks for hosting with us.</p>`, tokens: ['name', 'amount', 'role'] },
+  { id: 'featured_submitted', name: 'Featured request received', category: 'Roles', trigger: 'An organizer/promoter/venue/line-up submits a Featured placement request', defaultSubject: 'Featured request received — {{itemLabel}}', defaultBody: `<p>Hey {{name}},</p><p>Your request to feature <b>{{itemLabel}}</b> ({{amount}}) is with our team for approval — you'll hear back shortly.</p>`, tokens: ['name', 'itemLabel', 'amount'] },
+  { id: 'staff_invite', name: 'Staff invite', category: 'Admin', trigger: 'Owner adds a new staff member under Staff & roles', defaultSubject: "You've been added to the Prebooze admin panel", defaultBody: `<p>Hey {{name}},</p><p>You've been added as <b>{{roleName}}</b> on the Prebooze admin panel. Sign in with this temporary password, then change it from your profile:</p><p>{{tempPassword}}</p>`, ctaLabel: 'Sign in →', tokens: ['name', 'roleName', 'tempPassword'] },
+  { id: 'job_application', name: 'Job application received', category: 'Admin', trigger: 'Someone applies to an open role on the Careers page', defaultSubject: "We've got your application — {{jobTitle}}", defaultBody: `<p>Hey {{name}},</p><p>Thanks for applying to <b>{{jobTitle}}</b> at Prebooze. Our team reviews every application — we'll reach out if it's a fit.</p>`, tokens: ['name', 'jobTitle'] },
+  { id: 'weekly_summary', name: 'Weekly summary (owner)', category: 'Admin', trigger: 'Weekly, if "Weekly summary email" is on in Settings — needs the cron job slice, not yet scheduled', defaultSubject: 'Prebooze weekly summary — {{periodLabel}}', defaultBody: `<p>Hey {{ownerName}},</p><p>Here's how the platform did this week:</p><table role="presentation" width="100%"><tr><td>Gross revenue</td><td align="right">{{revenue}}</td></tr><tr><td>Bookings</td><td align="right">{{bookings}}</td></tr><tr><td>Payouts due</td><td align="right">{{payoutsDue}}</td></tr></table>`, ctaLabel: 'Open admin panel →', tokens: ['ownerName', 'revenue', 'bookings', 'payoutsDue', 'periodLabel'] },
+  { id: 'invoice', name: 'Invoice', category: 'Admin', trigger: 'A booking or featured-placement invoice is issued, or resent from admin', defaultSubject: 'Your Prebooze invoice — {{invoiceNumber}}', defaultBody: `<p>Hey {{name}},</p><p>Your invoice <b>{{invoiceNumber}}</b> for {{description}} is attached as a PDF — total <b>{{total}}</b>.</p>`, tokens: ['name', 'invoiceNumber', 'description', 'total'] },
+];
+
+// Platform-wide invoices — every real payment received (booking) or billable
+// request (featured placement), from every role. Mirrors prebooze-api's
+// Invoice model; GST modeled the same way Reports.tsx/computeFin already
+// does (booking invoices tax only the platform's own booking-fee revenue,
+// not the organizer's ticket price; featured invoices tax the full amount
+// since that's pure platform service revenue).
+export const SEED_INVOICES: InvoiceRecord[] = [
+  { id: 'inv1', number: 'INV-2026-000001', type: 'booking', refId: '#9001', role: 'guest', payerName: 'Sam Rivera', payerEmail: 'sam.rivera@example.com', payerPhone: '+91 98000 37210', city: 'Austin', description: '3× Indie Night Live', subtotal: 1440, gstPct: 18, gstAmount: 26, total: 1466, status: 'issued', issuedAt: '2026-07-14' },
+  { id: 'inv2', number: 'INV-2026-000002', type: 'booking', refId: '#9002', role: 'guest', payerName: 'Priya K.', payerEmail: 'priya.k@example.com', payerPhone: '+91 87000 74330', city: 'Austin', description: "2× Summer Fest '26", subtotal: 1436, gstPct: 18, gstAmount: 25, total: 1461, status: 'issued', issuedAt: '2026-07-15' },
+  { id: 'inv3', number: 'INV-2026-000003', type: 'booking', refId: '#9003', role: 'guest', payerName: 'Arjun M.', payerEmail: 'arjun.m@example.com', payerPhone: '+91 99001 11118', city: 'Houston', description: '1× Techno Tuesday', subtotal: 329, gstPct: 18, gstAmount: 6, total: 335, status: 'issued', issuedAt: '2026-07-16', lastSentAt: '2026-07-16' },
+  { id: 'inv4', number: 'INV-2026-000004', type: 'booking', refId: '#9004', role: 'guest', payerName: 'R. Gupta', payerEmail: 'r.gupta@example.com', payerPhone: '+91 90112 23344', city: 'Austin', description: '2× Indie Night Live', subtotal: 922, gstPct: 18, gstAmount: 18, total: 940, status: 'void', issuedAt: '2026-07-17' },
+  { id: 'inv5', number: 'INV-2026-000005', type: 'booking', refId: '#9005', role: 'guest', payerName: 'Meera Iyer', payerEmail: 'meera.iyer@example.com', payerPhone: '+91 95656 78901', city: 'Austin', description: "4× Summer Fest '26", subtotal: 2732, gstPct: 18, gstAmount: 50, total: 2782, status: 'issued', issuedAt: '2026-07-19' },
+  { id: 'inv6', number: 'INV-2026-000006', type: 'booking', refId: '#9006', role: 'guest', payerName: 'Ishita Malhotra', payerEmail: 'ishita.m@example.com', payerPhone: '+91 91090 12345', city: 'Houston', description: '2× Techno Tuesday', subtotal: 649, gstPct: 18, gstAmount: 12, total: 661, status: 'issued', issuedAt: '2026-07-20' },
+  { id: 'inv7', number: 'INV-2026-000007', type: 'featured', refId: 'fr-o1', role: 'organizer', payerName: 'LiveWire Ent.', payerEmail: 'contact@livewire.co', payerPhone: '+91 98001 85442', city: 'Austin', description: 'Featured placement — organizer (LiveWire Ent.)', subtotal: 4999, gstPct: 18, gstAmount: 900, total: 5899, status: 'issued', issuedAt: '2026-07-18' },
+  { id: 'inv8', number: 'INV-2026-000008', type: 'featured', refId: 'fr-p1', role: 'promoter', payerName: 'Nova Nights', payerEmail: 'hey@novanights.co', payerPhone: '+91 98002 11223', city: 'Austin', description: 'Featured placement — promoter (Nova Nights)', subtotal: 2999, gstPct: 18, gstAmount: 540, total: 3539, status: 'issued', issuedAt: '2026-07-21', lastSentAt: '2026-07-21' },
+];
 
 export const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');

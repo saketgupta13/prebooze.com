@@ -16,12 +16,16 @@ export default function Menus() {
     [next[i], next[j]] = [next[j], next[i]];
     return next;
   };
+  const save = () => {
+    setMenus(draft);
+    toast('Menus saved ✓');
+  };
 
   return (
     <div className="stack fade" style={{ maxWidth: 780 }}>
       <div className="page-hd">
         <h1 className="page-title">Menus</h1>
-        <button className="btn btn-pri" onClick={() => setMenus(draft)}>Save menus ✓</button>
+        <button className="btn btn-pri" onClick={save}>Save menus ✓</button>
       </div>
       <div className="tiny hint" style={{ marginTop: -6 }}>controls the guest site's header nav and footer link groups</div>
 
@@ -64,7 +68,7 @@ export default function Menus() {
         ))}
       </div>
 
-      <button className="btn btn-pri" style={{ width: 'fit-content', padding: 10 }} onClick={() => { setMenus(draft); toast('Menus saved ✓'); }}>Save menus ✓</button>
+      <button className="btn btn-pri" style={{ width: 'fit-content', padding: 10 }} onClick={save}>Save menus ✓</button>
     </div>
   );
 }

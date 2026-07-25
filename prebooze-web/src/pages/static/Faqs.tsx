@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { FAQS } from '../../data/mock';
 import Accordion from '../../components/Accordion';
+import { useSeo } from '../../lib/useSeo';
 
 const ORGANIZER_FAQS = [
   {
@@ -19,6 +20,7 @@ const ORGANIZER_FAQS = [
 
 /** Standalone FAQ page — managed as a site page in the admin CMS, linked from the footer. */
 export default function Faqs() {
+  useSeo(null, 'FAQs');
   return (
     <main className="page">
       <div className="container" style={{ maxWidth: 760 }}>

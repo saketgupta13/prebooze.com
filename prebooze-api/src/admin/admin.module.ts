@@ -21,6 +21,9 @@ import { AdminCartsController } from './carts.controller';
 import { AdminPaymentsController } from './payments.controller';
 import { MediaController } from './media.controller';
 import { AdminSubTiersController } from './sub-tiers.controller';
+import { AdminEmailTemplatesController } from './email-templates-admin.controller';
+import { AdminInvoicesController } from '../invoices/invoices-admin.controller';
+import { AdminSubscriptionsController } from './admin-subscriptions.controller';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffService } from './staff.service';
 import { CustomersService } from './customers.service';
@@ -41,13 +44,22 @@ import { ReferralsAdminService } from './referrals-admin.service';
 import { CategoriesService } from './categories.service';
 import { CartsService } from './carts.service';
 import { PaymentsService } from './payments.service';
+import { CronService } from './cron.service';
 import { SubTiersService } from './sub-tiers.service';
+import { EmailTemplatesAdminService } from './email-templates-admin.service';
+import { InvoicesService } from '../invoices/invoices.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { OwnerOnlyGuard } from './owner-only.guard';
 import { PermissionGuard } from './permission.guard';
 import { PrismaService } from '../prisma.service';
 import { StorageService } from '../kyc/storage.service';
 import { WhatsappService } from '../notifications/whatsapp';
+import { EmailService } from '../notifications/email';
+import { StaffAlertsService } from '../notifications/staff-alerts';
+import { RazorpayService } from '../payments/razorpay.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { FeaturedService } from '../featured/featured.service';
+import { redisProvider } from '../redis.provider';
 
 // JwtModule is registered `global: true` in AuthModule, so JwtService is
 // already available here without importing it again (see kyc.module.ts).
@@ -81,6 +93,9 @@ import { WhatsappService } from '../notifications/whatsapp';
     AdminPaymentsController,
     MediaController,
     AdminSubTiersController,
+    AdminEmailTemplatesController,
+    AdminInvoicesController,
+    AdminSubscriptionsController,
   ],
   providers: [
     StaffAuthService,
@@ -104,12 +119,21 @@ import { WhatsappService } from '../notifications/whatsapp';
     CartsService,
     PaymentsService,
     SubTiersService,
+    EmailTemplatesAdminService,
+    InvoicesService,
     StorageService,
     WhatsappService,
+    EmailService,
+    StaffAlertsService,
+    RazorpayService,
+    SubscriptionsService,
+    FeaturedService,
+    CronService,
     StaffAuthGuard,
     OwnerOnlyGuard,
     PermissionGuard,
     PrismaService,
+    redisProvider,
   ],
   exports: [StaffAuthGuard, PermissionGuard],
 })

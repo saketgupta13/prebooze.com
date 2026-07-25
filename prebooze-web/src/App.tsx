@@ -2,10 +2,12 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useApp } from './store/AppContext';
+import { usePlatformInfo } from './lib/usePlatformInfo';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
 import CookieConsent from './components/CookieConsent';
+import ComingSoonGate from './components/ComingSoonGate';
 import Home from './pages/Home';
 import Browse from './pages/Browse';
 import Categories from './pages/Categories';
@@ -99,11 +101,32 @@ function ScrollToTop() {
   return null;
 }
 
+/** Real gate for Settings → Danger zone → "Maintenance mode" — the
+ * platform-wide toggle already blocks booking creation server-side
+ * (BookingsService.priceHold), this is the other half the setting's own
+ * hint text promises ("guest site shows a 'back soon' page"), which never
+ * existed until now. Header/Footer stay up (branding, contact info, socials
+ * still useful to show), only the actual page content is replaced. */
+function MaintenanceGate({ children }: { children: ReactNode }) {
+  const { maintenanceMode } = usePlatformInfo();
+  if (!maintenanceMode) return <>{children}</>;
+  return (
+    <main className="page" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center', maxWidth: 420, padding: 24 }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>🛠️</div>
+        <h1 style={{ fontSize: 22, marginBottom: 8 }}>We'll be right back</h1>
+        <p className="muted">Prebooze is down for scheduled maintenance — ticket bookings are paused. Check back shortly.</p>
+      </div>
+    </main>
+  );
+}
+
 export default function App() {
   return (
-    <>
+    <ComingSoonGate>
       <ScrollToTop />
       <Header />
+      <MaintenanceGate>
       <Routes>
         {/* Guest — discovery */}
         <Route path="/" element={<Home />} />
@@ -289,9 +312,10 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </MaintenanceGate>
       <Footer />
       <Toast />
       <CookieConsent />
-    </>
+    </ComingSoonGate>
   );
 }

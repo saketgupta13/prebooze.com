@@ -14,10 +14,11 @@ const RATE_FIELDS: { key: keyof FeaturedRates; label: string }[] = [
 ];
 
 export default function Featured() {
-  const { featuredRequests, featuredRates, approveFeatured, rejectFeatured, updateFeaturedRate } = useAdmin();
+  const { featuredRequests, featuredRates, approveFeatured, rejectFeatured, remindFeatured, updateFeaturedRate } = useAdmin();
 
   const pending = featuredRequests.filter((f) => f.status === 'pending');
   const active = featuredRequests.filter((f) => f.status === 'active');
+  const expired = featuredRequests.filter((f) => f.status === 'expired');
   const monthlyRecurring = active.filter((f) => f.billing === 'monthly').reduce((a, f) => a + f.amount, 0);
   const perEventRevenue = active.filter((f) => f.billing === 'per_event').reduce((a, f) => a + f.amount, 0);
 
@@ -41,6 +42,20 @@ export default function Featured() {
     </div>
   );
 
+  const ExpiredRow = ({ f }: { f: (typeof featuredRequests)[number] }) => (
+    <div className="trow" style={{ minWidth: 640 }}>
+      <span style={{ flex: 1.6, fontWeight: 700 }}>{TYPE_ICON[f.type]} {f.name}</span>
+      <span style={{ flex: 0.9 }} className="muted">{f.type}</span>
+      <span style={{ flex: 0.8 }} className="muted">{f.city}</span>
+      <span style={{ flex: 1 }}>₹{fmt(f.amount)} <span className="tiny muted">{f.billing === 'monthly' ? '/mo' : 'one-off'}</span></span>
+      <span style={{ flex: 0.9 }} className="muted tiny">expired {f.expiresAt}</span>
+      <span style={{ flex: 1.3, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+        {f.remindedAt && <span className="tiny muted">reminded {f.remindedAt}</span>}
+        <button className="btn btn-ghost btn-sm" onClick={() => remindFeatured(f.id)}>Send renewal reminder</button>
+      </span>
+    </div>
+  );
+
   return (
     <div className="stack fade" style={{ maxWidth: 1100, gap: 14 }}>
       <div className="page-hd">
@@ -55,6 +70,7 @@ export default function Featured() {
         <Kpi label="Live placements" value={fmt(active.length)} />
         <Kpi label="Monthly recurring" value={`₹${fmt(monthlyRecurring)}`} delta="from active subs" deltaColor="var(--green)" />
         <Kpi label="Per-event revenue" value={`₹${fmt(perEventRevenue)}`} delta="active one-offs" deltaColor="var(--muted)" />
+        <Kpi label="Expired" value={fmt(expired.length)} delta="lapsed — not renewed" deltaColor="var(--red)" />
       </div>
 
       {/* Pricing */}
@@ -105,7 +121,20 @@ export default function Featured() {
           active.map((f) => <Row key={f.id} f={f} />)
         )}
       </div>
-      <div className="tiny hint">approving a request makes it live on the guest home page + directory · placements are city-scoped and clearly labelled “Featured”</div>
+
+      {/* Expired — lapsed placements, with a manual renewal-reminder action */}
+      <div className="tblwrap">
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(139,195,74,.15)' }}>
+          <span className="display" style={{ fontWeight: 700 }}>Expired</span>
+          <span className="small muted">{expired.length} lapsed</span>
+        </div>
+        {expired.length === 0 ? (
+          <div className="trow muted">Nothing has lapsed.</div>
+        ) : (
+          expired.map((f) => <ExpiredRow key={f.id} f={f} />)
+        )}
+      </div>
+      <div className="tiny hint">approving a request makes it live on the guest home page + directory · placements are city-scoped and clearly labelled “Featured” · a placement moves to Expired automatically once its date passes — send a renewal reminder to nudge the owner</div>
     </div>
   );
 }

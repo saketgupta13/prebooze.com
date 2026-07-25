@@ -1,7 +1,11 @@
 import { useState } from 'react';
+import { usePlatformInfo } from '../../lib/usePlatformInfo';
+import { useSeo } from '../../lib/useSeo';
 
 export default function Contact() {
+  useSeo(null, 'Contact');
   const [sent, setSent] = useState(false);
+  const { contact } = usePlatformInfo();
 
   return (
     <main className="page">
@@ -46,10 +50,10 @@ export default function Contact() {
 
         <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
           {[
-            ['💬 WhatsApp support', 'Fastest way to reach us · +91 98765 43210'],
-            ['✉ Email', 'help@prebooze.com · replies in ~24h'],
-            ['📍 Office', '4th Floor, Cowork Hub, Koramangala, Bengaluru'],
-            ['🎫 Organizer support', 'Payouts, KYC, listing issues → organizers@prebooze.com'],
+            ['💬 WhatsApp support', `Fastest way to reach us · ${contact.phone}`],
+            ['✉ Email', `${contact.email} · replies in ~24h`],
+            ['📍 Office', contact.address],
+            ['🎫 Organizer support', `Payouts, KYC, listing issues → ${contact.organizerEmail}`],
           ].map(([t, d]) => (
             <div key={t} className="card">
               <h3 style={{ fontSize: 15, marginBottom: 4 }}>{t}</h3>

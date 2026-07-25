@@ -19,6 +19,7 @@ export interface SettingsInput {
   require2fa?: boolean;
   maintenanceMode?: boolean;
   salesPaused?: boolean;
+  comingSoonMode?: boolean;
   socials?: Record<string, string>;
   siteSeo?: Record<string, string>;
   contact?: Record<string, string>;
@@ -27,7 +28,7 @@ export interface SettingsInput {
 
 const SETTINGS_FIELDS: (keyof SettingsInput)[] = [
   'bookingFee', 'gstPct', 'feeLabel', 'absorbedBy', 'payoutDay', 'autoPayout',
-  'weeklyEmail', 'whatsappAlerts', 'require2fa', 'maintenanceMode', 'salesPaused',
+  'weeklyEmail', 'whatsappAlerts', 'require2fa', 'maintenanceMode', 'salesPaused', 'comingSoonMode',
   'socials', 'siteSeo', 'contact', 'footerCopyright',
 ];
 

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { BookingStatus, CustomerStatus, EventStatus, OrganizerStatus } from '../types';
 
@@ -238,6 +238,88 @@ export function SearchBox({ value, onChange, placeholder, style }: {
     <div className="search-box" style={style}>
       <span style={{ opacity: 0.6 }}>🔍</span>
       <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+    </div>
+  );
+}
+
+/** Searchable multi-select over a registered directory (line-ups, promoters,
+ * etc.) — replaces free-text entry so an organizer can only attach entities
+ * that actually exist in that module. `disabled` items (e.g. an unverified
+ * line-up or a not-yet-approved promoter) still show up so admin can see
+ * they exist, but can't be picked — same "show it, gate the pick" pattern
+ * EventEditor already uses for the Organizer <select>. */
+export function MultiSelectSearch({ items, selectedIds, onChange, placeholder, emptyHint, chipIcon }: {
+  items: { id: string; label: string; sub?: string; disabled?: boolean; disabledLabel?: string }[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  placeholder: string;
+  emptyHint: string;
+  chipIcon?: string;
+}) {
+  const [query, setQuery] = useState('');
+  const [focused, setFocused] = useState(false);
+  const selected = items.filter((i) => selectedIds.includes(i.id));
+  const q = query.trim().toLowerCase();
+  const results = items
+    .filter((i) => !selectedIds.includes(i.id))
+    .filter((i) => !q || i.label.toLowerCase().includes(q))
+    .slice(0, 8);
+
+  const toggle = (id: string) => onChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
+
+  if (items.length === 0) return <div className="tiny muted">{emptyHint}</div>;
+
+  return (
+    <div>
+      {selected.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+          {selected.map((s) => (
+            <button key={s.id} type="button" className="chip on" onClick={() => toggle(s.id)}>
+              {chipIcon ?? ''} {s.label} ✕
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="search-box" style={{ position: 'relative' }}>
+        <span style={{ opacity: 0.6 }}>🔍</span>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setTimeout(() => setFocused(false), 150)}
+          placeholder={placeholder}
+        />
+        {focused && (
+          <div
+            className="card"
+            style={{ position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 40, padding: 6, maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}
+          >
+            {results.length === 0 && (
+              <div className="tiny muted" style={{ padding: '6px 8px' }}>{q ? `No matches for "${query}"` : 'All added'}</div>
+            )}
+            {results.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                disabled={r.disabled}
+                onMouseDown={() => { if (!r.disabled) { toggle(r.id); setQuery(''); } }}
+                style={{
+                  display: 'flex', justifyContent: 'space-between', gap: 8, textAlign: 'left',
+                  background: 'none', border: 'none', padding: '6px 8px', borderRadius: 6,
+                  cursor: r.disabled ? 'not-allowed' : 'pointer',
+                  color: r.disabled ? 'var(--muted)' : 'var(--text)',
+                  opacity: r.disabled ? 0.6 : 1,
+                }}
+                onMouseEnter={(e) => { if (!r.disabled) e.currentTarget.style.background = 'rgba(139,195,74,.1)'; }}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+              >
+                <span style={{ fontSize: 12.5 }}>{r.label}{r.disabled && r.disabledLabel ? ` ${r.disabledLabel}` : ''}</span>
+                {r.sub && <span className="tiny muted">{r.sub}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

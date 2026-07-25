@@ -4,6 +4,7 @@ import { useApp } from '../store/AppContext';
 import { CATEGORY_TREE, EVENTS, subsFor, venueById } from '../data/mock';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import EventCard from '../components/EventCard';
+import { useSeo } from '../lib/useSeo';
 
 const DATE_FILTERS = ['Any date', 'This weekend', 'This month'];
 const CATS = ['Category', ...CATEGORY_TREE.map((c) => c.name)];
@@ -11,6 +12,7 @@ const PRICES = ['Price', 'Under ₹30', '₹30–₹80', '₹80+'];
 const SORTS = ['sorted by date', 'price low→high', 'price high→low'];
 
 export default function Browse() {
+  useSeo(null, 'Browse events');
   const { city, featured } = useApp();
   const [params] = useSearchParams();
   const q = (params.get('q') ?? '').toLowerCase();

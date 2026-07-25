@@ -6,9 +6,13 @@ import { PrismaService } from '../prisma.service';
 import { HoldsService } from './holds.service';
 import { RazorpayService } from '../payments/razorpay.service';
 import { WhatsappService } from '../notifications/whatsapp';
+import { EmailService } from '../notifications/email';
+import { money } from '../notifications/email-templates';
 import { REFERRAL_REFERRER_REWARD, referralCodeFor } from '../referrals/referral.constants';
 import { NotificationsService } from '../admin/notifications.service';
+import { InvoicesService } from '../invoices/invoices.service';
 import { normalizePhone } from '../auth/auth.service';
+import { StaffAlertsService } from '../notifications/staff-alerts';
 
 const FALLBACK_FEE_PER_TICKET = 1.5; // ₹ — used only if PlatformSettings row is somehow missing
 
@@ -32,7 +36,10 @@ export class BookingsService {
     private razorpay: RazorpayService,
     private jwt: JwtService,
     private wa: WhatsappService,
+    private email: EmailService,
     private notifications: NotificationsService,
+    private invoices: InvoicesService,
+    private staffAlerts: StaffAlertsService,
   ) {}
 
   async createHold(userId: string, eventId: string, qty: Record<string, number>) {
@@ -220,6 +227,27 @@ export class BookingsService {
 
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     await this.wa.send(input.whatsapp, 'booking_confirmed', [input.mainGuest.trim(), event.title, String(qty), id, String(total)]).catch(() => {});
+    await this.email.sendTemplate(user.email, 'booking_confirmed', {
+      name: input.mainGuest.trim(), eventTitle: event.title, qty: String(qty), bookingId: id, total: money(total),
+    }).catch(() => {});
+
+    // ---- invoice: GST only on the platform's own booking-fee revenue, same
+    // convention Reports.ts/computeFin already uses — the organizer's ticket
+    // price isn't Prebooze's revenue to tax here.
+    if (subtotal > 0) {
+      const [settings, venue] = await Promise.all([
+        this.prisma.platformSettings.findUnique({ where: { id: 'main' } }),
+        this.prisma.venue.findUnique({ where: { id: event.venueId }, select: { city: true } }),
+      ]);
+      const gstPct = settings?.gstPct ?? 0;
+      const gstAmount = Math.round((fee * gstPct) / 100);
+      await this.invoices.create({
+        type: 'booking', refId: id, role: 'guest',
+        payerName: input.mainGuest.trim(), payerEmail: user.email, payerPhone: input.whatsapp,
+        city: venue?.city, description: `${qty}× ${event.title}`,
+        subtotal, gstPct, gstAmount, total,
+      }).catch(() => {});
+    }
 
     // ---- referral qualification: referee's first paid booking rewards the referrer ----
     const referral = await this.prisma.referral.findUnique({ where: { refereeId: userId } });
@@ -238,7 +266,12 @@ export class BookingsService {
         }),
       ]);
       const referrer = await this.prisma.user.findUnique({ where: { id: referral.referrerId } });
-      if (referrer) await this.wa.send(referrer.phone, 'referral_reward', [String(reward), user.name || 'Your friend']).catch(() => {});
+      if (referrer) {
+        await this.wa.send(referrer.phone, 'referral_reward', [String(reward), user.name || 'Your friend']).catch(() => {});
+        await this.email.sendTemplate(referrer.email, 'referral_reward', {
+          name: referrer.name, amount: money(reward), friendName: user.name || 'Your friend',
+        }).catch(() => {});
+      }
     }
 
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true } } } });
@@ -359,7 +392,11 @@ export class BookingsService {
       await this.prisma.booking.update({ where: { id }, data: { status: 'refund_requested', refundedTo: 'source' } });
       const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
       await this.wa.send(user.phone, 'refund_requested', [id, String(booking.total)]).catch(() => {});
+      await this.email.sendTemplate(user.email, 'refund_requested', {
+        name: user.name, bookingId: id, amount: money(booking.total),
+      }).catch(() => {});
       await this.notifications.notify('↩', `Refund requested — booking ${id} · ₹${booking.total}`, '/admin/bookings?status=refund_requested');
+      await this.staffAlerts.alert(`↩ Refund requested — booking ${id} · ₹${booking.total} · ${user.name}`).catch(() => {});
       return this.prisma.booking.findUniqueOrThrow({ where: { id } });
     }
 
@@ -427,6 +464,12 @@ export class BookingsService {
       if (booking.paymentId) await this.razorpay.refund(booking.paymentId, booking.total * 100).catch(() => {});
       await this.wa.send(user.phone, 'refund_source', [id, String(booking.total)]).catch(() => {});
     }
+    await this.email.sendTemplate(user.email, 'refund_processed', {
+      name: user.name, bookingId: id, amount: money(booking.total),
+      refundNote: refundTo === 'wallet'
+        ? 'to your Prebooze wallet — ready to use instantly.'
+        : 'to your original payment method — usually 5–7 business days to reflect.',
+    }).catch(() => {});
 
     // FIFO: offer the freed spot to the first person still waiting
     const next = await this.prisma.waitlistEntry.findFirst({
@@ -439,7 +482,13 @@ export class BookingsService {
         this.prisma.user.findUnique({ where: { id: next.userId } }),
         this.prisma.event.findUnique({ where: { id: booking.eventId } }),
       ]);
-      if (waiter && event) await this.wa.send(waiter.phone, 'waitlist_offer', [waiter.name || 'there', event.title, `${process.env.WEB_APP_URL ?? ''}/events/${event.slug}`]).catch(() => {});
+      if (waiter && event) {
+        const eventUrl = `${process.env.WEB_APP_URL ?? ''}/events/${event.slug}`;
+        await this.wa.send(waiter.phone, 'waitlist_offer', [waiter.name || 'there', event.title, eventUrl]).catch(() => {});
+        await this.email.sendTemplate(waiter.email, 'waitlist_offer', {
+          name: waiter.name, eventTitle: event.title, eventUrl,
+        }).catch(() => {});
+      }
     }
 
     return this.prisma.booking.findUniqueOrThrow({ where: { id } });

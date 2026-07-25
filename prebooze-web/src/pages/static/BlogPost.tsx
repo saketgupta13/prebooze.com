@@ -2,10 +2,12 @@ import { Link, useParams } from 'react-router-dom';
 import { BLOG_POSTS, blogBySlug, eventBySlug } from '../../data/mock';
 import Poster from '../../components/Poster';
 import EventCard from '../../components/EventCard';
+import { useSeo } from '../../lib/useSeo';
 
 export default function BlogPost() {
   const { slug } = useParams();
   const post = blogBySlug(slug ?? '');
+  useSeo(null, post?.title);
 
   if (!post) {
     return (

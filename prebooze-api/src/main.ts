@@ -5,7 +5,10 @@ import { join } from 'path';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody: true populates req.rawBody alongside the normal parsed JSON —
+  // needed to verify the Razorpay webhook's HMAC signature over the exact
+  // bytes sent, without disabling body parsing for every other route.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   app.setGlobalPrefix('v1');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableCors({

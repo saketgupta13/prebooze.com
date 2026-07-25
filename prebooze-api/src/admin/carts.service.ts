@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
+import { EmailService } from '../notifications/email';
 
 @Injectable()
 export class CartsService {
   constructor(
     private prisma: PrismaService,
     private wa: WhatsappService,
+    private email: EmailService,
   ) {}
 
   /** Platform-wide, across every organizer — distinct from
@@ -36,9 +38,13 @@ export class CartsService {
     const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: true } });
     if (!cart) throw new NotFoundException('Cart not found');
     await this.prisma.cart.update({ where: { id }, data: { remindedAt: new Date() } });
+    const eventUrl = `${process.env.WEB_APP_URL ?? ''}/events/${cart.event.slug}`;
     await this.wa
-      .send(cart.user.phone, 'cart_reminder', [cart.user.name || 'there', cart.event.title, `${process.env.WEB_APP_URL ?? ''}/events/${cart.event.slug}`])
+      .send(cart.user.phone, 'cart_reminder', [cart.user.name || 'there', cart.event.title, eventUrl])
       .catch(() => {});
+    await this.email.sendTemplate(cart.user.email, 'cart_reminder', {
+      name: cart.user.name, eventTitle: cart.event.title, eventUrl,
+    }).catch(() => {});
     return { ok: true };
   }
 

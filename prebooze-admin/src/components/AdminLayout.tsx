@@ -26,7 +26,8 @@ const MAIN_NAV = [
   { to: '/locations', icon: '🌍', label: 'Locations' },
   { to: '/lineups', icon: '🎤', label: 'Line-ups' },
   { to: '/payments', icon: '💰', label: 'Payments' },
-  { to: '/finance', icon: '🧾', label: 'Income & expenses' },
+  { to: '/invoices', icon: '🧾', label: 'Invoices' },
+  { to: '/finance', icon: '💵', label: 'Income & expenses' },
   { to: '/promos', icon: '🏷', label: 'Promo codes' },
   { to: '/reviews', icon: '★', label: 'Reviews' },
   { to: '/reports', icon: '📈', label: 'Reports' },
@@ -57,6 +58,8 @@ const MOBILE_NAV = [
 // their own) but should still be jump-to-able by name.
 const EXTRA_NAV = [
   { to: '/staff', icon: '🧑‍💻', label: 'Staff & roles' },
+  { to: '/email-templates', icon: '✉️', label: 'Email templates' },
+  { to: '/subscription-plans', icon: '💳', label: 'Subscription plans (live)' },
   { to: '/settings', icon: '⚙', label: 'Settings' },
   { to: '/profile', icon: '👤', label: 'Profile' },
 ];
@@ -193,6 +196,14 @@ export default function AdminLayout() {
           <NavLink to="/staff" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
             <span>🛡</span>
             <span>Staff &amp; roles</span>
+          </NavLink>
+          <NavLink to="/email-templates" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
+            <span>✉️</span>
+            <span>Email templates</span>
+          </NavLink>
+          <NavLink to="/subscription-plans" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
+            <span>💳</span>
+            <span>Subscription plans (live)</span>
           </NavLink>
           <NavLink to="/settings" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
             <span>⚙</span>

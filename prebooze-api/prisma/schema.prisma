@@ -258,6 +258,7 @@ model Promoter {
   withdrawals PromoterWithdrawal[]
 
   contact String? // business contact email — public, added for the directory CRUD slice
+  seo     Json? // {title, description, keywords} — same shape/editor (SeoFields) as every other directory entity; was missing here despite Venue/Organizer having it
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -276,6 +277,7 @@ model Lineup {
   eventsPlayed Int      @default(0)
   hue          Int
   emoji        String
+  seo          Json? // {title, description, keywords} — same shape/editor (SeoFields) as every other directory entity; was missing here despite Venue/Organizer having it
 
   // same pattern as Organizer/Promoter.userId (Phases 6-7) — provisioned
   // automatically when this user's lineup KYC is approved, see
@@ -475,6 +477,12 @@ model PlatformSettings {
   require2fa      Boolean @default(false)
   maintenanceMode Boolean @default(false)
   salesPaused     Boolean @default(false)
+  // Soft-launch gate — distinct from maintenanceMode (a temporary outage
+  // toggle for everyone, no bypass): comingSoonMode shows the public a
+  // "coming soon" page while staff can still see the real site by logging
+  // in with real staff credentials on the guest site itself (ComingSoonGate
+  // in prebooze-web, same POST /admin/auth/login staff-auth used elsewhere).
+  comingSoonMode  Boolean @default(false)
   socials         Json    @default("{\"instagram\":\"\",\"x\":\"\",\"youtube\":\"\",\"whatsapp\":\"\",\"facebook\":\"\"}")
   siteSeo         Json    @default("{\"title\":\"\",\"description\":\"\",\"keywords\":\"\"}")
   contact         Json    @default("{\"email\":\"\",\"phone\":\"\",\"address\":\"\",\"organizerEmail\":\"\"}")
@@ -500,17 +508,85 @@ model PlatformSettings {
   updatedAt DateTime @updatedAt
 }
 
-/** Promoter subscription plans — PromoterService's PLAN_QUOTA (guest-add
- * quota per plan) was a hardcoded constant; `price` didn't exist as a
- * concept anywhere despite prebooze-admin's PromoterTiers.tsx expecting to
- * edit it. Subscription billing itself still isn't wired up (same
- * documented gap as Featured billing) — price is stored/admin-editable
- * but nothing charges it yet. */
+/** Subscription tiers — originally promoter-only (PromoterService's
+ * PLAN_QUOTA guest-add quota per plan), generalized to also serve
+ * organizer/venue/lineup once real Razorpay Subscription billing landed (see
+ * RoleSubscription below). Existing rows (free/starter/pro/elite) are all
+ * `role: promoter`, untouched — `Promoter.planId` still reads `SubTier.guests`
+ * directly for the guest-list quota hot path, same as before. Organizer/venue/
+ * lineup have zero seeded tiers as of this migration — nothing invents
+ * pricing for them; real tiers get added via `admin/sub-tiers` once the
+ * business side has real numbers. Lineup previously had no self-serve
+ * console/module at all (KYC-only — see DirectoryService); a minimal one
+ * (`src/lineup/`) was added specifically to carry these subscription routes,
+ * same shape as organizer/promoter/venue's. */
+enum SubTierRole {
+  organizer
+  promoter
+  venue
+  lineup
+}
+
 model SubTier {
-  id     String @id
-  name   String
-  price  Int
-  guests Int // -1 = unlimited
+  id             String      @id
+  role           SubTierRole @default(promoter)
+  name           String
+  price          Int // ₹/month
+  guests         Int? // promoter-only monthly guest-list quota (-1 = unlimited); null for other roles
+  razorpayPlanId String? // lazily created via RazorpayService.createPlan on first real subscribe — a plan is only created with Razorpay once someone actually tries to pay for this tier
+
+  subscriptions RoleSubscription[]
+}
+
+/** One row per role-entity's current subscription lifecycle, backed by a
+ * real Razorpay Subscription once price > 0. `status` mirrors Razorpay's own
+ * subscription states exactly (see RAZORPAY.md / RazorpaySubscriptionService)
+ * — driven by the webhook handler, never set optimistically at request time,
+ * so a tier only actually takes effect once payment is genuinely
+ * authorized/charged. Free tiers (price 0) skip Razorpay entirely and go
+ * straight to `active`. */
+enum SubscriptionStatus {
+  created
+  authenticated
+  active
+  pending
+  halted
+  cancelled
+  completed
+  expired
+}
+
+model RoleSubscription {
+  id            String             @id @default(cuid())
+  role          SubTierRole
+  entityId      String // Organizer.id | Promoter.id | Venue.id
+  tierId        String
+  tier          SubTier            @relation(fields: [tierId], references: [id])
+  razorpaySubId String?            @unique
+  status        SubscriptionStatus @default(created)
+  shortUrl      String? // hosted Razorpay authorization link the frontend redirects the owner to
+  currentStart  DateTime?
+  currentEnd    DateTime?
+  paidCount     Int                @default(0)
+  charges       SubscriptionCharge[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([role, entityId]) // one subscription record per role-entity at a time
+}
+
+/** Real billing history — one row per `subscription.charged` webhook,
+ * regardless of whether the charge succeeded (status lets admin see a
+ * failed renewal attempt, not just successful ones). */
+model SubscriptionCharge {
+  id                String           @id @default(cuid())
+  subscriptionId    String
+  subscription      RoleSubscription @relation(fields: [subscriptionId], references: [id])
+  razorpayPaymentId String?
+  amount            Int // ₹
+  status            String // captured | failed
+  occurredAt        DateTime         @default(now())
 }
 
 /** Real system-event feed for the admin bell icon — event submitted for
@@ -551,6 +627,17 @@ model Featured {
   amount    Int
   createdAt DateTime        @default(now())
   expiresAt DateTime
+
+  // Real Razorpay billing — a request isn't payable to admin for approval
+  // until `paid` is true (see FeaturedService.confirmPayment/adminApprove).
+  razorpayOrderId String?
+  paymentId       String?
+  paid            Boolean   @default(false)
+
+  // Automatic "expiring in 3 days" reminder (CronService.featuredExpiringSoonTick)
+  // — distinct from the already-expired manual reminder button/endpoint.
+  // Null = not yet sent; set once so the daily cron doesn't re-send every day.
+  expiryReminderSentAt DateTime?
 }
 
 // ============================================================================
@@ -936,6 +1023,7 @@ model Staff {
   roleName     String
   role         StaffRole @relation(fields: [roleName], references: [name])
   city         String?
+  phone        String? // WhatsApp number for staff alerts (refund requests, KYC submissions, payout failures) — see Settings.whatsappAlerts
   lastActiveAt DateTime?
 
   createdAt DateTime @default(now())
@@ -1091,4 +1179,67 @@ model LedgerCategory {
   name String
 
   @@unique([kind, name])
+}
+
+// ============================================================================
+// Email templates — admin-editable overrides. `id` is normally the fixed
+// template key (e.g. "booking_confirmed") the code already defines a
+// hardcoded default for in notifications/email-templates.ts, not a cuid — a
+// row here means "admin customized this one," absence means "use the code
+// default." Only `subject`/`bodyHtml` are editable (plain {{token}}
+// placeholders, resolved by renderTemplate() at send time) — never raw
+// executable content, so an admin edit can only change wording/formatting,
+// never inject script.
+//
+// `name`/`category` are set only for *custom* templates — ones admin created
+// from scratch (id prefixed "custom_"), not tied to any real trigger in
+// code, sent manually. Fixed templates get their name/category from
+// TEMPLATE_DEFS and leave these null.
+// ============================================================================
+
+model EmailTemplate {
+  id        String   @id
+  name      String?
+  category  String?
+  subject   String
+  bodyHtml  String
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+// ============================================================================
+// Invoices — one row per real payment received (booking) or billable request
+// (featured placement) from any role. Numbers are sequential per Indian GST
+// invoicing convention (gap-free, unique) via InvoiceCounter's atomic
+// increment inside the same transaction as the Invoice create.
+// ============================================================================
+
+model InvoiceCounter {
+  id    String @id @default("main")
+  value Int    @default(0)
+}
+
+model Invoice {
+  id          String    @id @default(cuid())
+  number      String    @unique // "INV-2026-000123"
+  type        String // booking | featured
+  refId       String // Booking.id or Featured.id
+  role        String // guest | organizer | promoter | venue | lineup
+  payerName   String
+  payerEmail  String?
+  payerPhone  String?
+  city        String?
+  description String
+  subtotal    Float
+  gstPct      Float     @default(0)
+  gstAmount   Float     @default(0)
+  total       Float
+  status      String    @default("issued") // issued | void
+  issuedAt    DateTime  @default(now())
+  lastSentAt  DateTime?
+
+  @@index([type, refId])
+  @@index([role])
+  @@index([city])
+  @@index([issuedAt])
 }

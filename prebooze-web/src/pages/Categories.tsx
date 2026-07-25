@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { CATEGORY_TREE, EVENTS, venueById } from '../data/mock';
+import { useSeo } from '../lib/useSeo';
 
 /** Browse-by-category directory — categories + sub-categories with live counts. */
 export default function Categories() {
+  useSeo(null, 'Browse by category');
   const { city } = useApp();
   const cityEvents = EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
   const catCount = (cat: string) => cityEvents.filter((e) => e.category === cat).length;

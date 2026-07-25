@@ -4,12 +4,18 @@ import { useApp, CART_HOLD_MINUTES } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import type { Booking } from '../types';
 import { existingRole, roleHome, roleLabel } from '../lib/roles';
+import { usePlatformInfo } from '../lib/usePlatformInfo';
 
-const BOOKING_FEE_PER_TICKET = 1.5;
+const ABSORBED_NOTE: Record<string, string> = {
+  Organizer: 'absorbed by the organizer',
+  Guest: 'paid by you',
+  Split: 'split between you and the organizer',
+};
 
 export default function Checkout() {
   const { user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, captureCart, setCartStatus, pendingPromoterRef, setPendingPromoterRef, walletBalance, spendWallet, payMethods, setDefaultPayMethod } = useApp();
   const navigate = useNavigate();
+  const { feeLabel, absorbedBy, bookingFee } = usePlatformInfo();
 
   const event = selection
     ? (eventById(selection.eventId) ?? myEvents.find((e) => e.id === selection.eventId))
@@ -52,7 +58,7 @@ export default function Checkout() {
 
   const ticketCount = lines.reduce((a, l) => a + l.qty, 0);
   const subtotal = lines.reduce((a, l) => a + l.qty * l.tier.price, 0);
-  const fee = Math.round(ticketCount * BOOKING_FEE_PER_TICKET);
+  const fee = Math.round(ticketCount * bookingFee);
 
   const discount = useMemo(() => {
     if (!appliedCode) return 0;
@@ -415,7 +421,7 @@ export default function Checkout() {
               </div>
             ))}
             <div className="kv">
-              <span className="k">Booking fee</span>
+              <span className="k">{feeLabel} <span className="muted" style={{ fontSize: 11 }}>({ABSORBED_NOTE[absorbedBy] ?? ABSORBED_NOTE.Guest})</span></span>
               <span>₹{fee}</span>
             </div>
             {discount > 0 && (

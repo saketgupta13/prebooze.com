@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 interface OnboardInput {
   name?: string;
@@ -17,7 +18,30 @@ interface OnboardInput {
 
 @Injectable()
 export class VenueService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private subscriptions: SubscriptionsService,
+  ) {}
+
+  // ---------- subscription (Razorpay-billed venue plans) ----------
+  async subscriptionTiers() {
+    return this.subscriptions.tiers('venue');
+  }
+
+  async mySubscription(userId: string) {
+    const venue = await this.myVenue(userId);
+    return this.subscriptions.current('venue', venue.id);
+  }
+
+  async subscribe(userId: string, tierId: string) {
+    const venue = await this.myVenue(userId);
+    return this.subscriptions.subscribe('venue', venue.id, tierId);
+  }
+
+  async cancelSubscription(userId: string) {
+    const venue = await this.myVenue(userId);
+    return this.subscriptions.cancel('venue', venue.id);
+  }
 
   private async myVenue(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });

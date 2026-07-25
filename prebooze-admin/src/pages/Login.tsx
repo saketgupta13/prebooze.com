@@ -5,11 +5,17 @@ import { ToastHost } from '../components/AdminLayout';
 import { GUEST_SITE_URL } from '../store/data';
 import type { Role } from '../types';
 
+// Single hard-coded owner account — this panel isn't backed by a real auth
+// service yet, so lock the admin tab to these exact credentials rather than
+// accepting any non-empty email/password (that let anyone in).
+const ADMIN_EMAIL = 'admin@prebooze.com';
+const ADMIN_PASSWORD = 'Krusa@1323@';
+
 const COPY: Record<Role, { heading: string; sub: string; placeholder: string; button: string; footnote: string }> = {
   admin: {
     heading: 'Admin sign in',
     sub: 'Full access to the Prebooze control center.',
-    placeholder: 'owner@prebooze.com',
+    placeholder: 'admin@prebooze.com',
     button: 'Sign in to admin panel',
     footnote: 'Owners & managers only. Contact IT for access issues.',
   },
@@ -39,6 +45,10 @@ export default function Login() {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setError('Enter both email and password.');
+      return;
+    }
+    if (role === 'admin' && (email.trim().toLowerCase() !== ADMIN_EMAIL || password !== ADMIN_PASSWORD)) {
+      setError('Invalid email or password.');
       return;
     }
     login(role, email.trim());

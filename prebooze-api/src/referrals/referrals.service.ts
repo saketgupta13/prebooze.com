@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
+import { EmailService } from '../notifications/email';
+import { money } from '../notifications/email-templates';
 import { REFERRAL_REFEREE_WELCOME } from './referral.constants';
 
 @Injectable()
@@ -8,6 +10,7 @@ export class ReferralsService {
   constructor(
     private prisma: PrismaService,
     private wa: WhatsappService,
+    private email: EmailService,
   ) {}
 
   async mine(userId: string) {
@@ -54,6 +57,9 @@ export class ReferralsService {
 
     const referee = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     await this.wa.send(referee.phone, 'referral_welcome', [String(welcome)]).catch(() => {});
+    await this.email.sendTemplate(referee.email, 'referral_welcome', {
+      name: referee.name, amount: money(welcome),
+    }).catch(() => {});
 
     return referral;
   }

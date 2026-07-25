@@ -7,7 +7,7 @@ import { Kpi } from '../components/ui';
 const TABS = ['Payouts due', 'Transactions', 'Refunds', 'Disputes'];
 
 export default function Payments() {
-  const { events, toast } = useAdmin();
+  const { events, runPayoutBatch } = useAdmin();
   const navigate = useNavigate();
   const [tab, setTab] = useState(TABS[0]);
 
@@ -66,7 +66,7 @@ export default function Payments() {
                 {r.paidOut ? (
                   <span className="tag tag-green" title={r.payoutUtr}>Paid ✓</span>
                 ) : (
-                  <button className="btn btn-ghost btn-sm" onClick={() => toast(`Payout to ${r.organizer} initiated ✓`)}>Pay ⏸</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => runPayoutBatch([r.id])}>Pay ⏸</button>
                 )}
               </span>
             </div>

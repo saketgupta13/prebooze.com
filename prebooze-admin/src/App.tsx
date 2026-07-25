@@ -43,12 +43,16 @@ import GuestList from './pages/GuestList';
 import { Lineups, LineupEdit } from './pages/Lineups';
 import Reviews from './pages/Reviews';
 import { Promoters, PromoterDetail, PromoterTiers } from './pages/Promoters';
+import SubscriptionPlansLive from './pages/SubscriptionPlansLive';
 import AddPromoter from './pages/AddPromoter';
 import PromoterEdit from './pages/PromoterEdit';
 import Testimonials from './pages/Testimonials';
 import Faqs from './pages/Faqs';
 import Policies from './pages/Policies';
 import Menus from './pages/Menus';
+import EmailTemplates from './pages/EmailTemplates';
+import Invoices from './pages/Invoices';
+import InvoiceDetail from './pages/InvoiceDetail';
 
 export default function App() {
   return (
@@ -82,6 +86,7 @@ export default function App() {
         <Route path="/promoters" element={<Promoters />} />
         <Route path="/promoters/new" element={<AddPromoter />} />
         <Route path="/promoters/tiers" element={<PromoterTiers />} />
+        <Route path="/subscription-plans" element={<SubscriptionPlansLive />} />
         <Route path="/promoters/:id" element={<PromoterDetail />} />
         <Route path="/promoters/:id/edit" element={<PromoterEdit />} />
         <Route path="/locations" element={<Locations />} />
@@ -117,6 +122,9 @@ export default function App() {
         <Route path="/staff" element={<StaffRoles />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/email-templates" element={<EmailTemplates />} />
+        <Route path="/invoices" element={<Invoices />} />
+        <Route path="/invoices/:id" element={<InvoiceDetail />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

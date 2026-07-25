@@ -7,11 +7,15 @@ import ShareButton from '../components/ShareButton';
 import Poster from '../components/Poster';
 import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
+import { useSeo } from '../lib/useSeo';
+import { useEntitySeo } from '../lib/useEntitySeo';
 
 export default function OrganizerProfile() {
   const { id } = useParams();
   const { following, toggleFollow } = useApp();
   const org = ORGANIZERS.find((o) => o.id === id);
+  const liveSeo = useEntitySeo('organizer', id);
+  useSeo(liveSeo, org?.brandName);
 
   if (!org) {
     return (

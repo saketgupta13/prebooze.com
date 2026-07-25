@@ -63,13 +63,21 @@ export class ContentService {
     return this.prisma.reel.findMany({ where: { active: true }, orderBy: { createdAt: 'desc' } });
   }
 
-  /** Guest-relevant slice of PlatformSettings only — never the financial/ops
-   * fields (bookingFee, gstPct, payoutDay, autoPayout, ...), which are
-   * admin-internal. prebooze-web has no consumer for this yet (its Contact
-   * page is still hardcoded), added proactively same as the rest of this
-   * public content surface. */
+  /** Guest-relevant slice of PlatformSettings only — payoutDay/autoPayout
+   * stay admin-internal (organizer/promoter payout ops, nothing a guest
+   * needs). bookingFee/gstPct WERE excluded on the same "internal" theory,
+   * but that was actually a bug: BookingsService already charges the real
+   * bookingFee/gstPct on every booking (see bookings.service.ts), so hiding
+   * the number from the API while a guest's Checkout page showed a
+   * different hardcoded estimate risked the two silently diverging.
+   * Exposing the real numbers here is what lets Checkout.tsx show guests
+   * the actual fee they'll be charged instead of a stale guess. */
   async platformInfo() {
     const s = await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
-    return { maintenanceMode: s.maintenanceMode, socials: s.socials, siteSeo: s.siteSeo, contact: s.contact, footerCopyright: s.footerCopyright };
+    return {
+      maintenanceMode: s.maintenanceMode, comingSoonMode: s.comingSoonMode, socials: s.socials, siteSeo: s.siteSeo, contact: s.contact,
+      footerCopyright: s.footerCopyright, feeLabel: s.feeLabel, absorbedBy: s.absorbedBy,
+      bookingFee: s.bookingFee, gstPct: s.gstPct,
+    };
   }
 }

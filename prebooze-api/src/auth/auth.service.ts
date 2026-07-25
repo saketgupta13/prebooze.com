@@ -6,6 +6,7 @@ import type { User } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { REDIS } from '../redis.provider';
 import { WhatsappService } from '../notifications/whatsapp';
+import { EmailService } from '../notifications/email';
 import { referralCodeFor } from '../referrals/referral.constants';
 
 const OTP_TTL_S = 300; // 5 minutes
@@ -70,6 +71,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private wa: WhatsappService,
+    private email: EmailService,
     @Inject(REDIS) private redis: Redis,
   ) {}
 
@@ -152,6 +154,15 @@ export class AuthService {
     for (const k of allowed) if (k in patch) data[k] = patch[k];
 
     const user = await this.prisma.user.update({ where: { id: userId }, data });
+
+    // Guest signup is phone/OTP-first (see requestOtp/verifyOtp above) — a
+    // brand-new user has no email at all, so "welcome on signup" has no
+    // recipient yet. The real first opportunity is whenever they add an
+    // email to their profile for the first time, here.
+    if (!current.email && user.email) {
+      await this.email.sendTemplate(user.email, 'welcome', { name: user.name }).catch(() => {});
+    }
+
     return toApiUser(user);
   }
 }

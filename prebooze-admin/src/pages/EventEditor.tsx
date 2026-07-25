@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
-import { CATEGORY_OPTIONS, CATEGORY_SUBS, fmt, GUEST_SITE_URL } from '../store/data';
-import { EVENT_STATUS, GalleryPicker, ImagePicker, Tag, VideoPicker } from '../components/ui';
+import { fmt, GUEST_SITE_URL } from '../store/data';
+import { EVENT_STATUS, GalleryPicker, ImagePicker, MultiSelectSearch, Tag, VideoPicker } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import WysiwygEditor from '../components/WysiwygEditor';
 import type { AdminEvent, Tier } from '../types';
@@ -35,7 +35,7 @@ const EMPTY_EVENT: AdminEvent = {
   tiers: [{ name: 'General', price: 450, qty: 200, sold: 0, description: 'Entry + 1 welcome drink' }],
   description: '',
   rules: 'Photo ID required\nNo re-entry',
-  lineup: '',
+  lineupIds: [],
   hasBanner: false,
 };
 
@@ -44,7 +44,7 @@ export default function EventEditor() {
   const { id } = useParams();
   const isCreate = !id;
   const navigate = useNavigate();
-  const { events, venues, organizers, promoters, settings, addEvent, updateEvent, approveEvent, rejectEvent, toast } = useAdmin();
+  const { events, venues, organizers, promoters, lineups, categories, settings, addEvent, updateEvent, approveEvent, rejectEvent, toast } = useAdmin();
   const [tab, setTab] = useState<EditorTab>('basics');
   const [draft, setDraft] = useState<AdminEvent>(() => ({
     ...EMPTY_EVENT,
@@ -63,6 +63,7 @@ export default function EventEditor() {
     );
   }
   const event = isCreate ? draft : (stored as AdminEvent);
+  const categorySubs = categories.find((c) => c.name === event.category)?.subCategories ?? [];
 
   const patch = (p: Partial<AdminEvent>) => {
     if (isCreate) setDraft((d) => ({ ...d, ...p }));
@@ -187,10 +188,13 @@ export default function EventEditor() {
             <select
               className="input"
               value={event.category}
-              onChange={(e) => patch({ category: e.target.value, subCategory: CATEGORY_SUBS[e.target.value]?.[0] ?? '' })}
+              onChange={(e) => {
+                const subs = categories.find((c) => c.name === e.target.value)?.subCategories ?? [];
+                patch({ category: e.target.value, subCategory: subs[0] ?? '' });
+              }}
             >
-              {CATEGORY_OPTIONS.map((c) => (
-                <option key={c}>{c}</option>
+              {categories.map((c) => (
+                <option key={c.name} value={c.name}>{c.icon} {c.name}</option>
               ))}
             </select>
           </div>
@@ -198,10 +202,12 @@ export default function EventEditor() {
             <label>Sub-category</label>
             <select
               className="input"
-              value={event.subCategory ?? CATEGORY_SUBS[event.category]?.[0] ?? ''}
+              value={event.subCategory ?? categorySubs[0] ?? ''}
               onChange={(e) => patch({ subCategory: e.target.value })}
+              disabled={categorySubs.length === 0}
             >
-              {(CATEGORY_SUBS[event.category] ?? []).map((s) => (
+              {categorySubs.length === 0 && <option value="">No sub-categories yet — add one under Categories</option>}
+              {categorySubs.map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>
@@ -406,52 +412,41 @@ export default function EventEditor() {
       {tab === 'lineup' && (
         <div className="stack" style={{ gap: 10 }}>
           <div className="field">
-            <label>Line-up &amp; partners — “Name (Role)”, comma-separated</label>
-            <input
-              className="input"
-              value={event.lineup ?? ''}
-              onChange={(e) => patch({ lineup: e.target.value })}
-              placeholder="DJ Nova (Opening DJ), The Wilds (Headline artist), FizzCo (Sponsor)"
+            <label>Line-up &amp; partners — search the Line-ups directory</label>
+            <MultiSelectSearch
+              chipIcon="🎤"
+              placeholder="Search registered line-ups by name…"
+              emptyHint="No line-ups registered yet — add one under Line-ups first."
+              items={lineups.map((l) => ({
+                id: l.id,
+                label: l.name,
+                sub: l.category,
+                disabled: !l.verified,
+                disabledLabel: '(pending verification)',
+              }))}
+              selectedIds={event.lineupIds ?? []}
+              onChange={(ids) => patch({ lineupIds: ids })}
             />
+            <div className="tiny hint" style={{ marginTop: 4 }}>only line-ups already registered (and verified) in the Line-ups module can be attached — shown as chips with photos on the guest event page</div>
           </div>
-          {(event.lineup ?? '').trim() && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {(event.lineup ?? '')
-                .split(',')
-                .map((s) => s.trim())
-                .filter(Boolean)
-                .map((s) => (
-                  <span key={s} className="chip">🎤 {s}</span>
-                ))}
-            </div>
-          )}
-          <div className="tiny hint">shown as chips with photos on the guest event page</div>
 
           <div className="field" style={{ marginTop: 6 }}>
             <label>Promoters allowed to run guest lists for this event</label>
-            {promoters.length === 0 ? (
-              <div className="tiny muted">No promoters yet — add one under Promoters first.</div>
-            ) : (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {promoters.map((p) => {
-                  const active = (event.allowedPromoters ?? []).includes(p.id);
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className={`chip ${active ? 'on' : ''}`}
-                      onClick={() => {
-                        const cur = event.allowedPromoters ?? [];
-                        patch({ allowedPromoters: active ? cur.filter((id) => id !== p.id) : [...cur, p.id] });
-                      }}
-                    >
-                      📣 {p.name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <div className="tiny hint" style={{ marginTop: 4 }}>organizer's own console still picks a subset of these per guest list — this sets who's eligible at all</div>
+            <MultiSelectSearch
+              chipIcon="📣"
+              placeholder="Search registered promoters by name…"
+              emptyHint="No promoters registered yet — add one under Promoters first."
+              items={promoters.map((p) => ({
+                id: p.id,
+                label: p.name,
+                sub: p.city,
+                disabled: p.status !== 'approved',
+                disabledLabel: p.status === 'pending' ? '(pending approval)' : '(rejected)',
+              }))}
+              selectedIds={event.allowedPromoters ?? []}
+              onChange={(ids) => patch({ allowedPromoters: ids })}
+            />
+            <div className="tiny hint" style={{ marginTop: 4 }}>only approved promoters can be attached — organizer's own console still picks a subset of these per guest list, this sets who's eligible at all</div>
           </div>
         </div>
       )}

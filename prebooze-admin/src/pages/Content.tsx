@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { Tag } from '../components/ui';
+import { GUEST_SITE_URL } from '../store/data';
 
 /** Shared page scaffold: title + "+ Add" button revealing an inline mini-form. */
 function ContentPage({
@@ -59,14 +60,14 @@ function ContentPage({
 }
 
 export function Banners() {
-  const { banners, toast } = useAdmin();
+  const { banners } = useAdmin();
   const navigate = useNavigate();
   return (
     <div className="stack fade" style={{ maxWidth: 800 }}>
       <div className="page-hd">
         <h1 className="page-title">Banners</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => toast('Opening guest home preview…')}>Preview home →</button>
+          <a href={GUEST_SITE_URL} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">Preview home →</a>
           <Link to="/banners/new" className="btn btn-pri">+ Add banner</Link>
         </div>
       </div>
@@ -111,7 +112,7 @@ export function Categories() {
           >
             <span className="muted">⠿</span>
             <span style={{ flex: 1 }}>
-              {c.icon} <b>{c.name}</b> · {c.count} events
+              {c.icon} <b>{c.name}</b> · {c.count} events · {(c.subCategories ?? []).length} sub-categories
               {c.hasImage && <span className="tiny green"> · cover ✓</span>}
               {c.seo?.title && <span className="tiny green"> · SEO ✓</span>}
             </span>

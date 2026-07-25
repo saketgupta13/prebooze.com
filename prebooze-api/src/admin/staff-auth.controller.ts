@@ -12,6 +12,12 @@ export class StaffAuthController {
     return this.staffAuth.login(body.email, body.password);
   }
 
+  @Post('verify-2fa')
+  verify2fa(@Body() body: { staffId?: string; code?: string }) {
+    if (!body.staffId || !body.code) throw new BadRequestException('staffId and code are required');
+    return this.staffAuth.verify2fa(body.staffId, body.code);
+  }
+
   @Get('me')
   @UseGuards(StaffAuthGuard)
   me(@Req() req: { staff: StaffTokenPayload }) {

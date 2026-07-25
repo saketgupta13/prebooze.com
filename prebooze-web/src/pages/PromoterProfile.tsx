@@ -7,12 +7,16 @@ import ShareButton from '../components/ShareButton';
 import Poster from '../components/Poster';
 import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
+import { useSeo } from '../lib/useSeo';
+import { useEntitySeo } from '../lib/useEntitySeo';
 
 /** Public promoter profile — followable, shows the events they're promoting. */
 export default function PromoterProfile() {
   const { slug } = useParams();
   const { following, toggleFollow } = useApp();
   const promoter = promoterBySlug(slug ?? '');
+  const liveSeo = useEntitySeo('promoter', slug);
+  useSeo(liveSeo, promoter?.name);
 
   if (!promoter) {
     return (

@@ -12,6 +12,7 @@ export default function StaffRoles() {
   const cities = enabledCityNames(locations);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePhone, setInvitePhone] = useState('');
   const [inviteRole, setInviteRole] = useState('Support');
   const [inviteCity, setInviteCity] = useState(cities[0] ?? 'Austin');
   const [selectedRole, setSelectedRole] = useState('Finance');
@@ -35,8 +36,9 @@ export default function StaffRoles() {
           onSubmit={(e) => {
             e.preventDefault();
             if (!inviteEmail.trim()) return;
-            addStaff({ name: inviteEmail.trim(), role: inviteRole, lastActive: 'invited', city: inviteCity });
+            addStaff({ name: inviteEmail.trim(), role: inviteRole, lastActive: 'invited', city: inviteCity, phone: invitePhone.trim() || undefined });
             setInviteEmail('');
+            setInvitePhone('');
             setShowInvite(false);
           }}
         >
@@ -47,6 +49,13 @@ export default function StaffRoles() {
             onChange={(e) => setInviteEmail(e.target.value)}
             placeholder="email@prebooze.com"
             autoFocus
+          />
+          <input
+            className="input"
+            style={{ flex: 1, minWidth: 150 }}
+            value={invitePhone}
+            onChange={(e) => setInvitePhone(e.target.value)}
+            placeholder="WhatsApp number (for alerts)"
           />
           <select className="input" style={{ width: 150 }} value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
             {roleNames.filter((r) => r !== 'Owner').map((r) => (

@@ -165,8 +165,8 @@ export class DirectoryService {
 const ORGANIZER_EDITABLE = [
   'brandName', 'city', 'about', 'contact', 'contactPerson', 'phone', 'eventTypes', 'links', 'gstin', 'pan', 'bankLast4', 'seo',
 ];
-const PROMOTER_EDITABLE = ['name', 'city', 'bio', 'contact', 'links', 'planId'];
-const LINEUP_EDITABLE = ['name', 'category', 'city', 'bio', 'links'];
+const PROMOTER_EDITABLE = ['name', 'city', 'bio', 'contact', 'links', 'planId', 'seo'];
+const LINEUP_EDITABLE = ['name', 'category', 'city', 'bio', 'links', 'seo'];
 const VENUE_EDITABLE = [
   'name', 'type', 'locality', 'city', 'address', 'capacity', 'amenities', 'about', 'timings', 'license', 'contact', 'rules', 'seo',
 ];

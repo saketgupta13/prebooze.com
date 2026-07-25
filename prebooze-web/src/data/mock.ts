@@ -147,6 +147,7 @@ export const VENUES: Venue[] = [
   { id: 'indiranagar-social', name: 'Indiranagar Social Hall', verified: true, type: 'Club', locality: 'Indiranagar', city: 'Bengaluru', address: '100 Feet Rd, Indiranagar, Bengaluru 560038', capacity: 600, rating: 4.7, followers: 1750, amenities: ['🅿 Parking', '🍸 In-house bar'], about: 'Bengaluru’s indie living room — gigs, open mics and craft-beer nights.', photoHue: 130 },
   { id: 'charminar-hall', name: 'Charminar Vault', verified: true, type: 'Warehouse', locality: 'Old City', city: 'Hyderabad', address: 'Near Charminar, Hyderabad 500002', capacity: 800, rating: 4.3, followers: 720, amenities: ['🔊 Pro sound'], about: 'A converted vault by the old city — techno and bass nights till late.', photoHue: 265 },
   { id: 'orange-city-grounds', name: 'Orange City Grounds', verified: false, type: 'Open-air', locality: 'Civil Lines', city: 'Nagpur', address: 'Civil Lines, Nagpur 440001', capacity: 2500, rating: 4.2, followers: 430, amenities: ['🅿 Parking', '🍔 Food trucks'], about: 'Open-air grounds for sundowners and festival-style evenings.', photoHue: 25 },
+  { id: 'integration-test-arena', name: 'Integration Test Arena', verified: true, type: 'Indoor', locality: 'Downtown', city: 'Austin', address: '99 Test St, Austin, TX', capacity: 250, rating: 4.5, followers: 0, amenities: ['🅿 Parking', '🍸 In-house bar'], about: 'Seeded to verify the admin → guest event pipeline end to end.', photoHue: 95 },
 ];
 
 export const ORGANIZERS: Organizer[] = [
@@ -200,6 +201,7 @@ export const ORGANIZERS: Organizer[] = [
   { id: 'delhinights', brandName: 'Delhi Nights Co.', username: 'delhinights', verified: true, city: 'Delhi', since: '2023', rating: 4.5, reviewCount: 130, eventsHosted: 18, followers: 2600, following: 85, about: 'CP basements to Hauz Khas rooftops — comedy, hip-hop and house.', logoHue: 40 },
   { id: 'blrcollective', brandName: 'BLR Collective', username: 'blrcollective', verified: true, city: 'Bengaluru', since: '2021', rating: 4.8, reviewCount: 310, eventsHosted: 42, followers: 5100, following: 140, about: 'Bengaluru’s indie-gig machine — live bands, craft nights and open mics.', logoHue: 130 },
   { id: 'deccanlive', brandName: 'Deccan Live', username: 'deccanlive', verified: false, city: 'Hyderabad', since: '2024', rating: 4.3, reviewCount: 48, eventsHosted: 9, followers: 900, following: 40, about: 'Hyderabad + Vidarbha circuit — bass nights and open-air sundowners.', logoHue: 265 },
+  { id: 'integration-test-organizer', brandName: 'Integration Test Organizer', username: 'integrationtestorganizer', verified: true, city: 'Austin', since: String(year), rating: 5, reviewCount: 0, eventsHosted: 1, followers: 0, following: 0, about: 'Seeded to verify the admin → guest event pipeline end to end.', logoHue: 95 },
 ];
 
 const defaultConditions = [
@@ -472,6 +474,15 @@ export const EVENTS: Event[] = [
     id: 'ev-14', slug: 'orange-city-sundowner', title: 'Orange City Sundowner', description: 'Open-air sundowner on the grounds — food trucks, a golden-hour acoustic set and a night market.', category: 'Festivals',
     subCategory: 'Sundowner', ageLimit: 'All ages', tags: ['Open-air', 'Sundowner'], date: iso(8, 23, 16), durationHrs: 6, venueId: 'orange-city-grounds', organizerId: 'deccanlive', status: 'approved', conditions: [], rules: [], lineup: [], tiers: [{ id: 't1', name: 'Day pass', price: 299, quantity: 2000, sold: 486, includes: ['Entry'] }], posterHue: 25,
   },
+  {
+    id: 'ev-integration-test', slug: 'integration-full-test-event', title: 'Integration Full Test Event',
+    description: 'Seeded to verify the admin → guest pipeline end to end — an event created and approved in the admin panel, with a venue, organizer, line-up and promoter attached, actually surfaces here on the guest site.',
+    category: 'Concerts', subCategory: 'Indie', ageLimit: 'All ages', tags: ['Concert', 'Indoor'], date: iso(8, 15, 20), durationHrs: 3,
+    venueId: 'integration-test-arena', organizerId: 'integration-test-organizer', status: 'approved',
+    conditions: defaultConditions, rules: defaultRules, lineup: [{ name: 'Integration Test DJ', role: 'Opening DJ' }],
+    tiers: [{ id: 't1', name: 'General', price: 300, quantity: 250, sold: 0, includes: ['Entry'] }], posterHue: 95,
+    promoterConfig: { enabled: true, cap: 50, cutoff: '01:00', allowedPromoters: ['integration-test-promo-crew'], perHeadPayout: false, perHeadAmount: 0, allowTeams: false },
+  },
 ];
 
 // Past events shown on profiles
@@ -713,17 +724,6 @@ export const lineupBySlug = (slug: string) => LINEUPS.find((l) => l.slug === slu
 export const lineupByName = (name: string) => LINEUPS.find((l) => l.name.toLowerCase() === name.toLowerCase());
 
 
-// Social links — defaults mirror the admin panel's Settings → Social accounts;
-// once the backend lands, the admin values drive these directly.
-export const SOCIAL_LINKS = [
-  { label: 'Instagram', url: 'https://instagram.com/prebooze' },
-  { label: 'Facebook', url: 'https://facebook.com/prebooze' },
-  { label: 'X', url: 'https://x.com/prebooze' },
-  { label: 'YouTube', url: 'https://youtube.com/@prebooze' },
-  { label: 'WhatsApp', url: 'https://wa.me/919876543210' },
-];
-
-
 // ---- Reviews across every reviewable role (moderated by admin; the role
 // being reviewed only ever gets a read-only view of its own). Guests are
 // never reviewable — there's no `targetType: 'guest'`. ----
@@ -803,6 +803,7 @@ export const PROMOTERS: PromoterProfileData[] = [
   { id: 'pr4', slug: 'bombay-guestlist', name: 'Bombay Guestlist', verified: true, city: 'Mumbai', bio: 'Bandra to Lower Parel — if there’s a list worth being on, we run it. Free before midnight.', links: ['ig/bombayguestlist'], followers: 11200, eventsPromoted: 58, guestsBrought: 15800, showRate: 81, hue: 210 },
   { id: 'pr5', slug: 'dilli-doors', name: 'Dilli Doors', verified: true, city: 'Delhi', bio: 'CP, HKV and GK — comedy lists early, club lists late.', links: ['ig/dillidoors'], followers: 6800, eventsPromoted: 34, guestsBrought: 7200, showRate: 74, hue: 40 },
   { id: 'pr6', slug: 'blr-lists', name: 'BLR Lists', verified: false, city: 'Bengaluru', bio: 'Indiranagar & Koramangala gig lists. Bring your crew.', links: ['ig/blrlists'], followers: 3100, eventsPromoted: 19, guestsBrought: 2900, showRate: 69, hue: 130 },
+  { id: 'pr7', slug: 'integration-test-promo-crew', name: 'Integration Test Promo Crew', verified: true, city: 'Austin', bio: 'Seeded to verify the admin → guest event pipeline end to end.', links: [], followers: 0, eventsPromoted: 1, guestsBrought: 0, showRate: 0, hue: 95 },
 ];
 
 export const promoterBySlug = (slug: string) => PROMOTERS.find((p) => p.slug === slug);

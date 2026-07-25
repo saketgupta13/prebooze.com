@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { hashPassword, randomTempPassword } from './password.util';
+import { EmailService } from '../notifications/email';
 
 // Mirrors prebooze-admin's src/store/data.ts PERM_MODULES exactly.
 const PERM_MODULES = [
@@ -30,7 +31,10 @@ const PERM_MODULES = [
 
 @Injectable()
 export class StaffService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private email: EmailService,
+  ) {}
 
   // ---------- staff ----------
   async listStaff() {
@@ -38,9 +42,10 @@ export class StaffService {
     return rows.map(({ passwordHash: _passwordHash, ...s }) => s);
   }
 
-  /** No invite-email flow (Resend isn't wired up) — returns a one-time temp
-   * password in the response for the Owner to share out-of-band. */
-  async createStaff(body: { email?: string; name?: string; roleName?: string; city?: string }) {
+  /** Still returns the one-time temp password in the response too (Owner
+   * can share it directly if the email doesn't land) — the invite email is
+   * additive, not a replacement for that existing contract. */
+  async createStaff(body: { email?: string; name?: string; roleName?: string; city?: string; phone?: string }) {
     if (!body.email?.trim()) throw new BadRequestException('email is required');
     if (!body.roleName) throw new BadRequestException('roleName is required');
     const role = await this.prisma.staffRole.findUnique({ where: { name: body.roleName } });
@@ -56,10 +61,14 @@ export class StaffService {
         name: body.name?.trim() || email.split('@')[0],
         roleName: body.roleName,
         city: body.city,
+        phone: body.phone?.trim() || undefined,
         passwordHash: hashPassword(tempPassword),
       },
     });
     const { passwordHash: _passwordHash, ...rest } = staff;
+    await this.email.sendTemplate(staff.email, 'staff_invite', {
+      name: staff.name, roleName: staff.roleName, tempPassword,
+    }).catch(() => {});
     return { ...rest, tempPassword };
   }
 

@@ -17,6 +17,12 @@ export class FeaturedController {
     return this.featured.request(req.user.sub, body);
   }
 
+  @Post(':id/confirm-payment')
+  @UseGuards(JwtAuthGuard)
+  confirmPayment(@Req() req: AuthedReq, @Param('id') id: string, @Body() body: { paymentId: string; signature: string }) {
+    return this.featured.confirmPayment(req.user.sub, id, body);
+  }
+
   @Get('rates')
   rates() {
     return this.featured.rates();
@@ -47,6 +53,12 @@ export class AdminFeaturedController {
   @RequirePermission('Featured', 'approve')
   reject(@Param('id') id: string) {
     return this.featured.adminReject(id);
+  }
+
+  @Post(':id/remind')
+  @RequirePermission('Featured', 'edit')
+  remind(@Param('id') id: string) {
+    return this.featured.adminRemind(id);
   }
 
   @Patch('rates')

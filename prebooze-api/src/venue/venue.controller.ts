@@ -28,4 +28,24 @@ export class VenueController {
   events(@Req() req: AuthedReq) {
     return this.venue.events(req.user.sub);
   }
+
+  @Get('subscription/tiers')
+  subscriptionTiers() {
+    return this.venue.subscriptionTiers();
+  }
+
+  @Get('subscription')
+  mySubscription(@Req() req: AuthedReq) {
+    return this.venue.mySubscription(req.user.sub);
+  }
+
+  @Post('subscription')
+  subscribe(@Req() req: AuthedReq, @Body('tierId') tierId: string) {
+    return this.venue.subscribe(req.user.sub, tierId);
+  }
+
+  @Post('subscription/cancel')
+  cancelSubscription(@Req() req: AuthedReq) {
+    return this.venue.cancelSubscription(req.user.sub);
+  }
 }

@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { CAREER_JOBS } from '../data/mock';
+import { useSeo } from '../lib/useSeo';
 
 /** Careers — open roles + apply (jobs are admin-managed). */
 export default function Careers() {
+  useSeo(null, 'Careers');
   const { user, jobApps, applyJob, toast } = useApp();
   const [applying, setApplying] = useState<string | null>(null);
   const [name, setName] = useState(user?.name ?? '');

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { enabledCityNames, fmt, parseEventDate } from '../store/data';
-import { CityFilterDropdown, DonutChart, LineChart } from '../components/ui';
+import { CityFilterDropdown, DonutChart, Kpi, LineChart, Tag } from '../components/ui';
 import { downloadCsv } from '../lib/csv';
 import type { AdminEvent, LedgerEntry } from '../types';
 
@@ -60,10 +60,16 @@ function deltaPct(cur: number, prev: number): string | undefined {
 }
 
 export default function Reports() {
-  const { events, ledger, settings, toast, locations } = useAdmin();
+  const { events, ledger, bookings, promos, settings, toast, locations } = useAdmin();
   const [chip, setChip] = useState(CHIPS[0]);
   const [cityF, setCityF] = useState('All');
-  const [to, setTo] = useState(() => toDateInput(new Date()));
+  // Revenue here is recognized on the event's own date (see parseEventDate),
+  // and seed/real events are typically upcoming (on-sale) rather than past —
+  // defaulting `to` to today excluded every event that hasn't happened yet,
+  // making ticket commission/booking-fee income silently show ₹0 on first
+  // load despite real sales existing. Extend the default window forward so
+  // already-sold revenue for near-term upcoming events is included too.
+  const [to, setTo] = useState(() => toDateInput(new Date(Date.now() + 60 * 86400000)));
   const [from, setFrom] = useState(() => toDateInput(new Date(Date.now() - 29 * 86400000)));
   const [compare, setCompare] = useState(false);
   const cities = enabledCityNames(locations);
@@ -124,6 +130,65 @@ export default function Reports() {
     return [...m.entries()].map(([label, value], i) => ({ label, value, color: DONUT_COLORS[i % DONUT_COLORS.length] }));
   }, [rangeEvents]);
 
+  const eventTitle = (id: string) => events.find((e) => e.id === id)?.title ?? id;
+
+  // ---- Commission by event — same selling-events set as the P&L, just
+  // broken out per row instead of summed into one line ----
+  const commissionRows = useMemo(
+    () =>
+      rangeEvents
+        .filter((e) => e.status !== 'draft' && e.commission != null && e.revenue > 0)
+        .map((e) => ({ ...e, commissionAmt: (e.revenue * (e.commission as number)) / 100 }))
+        .sort((a, b) => b.commissionAmt - a.commissionAmt),
+    [rangeEvents]
+  );
+  const avgCommissionRate = commissionRows.length
+    ? Math.round(commissionRows.reduce((a, e) => a + (e.commission as number), 0) / commissionRows.length)
+    : 0;
+
+  // ---- GST / tax — GST is charged on Prebooze's booking-fee income only
+  // (see computeFin), so its daily series is the fee series scaled by rate
+  // rather than a separate bucketing pass ----
+  const feeByDay = chartDays.map((d) =>
+    rangeEvents
+      .filter((e) => e.commission != null && parseEventDate(e.date).toDateString() === d.toDateString())
+      .reduce((a, e) => a + e.sold * settings.bookingFee, 0)
+  );
+  const gstByDay = feeByDay.map((v) => (v * settings.gstPct) / 100);
+
+  // ---- Refunds / Attendance — both derive from bookings tied to an event
+  // in the current range + city filter (AdminBooking itself has no date, so
+  // it's bucketed via its event's date, same convention as everything else
+  // in this file) ----
+  const rangeEventIds = useMemo(() => new Set(rangeEvents.map((e) => e.id)), [rangeEvents]);
+  const rangeBookings = useMemo(() => bookings.filter((b) => rangeEventIds.has(b.eventId)), [bookings, rangeEventIds]);
+
+  const refundRequested = rangeBookings.filter((b) => b.status === 'refund_requested');
+  const refunded = rangeBookings.filter((b) => b.status === 'refunded');
+  const refundedValue = refunded.reduce((a, b) => a + b.amount, 0);
+  const refundRate = rangeBookings.length ? Math.round(((refunded.length + refundRequested.length) / rangeBookings.length) * 100) : 0;
+  const refundRows = [...refundRequested, ...refunded];
+
+  const ticketsSold = rangeBookings.filter((b) => b.status !== 'refunded').reduce((a, b) => a + b.qty, 0);
+  const ticketsCheckedIn = rangeBookings.filter((b) => b.status === 'checked_in').reduce((a, b) => a + b.qty, 0);
+  const turnoutRate = ticketsSold ? Math.round((ticketsCheckedIn / ticketsSold) * 100) : 0;
+  const attendanceRows = useMemo(() => {
+    const m = new Map<string, { sold: number; checkedIn: number }>();
+    rangeBookings.forEach((b) => {
+      const cur = m.get(b.eventId) ?? { sold: 0, checkedIn: 0 };
+      if (b.status !== 'refunded') cur.sold += b.qty;
+      if (b.status === 'checked_in') cur.checkedIn += b.qty;
+      m.set(b.eventId, cur);
+    });
+    return [...m.entries()].map(([id, v]) => ({ id, title: eventTitle(id), ...v })).sort((a, b) => b.sold - a.sold);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeBookings]);
+
+  // ---- Promos — codes are platform-wide, not scoped to a date range, so
+  // this tab shows lifetime usage rather than filtering by `from`/`to` ----
+  const parseUsed = (label: string) => parseInt(label.split('/')[0].replace(/\D/g, ''), 10) || 0;
+  const totalRedemptions = promos.reduce((a, p) => a + parseUsed(p.usedLabel), 0);
+
   const exportCsv = () => {
     const period = `${from} to ${to}`;
     let rows: (string | number)[][];
@@ -149,6 +214,40 @@ export default function Reports() {
         ['Liabilities', 'Organizer payouts due', Math.round(fin.payoutsDue)],
         ['Liabilities', 'GST payable', Math.round(fin.gstPayable)],
       ];
+    } else if (chip === 'Commission by event') {
+      rows = [
+        [`Prebooze — ${chip}`, period, cityF === 'All' ? 'All cities' : cityF],
+        ['Event', 'City', 'Gross (₹)', 'Rate (%)', 'Commission (₹)', 'Paid out'],
+        ...commissionRows.map((e) => [e.title, e.city, Math.round(e.revenue), e.commission as number, Math.round(e.commissionAmt), e.paidOut ? 'yes' : 'no']),
+      ];
+    } else if (chip === 'GST / tax') {
+      rows = [
+        [`Prebooze — ${chip}`, period, cityF === 'All' ? 'All cities' : cityF],
+        ['GST rate (%)', settings.gstPct],
+        ['Taxable base — booking fees (₹)', Math.round(fin.feeIncome)],
+        ['GST payable (₹)', Math.round(fin.gstPayable)],
+        [],
+        ['Date', 'Booking fees (₹)', 'GST payable (₹)'],
+        ...chartDays.map((d, i) => [d.toISOString().slice(0, 10), Math.round(feeByDay[i]), Math.round(gstByDay[i])]),
+      ];
+    } else if (chip === 'Refunds') {
+      rows = [
+        [`Prebooze — ${chip}`, period, cityF === 'All' ? 'All cities' : cityF],
+        ['Booking', 'Guest', 'Event', 'Amount (₹)', 'Status'],
+        ...refundRows.map((b) => [b.id, b.guest, eventTitle(b.eventId), b.amount, b.status]),
+      ];
+    } else if (chip === 'Attendance') {
+      rows = [
+        [`Prebooze — ${chip}`, period, cityF === 'All' ? 'All cities' : cityF],
+        ['Event', 'Sold', 'Checked in', 'Turnout (%)'],
+        ...attendanceRows.map((r) => [r.title, r.sold, r.checkedIn, r.sold ? Math.round((r.checkedIn / r.sold) * 100) : 0]),
+      ];
+    } else if (chip === 'Promos') {
+      rows = [
+        [`Prebooze — ${chip}`, 'lifetime totals — not date-scoped', cityF === 'All' ? 'All cities' : cityF],
+        ['Code', 'Discount', 'Scope', 'Used', 'Status'],
+        ...promos.map((p) => [p.code, p.discountLabel, p.scope, p.usedLabel, p.status]),
+      ];
     } else {
       rows = [
         [`Prebooze — ${chip}`, period, cityF === 'All' ? 'All cities' : cityF],
@@ -173,7 +272,7 @@ export default function Reports() {
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <input className="input" type="date" style={{ width: 140 }} value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
           <span className="tiny muted">–</span>
-          <input className="input" type="date" style={{ width: 140 }} value={to} min={from} max={toDateInput(new Date())} onChange={(e) => setTo(e.target.value)} />
+          <input className="input" type="date" style={{ width: 140 }} value={to} min={from} onChange={(e) => setTo(e.target.value)} />
           <button className={`chip ${compare ? 'on' : ''}`} onClick={() => setCompare((v) => !v)}>vs prev. period</button>
           <button className="btn btn-ghost btn-sm" onClick={exportCsv}>⬇ Export</button>
         </div>
@@ -242,13 +341,11 @@ export default function Reports() {
           </div>
           </div>
         </div>
-      ) : (
+      ) : chip === 'Sales' ? (
         <>
           <div className="two-col">
             <div className="card">
-              <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>
-                {chip === 'Sales' ? 'Gross sales vs commission — daily' : `${chip} — daily`}
-              </div>
+              <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>Gross sales vs commission — daily</div>
               <LineChart
                 height={120}
                 labels={dayLabels as string[]}
@@ -281,6 +378,137 @@ export default function Reports() {
             <span><b style={{ color: 'var(--text)' }}>Scheduled email:</b> weekly summary to owner ▾</span>
           </div>
         </>
+      ) : chip === 'Commission by event' ? (
+        <div className="stack" style={{ gap: 10 }}>
+          <div className="kpi-grid">
+            <Kpi label="Selling events" value={fmt(commissionRows.length)} />
+            <Kpi label="Total commission" value={`₹${fmt(fin.commissionIncome)}`} delta={prevFin ? deltaPct(fin.commissionIncome, prevFin.commissionIncome) : undefined} deltaColor="var(--green)" />
+            <Kpi label="Avg commission rate" value={`${avgCommissionRate}%`} />
+            <Kpi label="Not yet paid out" value={`₹${fmt(fin.payoutsDue)}`} delta="organizer payouts due" deltaColor="var(--muted)" />
+          </div>
+          <div className="tblwrap">
+            <div className="thead" style={{ minWidth: 680 }}>
+              <span style={{ flex: 1.4 }}>Event</span>
+              <span style={{ flex: 1 }}>City</span>
+              <span style={{ flex: 1 }}>Gross</span>
+              <span style={{ flex: 0.8 }}>Rate</span>
+              <span style={{ flex: 1 }}>Commission</span>
+              <span style={{ flex: 1 }}>Payout</span>
+            </div>
+            {commissionRows.map((e) => (
+              <div key={e.id} className="trow" style={{ minWidth: 680 }}>
+                <span style={{ flex: 1.4, fontWeight: 700 }}>{e.title}</span>
+                <span style={{ flex: 1 }} className="muted">{e.city}</span>
+                <span style={{ flex: 1 }}>₹{fmt(e.revenue)}</span>
+                <span style={{ flex: 0.8 }} className="muted">{e.commission}%</span>
+                <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(e.commissionAmt)}</span>
+                <span style={{ flex: 1 }}>{e.paidOut ? <Tag label="Paid" cls="tag-green" /> : <Tag label="Due" cls="tag-red" />}</span>
+              </div>
+            ))}
+            {commissionRows.length === 0 && <div className="trow muted">No selling events in range.</div>}
+          </div>
+        </div>
+      ) : chip === 'GST / tax' ? (
+        <div className="stack" style={{ gap: 10 }}>
+          <div className="kpi-grid">
+            <Kpi label="GST rate" value={`${settings.gstPct}%`} />
+            <Kpi label="Taxable base (booking fees)" value={`₹${fmt(fin.feeIncome)}`} />
+            <Kpi label="GST payable" value={`₹${fmt(fin.gstPayable)}`} delta={prevFin ? deltaPct(fin.gstPayable, prevFin.gstPayable) : undefined} deltaColor="var(--red)" />
+            <Kpi label="Net of GST" value={`₹${fmt(fin.feeIncome - fin.gstPayable)}`} />
+          </div>
+          <div className="card">
+            <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>GST payable — daily</div>
+            <LineChart height={120} labels={dayLabels as string[]} series={[{ label: 'GST payable', color: '#e74c3c', points: gstByDay }]} />
+          </div>
+          <div className="tiny hint">GST is charged on Prebooze's booking-fee income only (not the organizer's ticket price or commission) · rate is editable under <Link to="/settings">Settings →</Link></div>
+        </div>
+      ) : chip === 'Refunds' ? (
+        <div className="stack" style={{ gap: 10 }}>
+          <div className="kpi-grid">
+            <Kpi label="Refund requests" value={fmt(refundRequested.length)} alert={refundRequested.length > 0} />
+            <Kpi label="Refunded" value={fmt(refunded.length)} />
+            <Kpi label="Refunded value" value={`₹${fmt(refundedValue)}`} delta="returned to guests" deltaColor="var(--red)" />
+            <Kpi label="Refund rate" value={`${refundRate}%`} delta="of bookings in range" deltaColor="var(--muted)" />
+          </div>
+          <div className="tblwrap">
+            <div className="thead" style={{ minWidth: 680 }}>
+              <span style={{ flex: 1 }}>Booking</span>
+              <span style={{ flex: 1.4 }}>Guest</span>
+              <span style={{ flex: 1.4 }}>Event</span>
+              <span style={{ flex: 0.8 }}>Amount</span>
+              <span style={{ flex: 1 }}>Status</span>
+            </div>
+            {refundRows.map((b) => (
+              <div key={b.id} className="trow" style={{ minWidth: 680 }}>
+                <span style={{ flex: 1 }} className="muted">{b.id}</span>
+                <span style={{ flex: 1.4, fontWeight: 700 }}>{b.guest}</span>
+                <span style={{ flex: 1.4 }} className="muted">{eventTitle(b.eventId)}</span>
+                <span style={{ flex: 0.8 }}>₹{fmt(b.amount)}</span>
+                <span style={{ flex: 1 }}>{b.status === 'refund_requested' ? <Tag label="Requested" cls="tag-red" /> : <Tag label="Refunded" cls="tag-dim" />}</span>
+              </div>
+            ))}
+            {refundRows.length === 0 && <div className="trow muted">No refund activity in range.</div>}
+          </div>
+          <div className="tiny hint">bucketed by each booking's event date, within the selected range and city · manage refunds under <Link to="/bookings">Bookings →</Link></div>
+        </div>
+      ) : chip === 'Attendance' ? (
+        <div className="stack" style={{ gap: 10 }}>
+          <div className="kpi-grid">
+            <Kpi label="Tickets sold" value={fmt(ticketsSold)} />
+            <Kpi label="Checked in" value={fmt(ticketsCheckedIn)} />
+            <Kpi label="Turnout rate" value={`${turnoutRate}%`} deltaColor="var(--green)" />
+            <Kpi label="No-shows (est.)" value={fmt(Math.max(0, ticketsSold - ticketsCheckedIn))} />
+          </div>
+          <div className="tblwrap">
+            <div className="thead" style={{ minWidth: 640 }}>
+              <span style={{ flex: 1.6 }}>Event</span>
+              <span style={{ flex: 1 }}>Sold</span>
+              <span style={{ flex: 1 }}>Checked in</span>
+              <span style={{ flex: 1 }}>Turnout</span>
+            </div>
+            {attendanceRows.map((r) => (
+              <div key={r.id} className="trow" style={{ minWidth: 640 }}>
+                <span style={{ flex: 1.6, fontWeight: 700 }}>{r.title}</span>
+                <span style={{ flex: 1 }}>{fmt(r.sold)}</span>
+                <span style={{ flex: 1 }} className="green">{fmt(r.checkedIn)}</span>
+                <span style={{ flex: 1 }}>{r.sold ? Math.round((r.checkedIn / r.sold) * 100) : 0}%</span>
+              </div>
+            ))}
+            {attendanceRows.length === 0 && <div className="trow muted">No ticketed bookings in range.</div>}
+          </div>
+          <div className="tiny hint">"checked in" reflects gate-scan status on each ticket booking · promoter guest-list arrivals are tracked separately under each event's live monitor</div>
+        </div>
+      ) : (
+        <div className="stack" style={{ gap: 10 }}>
+          <div className="tiny hint">promo codes are platform-wide, not scoped to the selected date range — usage figures are lifetime totals</div>
+          <div className="kpi-grid">
+            <Kpi label="Active codes" value={fmt(promos.filter((p) => p.status === 'active').length)} />
+            <Kpi label="Paused" value={fmt(promos.filter((p) => p.status === 'paused').length)} />
+            <Kpi label="Expired" value={fmt(promos.filter((p) => p.status === 'expired').length)} />
+            <Kpi label="Total redemptions" value={fmt(totalRedemptions)} />
+          </div>
+          <div className="tblwrap">
+            <div className="thead" style={{ minWidth: 640 }}>
+              <span style={{ flex: 1 }}>Code</span>
+              <span style={{ flex: 1.2 }}>Discount</span>
+              <span style={{ flex: 1.2 }}>Scope</span>
+              <span style={{ flex: 1 }}>Used</span>
+              <span style={{ flex: 1 }}>Status</span>
+            </div>
+            {promos.map((p) => (
+              <div key={p.code} className="trow" style={{ minWidth: 640 }}>
+                <span style={{ flex: 1, fontWeight: 700 }}>{p.code}</span>
+                <span style={{ flex: 1.2 }} className="muted">{p.discountLabel}</span>
+                <span style={{ flex: 1.2 }} className="muted">{p.scope}</span>
+                <span style={{ flex: 1 }}>{p.usedLabel}</span>
+                <span style={{ flex: 1 }}>
+                  {p.status === 'active' ? <Tag label="Active" cls="tag-green" /> : p.status === 'paused' ? <Tag label="Paused" cls="" /> : <Tag label="Expired" cls="tag-dim" />}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="tiny hint">manage codes under <Link to="/promos">Promo codes →</Link></div>
+        </div>
       )}
     </div>
   );

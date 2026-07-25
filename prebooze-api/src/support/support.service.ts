@@ -2,12 +2,14 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
+import { EmailService } from '../notifications/email';
 
 @Injectable()
 export class SupportService {
   constructor(
     private prisma: PrismaService,
     private wa: WhatsappService,
+    private email: EmailService,
   ) {}
 
   async tickets(userId: string) {
@@ -30,6 +32,9 @@ export class SupportService {
     });
 
     await this.wa.send(user.phone, 'help_ticket', [id, ticket.subject, ticket.topic]).catch(() => {});
+    await this.email.sendTemplate(user.email, 'help_ticket', {
+      name: user.name, ticketId: id, ticketSubject: ticket.subject,
+    }).catch(() => {});
     return ticket;
   }
 }

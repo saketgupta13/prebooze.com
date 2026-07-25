@@ -2,6 +2,9 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
+import { EmailService } from '../notifications/email';
+import { money } from '../notifications/email-templates';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 /** Mirrors prebooze-web's SUB_TIERS (src/data/mock.ts) — -1 = unlimited. */
 const PLAN_QUOTA: Record<string, number> = { free: 25, starter: 150, pro: 500, elite: -1 };
@@ -38,6 +41,8 @@ export class PromoterService {
   constructor(
     private prisma: PrismaService,
     private wa: WhatsappService,
+    private email: EmailService,
+    private subscriptions: SubscriptionsService,
   ) {}
 
   private async myPromoter(userId: string) {
@@ -196,7 +201,12 @@ export class PromoterService {
 
     await this.prisma.promoterWithdrawal.create({ data: { promoterId: promoter.id, amount } });
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (user) await this.wa.send(user.phone, 'organizer_payout', [String(amount)]).catch(() => {});
+    if (user) {
+      await this.wa.send(user.phone, 'organizer_payout', [String(amount)]).catch(() => {});
+      await this.email.sendTemplate(user.email, 'payout_processed', {
+        name: user.name, amount: money(amount), role: 'promoter',
+      }).catch(() => {});
+    }
     return { ok: true };
   }
 
@@ -229,13 +239,25 @@ export class PromoterService {
   }
 
   // ---------- subscription ----------
-  // No billing/payment is wired up yet — this just records the chosen plan,
-  // same as the mock's setPromoterPlan. See BACKEND.md "Promoter" for why
-  // that's a documented gap, not an oversight (mirrors Featured's same gap).
-  async subscribe(userId: string, planId: string) {
+  // Real Razorpay Subscriptions billing now — SubscriptionsService owns the
+  // actual plan/payment mechanics, this just resolves "my promoter" the same
+  // way every other method here does and delegates.
+  async subscriptionTiers() {
+    return this.subscriptions.tiers('promoter');
+  }
+
+  async mySubscription(userId: string) {
     const promoter = await this.myPromoter(userId);
-    if (!(planId in PLAN_QUOTA)) throw new BadRequestException('Unknown plan');
-    await this.prisma.promoter.update({ where: { id: promoter.id }, data: { planId } });
-    return { ok: true };
+    return this.subscriptions.current('promoter', promoter.id);
+  }
+
+  async subscribe(userId: string, tierId: string) {
+    const promoter = await this.myPromoter(userId);
+    return this.subscriptions.subscribe('promoter', promoter.id, tierId);
+  }
+
+  async cancelSubscription(userId: string) {
+    const promoter = await this.myPromoter(userId);
+    return this.subscriptions.cancel('promoter', promoter.id);
   }
 }

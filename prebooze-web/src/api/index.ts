@@ -43,9 +43,13 @@ export const catalog = {
   events: (q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string }) => apiFetch<Event[]>('/events', { query: q }),
   event: (slug: string) => apiFetch<Event>(`/events/${slug}`),
   venues: (city: string) => apiFetch<Venue[]>('/venues', { query: { city } }),
+  venueSeo: (id: string) => apiFetch<{ title: string; description: string; keywords: string }>(`/venues/${id}/seo`),
   organizers: (city: string) => apiFetch<unknown[]>('/organizers', { query: { city } }),
+  organizerSeo: (id: string) => apiFetch<{ title: string; description: string; keywords: string }>(`/organizers/${id}/seo`),
   promoters: (city: string) => apiFetch<unknown[]>('/promoters', { query: { city } }),
+  promoterSeo: (id: string) => apiFetch<{ title: string; description: string; keywords: string }>(`/promoters/${id}/seo`),
   lineups: (city: string) => apiFetch<unknown[]>('/lineups', { query: { city } }),
+  lineupSeo: (id: string) => apiFetch<{ title: string; description: string; keywords: string }>(`/lineups/${id}/seo`),
   people: (city: string) => apiFetch<Person[]>('/people', { query: { city } }),
   featured: (city: string) => apiFetch<Featured[]>('/featured', { query: { city } }),
   categories: () => apiFetch<{ name: string; icon: string; subs: string[] }[]>('/categories'),
@@ -143,6 +147,23 @@ export const careers = {
 export const notifications = {
   send: (channel: 'whatsapp' | 'email', to: string, template: string, data: Record<string, string>) =>
     apiFetch<void>('/notifications/send', { body: { channel, to, template, data } }),
+};
+
+// ---------- platform settings (public, no auth) ----------
+export interface PlatformInfo {
+  maintenanceMode: boolean;
+  comingSoonMode: boolean;
+  socials: { instagram: string; x: string; youtube: string; whatsapp: string; facebook: string };
+  siteSeo: { title: string; description: string; keywords: string };
+  contact: { email: string; phone: string; address: string; organizerEmail: string };
+  footerCopyright: string;
+  feeLabel: string;
+  absorbedBy: 'Organizer' | 'Guest' | 'Split' | string;
+  bookingFee: number;
+  gstPct: number;
+}
+export const platform = {
+  settings: () => apiFetch<PlatformInfo>('/settings'),
 };
 
 // ---------- venue partner ----------

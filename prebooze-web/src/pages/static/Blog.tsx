@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import { BLOG_POSTS } from '../../data/mock';
 import Poster from '../../components/Poster';
+import { useSeo } from '../../lib/useSeo';
 
 /** Guest-facing blog — the reading side of the admin Blogs CMS (new page, not in the handoff). */
 export default function Blog() {
+  useSeo(null, 'Blog');
   const [featured, ...rest] = BLOG_POSTS;
 
   return (

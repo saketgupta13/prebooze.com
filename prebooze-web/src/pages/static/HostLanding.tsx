@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
+import { useSeo } from '../../lib/useSeo';
 
 const EARN_STEPS = [
   'Create your event & set ticket tiers',
@@ -18,6 +19,7 @@ const BENEFITS = [
 ];
 
 export default function HostLanding() {
+  useSeo(null, 'Host with us');
   const { user } = useApp();
   const joinTarget = user
     ? user.isOrganizer

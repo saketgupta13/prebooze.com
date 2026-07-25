@@ -38,6 +38,9 @@ import type {
   StaffMember,
   Venue,
   KycApplication,
+  EmailTemplateDef,
+  EmailTemplateOverride,
+  InvoiceRecord,
 } from '../types';
 import {
   LINEUP_CATEGORIES,
@@ -78,6 +81,8 @@ import {
   SEED_VENUES,
   SEED_KYC_APPLICATIONS,
   PERM_MODULES,
+  EMAIL_TEMPLATE_DEFS,
+  SEED_INVOICES,
 } from './data';
 
 interface Session {
@@ -178,6 +183,16 @@ interface AdminState {
   addTestimonial: (t: Testimonial) => void;
   updateTestimonial: (id: string, patch: Partial<Testimonial>) => void;
   removeTestimonial: (id: string) => void;
+  emailTemplateDefs: EmailTemplateDef[];
+  customEmailTemplates: EmailTemplateDef[];
+  emailTemplateOverrides: EmailTemplateOverride[];
+  addEmailTemplate: (input: { name: string; subject: string; bodyHtml: string }) => void;
+  updateEmailTemplate: (id: string, patch: { subject: string; bodyHtml: string }) => void;
+  resetEmailTemplate: (id: string) => void;
+  removeCustomEmailTemplate: (id: string) => void;
+  invoices: InvoiceRecord[];
+  resendInvoiceEmail: (id: string) => void;
+  resendInvoiceWhatsapp: (id: string) => void;
   faqs: FaqItem[];
   addFaq: (f: FaqItem) => void;
   updateFaq: (id: string, patch: Partial<FaqItem>) => void;
@@ -204,6 +219,7 @@ interface AdminState {
   featuredRates: FeaturedRates;
   approveFeatured: (id: string) => void;
   rejectFeatured: (id: string) => void;
+  remindFeatured: (id: string) => void;
   updateFeaturedRate: (patch: Partial<FeaturedRates>) => void;
   adminReferrals: AdminReferral[];
   referralRates: ReferralRates;
@@ -252,7 +268,7 @@ function mergeWithSeed<T extends object>(seed: T[], idKey: keyof T) {
  * seed value forever, since the field isn't missing, just wrong. Pulls the
  * real value from the matching seed record specifically when the stored
  * field still contains the mask, leaving every other stored edit alone. */
-function unmaskStoredPhones<T extends Record<string, unknown>>(seed: T[], idKey: keyof T, phoneKeys: (keyof T)[]) {
+function unmaskStoredPhones<T extends object>(seed: T[], idKey: keyof T, phoneKeys: (keyof T)[]) {
   return (list: T[]) =>
     list.map((item) => {
       const base = seed.find((x) => x[idKey] === item[idKey]);
@@ -268,6 +284,15 @@ function unmaskStoredPhones<T extends Record<string, unknown>>(seed: T[], idKey:
 
 const compose = <T,>(...fns: ((v: T) => T)[]) => (v: T) => fns.reduce((acc, fn) => fn(acc), v);
 
+/** Appends any seed record whose id isn't already present in stored data.
+ * mergeWithSeed only patches fields on records that already exist locally —
+ * it never adds a brand-new seed row, so a seed addition (e.g. a new demo
+ * venue/organizer/event) would never appear for anyone whose localStorage
+ * predates it without this. */
+function backfillMissingSeed<T extends object>(seed: T[], idKey: keyof T) {
+  return (list: T[]) => [...list, ...seed.filter((s) => !list.some((l) => l[idKey] === s[idKey]))];
+}
+
 function usePersisted<T>(key: string, seed: T, migrate?: (v: T) => T) {
   const [value, setValue] = useState<T>(() => {
     const v = load(key, seed);
@@ -281,7 +306,7 @@ function usePersisted<T>(key: string, seed: T, migrate?: (v: T) => T) {
 
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = usePersisted<Session | null>('pba_session', null);
-  const [events, setEvents] = usePersisted('pba_events', SEED_EVENTS, mergeWithSeed(SEED_EVENTS, 'id'));
+  const [events, setEvents] = usePersisted('pba_events', SEED_EVENTS, compose(mergeWithSeed(SEED_EVENTS, 'id'), backfillMissingSeed(SEED_EVENTS, 'id')));
   const [bookings, setBookings] = usePersisted('pba_bookings', SEED_BOOKINGS, (list) => {
     // Drop the very first demo booking set (#8412/#8420/#8419/#8415) —
     // predates both the structured-guests schema and the real-name refresh
@@ -327,18 +352,21 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   );
   const [organizers, setOrganizers] = usePersisted(
     'pba_organizers', SEED_ORGANIZERS,
-    compose(mergeWithSeed(SEED_ORGANIZERS, 'id'), unmaskStoredPhones(SEED_ORGANIZERS, 'id', ['phone']))
+    compose(mergeWithSeed(SEED_ORGANIZERS, 'id'), unmaskStoredPhones(SEED_ORGANIZERS, 'id', ['phone']), backfillMissingSeed(SEED_ORGANIZERS, 'id'))
   );
   const [venues, setVenues] = usePersisted(
     'pba_venues', SEED_VENUES,
-    compose(mergeWithSeed(SEED_VENUES, 'id'), unmaskStoredPhones(SEED_VENUES, 'id', ['contact']))
+    compose(mergeWithSeed(SEED_VENUES, 'id'), unmaskStoredPhones(SEED_VENUES, 'id', ['contact']), backfillMissingSeed(SEED_VENUES, 'id'))
   );
   const [kycApplications, setKycApplications] = usePersisted<KycApplication[]>('pba_kyc', SEED_KYC_APPLICATIONS, mergeWithSeed<KycApplication>(SEED_KYC_APPLICATIONS, 'id'));
   const [promos, setPromos] = usePersisted('pba_promos', SEED_PROMOS, mergeWithSeed(SEED_PROMOS, 'code'));
   const [banners, setBanners] = usePersisted('pba_banners', SEED_BANNERS, (list) =>
     mergeWithSeed(SEED_BANNERS, 'title')(list).map((b, i) => ({ ...b, id: b.id ?? 'b' + (i + 1) }))
   );
-  const [categories, setCategories] = usePersisted('pba_categories', SEED_CATEGORIES);
+  const [categories, setCategories] = usePersisted(
+    'pba_categories', SEED_CATEGORIES,
+    compose(mergeWithSeed(SEED_CATEGORIES, 'name'), backfillMissingSeed(SEED_CATEGORIES, 'name'))
+  );
   const [blogs, setBlogs] = usePersisted('pba_blogs', SEED_BLOGS, (list) =>
     mergeWithSeed(SEED_BLOGS, 'title')(list).map((b, i) => ({ ...b, id: b.id ?? 'bl' + (i + 1) }))
   );
@@ -399,7 +427,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     siteSeo: { ...SEED_SETTINGS.siteSeo, ...(v as Partial<typeof SEED_SETTINGS>).siteSeo },
     contact: { ...SEED_SETTINGS.contact, ...(v as Partial<typeof SEED_SETTINGS>).contact },
   }));
-  const [lineups, setLineups] = usePersisted<Lineup[]>('pba_lineups', SEED_LINEUPS);
+  const [lineups, setLineups] = usePersisted<Lineup[]>('pba_lineups', SEED_LINEUPS, backfillMissingSeed(SEED_LINEUPS, 'id'));
   const [reviews, setReviews] = usePersisted<AdminReview[]>('pba_reviews', SEED_REVIEWS, (list) =>
     // schema migration: reviews stored before targetType/targetName existed
     // were organizer-only, shaped { organizer: string, ... } — anything
@@ -415,10 +443,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     })
   );
   const [testimonials, setTestimonials] = usePersisted<Testimonial[]>('pba_testimonials', SEED_TESTIMONIALS);
+  const [emailTemplateOverrides, setEmailTemplateOverrides] = usePersisted<EmailTemplateOverride[]>('pba_email_template_overrides', []);
+  const [customEmailTemplates, setCustomEmailTemplates] = usePersisted<EmailTemplateDef[]>('pba_custom_email_templates', []);
+  const [invoices, setInvoices] = usePersisted<InvoiceRecord[]>('pba_invoices', SEED_INVOICES);
   const [faqs, setFaqs] = usePersisted<FaqItem[]>('pba_faqs', SEED_FAQS);
   const [policies, setPolicies] = usePersisted<Policy[]>('pba_policies', SEED_POLICIES);
   const [menus, setMenusState] = usePersisted<MenuConfig>('pba_menus', SEED_MENUS);
-  const [promoters, setPromoters] = usePersisted<Promoter[]>('pba_promoters', SEED_PROMOTERS, mergeWithSeed<Promoter>(SEED_PROMOTERS, 'id'));
+  const [promoters, setPromoters] = usePersisted<Promoter[]>('pba_promoters', SEED_PROMOTERS, compose(mergeWithSeed<Promoter>(SEED_PROMOTERS, 'id'), backfillMissingSeed<Promoter>(SEED_PROMOTERS, 'id')));
   const [subTiers, setSubTiers] = usePersisted('pba_subtiers', SEED_SUB_TIERS);
   const [abandonedCarts, setAbandonedCarts] = usePersisted<AbandonedCart[]>(
     'pba_abandoned', SEED_ABANDONED_CARTS,
@@ -833,6 +864,71 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setTestimonials((prev) => prev.filter((t) => t.id !== id));
         toast('Testimonial removed');
       },
+      emailTemplateDefs: EMAIL_TEMPLATE_DEFS,
+      customEmailTemplates,
+      emailTemplateOverrides,
+      // Mirrors prebooze-api's EmailTemplatesAdminService.create: id is a
+      // generated "custom_<slug>" key, collision-checked against both the
+      // fixed set and any other custom template already created. A brand
+      // new custom template has no code-side default at all — its
+      // subject/bodyHtml live directly on the def, not as an "override" of
+      // anything (there's nothing to override yet).
+      addEmailTemplate: (input) => {
+        if (!input.name.trim() || !input.subject.trim() || !input.bodyHtml.trim()) {
+          toast('Name, subject and body are all required');
+          return;
+        }
+        const base = input.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '') || 'template';
+        let id = `custom_${base}`;
+        let n = 1;
+        const taken = (candidate: string) =>
+          EMAIL_TEMPLATE_DEFS.some((d) => d.id === candidate) || customEmailTemplates.some((d) => d.id === candidate);
+        while (taken(id)) id = `custom_${base}_${++n}`;
+        setCustomEmailTemplates((prev) => [
+          ...prev,
+          {
+            id, name: input.name.trim(), category: 'Custom' as const,
+            trigger: 'Manual — sent from admin, not tied to an automatic trigger',
+            defaultSubject: input.subject, defaultBody: input.bodyHtml, tokens: [],
+          },
+        ]);
+        toast('Email template created ✓');
+      },
+      updateEmailTemplate: (id, patch) => {
+        setEmailTemplateOverrides((prev) => {
+          const updatedAt = new Date().toISOString();
+          const existing = prev.find((o) => o.id === id);
+          if (existing) return prev.map((o) => (o.id === id ? { ...o, ...patch, updatedAt } : o));
+          return [...prev, { id, ...patch, updatedAt }];
+        });
+        toast('Email template saved ✓');
+      },
+      resetEmailTemplate: (id) => {
+        setEmailTemplateOverrides((prev) => prev.filter((o) => o.id !== id));
+        toast('Reset to default ✓');
+      },
+      removeCustomEmailTemplate: (id) => {
+        setCustomEmailTemplates((prev) => prev.filter((t) => t.id !== id));
+        setEmailTemplateOverrides((prev) => prev.filter((o) => o.id !== id));
+        toast('Email template removed');
+      },
+      invoices,
+      // Real sending (email + WhatsApp) happens in prebooze-api's InvoicesService
+      // once this page is wired to the live backend — admin is still 100% mock
+      // (same boundary as the rest of this app), so this simulates the
+      // outcome (marks lastSentAt) rather than actually delivering anything.
+      resendInvoiceEmail: (id) => {
+        const inv = invoices.find((i) => i.id === id);
+        if (!inv?.payerEmail) { toast('This invoice has no email on file'); return; }
+        setInvoices((prev) => prev.map((i) => (i.id === id ? { ...i, lastSentAt: new Date().toISOString() } : i)));
+        toast(`Invoice ${inv.number} emailed to ${inv.payerEmail} ✓`);
+      },
+      resendInvoiceWhatsapp: (id) => {
+        const inv = invoices.find((i) => i.id === id);
+        if (!inv?.payerPhone) { toast('This invoice has no phone on file'); return; }
+        setInvoices((prev) => prev.map((i) => (i.id === id ? { ...i, lastSentAt: new Date().toISOString() } : i)));
+        toast(`Invoice ${inv.number} sent via WhatsApp to ${inv.payerPhone} ✓`);
+      },
       faqs,
       addFaq: (f) => {
         setFaqs((prev) => [...prev, f]);
@@ -956,6 +1052,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setFeaturedRequests((prev) => prev.map((f) => (f.id === id ? { ...f, status: 'rejected' as const } : f)));
         toast('Featured request rejected');
       },
+      // Real endpoint: POST /admin/featured/:id/remind (sends a real email to
+      // the placement owner). Admin has no live session to reach it yet — same
+      // simulated-outcome pattern as invoices' resend-email/resend-whatsapp.
+      remindFeatured: (id) => {
+        setFeaturedRequests((prev) => prev.map((f) => (f.id === id ? { ...f, remindedAt: 'just now' } : f)));
+        toast('Renewal reminder sent ✓');
+      },
       updateFeaturedRate: (patch) => {
         setFeaturedRates((prev) => ({ ...prev, ...patch }));
         toast('Featured rate saved ✓');
@@ -1066,7 +1169,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         toast('Invite sent ✓');
       },
     }),
-    [session, events, bookings, customers, organizers, venues, kycApplications, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, faqs, policies, menus, promoters, subTiers, abandonedCarts, locations, featuredRequests, featuredRates, adminReferrals, referralRates, jobs, applicants, reels, teams, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setKycApplications, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts, setLocations, setFeaturedRequests, setFeaturedRates, setReferralRates, setJobs, setReels, setTeams]
+    [session, events, bookings, customers, organizers, venues, kycApplications, promos, banners, categories, blogs, pages, staff, roles, settings, notifications, blogCategories, ledger, ledgerCategories, guestList, lineups, lineupCategories, reviews, testimonials, emailTemplateOverrides, customEmailTemplates, invoices, faqs, policies, menus, promoters, subTiers, abandonedCarts, locations, featuredRequests, featuredRates, adminReferrals, referralRates, jobs, applicants, reels, teams, toastMsg, toast, setSession, setEvents, setBookings, setCustomers, setOrganizers, setVenues, setKycApplications, setPromos, setBanners, setCategories, setBlogs, setPages, setStaff, setRoles, setSettings, setNotifications, setBlogCategories, setLedger, setLedgerCategories, setGuestList, setLineups, setLineupCategories, setReviews, setTestimonials, setEmailTemplateOverrides, setCustomEmailTemplates, setInvoices, setFaqs, setPolicies, setMenusState, setPromoters, setSubTiers, setAbandonedCarts, setLocations, setFeaturedRequests, setFeaturedRates, setReferralRates, setJobs, setReels, setTeams]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

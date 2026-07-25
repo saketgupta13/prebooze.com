@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
+import { useSeo } from '../../lib/useSeo';
 
 export default function About() {
+  useSeo(null, 'About us');
   return (
     <main className="page">
       <div className="container">

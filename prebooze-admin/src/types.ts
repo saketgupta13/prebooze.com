@@ -55,7 +55,7 @@ export interface AdminEvent {
   tiers: Tier[];
   description?: string;
   rules?: string;
-  lineup?: string;
+  lineupIds?: string[]; // registered line-up ids (Lineup.id) — no free text, must exist in the Line-ups directory
   allowedPromoters?: string[]; // promoter ids permitted to run guest lists for this event
   hasBanner?: boolean;
   posterDataUrl?: string;
@@ -203,6 +203,7 @@ export interface Promoter {
   commissionEarned?: number; // ₹ from affiliate ticket commission
   withdrawn?: number;        // ₹ already paid out
   payouts?: PromoterPayout[];
+  seo?: Seo;
 }
 
 export interface FeaturedRequest {
@@ -213,8 +214,9 @@ export interface FeaturedRequest {
   city: string;
   billing: 'per_event' | 'monthly';
   amount: number;
-  status: 'pending' | 'active' | 'rejected';
+  status: 'pending' | 'active' | 'rejected' | 'expired';
   requestedAt: string;
+  remindedAt?: string; // last time admin sent a manual "renew?" reminder — for the Expired tab
   expiresAt: string;
 }
 
@@ -325,6 +327,7 @@ export interface Category {
   icon: string;
   name: string;
   count: number;
+  subCategories?: string[]; // this category's own managed sub-category list — drives EventEditor's subcategory picker
   hasImage?: boolean;
   imageDataUrl?: string;
   seo?: Seo;
@@ -355,6 +358,7 @@ export interface StaffMember {
   role: string;
   lastActive: string;
   city?: string;
+  phone?: string; // WhatsApp number for staff alerts — see Settings > Notifications > "WhatsApp alerts"
 }
 
 export interface PermSet {
@@ -400,6 +404,51 @@ export interface FaqItem {
   audience: 'guests' | 'organizers';
 }
 
+/** Fixed reference data for the 17 transactional email templates the real
+ * backend sends — mirrors prebooze-api's TEMPLATE_DEFS. Not persisted/
+ * editable itself; the editable part is EmailTemplateOverride below. */
+export interface EmailTemplateDef {
+  id: string;
+  name: string;
+  category: 'Guest' | 'Roles' | 'Admin' | 'Custom';
+  trigger: string;
+  defaultSubject: string;
+  defaultBody: string;
+  ctaLabel?: string;
+  tokens: string[];
+}
+
+/** An admin edit of one template's subject/body — same {{token}} substitution
+ * contract as the real backend (prebooze-api/src/notifications/email.ts
+ * EmailService.sendTemplate). Absence of a row for a given id means "using
+ * the code default," matching the real EmailTemplate table's semantics. */
+export interface EmailTemplateOverride {
+  id: string;
+  subject: string;
+  bodyHtml: string;
+  updatedAt: string;
+}
+
+export interface InvoiceRecord {
+  id: string;
+  number: string;
+  type: 'booking' | 'featured';
+  refId: string;
+  role: 'guest' | 'organizer' | 'promoter' | 'venue' | 'lineup';
+  payerName: string;
+  payerEmail?: string;
+  payerPhone?: string;
+  city?: string;
+  description: string;
+  subtotal: number;
+  gstPct: number;
+  gstAmount: number;
+  total: number;
+  status: 'issued' | 'void';
+  issuedAt: string;
+  lastSentAt?: string;
+}
+
 export interface Policy {
   id: string;
   title: string;
@@ -435,4 +484,5 @@ export interface Lineup {
   imageDataUrl?: string;
   followers: number;
   verified: boolean;
+  seo?: Seo;
 }

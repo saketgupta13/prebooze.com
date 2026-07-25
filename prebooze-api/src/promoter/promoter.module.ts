@@ -4,9 +4,13 @@ import { PromoterService } from './promoter.service';
 import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { WhatsappService } from '../notifications/whatsapp';
+import { EmailService } from '../notifications/email';
+import { StaffAlertsService } from '../notifications/staff-alerts';
+import { RazorpayService } from '../payments/razorpay.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @Module({
   controllers: [PromoterController, GuestCaptureController],
-  providers: [PromoterService, PrismaService, JwtAuthGuard, WhatsappService],
+  providers: [PromoterService, PrismaService, JwtAuthGuard, WhatsappService, EmailService, StaffAlertsService, RazorpayService, SubscriptionsService],
 })
 export class PromoterModule {}

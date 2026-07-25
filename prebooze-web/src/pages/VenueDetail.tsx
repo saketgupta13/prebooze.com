@@ -6,11 +6,15 @@ import Poster from '../components/Poster';
 import ShareButton from '../components/ShareButton';
 import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
+import { useSeo } from '../lib/useSeo';
+import { useEntitySeo } from '../lib/useEntitySeo';
 
 export default function VenueDetail() {
   const { id } = useParams();
   const { following, toggleFollow, favVenues, toggleFavVenue } = useApp();
   const venue = VENUES.find((v) => v.id === id);
+  const liveSeo = useEntitySeo('venue', id);
+  useSeo(liveSeo, venue?.name);
 
   if (!venue) {
     return (

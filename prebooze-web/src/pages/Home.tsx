@@ -13,6 +13,7 @@ import Slider from '../components/Slider';
 import Poster from '../components/Poster';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
+import { useSeo } from '../lib/useSeo';
 
 const HERO = [
   { hue: 95, emoji: '🎉', badge: 'Featured', title: "Your city's events, one tap away", text: 'Concerts, comedy, festivals and warehouse parties — instant WhatsApp tickets, QR entry, zero fakes.', cta: 'Explore events →', to: '/browse' },
@@ -89,6 +90,7 @@ const JOIN = [
 ];
 
 export default function Home() {
+  useSeo();
   const { city, user, carts, setSelection, following, toggleFollow, featured } = useApp();
   const orgFeat = featuredRefs(featured, 'organizer', city);
   const promoFeat = featuredRefs(featured, 'promoter', city);

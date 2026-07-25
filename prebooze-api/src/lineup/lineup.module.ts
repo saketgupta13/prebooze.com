@@ -1,0 +1,16 @@
+import { Module } from '@nestjs/common';
+import { LineupController } from './lineup.controller';
+import { LineupService } from './lineup.service';
+import { PrismaService } from '../prisma.service';
+import { JwtAuthGuard } from '../auth/jwt.guard';
+import { EmailService } from '../notifications/email';
+import { WhatsappService } from '../notifications/whatsapp';
+import { StaffAlertsService } from '../notifications/staff-alerts';
+import { RazorpayService } from '../payments/razorpay.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+
+@Module({
+  controllers: [LineupController],
+  providers: [LineupService, PrismaService, JwtAuthGuard, EmailService, WhatsappService, StaffAlertsService, RazorpayService, SubscriptionsService],
+})
+export class LineupModule {}
