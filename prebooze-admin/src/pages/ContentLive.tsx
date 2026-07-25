@@ -35,6 +35,7 @@ export default function ContentLive() {
   const load = (k: Kind) => {
     setLoading(true);
     setErr('');
+    setRows([]); // avoid a frame where `rows` still holds the previous kind's shape
     const api = { banners: liveBanners, blogCategories: liveBlogCategories, blogs: liveBlogs, pages: livePages, testimonials: liveTestimonials, faqs: liveFaqs, policies: livePolicies }[k];
     api
       .list()
@@ -109,7 +110,7 @@ export default function ContentLive() {
 
       <div className="tabs">
         {KINDS.map((k) => (
-          <button key={k.key} className={kind === k.key ? 'on' : ''} onClick={() => setKind(k.key)}>{k.label}</button>
+          <button key={k.key} className={kind === k.key ? 'on' : ''} onClick={() => { setRows([]); setKind(k.key); }}>{k.label}</button>
         ))}
       </div>
 

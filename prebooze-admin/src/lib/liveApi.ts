@@ -392,4 +392,42 @@ export const livePolicies = {
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/policies/${id}`, { method: 'DELETE' }),
 };
 
+export interface LiveCategory { name: string; icon: string; imageUrl: string | null; }
+export const liveCategories = {
+  list: () => liveFetch<LiveCategory[]>('/admin/categories'),
+  add: (name: string, icon?: string) => liveFetch<LiveCategory>('/admin/categories', { body: { name, icon } }),
+  remove: (name: string) => liveFetch<{ ok: true }>(`/admin/categories/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+};
+
+export interface LivePromo { id: string; code: string; type: 'percent' | 'flat'; value: number; status: string; usageLimit: number | null; validTill: string | null; }
+export const livePromos = {
+  list: () => liveFetch<LivePromo[]>('/admin/promos'),
+  create: (body: { code: string; type: 'percent' | 'flat'; value: number; validTill?: string }) => liveFetch<LivePromo>('/admin/promos', { body }),
+  update: (code: string, body: { status?: 'active' | 'paused' }) => liveFetch<LivePromo>(`/admin/promos/${code}`, { method: 'PATCH', body }),
+  remove: (code: string) => liveFetch<{ ok: true }>(`/admin/promos/${code}`, { method: 'DELETE' }),
+};
+
+export interface LiveReel { id: string; title: string; active: boolean; videoUrl: string | null; }
+export const liveReels = {
+  list: () => liveFetch<LiveReel[]>('/admin/reels'),
+  create: (body: { title: string; videoUrl?: string }) => liveFetch<LiveReel>('/admin/reels', { body }),
+  toggle: (id: string) => liveFetch<LiveReel>(`/admin/reels/${id}/toggle`, { method: 'POST' }),
+  remove: (id: string) => liveFetch<{ ok: true }>(`/admin/reels/${id}`, { method: 'DELETE' }),
+};
+
+export interface LiveReview { id: string; rating: number; text: string; createdAt: string; user: { name: string }; organizerId: string; }
+export const liveReviews = {
+  list: () => liveFetch<LiveReview[]>('/admin/reviews'),
+  remove: (id: string) => liveFetch<{ ok: true }>(`/admin/reviews/${id}`, { method: 'DELETE' }),
+};
+
+export interface LiveCity { name: string; icon: string | null; top: boolean; }
+export interface LiveState { id: string; name: string; cities: LiveCity[]; }
+export interface LiveCountry { id: string; name: string; states: LiveState[]; }
+export const liveLocations = {
+  tree: () => liveFetch<LiveCountry[]>('/admin/locations'),
+  addCity: (stateId: string, name: string) => liveFetch<LiveCity>('/admin/locations/cities', { body: { stateId, name } }),
+  toggleCity: (name: string) => liveFetch<LiveCity>(`/admin/locations/cities/${encodeURIComponent(name)}/toggle`, { method: 'POST' }),
+};
+
 export { LiveApiError };
