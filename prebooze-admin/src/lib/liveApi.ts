@@ -180,4 +180,26 @@ export const liveCustomers = {
   setBlocked: (id: string, blocked: boolean) => liveFetch<{ ok: true }>(`/admin/customers/${id}/block`, { method: 'PATCH', body: { blocked } }),
 };
 
+export interface LiveOrganizer { id: string; brandName: string; username: string; city: string; verified: boolean; eventsHosted: number; }
+export interface LivePromoter { id: string; name: string; slug: string; city: string; verified: boolean; eventsPromoted: number; }
+export interface LiveVenue { id: string; name: string; city: string; type: string; capacity: number; verified: boolean; }
+export interface LiveLineup { id: string; name: string; slug: string; city: string; category: string; verified: boolean; }
+
+export const liveOrganizers = {
+  list: () => liveFetch<LiveOrganizer[]>('/admin/organizers'),
+  setVerified: (id: string, verified: boolean) => liveFetch<LiveOrganizer>(`/admin/organizers/${id}/verify`, { method: 'POST', body: { verified } }),
+};
+export const livePromoters = {
+  list: () => liveFetch<LivePromoter[]>('/admin/promoters'),
+  setVerified: (id: string, verified: boolean) => liveFetch<LivePromoter>(`/admin/promoters/${id}/verify`, { method: 'POST', body: { verified } }),
+};
+export const liveVenues = {
+  list: () => liveFetch<LiveVenue[]>('/admin/venues'),
+  setVerified: (id: string, verified: boolean) => liveFetch<LiveVenue>(`/admin/venues/${id}/verify`, { method: 'POST', body: { verified } }),
+};
+export const liveLineups = {
+  list: () => liveFetch<LiveLineup[]>('/admin/lineups'),
+  setVerified: (id: string, verified: boolean) => liveFetch<LiveLineup>(`/admin/lineups/${id}/verify`, { method: 'POST', body: { verified } }),
+};
+
 export { LiveApiError };
