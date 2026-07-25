@@ -153,6 +153,14 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     tokens: ['name', 'ticketId', 'ticketSubject'],
   },
   {
+    id: 'kyc_pending', name: 'Application received', category: 'Roles',
+    trigger: 'Applicant submits an organizer / promoter / venue / line-up application',
+    preheader: 'Your application is being reviewed',
+    defaultSubject: "We've got your {{roleLabel}} application",
+    defaultBody: `<p>Hey {{name}},</p><p>Thanks for applying as a {{roleLabel}} on Prebooze. Our team reviews these by hand — you'll get an email the moment it's approved (or if we need anything else from you).</p>`,
+    tokens: ['name', 'roleLabel'],
+  },
+  {
     id: 'kyc_approved', name: 'KYC approved', category: 'Roles',
     trigger: 'Admin approves an organizer / promoter / venue / line-up application',
     preheader: 'Your application was approved',

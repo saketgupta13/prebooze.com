@@ -89,6 +89,9 @@ export class KycService {
     const displayName = (payload.brandName as string) || (payload.name as string) || user.name || user.phone;
     await this.notifications.notify('🛡', `${displayName} submitted ${kind} KYC docs for review`, '/admin/kyc');
     await this.staffAlerts.alert(`🛡 ${displayName} submitted ${kind} KYC docs for review`).catch(() => {});
+    await this.email.sendTemplate(user.email, 'kyc_pending', {
+      name: user.name, roleLabel: KYC_ROLE_LABEL[kind] ?? kind,
+    }).catch(() => {});
 
     // store the self-reported profile fields immediately (display only — the
     // elevated `role` itself stays unset until a human approves)
