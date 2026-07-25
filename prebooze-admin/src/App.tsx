@@ -53,6 +53,7 @@ import DashboardLive from './pages/DashboardLive';
 import FinanceLive from './pages/FinanceLive';
 import StaffLive from './pages/StaffLive';
 import SettingsLive from './pages/SettingsLive';
+import ContentLive from './pages/ContentLive';
 import AddPromoter from './pages/AddPromoter';
 import PromoterEdit from './pages/PromoterEdit';
 import Testimonials from './pages/Testimonials';
@@ -105,6 +106,7 @@ export default function App() {
         <Route path="/finance-live" element={<FinanceLive />} />
         <Route path="/staff-live" element={<StaffLive />} />
         <Route path="/settings-live" element={<SettingsLive />} />
+        <Route path="/content-live" element={<ContentLive />} />
         <Route path="/promoters/:id" element={<PromoterDetail />} />
         <Route path="/promoters/:id/edit" element={<PromoterEdit />} />
         <Route path="/locations" element={<Locations />} />

@@ -346,4 +346,50 @@ export const liveSettings = {
   update: (body: Partial<LiveSettings>) => liveFetch<LiveSettings>('/admin/settings', { method: 'PATCH', body }),
 };
 
+export interface LiveBanner { id: string; title: string; statusLabel: string; heading: string | null; active: boolean; sort: number; }
+export interface LiveBlogCategory { id: string; name: string; }
+export interface LiveBlog { id: string; title: string; status: string; category: string | null; createdAt: string; }
+export interface LiveSitePage { slug: string; title: string; navGroup: string | null; }
+export interface LiveTestimonial { id: string; author: string; location: string; rating: number; quote: string; featured: boolean; }
+export interface LiveFaq { id: string; question: string; answer: string; audience: string; sort: number; }
+export interface LivePolicy { id: string; title: string; slug: string; }
+
+export const liveBanners = {
+  list: () => liveFetch<LiveBanner[]>('/admin/banners'),
+  create: (body: { title: string; heading?: string; active?: boolean }) => liveFetch<LiveBanner>('/admin/banners', { body }),
+  update: (id: string, body: Partial<LiveBanner>) => liveFetch<LiveBanner>(`/admin/banners/${id}`, { method: 'PATCH', body }),
+  remove: (id: string) => liveFetch<{ ok: true }>(`/admin/banners/${id}`, { method: 'DELETE' }),
+};
+export const liveBlogCategories = {
+  list: () => liveFetch<LiveBlogCategory[]>('/admin/blog-categories'),
+  create: (name: string) => liveFetch<LiveBlogCategory>('/admin/blog-categories', { body: { name } }),
+  remove: (id: string) => liveFetch<{ ok: true }>(`/admin/blog-categories/${id}`, { method: 'DELETE' }),
+};
+export const liveBlogs = {
+  list: () => liveFetch<LiveBlog[]>('/admin/blogs'),
+  create: (body: { title: string; status?: string; category?: string }) => liveFetch<LiveBlog>('/admin/blogs', { body }),
+  remove: (id: string) => liveFetch<{ ok: true }>(`/admin/blogs/${id}`, { method: 'DELETE' }),
+};
+export const livePages = {
+  list: () => liveFetch<LiveSitePage[]>('/admin/pages'),
+  create: (body: { slug: string; title: string }) => liveFetch<LiveSitePage>('/admin/pages', { body }),
+  remove: (slug: string) => liveFetch<{ ok: true }>(`/admin/pages/${encodeURIComponent(slug)}`, { method: 'DELETE' }),
+};
+export const liveTestimonials = {
+  list: () => liveFetch<LiveTestimonial[]>('/admin/testimonials'),
+  create: (body: { author: string; location: string; rating: number; quote: string }) => liveFetch<LiveTestimonial>('/admin/testimonials', { body }),
+  update: (id: string, body: Partial<LiveTestimonial>) => liveFetch<LiveTestimonial>(`/admin/testimonials/${id}`, { method: 'PATCH', body }),
+  remove: (id: string) => liveFetch<{ ok: true }>(`/admin/testimonials/${id}`, { method: 'DELETE' }),
+};
+export const liveFaqs = {
+  list: () => liveFetch<LiveFaq[]>('/admin/faqs'),
+  create: (body: { question: string; answer: string; audience: string }) => liveFetch<LiveFaq>('/admin/faqs', { body }),
+  remove: (id: string) => liveFetch<{ ok: true }>(`/admin/faqs/${id}`, { method: 'DELETE' }),
+};
+export const livePolicies = {
+  list: () => liveFetch<LivePolicy[]>('/admin/policies'),
+  create: (body: { title: string; slug: string; sections?: unknown[] }) => liveFetch<LivePolicy>('/admin/policies', { body }),
+  remove: (id: string) => liveFetch<{ ok: true }>(`/admin/policies/${id}`, { method: 'DELETE' }),
+};
+
 export { LiveApiError };
