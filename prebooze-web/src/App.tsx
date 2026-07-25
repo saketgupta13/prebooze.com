@@ -53,6 +53,7 @@ import OrgAbandonedCarts from './pages/organizer/OrgAbandonedCarts';
 import OrgLiveMonitor from './pages/organizer/OrgLiveMonitor';
 import OrgReviews from './pages/organizer/OrgReviews';
 import OrgTeamRoles from './pages/organizer/OrgTeamRoles';
+import OrganizerSubscription from './pages/organizer/OrganizerSubscription';
 import HostLanding from './pages/static/HostLanding';
 import About from './pages/static/About';
 import Contact from './pages/static/Contact';
@@ -66,6 +67,7 @@ import LineupOnboarding from './pages/LineupOnboarding';
 import LineupLayout from './pages/lineup/LineupLayout';
 import LineupDashboard from './pages/lineup/LineupDashboard';
 import LineupSettings from './pages/lineup/LineupSettings';
+import LineupSubscription from './pages/lineup/LineupSubscription';
 import PromoterProfile from './pages/PromoterProfile';
 import PromoterOnboarding from './pages/promoter/PromoterOnboarding';
 import PromoterLayout from './pages/promoter/PromoterLayout';
@@ -85,6 +87,7 @@ import VenueDashboard from './pages/venue/VenueDashboard';
 import VenueListing from './pages/venue/VenueListing';
 import VenueEvents from './pages/venue/VenueEvents';
 import VenueSettings from './pages/venue/VenueSettings';
+import VenueSubscription from './pages/venue/VenueSubscription';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useApp();
@@ -271,6 +274,7 @@ export default function App() {
           <Route path="live" element={<OrgLiveMonitor />} />
           <Route path="reviews" element={<OrgReviews />} />
           <Route path="team" element={<OrgTeamRoles />} />
+          <Route path="subscription" element={<OrganizerSubscription />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 
@@ -278,6 +282,7 @@ export default function App() {
         <Route path="/artist" element={<LineupLayout />}>
           <Route index element={<LineupDashboard />} />
           <Route path="profile" element={<LineupSettings />} />
+          <Route path="subscription" element={<LineupSubscription />} />
         </Route>
 
         {/* Promoter console */}
@@ -298,6 +303,7 @@ export default function App() {
           <Route index element={<VenueDashboard />} />
           <Route path="listing" element={<VenueListing />} />
           <Route path="events" element={<VenueEvents />} />
+          <Route path="subscription" element={<VenueSubscription />} />
           <Route path="settings" element={<VenueSettings />} />
         </Route>
 

@@ -554,7 +554,7 @@ export const SEED_ABANDONED_CARTS = [
 
 // Editable subscription tiers (admin-configurable; mirrored to the promoter app).
 export const SEED_SUB_TIERS = [
-  { id: 'free', name: 'Free', price: 0, guests: 25 },
+  { id: 'free', name: 'Free', price: 0, guests: 100 },
   { id: 'starter', name: 'Starter', price: 999, guests: 150 },
   { id: 'pro', name: 'Pro', price: 2499, guests: 500 },
   { id: 'elite', name: 'Elite', price: 4999, guests: -1 },

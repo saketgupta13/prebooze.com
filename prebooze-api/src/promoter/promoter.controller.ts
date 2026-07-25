@@ -63,6 +63,11 @@ export class PromoterController {
   cancelSubscription(@Req() req: AuthedReq) {
     return this.promoter.cancelSubscription(req.user.sub);
   }
+
+  @Get('usage')
+  usage(@Req() req: AuthedReq) {
+    return this.promoter.usage(req.user.sub);
+  }
 }
 
 /** Public guest-list capture — no auth, reached via a promoter's affiliate

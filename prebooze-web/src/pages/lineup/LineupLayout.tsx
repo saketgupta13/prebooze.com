@@ -5,6 +5,7 @@ import PendingReview, { RejectedReview } from '../../components/PendingReview';
 const NAV = [
   { to: '/artist', label: '▦ Dashboard', end: true },
   { to: '/artist/profile', label: '⚙ Profile & settings' },
+  { to: '/artist/subscription', label: '💳 Subscription' },
 ];
 
 export default function LineupLayout() {

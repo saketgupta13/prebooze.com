@@ -7,7 +7,7 @@ import { money } from '../notifications/email-templates';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 /** Mirrors prebooze-web's SUB_TIERS (src/data/mock.ts) — -1 = unlimited. */
-const PLAN_QUOTA: Record<string, number> = { free: 25, starter: 150, pro: 500, elite: -1 };
+const PLAN_QUOTA: Record<string, number> = { free: 100, starter: 150, pro: 500, elite: -1 };
 const MIN_WITHDRAW = 500; // ₹, matches prebooze-web's PromoterEarnings.tsx
 const NO_SHOW_BLOCK_THRESHOLD = 3; // matches promoterFraud.ts
 export const PROMOTER_COMMISSION_RATE = 0.08; // matches promoterEarnings.ts
@@ -259,5 +259,20 @@ export class PromoterService {
   async cancelSubscription(userId: string) {
     const promoter = await this.myPromoter(userId);
     return this.subscriptions.cancel('promoter', promoter.id);
+  }
+
+  /** Same monthCount/quota computation as the real gate in captureGuest()
+   * above — surfaced read-only so the promoter's own Subscription page can
+   * show real usage instead of a client-guessed number. */
+  async usage(userId: string) {
+    const promoter = await this.myPromoter(userId);
+    const quota = await this.planQuota(promoter.planId);
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const used = await this.prisma.promoterGuest.count({
+      where: { promoterSlug: promoter.slug, createdAt: { gte: monthStart, lt: nextMonth } },
+    });
+    return { used, quota };
   }
 }

@@ -818,7 +818,7 @@ export interface SubTier {
 }
 
 export const SUB_TIERS: SubTier[] = [
-  { id: 'free', name: 'Free', price: 0, guests: 25, perks: ['25 guests / month', 'Affiliate links', 'Real-time monitoring'] },
+  { id: 'free', name: 'Free', price: 0, guests: 100, perks: ['100 guests / month', 'Affiliate links', 'Real-time monitoring'] },
   { id: 'starter', name: 'Starter', price: 999, guests: 150, perks: ['150 guests / month', 'Everything in Free', 'Priority support'] },
   { id: 'pro', name: 'Pro', price: 2499, guests: 500, perks: ['500 guests / month', 'Everything in Starter', 'Advanced analytics'] },
   { id: 'elite', name: 'Elite', price: 4999, guests: -1, perks: ['Unlimited guests', 'Everything in Pro', 'Promoter teams', 'Dedicated manager'] },

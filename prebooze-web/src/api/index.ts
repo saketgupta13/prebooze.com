@@ -100,6 +100,53 @@ export const social = {
   reviewOrganizer: (orgId: string, rating: number, text: string) => apiFetch<GuestReview>(`/organizers/${orgId}/reviews`, { body: { rating, text } }),
 };
 
+// ---------- subscriptions (organizer / promoter / venue / lineup billing) ----------
+// One real, Razorpay-backed billing surface shared by all four roles — see
+// SubscriptionsService on the backend. Paid tiers return `shortUrl`, a hosted
+// Razorpay authorization link the caller must redirect the owner to; nothing
+// actually activates until the `subscription.activated` webhook fires.
+export interface SubTier {
+  id: string;
+  role: 'organizer' | 'promoter' | 'venue' | 'lineup';
+  name: string;
+  price: number;
+  guests: number | null; // promoter-only monthly guest-list quota, -1 = unlimited
+}
+export interface SubscriptionCharge {
+  id: string;
+  amount: number;
+  status: 'captured' | 'failed';
+  occurredAt: string;
+}
+export interface RoleSubscription {
+  id: string;
+  role: SubTier['role'];
+  entityId: string;
+  tierId: string;
+  tier: SubTier;
+  status: 'created' | 'authenticated' | 'active' | 'pending' | 'halted' | 'cancelled' | 'completed' | 'expired';
+  shortUrl: string | null;
+  currentStart: string | null;
+  currentEnd: string | null;
+  paidCount: number;
+  charges?: SubscriptionCharge[];
+}
+export interface SubscribeResult {
+  ok: boolean;
+  requiresAuthorization: boolean;
+  subscriptionId?: string;
+  shortUrl?: string;
+  keyId?: string;
+}
+function subscriptionApi(prefix: 'organizer' | 'promoter' | 'venue' | 'lineup') {
+  return {
+    tiers: () => apiFetch<SubTier[]>(`/${prefix}/subscription/tiers`),
+    mine: () => apiFetch<RoleSubscription | null>(`/${prefix}/subscription`),
+    subscribe: (tierId: string) => apiFetch<SubscribeResult>(`/${prefix}/subscription`, { body: { tierId } }),
+    cancel: () => apiFetch<{ ok: boolean }>(`/${prefix}/subscription/cancel`, { method: 'POST' }),
+  };
+}
+
 // ---------- promoter ----------
 export const promoter = {
   promotions: () => apiFetch<Event[]>('/promoter/promotions'),
@@ -111,7 +158,8 @@ export const promoter = {
   withdraw: (amount: number) => apiFetch<void>('/promoter/withdraw', { body: { amount } }),
   team: () => apiFetch<SubPromoter[]>('/promoter/team'),
   addTeamMember: (m: SubPromoter) => apiFetch<SubPromoter>('/promoter/team', { body: m }),
-  subscribe: (planId: string) => apiFetch<void>('/promoter/subscription', { body: { planId } }),
+  usage: () => apiFetch<{ used: number; quota: number }>('/promoter/usage'),
+  subscription: subscriptionApi('promoter'),
 };
 
 // ---------- organizer ----------
@@ -125,6 +173,12 @@ export const organizer = {
   withdraw: (amount: number) => apiFetch<void>('/organizer/withdraw', { body: { amount } }),
   abandonedCarts: () => apiFetch<CartRecord[]>('/organizer/carts'),
   remindCart: (id: string) => apiFetch<void>(`/organizer/carts/${id}/remind`, { method: 'POST' }),
+  subscription: subscriptionApi('organizer'),
+};
+
+// ---------- lineup (artist) ----------
+export const lineup = {
+  subscription: subscriptionApi('lineup'),
 };
 
 // ---------- featured ----------
@@ -172,4 +226,5 @@ export const venuePartner = {
   myListing: () => apiFetch<Venue>('/venue/listing'),
   updateListing: (patch: Partial<Venue>) => apiFetch<Venue>('/venue/listing', { method: 'PATCH', body: patch }),
   events: () => apiFetch<Event[]>('/venue/events'),
+  subscription: subscriptionApi('venue'),
 };

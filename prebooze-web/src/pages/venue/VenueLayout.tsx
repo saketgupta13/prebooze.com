@@ -6,6 +6,7 @@ const NAV = [
   { to: '/venue', label: '▦ Dashboard', end: true },
   { to: '/venue/listing', label: '🏛 My listing' },
   { to: '/venue/events', label: '📅 Events here' },
+  { to: '/venue/subscription', label: '💳 Subscription' },
   { to: '/venue/settings', label: '⚙ Settings' },
 ];
 
