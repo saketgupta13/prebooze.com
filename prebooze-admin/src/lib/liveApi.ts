@@ -430,4 +430,70 @@ export const liveLocations = {
   toggleCity: (name: string) => liveFetch<LiveCity>(`/admin/locations/cities/${encodeURIComponent(name)}/toggle`, { method: 'POST' }),
 };
 
+export interface LiveJob { id: string; title: string; team: string; loc: string; type: string; status: string; }
+export interface LiveApplicant { id: string; jobId: string; name: string; email: string; phone: string; appliedAt: string; }
+export const liveCareers = {
+  listJobs: () => liveFetch<LiveJob[]>('/admin/careers/jobs'),
+  createJob: (body: { title: string; team?: string; loc?: string; type?: string; about?: string }) => liveFetch<LiveJob>('/admin/careers/jobs', { body }),
+  toggleJob: (id: string) => liveFetch<LiveJob>(`/admin/careers/jobs/${id}/toggle`, { method: 'POST' }),
+  removeJob: (id: string) => liveFetch<{ ok: true }>(`/admin/careers/jobs/${id}`, { method: 'DELETE' }),
+  listApplicants: (jobId?: string) => liveFetch<LiveApplicant[]>('/admin/careers/applicants' + (jobId ? `?jobId=${jobId}` : '')),
+};
+
+export interface LiveReferralAnalytics {
+  totalReferrals: number;
+  conversion: number;
+  creditsIssued: number;
+  topReferrers: { name: string; joined: number; qualified: number }[];
+}
+export const liveReferrals = {
+  analytics: () => liveFetch<LiveReferralAnalytics>('/admin/referrals'),
+  rates: () => liveFetch<{ referee: number; referrer: number }>('/admin/referrals/rates'),
+  updateRates: (body: { referee?: number; referrer?: number }) => liveFetch<{ referee: number; referrer: number }>('/admin/referrals/rates', { method: 'PATCH', body }),
+};
+
+export interface LiveInvoice { id: string; number: string; type: string; role: string; payerName: string; city: string | null; subtotal: number; gstAmount: number; total: number; status: string; issuedAt: string; }
+export const liveInvoices = {
+  list: (filters?: { role?: string; city?: string; type?: string; from?: string; to?: string }) => {
+    const q = new URLSearchParams();
+    Object.entries(filters ?? {}).forEach(([k, v]) => { if (v) q.set(k, v); });
+    const qs = q.toString();
+    return liveFetch<LiveInvoice[]>('/admin/invoices' + (qs ? `?${qs}` : ''));
+  },
+  downloadPdf: async (id: string, filename: string) => {
+    const token = getLiveToken();
+    const res = await fetch(`${API_URL}/admin/invoices/${id}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (!res.ok) throw new LiveApiError(res.status, 'Failed to download PDF');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+  resendEmail: (id: string) => liveFetch<{ ok: true }>(`/admin/invoices/${id}/resend-email`, { method: 'POST' }),
+  resendWhatsapp: (id: string) => liveFetch<{ ok: true }>(`/admin/invoices/${id}/resend-whatsapp`, { method: 'POST' }),
+};
+
+export interface LiveEmailTemplate {
+  id: string;
+  name: string;
+  category: string;
+  trigger: string;
+  subject: string;
+  bodyHtml: string;
+  defaultSubject: string;
+  defaultBody: string;
+  customized: boolean;
+  custom: boolean;
+}
+export const liveEmailTemplates = {
+  list: () => liveFetch<LiveEmailTemplate[]>('/admin/email-templates'),
+  preview: (id: string) => liveFetch<{ subject: string; html: string }>(`/admin/email-templates/${id}/preview`),
+  update: (id: string, patch: { subject?: string; bodyHtml?: string }) => liveFetch<LiveEmailTemplate>(`/admin/email-templates/${id}`, { method: 'PATCH', body: patch }),
+  reset: (id: string) => liveFetch<{ ok: true }>(`/admin/email-templates/${id}`, { method: 'DELETE' }),
+  sendNow: (id: string, to: string) => liveFetch<{ ok: true }>(`/admin/email-templates/${id}/send`, { method: 'POST', body: { to } }),
+};
+
 export { LiveApiError };

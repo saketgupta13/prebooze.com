@@ -72,6 +72,9 @@ const EXTRA_NAV = [
   { to: '/content-live', icon: '📄', label: 'Content (live)' },
   { to: '/ops-live', icon: '🏷', label: 'Categories/Promos/Reels/Reviews (live)' },
   { to: '/locations-live', icon: '🌍', label: 'Locations (live)' },
+  { to: '/careers-referrals-live', icon: '💼', label: 'Careers & referrals (live)' },
+  { to: '/invoices-live', icon: '🧾', label: 'Invoices (live)' },
+  { to: '/email-templates-live', icon: '✉️', label: 'Email templates (live)' },
   { to: '/settings', icon: '⚙', label: 'Settings' },
   { to: '/profile', icon: '👤', label: 'Profile' },
 ];
@@ -264,6 +267,18 @@ export default function AdminLayout() {
           <NavLink to="/locations-live" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
             <span>🌍</span>
             <span>Locations (live)</span>
+          </NavLink>
+          <NavLink to="/careers-referrals-live" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
+            <span>💼</span>
+            <span>Careers &amp; referrals (live)</span>
+          </NavLink>
+          <NavLink to="/invoices-live" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
+            <span>🧾</span>
+            <span>Invoices (live)</span>
+          </NavLink>
+          <NavLink to="/email-templates-live" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
+            <span>✉️</span>
+            <span>Email templates (live)</span>
           </NavLink>
           <NavLink to="/settings" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
             <span>⚙</span>
