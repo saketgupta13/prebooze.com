@@ -139,4 +139,45 @@ export const liveKyc = {
   reject: (id: string, reason: string) => liveFetch<{ ok: true }>(`/admin/kyc/${id}/reject`, { method: 'POST', body: { reason } }),
 };
 
+export interface LiveBooking {
+  id: string;
+  mainGuest: string;
+  whatsapp: string;
+  tierName: string;
+  qty: number;
+  total: number;
+  status: 'confirmed' | 'cancelled' | 'refunded' | 'refund_requested';
+  paymentMethod: string | null;
+  createdAt: string;
+  guests: { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
+  user: { name: string; phone: string };
+  event: { title: string };
+}
+export const liveBookings = {
+  list: (status?: string) => liveFetch<LiveBooking[]>('/admin/bookings' + (status ? `?status=${status}` : '')),
+  get: (id: string) => liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}`),
+  approveRefund: (id: string) => liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/approve`, { method: 'POST' }),
+  declineRefund: (id: string) => liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/decline`, { method: 'POST' }),
+};
+
+export interface LiveCustomer {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  city: string;
+  gender: string;
+  verified: boolean;
+  bookings: number;
+  spend: number;
+  status: 'active' | 'unverified' | 'blocked';
+  segment: 'guests' | 'organizers';
+}
+export const liveCustomers = {
+  list: (segment?: 'guests' | 'organizers') => liveFetch<LiveCustomer[]>('/admin/customers' + (segment ? `?segment=${segment}` : '')),
+  create: (body: { name: string; phone: string; email?: string; city?: string; gender?: string; verified?: boolean }) =>
+    liveFetch<LiveCustomer>('/admin/customers', { body }),
+  setBlocked: (id: string, blocked: boolean) => liveFetch<{ ok: true }>(`/admin/customers/${id}/block`, { method: 'PATCH', body: { blocked } }),
+};
+
 export { LiveApiError };
