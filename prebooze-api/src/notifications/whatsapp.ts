@@ -12,8 +12,13 @@ export class WhatsappService {
   }
 
   /** Send an approved AiSensy campaign/template to one recipient.
-   * `params` fill the template's numbered variables in order, e.g. {{1}}. */
-  async send(phone: string, campaignName: string, params: string[]): Promise<void> {
+   * `params` fill the template's numbered variables in order, e.g. {{1}}.
+   * `buttons` is only needed for templates with a button component — an
+   * Authentication template's "Copy Code" button is represented at the API
+   * level as a `url`-type button (a Meta/WhatsApp quirk) that needs the
+   * same code passed again as a button parameter, separately from the body
+   * `templateParams` — omit it entirely for plain-text templates. */
+  async send(phone: string, campaignName: string, params: string[], buttons?: unknown[]): Promise<void> {
     const destination = phone.replace(/[^\d]/g, '');
     if (!this.live) {
       this.log.log(`[dev] ${campaignName} -> ${phone}: ${params.join(' | ')}`);
@@ -28,6 +33,7 @@ export class WhatsappService {
         destination,
         userName: 'Prebooze',
         templateParams: params,
+        ...(buttons ? { buttons } : {}),
       }),
     });
     if (!res.ok) {
@@ -37,19 +43,16 @@ export class WhatsappService {
     }
   }
 
-  /** Campaign name is 'otp_verify' — third name for this one template.
-   * 'otp' burned through two failed submissions (Authentication-denied
-   * pre-verification, then Utility-paused for policy violation) before
-   * being deleted; Meta enforces a 30-day lockout on reusing a deleted
-   * template's name regardless of prior approval status, so 'otp_login'
-   * was used instead. 'otp_login' got APPROVED but with a "One-Tap
-   * Autofill" button (a URL-type button meant for native Android apps to
-   * auto-read the code) instead of the plain "Copy Code" button — Meta
-   * doesn't allow editing a template's component structure post-creation,
-   * only delete-and-recreate, and deleting would re-trigger the same
-   * 30-day lock. Rather than burn another name to that lock, this is a
-   * fresh one built with the correct Copy Code button. */
+  /** Campaign is 'otp_login' — confirmed working via a real AiSensy test
+   * send. The earlier "Button at index 0 of type Url requires a parameter"
+   * failure wasn't actually about the template's button type (Copy Code
+   * vs. One-Tap Autofill, which was the first hypothesis) — it was that
+   * our own request never included the `buttons` array Meta's Copy Code
+   * button requires, with the OTP code passed again as a button parameter
+   * on top of the body's templateParams. */
   async sendOtp(phone: string, code: string): Promise<void> {
-    return this.send(phone, 'otp_verify', [code]);
+    return this.send(phone, 'otp_login', [code], [
+      { type: 'button', sub_type: 'url', index: 0, parameters: [{ type: 'text', text: code }] },
+    ]);
   }
 }
