@@ -49,6 +49,8 @@ import VerificationsLive from './pages/VerificationsLive';
 import BookingsLive from './pages/BookingsLive';
 import CustomersLive from './pages/CustomersLive';
 import DirectoryLive from './pages/DirectoryLive';
+import DashboardLive from './pages/DashboardLive';
+import FinanceLive from './pages/FinanceLive';
 import AddPromoter from './pages/AddPromoter';
 import PromoterEdit from './pages/PromoterEdit';
 import Testimonials from './pages/Testimonials';
@@ -97,6 +99,8 @@ export default function App() {
         <Route path="/bookings-live" element={<BookingsLive />} />
         <Route path="/customers-live" element={<CustomersLive />} />
         <Route path="/directory-live" element={<DirectoryLive />} />
+        <Route path="/dashboard-live" element={<DashboardLive />} />
+        <Route path="/finance-live" element={<FinanceLive />} />
         <Route path="/promoters/:id" element={<PromoterDetail />} />
         <Route path="/promoters/:id/edit" element={<PromoterEdit />} />
         <Route path="/locations" element={<Locations />} />

@@ -65,6 +65,8 @@ const EXTRA_NAV = [
   { to: '/bookings-live', icon: '🎟', label: 'Bookings (live)' },
   { to: '/customers-live', icon: '👥', label: 'Customers (live)' },
   { to: '/directory-live', icon: '🧑‍💼', label: 'Directory (live)' },
+  { to: '/dashboard-live', icon: '▦', label: 'Dashboard (live)' },
+  { to: '/finance-live', icon: '💵', label: 'Finance (live)' },
   { to: '/settings', icon: '⚙', label: 'Settings' },
   { to: '/profile', icon: '👤', label: 'Profile' },
 ];
@@ -229,6 +231,14 @@ export default function AdminLayout() {
           <NavLink to="/directory-live" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
             <span>🧑‍💼</span>
             <span>Directory (live)</span>
+          </NavLink>
+          <NavLink to="/dashboard-live" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
+            <span>▦</span>
+            <span>Dashboard (live)</span>
+          </NavLink>
+          <NavLink to="/finance-live" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
+            <span>💵</span>
+            <span>Finance (live)</span>
           </NavLink>
           <NavLink to="/settings" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
             <span>⚙</span>

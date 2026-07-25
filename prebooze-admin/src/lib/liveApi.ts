@@ -202,4 +202,90 @@ export const liveLineups = {
   setVerified: (id: string, verified: boolean) => liveFetch<LiveLineup>(`/admin/lineups/${id}/verify`, { method: 'POST', body: { verified } }),
 };
 
+export interface LiveDashboard {
+  grossSales: number;
+  ticketsSold: number;
+  commissionEarned: number;
+  refundsAmount: number;
+  refundedTickets: number;
+  pendingEvents: number;
+  pendingRefunds: number;
+  pendingKyc: number;
+  totalCustomers: number;
+  totalOrganizers: number;
+  verifiedOrganizers: number;
+  totalEvents: number;
+  liveNow: number;
+  totalBookings: number;
+  topSellingEvents: { id: string; title: string; city: string; sold: number }[];
+  ticketStats: { sold: number; available: number; checkedIn: number; refunded: number; cap: number };
+  topPromoters: { id: string; name: string; showRate: number; earned: number }[];
+  salesTrend: { date: string; gross: number }[];
+  liveAndUpcoming: { id: string; title: string; date: string; status: string; revenue: number; sold: number }[];
+}
+export const liveDashboard = {
+  overview: (days?: number, city?: string) => {
+    const q = new URLSearchParams();
+    if (days) q.set('days', String(days));
+    if (city) q.set('city', city);
+    const qs = q.toString();
+    return liveFetch<LiveDashboard>('/admin/dashboard' + (qs ? `?${qs}` : ''));
+  },
+};
+
+export interface LiveFinance {
+  commissionIncome: number;
+  feeIncome: number;
+  otherIncome: number;
+  expensesByCat: Record<string, number>;
+  totalExpenses: number;
+  gstPayable: number;
+  gross: number;
+  payoutsDue: number;
+  paidOut: number;
+  totalIncome: number;
+  netProfit: number;
+  cash: number;
+  refundsPending: number;
+  topEvents: { id: string; title: string; revenue: number; commission: number | null }[];
+  settings: { bookingFee: number; gstPct: number };
+}
+export const liveFinance = {
+  get: (city?: string) => liveFetch<LiveFinance>('/admin/reports/finance' + (city ? `?city=${city}` : '')),
+};
+
+export interface LivePayoutRow {
+  id: string;
+  title: string;
+  organizer: string;
+  revenue: number;
+  commission: number | null;
+  commissionAmt: number;
+  gst: number;
+  net: number;
+  paidOut: boolean;
+  payoutUtr: string | null;
+}
+export const livePayments = {
+  due: () => liveFetch<{ rows: LivePayoutRow[]; collected: number; commissionKept: number; gstCollected: number; dueTotal: number }>('/admin/payments/due'),
+  runBatch: (eventIds: string[]) => liveFetch<{ ok: true; count: number }>('/admin/payments/run-batch', { body: { eventIds } }),
+};
+
+export interface LiveLedgerEntry {
+  id: string;
+  kind: 'income' | 'expense';
+  category: string;
+  amount: number;
+  note: string | null;
+  auto: boolean;
+  createdAt: string;
+}
+export const liveLedger = {
+  list: (kind?: 'income' | 'expense') => liveFetch<{ entries: LiveLedgerEntry[]; totalIncome: number; totalExpense: number; net: number }>('/admin/ledger' + (kind ? `?kind=${kind}` : '')),
+  addEntry: (body: { kind: 'income' | 'expense'; category: string; amount: number; note?: string }) => liveFetch<LiveLedgerEntry>('/admin/ledger', { body }),
+  removeEntry: (id: string) => liveFetch<{ ok: true }>(`/admin/ledger/${id}`, { method: 'DELETE' }),
+  categories: () => liveFetch<{ income: string[]; expense: string[] }>('/admin/ledger/categories'),
+  addCategory: (kind: 'income' | 'expense', name: string) => liveFetch<unknown>('/admin/ledger/categories', { body: { kind, name } }),
+};
+
 export { LiveApiError };
