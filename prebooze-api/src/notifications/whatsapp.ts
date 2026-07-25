@@ -37,13 +37,19 @@ export class WhatsappService {
     }
   }
 
-  /** Campaign name is 'otp_login', not the more obvious 'otp' — Meta
-   * enforces a 30-day lockout on reusing a deleted template's name
-   * regardless of its prior approval status, and 'otp' burned through two
-   * failed submission attempts (Authentication-denied pre-verification,
-   * then Utility-paused for policy violation) before being deleted. Rather
-   * than wait a month, this uses a fresh name. */
+  /** Campaign name is 'otp_verify' — third name for this one template.
+   * 'otp' burned through two failed submissions (Authentication-denied
+   * pre-verification, then Utility-paused for policy violation) before
+   * being deleted; Meta enforces a 30-day lockout on reusing a deleted
+   * template's name regardless of prior approval status, so 'otp_login'
+   * was used instead. 'otp_login' got APPROVED but with a "One-Tap
+   * Autofill" button (a URL-type button meant for native Android apps to
+   * auto-read the code) instead of the plain "Copy Code" button — Meta
+   * doesn't allow editing a template's component structure post-creation,
+   * only delete-and-recreate, and deleting would re-trigger the same
+   * 30-day lock. Rather than burn another name to that lock, this is a
+   * fresh one built with the correct Copy Code button. */
   async sendOtp(phone: string, code: string): Promise<void> {
-    return this.send(phone, 'otp_login', [code]);
+    return this.send(phone, 'otp_verify', [code]);
   }
 }
