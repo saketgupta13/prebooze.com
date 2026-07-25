@@ -407,7 +407,7 @@ export class OrganizerService {
   async listForAdmin(status?: string) {
     return this.prisma.event.findMany({
       where: status ? { status: status as never } : undefined,
-      include: { venue: true, organizer: true },
+      include: { venue: true, organizer: true, tiers: true },
       orderBy: { createdAt: 'asc' },
     });
   }

@@ -91,4 +91,52 @@ export const liveSubscriptions = {
   list: (role?: string) => liveFetch<LiveSubscription[]>('/admin/subscriptions' + (role ? `?role=${role}` : '')),
 };
 
+export interface LiveTicketTier {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  sold: number;
+}
+export interface LiveEvent {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  date: string;
+  status: 'draft' | 'pending' | 'approved' | 'rejected';
+  rejectionReason: string | null;
+  commission: number | null;
+  paidOut: boolean;
+  salesPaused: boolean;
+  venue: { id: string; name: string; city: string };
+  organizer: { id: string; brandName: string };
+  tiers: LiveTicketTier[];
+}
+export const liveEvents = {
+  list: (status?: string) => liveFetch<LiveEvent[]>('/admin/events' + (status ? `?status=${status}` : '')),
+  approve: (id: string) => liveFetch<LiveEvent>(`/admin/events/${id}/approve`, { method: 'POST' }),
+  reject: (id: string, reason: string) => liveFetch<LiveEvent>(`/admin/events/${id}/reject`, { method: 'POST', body: { reason } }),
+  setCommission: (id: string, commission: number | null) => liveFetch<LiveEvent>(`/admin/events/${id}/commission`, { method: 'PATCH', body: { commission } }),
+  setPaidOut: (id: string, paidOut: boolean) => liveFetch<LiveEvent>(`/admin/events/${id}/paid-out`, { method: 'PATCH', body: { paidOut } }),
+  setSalesPaused: (id: string, paused: boolean) => liveFetch<LiveEvent>(`/admin/events/${id}/pause-sales`, { method: 'PATCH', body: { paused } }),
+};
+
+export interface LiveKycApplication {
+  id: string;
+  kind: 'organizer' | 'promoter' | 'lineup' | 'venue';
+  status: 'pending' | 'approved' | 'rejected';
+  payload: Record<string, unknown>;
+  documents: { type: string; path: string }[];
+  createdAt: string;
+  reviewedBy: string | null;
+  reviewNote: string | null;
+  user: { phone: string; name: string; email: string | null };
+}
+export const liveKyc = {
+  list: (status?: string) => liveFetch<LiveKycApplication[]>('/admin/kyc' + (status ? `?status=${status}` : '')),
+  approve: (id: string) => liveFetch<{ ok: true }>(`/admin/kyc/${id}/approve`, { method: 'POST' }),
+  reject: (id: string, reason: string) => liveFetch<{ ok: true }>(`/admin/kyc/${id}/reject`, { method: 'POST', body: { reason } }),
+};
+
 export { LiveApiError };
