@@ -37,7 +37,13 @@ export class WhatsappService {
     }
   }
 
+  /** Campaign name is 'otp_login', not the more obvious 'otp' — Meta
+   * enforces a 30-day lockout on reusing a deleted template's name
+   * regardless of its prior approval status, and 'otp' burned through two
+   * failed submission attempts (Authentication-denied pre-verification,
+   * then Utility-paused for policy violation) before being deleted. Rather
+   * than wait a month, this uses a fresh name. */
   async sendOtp(phone: string, code: string): Promise<void> {
-    return this.send(phone, 'otp', [code]);
+    return this.send(phone, 'otp_login', [code]);
   }
 }
