@@ -288,4 +288,62 @@ export const liveLedger = {
   addCategory: (kind: 'income' | 'expense', name: string) => liveFetch<unknown>('/admin/ledger/categories', { body: { kind, name } }),
 };
 
+export const PERM_MODULES = [
+  'Dashboard', 'Events & approvals', 'Event commission (per event)', 'Bookings', 'Refunds',
+  'Payments & payouts', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
+  'Verifications (KYC)', 'Reviews', 'Locations', 'Abandoned carts', 'Featured', 'Content',
+  'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Reports',
+] as const;
+export type PermKey = 'view' | 'edit' | 'approve';
+export type Perms = Record<string, Record<PermKey, boolean>>;
+
+export interface LiveStaff {
+  id: string;
+  email: string;
+  name: string;
+  roleName: string;
+  city: string | null;
+  phone: string | null;
+  lastActiveAt: string | null;
+  createdAt: string;
+}
+export const liveStaff = {
+  list: () => liveFetch<LiveStaff[]>('/admin/staff'),
+  create: (body: { email: string; name?: string; roleName: string; city?: string; phone?: string }) =>
+    liveFetch<LiveStaff & { tempPassword: string }>('/admin/staff', { body }),
+  updateRole: (id: string, roleName: string) => liveFetch<LiveStaff>(`/admin/staff/${id}`, { method: 'PATCH', body: { roleName } }),
+  remove: (id: string) => liveFetch<{ ok: true }>(`/admin/staff/${id}`, { method: 'DELETE' }),
+};
+
+export const liveRoles = {
+  list: () => liveFetch<Record<string, Perms>>('/admin/roles'),
+  add: (name: string) => liveFetch<unknown>('/admin/roles', { body: { name } }),
+  setPerm: (name: string, module: string, key: PermKey, value: boolean) =>
+    liveFetch<unknown>(`/admin/roles/${encodeURIComponent(name)}`, { method: 'PATCH', body: { module, key, value } }),
+  remove: (name: string) => liveFetch<{ ok: true }>(`/admin/roles/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+};
+
+export interface LiveSettings {
+  bookingFee: number;
+  gstPct: number;
+  feeLabel: string;
+  absorbedBy: string;
+  payoutDay: string;
+  autoPayout: boolean;
+  weeklyEmail: boolean;
+  whatsappAlerts: boolean;
+  require2fa: boolean;
+  maintenanceMode: boolean;
+  salesPaused: boolean;
+  comingSoonMode: boolean;
+  socials: Record<string, string>;
+  siteSeo: Record<string, string>;
+  contact: Record<string, string>;
+  footerCopyright: string;
+}
+export const liveSettings = {
+  get: () => liveFetch<LiveSettings>('/admin/settings'),
+  update: (body: Partial<LiveSettings>) => liveFetch<LiveSettings>('/admin/settings', { method: 'PATCH', body }),
+};
+
 export { LiveApiError };
