@@ -6,7 +6,6 @@
  * comes from code. Substitution is plain string replace — there is no eval,
  * so an admin can only ever change wording/formatting, never inject script,
  * regardless of what they type into the editor. */
-import { LOGO_DATA_URI } from './logo-data';
 
 const GREEN = '#8bc34a';
 const BG = '#0e0f0a';
@@ -25,7 +24,7 @@ function layout(preheader: string, bodyHtml: string, cta?: { label: string; url:
     <tr><td align="center">
       <table role="presentation" width="100%" style="max-width:480px;background:${CARD};border:1px solid rgba(139,195,74,.18);border-radius:14px;overflow:hidden;">
         <tr><td style="padding:24px 28px 0;">
-          <img src="${LOGO_DATA_URI}" alt="Prebooze" height="28" style="height:28px;width:auto;display:block;" />
+          <img src="${webUrl}/prebooze-logo.png" alt="Prebooze" height="28" style="height:28px;width:auto;display:block;" />
         </td></tr>
         <tr><td style="padding:20px 28px 8px;color:${TEXT};font-size:14px;line-height:1.6;">
           ${bodyHtml}
