@@ -1,37 +1,77 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
-import { fmt } from '../store/data';
+import { useEffect, useState } from 'react';
+import { livePayments, LiveApiError, type LivePayoutRow } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import { Kpi } from '../components/ui';
 
+const TITLE = 'Payments & payouts';
 const TABS = ['Payouts due', 'Transactions', 'Refunds', 'Disputes'];
+const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
 
+/** Real per-event payout batch (PaymentsService.due/runBatch) — genuinely
+ * flips paidOut + records a real payout UTR, not a mock toast. "Payouts
+ * due" is the only tab with a real backend; the rest stay the same
+ * placeholder they always were. */
 export default function Payments() {
-  const { events, runPayoutBatch } = useAdmin();
-  const navigate = useNavigate();
+  const session = useLiveSession();
+  const { token } = session;
   const [tab, setTab] = useState(TABS[0]);
 
-  // Each row's commission % is pulled from that event's own rate — the event editor is the source of truth.
-  const rows = events
-    .filter((e) => e.status !== 'draft' && e.commission != null)
-    .map((e) => {
-      const commission = (e.revenue * (e.commission as number)) / 100;
-      return { ...e, commissionAmt: commission, net: e.revenue - commission };
-    });
-  const totalCommission = rows.reduce((a, r) => a + r.commissionAmt, 0);
+  const [rows, setRows] = useState<LivePayoutRow[]>([]);
+  const [summary, setSummary] = useState({ collected: 0, commissionKept: 0, gstCollected: 0, dueTotal: 0 });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [payingId, setPayingId] = useState<string | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    livePayments
+      .due()
+      .then(({ rows: r, ...s }) => {
+        setRows(r);
+        setSummary(s);
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  const pay = async (id: string) => {
+    setPayingId(id);
+    setErr('');
+    try {
+      await livePayments.runBatch([id]);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to run payout');
+    } finally {
+      setPayingId(null);
+    }
+  };
 
   return (
     <div className="stack fade" style={{ maxWidth: 1100 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+
       <div className="page-hd">
         <h1 className="page-title">Payments &amp; payouts</h1>
-        <button className="btn btn-pri" onClick={() => navigate('/payments/run')}>Run payout batch →</button>
       </div>
 
       <div className="kpi-grid">
-        <Kpi label="Collected" value="₹3.4L" />
-        <Kpi label="Commission kept" value={`₹${fmt(totalCommission)}`} />
-        <Kpi label="GST collected" value="₹7.4k" />
-        <Kpi label="Due Friday" value={<span className="red">₹2.9L</span>} alert />
+        <Kpi label="Collected" value={`₹${fmt(summary.collected)}`} />
+        <Kpi label="Commission kept" value={`₹${fmt(summary.commissionKept)}`} />
+        <Kpi label="GST collected" value={`₹${fmt(summary.gstCollected)}`} />
+        <Kpi label="Due total" value={<span className="red">₹{fmt(summary.dueTotal)}</span>} alert />
       </div>
 
       <div className="tabs">
@@ -50,13 +90,14 @@ export default function Payments() {
             <span style={{ flex: 1 }}>Net payout</span>
             <span style={{ flex: 0.9 }} />
           </div>
+          {rows.length === 0 && !loading && <div className="trow muted">No payouts due.</div>}
           {rows.map((r) => (
             <div key={r.id} className="trow" style={{ minWidth: 640 }}>
-              <span style={{ flex: 1.6, fontWeight: 700 }}>{r.organizer} ✓</span>
+              <span style={{ flex: 1.6, fontWeight: 700 }}>{r.organizer}</span>
               <span style={{ flex: 1.6 }} className="muted">{r.title}</span>
               <span style={{ flex: 1 }}>₹{fmt(r.revenue)}</span>
               <span style={{ flex: 1.1 }}>
-                ₹{fmt(r.commissionAmt)} <span className="muted">({r.commission}%)</span>
+                ₹{fmt(r.commissionAmt)} <span className="muted">({r.commission ?? 0}%)</span>
               </span>
               <span style={{ flex: 1, fontWeight: 700 }} className="green">
                 ₹{fmt(r.net)}
@@ -64,9 +105,11 @@ export default function Payments() {
               </span>
               <span style={{ flex: 0.9, display: 'flex', justifyContent: 'flex-end' }}>
                 {r.paidOut ? (
-                  <span className="tag tag-green" title={r.payoutUtr}>Paid ✓</span>
+                  <span className="tag tag-green" title={r.payoutUtr ?? undefined}>Paid ✓</span>
                 ) : (
-                  <button className="btn btn-ghost btn-sm" onClick={() => runPayoutBatch([r.id])}>Pay ⏸</button>
+                  <button className="btn btn-ghost btn-sm" disabled={payingId === r.id} onClick={() => pay(r.id)}>
+                    {payingId === r.id ? 'Paying…' : 'Pay ⏸'}
+                  </button>
                 )}
               </span>
             </div>
@@ -76,7 +119,7 @@ export default function Payments() {
         <div className="ph" style={{ height: 120, borderRadius: 10 }}>{tab} — coming with backend integration</div>
       )}
       <div className="tiny hint">
-        each row expands → per-booking breakdown, invoice PDF, UTR after transfer · commission % per row comes from each event's own rate — set in the event editor.
+        commission % per row comes from each event's own rate — set in the event editor.
       </div>
     </div>
   );

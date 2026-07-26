@@ -1,14 +1,26 @@
-import { useMemo, useState } from 'react';
-import { useAdmin } from '../store/AdminContext';
-import { fmt } from '../store/data';
+import { useEffect, useState } from 'react';
 import { Kpi, Tag } from '../components/ui';
-import type { LedgerEntry } from '../types';
 import { downloadCsv } from '../lib/csv';
+import { liveFinance, liveLedger, LiveApiError, type LiveFinance, type LiveLedgerEntry } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
-/** Income & expenses ledger. Ticket commission (and booking fees) post automatically
- * from event sales; everything else is entered manually with its own category. */
+const TITLE = 'Income & expenses';
+const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
+
+/** Real income & expenses ledger (LedgerService) — commission and booking
+ * fees post automatically per real event sale; everything else is entered
+ * manually. KPIs come from the same real P&L (ReportsService.finance) the
+ * Reports page's Profit & loss chip already uses. */
 export default function Finance() {
-  const { events, settings, ledger, ledgerCategories, addLedgerEntry, removeLedgerEntry, addLedgerCategory, toast } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
+
+  const [finance, setFinance] = useState<LiveFinance | null>(null);
+  const [entries, setEntries] = useState<LiveLedgerEntry[]>([]);
+  const [categories, setCategories] = useState<{ income: string[]; expense: string[] }>({ income: [], expense: [] });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
   const [kind, setKind] = useState<'income' | 'expense'>('expense');
   const [category, setCategory] = useState('');
@@ -18,75 +30,90 @@ export default function Finance() {
   const [showNewCat, setShowNewCat] = useState(false);
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
 
-  // Auto income — commission + booking fees from every selling event
-  const autoRows = useMemo<LedgerEntry[]>(
-    () =>
-      events
-        .filter((e) => e.status !== 'draft' && e.commission != null && e.revenue > 0)
-        .flatMap((e) => [
-          {
-            id: 'auto-c-' + e.id,
-            kind: 'income' as const,
-            category: 'Ticket commission',
-            amount: Math.round((e.revenue * (e.commission as number)) / 100),
-            note: `${e.title} · ${e.commission}% of ₹${fmt(e.revenue)} — auto`,
-            date: e.date,
-            auto: true,
-          },
-          {
-            id: 'auto-f-' + e.id,
-            kind: 'income' as const,
-            category: 'Booking fees',
-            amount: e.sold * settings.bookingFee,
-            note: `${e.title} · ${fmt(e.sold)} tickets × ₹${settings.bookingFee} — auto`,
-            date: e.date,
-            auto: true,
-          },
-        ]),
-    [events, settings.bookingFee]
-  );
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    Promise.all([liveFinance.get(), liveLedger.list(), liveLedger.categories()])
+      .then(([f, l, c]) => {
+        setFinance(f);
+        setEntries(l.entries);
+        setCategories(c);
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
 
-  const all = useMemo(() => [...ledger, ...autoRows], [ledger, autoRows]);
-  const income = all.filter((e) => e.kind === 'income').reduce((a, e) => a + e.amount, 0);
-  const expenses = all.filter((e) => e.kind === 'expense').reduce((a, e) => a + e.amount, 0);
-  const list = filter === 'all' ? all : all.filter((e) => e.kind === filter);
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
-  const cats = ledgerCategories[kind];
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  const cats = categories[kind];
+  const income = entries.filter((e) => e.kind === 'income').reduce((a, e) => a + e.amount, 0);
+  const expenses = entries.filter((e) => e.kind === 'expense').reduce((a, e) => a + e.amount, 0);
+  const autoCount = entries.filter((e) => e.auto).length;
+  const list = filter === 'all' ? entries : entries.filter((e) => e.kind === filter);
 
   const exportCsv = () => {
     const rows: (string | number)[][] = [
       ['Date', 'Kind', 'Category', 'Amount (₹)', 'Note', 'Auto-posted'],
-      ...list.map((e) => [e.date, e.kind, e.category, e.amount, e.note ?? '', e.auto ? 'yes' : 'no']),
+      ...list.map((e) => [e.createdAt.slice(0, 10), e.kind, e.category, e.amount, e.note ?? '', e.auto ? 'yes' : 'no']),
       [],
       ['Total income', '', '', income],
       ['Total expenses', '', '', expenses],
       ['Net profit', '', '', income - expenses],
     ];
     downloadCsv(`prebooze-ledger-${filter}-${new Date().toISOString().slice(0, 10)}.csv`, rows);
-    toast('Ledger exported as CSV ✓');
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseInt(amount.replace(/\D/g, ''), 10);
     if (!amt) {
-      toast('Enter an amount');
+      setErr('Enter an amount');
       return;
     }
-    addLedgerEntry({
-      id: 'l' + Date.now(),
-      kind,
-      category: category || cats[0],
-      amount: amt,
-      note: note.trim() || undefined,
-      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-    });
-    setAmount('');
-    setNote('');
+    try {
+      await liveLedger.addEntry({ kind, category: category || cats[0], amount: amt, note: note.trim() || undefined });
+      setAmount('');
+      setNote('');
+      load();
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to add entry');
+    }
+  };
+
+  const remove = async (id: string) => {
+    try {
+      await liveLedger.removeEntry(id);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : "Failed to remove — auto-posted entries can't be deleted");
+    }
+  };
+
+  const addCategory = async () => {
+    if (!newCat.trim()) return;
+    try {
+      await liveLedger.addCategory(kind, newCat.trim());
+      setCategory(newCat.trim());
+      setNewCat('');
+      setShowNewCat(false);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to add category');
+    }
   };
 
   return (
     <div className="stack fade" style={{ maxWidth: 1000, gap: 14 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+
       <div className="page-hd">
         <h1 className="page-title">Income &amp; expenses</h1>
         <button className="btn btn-ghost btn-sm" onClick={exportCsv}>⬇ Export</button>
@@ -96,8 +123,16 @@ export default function Finance() {
         <Kpi label="Total income" value={<span className="green">₹{fmt(income)}</span>} delta="commission + fees post automatically" deltaColor="var(--muted)" />
         <Kpi label="Total expenses" value={<span className="red">₹{fmt(expenses)}</span>} />
         <Kpi label="Net profit" value={`₹${fmt(income - expenses)}`} delta={`${income > 0 ? Math.round(((income - expenses) / income) * 100) : 0}% margin`} deltaColor={income - expenses >= 0 ? 'var(--green)' : 'var(--red)'} />
-        <Kpi label="Auto-posted entries" value={autoRows.length} delta="from ticket sales" deltaColor="var(--muted)" />
+        <Kpi label="Auto-posted entries" value={autoCount} delta="from ticket sales" deltaColor="var(--muted)" />
       </div>
+
+      {finance && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div className="card" style={{ minWidth: 130, flex: 1 }}><div className="tiny muted">GST payable</div><div style={{ fontSize: 16, fontWeight: 800 }}>₹{fmt(finance.gstPayable)}</div></div>
+          <div className="card" style={{ minWidth: 130, flex: 1 }}><div className="tiny muted">Cash</div><div style={{ fontSize: 16, fontWeight: 800 }}>₹{fmt(finance.cash)}</div></div>
+          <div className="card" style={{ minWidth: 130, flex: 1 }}><div className="tiny muted">Refunds pending</div><div style={{ fontSize: 16, fontWeight: 800 }}>₹{fmt(finance.refundsPending)}</div></div>
+        </div>
+      )}
 
       {/* Record entry */}
       <form className="card" style={{ border: '1px solid var(--green)', display: 'flex', flexDirection: 'column', gap: 10 }} onSubmit={submit}>
@@ -119,7 +154,7 @@ export default function Finance() {
           </div>
           <div className="field" style={{ flex: 1, minWidth: 150 }}>
             <label>Category</label>
-            <select className="input" value={category || cats[0]} onChange={(e) => setCategory(e.target.value)}>
+            <select className="input" value={category || cats[0] || ''} onChange={(e) => setCategory(e.target.value)}>
               {cats.map((c) => (
                 <option key={c}>{c}</option>
               ))}
@@ -141,17 +176,7 @@ export default function Finance() {
           ) : (
             <>
               <input className="input" style={{ width: 190, padding: '5px 10px', fontSize: 12 }} value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder={`New ${kind} category`} autoFocus />
-              <button
-                type="button"
-                className="btn btn-pri btn-sm"
-                onClick={() => {
-                  if (!newCat.trim()) return;
-                  addLedgerCategory(kind, newCat.trim());
-                  setCategory(newCat.trim());
-                  setNewCat('');
-                  setShowNewCat(false);
-                }}
-              >
+              <button type="button" className="btn btn-pri btn-sm" onClick={addCategory}>
                 Add
               </button>
             </>
@@ -164,7 +189,7 @@ export default function Finance() {
       <div style={{ display: 'flex', gap: 6 }}>
         {(['all', 'income', 'expense'] as const).map((f) => (
           <button key={f} className={`chip ${filter === f ? 'on' : ''}`} onClick={() => setFilter(f)}>
-            {f === 'all' ? `All (${all.length})` : f === 'income' ? `Income (${all.filter((x) => x.kind === 'income').length})` : `Expenses (${all.filter((x) => x.kind === 'expense').length})`}
+            {f === 'all' ? `All (${entries.length})` : f === 'income' ? `Income (${entries.filter((x) => x.kind === 'income').length})` : `Expenses (${entries.filter((x) => x.kind === 'expense').length})`}
           </button>
         ))}
       </div>
@@ -179,7 +204,7 @@ export default function Finance() {
         </div>
         {list.map((e) => (
           <div key={e.id} className="trow" style={{ minWidth: 620 }}>
-            <span style={{ flex: 0.8 }} className="muted">{e.date}</span>
+            <span style={{ flex: 0.8 }} className="muted">{new Date(e.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
             <span style={{ flex: 1 }}>
               {e.kind === 'income' ? <Tag label={e.auto ? 'Income · auto' : 'Income'} cls="tag-green" /> : <Tag label="Expense" cls="tag-red" />}
             </span>
@@ -190,13 +215,14 @@ export default function Finance() {
             </span>
             <span style={{ width: 40, display: 'flex', justifyContent: 'flex-end' }}>
               {!e.auto && (
-                <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => removeLedgerEntry(e.id)} title="Remove entry">
+                <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => remove(e.id)} title="Remove entry">
                   ✕
                 </button>
               )}
             </span>
           </div>
         ))}
+        {list.length === 0 && !loading && <div className="trow muted">No entries yet.</div>}
       </div>
       <div className="tiny hint">this ledger feeds the Profit &amp; loss report and balance sheet under Reports</div>
     </div>

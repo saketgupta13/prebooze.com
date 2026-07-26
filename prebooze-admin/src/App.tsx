@@ -47,7 +47,6 @@ import VerificationsLive from './pages/VerificationsLive';
 import BookingsLive from './pages/BookingsLive';
 import CustomersLive from './pages/CustomersLive';
 import DirectoryLive from './pages/DirectoryLive';
-import FinanceLive from './pages/FinanceLive';
 import StaffLive from './pages/StaffLive';
 import SettingsLive from './pages/SettingsLive';
 import ContentLive from './pages/ContentLive';
@@ -103,7 +102,6 @@ export default function App() {
         <Route path="/bookings-live" element={<BookingsLive />} />
         <Route path="/customers-live" element={<CustomersLive />} />
         <Route path="/directory-live" element={<DirectoryLive />} />
-        <Route path="/finance-live" element={<FinanceLive />} />
         <Route path="/staff-live" element={<StaffLive />} />
         <Route path="/content-live" element={<ContentLive />} />
         <Route path="/ops-live" element={<OpsLive />} />
