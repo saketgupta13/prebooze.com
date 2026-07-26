@@ -47,6 +47,14 @@ export class CatalogService {
     return [...items].sort((a, b) => Number(featured.has(idOf(b))) - Number(featured.has(idOf(a))));
   }
 
+  /** An event is "over" once its window (date → date + durationHrs) has
+   * fully elapsed — same definition Admin API's dashboard "live now" stat
+   * uses. Filtered in application code, not the Prisma `where`, since the
+   * cutoff depends on each row's own durationHrs. */
+  static isEventOver(e: { date: Date; durationHrs: number }, now = new Date()): boolean {
+    return new Date(e.date.getTime() + e.durationHrs * 3600000) < now;
+  }
+
   // ---------- events ----------
   async events(q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string }) {
     const events = await this.prisma.event.findMany({
@@ -61,7 +69,9 @@ export class CatalogService {
       orderBy: { date: 'asc' },
     });
 
-    const withPrice = events.map((e) => ({
+    const upcoming = events.filter((e) => !CatalogService.isEventOver(e));
+
+    const withPrice = upcoming.map((e) => ({
       ...e,
       minPrice: e.tiers.length ? Math.min(...e.tiers.map((t) => t.price)) : 0,
     }));
@@ -83,7 +93,9 @@ export class CatalogService {
       where: { slug },
       select: PUBLIC_EVENT_SELECT,
     });
-    if (!event || event.status !== 'approved') throw new NotFoundException('Event not found');
+    if (!event || event.status !== 'approved' || CatalogService.isEventOver(event)) {
+      throw new NotFoundException('Event not found');
+    }
     return event;
   }
 

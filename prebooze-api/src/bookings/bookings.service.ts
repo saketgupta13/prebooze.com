@@ -54,6 +54,12 @@ export class BookingsService {
 
     const event = await this.prisma.event.findUnique({ where: { id: hold.eventId }, include: { tiers: true } });
     if (!event) throw new NotFoundException('Event not found');
+    // re-checked here (not just at hold creation) since a hold can sit for up
+    // to HOLD_TTL_S before quote()/create() actually runs — same "over"
+    // definition as CatalogService.isEventOver / HoldsService.create.
+    if (new Date(event.date.getTime() + event.durationHrs * 3600000) < new Date()) {
+      throw new BadRequestException('This event has already happened — tickets are no longer on sale');
+    }
 
     const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
     if (settings?.maintenanceMode) throw new BadRequestException('Prebooze is temporarily down for maintenance — please check back shortly');

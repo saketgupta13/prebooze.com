@@ -27,6 +27,10 @@ export class HoldsService {
   async create(userId: string, eventId: string, qty: Record<string, number>) {
     const event = await this.prisma.event.findUnique({ where: { id: eventId }, include: { tiers: true } });
     if (!event || event.status !== 'approved') throw new NotFoundException('Event not found');
+    // same "over" definition as CatalogService.isEventOver / the admin dashboard's "live now" stat
+    if (new Date(event.date.getTime() + event.durationHrs * 3600000) < new Date()) {
+      throw new BadRequestException('This event has already happened — tickets are no longer on sale');
+    }
 
     let subtotal = 0;
     for (const [tierId, n] of Object.entries(qty)) {
