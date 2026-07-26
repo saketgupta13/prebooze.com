@@ -679,7 +679,11 @@ export const SEED_LOCATIONS = [
   },
 ];
 
-export const GUEST_SITE_URL = 'http://localhost:5173';
+// Was hardcoded to localhost:5173 unconditionally — every "View guest site"/
+// "Preview home"/"Browse as a guest" link in this app opened localhost for
+// every real admin, in production, since deploy. Env-aware now, same
+// VITE_*_URL pattern as VITE_API_URL.
+export const GUEST_SITE_URL = (import.meta.env.VITE_GUEST_SITE_URL as string | undefined) || 'http://localhost:5173';
 
 // Mirrors prebooze-api/src/notifications/email-templates.ts's TEMPLATE_DEFS
 // exactly (id, subject/body copy, {{token}} contract) — the real backend is
