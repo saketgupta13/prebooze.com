@@ -1,16 +1,30 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { CATEGORY_TREE, EVENTS, venueById } from '../data/mock';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { Event } from '../types';
 import { useSeo } from '../lib/useSeo';
 
-/** Browse-by-category directory — categories + sub-categories with live counts. */
+/** Browse-by-category directory — categories + sub-categories with live
+ * counts. Category names/subs still come from the local CATEGORY_TREE
+ * constant (the real public categories endpoint reads a legacy `Category`
+ * table with no admin UI wired to it yet — a separate, disclosed mismatch,
+ * not fixed here); the event counts themselves are real. */
 export default function Categories() {
   useSeo(null, 'Browse by category');
   const { city } = useApp();
-  const cityEvents = EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
+  const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.events({ city }).then(setLiveEvents).catch(() => setLiveEvents([]));
+  }, [city]);
+
+  const cityEvents = liveEvents ?? EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
   const catCount = (cat: string) => cityEvents.filter((e) => e.category === cat).length;
-  const subCount = (cat: string, sub: string) =>
-    cityEvents.filter((e) => e.category === cat && e.subCategory === sub).length;
+  const subCount = (cat: string, sub: string) => cityEvents.filter((e) => e.category === cat && e.subCategory === sub).length;
 
   return (
     <main className="page">

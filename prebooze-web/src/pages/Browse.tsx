@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { CATEGORY_TREE, EVENTS, subsFor, venueById } from '../data/mock';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { Event } from '../types';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import EventCard from '../components/EventCard';
 import { useSeo } from '../lib/useSeo';
@@ -10,7 +13,11 @@ const DATE_FILTERS = ['Any date', 'This weekend', 'This month'];
 const CATS = ['Category', ...CATEGORY_TREE.map((c) => c.name)];
 const PRICES = ['Price', 'Under ₹30', '₹30–₹80', '₹80+'];
 const SORTS = ['sorted by date', 'price low→high', 'price high→low'];
+const SORT_PARAM: Record<string, string | undefined> = { [SORTS[0]]: undefined, [SORTS[1]]: 'price_asc', [SORTS[2]]: 'price_desc' };
 
+/** Real event search — server does city/category/sub-category/search/sort
+ * (GET /events already supports all of these); price band and "this
+ * weekend" stay client-side post-filters since the API doesn't take them. */
 export default function Browse() {
   useSeo(null, 'Browse events');
   const { city, featured } = useApp();
@@ -22,17 +29,31 @@ export default function Browse() {
   const [price, setPrice] = useState(PRICES[0]);
   const [sort, setSort] = useState(SORTS[0]);
 
+  const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog
+      .events({ city, cat: cat === 'Category' ? undefined : cat, sub: sub || undefined, search: q || undefined, sort: SORT_PARAM[sort] })
+      .then(setLiveEvents)
+      .catch(() => setLiveEvents([]));
+  }, [city, cat, sub, q, sort]);
+
   const events = useMemo(() => {
-    let list = EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
-    if (q)
-      list = list.filter(
-        (e) =>
-          e.title.toLowerCase().includes(q) ||
-          venueById(e.venueId).name.toLowerCase().includes(q) ||
-          e.lineup.some((l) => l.name.toLowerCase().includes(q))
-      );
-    if (cat !== 'Category') list = list.filter((e) => e.category === cat);
-    if (sub) list = list.filter((e) => e.subCategory === sub);
+    let list: Event[];
+    if (liveEvents) {
+      list = liveEvents;
+    } else {
+      list = EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
+      if (q)
+        list = list.filter(
+          (e) =>
+            e.title.toLowerCase().includes(q) ||
+            venueById(e.venueId).name.toLowerCase().includes(q) ||
+            e.lineup.some((l) => l.name.toLowerCase().includes(q))
+        );
+      if (cat !== 'Category') list = list.filter((e) => e.category === cat);
+      if (sub) list = list.filter((e) => e.subCategory === sub);
+    }
     if (price === PRICES[1]) list = list.filter((e) => Math.min(...e.tiers.map((t) => t.price)) < 30);
     if (price === PRICES[2])
       list = list.filter((e) => {
@@ -43,27 +64,23 @@ export default function Browse() {
     if (dateF === 'This weekend') {
       list = list.filter((e) => [0, 5, 6].includes(new Date(e.date).getDay()));
     }
-    if (sort === SORTS[0]) list = [...list].sort((a, b) => a.date.localeCompare(b.date));
-    if (sort === SORTS[1])
-      list = [...list].sort(
-        (a, b) => Math.min(...a.tiers.map((t) => t.price)) - Math.min(...b.tiers.map((t) => t.price))
-      );
-    if (sort === SORTS[2])
-      list = [...list].sort(
-        (a, b) => Math.min(...b.tiers.map((t) => t.price)) - Math.min(...a.tiers.map((t) => t.price))
-      );
+    if (!liveEvents) {
+      // server already sorts real results; mock fallback still needs local sorting
+      if (sort === SORTS[0]) list = [...list].sort((a, b) => a.date.localeCompare(b.date));
+      if (sort === SORTS[1]) list = [...list].sort((a, b) => Math.min(...a.tiers.map((t) => t.price)) - Math.min(...b.tiers.map((t) => t.price)));
+      if (sort === SORTS[2]) list = [...list].sort((a, b) => Math.min(...b.tiers.map((t) => t.price)) - Math.min(...a.tiers.map((t) => t.price)));
+    }
     return featuredFirst(list, (e) => e.id, featuredRefs(featured, 'event', city));
-  }, [q, cat, sub, price, dateF, sort, city, featured]);
+  }, [liveEvents, q, cat, sub, price, dateF, sort, city, featured]);
 
   // sub-category counts within the selected city + category
   const subCounts = useMemo(() => {
     if (cat === 'Category') return new Map<string, number>();
     const m = new Map<string, number>();
-    EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city && e.category === cat).forEach(
-      (e) => e.subCategory && m.set(e.subCategory, (m.get(e.subCategory) ?? 0) + 1)
-    );
+    const source = liveEvents ?? EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
+    source.filter((e) => e.category === cat).forEach((e) => e.subCategory && m.set(e.subCategory, (m.get(e.subCategory) ?? 0) + 1));
     return m;
-  }, [cat, city]);
+  }, [cat, city, liveEvents]);
 
   return (
     <main className="page">
