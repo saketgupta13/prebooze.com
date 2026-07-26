@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import {
   CATEGORIES, CATEGORY_TREE, EVENTS, FAQS, LINEUPS, ORGANIZERS, PEOPLE, PROMOTERS, STATS, TESTIMONIALS, VENUES,
   eventsForPerson, venueById,
 } from '../data/mock';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { Event } from '../types';
 import { friendsGoing, personFollowKey } from '../lib/social';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import EventCard from '../components/EventCard';
@@ -110,14 +113,28 @@ export default function Home() {
     return () => clearInterval(t);
   }, []);
 
-  const published = EVENTS.filter((e) => e.status === 'approved');
-  const soldOf = (e: typeof EVENTS[number]) => e.tiers.reduce((a, t) => a + t.sold, 0);
-  const events = featuredFirst(
-    (cat === 'All' ? published : published.filter((e) => e.category === cat))
-      .filter((e) => venueById(e.venueId)?.city === city)
-      .sort((a, b) => soldOf(b) - soldOf(a)),
-    (e) => e.id,
-    eventFeat
+  // Real catalog events (all cities — city filtering happens below, same as
+  // the mock path) with a mock fallback when the backend is unreachable.
+  const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.events({}).then(setLiveEvents).catch(() => setLiveEvents([]));
+  }, []);
+
+  const published = liveEvents ?? EVENTS.filter((e) => e.status === 'approved');
+  const cityOf = (e: Event) => e.venue?.city ?? venueById(e.venueId)?.city;
+  const soldOf = (e: Event) => e.tiers.reduce((a, t) => a + t.sold, 0);
+  const events = useMemo(
+    () =>
+      featuredFirst(
+        (cat === 'All' ? published : published.filter((e) => e.category === cat))
+          .filter((e) => cityOf(e) === city)
+          .sort((a, b) => soldOf(b) - soldOf(a)),
+        (e) => e.id,
+        eventFeat
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [published, cat, city, eventFeat]
   );
 
   // Strictly city-scoped top lists — empty sections are hidden.
@@ -193,7 +210,7 @@ export default function Home() {
         {(() => {
           const tiles = CATEGORY_TREE.map((c) => ({
             ...c,
-            n: published.filter((e) => e.category === c.name && venueById(e.venueId)?.city === city).length,
+            n: published.filter((e) => e.category === c.name && cityOf(e) === city).length,
           })).filter((c) => c.n > 0);
           if (tiles.length === 0) return null;
           const cells = tiles.map((c) => (
