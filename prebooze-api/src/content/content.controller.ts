@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Header, Param, Query } from '@nestjs/common';
 import { ContentService } from './content.service';
 
 @Controller()
@@ -55,7 +55,12 @@ export class ContentController {
     return this.content.reels();
   }
 
+  // No Cache-Control header was set at all, so browsers were free to apply
+  // heuristic caching to this frequently-changed, admin-editable endpoint —
+  // an admin could save a change and still see stale content afterward.
+  // no-store forces a real network fetch every time.
   @Get('settings')
+  @Header('Cache-Control', 'no-store')
   settings() {
     return this.content.platformInfo();
   }
