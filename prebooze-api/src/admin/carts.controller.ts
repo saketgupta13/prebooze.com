@@ -17,6 +17,12 @@ export class AdminCartsController {
     return this.carts.list(eventId);
   }
 
+  @Get('stats')
+  @RequirePermission(MODULE, 'view')
+  stats() {
+    return this.carts.stats();
+  }
+
   @Post(':id/remind')
   @RequirePermission(MODULE, 'edit')
   remind(@Param('id') id: string) {

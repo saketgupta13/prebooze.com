@@ -34,6 +34,26 @@ export class CartsService {
     }));
   }
 
+  /** Recovery KPIs — "recovered" means the cart's hold converted into a real
+   * booking (BookingsService.create flips status to 'completed'); there's
+   * no separate "abandoned" status, every non-completed cart is still live. */
+  async stats() {
+    const [open, completed] = await Promise.all([
+      this.prisma.cart.findMany({ where: { status: 'active' }, select: { total: true } }),
+      this.prisma.cart.findMany({ where: { status: 'completed' }, select: { total: true } }),
+    ]);
+    const recoverable = open.reduce((a, c) => a + c.total, 0);
+    const recoveredValue = completed.reduce((a, c) => a + c.total, 0);
+    const totalSeen = open.length + completed.length;
+    return {
+      openCount: open.length,
+      recoverable,
+      recoveredCount: completed.length,
+      recoveredValue,
+      recoveryRate: totalSeen ? Math.round((completed.length / totalSeen) * 100) : 0,
+    };
+  }
+
   async remind(id: string) {
     const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: true } });
     if (!cart) throw new NotFoundException('Cart not found');
