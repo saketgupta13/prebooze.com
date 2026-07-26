@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp, CART_HOLD_MINUTES } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import type { Booking, Event, PayMethod } from '../types';
-import { bookings, catalog, wallet, type BookingQuote } from '../api';
+import { auth, bookings, catalog, wallet, type BookingQuote } from '../api';
 import { isBackendEnabled } from '../api/client';
 import { existingRole, roleHome, roleLabel } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
@@ -13,6 +13,8 @@ const ABSORBED_NOTE: Record<string, string> = {
   Guest: 'paid by you',
   Split: 'split between you and the organizer',
 };
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function loadRazorpayScript(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -328,6 +330,12 @@ export default function Checkout() {
     if (!holdId) return;
     setPaying(true);
     try {
+      // the booking confirmation email is sent to the account's profile
+      // email (there's no separate per-booking email on the backend), so
+      // persist whatever the guest just typed here before creating it
+      if (email.trim() !== (user?.email ?? '')) {
+        await auth.updateMe({ email: email.trim() }).catch(() => {});
+      }
       const q = quote ?? (await bookings.quote(holdId, appliedCode ?? undefined, useCredit ? effectiveWalletBalance : 0));
       const guestsPayload = allGuests
         ? Array.from({ length: ticketCount - 1 }, (_, i) => ({
@@ -430,6 +438,10 @@ export default function Checkout() {
   const pay = () => {
     if (!name.trim() || !whatsapp.trim()) {
       setCouponMsg({ ok: false, text: 'Main attendee name and WhatsApp number are required' });
+      return;
+    }
+    if (!EMAIL_RE.test(email.trim())) {
+      setCouponMsg({ ok: false, text: 'Enter a valid email — your ticket confirmation is sent there too' });
       return;
     }
     if (liveEvent) payLive();
@@ -567,12 +579,12 @@ export default function Checkout() {
                   </div>
                 ))}
               <div className="field">
-                <span>Email (optional)</span>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@mail.com" />
+                <span>Email</span>
+                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@mail.com" />
               </div>
               <div className="small muted">
-                🎟 Tickets sent to WhatsApp <span className="bold">{whatsapp || '—'}</span>{' '}
-                <span className="verified">✓</span>
+                🎟 Tickets sent to WhatsApp <span className="bold">{whatsapp || '—'}</span> and emailed to{' '}
+                <span className="bold">{email || '—'}</span> <span className="verified">✓</span>
               </div>
             </div>
 
