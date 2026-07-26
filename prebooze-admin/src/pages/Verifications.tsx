@@ -1,19 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
-import { CityFilterDropdown, Tag } from '../components/ui';
-import { enabledCityNames, placeholderDocImage } from '../store/data';
-import type { KycApplication, KycKind } from '../types';
+import { Tag } from '../components/ui';
+import { liveKyc, resolveDocUrl, LiveApiError, type LiveKycApplication } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
-const KIND_ICON: Record<KycKind, string> = { organizer: '🧑‍💼', promoter: '📣', lineup: '🎤', venue: '📍' };
-const KIND_LABEL: Record<KycKind, string> = { organizer: 'Organizer', promoter: 'Promoter', lineup: 'Line-up', venue: 'Venue' };
+const TITLE = 'Verifications';
+const KIND_ICON: Record<string, string> = { organizer: '🧑‍💼', promoter: '📣', lineup: '🎤', venue: '📍' };
+const KIND_LABEL: Record<string, string> = { organizer: 'Organizer', promoter: 'Promoter', lineup: 'Line-up', venue: 'Venue' };
 
-/** Real document previewer + download — no real backend/uploads exist in
- * this mock, so a generated placeholder image stands in for the real file
- * a live KYC submission would have (same "give it something real to hold"
- * reasoning as everywhere else images were faked before). */
-function DocumentModal({ doc, onClose }: { doc: { type: string; note: string }; onClose: () => void }) {
-  const url = placeholderDocImage(doc.type, doc.note);
+function DocumentModal({ doc, onClose }: { doc: { type: string; path: string }; onClose: () => void }) {
+  const url = resolveDocUrl(doc.path);
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
       <div className="card" style={{ maxWidth: 520, padding: 16 }} onClick={(e) => e.stopPropagation()}>
@@ -22,8 +19,7 @@ function DocumentModal({ doc, onClose }: { doc: { type: string; note: string }; 
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
         <img src={url} alt={doc.type} style={{ width: '100%', borderRadius: 8 }} />
-        <div className="tiny muted" style={{ marginTop: 8 }}>{doc.note}</div>
-        <a href={url} download={`${doc.type.replace(/\s+/g, '-').toLowerCase()}.svg`} className="btn btn-pri btn-sm" style={{ marginTop: 10, display: 'inline-block' }}>
+        <a href={url} download className="btn btn-pri btn-sm" style={{ marginTop: 10, display: 'inline-block' }}>
           ⬇ Download
         </a>
       </div>
@@ -31,34 +27,71 @@ function DocumentModal({ doc, onClose }: { doc: { type: string; note: string }; 
   );
 }
 
-/** Manual verification queue — every organizer/promoter/lineup/venue signup
- * is reviewed here by a human before it becomes a live entity. Guest ID
- * verification is automatic and never appears in this queue. */
+/** Real manual verification queue — every organizer/promoter/lineup/venue
+ * signup is reviewed here by a human before it becomes a live entity. Guest
+ * ID verification is automatic (KycService.submitGuest) and never appears
+ * in this queue. */
 export default function Verifications() {
-  const { kycApplications, approveKycApplication, rejectKycApplication, locations } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
+
+  const [apps, setApps] = useState<LiveKycApplication[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
   const [tab, setTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
-  const [kindF, setKindF] = useState<'All' | KycKind>('All');
-  const [cityF, setCityF] = useState('All');
+  const [kindF, setKindF] = useState<'All' | LiveKycApplication['kind']>('All');
   const [rejecting, setRejecting] = useState<string | null>(null);
   const [reason, setReason] = useState('');
-  const [previewDoc, setPreviewDoc] = useState<{ appId: string; type: string; note: string } | null>(null);
-  const cities = enabledCityNames(locations);
+  const [previewDoc, setPreviewDoc] = useState<{ type: string; path: string } | null>(null);
 
-  const pendingCount = kycApplications.filter((k) => k.status === 'pending').length;
-  const list = kycApplications
-    .filter((k) => k.status === tab)
-    .filter((k) => kindF === 'All' || k.kind === kindF)
-    .filter((k) => cityF === 'All' || k.city === cityF);
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    liveKyc
+      .list()
+      .then(setApps)
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
 
-  const submitReject = (app: KycApplication) => {
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  const pendingCount = apps.filter((a) => a.status === 'pending').length;
+  const list = apps.filter((a) => a.status === tab).filter((a) => kindF === 'All' || a.kind === kindF);
+
+  const approve = async (id: string) => {
+    try {
+      await liveKyc.approve(id);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to approve');
+    }
+  };
+
+  const submitReject = async (app: LiveKycApplication) => {
     if (!reason.trim()) return;
-    rejectKycApplication(app.id, reason.trim());
-    setRejecting(null);
-    setReason('');
+    try {
+      await liveKyc.reject(app.id, reason.trim());
+      setRejecting(null);
+      setReason('');
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to reject');
+    }
   };
 
   return (
     <div className="stack fade" style={{ maxWidth: 1000 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+
       <div className="page-hd">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <h1 className="page-title">Verifications</h1>
@@ -82,14 +115,13 @@ export default function Verifications() {
             </button>
           ))}
         </div>
-        <select className="input" style={{ maxWidth: 160 }} value={kindF} onChange={(e) => setKindF(e.target.value as 'All' | KycKind)}>
+        <select className="input" style={{ maxWidth: 160 }} value={kindF} onChange={(e) => setKindF(e.target.value as 'All' | LiveKycApplication['kind'])}>
           <option value="All">All roles</option>
           <option value="organizer">Organizer</option>
           <option value="promoter">Promoter</option>
           <option value="lineup">Line-up</option>
           <option value="venue">Venue</option>
         </select>
-        <CityFilterDropdown value={cityF} onChange={setCityF} cities={cities} />
       </div>
 
       {list.length === 0 ? (
@@ -102,10 +134,13 @@ export default function Verifications() {
                 <div>
                   <div style={{ fontWeight: 700 }}>
                     {KIND_ICON[app.kind]}{' '}
-                    <Link to={`/verifications/${app.id}`} style={{ color: 'inherit' }}>{app.applicantName}</Link>
+                    <Link to={`/verifications/${app.id}`} style={{ color: 'inherit' }}>{app.user.name || app.user.phone}</Link>
                     <span className="tiny muted"> · {KIND_LABEL[app.kind]}</span>
                   </div>
-                  <div className="tiny muted">{app.applicantPhone} · {app.city} · submitted {app.submittedAt}</div>
+                  <div className="tiny muted">
+                    {app.user.phone}
+                    {app.user.email ? ` · ${app.user.email}` : ''} · submitted {new Date(app.createdAt).toLocaleDateString('en-IN')}
+                  </div>
                 </div>
                 {app.status === 'approved' && <Tag label="Approved" cls="tag-green" />}
                 {app.status === 'rejected' && <Tag label="Rejected" cls="tag-red" />}
@@ -115,21 +150,21 @@ export default function Verifications() {
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
                 {Object.entries(app.payload).map(([k, v]) => (
                   <span key={k} className="muted">
-                    <b style={{ color: 'var(--text, inherit)' }}>{k}:</b> {v}
+                    <b style={{ color: 'var(--text, inherit)' }}>{k}:</b> {String(v)}
                   </span>
                 ))}
               </div>
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {app.documents.map((d) => (
+                {app.documents.map((d, i) => (
                   <button
-                    key={d.type}
+                    key={`${d.type}-${i}`}
                     type="button"
                     className="chip"
                     title="Click to preview & download"
-                    onClick={() => setPreviewDoc({ appId: app.id, ...d })}
+                    onClick={() => setPreviewDoc(d)}
                   >
-                    📄 {d.type} — {d.note}
+                    📄 {d.type}
                   </button>
                 ))}
                 <Link to={`/verifications/${app.id}`} className="chip">View full application →</Link>
@@ -141,8 +176,8 @@ export default function Verifications() {
 
               {app.status === 'pending' && (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn-pri btn-sm" onClick={() => approveKycApplication(app.id)}>
-                    ✓ Approve & activate
+                  <button className="btn btn-pri btn-sm" onClick={() => approve(app.id)}>
+                    ✓ Approve &amp; activate
                   </button>
                   {rejecting === app.id ? (
                     <>

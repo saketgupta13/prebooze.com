@@ -201,6 +201,14 @@ export const liveKyc = {
   reject: (id: string, reason: string) => liveFetch<{ ok: true }>(`/admin/kyc/${id}/reject`, { method: 'POST', body: { reason } }),
 };
 
+/** KYC documents are served outside the /v1 prefix (see main.ts); older rows
+ * (saved before StorageService started returning an absolute URL) still have
+ * a bare "/uploads/…" path, so resolve those against the API origin here. */
+export function resolveDocUrl(path: string): string {
+  if (/^https?:\/\//.test(path)) return path;
+  return (API_URL ?? '').replace(/\/v1\/?$/, '') + path;
+}
+
 export interface LiveBooking {
   id: string;
   mainGuest: string;
