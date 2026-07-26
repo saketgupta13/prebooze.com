@@ -1,67 +1,89 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
-import { promoLabel } from '../store/data';
 import { Tag } from '../components/ui';
-import type { Gender } from '../types';
+import { livePromos, LiveApiError, type LivePromo } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
-const GENDERS: { key: Gender; label: string }[] = [
+const TITLE = 'Promo codes';
+const GENDERS: { key: string; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'women', label: 'Women' },
   { key: 'men', label: 'Men' },
   { key: 'other', label: 'Other' },
 ];
-
-const audienceLabel = (g: Gender) =>
+const audienceLabel = (g: string) =>
   g === 'all' ? 'everyone' : g === 'women' ? 'women only' : g === 'men' ? 'men only' : 'other';
+const discountLabel = (p: LivePromo) => (p.type === 'percent' ? `${p.value}% off${p.maxDiscount ? ` (up to ₹${p.maxDiscount})` : ''}` : `₹${p.value} off`);
 
+/** Real platform-wide promo codes — Coupon rows with organizerId: null
+ * (PromosService), the same model an organizer's own coupons use. */
 export default function Promos() {
-  const { promos, addPromo, removePromo, toast } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
+
+  const [promos, setPromos] = useState<LivePromo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
   const [code, setCode] = useState('');
   const [ptype, setPtype] = useState<'percent' | 'flat'>('percent');
   const [value, setValue] = useState('');
   const [maxCap, setMaxCap] = useState('');
-  const [gender, setGender] = useState<Gender>('all');
+  const [gender, setGender] = useState('all');
   const [description, setDescription] = useState('');
 
-  const create = (e: React.FormEvent) => {
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    livePromos
+      .list()
+      .then(setPromos)
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  const create = async (e: React.FormEvent) => {
     e.preventDefault();
     const c = code.trim().toUpperCase();
-    if (!c) {
-      toast('Enter a code first');
-      return;
-    }
-    if (promos.some((p) => p.code === c)) {
-      toast(`${c} already exists`);
-      return;
-    }
+    if (!c) { setErr('Enter a code first'); return; }
     const v = parseFloat(value) || 10;
-    if (ptype === 'percent' && v > 100) {
-      toast('Percentage discount cannot exceed 100%');
-      return;
-    }
+    if (ptype === 'percent' && v > 100) { setErr('Percentage discount cannot exceed 100%'); return; }
     const cap = maxCap ? parseInt(maxCap, 10) : undefined;
-    addPromo({
-      code: c,
-      discountLabel: promoLabel(ptype, v, ptype === 'percent' ? cap : undefined),
-      description: description.trim() || undefined,
-      scope: 'all events',
-      gender,
-      usedLabel: '0/∞',
-      status: 'active',
-      type: ptype,
-      value: v,
-      maxCap: ptype === 'percent' ? cap : undefined,
-    });
-    setCode('');
-    setValue('');
-    setMaxCap('');
-    setGender('all');
-    setDescription('');
+    try {
+      await livePromos.create({
+        code: c,
+        type: ptype,
+        value: v,
+        maxDiscount: ptype === 'percent' ? cap : undefined,
+        gender,
+        description: description.trim() || undefined,
+      });
+      setCode(''); setValue(''); setMaxCap(''); setGender('all'); setDescription('');
+      load();
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to create');
+    }
+  };
+
+  const remove = async (c: string) => {
+    if (!window.confirm(`Remove promo ${c}?`)) return;
+    try { await livePromos.remove(c); load(); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed to remove'); }
   };
 
   return (
     <div className="stack fade" style={{ maxWidth: 900 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
       <h1 className="page-title">Promo codes</h1>
 
       <div className="tblwrap">
@@ -75,38 +97,25 @@ export default function Promos() {
           <span style={{ width: 84 }} />
         </div>
         {promos.map((p) => (
-          <div key={p.code} className="trow" style={{ minWidth: 560 }}>
+          <div key={p.id} className="trow" style={{ minWidth: 560 }}>
             <span style={{ flex: 1.2, fontWeight: 700 }}>
               {p.code}
               {p.description && <span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>{p.description}</span>}
             </span>
-            <span style={{ flex: 1.3 }} className="muted">{p.discountLabel}</span>
-            <span style={{ flex: 1.2 }} className="muted">{p.scope}</span>
+            <span style={{ flex: 1.3 }} className="muted">{discountLabel(p)}</span>
+            <span style={{ flex: 1.2 }} className="muted">{p.eventScope === 'all' ? (p.firstTimeOnly ? 'first booking' : 'all events') : p.eventScope}</span>
             <span style={{ flex: 1 }} className="muted">{audienceLabel(p.gender)}</span>
-            <span style={{ flex: 0.8 }}>{p.usedLabel}</span>
+            <span style={{ flex: 0.8 }}>{p.used}/{p.usageLimit}</span>
             <span style={{ flex: 1 }}>
-              {p.status === 'active' ? (
-                <Tag label="Active" cls="tag-green" />
-              ) : p.status === 'paused' ? (
-                <Tag label="Paused" cls="" />
-              ) : (
-                <Tag label="Expired" cls="tag-dim" />
-              )}
+              {p.status === 'active' ? <Tag label="Active" cls="tag-green" /> : <Tag label="Paused" cls="" />}
             </span>
             <span style={{ width: 84, display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
               <Link to={`/promos/${p.code}/edit`} className="btn btn-ghost btn-sm" style={{ padding: '3px 8px' }}>✎</Link>
-              <button
-                className="btn btn-danger btn-sm"
-                style={{ padding: '3px 8px' }}
-                onClick={() => {
-                  if (window.confirm(`Remove promo ${p.code}?`)) removePromo(p.code);
-                }}
-              >
-                ✕
-              </button>
+              <button className="btn btn-danger btn-sm" style={{ padding: '3px 8px' }} onClick={() => remove(p.code)}>✕</button>
             </span>
           </div>
         ))}
+        {promos.length === 0 && !loading && <div className="trow muted">No promo codes yet.</div>}
       </div>
 
       <form className="card" style={{ border: '1px solid var(--green)', display: 'flex', flexDirection: 'column', gap: 8 }} onSubmit={create}>

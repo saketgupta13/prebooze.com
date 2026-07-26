@@ -93,53 +93,6 @@ export function Banners() {
   );
 }
 
-export function Categories() {
-  const { categories, removeCategory } = useAdmin();
-  const navigate = useNavigate();
-  return (
-    <div className="stack fade" style={{ maxWidth: 700 }}>
-      <div className="page-hd">
-        <h1 className="page-title">Categories</h1>
-        <Link to="/categories/new" className="btn btn-pri">+ Add category</Link>
-      </div>
-      <div className="stack" style={{ gap: 6 }}>
-        {categories.map((c, i) => (
-          <button
-            key={c.name + i}
-            className="card"
-            style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 12px', fontSize: 12.5, cursor: 'pointer', textAlign: 'left', color: 'var(--text)' }}
-            onClick={() => navigate(`/categories/${encodeURIComponent(c.name)}/edit`)}
-          >
-            <span className="muted">⠿</span>
-            <span style={{ flex: 1 }}>
-              {c.icon} <b>{c.name}</b> · {c.count} events · {(c.subCategories ?? []).length} sub-categories
-              {c.hasImage && <span className="tiny green"> · cover ✓</span>}
-              {c.seo?.title && <span className="tiny green"> · SEO ✓</span>}
-            </span>
-            {c.count === 0 ? <Tag label="Hidden" cls="tag-dim" /> : <Tag label="Visible" cls="tag-green" />}
-            <span className="muted">✎</span>
-            <span
-              className="btn btn-danger btn-sm"
-              style={{ padding: '2px 7px' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (c.count > 0) {
-                  window.alert(`"${c.name}" still has ${c.count} events — move them first.`);
-                  return;
-                }
-                if (window.confirm(`Remove category "${c.name}"?`)) removeCategory(c.name);
-              }}
-            >
-              ✕
-            </span>
-          </button>
-        ))}
-      </div>
-      <div className="tiny hint">click a category to edit its icon, cover image and SEO landing page · drag sets chip order on home</div>
-    </div>
-  );
-}
-
 export function Blogs() {
   const { blogs, removeBlog } = useAdmin();
   const navigate = useNavigate();

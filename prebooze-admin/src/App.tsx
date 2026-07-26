@@ -23,7 +23,8 @@ import { AddVenue, VenueDetail, Venues } from './pages/Venues';
 import Payments from './pages/Payments';
 import Promos from './pages/Promos';
 import Reports from './pages/Reports';
-import { Banners, Blogs, Categories, Pages } from './pages/Content';
+import { Banners, Blogs, Pages } from './pages/Content';
+import Categories from './pages/Categories';
 import StaffRoles from './pages/StaffRoles';
 import LiveMonitor from './pages/LiveMonitor';
 import OrganizerEdit from './pages/OrganizerEdit';
@@ -46,7 +47,6 @@ import SubscriptionPlansLive from './pages/SubscriptionPlansLive';
 import DirectoryLive from './pages/DirectoryLive';
 import SettingsLive from './pages/SettingsLive';
 import ContentLive from './pages/ContentLive';
-import OpsLive from './pages/OpsLive';
 import AddPromoter from './pages/AddPromoter';
 import PromoterEdit from './pages/PromoterEdit';
 import Testimonials from './pages/Testimonials';
@@ -92,7 +92,6 @@ export default function App() {
         <Route path="/subscription-plans" element={<SubscriptionPlansLive />} />
         <Route path="/directory-live" element={<DirectoryLive />} />
         <Route path="/content-live" element={<ContentLive />} />
-        <Route path="/ops-live" element={<OpsLive />} />
         <Route path="/promoters/:id" element={<PromoterDetail />} />
         <Route path="/promoters/:id/edit" element={<PromoterEdit />} />
         <Route path="/locations" element={<Locations />} />

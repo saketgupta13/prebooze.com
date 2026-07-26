@@ -472,22 +472,45 @@ export const livePolicies = {
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/policies/${id}`, { method: 'DELETE' }),
 };
 
-export interface LiveCategory { name: string; icon: string; imageUrl: string | null; }
+export interface LiveCategory { name: string; icon: string; imageUrl: string | null; seo: Seo | null; }
 export const liveCategories = {
   list: () => liveFetch<LiveCategory[]>('/admin/categories'),
   add: (name: string, icon?: string) => liveFetch<LiveCategory>('/admin/categories', { body: { name, icon } }),
+  update: (name: string, body: { icon?: string; imageUrl?: string; seo?: Seo }) =>
+    liveFetch<LiveCategory>(`/admin/categories/${encodeURIComponent(name)}`, { method: 'PATCH', body }),
   remove: (name: string) => liveFetch<{ ok: true }>(`/admin/categories/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 };
 
-export interface LivePromo { id: string; code: string; type: 'percent' | 'flat'; value: number; status: string; usageLimit: number | null; validTill: string | null; }
+export interface LivePromo {
+  id: string;
+  code: string;
+  type: 'percent' | 'flat';
+  value: number;
+  maxDiscount: number | null;
+  usageLimit: number;
+  used: number;
+  perUserLimit: number;
+  eventScope: string;
+  validTill: string;
+  firstTimeOnly: boolean;
+  gender: string;
+  description: string | null;
+  status: string;
+}
 export const livePromos = {
   list: () => liveFetch<LivePromo[]>('/admin/promos'),
-  create: (body: { code: string; type: 'percent' | 'flat'; value: number; validTill?: string }) => liveFetch<LivePromo>('/admin/promos', { body }),
-  update: (code: string, body: { status?: 'active' | 'paused' }) => liveFetch<LivePromo>(`/admin/promos/${code}`, { method: 'PATCH', body }),
+  create: (body: {
+    code: string; type: 'percent' | 'flat'; value: number; maxDiscount?: number; usageLimit?: number;
+    perUserLimit?: number; eventScope?: string; validTill?: string; firstTimeOnly?: boolean; gender?: string; description?: string;
+  }) => liveFetch<LivePromo>('/admin/promos', { body }),
+  update: (code: string, body: {
+    value?: number; maxDiscount?: number; usageLimit?: number; perUserLimit?: number; eventScope?: string;
+    validTill?: string; firstTimeOnly?: boolean; gender?: string; status?: 'active' | 'paused'; description?: string;
+  }) => liveFetch<LivePromo>(`/admin/promos/${code}`, { method: 'PATCH', body }),
   remove: (code: string) => liveFetch<{ ok: true }>(`/admin/promos/${code}`, { method: 'DELETE' }),
 };
 
-export interface LiveReel { id: string; title: string; active: boolean; videoUrl: string | null; }
+export interface LiveReel { id: string; title: string; hue: number; active: boolean; videoUrl: string | null; }
 export const liveReels = {
   list: () => liveFetch<LiveReel[]>('/admin/reels'),
   create: (body: { title: string; videoUrl?: string }) => liveFetch<LiveReel>('/admin/reels', { body }),
@@ -495,9 +518,10 @@ export const liveReels = {
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/reels/${id}`, { method: 'DELETE' }),
 };
 
-export interface LiveReview { id: string; rating: number; text: string; createdAt: string; user: { name: string }; organizerId: string; }
+export interface LiveReview { id: string; rating: number; text: string; createdAt: string; user: { name: string; phone: string }; organizerId: string; organizerName: string; }
 export const liveReviews = {
-  list: () => liveFetch<LiveReview[]>('/admin/reviews'),
+  list: (organizerId?: string) => liveFetch<LiveReview[]>('/admin/reviews' + (organizerId ? `?organizerId=${organizerId}` : '')),
+  update: (id: string, body: { rating?: number; text?: string }) => liveFetch<LiveReview>(`/admin/reviews/${id}`, { method: 'PATCH', body }),
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/reviews/${id}`, { method: 'DELETE' }),
 };
 
