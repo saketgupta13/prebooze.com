@@ -540,7 +540,25 @@ export const liveReferrals = {
   updateRates: (body: { referee?: number; referrer?: number }) => liveFetch<{ referee: number; referrer: number }>('/admin/referrals/rates', { method: 'PATCH', body }),
 };
 
-export interface LiveInvoice { id: string; number: string; type: string; role: string; payerName: string; city: string | null; subtotal: number; gstAmount: number; total: number; status: string; issuedAt: string; }
+export interface LiveInvoice {
+  id: string;
+  number: string;
+  type: string;
+  role: string;
+  refId: string;
+  payerName: string;
+  payerEmail: string | null;
+  payerPhone: string | null;
+  city: string | null;
+  description: string;
+  subtotal: number;
+  gstPct: number;
+  gstAmount: number;
+  total: number;
+  status: string;
+  issuedAt: string;
+  lastSentAt: string | null;
+}
 export const liveInvoices = {
   list: (filters?: { role?: string; city?: string; type?: string; from?: string; to?: string }) => {
     const q = new URLSearchParams();
@@ -548,6 +566,7 @@ export const liveInvoices = {
     const qs = q.toString();
     return liveFetch<LiveInvoice[]>('/admin/invoices' + (qs ? `?${qs}` : ''));
   },
+  get: (id: string) => liveFetch<LiveInvoice>(`/admin/invoices/${id}`),
   downloadPdf: async (id: string, filename: string) => {
     const token = getLiveToken();
     const res = await fetch(`${API_URL}/admin/invoices/${id}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });

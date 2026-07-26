@@ -1,19 +1,25 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
-import { enabledCityNames, fmt } from '../store/data';
 import { CityFilterDropdown, Kpi, Tag } from '../components/ui';
+import { liveInvoices, LiveApiError, type LiveInvoice } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
+const TITLE = 'Invoices';
+const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
 const ROLE_LABEL: Record<string, string> = { guest: 'Guest', organizer: 'Organizer', promoter: 'Promoter', venue: 'Venue', lineup: 'Line-up' };
 
 /** Every real payment received (booking) or billable request (featured
- * placement), from every role — mirrors prebooze-api's Invoice model.
- * Auto-generated off real activity, same "no admin create button" reasoning
- * as Abandoned carts/Featured/Referrals: nobody hand-authors an invoice. */
+ * placement), from every role — real InvoicesService.list, server-side
+ * filtered (role/city/type/date range) same as the mock's filter set. */
 export default function Invoices() {
-  const { invoices, locations } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
   const navigate = useNavigate();
-  const cities = enabledCityNames(locations);
+
+  const [invoices, setInvoices] = useState<LiveInvoice[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
   const [role, setRole] = useState('All');
   const [city, setCity] = useState('All');
@@ -22,25 +28,50 @@ export default function Invoices() {
   const [to, setTo] = useState('');
   const [query, setQuery] = useState('');
 
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    liveInvoices
+      .list({
+        role: role === 'All' ? undefined : role,
+        type: type === 'All' ? undefined : type,
+        from: from || undefined,
+        to: to || undefined,
+      })
+      .then(setInvoices)
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, role, type, from, to]);
+
+  const cities = useMemo(() => [...new Set(invoices.map((i) => i.city).filter((c): c is string => !!c))].sort(), [invoices]);
+
   const list = useMemo(() => {
     let l = invoices;
-    if (role !== 'All') l = l.filter((i) => i.role === role);
     if (city !== 'All') l = l.filter((i) => i.city === city);
-    if (type !== 'All') l = l.filter((i) => i.type === type);
-    if (from) l = l.filter((i) => i.issuedAt >= from);
-    if (to) l = l.filter((i) => i.issuedAt <= to);
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       l = l.filter((i) => i.number.toLowerCase().includes(q) || i.payerName.toLowerCase().includes(q) || i.refId.toLowerCase().includes(q));
     }
-    return [...l].sort((a, b) => (a.issuedAt < b.issuedAt ? 1 : -1));
-  }, [invoices, role, city, type, from, to, query]);
+    return l;
+  }, [invoices, city, query]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
 
   const totalValue = list.filter((i) => i.status === 'issued').reduce((a, i) => a + i.total, 0);
   const totalGst = list.filter((i) => i.status === 'issued').reduce((a, i) => a + i.gstAmount, 0);
 
   return (
     <div className="stack fade" style={{ maxWidth: 1200 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+
       <div className="page-hd">
         <h1 className="page-title">Invoices</h1>
         <span className="small muted">{invoices.length} total · auto-generated from real bookings &amp; featured requests</span>
@@ -86,16 +117,16 @@ export default function Invoices() {
             <span style={{ flex: 1.3, fontWeight: 700 }}>{inv.number}</span>
             <span style={{ flex: 1 }} className="muted">{inv.type === 'booking' ? '🎟 Booking' : '⭐ Featured'}</span>
             <span style={{ flex: 1.4 }}>{inv.payerName}</span>
-            <span style={{ flex: 0.9 }} className="muted">{ROLE_LABEL[inv.role]}</span>
+            <span style={{ flex: 0.9 }} className="muted">{ROLE_LABEL[inv.role] ?? inv.role}</span>
             <span style={{ flex: 0.9 }} className="muted">{inv.city ?? '—'}</span>
-            <span style={{ flex: 0.9 }} className="muted tiny">{inv.issuedAt}</span>
+            <span style={{ flex: 0.9 }} className="muted tiny">{new Date(inv.issuedAt).toLocaleDateString('en-IN')}</span>
             <span style={{ flex: 1, fontWeight: 700 }}>₹{fmt(inv.total)}</span>
             <span style={{ flex: 0.8 }}>
               {inv.status === 'issued' ? <Tag label="Issued" cls="tag-green" /> : <Tag label="Void" cls="tag-dim" />}
             </span>
           </div>
         ))}
-        {list.length === 0 && <div className="trow muted">No invoices match these filters.</div>}
+        {list.length === 0 && !loading && <div className="trow muted">No invoices match these filters.</div>}
       </div>
       <div className="tiny hint">GST is charged on the platform's own booking-fee / featured-service revenue — never on the organizer's ticket price, same convention as Reports · click a row for the full invoice, download and resend options.</div>
     </div>

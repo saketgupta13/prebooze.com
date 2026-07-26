@@ -48,7 +48,6 @@ import SettingsLive from './pages/SettingsLive';
 import ContentLive from './pages/ContentLive';
 import OpsLive from './pages/OpsLive';
 import CareersReferralsLive from './pages/CareersReferralsLive';
-import InvoicesLive from './pages/InvoicesLive';
 import EmailTemplatesLive from './pages/EmailTemplatesLive';
 import EventOpsLive from './pages/EventOpsLive';
 import AddPromoter from './pages/AddPromoter';
@@ -98,7 +97,6 @@ export default function App() {
         <Route path="/content-live" element={<ContentLive />} />
         <Route path="/ops-live" element={<OpsLive />} />
         <Route path="/careers-referrals-live" element={<CareersReferralsLive />} />
-        <Route path="/invoices-live" element={<InvoicesLive />} />
         <Route path="/email-templates-live" element={<EmailTemplatesLive />} />
         <Route path="/event-ops-live" element={<EventOpsLive />} />
         <Route path="/promoters/:id" element={<PromoterDetail />} />
