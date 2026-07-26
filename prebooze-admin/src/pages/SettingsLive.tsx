@@ -4,6 +4,7 @@ import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import RealImageUpload from '../components/RealImageUpload';
 import SeoFields from '../components/SeoFields';
+import { Toggle } from '../components/ui';
 
 const TITLE = 'Settings';
 
@@ -106,18 +107,18 @@ export default function SettingsLive() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="display" style={{ fontWeight: 700 }}>Platform mode</div>
-        <label className="checkbox-row">
-          <input type="checkbox" checked={settings.comingSoonMode} onChange={(e) => set('comingSoonMode', e.target.checked)} />
-          <span>Coming soon mode — public sees a takeover page, staff can bypass</span>
-        </label>
-        <label className="checkbox-row">
-          <input type="checkbox" checked={settings.maintenanceMode} onChange={(e) => set('maintenanceMode', e.target.checked)} />
-          <span>Maintenance mode — "back soon" page for everyone, no staff bypass</span>
-        </label>
-        <label className="checkbox-row">
-          <input type="checkbox" checked={settings.salesPaused} onChange={(e) => set('salesPaused', e.target.checked)} />
-          <span>Pause all ticket sales platform-wide</span>
-        </label>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <Toggle on={settings.comingSoonMode} onChange={() => set('comingSoonMode', !settings.comingSoonMode)} />
+          <span style={{ fontSize: 13 }}>Coming soon mode — public sees a takeover page, staff can bypass</span>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <Toggle on={settings.maintenanceMode} onChange={() => set('maintenanceMode', !settings.maintenanceMode)} />
+          <span style={{ fontSize: 13 }}>Maintenance mode — "back soon" page for everyone, no staff bypass</span>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <Toggle on={settings.salesPaused} onChange={() => set('salesPaused', !settings.salesPaused)} />
+          <span style={{ fontSize: 13 }}>Pause all ticket sales platform-wide</span>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -152,22 +153,22 @@ export default function SettingsLive() {
           <label>Payout day</label>
           <input className="input" value={settings.payoutDay} onChange={(e) => set('payoutDay', e.target.value)} placeholder="e.g. Friday" />
         </div>
-        <label className="checkbox-row">
-          <input type="checkbox" checked={settings.autoPayout} onChange={(e) => set('autoPayout', e.target.checked)} />
-          <span>Auto-run payout batch on payout day</span>
-        </label>
-        <label className="checkbox-row">
-          <input type="checkbox" checked={settings.weeklyEmail} onChange={(e) => set('weeklyEmail', e.target.checked)} />
-          <span>Weekly summary email</span>
-        </label>
-        <label className="checkbox-row">
-          <input type="checkbox" checked={settings.whatsappAlerts} onChange={(e) => set('whatsappAlerts', e.target.checked)} />
-          <span>WhatsApp alerts for staff</span>
-        </label>
-        <label className="checkbox-row">
-          <input type="checkbox" checked={settings.require2fa} onChange={(e) => set('require2fa', e.target.checked)} />
-          <span>Require 2FA for staff login</span>
-        </label>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <Toggle on={settings.autoPayout} onChange={() => set('autoPayout', !settings.autoPayout)} />
+          <span style={{ fontSize: 13 }}>Auto-run payout batch on payout day</span>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <Toggle on={settings.weeklyEmail} onChange={() => set('weeklyEmail', !settings.weeklyEmail)} />
+          <span style={{ fontSize: 13 }}>Weekly summary email</span>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <Toggle on={settings.whatsappAlerts} onChange={() => set('whatsappAlerts', !settings.whatsappAlerts)} />
+          <span style={{ fontSize: 13 }}>WhatsApp alerts for staff</span>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <Toggle on={settings.require2fa} onChange={() => set('require2fa', !settings.require2fa)} />
+          <span style={{ fontSize: 13 }}>Require 2FA for staff login</span>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

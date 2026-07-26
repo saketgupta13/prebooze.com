@@ -2,6 +2,41 @@ import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { BookingStatus, CustomerStatus, EventStatus, OrganizerStatus } from '../types';
 
+/** Pill toggle switch — used in place of a plain checkbox everywhere in the
+ * admin panel's settings-style forms. */
+export function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      aria-pressed={on}
+      style={{
+        width: 40,
+        height: 22,
+        borderRadius: 999,
+        border: '1px solid ' + (on ? 'var(--green)' : 'rgba(139,195,74,.35)'),
+        background: on ? 'var(--green)' : 'transparent',
+        position: 'relative',
+        flex: 'none',
+        cursor: 'pointer',
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          top: 2,
+          left: on ? 20 : 2,
+          width: 16,
+          height: 16,
+          borderRadius: '50%',
+          background: on ? 'var(--on-green)' : 'var(--muted)',
+          transition: 'left .15s',
+        }}
+      />
+    </button>
+  );
+}
+
 export const EVENT_STATUS: Record<EventStatus, { label: string; cls: string }> = {
   live: { label: '● Live', cls: 'tag-green' },
   pending: { label: 'Pending', cls: 'tag-red' },
