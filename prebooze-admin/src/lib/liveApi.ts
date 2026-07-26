@@ -96,30 +96,84 @@ export interface LiveTicketTier {
   name: string;
   price: number;
   quantity: number;
+  description: string | null;
   sold: number;
 }
+export interface LiveSeo { title: string; description: string; keywords: string; }
+export interface LiveLineupItem { name: string; role: string; }
+export interface LivePromoterConfig { enabled: boolean; cap: number; cutoff: string; allowedPromoters: string[]; perHeadPayout: boolean; perHeadAmount: number; allowTeams: boolean; }
 export interface LiveEvent {
   id: string;
   slug: string;
   title: string;
+  description: string;
   category: string;
+  subCategory: string | null;
+  ageLimit: string;
+  tags: string[];
   date: string;
+  durationHrs: number;
   status: 'draft' | 'pending' | 'approved' | 'rejected';
   rejectionReason: string | null;
+  conditions: string[];
+  lineup: LiveLineupItem[];
+  posterHue: number;
+  posterUrl: string | null;
+  seo: LiveSeo | null;
+  promoterConfig: LivePromoterConfig | null;
   commission: number | null;
   paidOut: boolean;
   salesPaused: boolean;
+  venueId: string;
+  organizerId: string;
   venue: { id: string; name: string; city: string };
   organizer: { id: string; brandName: string };
   tiers: LiveTicketTier[];
 }
+export interface LiveEventInput {
+  id?: string;
+  organizerId: string;
+  title: string;
+  description?: string;
+  category?: string;
+  subCategory?: string;
+  ageLimit?: string;
+  date?: string;
+  durationHrs?: number;
+  venueId: string;
+  status?: 'draft' | 'pending';
+  conditions?: string[];
+  lineup?: LiveLineupItem[];
+  posterHue?: number;
+  seo?: LiveSeo;
+  promoterConfig?: LivePromoterConfig;
+  tiers?: { id?: string; name: string; price: number; quantity: number; description?: string }[];
+}
 export const liveEvents = {
   list: (status?: string) => liveFetch<LiveEvent[]>('/admin/events' + (status ? `?status=${status}` : '')),
+  create: (body: LiveEventInput) => liveFetch<LiveEvent>('/admin/events', { body }),
+  update: (id: string, body: Omit<LiveEventInput, 'id'>) => liveFetch<LiveEvent>(`/admin/events/${id}`, { method: 'PATCH', body }),
   approve: (id: string) => liveFetch<LiveEvent>(`/admin/events/${id}/approve`, { method: 'POST' }),
   reject: (id: string, reason: string) => liveFetch<LiveEvent>(`/admin/events/${id}/reject`, { method: 'POST', body: { reason } }),
   setCommission: (id: string, commission: number | null) => liveFetch<LiveEvent>(`/admin/events/${id}/commission`, { method: 'PATCH', body: { commission } }),
   setPaidOut: (id: string, paidOut: boolean) => liveFetch<LiveEvent>(`/admin/events/${id}/paid-out`, { method: 'PATCH', body: { paidOut } }),
   setSalesPaused: (id: string, paused: boolean) => liveFetch<LiveEvent>(`/admin/events/${id}/pause-sales`, { method: 'PATCH', body: { paused } }),
+  setPoster: (id: string, posterUrl: string | null) => liveFetch<LiveEvent>(`/admin/events/${id}/poster`, { method: 'PATCH', body: { posterUrl } }),
+};
+
+export const liveMedia = {
+  upload: async (file: File): Promise<{ url: string }> => {
+    const token = getLiveToken();
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${API_URL}/admin/media/upload`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    if (!res.ok) throw new LiveApiError(res.status, 'Upload failed');
+    return res.json();
+  },
 };
 
 export interface LiveKycApplication {

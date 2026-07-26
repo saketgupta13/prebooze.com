@@ -2,8 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Events from './pages/Events';
-import EventEditor from './pages/EventEditor';
+import EventsReal from './pages/EventsReal';
+import EventEditorReal from './pages/EventEditorReal';
 import Bookings from './pages/Bookings';
 import BookingDetail from './pages/BookingDetail';
 import AbandonedCarts from './pages/AbandonedCarts';
@@ -44,7 +44,6 @@ import { Lineups, LineupEdit } from './pages/Lineups';
 import Reviews from './pages/Reviews';
 import { Promoters, PromoterDetail, PromoterTiers } from './pages/Promoters';
 import SubscriptionPlansLive from './pages/SubscriptionPlansLive';
-import EventsLive from './pages/EventsLive';
 import VerificationsLive from './pages/VerificationsLive';
 import BookingsLive from './pages/BookingsLive';
 import CustomersLive from './pages/CustomersLive';
@@ -77,9 +76,9 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route element={<AdminLayout />}>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/events" element={<Events />} />
-        <Route path="/events/create" element={<EventEditor />} />
-        <Route path="/events/:id" element={<EventEditor />} />
+        <Route path="/events" element={<EventsReal />} />
+        <Route path="/events/create" element={<EventEditorReal />} />
+        <Route path="/events/:id" element={<EventEditorReal />} />
         <Route path="/events/:id/live" element={<LiveMonitor />} />
         <Route path="/events/:id/guestlist" element={<GuestList />} />
         <Route path="/bookings" element={<Bookings />} />
@@ -104,7 +103,6 @@ export default function App() {
         <Route path="/promoters/new" element={<AddPromoter />} />
         <Route path="/promoters/tiers" element={<PromoterTiers />} />
         <Route path="/subscription-plans" element={<SubscriptionPlansLive />} />
-        <Route path="/events-live" element={<EventsLive />} />
         <Route path="/verifications-live" element={<VerificationsLive />} />
         <Route path="/bookings-live" element={<BookingsLive />} />
         <Route path="/customers-live" element={<CustomersLive />} />
