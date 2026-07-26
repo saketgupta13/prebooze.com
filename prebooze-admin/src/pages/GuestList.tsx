@@ -1,18 +1,65 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
 import { Kpi } from '../components/ui';
+import { downloadCsv } from '../lib/csv';
+import { liveEvents, liveGuestList, LiveApiError, type LiveEvent, type LiveGuestListEntry } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate } from '../components/LiveChrome';
 
-/** Free-entry guest list per event — artists, press, promoters and VIPs skip tickets entirely. */
+const TITLE = 'Guest list';
+
+/** Free-entry guest list per event — real GuestListEntry rows, staff-added,
+ * separate from PromoterGuest (no payout implications). */
 export default function GuestList() {
   const { id } = useParams();
-  const { events, guestList, addGuestEntry, removeGuestEntry, toggleGuestArrived, session, toast } = useAdmin();
-  const event = events.find((e) => e.id === id);
+  const session = useLiveSession();
+  const { token } = session;
+
+  const [events, setEvents] = useState<LiveEvent[]>([]);
+  const [guestList, setGuestList] = useState<{ entries: LiveGuestListEntry[]; namesCount: number; totalHeads: number; arrived: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [plusOnes, setPlusOnes] = useState(0);
   const [companions, setCompanions] = useState<{ name: string; phone: string }[]>([]);
+
+  const load = () => {
+    if (!id) return;
+    setLoading(true);
+    setErr('');
+    Promise.all([liveEvents.list(), liveGuestList.list(id)])
+      .then(([evs, g]) => {
+        setEvents(evs);
+        setGuestList(g);
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, id]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  const event = events.find((e) => e.id === id);
+
+  if (!loading && !event) {
+    return (
+      <div className="stack fade">
+        {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+        <h1 className="page-title">Event not found</h1>
+        <Link to="/events" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Events</Link>
+      </div>
+    );
+  }
+  if (!event || !guestList) {
+    return <div className="stack fade"><div className="tiny muted">Loading…</div></div>;
+  }
 
   const setCompanion = (i: number, patch: Partial<{ name: string; phone: string }>) =>
     setCompanions((prev) => {
@@ -22,71 +69,64 @@ export default function GuestList() {
       return next;
     });
 
-  if (!event) {
-    return (
-      <div className="stack fade">
-        <h1 className="page-title">Event not found</h1>
-        <Link to="/events" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Events</Link>
-      </div>
-    );
-  }
-
-  const list = guestList.filter((g) => g.eventId === event.id);
-  const totalHeads = list.reduce((a, g) => a + 1 + g.plusOnes, 0);
-  const arrived = list.filter((g) => g.arrived).reduce((a, g) => a + 1 + g.plusOnes, 0);
-
-  const add = (e: React.FormEvent) => {
+  const add = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toast('Guest name is required');
-      return;
-    }
-    if (!phone.trim()) {
-      toast('WhatsApp number is required for the main guest');
-      return;
-    }
+    if (!name.trim()) { setErr('Guest name is required'); return; }
+    if (!phone.trim()) { setErr('WhatsApp number is required for the main guest'); return; }
     const comps = companions.slice(0, plusOnes);
     for (let i = 0; i < plusOnes; i++) {
-      if (!comps[i]?.name.trim()) {
-        toast(`Name is required for plus-one ${i + 1}`);
-        return;
-      }
-      if (!comps[i]?.phone.trim()) {
-        toast(`WhatsApp number is required for plus-one ${i + 1}`);
-        return;
-      }
+      if (!comps[i]?.name.trim()) { setErr(`Name is required for plus-one ${i + 1}`); return; }
+      if (!comps[i]?.phone.trim()) { setErr(`WhatsApp number is required for plus-one ${i + 1}`); return; }
     }
-    const finalComps = comps.map((c) => ({ name: c.name.trim(), phone: c.phone.trim() }));
-    addGuestEntry({
-      id: 'g' + Date.now(),
-      eventId: event.id,
-      name: name.trim(),
-      phone: phone.trim(),
-      plusOnes,
-      companions: finalComps,
-      addedBy: session?.name ?? 'Admin',
-      arrived: false,
-    });
-    setName('');
-    setPhone('');
-    setPlusOnes(0);
-    setCompanions([]);
+    try {
+      await liveGuestList.add(event.id, {
+        name: name.trim(),
+        phone: phone.trim(),
+        plusOnes,
+        companions: comps.map((c) => ({ name: c.name.trim(), phone: c.phone.trim() })),
+      });
+      setName(''); setPhone(''); setPlusOnes(0); setCompanions([]);
+      setErr('');
+      load();
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to add guest');
+    }
+  };
+
+  const toggleArrived = async (gid: string) => {
+    try { await liveGuestList.toggleArrived(gid); load(); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed to update'); }
+  };
+  const removeGuest = async (gid: string) => {
+    try { await liveGuestList.remove(gid); load(); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed to remove'); }
+  };
+
+  const exportCsv = () => {
+    const rows: (string | number)[][] = [
+      ['Guest', 'Phone', 'Plus-ones', 'Companions', 'Added by', 'Arrived'],
+      ...guestList.entries.map((g) => [
+        g.name, g.phone, g.plusOnes,
+        g.companions.map((c) => `${c.name} (${c.phone})`).join('; '),
+        g.addedBy, g.arrived ? 'yes' : 'no',
+      ]),
+    ];
+    downloadCsv(`prebooze-guest-list-${event.slug}.csv`, rows);
   };
 
   return (
     <div className="stack fade" style={{ maxWidth: 760, gap: 14 }}>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Link to={`/events/${event.id}`} style={{ fontSize: 13 }}>← {event.title}</Link>
         <h1 className="page-title">Guest list</h1>
         <span className="tag tag-green">free entry</span>
         <div style={{ flex: 1 }} />
-        <button className="btn btn-ghost btn-sm" onClick={() => toast('Guest list exported ✓')}>⬇ Export</button>
+        <button className="btn btn-ghost btn-sm" onClick={exportCsv}>⬇ Export</button>
       </div>
 
       <div className="kpi-grid">
-        <Kpi label="Names on list" value={list.length} />
-        <Kpi label="Total heads (incl. +1s)" value={totalHeads} />
-        <Kpi label="Arrived" value={<span className="green">{arrived}</span>} />
+        <Kpi label="Names on list" value={guestList.namesCount} />
+        <Kpi label="Total heads (incl. +1s)" value={guestList.totalHeads} />
+        <Kpi label="Arrived" value={<span className="green">{guestList.arrived}</span>} />
       </div>
 
       <form className="card" style={{ border: '1px solid var(--green)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }} onSubmit={add}>
@@ -141,14 +181,14 @@ export default function GuestList() {
           <span style={{ flex: 1 }}>At the gate</span>
           <span style={{ width: 40 }} />
         </div>
-        {list.map((g) => (
+        {guestList.entries.map((g) => (
           <div key={g.id} className="trow" style={{ minWidth: 560 }}>
             <span style={{ flex: 1.8, fontWeight: 700 }}>
               {g.name}
               {g.plusOnes > 0 && <span className="muted"> +{g.plusOnes}</span>}
-              {(g.companions ?? []).length > 0 && (
+              {g.companions.length > 0 && (
                 <span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>
-                  with {(g.companions ?? []).map((c) => c.name + (c.phone ? ` (${c.phone})` : '')).join(', ')}
+                  with {g.companions.map((c) => c.name + (c.phone ? ` (${c.phone})` : '')).join(', ')}
                 </span>
               )}
             </span>
@@ -159,17 +199,17 @@ export default function GuestList() {
               <button
                 className={`chip ${g.arrived ? 'on' : ''}`}
                 style={{ fontSize: 10.5, padding: '3px 10px' }}
-                onClick={() => toggleGuestArrived(g.id)}
+                onClick={() => toggleArrived(g.id)}
               >
                 {g.arrived ? 'Arrived ✓' : 'Mark arrived'}
               </button>
             </span>
             <span style={{ width: 40, display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => removeGuestEntry(g.id)}>✕</button>
+              <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => removeGuest(g.id)}>✕</button>
             </span>
           </div>
         ))}
-        {list.length === 0 && <div className="trow muted">Nobody on the list yet — add artists, press and VIPs above.</div>}
+        {guestList.entries.length === 0 && !loading && <div className="trow muted">Nobody on the list yet — add artists, press and VIPs above.</div>}
       </div>
       <div className="tiny hint">guest-list names show at the gate scanner as free entries · they don't consume ticket inventory</div>
     </div>

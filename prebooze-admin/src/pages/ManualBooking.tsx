@@ -1,28 +1,72 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
+import { liveEvents, liveSettings, liveManualBooking, LiveApiError, type LiveEvent } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate } from '../components/LiveChrome';
 
-/** Manual booking — phone orders, walk-ups and comps recorded by the team. */
+const TITLE = 'Manual booking';
+
+/** Manual booking — phone orders, walk-ups and comps recorded by the team.
+ * Creates a genuine Booking (BookingsService.adminCreate) — real inventory
+ * decrement, real organizer ledger credit, real invoice, real WhatsApp
+ * confirmation, not a mock record. */
 export default function ManualBooking() {
-  const { events, settings, addBooking, updateEvent, toast } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
   const navigate = useNavigate();
 
-  const liveEvents = events.filter((e) => e.status === 'live');
-  const firstAvailableTier = (evId: string) => {
-    const ev = liveEvents.find((e) => e.id === evId);
-    const idx = ev?.tiers.findIndex((t) => t.qty - t.sold > 0) ?? 0;
-    return idx < 0 ? 0 : idx;
-  };
-  const [eventId, setEventId] = useState(liveEvents[0]?.id ?? '');
-  const event = liveEvents.find((e) => e.id === eventId);
-  const [tierIdx, setTierIdx] = useState(() => firstAvailableTier(liveEvents[0]?.id ?? ''));
+  const [approvedEvents, setApprovedEvents] = useState<LiveEvent[]>([]);
+  const [bookingFee, setBookingFee] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const [eventId, setEventId] = useState('');
+  const [tierIdx, setTierIdx] = useState(0);
   const [qty, setQty] = useState(1);
   const [guest, setGuest] = useState('');
   const [phone, setPhone] = useState('');
   const [gender, setGender] = useState('—');
   const [others, setOthers] = useState<{ name: string; gender: string; whatsapp: string }[]>([]);
   const [method, setMethod] = useState('Cash');
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    Promise.all([liveEvents.list('approved'), liveSettings.get()])
+      .then(([evs, s]) => {
+        setApprovedEvents(evs);
+        setBookingFee(s.bookingFee);
+        if (!eventId && evs[0]) {
+          setEventId(evs[0].id);
+          const idx = evs[0].tiers.findIndex((t) => t.quantity - t.sold > 0);
+          setTierIdx(idx < 0 ? 0 : idx);
+        }
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const event = approvedEvents.find((e) => e.id === eventId);
+  const tier = event?.tiers[Math.min(tierIdx, (event?.tiers.length ?? 1) - 1)];
+  const left = tier ? tier.quantity - tier.sold : 0;
+  const isComp = method === 'Comp (free)';
+
+  const totals = useMemo(() => {
+    if (!tier || isComp) return { subtotal: 0, fees: 0, total: 0 };
+    const subtotal = tier.price * qty;
+    const fees = Math.round(bookingFee * qty);
+    return { subtotal, fees, total: subtotal + fees };
+  }, [tier, qty, isComp, bookingFee]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
 
   const setOther = (i: number, patch: Partial<{ name: string; gender: string; whatsapp: string }>) =>
     setOthers((prev) => {
@@ -32,59 +76,46 @@ export default function ManualBooking() {
       return next;
     });
 
-  const tier = event?.tiers[Math.min(tierIdx, (event?.tiers.length ?? 1) - 1)];
-  const left = tier ? tier.qty - tier.sold : 0;
-  const isComp = method === 'Comp (free)';
-
-  const totals = useMemo(() => {
-    if (!tier || isComp) return { subtotal: 0, fees: 0, total: 0 };
-    const subtotal = tier.price * qty;
-    const fees = settings.bookingFee * qty + Math.round(settings.bookingFee * qty * (settings.gstPct / 100));
-    return { subtotal, fees, total: subtotal + fees };
-  }, [tier, qty, isComp, settings]);
-
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!event || !tier) {
-      toast('Pick a live event first');
-      return;
-    }
-    if (!guest.trim() || !phone.trim()) {
-      toast('Guest name and phone are required');
-      return;
-    }
-    if (qty > left) {
-      toast(`Only ${left} tickets left in ${tier.name}`);
-      return;
-    }
+    if (!event || !tier) { setErr('Pick a live event first'); return; }
+    if (!guest.trim() || !phone.trim()) { setErr('Guest name and phone are required'); return; }
+    if (qty > left) { setErr(`Only ${left} tickets left in ${tier.name}`); return; }
+
     const extra = others
       .slice(0, qty - 1)
       .filter((o) => o.name.trim())
-      .map((o) => ({
-        name: `${o.name.trim()}${o.gender !== '—' ? ` (${o.gender})` : ''}`,
-        phone: o.whatsapp.trim() || undefined,
-      }));
-    addBooking({
-      id: '#' + Math.floor(8500 + Math.random() * 999),
-      guest: guest.trim(),
-      phone: phone.trim(),
-      eventId: event.id,
-      qty,
-      amount: totals.total,
-      status: isComp ? 'checked_in' : 'paid',
-      method: isComp ? 'Comp' : method + ' (manual)',
-      guests: [
-        { name: `${guest.trim()}${gender !== '—' ? ` (${gender})` : ''}`, phone: phone.trim(), verified: true },
-        ...extra,
-      ],
-    });
-    updateEvent(event.id, {
-      sold: event.sold + qty,
-      revenue: event.revenue + totals.subtotal,
-      tiers: event.tiers.map((t, i) => (i === tierIdx ? { ...t, sold: t.sold + qty } : t)),
-    });
-    navigate('/bookings');
+      .map((o) => ({ name: o.name.trim(), gender: o.gender === '—' ? undefined : o.gender, whatsapp: o.whatsapp.trim() || undefined }));
+
+    setSaving(true);
+    setErr('');
+    try {
+      await liveManualBooking.create({
+        eventId: event.id,
+        tierId: tier.id,
+        qty,
+        guestName: guest.trim(),
+        phone: phone.trim(),
+        gender: gender === '—' ? undefined : gender,
+        others: extra,
+        method: isComp ? 'Comp' : method,
+      });
+      navigate('/bookings');
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to create booking');
+      setSaving(false);
+    }
   };
+
+  if (!loading && approvedEvents.length === 0) {
+    return (
+      <div className="stack fade">
+        {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+        <h1 className="page-title">No live events to book against</h1>
+        <Link to="/bookings" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Bookings</Link>
+      </div>
+    );
+  }
 
   return (
     <form className="stack fade" style={{ maxWidth: 560, gap: 12 }} onSubmit={submit}>
@@ -93,6 +124,7 @@ export default function ManualBooking() {
         <h1 className="page-title">Manual booking</h1>
       </div>
       <div className="tiny hint" style={{ marginTop: -6 }}>for phone orders, walk-ups and comps — the guest gets the group QR on WhatsApp</div>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="field">
@@ -102,12 +134,14 @@ export default function ManualBooking() {
             value={eventId}
             onChange={(e) => {
               setEventId(e.target.value);
-              setTierIdx(firstAvailableTier(e.target.value));
+              const ev = approvedEvents.find((x) => x.id === e.target.value);
+              const idx = ev?.tiers.findIndex((t) => t.quantity - t.sold > 0) ?? 0;
+              setTierIdx(idx < 0 ? 0 : idx);
               setQty(1);
             }}
           >
-            {liveEvents.map((e) => (
-              <option key={e.id} value={e.id}>{e.title} · {e.date}</option>
+            {approvedEvents.map((e) => (
+              <option key={e.id} value={e.id}>{e.title} · {new Date(e.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</option>
             ))}
           </select>
         </div>
@@ -117,10 +151,10 @@ export default function ManualBooking() {
               <label>Ticket tier</label>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {event.tiers.map((t, i) => {
-                  const rem = t.qty - t.sold;
+                  const rem = t.quantity - t.sold;
                   return (
                     <button
-                      key={t.name}
+                      key={t.id}
                       type="button"
                       className={`chip ${tierIdx === i ? 'on' : ''}`}
                       disabled={rem <= 0}
@@ -205,10 +239,10 @@ export default function ManualBooking() {
       {tier && (
         <div className="dashed-box" style={{ fontSize: 12.5 }}>
           {isComp ? (
-            <><b style={{ color: 'var(--text)' }}>Comp booking:</b> {qty} × {tier.name} — <b className="green">free entry</b>, marked checked-in ready</>
+            <><b style={{ color: 'var(--text)' }}>Comp booking:</b> {qty} × {tier.name} — <b className="green">free entry</b>, no charge</>
           ) : (
             <>
-              Subtotal ₹{fmt(totals.subtotal)} + fees &amp; GST ₹{fmt(totals.fees)} → collect{' '}
+              Subtotal ₹{fmt(totals.subtotal)} + booking fee ₹{fmt(totals.fees)} → collect{' '}
               <b style={{ color: 'var(--text)' }}>₹{fmt(totals.total)}</b> via {method}
             </>
           )}
@@ -216,8 +250,8 @@ export default function ManualBooking() {
       )}
 
       <div style={{ display: 'flex', gap: 10 }}>
-        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }}>
-          {isComp ? 'Create comp booking ✓' : `Record booking — ₹${fmt(totals.total)} ✓`}
+        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }} disabled={saving}>
+          {saving ? 'Saving…' : isComp ? 'Create comp booking ✓' : `Record booking — ₹${fmt(totals.total)} ✓`}
         </button>
         <Link to="/bookings" className="btn btn-ghost" style={{ padding: 10 }}>Cancel</Link>
       </div>

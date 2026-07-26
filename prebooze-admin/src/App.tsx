@@ -47,7 +47,6 @@ import DirectoryLive from './pages/DirectoryLive';
 import SettingsLive from './pages/SettingsLive';
 import ContentLive from './pages/ContentLive';
 import OpsLive from './pages/OpsLive';
-import EventOpsLive from './pages/EventOpsLive';
 import AddPromoter from './pages/AddPromoter';
 import PromoterEdit from './pages/PromoterEdit';
 import Testimonials from './pages/Testimonials';
@@ -94,7 +93,6 @@ export default function App() {
         <Route path="/directory-live" element={<DirectoryLive />} />
         <Route path="/content-live" element={<ContentLive />} />
         <Route path="/ops-live" element={<OpsLive />} />
-        <Route path="/event-ops-live" element={<EventOpsLive />} />
         <Route path="/promoters/:id" element={<PromoterDetail />} />
         <Route path="/promoters/:id/edit" element={<PromoterEdit />} />
         <Route path="/locations" element={<Locations />} />
