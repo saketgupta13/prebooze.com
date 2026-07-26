@@ -1,14 +1,38 @@
-import { useState } from 'react';
-import { useAdmin } from '../store/AdminContext';
-import type { FooterGroup, MenuConfig, MenuLink } from '../types';
+import { useEffect, useState } from 'react';
+import { liveMenu, LiveApiError, type LiveMenu } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
-/** Header + footer menu editor — add, edit, remove and reorder nav items. */
+const TITLE = 'Menus';
+const EMPTY: LiveMenu = { header: [], footer: [] };
+
+/** Header + footer menu editor — real MenuConfig singleton row. */
 export default function Menus() {
-  const { menus, setMenus, toast } = useAdmin();
-  const [draft, setDraft] = useState<MenuConfig>(() => JSON.parse(JSON.stringify(menus)));
+  const session = useLiveSession();
+  const { token } = session;
 
-  const setHeader = (header: MenuLink[]) => setDraft((d) => ({ ...d, header }));
-  const setFooter = (footer: FooterGroup[]) => setDraft((d) => ({ ...d, footer }));
+  const [draft, setDraft] = useState<LiveMenu>(EMPTY);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const [msg, setMsg] = useState('');
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    liveMenu
+      .get()
+      .then((m) => setDraft(JSON.parse(JSON.stringify(m))))
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  const setHeader = (header: LiveMenu['header']) => setDraft((d) => ({ ...d, header }));
+  const setFooter = (footer: LiveMenu['footer']) => setDraft((d) => ({ ...d, footer }));
   const move = <T,>(arr: T[], i: number, dir: number): T[] => {
     const j = i + dir;
     if (j < 0 || j >= arr.length) return arr;
@@ -16,16 +40,30 @@ export default function Menus() {
     [next[i], next[j]] = [next[j], next[i]];
     return next;
   };
-  const save = () => {
-    setMenus(draft);
-    toast('Menus saved ✓');
+
+  const save = async () => {
+    setSaving(true);
+    setErr('');
+    try {
+      await liveMenu.update(draft);
+      setMsg('Menus saved ✓');
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="stack fade" style={{ maxWidth: 780 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+      {msg && <div className="tiny" style={{ color: 'var(--green)' }}>{msg}</div>}
+
       <div className="page-hd">
         <h1 className="page-title">Menus</h1>
-        <button className="btn btn-pri" onClick={save}>Save menus ✓</button>
+        <button className="btn btn-pri" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save menus ✓'}</button>
       </div>
       <div className="tiny hint" style={{ marginTop: -6 }}>controls the guest site's header nav and footer link groups</div>
 
@@ -68,7 +106,7 @@ export default function Menus() {
         ))}
       </div>
 
-      <button className="btn btn-pri" style={{ width: 'fit-content', padding: 10 }} onClick={save}>Save menus ✓</button>
+      <button className="btn btn-pri" style={{ width: 'fit-content', padding: 10 }} disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save menus ✓'}</button>
     </div>
   );
 }

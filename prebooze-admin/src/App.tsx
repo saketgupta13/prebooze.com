@@ -46,7 +46,6 @@ import { Promoters, PromoterDetail, PromoterTiers } from './pages/Promoters';
 import SubscriptionPlansLive from './pages/SubscriptionPlansLive';
 import DirectoryLive from './pages/DirectoryLive';
 import SettingsLive from './pages/SettingsLive';
-import ContentLive from './pages/ContentLive';
 import AddPromoter from './pages/AddPromoter';
 import PromoterEdit from './pages/PromoterEdit';
 import Testimonials from './pages/Testimonials';
@@ -91,7 +90,6 @@ export default function App() {
         <Route path="/promoters/tiers" element={<PromoterTiers />} />
         <Route path="/subscription-plans" element={<SubscriptionPlansLive />} />
         <Route path="/directory-live" element={<DirectoryLive />} />
-        <Route path="/content-live" element={<ContentLive />} />
         <Route path="/promoters/:id" element={<PromoterDetail />} />
         <Route path="/promoters/:id/edit" element={<PromoterEdit />} />
         <Route path="/locations" element={<Locations />} />

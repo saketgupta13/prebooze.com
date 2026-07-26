@@ -1,65 +1,136 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
-import { ImagePicker } from '../components/ui';
+import { liveBanners, liveEvents, livePages, liveMedia, LiveApiError, type LiveBanner, type LiveEvent, type LiveSitePage } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate } from '../components/LiveChrome';
 
-/** Add / edit a home banner — image upload, heading, description and CTA button link. */
+const TITLE = 'Edit banner';
+
+/** Add / edit a home banner — real Banner row, image upload via
+ * MediaController instead of a localStorage blob. */
 export default function BannerEdit() {
-  const { id } = useParams(); // undefined = create mode
+  const { id } = useParams();
   const isCreate = !id;
   const navigate = useNavigate();
-  const { banners, events, pages, addBanner, updateBanner, removeBanner, toast } = useAdmin();
-  const existing = isCreate ? undefined : banners.find((b) => b.id === id);
+  const session = useLiveSession();
+  const { token } = session;
 
-  const [title, setTitle] = useState(existing?.title ?? '');
-  const [heading, setHeading] = useState(existing?.heading ?? '');
-  const [description, setDescription] = useState(existing?.description ?? '');
-  const [ctaLabel, setCtaLabel] = useState(existing?.ctaLabel ?? 'Book now →');
-  const [ctaLink, setCtaLink] = useState(existing?.ctaLink ?? '/browse');
-  const [imageDataUrl, setImageDataUrl] = useState(existing?.imageDataUrl ?? '');
-  const hasImage = !!imageDataUrl;
-  const [status, setStatus] = useState(existing?.statusLabel ?? 'Scheduled');
+  const [existing, setExisting] = useState<LiveBanner | null>(null);
+  const [approvedEvents, setApprovedEvents] = useState<LiveEvent[]>([]);
+  const [pages, setPages] = useState<LiveSitePage[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState('');
+  const imgInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isCreate && !existing) {
+  const [title, setTitle] = useState('');
+  const [heading, setHeading] = useState('');
+  const [description, setDescription] = useState('');
+  const [ctaLabel, setCtaLabel] = useState('Book now →');
+  const [ctaLink, setCtaLink] = useState('/browse');
+  const [imageUrl, setImageUrl] = useState('');
+  const [status, setStatus] = useState('Scheduled');
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    Promise.all([liveBanners.list(), liveEvents.list('approved'), livePages.list()])
+      .then(([banners, evs, pgs]) => {
+        setApprovedEvents(evs);
+        setPages(pgs);
+        if (!isCreate) {
+          const b = banners.find((x) => x.id === id);
+          setExisting(b ?? null);
+          if (b) {
+            setTitle(b.title);
+            setHeading(b.heading ?? '');
+            setDescription(b.description ?? '');
+            setCtaLabel(b.ctaLabel ?? 'Book now →');
+            setCtaLink(b.ctaLink ?? '/browse');
+            setImageUrl(b.imageUrl ?? '');
+            setStatus(b.statusLabel || 'Scheduled');
+          }
+        }
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, id]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  if (!isCreate && !loading && !existing) {
     return (
       <div className="stack fade">
+        {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Banner not found</h1>
         <Link to="/banners" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Banners</Link>
       </div>
     );
+  }
+  if (!isCreate && !existing) {
+    return <div className="stack fade"><div className="tiny muted">Loading…</div></div>;
   }
 
   const linkOptions = [
     '/browse',
     '/host',
     '/blog',
-    ...events.filter((e) => e.status === 'live').map((e) => `/events/${e.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`),
-    ...pages.map((p) => p.slug),
+    ...approvedEvents.map((e) => `/events/${e.slug}`),
+    ...pages.map((p) => `/${p.slug.replace(/^\//, '')}`),
   ];
 
-  const save = (e: React.FormEvent) => {
+  const onImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setErr('');
+    try {
+      const { url } = await liveMedia.upload(file);
+      setImageUrl(url);
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!existing) return;
+    if (!window.confirm('Remove this banner from rotation?')) return;
+    try {
+      await liveBanners.remove(existing.id);
+      navigate('/banners');
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to remove');
+    }
+  };
+
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !heading.trim()) {
-      toast('Campaign title and banner heading are required');
-      return;
-    }
-    if (!hasImage) {
-      toast('Upload the banner image (16:5) first');
-      return;
-    }
+    if (!title.trim() || !heading.trim()) { setErr('Campaign title and banner heading are required'); return; }
+    if (!imageUrl) { setErr('Upload the banner image (16:5) first'); return; }
     const patch = {
       title: title.trim(),
       heading: heading.trim(),
       description: description.trim(),
       ctaLabel: ctaLabel.trim() || 'Book now →',
       ctaLink,
-      hasImage,
-      imageDataUrl,
+      imageUrl,
       statusLabel: status,
     };
-    if (isCreate) addBanner({ id: 'b' + Date.now(), ...patch });
-    else updateBanner(existing!.id, patch);
-    navigate('/banners');
+    try {
+      if (isCreate) await liveBanners.create(patch);
+      else await liveBanners.update(existing!.id, patch);
+      navigate('/banners');
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to save');
+    }
   };
 
   return (
@@ -68,34 +139,33 @@ export default function BannerEdit() {
         <Link to="/banners" style={{ fontSize: 13 }}>← Banners</Link>
         <h1 className="page-title">{isCreate ? 'Add banner' : `Edit banner — ${existing!.title}`}</h1>
         <div style={{ flex: 1 }} />
-        {!isCreate && (
-          <button
-            type="button"
-            className="btn btn-danger btn-sm"
-            onClick={() => {
-              if (window.confirm('Remove this banner from rotation?')) {
-                removeBanner(existing!.id);
-                navigate('/banners');
-              }
-            }}
-          >
-            Remove
-          </button>
-        )}
+        {!isCreate && <button type="button" className="btn btn-danger btn-sm" onClick={remove}>Remove</button>}
       </div>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
 
-      {/* Upload + live preview */}
-      <ImagePicker
-        value={imageDataUrl}
-        onChange={setImageDataUrl}
-        aspectRatio="16 / 5"
-        label="⬆ click to upload banner image · 16:5 · min 1600px wide"
+      <input ref={imgInputRef} type="file" accept="image/*" onChange={onImageFile} style={{ display: 'none' }} />
+      <button
+        type="button"
+        className="ph"
+        style={{
+          aspectRatio: '16 / 5', width: '100%', cursor: 'pointer', flexDirection: 'column', gap: 4, position: 'relative',
+          backgroundImage: imageUrl ? `linear-gradient(rgba(0,0,0,.35),rgba(0,0,0,.35)), url(${imageUrl})` : undefined,
+          backgroundSize: 'cover', backgroundPosition: 'center',
+        }}
+        onClick={() => imgInputRef.current?.click()}
+        disabled={uploading}
       >
-        <span className="display" style={{ fontSize: 22, color: '#fff' }}>{heading || 'Banner heading…'}</span>
-        <span className="small" style={{ color: 'rgba(255,255,255,.85)' }}>{description || 'Banner description…'}</span>
-        <span className="btn btn-pri btn-sm" style={{ marginTop: 4 }}>{ctaLabel || 'Book now →'}</span>
-        <span className="tiny" style={{ marginTop: 4, color: 'rgba(255,255,255,.7)' }}>✓ image 16:5 uploaded — click to replace · live preview</span>
-      </ImagePicker>
+        {imageUrl ? (
+          <>
+            <span className="display" style={{ fontSize: 22, color: '#fff' }}>{heading || 'Banner heading…'}</span>
+            <span className="small" style={{ color: 'rgba(255,255,255,.85)' }}>{description || 'Banner description…'}</span>
+            <span className="btn btn-pri btn-sm" style={{ marginTop: 4 }}>{ctaLabel || 'Book now →'}</span>
+            <span className="tiny" style={{ marginTop: 4, color: 'rgba(255,255,255,.7)' }}>✓ image 16:5 uploaded — click to replace · live preview</span>
+          </>
+        ) : (
+          <span>{uploading ? 'Uploading…' : '⬆ click to upload banner image · 16:5 · min 1600px wide'}</span>
+        )}
+      </button>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', gap: 8 }}>

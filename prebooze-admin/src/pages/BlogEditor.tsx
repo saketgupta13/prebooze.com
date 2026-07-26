@@ -1,65 +1,122 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
 import SeoFields, { emptySeo } from '../components/SeoFields';
-import { ImagePicker } from '../components/ui';
-import { stripHtml } from '../store/data';
 import WysiwygEditor from '../components/WysiwygEditor';
+import { stripHtml } from '../store/data';
+import { liveBlogs, liveBlogCategories, liveMedia, LiveApiError, type LiveBlog, type LiveBlogCategory } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate } from '../components/LiveChrome';
+import type { Seo } from '../types';
 
-/** Create / edit a blog post — cover banner, title, category, content and SEO. */
+const TITLE = 'Edit blog post';
+
+/** Create / edit a blog post — cover banner, title, category, content and
+ * SEO. Real Blog row; the cover banner is a genuine upload. */
 export function BlogEditor() {
-  const { id } = useParams(); // undefined = create
+  const { id } = useParams();
   const isCreate = !id;
   const navigate = useNavigate();
-  const { blogs, blogCategories, addBlog, updateBlog, toast } = useAdmin();
-  const existing = isCreate ? undefined : blogs.find((b) => b.id === id);
+  const session = useLiveSession();
+  const { token } = session;
 
-  const [title, setTitle] = useState(existing?.title ?? '');
-  const [category, setCategory] = useState(existing?.category ?? blogCategories[0]?.name ?? 'City guide');
-  const [bannerDataUrl, setBannerDataUrl] = useState(existing?.bannerDataUrl ?? '');
-  const hasBanner = !!bannerDataUrl;
-  const [content, setContent] = useState(existing?.content ?? '');
-  const [status, setStatus] = useState(existing?.status ?? 'draft');
-  const [seo, setSeo] = useState(existing?.seo ?? emptySeo());
+  const [existing, setExisting] = useState<LiveBlog | null>(null);
+  const [categories, setCategories] = useState<LiveBlogCategory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState('');
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isCreate && !existing) {
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('');
+  const [bannerUrl, setBannerUrl] = useState('');
+  const [content, setContent] = useState('');
+  const [status, setStatus] = useState<'draft' | 'published' | 'scheduled'>('draft');
+  const [seo, setSeo] = useState<Seo>(emptySeo());
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    Promise.all([liveBlogs.list(), liveBlogCategories.list()])
+      .then(([blogs, cats]) => {
+        setCategories(cats);
+        if (!isCreate) {
+          const b = blogs.find((x) => x.id === id);
+          setExisting(b ?? null);
+          if (b) {
+            setTitle(b.title);
+            setCategory(b.category ?? cats[0]?.name ?? '');
+            setBannerUrl(b.bannerUrl ?? '');
+            setContent(b.content ?? '');
+            setStatus(b.status as 'draft' | 'published' | 'scheduled');
+            setSeo((b.seo as Seo | null) ?? emptySeo());
+          }
+        } else if (!category && cats[0]) {
+          setCategory(cats[0].name);
+        }
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, id]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  if (!isCreate && !loading && !existing) {
     return (
       <div className="stack fade">
+        {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Post not found</h1>
         <Link to="/blogs" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Blog posts</Link>
       </div>
     );
   }
+  if (!isCreate && !existing) {
+    return <div className="stack fade"><div className="tiny muted">Loading…</div></div>;
+  }
 
   const slug = '/blog/' + (title || 'post').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-  const save = (e: React.FormEvent) => {
+  const onBannerFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setErr('');
+    try {
+      const { url } = await liveMedia.upload(file);
+      setBannerUrl(url);
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) {
-      toast('Post title is required');
-      return;
-    }
-    if (!hasBanner) {
-      toast('Every post needs a cover banner — upload one first');
-      return;
-    }
-    if (!content.trim()) {
-      toast('Write some content before saving');
-      return;
-    }
+    if (!title.trim()) { setErr('Post title is required'); return; }
+    if (!bannerUrl) { setErr('Every post needs a cover banner — upload one first'); return; }
+    if (!content.trim()) { setErr('Write some content before saving'); return; }
     const patch = {
       title: title.trim(),
       category,
-      hasBanner,
-      bannerDataUrl,
+      bannerUrl,
       content,
       status,
       seo,
-      meta: `by You · ${status === 'published' ? 'just published' : status} · ${category}`,
+      meta: `${status === 'published' ? 'just published' : status} · ${category}`,
     };
-    if (isCreate) addBlog({ id: 'bl' + Date.now(), ...patch });
-    else updateBlog(existing!.id, patch);
-    navigate('/blogs');
+    try {
+      if (isCreate) await liveBlogs.create(patch);
+      else await liveBlogs.update(existing!.id, patch);
+      navigate('/blogs');
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to save');
+    }
   };
 
   return (
@@ -70,16 +127,25 @@ export function BlogEditor() {
         <div style={{ flex: 1 }} />
         <Link to="/blogs/categories" className="btn btn-ghost btn-sm">Manage categories</Link>
       </div>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
 
-      {/* Cover banner (required) */}
-      <ImagePicker
-        value={bannerDataUrl}
-        onChange={setBannerDataUrl}
-        aspectRatio="16 / 6"
-        label="⬆ upload cover banner · 16:6 · required for every post"
+      <input ref={bannerInputRef} type="file" accept="image/*" onChange={onBannerFile} style={{ display: 'none' }} />
+      <button
+        type="button"
+        className="ph"
+        style={{
+          aspectRatio: '16 / 6', width: '100%', cursor: 'pointer',
+          backgroundImage: bannerUrl ? `url(${bannerUrl})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center',
+        }}
+        onClick={() => bannerInputRef.current?.click()}
+        disabled={uploading}
       >
-        <span className="tiny" style={{ margin: 'auto', color: '#fff' }}>✓ cover banner uploaded (16:6) — click to replace</span>
-      </ImagePicker>
+        {bannerUrl ? (
+          <span className="tiny" style={{ margin: 'auto', color: '#fff' }}>✓ cover banner uploaded (16:6) — click to replace</span>
+        ) : (
+          <span>{uploading ? 'Uploading…' : '⬆ upload cover banner · 16:6 · required for every post'}</span>
+        )}
+      </button>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="field">
@@ -90,9 +156,7 @@ export function BlogEditor() {
           <div className="field" style={{ flex: 1 }}>
             <label>Blog category</label>
             <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
-              {blogCategories.map((c) => (
-                <option key={c.id}>{c.name}</option>
-              ))}
+              {categories.map((c) => <option key={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div className="field" style={{ flex: 1 }}>
@@ -125,28 +189,60 @@ export function BlogEditor() {
 
 /** Blog categories manager — each with its own banner and SEO for the category page. */
 export function BlogCategories() {
-  const { blogCategories, blogs, addBlogCategory, toast } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
+  const [categories, setCategories] = useState<LiveBlogCategory[]>([]);
+  const [blogs, setBlogs] = useState<LiveBlog[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
   const [name, setName] = useState('');
-  const [bannerDataUrl, setBannerDataUrl] = useState('');
-  const hasBanner = !!bannerDataUrl;
-  const [seo, setSeo] = useState(emptySeo());
+  const [bannerUrl, setBannerUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [seo, setSeo] = useState<Seo>(emptySeo());
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    Promise.all([liveBlogCategories.list(), liveBlogs.list()])
+      .then(([cats, bl]) => { setCategories(cats); setBlogs(bl); })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token]);
+
+  const gate = useLiveGate('Blog categories', session);
+  if (gate) return gate;
 
   const slug = '/blog/category/' + (name || 'name').toLowerCase().replace(/\s+/g, '-');
 
-  const create = (e: React.FormEvent) => {
+  const onBannerFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setErr('');
+    try {
+      const { url } = await liveMedia.upload(file);
+      setBannerUrl(url);
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toast('Category name is required');
-      return;
+    if (!name.trim()) { setErr('Category name is required'); return; }
+    if (categories.some((c) => c.name.toLowerCase() === name.trim().toLowerCase())) { setErr('That blog category already exists'); return; }
+    try {
+      await liveBlogCategories.create({ name: name.trim(), bannerUrl: bannerUrl || undefined, seo });
+      setName(''); setBannerUrl(''); setSeo(emptySeo());
+      load();
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to create category');
     }
-    if (blogCategories.some((c) => c.name.toLowerCase() === name.trim().toLowerCase())) {
-      toast('That blog category already exists');
-      return;
-    }
-    addBlogCategory({ id: 'bc' + Date.now(), name: name.trim(), hasBanner, bannerDataUrl, seo });
-    setName('');
-    setBannerDataUrl('');
-    setSeo(emptySeo());
   };
 
   return (
@@ -155,6 +251,8 @@ export function BlogCategories() {
         <Link to="/blogs" style={{ fontSize: 13 }}>← Blog posts</Link>
         <h1 className="page-title">Blog categories</h1>
       </div>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
 
       <div className="tblwrap">
         <div className="thead" style={{ minWidth: 380 }}>
@@ -163,14 +261,15 @@ export function BlogCategories() {
           <span style={{ flex: 1 }}>Banner</span>
           <span style={{ flex: 1 }}>SEO</span>
         </div>
-        {blogCategories.map((c) => (
+        {categories.map((c) => (
           <div key={c.id} className="trow" style={{ minWidth: 380 }}>
             <span style={{ flex: 1.6, fontWeight: 700 }}>{c.name}</span>
             <span style={{ flex: 1 }}>{blogs.filter((b) => b.category === c.name).length}</span>
-            <span style={{ flex: 1 }} className={c.hasBanner ? 'green' : 'hint'}>{c.hasBanner ? '✓ set' : '—'}</span>
+            <span style={{ flex: 1 }} className={c.bannerUrl ? 'green' : 'hint'}>{c.bannerUrl ? '✓ set' : '—'}</span>
             <span style={{ flex: 1 }} className={c.seo?.title ? 'green' : 'hint'}>{c.seo?.title ? '✓ set' : '—'}</span>
           </div>
         ))}
+        {categories.length === 0 && !loading && <div className="trow muted">No categories yet.</div>}
       </div>
 
       <form className="card" style={{ border: '1px solid var(--green)', display: 'flex', flexDirection: 'column', gap: 10 }} onSubmit={create}>
@@ -179,9 +278,10 @@ export function BlogCategories() {
           <label>Category name</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Nightlife tips" />
         </div>
-        <ImagePicker value={bannerDataUrl} onChange={setBannerDataUrl} aspectRatio="16 / 5" height={60} label="+ upload category banner 16:5 — tops the category page">
-          <span className="tiny" style={{ margin: 'auto', color: '#fff' }}>✓ category banner uploaded (16:5)</span>
-        </ImagePicker>
+        <input ref={bannerInputRef} type="file" accept="image/*" onChange={onBannerFile} style={{ display: 'none' }} />
+        <button type="button" className="ph" style={{ height: 60, width: '100%', cursor: 'pointer', backgroundImage: bannerUrl ? `url(${bannerUrl})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }} disabled={uploading} onClick={() => bannerInputRef.current?.click()}>
+          {bannerUrl ? <span className="tiny" style={{ margin: 'auto', color: '#fff' }}>✓ category banner uploaded (16:5)</span> : (uploading ? 'Uploading…' : '+ upload category banner 16:5 — tops the category page')}
+        </button>
         <SeoFields seo={seo} onChange={setSeo} slug={slug} fallbackTitle={`${name || 'Category'} — Prebooze Blog`} />
         <button type="submit" className="btn btn-pri" style={{ alignSelf: 'flex-start' }}>Create category</button>
       </form>

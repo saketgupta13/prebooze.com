@@ -1,46 +1,86 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import WysiwygEditor from '../components/WysiwygEditor';
+import { livePages, LiveApiError, type LiveSitePage } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate } from '../components/LiveChrome';
+import type { Seo } from '../types';
 
+const TITLE = 'Edit page';
 const DEFAULT_CONTENT = '<h2>Heading block</h2><p>Text block — write the page copy here…</p><p><a href="/browse">Browse events →</a></p>';
 
 export default function PageEdit() {
-  const { pid } = useParams(); // slug without the leading slash
+  const { pid } = useParams();
   const navigate = useNavigate();
-  const { pages, updatePage, toast } = useAdmin();
-  const page = pages.find((p) => p.slug.replace(/^\//, '') === pid);
+  const session = useLiveSession();
+  const { token } = session;
 
-  const [title, setTitle] = useState(page?.title ?? '');
-  const [slug, setSlug] = useState(page?.slug ?? '');
-  const [navGroup, setNavGroup] = useState(page?.navGroup ?? 'Company');
-  const [content, setContent] = useState(page?.content ?? DEFAULT_CONTENT);
-  const [seo, setSeo] = useState(page?.seo ?? emptySeo());
+  const [page, setPage] = useState<LiveSitePage | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
-  if (!page) {
+  const [title, setTitle] = useState('');
+  const [slug, setSlug] = useState('');
+  const [navGroup, setNavGroup] = useState('Company');
+  const [content, setContent] = useState(DEFAULT_CONTENT);
+  const [seo, setSeo] = useState<Seo>(emptySeo());
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    livePages
+      .list()
+      .then((pages) => {
+        const p = pages.find((x) => x.slug.replace(/^\//, '') === pid);
+        setPage(p ?? null);
+        if (p) {
+          setTitle(p.title);
+          setSlug(p.slug);
+          setNavGroup(p.navGroup ?? 'Company');
+          setContent(p.content ?? DEFAULT_CONTENT);
+          setSeo((p.seo as Seo | null) ?? emptySeo());
+        }
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, pid]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  if (!loading && !page) {
     return (
       <div className="stack fade">
+        {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Page not found</h1>
         <Link to="/pages" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Pages</Link>
       </div>
     );
   }
+  if (!page) {
+    return <div className="stack fade"><div className="tiny muted">Loading…</div></div>;
+  }
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !slug.trim()) {
-      toast('Title and slug are required');
-      return;
+    if (!title.trim() || !slug.trim()) { setErr('Title and slug are required'); return; }
+    try {
+      await livePages.update(page.slug, {
+        title: title.trim(),
+        navGroup,
+        content,
+        seo,
+      });
+      navigate('/pages');
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to save');
     }
-    updatePage(page.slug, {
-      title: title.trim(),
-      slug: slug.startsWith('/') ? slug : '/' + slug,
-      navGroup,
-      content,
-      seo,
-    });
-    navigate('/pages');
   };
 
   return (
@@ -49,6 +89,7 @@ export default function PageEdit() {
         <Link to="/pages" style={{ fontSize: 13 }}>← Pages</Link>
         <h1 className="page-title">Edit page — {page.title}</h1>
       </div>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -58,7 +99,7 @@ export default function PageEdit() {
           </div>
           <div className="field" style={{ flex: 1 }}>
             <label>URL slug</label>
-            <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} />
+            <input className="input" value={slug} disabled title="slug can't be changed after creation" />
           </div>
           <div className="field" style={{ flex: 1 }}>
             <label>Footer nav group</label>
@@ -76,7 +117,7 @@ export default function PageEdit() {
         </div>
       </div>
 
-      <SeoFields seo={seo} onChange={setSeo} slug={slug.startsWith('/') ? slug : '/' + slug} fallbackTitle={title || page.title} />
+      <SeoFields seo={seo} onChange={setSeo} slug={'/' + slug.replace(/^\//, '')} fallbackTitle={title || page.title} />
 
       <div style={{ display: 'flex', gap: 10 }}>
         <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }}>Save page</button>
