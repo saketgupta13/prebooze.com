@@ -233,6 +233,7 @@ export const notifications = {
 export interface PlatformInfo {
   maintenanceMode: boolean;
   comingSoonMode: boolean;
+  salesPaused: boolean;
   socials: { instagram: string; x: string; youtube: string; whatsapp: string; facebook: string };
   siteSeo: { title: string; description: string; keywords: string };
   contact: { email: string; phone: string; address: string; organizerEmail: string };

@@ -8,6 +8,7 @@ import Footer from './components/Footer';
 import Toast from './components/Toast';
 import CookieConsent from './components/CookieConsent';
 import ComingSoonGate from './components/ComingSoonGate';
+import SalesPausedBanner from './components/SalesPausedBanner';
 import Home from './pages/Home';
 import Browse from './pages/Browse';
 import Categories from './pages/Categories';
@@ -129,6 +130,7 @@ export default function App() {
     <ComingSoonGate>
       <ScrollToTop />
       <Header />
+      <SalesPausedBanner />
       <MaintenanceGate>
       <Routes>
         {/* Guest — discovery */}

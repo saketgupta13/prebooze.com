@@ -75,7 +75,7 @@ export class ContentService {
   async platformInfo() {
     const s = await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
     return {
-      maintenanceMode: s.maintenanceMode, comingSoonMode: s.comingSoonMode, socials: s.socials, siteSeo: s.siteSeo, contact: s.contact,
+      maintenanceMode: s.maintenanceMode, comingSoonMode: s.comingSoonMode, salesPaused: s.salesPaused, socials: s.socials, siteSeo: s.siteSeo, contact: s.contact,
       footerCopyright: s.footerCopyright, feeLabel: s.feeLabel, absorbedBy: s.absorbedBy,
       bookingFee: s.bookingFee, gstPct: s.gstPct, logoUrl: s.logoUrl, faviconUrl: s.faviconUrl,
     };

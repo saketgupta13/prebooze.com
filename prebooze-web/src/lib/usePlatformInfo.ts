@@ -11,6 +11,7 @@ import { isBackendEnabled } from '../api/client';
 const FALLBACK: PlatformInfo = {
   maintenanceMode: false,
   comingSoonMode: false,
+  salesPaused: false,
   socials: {
     instagram: 'https://instagram.com/prebooze',
     facebook: 'https://facebook.com/prebooze',
@@ -48,6 +49,7 @@ function merge(live: Partial<PlatformInfo>): PlatformInfo {
   return {
     maintenanceMode: live.maintenanceMode ?? FALLBACK.maintenanceMode,
     comingSoonMode: live.comingSoonMode ?? FALLBACK.comingSoonMode,
+    salesPaused: live.salesPaused ?? FALLBACK.salesPaused,
     socials: { ...FALLBACK.socials, ...Object.fromEntries(Object.entries(live.socials ?? {}).filter(([, v]) => v)) },
     siteSeo: { ...FALLBACK.siteSeo, ...live.siteSeo },
     contact: { ...FALLBACK.contact, ...Object.fromEntries(Object.entries(live.contact ?? {}).filter(([, v]) => v)) },

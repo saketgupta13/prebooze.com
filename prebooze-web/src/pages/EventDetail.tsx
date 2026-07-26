@@ -20,6 +20,7 @@ import { friendsGoing, goingCount, myStatus } from '../lib/social';
 import { existingRole, roleLabel } from '../lib/roles';
 import { stripHtml } from '../lib/richtext';
 import { useSeo } from '../lib/useSeo';
+import { usePlatformInfo } from '../lib/usePlatformInfo';
 import Poster, { categoryEmoji } from '../components/Poster';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
@@ -38,6 +39,7 @@ export default function EventDetail() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { user, city, setSelection, myEvents, following, bookings, interested, toggleInterested, pendingPromoterRef, setPendingPromoterRef, waitlists, joinWaitlist } = useApp();
+  const { salesPaused } = usePlatformInfo();
 
   const mockEvent = eventBySlug(slug ?? '') ?? myEvents.find((e) => e.slug === slug);
   const [liveEvent, setLiveEvent] = useState<Event | null>(null);
@@ -436,6 +438,10 @@ export default function EventDetail() {
             ) : existingRole(user) ? (
               <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: '10px 12px', fontSize: 12.5 }} >
                 🔒 {roleLabel(existingRole(user)!)[0].toUpperCase() + roleLabel(existingRole(user)!).slice(1)} accounts can't book tickets — use a personal number to attend as a guest.
+              </div>
+            ) : salesPaused ? (
+              <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: '10px 12px', fontSize: 12.5 }}>
+                🎫 Ticket sales are temporarily paused platform-wide — check back shortly.
               </div>
             ) : (
               <button className="btn btn-pri btn-block btn-lg" disabled={ticketCount === 0} onClick={book}>
