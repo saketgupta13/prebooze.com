@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { liveSettings, LiveApiError, type LiveSettings } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import RealImageUpload from '../components/RealImageUpload';
 
 const TITLE = 'Settings (live)';
 
@@ -62,6 +63,35 @@ export default function SettingsLive() {
       <LiveHeaderBar title={TITLE} session={session} />
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       {loading && <div className="tiny muted">Loading…</div>}
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="display" style={{ fontWeight: 700 }}>Branding</div>
+        <div className="tiny muted">
+          Replaces the Prebooze logo and browser favicon everywhere — guest site (header, footer, login), admin panel
+          (this panel, invoices, QR tickets) and transactional emails. Leave blank to keep the default asset shipped
+          with the app.
+        </div>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <div className="tiny muted" style={{ marginBottom: 6 }}>Logo (wordmark)</div>
+            <RealImageUpload value={settings.logoUrl} onChange={(url) => set('logoUrl', url)} width={220} height={70} label="Upload logo" />
+            {settings.logoUrl && (
+              <button className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} onClick={() => set('logoUrl', null)}>
+                Reset to default
+              </button>
+            )}
+          </div>
+          <div>
+            <div className="tiny muted" style={{ marginBottom: 6 }}>Favicon</div>
+            <RealImageUpload value={settings.faviconUrl} onChange={(url) => set('faviconUrl', url)} width={70} height={70} label="Upload favicon" />
+            {settings.faviconUrl && (
+              <button className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} onClick={() => set('faviconUrl', null)}>
+                Reset to default
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="display" style={{ fontWeight: 700 }}>Platform mode</div>

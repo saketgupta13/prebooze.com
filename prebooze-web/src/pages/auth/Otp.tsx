@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { ApiError } from '../../api/client';
+import { usePlatformInfo } from '../../lib/usePlatformInfo';
 
 export default function Otp() {
   const { pendingPhone, loginWithOtp, requestOtp } = useApp();
+  const { logoUrl } = usePlatformInfo();
   const navigate = useNavigate();
   const location = useLocation();
   const [digits, setDigits] = useState(['', '', '', '']);
@@ -80,7 +82,7 @@ export default function Otp() {
     <main className="page">
       <div className="container auth-wrap">
         <div className="auth-visual">
-          <img src="/prebooze-logo.png" alt="Prebooze" style={{ height: 66, width: 'auto' }} />
+          <img src={logoUrl || '/prebooze-logo.png'} alt="Prebooze" style={{ height: 66, width: 'auto' }} />
           <p className="muted small">
             Concerts · comedy · festivals · warehouse parties — from verified organizers only.
           </p>

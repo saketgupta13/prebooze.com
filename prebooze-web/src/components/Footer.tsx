@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 
 export default function Footer() {
-  const { socials, footerCopyright } = usePlatformInfo();
+  const { socials, footerCopyright, logoUrl } = usePlatformInfo();
   const socialList = [
     { label: 'Instagram', url: socials.instagram },
     { label: 'Facebook', url: socials.facebook },
@@ -68,7 +68,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="ftr-base">
-          <img src="/prebooze-logo.png" alt="" />
+          <img src={logoUrl || '/prebooze-logo.png'} alt="" />
           <span>{footerCopyright}</span>
           <span style={{ flex: 1 }} />
           <Link to="/legal/guest-policy">Guest policy</Link>

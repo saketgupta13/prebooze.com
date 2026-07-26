@@ -3,6 +3,7 @@ import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { GUEST_SITE_URL } from '../store/data';
 import NotificationsPanel from './NotificationsPanel';
+import { useBranding } from '../lib/useBranding';
 
 interface SearchResult {
   type: string;
@@ -86,6 +87,7 @@ const SECTION_NAV = [...MAIN_NAV, ...CONTENT_NAV, ...EXTRA_NAV];
 
 export default function AdminLayout() {
   const { session, logout, notifications, events, bookings, organizers, venues, promoters, customers } = useAdmin();
+  const { logoUrl } = useBranding();
   const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -127,7 +129,7 @@ export default function AdminLayout() {
     <>
       <header className="topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src="/logo.png" alt="Prebooze" />
+          <img src={logoUrl || '/logo.png'} alt="Prebooze" />
           <span className="role-tag">{session.role === 'staff' ? 'STAFF' : 'ADMIN'}</span>
         </div>
         <div ref={searchWrapRef} className="search-box hide-mobile" style={{ flex: 1, maxWidth: 420, position: 'relative' }}>

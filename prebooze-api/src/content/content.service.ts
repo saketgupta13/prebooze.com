@@ -77,7 +77,7 @@ export class ContentService {
     return {
       maintenanceMode: s.maintenanceMode, comingSoonMode: s.comingSoonMode, socials: s.socials, siteSeo: s.siteSeo, contact: s.contact,
       footerCopyright: s.footerCopyright, feeLabel: s.feeLabel, absorbedBy: s.absorbedBy,
-      bookingFee: s.bookingFee, gstPct: s.gstPct,
+      bookingFee: s.bookingFee, gstPct: s.gstPct, logoUrl: s.logoUrl, faviconUrl: s.faviconUrl,
     };
   }
 }

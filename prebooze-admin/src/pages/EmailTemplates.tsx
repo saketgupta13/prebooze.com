@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAdmin } from '../store/AdminContext';
 import WysiwygEditor from '../components/WysiwygEditor';
 import { Tag } from '../components/ui';
+import { useBranding } from '../lib/useBranding';
 
 const BG = '#0e0f0a';
 const CARD = '#171911';
@@ -25,12 +26,12 @@ function substitute(tpl: string, data: Record<string, string>): string {
 
 /** Mirrors prebooze-api/src/notifications/email-templates.ts's layout() —
  * real Prebooze logo (not a text wordmark), same branded card. */
-function layout(bodyHtml: string, ctaLabel?: string): string {
+function layout(bodyHtml: string, ctaLabel?: string, logoUrl?: string | null): string {
   return `<!doctype html><html><body style="margin:0;padding:0;background:${BG};font-family:-apple-system,Segoe UI,Roboto,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BG};padding:32px 16px;">
     <tr><td align="center">
       <table role="presentation" width="100%" style="max-width:480px;background:${CARD};border:1px solid rgba(139,195,74,.18);border-radius:14px;overflow:hidden;">
-        <tr><td style="padding:24px 28px 0;"><img src="/logo.png" alt="Prebooze" height="28" style="height:28px;width:auto;display:block;" /></td></tr>
+        <tr><td style="padding:24px 28px 0;"><img src="${logoUrl || '/logo.png'}" alt="Prebooze" height="28" style="height:28px;width:auto;display:block;" /></td></tr>
         <tr><td style="padding:20px 28px 8px;color:${TEXT};font-size:14px;line-height:1.6;">${bodyHtml}</td></tr>
         ${ctaLabel ? `<tr><td style="padding:8px 28px 24px;"><a href="#" style="display:inline-block;background:${GREEN};color:#0e0f0a;font-weight:700;font-size:13px;text-decoration:none;padding:11px 20px;border-radius:8px;">${ctaLabel}</a></td></tr>` : '<tr><td style="height:16px;"></td></tr>'}
         <tr><td style="padding:16px 28px 24px;border-top:1px solid rgba(139,195,74,.12);">
@@ -49,6 +50,7 @@ export default function EmailTemplates() {
     settings, emailTemplateDefs, customEmailTemplates, emailTemplateOverrides,
     addEmailTemplate, updateEmailTemplate, resetEmailTemplate, removeCustomEmailTemplate,
   } = useAdmin();
+  const { logoUrl } = useBranding();
   const allTemplates = [...emailTemplateDefs, ...customEmailTemplates];
 
   const [cat, setCat] = useState('All');
@@ -107,7 +109,7 @@ export default function EmailTemplates() {
 
   const subject = editing ? draftSubject : (override?.subject ?? def?.defaultSubject ?? '');
   const bodyForPreview = editing ? draftBody : (override?.bodyHtml ?? def?.defaultBody ?? '');
-  const previewHtml = def ? layout(substitute(bodyForPreview, SAMPLE_VALUES), def.ctaLabel) : '';
+  const previewHtml = def ? layout(substitute(bodyForPreview, SAMPLE_VALUES), def.ctaLabel, logoUrl) : '';
   const previewSubject = def ? substitute(subject, SAMPLE_VALUES) : '';
 
   return (

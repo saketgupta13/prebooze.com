@@ -6,9 +6,12 @@
  * component this was ported from), so the code an admin sees here renders
  * identically to what the guest actually has on their ticket. Real signed
  * tokens come with the backend (see BACKEND.md → Real QR). */
+import { useBranding } from '../lib/useBranding';
+
 const SALT = 'PBZ1|';
 
 export default function QRCode({ seed, size = 148, caption }: { seed: string; size?: number; caption?: string }) {
+  const { logoUrl } = useBranding();
   const n = 21;
   const salted = SALT + seed;
   let h = 2166136261;
@@ -56,7 +59,7 @@ export default function QRCode({ seed, size = 148, caption }: { seed: string; si
           display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #000',
         }}
       >
-        <img src="/logo.png" alt="" style={{ width: logo, height: logo, objectFit: 'contain' }} />
+        <img src={logoUrl || '/logo.png'} alt="" style={{ width: logo, height: logo, objectFit: 'contain' }} />
       </span>
       {caption && <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#9be13d', textAlign: 'center' }}>{caption}</div>}
     </div>

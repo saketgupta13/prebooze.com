@@ -13,8 +13,9 @@ const CARD = '#171911';
 const TEXT = '#f1f3ea';
 const MUTED = '#9a9d8c';
 
-function layout(preheader: string, bodyHtml: string, cta?: { label: string; url: string }): string {
+function layout(preheader: string, bodyHtml: string, cta?: { label: string; url: string }, logoUrl?: string | null): string {
   const webUrl = process.env.WEB_APP_URL || 'https://prebooze.com';
+  const logo = logoUrl?.trim() || `${webUrl}/prebooze-logo.png`;
   return `<!doctype html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -24,7 +25,7 @@ function layout(preheader: string, bodyHtml: string, cta?: { label: string; url:
     <tr><td align="center">
       <table role="presentation" width="100%" style="max-width:480px;background:${CARD};border:1px solid rgba(139,195,74,.18);border-radius:14px;overflow:hidden;">
         <tr><td style="padding:24px 28px 0;">
-          <img src="${webUrl}/prebooze-logo.png" alt="Prebooze" height="28" style="height:28px;width:auto;display:block;" />
+          <img src="${logo}" alt="Prebooze" height="28" style="height:28px;width:auto;display:block;" />
         </td></tr>
         <tr><td style="padding:20px 28px 8px;color:${TEXT};font-size:14px;line-height:1.6;">
           ${bodyHtml}
@@ -288,7 +289,7 @@ function substitute(tpl: string, data: Record<string, string>): string {
  * only required input for those; a custom id with no override is a real
  * error (nothing to render), unlike a fixed id with no override (falls back
  * to the code default). */
-export function renderTemplate(id: string, data: Record<string, string>, override?: TemplateOverride | null) {
+export function renderTemplate(id: string, data: Record<string, string>, override?: TemplateOverride | null, logoUrl?: string | null) {
   const def = TEMPLATE_DEFS.find((t) => t.id === id);
   const fullData: Record<string, string> = {
     webUrl: process.env.WEB_APP_URL || 'https://prebooze.com',
@@ -297,10 +298,10 @@ export function renderTemplate(id: string, data: Record<string, string>, overrid
   };
   if (!def) {
     if (!override) throw new Error(`Unknown email template "${id}"`);
-    return { subject: substitute(override.subject, fullData), html: layout('', substitute(override.bodyHtml, fullData)) };
+    return { subject: substitute(override.subject, fullData), html: layout('', substitute(override.bodyHtml, fullData), undefined, logoUrl) };
   }
   const subject = substitute(override?.subject || def.defaultSubject, fullData);
   const body = substitute(override?.bodyHtml || def.defaultBody, fullData);
   const cta = def.cta ? { label: def.cta.label, url: substitute(def.cta.urlTemplate, fullData) } : undefined;
-  return { subject, html: layout(def.preheader, body, cta) };
+  return { subject, html: layout(def.preheader, body, cta, logoUrl) };
 }

@@ -82,11 +82,14 @@ export class EmailTemplatesAdminService {
    * declares — same rendering path a real send uses, so what admin sees is
    * exactly what a recipient would get. */
   async preview(id: string) {
-    const override = await this.prisma.emailTemplate.findUnique({ where: { id } });
+    const [override, settings] = await Promise.all([
+      this.prisma.emailTemplate.findUnique({ where: { id } }),
+      this.prisma.platformSettings.findUnique({ where: { id: 'main' } }),
+    ]);
     const def = TEMPLATE_DEFS.find((t) => t.id === id);
     if (!def && !override) throw new NotFoundException('Unknown template');
     const sample = Object.fromEntries((def?.tokens ?? []).map((t) => [t, SAMPLE_VALUES[t] ?? `{${t}}`]));
-    return renderTemplate(id, sample, override);
+    return renderTemplate(id, sample, override, settings?.logoUrl);
   }
 
   async update(id: string, patch: { subject?: string; bodyHtml?: string }, updatedBy: string) {

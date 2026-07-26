@@ -4,9 +4,11 @@ import { useApp } from '../store/AppContext';
 import { EVENTS, LINEUPS, ORGANIZERS, TRENDING_SEARCHES, VENUES } from '../data/mock';
 import CityPicker from './CityPicker';
 import { existingRole } from '../lib/roles';
+import { usePlatformInfo } from '../lib/usePlatformInfo';
 
 export default function Header() {
   const { user, city, logout } = useApp();
+  const { logoUrl } = usePlatformInfo();
   const heldRole = existingRole(user);
   const navigate = useNavigate();
   const [cityOpen, setCityOpen] = useState(false);
@@ -62,7 +64,7 @@ export default function Header() {
     <header className="hdr">
       <div className="container hdr-in">
         <Link to="/" className="hdr-logo">
-          <img src="/prebooze-logo.png" alt="Prebooze" />
+          <img src={logoUrl || '/prebooze-logo.png'} alt="Prebooze" />
         </Link>
 
         <form className="hdr-search" onSubmit={(e) => { setSearchOpen(false); submitSearch(e); }} ref={searchRef} style={{ position: 'relative' }}>

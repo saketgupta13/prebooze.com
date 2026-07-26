@@ -400,10 +400,19 @@ export interface LiveSettings {
   siteSeo: Record<string, string>;
   contact: Record<string, string>;
   footerCopyright: string;
+  logoUrl: string | null;
+  faviconUrl: string | null;
 }
 export const liveSettings = {
   get: () => liveFetch<LiveSettings>('/admin/settings'),
   update: (body: Partial<LiveSettings>) => liveFetch<LiveSettings>('/admin/settings', { method: 'PATCH', body }),
+};
+
+/** The public branding fields only, via the same unauthenticated GET /settings
+ * prebooze-web's usePlatformInfo already reads — lets pre-login admin pages
+ * (Login) show the admin-uploaded logo without needing a staff session yet. */
+export const livePublicBranding = {
+  get: () => liveFetch<{ logoUrl: string | null; faviconUrl: string | null }>('/settings'),
 };
 
 export interface LiveBanner { id: string; title: string; statusLabel: string; heading: string | null; active: boolean; sort: number; }

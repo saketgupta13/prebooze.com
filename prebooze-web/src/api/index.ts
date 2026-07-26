@@ -241,6 +241,8 @@ export interface PlatformInfo {
   absorbedBy: 'Organizer' | 'Guest' | 'Split' | string;
   bookingFee: number;
   gstPct: number;
+  logoUrl: string | null;
+  faviconUrl: string | null;
 }
 export const platform = {
   settings: () => apiFetch<PlatformInfo>('/settings'),

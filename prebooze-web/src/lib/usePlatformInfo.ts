@@ -30,7 +30,19 @@ const FALLBACK: PlatformInfo = {
   absorbedBy: 'Guest',
   bookingFee: 1.5,
   gstPct: 0,
+  logoUrl: null,
+  faviconUrl: null,
 };
+
+function setFavicon(href: string) {
+  let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'icon';
+    document.head.appendChild(link);
+  }
+  if (link.href !== href) link.href = href;
+}
 
 function merge(live: Partial<PlatformInfo>): PlatformInfo {
   return {
@@ -44,6 +56,8 @@ function merge(live: Partial<PlatformInfo>): PlatformInfo {
     absorbedBy: live.absorbedBy || FALLBACK.absorbedBy,
     bookingFee: live.bookingFee ?? FALLBACK.bookingFee,
     gstPct: live.gstPct ?? FALLBACK.gstPct,
+    logoUrl: live.logoUrl?.trim() || FALLBACK.logoUrl,
+    faviconUrl: live.faviconUrl?.trim() || FALLBACK.faviconUrl,
   };
 }
 
@@ -57,5 +71,8 @@ export function usePlatformInfo(): PlatformInfo {
     if (!isBackendEnabled()) return;
     platform.settings().then((live) => setInfo(merge(live))).catch(() => {});
   }, []);
+  useEffect(() => {
+    setFavicon(info.faviconUrl || '/prebooze-logo.png');
+  }, [info.faviconUrl]);
   return info;
 }

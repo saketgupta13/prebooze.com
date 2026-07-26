@@ -24,12 +24,14 @@ export interface SettingsInput {
   siteSeo?: Record<string, string>;
   contact?: Record<string, string>;
   footerCopyright?: string;
+  logoUrl?: string | null;
+  faviconUrl?: string | null;
 }
 
 const SETTINGS_FIELDS: (keyof SettingsInput)[] = [
   'bookingFee', 'gstPct', 'feeLabel', 'absorbedBy', 'payoutDay', 'autoPayout',
   'weeklyEmail', 'whatsappAlerts', 'require2fa', 'maintenanceMode', 'salesPaused', 'comingSoonMode',
-  'socials', 'siteSeo', 'contact', 'footerCopyright',
+  'socials', 'siteSeo', 'contact', 'footerCopyright', 'logoUrl', 'faviconUrl',
 ];
 
 @Injectable()

@@ -4,6 +4,7 @@ import { useAdmin } from '../store/AdminContext';
 import { ToastHost } from '../components/AdminLayout';
 import { GUEST_SITE_URL } from '../store/data';
 import type { Role } from '../types';
+import { useBranding } from '../lib/useBranding';
 
 // Single hard-coded owner account — this panel isn't backed by a real auth
 // service yet, so lock the admin tab to these exact credentials rather than
@@ -36,6 +37,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { logoUrl } = useBranding();
 
   if (session) return <Navigate to="/" replace />;
 
@@ -59,7 +61,7 @@ export default function Login() {
     <div className="login-wrap fade">
       <div className="login-card">
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <img src="/logo.png" alt="Prebooze" style={{ height: 52, width: 'auto' }} />
+          <img src={logoUrl || '/logo.png'} alt="Prebooze" style={{ height: 52, width: 'auto' }} />
           <div className="display" style={{ fontSize: 13, color: 'var(--muted)', letterSpacing: 0.5 }}>
             TEAM SIGN IN
           </div>

@@ -66,8 +66,11 @@ export class EmailService {
    * rendered. */
   async sendTemplate(to: string | null | undefined, templateId: string, data: Record<string, string>, attachments?: EmailAttachment[]): Promise<void> {
     if (!to?.trim()) return;
-    const override = await this.prisma.emailTemplate.findUnique({ where: { id: templateId } });
-    const { subject, html } = renderTemplate(templateId, data, override);
+    const [override, settings] = await Promise.all([
+      this.prisma.emailTemplate.findUnique({ where: { id: templateId } }),
+      this.prisma.platformSettings.findUnique({ where: { id: 'main' } }),
+    ]);
+    const { subject, html } = renderTemplate(templateId, data, override, settings?.logoUrl);
     await this.send(to, subject, html, attachments);
   }
 }

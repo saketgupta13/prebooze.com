@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { fmt } from '../store/data';
 import { Tag } from '../components/ui';
+import { useBranding } from '../lib/useBranding';
 
 const ROLE_LABEL: Record<string, string> = { guest: 'Guest', organizer: 'Organizer', promoter: 'Promoter', venue: 'Venue', lineup: 'Line-up' };
 
@@ -15,6 +16,7 @@ export default function InvoiceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { invoices, resendInvoiceEmail, resendInvoiceWhatsapp } = useAdmin();
+  const { logoUrl } = useBranding();
   const inv = invoices.find((i) => i.id === id);
 
   if (!inv) {
@@ -54,7 +56,7 @@ export default function InvoiceDetail() {
       <div className="card" style={{ padding: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <div>
-            <img src="/logo.png" alt="Prebooze" style={{ height: 28, width: 'auto', display: 'block', marginBottom: 4 }} />
+            <img src={logoUrl || '/logo.png'} alt="Prebooze" style={{ height: 28, width: 'auto', display: 'block', marginBottom: 4 }} />
             <div className="tiny muted">Tax Invoice</div>
           </div>
           <div style={{ textAlign: 'right', fontSize: 12.5 }}>
