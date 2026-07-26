@@ -26,7 +26,6 @@ import Reports from './pages/Reports';
 import { Banners, Blogs, Categories, Pages } from './pages/Content';
 import StaffRoles from './pages/StaffRoles';
 import LiveMonitor from './pages/LiveMonitor';
-import Settings from './pages/Settings';
 import OrganizerEdit from './pages/OrganizerEdit';
 import { EditVenue } from './pages/Venues';
 import RunPayoutBatch from './pages/RunPayoutBatch';
@@ -110,7 +109,6 @@ export default function App() {
         <Route path="/dashboard-live" element={<DashboardLive />} />
         <Route path="/finance-live" element={<FinanceLive />} />
         <Route path="/staff-live" element={<StaffLive />} />
-        <Route path="/settings-live" element={<SettingsLive />} />
         <Route path="/content-live" element={<ContentLive />} />
         <Route path="/ops-live" element={<OpsLive />} />
         <Route path="/locations-live" element={<LocationsLive />} />
@@ -153,7 +151,7 @@ export default function App() {
         <Route path="/pages/:pid/edit" element={<PageEdit />} />
         <Route path="/staff" element={<StaffRoles />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/settings" element={<SettingsLive />} />
         <Route path="/email-templates" element={<EmailTemplates />} />
         <Route path="/invoices" element={<Invoices />} />
         <Route path="/invoices/:id" element={<InvoiceDetail />} />

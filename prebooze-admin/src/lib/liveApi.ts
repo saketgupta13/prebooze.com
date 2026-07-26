@@ -5,6 +5,8 @@
  * handling the optional 2FA step) and stores the resulting JWT separately
  * from the mock `pba_session` — a deliberate, scoped exception, not a
  * pattern to copy elsewhere without the same real-auth treatment. */
+import type { Seo } from '../types';
+
 const API_URL = import.meta.env.VITE_API_URL as string | undefined;
 const TOKEN_KEY = 'pba_live_staff_token';
 
@@ -396,9 +398,9 @@ export interface LiveSettings {
   maintenanceMode: boolean;
   salesPaused: boolean;
   comingSoonMode: boolean;
-  socials: Record<string, string>;
-  siteSeo: Record<string, string>;
-  contact: Record<string, string>;
+  socials: { instagram: string; x: string; youtube: string; whatsapp: string; facebook: string };
+  siteSeo: Seo;
+  contact: { email: string; phone: string; address: string; organizerEmail: string };
   footerCopyright: string;
   logoUrl: string | null;
   faviconUrl: string | null;

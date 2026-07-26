@@ -3,13 +3,24 @@ import { liveSettings, LiveApiError, type LiveSettings } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import RealImageUpload from '../components/RealImageUpload';
+import SeoFields from '../components/SeoFields';
 
-const TITLE = 'Settings (live)';
+const TITLE = 'Settings';
 
-/** Real PlatformSettings row — the same table already toggled directly via
- * API earlier for coming-soon mode now has a real UI. Every field here is
- * read by the real guest site (usePlatformInfo) or backend (booking fee/GST
- * computation, maintenance gate, sales-pause check) — nothing decorative. */
+const SOCIAL_FIELDS = [
+  ['instagram', 'Instagram'],
+  ['x', 'X (Twitter)'],
+  ['youtube', 'YouTube'],
+  ['whatsapp', 'WhatsApp channel'],
+  ['facebook', 'Facebook'],
+] as const;
+
+/** Real PlatformSettings row — one page, merged from the old mock Settings
+ * (which only ever called a fake toast()) and the previous "-live" version
+ * (which had real branding/booking/payout fields but was missing socials/
+ * SEO/contact, even though those were already real backend fields the
+ * guest site's usePlatformInfo/Footer/Contact page already read). Every
+ * field here is read by the real guest site or backend — nothing decorative. */
 export default function SettingsLive() {
   const session = useLiveSession();
   const { token } = session;
@@ -157,6 +168,54 @@ export default function SettingsLive() {
           <input type="checkbox" checked={settings.require2fa} onChange={(e) => set('require2fa', e.target.checked)} />
           <span>Require 2FA for staff login</span>
         </label>
+      </div>
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="display" style={{ fontWeight: 700 }}>Social media accounts</div>
+        <div className="tiny muted" style={{ marginTop: -6 }}>linked in the guest site footer and ticket emails</div>
+        {SOCIAL_FIELDS.map(([key, label]) => (
+          <div className="field" key={key}>
+            <label>{label}</label>
+            <input
+              className="input"
+              style={{ maxWidth: 320 }}
+              value={settings.socials[key]}
+              onChange={(e) => set('socials', { ...settings.socials, [key]: e.target.value })}
+              placeholder={`${key}.com/prebooze`}
+            />
+          </div>
+        ))}
+      </div>
+
+      <SeoFields
+        seo={settings.siteSeo}
+        onChange={(next) => set('siteSeo', next)}
+        slug="/"
+        fallbackTitle="Prebooze — Your city's events, one tap away"
+      />
+      <div className="tiny muted" style={{ marginTop: -8 }}>
+        website-wide SEO defaults — pages, events and blogs without their own SEO fall back to these
+      </div>
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="display" style={{ fontWeight: 700 }}>Contact details</div>
+        <div className="tiny muted" style={{ marginTop: -6 }}>shown on the guest Contact page and booking confirmations</div>
+        <div className="field">
+          <label>Support email</label>
+          <input className="input" style={{ maxWidth: 320 }} value={settings.contact.email} onChange={(e) => set('contact', { ...settings.contact, email: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>WhatsApp / phone</label>
+          <input className="input" style={{ maxWidth: 320 }} value={settings.contact.phone} onChange={(e) => set('contact', { ...settings.contact, phone: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>Organizer support email</label>
+          <input className="input" style={{ maxWidth: 320 }} value={settings.contact.organizerEmail} onChange={(e) => set('contact', { ...settings.contact, organizerEmail: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>Office address</label>
+          <input className="input" style={{ maxWidth: 320 }} value={settings.contact.address} onChange={(e) => set('contact', { ...settings.contact, address: e.target.value })} />
+        </div>
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
