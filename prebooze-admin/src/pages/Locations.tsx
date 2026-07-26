@@ -1,18 +1,61 @@
-import { useState } from 'react';
-import { useAdmin } from '../store/AdminContext';
+import { useEffect, useState } from 'react';
+import { liveLocations, LiveApiError, type LiveCountry } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
-/** Country → State → City manager for onboarding — add, enable/disable, remove. */
+const TITLE = 'Locations';
+const TOP_CITY_LIMIT = 12; // mirrors LocationsService's own guard, just for the hint text
+
+/** Real country → state → city manager for onboarding — add, enable/disable,
+ * remove, set a city's picker emoji, and star it as a top city. Toggling a
+ * country/state cascades to everything under it (enforced server-side). */
 export default function Locations() {
-  const { locations, addLocation, toggleLocation, removeLocation, toggleTopCity, setCityIcon, uploadCityIcon } = useAdmin();
-  const topCount = locations.flatMap((c) => c.states.flatMap((st) => st.cities)).filter((ci) => ci.top).length;
-  const [countryF, setCountryF] = useState(locations[0]?.name ?? '');
+  const session = useLiveSession();
+  const { token } = session;
+
+  const [tree, setTree] = useState<LiveCountry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [countryF, setCountryF] = useState('');
   const [stateF, setStateF] = useState('');
   const [newCountry, setNewCountry] = useState('');
   const [newState, setNewState] = useState('');
   const [newCity, setNewCity] = useState('');
 
-  const country = locations.find((c) => c.name === countryF);
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    liveLocations
+      .tree()
+      .then((t) => {
+        setTree(t);
+        if (!countryF && t[0]) setCountryF(t[0].name);
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  const country = tree.find((c) => c.name === countryF);
   const state = country?.states.find((s) => s.name === stateF);
+  const topCount = tree.flatMap((c) => c.states.flatMap((st) => st.cities)).filter((ci) => ci.top).length;
+
+  const run = async (fn: () => Promise<unknown>) => {
+    setErr('');
+    try {
+      await fn();
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Action failed');
+    }
+  };
 
   const Toggle = ({ on, onClick }: { on: boolean; onClick: () => void }) => (
     <button
@@ -29,6 +72,10 @@ export default function Locations() {
 
   return (
     <div className="stack fade" style={{ maxWidth: 1100, gap: 14 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+
       <div className="page-hd">
         <h1 className="page-title">Locations</h1>
         <span className="small muted">controls the country / state / city options in onboarding</span>
@@ -38,19 +85,22 @@ export default function Locations() {
         {/* Countries */}
         <div className="card">
           <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>Countries</div>
-          {locations.map((c) => (
+          {tree.map((c) => (
             <div
-              key={c.name}
-              className={`trow clickable ${c.name === countryF ? '' : ''}`}
+              key={c.id}
+              className="trow clickable"
               style={{ background: c.name === countryF ? 'rgba(139,195,74,.08)' : undefined, opacity: c.enabled ? 1 : 0.55, gap: 6 }}
               onClick={() => { setCountryF(c.name); setStateF(''); }}
             >
               <span style={{ flex: 1, fontWeight: 700 }}>{c.name} <span className="tiny muted">({c.states.length})</span></span>
-              <Toggle on={c.enabled} onClick={() => toggleLocation({ country: c.name })} />
-              <Del onClick={() => { removeLocation({ country: c.name }); if (countryF === c.name) setCountryF(''); }} />
+              <Toggle on={c.enabled} onClick={() => run(() => liveLocations.toggleCountry(c.id))} />
+              <Del onClick={() => { if (countryF === c.name) setCountryF(''); run(() => liveLocations.removeCountry(c.id)); }} />
             </div>
           ))}
-          <form style={{ display: 'flex', gap: 6, marginTop: 8 }} onSubmit={(e) => { e.preventDefault(); addLocation('country', { country: '' }, newCountry); setNewCountry(''); }}>
+          <form
+            style={{ display: 'flex', gap: 6, marginTop: 8 }}
+            onSubmit={(e) => { e.preventDefault(); if (!newCountry.trim()) return; run(() => liveLocations.addCountry(newCountry.trim())); setNewCountry(''); }}
+          >
             <input className="input" style={{ padding: '5px 8px' }} value={newCountry} onChange={(e) => setNewCountry(e.target.value)} placeholder="Add country" />
             <button className="btn btn-pri btn-sm">+</button>
           </form>
@@ -65,18 +115,21 @@ export default function Locations() {
             <>
               {country.states.map((s) => (
                 <div
-                  key={s.name}
+                  key={s.id}
                   className="trow clickable"
                   style={{ background: s.name === stateF ? 'rgba(139,195,74,.08)' : undefined, opacity: s.enabled ? 1 : 0.55, gap: 6 }}
                   onClick={() => setStateF(s.name)}
                 >
                   <span style={{ flex: 1, fontWeight: 700 }}>{s.name} <span className="tiny muted">({s.cities.length})</span></span>
-                  <Toggle on={s.enabled} onClick={() => toggleLocation({ country: country.name, state: s.name })} />
-                  <Del onClick={() => { removeLocation({ country: country.name, state: s.name }); if (stateF === s.name) setStateF(''); }} />
+                  <Toggle on={s.enabled} onClick={() => run(() => liveLocations.toggleState(s.id))} />
+                  <Del onClick={() => { if (stateF === s.name) setStateF(''); run(() => liveLocations.removeState(s.id)); }} />
                 </div>
               ))}
               {country.states.length === 0 && <div className="muted small">No states yet.</div>}
-              <form style={{ display: 'flex', gap: 6, marginTop: 8 }} onSubmit={(e) => { e.preventDefault(); addLocation('state', { country: country.name }, newState); setNewState(''); }}>
+              <form
+                style={{ display: 'flex', gap: 6, marginTop: 8 }}
+                onSubmit={(e) => { e.preventDefault(); if (!newState.trim()) return; run(() => liveLocations.addState(country.id, newState.trim())); setNewState(''); }}
+              >
                 <input className="input" style={{ padding: '5px 8px' }} value={newState} onChange={(e) => setNewState(e.target.value)} placeholder="Add state" />
                 <button className="btn btn-pri btn-sm">+</button>
               </form>
@@ -97,33 +150,28 @@ export default function Locations() {
                     className="input"
                     title="City icon (emoji) — shown on its tile in the guest city picker"
                     style={{ width: 44, padding: '3px 6px', textAlign: 'center', fontSize: 15 }}
-                    value={ci.icon ?? ''}
+                    defaultValue={ci.icon ?? ''}
                     placeholder="🏙"
-                    onChange={(e) => setCityIcon({ country: country!.name, state: state.name, city: ci.name }, e.target.value)}
+                    onBlur={(e) => { if (e.target.value !== (ci.icon ?? '')) run(() => liveLocations.updateCity(ci.name, { icon: e.target.value })); }}
                   />
-                  <button
-                    className="chip"
-                    title={ci.iconUploaded ? 'Icon image uploaded — click to remove' : 'Upload an icon image (PNG/SVG · ≤1 MB)'}
-                    style={{ fontSize: 11, padding: '2px 8px', borderColor: ci.iconUploaded ? 'var(--green)' : undefined, color: ci.iconUploaded ? 'var(--green)' : undefined }}
-                    onClick={(e) => { e.stopPropagation(); uploadCityIcon({ country: country!.name, state: state.name, city: ci.name }); }}
-                  >
-                    {ci.iconUploaded ? '🖼 ✓' : '⬆'}
-                  </button>
                   <span style={{ flex: 1, fontWeight: 700 }}>{ci.name}</span>
                   <button
                     className="chip"
                     title="Show as a top-city tile in the guest city picker (max 12)"
                     style={{ fontSize: 12, padding: '2px 8px', borderColor: ci.top ? 'var(--green)' : undefined }}
-                    onClick={(e) => { e.stopPropagation(); toggleTopCity({ country: country!.name, state: state.name, city: ci.name }); }}
+                    onClick={(e) => { e.stopPropagation(); run(() => liveLocations.updateCity(ci.name, { top: !ci.top })); }}
                   >
                     {ci.top ? '⭐' : '☆'}
                   </button>
-                  <Toggle on={ci.enabled} onClick={() => toggleLocation({ country: country!.name, state: state.name, city: ci.name })} />
-                  <Del onClick={() => removeLocation({ country: country!.name, state: state.name, city: ci.name })} />
+                  <Toggle on={ci.enabled} onClick={() => run(() => liveLocations.toggleCity(ci.name))} />
+                  <Del onClick={() => run(() => liveLocations.removeCity(ci.name))} />
                 </div>
               ))}
               {state.cities.length === 0 && <div className="muted small">No cities yet.</div>}
-              <form style={{ display: 'flex', gap: 6, marginTop: 8 }} onSubmit={(e) => { e.preventDefault(); addLocation('city', { country: country!.name, state: state.name }, newCity); setNewCity(''); }}>
+              <form
+                style={{ display: 'flex', gap: 6, marginTop: 8 }}
+                onSubmit={(e) => { e.preventDefault(); if (!newCity.trim()) return; run(() => liveLocations.addCity(state.id, newCity.trim())); setNewCity(''); }}
+              >
                 <input className="input" style={{ padding: '5px 8px' }} value={newCity} onChange={(e) => setNewCity(e.target.value)} placeholder="Add city" />
                 <button className="btn btn-pri btn-sm">+</button>
               </form>
@@ -131,7 +179,9 @@ export default function Locations() {
           )}
         </div>
       </div>
-      <div className="tiny hint">disabled locations are hidden from onboarding pickers · ⭐ marks a city as a top-city tile in the guest picker popup ({topCount}/12 starred) · changes sync to the guest app when the backend lands</div>
+      <div className="tiny hint">
+        disabled locations are hidden from onboarding pickers and the guest city picker · ⭐ marks a city as a top-city tile in the guest picker popup ({topCount}/{TOP_CITY_LIMIT} starred)
+      </div>
     </div>
   );
 }

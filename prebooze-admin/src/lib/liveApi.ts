@@ -492,13 +492,21 @@ export const liveReviews = {
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/reviews/${id}`, { method: 'DELETE' }),
 };
 
-export interface LiveCity { name: string; icon: string | null; top: boolean; }
-export interface LiveState { id: string; name: string; cities: LiveCity[]; }
-export interface LiveCountry { id: string; name: string; states: LiveState[]; }
+export interface LiveCity { name: string; icon: string | null; top: boolean; enabled: boolean; }
+export interface LiveState { id: string; name: string; enabled: boolean; cities: LiveCity[]; }
+export interface LiveCountry { id: string; name: string; enabled: boolean; states: LiveState[]; }
 export const liveLocations = {
   tree: () => liveFetch<LiveCountry[]>('/admin/locations'),
+  addCountry: (name: string) => liveFetch<LiveCountry>('/admin/locations/countries', { body: { name } }),
+  addState: (countryId: string, name: string) => liveFetch<LiveState>('/admin/locations/states', { body: { countryId, name } }),
   addCity: (stateId: string, name: string) => liveFetch<LiveCity>('/admin/locations/cities', { body: { stateId, name } }),
+  toggleCountry: (id: string) => liveFetch<{ ok: true; enabled: boolean }>(`/admin/locations/countries/${id}/toggle`, { method: 'POST' }),
+  toggleState: (id: string) => liveFetch<{ ok: true; enabled: boolean }>(`/admin/locations/states/${id}/toggle`, { method: 'POST' }),
   toggleCity: (name: string) => liveFetch<LiveCity>(`/admin/locations/cities/${encodeURIComponent(name)}/toggle`, { method: 'POST' }),
+  updateCity: (name: string, patch: { icon?: string; top?: boolean }) => liveFetch<LiveCity>(`/admin/locations/cities/${encodeURIComponent(name)}`, { method: 'PATCH', body: patch }),
+  removeCountry: (id: string) => liveFetch<{ ok: true }>(`/admin/locations/countries/${id}`, { method: 'DELETE' }),
+  removeState: (id: string) => liveFetch<{ ok: true }>(`/admin/locations/states/${id}`, { method: 'DELETE' }),
+  removeCity: (name: string) => liveFetch<{ ok: true }>(`/admin/locations/cities/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 };
 
 export interface LiveJob { id: string; title: string; team: string; loc: string; type: string; status: string; }

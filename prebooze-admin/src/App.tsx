@@ -53,7 +53,6 @@ import StaffLive from './pages/StaffLive';
 import SettingsLive from './pages/SettingsLive';
 import ContentLive from './pages/ContentLive';
 import OpsLive from './pages/OpsLive';
-import LocationsLive from './pages/LocationsLive';
 import CareersReferralsLive from './pages/CareersReferralsLive';
 import InvoicesLive from './pages/InvoicesLive';
 import EmailTemplatesLive from './pages/EmailTemplatesLive';
@@ -110,7 +109,6 @@ export default function App() {
         <Route path="/staff-live" element={<StaffLive />} />
         <Route path="/content-live" element={<ContentLive />} />
         <Route path="/ops-live" element={<OpsLive />} />
-        <Route path="/locations-live" element={<LocationsLive />} />
         <Route path="/careers-referrals-live" element={<CareersReferralsLive />} />
         <Route path="/invoices-live" element={<InvoicesLive />} />
         <Route path="/email-templates-live" element={<EmailTemplatesLive />} />
