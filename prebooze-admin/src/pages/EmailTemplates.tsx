@@ -1,9 +1,12 @@
-import { useState } from 'react';
-import { useAdmin } from '../store/AdminContext';
+import { useEffect, useState } from 'react';
 import WysiwygEditor from '../components/WysiwygEditor';
 import { Tag } from '../components/ui';
 import { useBranding } from '../lib/useBranding';
+import { liveEmailTemplates, LiveApiError, type LiveEmailTemplate } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
+const TITLE = 'Email templates';
 const BG = '#0e0f0a';
 const CARD = '#171911';
 const TEXT = '#f1f3ea';
@@ -24,9 +27,11 @@ function substitute(tpl: string, data: Record<string, string>): string {
   return tpl.replace(/\{\{(\w+)\}\}/g, (_, key: string) => data[key] ?? '');
 }
 
-/** Mirrors prebooze-api/src/notifications/email-templates.ts's layout() —
- * real Prebooze logo (not a text wordmark), same branded card. */
-function layout(bodyHtml: string, ctaLabel?: string, logoUrl?: string | null): string {
+/** Client-side approximation for the draft preview while editing (mirrors
+ * prebooze-api's email-templates.ts layout()) — the moment you save, the
+ * preview below switches to the real server-rendered one
+ * (EmailTemplatesAdminService.preview), which is what actually gets sent. */
+function layout(bodyHtml: string, ctaLabel: string | undefined, logoUrl?: string | null): string {
   return `<!doctype html><html><body style="margin:0;padding:0;background:${BG};font-family:-apple-system,Segoe UI,Roboto,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BG};padding:32px 16px;">
     <tr><td align="center">
@@ -46,15 +51,16 @@ function layout(bodyHtml: string, ctaLabel?: string, logoUrl?: string | null): s
 const CATEGORIES = ['All', 'Guest', 'Roles', 'Admin', 'Custom'];
 
 export default function EmailTemplates() {
-  const {
-    settings, emailTemplateDefs, customEmailTemplates, emailTemplateOverrides,
-    addEmailTemplate, updateEmailTemplate, resetEmailTemplate, removeCustomEmailTemplate,
-  } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
   const { logoUrl } = useBranding();
-  const allTemplates = [...emailTemplateDefs, ...customEmailTemplates];
+
+  const [templates, setTemplates] = useState<LiveEmailTemplate[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
   const [cat, setCat] = useState('All');
-  const [selectedId, setSelectedId] = useState<string | null>(allTemplates[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [draftSubject, setDraftSubject] = useState('');
   const [draftBody, setDraftBody] = useState('');
@@ -64,65 +70,128 @@ export default function EmailTemplates() {
   const [newSubject, setNewSubject] = useState('');
   const [newBody, setNewBody] = useState('');
 
-  const list = cat === 'All' ? allTemplates : allTemplates.filter((t) => t.category === cat);
-  const def = allTemplates.find((t) => t.id === selectedId) ?? allTemplates[0];
-  const isCustom = customEmailTemplates.some((t) => t.id === def?.id);
-  const override = emailTemplateOverrides.find((o) => o.id === def?.id);
-  const isCustomized = Boolean(override);
+  const [serverPreview, setServerPreview] = useState<{ subject: string; html: string } | null>(null);
+  const [testTo, setTestTo] = useState('');
+  const [msg, setMsg] = useState('');
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    liveEmailTemplates
+      .list()
+      .then((t) => {
+        setTemplates(t);
+        setSelectedId((prev) => prev ?? t[0]?.id ?? null);
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const def = templates.find((t) => t.id === selectedId) ?? templates[0];
+
+  useEffect(() => {
+    if (!token || !def || editing) return;
+    liveEmailTemplates.preview(def.id).then(setServerPreview).catch(() => setServerPreview(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, def?.id, editing]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  const list = cat === 'All' ? templates : templates.filter((t) => t.category === cat);
 
   const select = (id: string) => {
     setSelectedId(id);
     setEditing(false);
     setCreating(false);
+    setMsg('');
   };
 
   const startEdit = () => {
     if (!def) return;
-    setDraftSubject(override?.subject ?? def.defaultSubject);
-    setDraftBody(override?.bodyHtml ?? def.defaultBody);
+    setDraftSubject(def.subject);
+    setDraftBody(def.bodyHtml);
     setEditing(true);
+    setMsg('');
   };
 
-  const save = () => {
+  const save = async () => {
     if (!def) return;
     if (!draftSubject.trim() || !draftBody.trim()) return;
-    updateEmailTemplate(def.id, { subject: draftSubject, bodyHtml: draftBody });
-    setEditing(false);
+    try {
+      await liveEmailTemplates.update(def.id, { subject: draftSubject, bodyHtml: draftBody });
+      setEditing(false);
+      setMsg('Saved ✓');
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to save');
+    }
   };
 
-  const createTemplate = () => {
+  const createTemplate = async () => {
     if (!newName.trim() || !newSubject.trim() || !newBody.trim()) return;
-    addEmailTemplate({ name: newName, subject: newSubject, bodyHtml: newBody });
-    setNewName('');
-    setNewSubject('');
-    setNewBody('');
-    setCreating(false);
-    setCat('Custom');
+    try {
+      const created = await liveEmailTemplates.create({ name: newName, subject: newSubject, bodyHtml: newBody });
+      setNewName('');
+      setNewSubject('');
+      setNewBody('');
+      setCreating(false);
+      setCat('Custom');
+      setSelectedId(created.id);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to create template');
+    }
   };
 
-  const deleteCustom = () => {
+  const resetOrDelete = async () => {
     if (!def) return;
-    if (!window.confirm(`Delete "${def.name}"? This can't be undone.`)) return;
-    removeCustomEmailTemplate(def.id);
-    setSelectedId(allTemplates.find((t) => t.id !== def.id)?.id ?? null);
+    if (def.custom && !window.confirm(`Delete "${def.name}"? This can't be undone.`)) return;
+    try {
+      await liveEmailTemplates.reset(def.id);
+      const remaining = templates.filter((t) => t.id !== def.id);
+      setSelectedId(remaining[0]?.id ?? null);
+      setMsg(def.custom ? 'Deleted' : 'Reset to default ✓');
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to reset');
+    }
   };
 
-  const subject = editing ? draftSubject : (override?.subject ?? def?.defaultSubject ?? '');
-  const bodyForPreview = editing ? draftBody : (override?.bodyHtml ?? def?.defaultBody ?? '');
-  const previewHtml = def ? layout(substitute(bodyForPreview, SAMPLE_VALUES), def.ctaLabel, logoUrl) : '';
-  const previewSubject = def ? substitute(subject, SAMPLE_VALUES) : '';
+  const sendTest = async () => {
+    if (!def || !testTo.trim()) return;
+    setErr('');
+    try {
+      await liveEmailTemplates.sendNow(def.id, testTo.trim());
+      setMsg(`Test sent to ${testTo.trim()} ✓`);
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to send test');
+    }
+  };
+
+  const draftPreviewHtml = def ? layout(substitute(draftBody, SAMPLE_VALUES), def.ctaLabel, logoUrl) : '';
+  const draftPreviewSubject = def ? substitute(draftSubject, SAMPLE_VALUES) : '';
 
   return (
     <div className="stack fade" style={{ maxWidth: 1200 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+
       <div className="page-hd">
         <h1 className="page-title">Email templates</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span className="small muted">{allTemplates.length} templates · sent via Resend from the backend</span>
+          <span className="small muted">{templates.length} templates · sent via Resend from the backend</span>
           <button className="btn btn-pri btn-sm" onClick={() => { setCreating((v) => !v); setEditing(false); }}>+ Add template</button>
         </div>
       </div>
       <div className="tiny hint" style={{ marginTop: -6 }}>
-        real sending config lives in <code>prebooze-api/.env</code> (<code>RESEND_API_KEY</code>) · edits/new templates here save to this admin panel's own store — wiring them through to the live sender is a follow-on step, same boundary as the rest of this app until admin has a real backend session.
+        edits here change what real transactional emails actually send — EmailService.sendTemplate looks up this exact override.
       </div>
 
       {creating && (
@@ -156,29 +225,25 @@ export default function EmailTemplates() {
 
       <div className="two-col" style={{ gridTemplateColumns: '1fr 1.4fr', gap: 14, alignItems: 'start' }}>
         <div className="stack" style={{ gap: 6 }}>
-          {list.map((t) => {
-            const custom = customEmailTemplates.some((c) => c.id === t.id);
-            const edited = emailTemplateOverrides.some((o) => o.id === t.id);
-            return (
-              <button
-                key={t.id}
-                onClick={() => select(t.id)}
-                className="card"
-                style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', textAlign: 'left', cursor: 'pointer', border: selectedId === t.id ? '1px solid var(--green)' : undefined, color: 'var(--text)' }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                  <b style={{ fontSize: 13 }}>{t.name}</b>
-                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                    {custom && <Tag label="Custom" cls="tag-green" />}
-                    {!custom && edited && <Tag label="Edited" cls="tag-green" />}
-                    <span className="tiny muted">{t.category}</span>
-                  </div>
+          {list.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => select(t.id)}
+              className="card"
+              style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', textAlign: 'left', cursor: 'pointer', border: selectedId === t.id ? '1px solid var(--green)' : undefined, color: 'var(--text)' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                <b style={{ fontSize: 13 }}>{t.name}</b>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  {t.custom && <Tag label="Custom" cls="tag-green" />}
+                  {!t.custom && t.customized && <Tag label="Edited" cls="tag-green" />}
+                  <span className="tiny muted">{t.category}</span>
                 </div>
-                <div className="tiny muted">{edited ? emailTemplateOverrides.find((o) => o.id === t.id)?.subject : t.defaultSubject}</div>
-                <div className="tiny hint">{t.trigger}</div>
-              </button>
-            );
-          })}
+              </div>
+              <div className="tiny muted">{t.subject}</div>
+              <div className="tiny hint">{t.trigger}</div>
+            </button>
+          ))}
           {list.length === 0 && <div className="card muted small">No templates in this category yet.</div>}
         </div>
 
@@ -188,11 +253,8 @@ export default function EmailTemplates() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                 <div className="display" style={{ fontWeight: 700 }}>{def.name}</div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  {!editing && isCustom && (
-                    <button className="btn btn-danger btn-sm" onClick={deleteCustom}>✕ Delete</button>
-                  )}
-                  {!editing && !isCustom && isCustomized && (
-                    <button className="btn btn-danger btn-sm" onClick={() => resetEmailTemplate(def.id)}>↺ Reset to default</button>
+                  {!editing && (def.custom || def.customized) && (
+                    <button className="btn btn-danger btn-sm" onClick={resetOrDelete}>{def.custom ? '✕ Delete' : '↺ Reset to default'}</button>
                   )}
                   {!editing && <button className="btn btn-pri btn-sm" onClick={startEdit}>✎ Edit</button>}
                 </div>
@@ -219,24 +281,35 @@ export default function EmailTemplates() {
               ) : (
                 <div className="tiny muted">{def.trigger}</div>
               )}
+              {msg && !editing && <div className="tiny" style={{ color: 'var(--green)' }}>{msg}</div>}
             </div>
 
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(139,195,74,.15)', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                 <div>
                   <div className="tiny muted">Subject</div>
-                  <b style={{ fontSize: 13 }}>{previewSubject}</b>
+                  <b style={{ fontSize: 13 }}>{editing ? draftPreviewSubject : (serverPreview?.subject ?? '')}</b>
                 </div>
-                <span className="tag tag-green">live preview · sample data</span>
+                <span className="tag tag-green">{editing ? 'draft preview · approximate' : 'server-rendered · sample data'}</span>
               </div>
-              <iframe title={def.name} srcDoc={previewHtml} style={{ width: '100%', height: 460, border: 'none', background: BG }} />
+              <iframe title={def.name} srcDoc={editing ? draftPreviewHtml : (serverPreview?.html ?? '')} style={{ width: '100%', height: 460, border: 'none', background: BG }} />
             </div>
+
+            {!editing && (
+              <div className="card" style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Send a real test to</label>
+                  <input className="input" value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="you@example.com" />
+                </div>
+                <button className="btn btn-ghost" onClick={sendTest}>Send test</button>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       <div className="tiny hint">
-        weekly summary respects the "Weekly summary email" toggle under <a href="/settings">Settings</a> (currently {settings.weeklyEmail ? 'on' : 'off'}) · every other fixed email fires automatically off the real action (booking, refund, KYC decision, payout, etc.) · custom templates are manual-send only, nothing here is otherwise a manual send button.
+        every fixed email fires automatically off the real action (booking, refund, KYC decision, payout, etc.) · custom templates are manual-send only.
       </div>
     </div>
   );

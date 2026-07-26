@@ -588,6 +588,9 @@ export interface LiveEmailTemplate {
   name: string;
   category: string;
   trigger: string;
+  tokens: string[];
+  hasCta: boolean;
+  ctaLabel?: string;
   subject: string;
   bodyHtml: string;
   defaultSubject: string;
@@ -597,6 +600,7 @@ export interface LiveEmailTemplate {
 }
 export const liveEmailTemplates = {
   list: () => liveFetch<LiveEmailTemplate[]>('/admin/email-templates'),
+  create: (body: { name: string; subject: string; bodyHtml: string }) => liveFetch<LiveEmailTemplate>('/admin/email-templates', { body }),
   preview: (id: string) => liveFetch<{ subject: string; html: string }>(`/admin/email-templates/${id}/preview`),
   update: (id: string, patch: { subject?: string; bodyHtml?: string }) => liveFetch<LiveEmailTemplate>(`/admin/email-templates/${id}`, { method: 'PATCH', body: patch }),
   reset: (id: string) => liveFetch<{ ok: true }>(`/admin/email-templates/${id}`, { method: 'DELETE' }),
