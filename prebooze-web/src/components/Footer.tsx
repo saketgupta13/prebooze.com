@@ -1,6 +1,12 @@
 import { Link } from 'react-router-dom';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 
+// Admin only ever types "instagram.com/prebooze"-style handles, not always
+// the full "https://…" — a bare domain in an <a href> is a relative URL
+// (resolves against prebooze.com itself, not the real destination), so this
+// normalizes it into a real, working external link either way.
+const withScheme = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
+
 export default function Footer() {
   const { socials, footerCopyright, logoUrl } = usePlatformInfo();
   const socialList = [
@@ -9,7 +15,9 @@ export default function Footer() {
     { label: 'X', url: socials.x },
     { label: 'YouTube', url: socials.youtube },
     { label: 'WhatsApp', url: socials.whatsapp },
-  ].filter((s) => s.url);
+  ]
+    .filter((s) => s.url)
+    .map((s) => ({ ...s, url: withScheme(s.url) }));
 
   return (
     <footer className="ftr">
