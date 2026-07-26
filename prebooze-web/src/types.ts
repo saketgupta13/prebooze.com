@@ -42,9 +42,23 @@ export interface Event {
   posterHue: number;
   seo?: { title: string; description: string; slug: string; keywords: string[] };
   promoterConfig?: PromoterConfig;
-  socialBanners?: { post?: boolean; postDataUrl?: string; story?: boolean; storyDataUrl?: string }; // 1:1 + 9:16 banners (≤5 MB)
-  bannerDataUrl?: string; // portrait 3:4 banner — shown on cards & event page
-  galleryDataUrls?: string[]; // up to 6 gallery photos
+  // postUrl/storyUrl are the real, persisted upload URLs (admin's real
+  // event editor); post/postDataUrl/story/storyDataUrl are the older
+  // organizer-console mock's local-only base64 fields — kept alongside
+  // rather than replaced, since that flow isn't wired to the real API yet.
+  socialBanners?: { post?: boolean; postDataUrl?: string; story?: boolean; storyDataUrl?: string; postUrl?: string; storyUrl?: string }; // 1:1 + 9:16 banners
+  bannerDataUrl?: string; // mock-only portrait 3:4 banner (organizer console draft, not real)
+  galleryDataUrls?: string[]; // mock-only gallery photos (organizer console draft, not real)
+  // Real, persisted media (admin's real event editor — see BACKEND.md):
+  posterUrl?: string | null; // real poster image, shown on guest cards & the event page
+  galleryUrls?: string[]; // real gallery photos, up to 6
+  teaserVideoUrl?: string | null; // real short vertical teaser reel
+  // The real catalog API (GET /events, GET /events/:slug) embeds the full
+  // venue/organizer objects directly on the event — only present when the
+  // event came from a real fetch, not the local mock store.
+  venue?: Venue;
+  organizer?: Organizer;
+  minPrice?: number;
   // Admin-negotiated per-event platform take-rate — set exclusively by an
   // admin (see PATCH /organizer/:id/commission), read-only everywhere else
   // including here. null/undefined = not set yet.

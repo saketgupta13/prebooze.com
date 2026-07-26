@@ -119,6 +119,9 @@ export interface LiveEvent {
   lineup: LiveLineupItem[];
   posterHue: number;
   posterUrl: string | null;
+  galleryUrls: string[];
+  teaserVideoUrl: string | null;
+  socialBanners: { postUrl?: string; storyUrl?: string } | null;
   seo: LiveSeo | null;
   promoterConfig: LivePromoterConfig | null;
   commission: number | null;
@@ -147,6 +150,9 @@ export interface LiveEventInput {
   posterHue?: number;
   seo?: LiveSeo;
   promoterConfig?: LivePromoterConfig;
+  galleryUrls?: string[];
+  teaserVideoUrl?: string | null;
+  socialBanners?: { postUrl?: string; storyUrl?: string };
   tiers?: { id?: string; name: string; price: number; quantity: number; description?: string }[];
 }
 export const liveEvents = {

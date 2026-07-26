@@ -25,7 +25,8 @@ const PUBLIC_EVENT_SELECT = {
   id: true, slug: true, title: true, description: true, category: true, subCategory: true,
   ageLimit: true, tags: true, date: true, durationHrs: true, venueId: true, status: true,
   conditions: true, rules: true, lineup: true, posterHue: true, seo: true, promoterConfig: true,
-  socialBanners: true, salesPaused: true, posterUrl: true, createdAt: true, updatedAt: true,
+  socialBanners: true, salesPaused: true, posterUrl: true, galleryUrls: true, teaserVideoUrl: true,
+  createdAt: true, updatedAt: true,
   tiers: true, venue: true, organizer: { select: PUBLIC_ORGANIZER_SELECT },
 } as const;
 

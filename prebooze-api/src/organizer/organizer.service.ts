@@ -38,6 +38,8 @@ export interface EventInput {
   posterHue?: number;
   seo?: unknown;
   promoterConfig?: unknown;
+  galleryUrls?: string[];
+  teaserVideoUrl?: string | null;
   socialBanners?: unknown;
   tiers?: TierInput[];
 }
@@ -149,6 +151,8 @@ export class OrganizerService {
       posterHue: input.posterHue ?? existing?.posterHue ?? (input.title.length * 47) % 360,
       seo: (input.seo ?? existing?.seo) as Prisma.InputJsonValue,
       promoterConfig: (input.promoterConfig ?? existing?.promoterConfig) as Prisma.InputJsonValue,
+      galleryUrls: input.galleryUrls ?? existing?.galleryUrls ?? [],
+      teaserVideoUrl: input.teaserVideoUrl !== undefined ? input.teaserVideoUrl : (existing?.teaserVideoUrl ?? null),
       socialBanners: (input.socialBanners ?? existing?.socialBanners) as Prisma.InputJsonValue,
     };
 

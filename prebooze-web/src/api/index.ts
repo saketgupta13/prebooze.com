@@ -98,6 +98,7 @@ export const social = {
   wishlist: (eventId: string, on: boolean) => apiFetch<void>(`/events/${eventId}/wishlist`, { body: { on } }),
   favVenue: (venueId: string, on: boolean) => apiFetch<void>(`/venues/${venueId}/favourite`, { body: { on } }),
   reviewOrganizer: (orgId: string, rating: number, text: string) => apiFetch<GuestReview>(`/organizers/${orgId}/reviews`, { body: { rating, text } }),
+  organizerReviews: (orgId: string) => apiFetch<GuestReview[]>(`/organizers/${orgId}/reviews`),
 };
 
 // ---------- subscriptions (organizer / promoter / venue / lineup billing) ----------

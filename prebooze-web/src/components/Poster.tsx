@@ -4,23 +4,29 @@ interface Props {
   label?: string;
   variant?: 'portrait' | 'landscape' | 'square' | 'reel';
   className?: string;
+  imageUrl?: string | null;
 }
 
 /** Branded placeholder block — the wireframes specify gray placeholders;
- * we render dark gradient art blocks until real photography is sourced. */
-export default function Poster({ hue, emoji = '🎶', label, variant = 'portrait', className = '' }: Props) {
+ * we render dark gradient art blocks until real photography is sourced. Now
+ * that a real poster upload exists (admin's event editor), `imageUrl`
+ * renders the real photo instead — every caller gets it for free by just
+ * passing `event.posterUrl`, no per-page changes needed. */
+export default function Poster({ hue, emoji = '🎶', label, variant = 'portrait', className = '', imageUrl }: Props) {
   const cls = variant === 'portrait' ? '' : variant;
   return (
     <div
       className={`poster ${cls} ${className}`}
       style={{
-        background: `radial-gradient(ellipse at 30% 25%, hsla(${hue}, 70%, 55%, 0.32), transparent 60%),
+        background: imageUrl
+          ? `url(${imageUrl}) center/cover no-repeat`
+          : `radial-gradient(ellipse at 30% 25%, hsla(${hue}, 70%, 55%, 0.32), transparent 60%),
           radial-gradient(ellipse at 75% 80%, hsla(${(hue + 60) % 360}, 65%, 45%, 0.22), transparent 55%),
           var(--surface-2)`,
       }}
     >
-      <span>{emoji}</span>
-      {label && <span className="poster-label">{label}</span>}
+      {!imageUrl && <span>{emoji}</span>}
+      {label && !imageUrl && <span className="poster-label">{label}</span>}
     </div>
   );
 }

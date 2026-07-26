@@ -374,7 +374,12 @@ model Event {
   posterHue       Int
   seo             Json? // {title, description, slug, keywords}
   promoterConfig  Json? // PromoterConfig — see prebooze-web/src/types.ts
-  socialBanners   Json? // {post?, story?}
+  // Real media, all optional — a guest-facing gallery + teaser reel, and
+  // shareable promo images sized for Instagram (post 1:1 / story 9:16).
+  // Real, persisted file URLs (admin/media/upload), same as posterUrl.
+  galleryUrls     String[]        @default([])
+  teaserVideoUrl  String?
+  socialBanners   Json? // {postUrl?, storyUrl?} — real uploaded image URLs
   tiers            TicketTier[]
   bookings         Booking[]
   waitlistEntries  WaitlistEntry[]

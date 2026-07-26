@@ -10,6 +10,7 @@ import { MultiSelectSearch } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import WysiwygEditor from '../components/WysiwygEditor';
 import RealImageUpload from '../components/RealImageUpload';
+import RealVideoUpload from '../components/RealVideoUpload';
 
 type EditorTab = 'basics' | 'tickets' | 'media' | 'rules' | 'commission' | 'lineup' | 'seo';
 const TABS: { key: EditorTab; label: string }[] = [
@@ -66,6 +67,10 @@ export default function EventEditorReal() {
   const [lineupItems, setLineupItems] = useState<{ name: string; role: string }[]>([]);
   const [allowedPromoters, setAllowedPromoters] = useState<string[]>([]);
   const [seo, setSeo] = useState(emptySeo());
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [teaserVideoUrl, setTeaserVideoUrl] = useState('');
+  const [socialPostUrl, setSocialPostUrl] = useState('');
+  const [socialStoryUrl, setSocialStoryUrl] = useState('');
 
   useEffect(() => {
     if (!token) return;
@@ -99,6 +104,10 @@ export default function EventEditorReal() {
               setLineupItems(found.lineup ?? []);
               setAllowedPromoters(found.promoterConfig?.allowedPromoters ?? []);
               setSeo(found.seo ? { ...found.seo, keywords: Array.isArray(found.seo.keywords) ? found.seo.keywords.join(', ') : found.seo.keywords } : emptySeo());
+              setGalleryUrls(found.galleryUrls ?? []);
+              setTeaserVideoUrl(found.teaserVideoUrl ?? '');
+              setSocialPostUrl(found.socialBanners?.postUrl ?? '');
+              setSocialStoryUrl(found.socialBanners?.storyUrl ?? '');
             }
             setLoading(false);
           });
@@ -138,6 +147,9 @@ export default function EventEditorReal() {
       perHeadAmount: existing?.promoterConfig?.perHeadAmount ?? 0,
       allowTeams: existing?.promoterConfig?.allowTeams ?? false,
     },
+    galleryUrls,
+    teaserVideoUrl: teaserVideoUrl || null,
+    socialBanners: { postUrl: socialPostUrl || undefined, storyUrl: socialStoryUrl || undefined },
     tiers: tiers.map((t) => ({
       id: t.id,
       name: t.name.trim(),
@@ -332,14 +344,60 @@ export default function EventEditorReal() {
       )}
 
       {tab === 'media' && (
-        existing ? (
-          <div className="stack" style={{ gap: 10 }}>
-            <RealImageUpload value={existing.posterUrl} onChange={setPoster} height={200} width={160} label="⬆ poster 3:4" />
-            <div className="tiny hint">Real, persisted upload — shows on guest cards &amp; the event page. Gallery/teaser reel/social banners aren't backed by real storage yet, so they're not here.</div>
+        <div className="stack" style={{ gap: 16 }}>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <b>Poster</b>
+            {existing ? (
+              <RealImageUpload value={existing.posterUrl} onChange={setPoster} height={200} width={160} label="⬆ poster 3:4" />
+            ) : (
+              <div className="tiny muted">Save the event once (Basics tab) to get a real event id before uploading a poster.</div>
+            )}
           </div>
-        ) : (
-          <div className="card muted">Save the event once (Basics tab) to get a real event id before uploading a poster.</div>
-        )
+
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <b>Gallery photos (optional, up to 6)</b>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {galleryUrls.map((url, i) => (
+                <div key={i} style={{ position: 'relative' }}>
+                  <div style={{ width: 110, height: 110, borderRadius: 10, backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center', border: '1px solid var(--green)' }} />
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    style={{ position: 'absolute', top: 4, right: 4, padding: '2px 6px' }}
+                    onClick={() => setGalleryUrls((prev) => prev.filter((_, x) => x !== i))}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              {galleryUrls.length < 6 && (
+                <RealImageUpload value={null} onChange={(url) => setGalleryUrls((prev) => [...prev, url])} height={110} width={110} label="+ add photo" />
+              )}
+            </div>
+            <div className="tiny hint">Optional — shown as a photo gallery on the guest event page.</div>
+          </div>
+
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <b>Teaser reel (optional)</b>
+            <RealVideoUpload value={teaserVideoUrl || null} onChange={setTeaserVideoUrl} label="⬆ teaser video · 9:16" />
+            <div className="tiny hint">Optional — a short vertical clip, plays on the guest event page.</div>
+          </div>
+
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <b>Shareable promo images (optional)</b>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <div>
+                <div className="tiny muted" style={{ marginBottom: 4 }}>Instagram post · 1:1</div>
+                <RealImageUpload value={socialPostUrl || null} onChange={setSocialPostUrl} height={110} width={110} label="⬆ post 1:1" />
+              </div>
+              <div>
+                <div className="tiny muted" style={{ marginBottom: 4 }}>Instagram story · 9:16</div>
+                <RealImageUpload value={socialStoryUrl || null} onChange={setSocialStoryUrl} height={160} width={90} label="⬆ story 9:16" />
+              </div>
+            </div>
+            <div className="tiny hint">Optional — ready-to-post promo images shown on the guest page's Share panel.</div>
+          </div>
+        </div>
       )}
 
       {tab === 'rules' && (

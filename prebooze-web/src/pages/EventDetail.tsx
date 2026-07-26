@@ -12,6 +12,10 @@ import {
   organizerById,
   venueById,
 } from '../data/mock';
+import { catalog, social } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { Event } from '../types';
+import type { GuestReview } from '../store/AppContext';
 import { friendsGoing, goingCount, myStatus } from '../lib/social';
 import { existingRole, roleLabel } from '../lib/roles';
 import { stripHtml } from '../lib/richtext';
@@ -23,12 +27,40 @@ import Stepper from '../components/Stepper';
 import EventCard from '../components/EventCard';
 import ShareButton from '../components/ShareButton';
 
+/** Real event + venue + organizer + reviews + recommended, all from the
+ * live catalog API — this page used to read purely from the local mock
+ * seed (EVENTS/eventBySlug), so a real event created in admin was always
+ * "Event not found" here despite existing in the real database. Booking
+ * itself (the "Book" button → /checkout) still hands off to Checkout.tsx,
+ * which is a separate, still-mock-sourced page — not touched here. */
 export default function EventDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { user, city, setSelection, myEvents, following, bookings, interested, toggleInterested, pendingPromoterRef, setPendingPromoterRef, waitlists, joinWaitlist } = useApp();
-  const event = eventBySlug(slug ?? '') ?? myEvents.find((e) => e.slug === slug);
+
+  const mockEvent = eventBySlug(slug ?? '') ?? myEvents.find((e) => e.slug === slug);
+  const [liveEvent, setLiveEvent] = useState<Event | null>(null);
+  const [liveReviews, setLiveReviews] = useState<GuestReview[]>([]);
+  const [liveRecommended, setLiveRecommended] = useState<Event[]>([]);
+  const [loaded, setLoaded] = useState(!isBackendEnabled());
+
+  useEffect(() => {
+    if (!isBackendEnabled() || !slug) return;
+    setLoaded(false);
+    catalog
+      .event(slug)
+      .then((e) => {
+        setLiveEvent(e);
+        if (e.organizerId) social.organizerReviews(e.organizerId).then(setLiveReviews).catch(() => {});
+        catalog.events({ city }).then((all) => setLiveRecommended(all.filter((x) => x.id !== e.id).slice(0, 4))).catch(() => {});
+      })
+      .catch(() => setLiveEvent(null))
+      .finally(() => setLoaded(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
+
+  const event = liveEvent ?? mockEvent;
   useSeo(event?.seo, event?.title);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [expanded, setExpanded] = useState(false);
@@ -44,6 +76,14 @@ export default function EventDetail() {
     if (!event) return 0;
     return event.tiers.reduce((sum, t) => sum + (qty[t.id] ?? 0) * t.price, 0);
   }, [qty, event]);
+
+  if (!loaded) {
+    return (
+      <main className="page">
+        <div className="container center" style={{ padding: '80px 0' }} />
+      </main>
+    );
+  }
 
   if (!event) {
     return (
@@ -61,10 +101,11 @@ export default function EventDetail() {
     );
   }
 
-  const venue = venueById(event.venueId);
-  const organizer = organizerById(event.organizerId);
+  const venue = event.venue ?? venueById(event.venueId);
+  const organizer = event.organizer ?? organizerById(event.organizerId);
   const ticketCount = Object.values(qty).reduce((a, b) => a + b, 0);
-  const recommended = EVENTS.filter((e) => e.status === 'approved' && e.id !== event.id).slice(0, 4);
+  const recommended = liveEvent ? liveRecommended : EVENTS.filter((e) => e.status === 'approved' && e.id !== event.id).slice(0, 4);
+  const reviews = liveEvent ? liveReviews : REVIEWS;
 
   const going = goingCount(event);
   const friends = friendsGoing(event.id, following);
@@ -107,7 +148,7 @@ export default function EventDetail() {
           <div>
             {/* Head */}
             <div className="detail-head">
-              <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} label="portrait banner 3:4" />
+              <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} label="portrait banner 3:4" imageUrl={event.posterUrl} />
               <div className="detail-title">
                 <h1>{event.title}</h1>
                 <div className="detail-meta">
@@ -122,6 +163,20 @@ export default function EventDetail() {
                     </span>
                   ))}
                   <ShareButton path={`/events/${event.slug}`} text={`${event.title} 🎟️ — book on Prebooze:`} />
+                  {(event.socialBanners?.postUrl || event.socialBanners?.storyUrl) && (
+                    <>
+                      {event.socialBanners.postUrl && (
+                        <a href={event.socialBanners.postUrl} download className="chip small" style={{ textDecoration: 'none' }}>
+                          ⬇ Post image
+                        </a>
+                      )}
+                      {event.socialBanners.storyUrl && (
+                        <a href={event.socialBanners.storyUrl} download className="chip small" style={{ textDecoration: 'none' }}>
+                          ⬇ Story image
+                        </a>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 {/* Hosted by + who's going — fills the space under the title */}
@@ -185,6 +240,43 @@ export default function EventDetail() {
                 </button>
               )}
             </section>
+
+            {/* Teaser reel */}
+            {event.teaserVideoUrl && (
+              <section className="section">
+                <div className="section-hd">
+                  <h2>Teaser</h2>
+                </div>
+                <video
+                  src={event.teaserVideoUrl}
+                  controls
+                  muted
+                  playsInline
+                  style={{ width: '100%', maxWidth: 260, aspectRatio: '9 / 16', borderRadius: 12, background: 'var(--surface-2)', display: 'block' }}
+                />
+              </section>
+            )}
+
+            {/* Gallery */}
+            {!!event.galleryUrls?.length && (
+              <section className="section">
+                <div className="section-hd">
+                  <h2>Gallery</h2>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+                  {event.galleryUrls.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={url}
+                        alt={`${event.title} photo ${i + 1}`}
+                        loading="lazy"
+                        style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)' }}
+                      />
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Conditions */}
             {event.conditions.length > 0 && (
@@ -259,13 +351,14 @@ export default function EventDetail() {
                     · {organizer.reviewCount} reviews of {organizer.brandName}
                   </span>
                 </div>
-                {REVIEWS.slice(0, 2).map((r) => (
+                {reviews.slice(0, 2).map((r) => (
                   <div key={r.id} className="review">
-                    <span className="bold">{r.author}</span> · <Stars rating={r.rating} /> ·{' '}
-                    <span className="muted-2">{r.eventTitle}</span>
+                    <span className="bold">{r.author}</span> · <Stars rating={r.rating} />
+                    {r.eventTitle && <> · <span className="muted-2">{r.eventTitle}</span></>}
                     <div className="muted">“{r.text}”</div>
                   </div>
                 ))}
+                {liveEvent && reviews.length === 0 && <div className="tiny muted">No reviews yet.</div>}
                 <Link to={`/organizers/${organizer.id}`} className="link small bold">
                   Read all reviews →
                 </Link>
