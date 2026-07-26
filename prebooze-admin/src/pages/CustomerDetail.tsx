@@ -1,35 +1,86 @@
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
-import { fmt } from '../store/data';
-import { BOOKING_STATUS, CUSTOMER_STATUS, Kpi, Tag } from '../components/ui';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { CUSTOMER_STATUS, Kpi, Tag } from '../components/ui';
+import { liveCustomers, liveBookings, LiveApiError, type LiveCustomer, type LiveBooking } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate } from '../components/LiveChrome';
 
+const TITLE = 'Customer detail';
+const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
+const STATUS_TAG: Record<LiveBooking['status'], { label: string; cls: string }> = {
+  refund_requested: { label: 'Refund req.', cls: 'tag-red' },
+  confirmed: { label: 'Confirmed', cls: 'tag-green' },
+  refunded: { label: 'Refunded', cls: 'tag-dim' },
+  cancelled: { label: 'Cancelled', cls: '' },
+};
 const waLink = (phone: string, message: string) => `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
 
 /** Full customer detail — profile, KPIs and real booking history, matched
- * by guest name (the same key the mock's own booking records use — there's
- * no shared customer id on a booking, this mirrors how the old drawer's
- * "View bookings" link already searched). */
+ * by the real userId a Booking actually carries (not a name-matching
+ * hack). */
 export default function CustomerDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
-  const { customers, bookings, events, toggleBlockCustomer, removeCustomer } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
+
+  const [customers, setCustomers] = useState<LiveCustomer[]>([]);
+  const [bookings, setBookings] = useState<LiveBooking[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    Promise.all([liveCustomers.list(), liveBookings.list()])
+      .then(([c, b]) => {
+        setCustomers(c);
+        setBookings(b);
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const customer = customers.find((c) => c.id === id);
-  if (!customer) {
+  const history = useMemo(
+    () => (customer ? bookings.filter((b) => b.userId === customer.id) : []),
+    [bookings, customer],
+  );
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  if (!loading && !customer) {
     return (
       <div className="stack fade">
+        {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Customer not found</h1>
         <Link to="/customers" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Customers</Link>
       </div>
     );
   }
+  if (!customer) {
+    return <div className="stack fade"><div className="tiny muted">Loading…</div></div>;
+  }
 
-  const eventTitle = (eventId: string) => events.find((e) => e.id === eventId)?.title ?? '';
-  const history = bookings.filter((b) => b.guest.toLowerCase() === customer.name.toLowerCase());
-  const totalPaid = history.filter((b) => b.status !== 'refunded').reduce((a, b) => a + b.amount, 0);
+  const toggleBlocked = async () => {
+    try {
+      await liveCustomers.setBlocked(customer.id, customer.status !== 'blocked');
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to update');
+    }
+  };
+
+  const totalPaid = history.filter((b) => b.status !== 'refunded').reduce((a, b) => a + b.total, 0);
 
   return (
     <div className="stack fade" style={{ maxWidth: 800, gap: 14 }}>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Link to="/customers" style={{ fontSize: 13 }}>← Customers</Link>
         <h1 className="display" style={{ fontSize: 18 }}>{customer.name} {customer.verified && '✓'}</h1>
@@ -38,19 +89,19 @@ export default function CustomerDetail() {
         {customer.phone ? (
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => window.open(waLink(customer.phone!, `Hey ${customer.name.split(' ')[0]}, this is the Prebooze team 👋`), '_blank', 'noopener')}
+            onClick={() => window.open(waLink(customer.phone, `Hey ${customer.name.split(' ')[0]}, this is the Prebooze team 👋`), '_blank', 'noopener')}
           >
             💬 WhatsApp
           </button>
         ) : (
           <button className="btn btn-ghost btn-sm" disabled title="No phone number on file">💬 WhatsApp</button>
         )}
-        <button className="btn btn-danger btn-sm" onClick={() => toggleBlockCustomer(customer.id)}>
+        <button className="btn btn-danger btn-sm" onClick={toggleBlocked}>
           {customer.status === 'blocked' ? 'Unblock customer' : 'Block customer'}
         </button>
       </div>
       <div className="small muted">
-        {customer.city} · {customer.gender}
+        {customer.city || '—'} · {customer.gender || '—'}
         {customer.phone && <> · {customer.phone}</>}
         {customer.email && <> · {customer.email}</>}
       </div>
@@ -61,13 +112,6 @@ export default function CustomerDetail() {
         <Kpi label="Paid on record" value={`₹${fmt(totalPaid)}`} />
         <Kpi label="Status" value={CUSTOMER_STATUS[customer.status].label} />
       </div>
-
-      {customer.notes && (
-        <div className="card">
-          <div className="display" style={{ fontWeight: 700, marginBottom: 4 }}>Notes</div>
-          <div className="small muted">{customer.notes}</div>
-        </div>
-      )}
 
       <div className="tblwrap">
         <div className="display" style={{ fontWeight: 700, padding: '10px 14px', borderBottom: '1px solid rgba(139,195,74,.15)' }}>
@@ -80,29 +124,16 @@ export default function CustomerDetail() {
           <span style={{ flex: 1 }}>Status</span>
         </div>
         {history.map((b) => (
-          <div key={b.id} className="trow clickable" style={{ minWidth: 520 }} onClick={() => navigate(`/bookings/${encodeURIComponent(b.id)}`)}>
+          <Link key={b.id} to={`/bookings/${encodeURIComponent(b.id)}`} className="trow clickable" style={{ minWidth: 520, textDecoration: 'none' }}>
             <span style={{ flex: 1, fontWeight: 700 }}>{b.id}</span>
-            <span style={{ flex: 1.8 }} className="muted">{eventTitle(b.eventId)}</span>
-            <span style={{ flex: 1 }}>{b.qty} · ₹{fmt(b.amount)}</span>
-            <span style={{ flex: 1 }}><Tag {...BOOKING_STATUS[b.status]} /></span>
-          </div>
+            <span style={{ flex: 1.8 }} className="muted">{b.event.title}</span>
+            <span style={{ flex: 1 }}>{b.qty} · ₹{fmt(b.total)}</span>
+            <span style={{ flex: 1 }}><Tag {...STATUS_TAG[b.status]} /></span>
+          </Link>
         ))}
-        {history.length === 0 && <div className="trow muted">No bookings on record for this name yet.</div>}
+        {history.length === 0 && !loading && <div className="trow muted">No bookings on record yet.</div>}
       </div>
       <div className="tiny hint">click a booking row to open its full detail, fee breakdown and refund actions</div>
-
-      <button
-        className="btn btn-danger btn-sm"
-        style={{ width: 'fit-content' }}
-        onClick={() => {
-          if (window.confirm(`Permanently remove ${customer.name}? Their bookings stay on record.`)) {
-            removeCustomer(customer.id);
-            navigate('/customers');
-          }
-        }}
-      >
-        ✕ Remove customer
-      </button>
     </div>
   );
 }

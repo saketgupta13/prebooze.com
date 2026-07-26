@@ -211,6 +211,7 @@ export function resolveDocUrl(path: string): string {
 
 export interface LiveBooking {
   id: string;
+  userId: string;
   mainGuest: string;
   whatsapp: string;
   tierName: string;
