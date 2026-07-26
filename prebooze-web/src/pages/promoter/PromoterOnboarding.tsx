@@ -6,15 +6,16 @@ import RoleTaken from '../../components/RoleTaken';
 import { existingRole } from '../../lib/roles';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
 import WysiwygEditor from '../../components/WysiwygEditor';
+import { FileDropBox } from '../../components/FileDropBox';
 
 const DRAFT_ID = 'promoter';
 type Draft = {
-  logo: boolean; brand: string; username: string; loc: LocationValue; bio: string; links: string;
-  audience: string; idDoc: boolean; selfie: boolean;
+  logo: string; brand: string; username: string; loc: LocationValue; bio: string; links: string;
+  audience: string; idDoc: string; selfie: string;
 };
 const emptyDraft: Draft = {
-  logo: false, brand: '', username: '', loc: emptyLocation(), bio: '', links: '', audience: '',
-  idDoc: false, selfie: false,
+  logo: '', brand: '', username: '', loc: emptyLocation(), bio: '', links: '', audience: '',
+  idDoc: '', selfie: '',
 };
 
 /** Promoter onboarding — same 2-step pattern as organizers: PR profile → identity KYC,
@@ -101,9 +102,13 @@ export default function PromoterOnboarding() {
               if (step1Valid) setStep(2);
             }}
           >
-            <div className={`upload-box ${logo ? 'done' : ''}`} onClick={() => setLogo((v) => !v)} style={{ marginBottom: 16 }}>
-              {logo ? '✓ Logo / photo added' : '📷 logo + — a mark guests recognise on your lists and links'}
-            </div>
+            <FileDropBox
+              value={logo}
+              onChange={setLogo}
+              label="📷 logo + — a mark guests recognise on your lists and links"
+              doneLabel="✓ Logo / photo added — click to replace"
+              style={{ marginBottom: 16 }}
+            />
             <div className="form-row">
               <div className="field">
                 <span>Promoter / brand name</span>
@@ -144,15 +149,17 @@ export default function PromoterOnboarding() {
             </p>
             <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginBottom: 12 }}>1 · Government ID</h3>
-              <div className={`upload-box ${idDoc ? 'done' : ''}`} onClick={() => setIdDoc((v) => !v)}>
-                {idDoc ? '✓ ID uploaded' : '⬆ upload Aadhaar / passport front'}
-              </div>
+              <FileDropBox value={idDoc} onChange={setIdDoc} label="⬆ upload Aadhaar / passport front" doneLabel="✓ ID uploaded — click to replace" />
             </div>
             <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginBottom: 12 }}>2 · Selfie match</h3>
-              <div className={`upload-box ${selfie ? 'done' : ''}`} onClick={() => setSelfie((v) => !v)} style={{ padding: 30 }}>
-                {selfie ? '✓ Selfie captured' : '🤳 camera frame — face in oval · 📷 Capture selfie'}
-              </div>
+              <FileDropBox
+                value={selfie}
+                onChange={setSelfie}
+                label="🤳 camera frame — face in oval · 📷 Capture selfie"
+                doneLabel="✓ Selfie captured — click to replace"
+                style={{ padding: selfie ? undefined : 30 }}
+              />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>

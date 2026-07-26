@@ -4,6 +4,7 @@ import { useApp } from '../../store/AppContext';
 import { VENUES } from '../../data/mock';
 import MapEmbed from '../../components/MapEmbed';
 import WysiwygEditor from '../../components/WysiwygEditor';
+import { GalleryDropBox } from '../../components/FileDropBox';
 
 const VENUE_TYPES = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
@@ -20,7 +21,7 @@ export default function VenueListing() {
   const [amenities, setAmenities] = useState<string[]>(venue?.amenities ?? []);
   const [about, setAbout] = useState(venue?.about ?? '');
   const [timings, setTimings] = useState(venue?.timings ?? '');
-  const [photos, setPhotos] = useState(false);
+  const [photos, setPhotos] = useState<string[]>([]);
 
   if (!venue) {
     return (
@@ -63,8 +64,9 @@ export default function VenueListing() {
       </p>
 
       <form className="card" onSubmit={save}>
-        <div className={`upload-box ${photos ? 'done' : ''}`} onClick={() => setPhotos((v) => !v)} style={{ marginBottom: 16 }}>
-          {photos ? '✓ New photos added' : '📷 update venue photos — entrance, floor, stage (up to 8)'}
+        <div style={{ marginBottom: 16 }}>
+          <div className="tiny muted" style={{ marginBottom: 6 }}>📷 update venue photos — entrance, floor, stage (up to 8)</div>
+          <GalleryDropBox value={photos} onChange={setPhotos} max={8} />
         </div>
         <div className="form-row">
           <div className="field">

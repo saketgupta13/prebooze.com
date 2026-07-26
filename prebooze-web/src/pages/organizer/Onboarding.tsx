@@ -6,15 +6,16 @@ import RoleTaken from '../../components/RoleTaken';
 import { existingRole } from '../../lib/roles';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
 import WysiwygEditor from '../../components/WysiwygEditor';
+import { FileDropBox } from '../../components/FileDropBox';
 
 const DRAFT_ID = 'organizer';
 type Draft = {
-  logo: boolean; brand: string; username: string; loc: LocationValue; types: string; about: string;
-  links: string; gstin: string; pan: string; aadhaar: boolean; selfie: boolean; account: string; ifsc: string;
+  logo: string; brand: string; username: string; loc: LocationValue; types: string; about: string;
+  links: string; gstin: string; pan: string; aadhaar: string; selfie: string; account: string; ifsc: string;
 };
 const emptyDraft: Draft = {
-  logo: false, brand: '', username: '', loc: emptyLocation(), types: 'Concerts', about: '',
-  links: '', gstin: '', pan: '', aadhaar: false, selfie: false, account: '', ifsc: '',
+  logo: '', brand: '', username: '', loc: emptyLocation(), types: 'Concerts', about: '',
+  links: '', gstin: '', pan: '', aadhaar: '', selfie: '', account: '', ifsc: '',
 };
 
 export default function Onboarding() {
@@ -80,13 +81,13 @@ export default function Onboarding() {
               setStep(2);
             }}
           >
-            <div
-              className={`upload-box ${logo ? 'done' : ''}`}
-              onClick={() => setLogo((v) => !v)}
+            <FileDropBox
+              value={logo}
+              onChange={setLogo}
+              label="logo + — Brand logo — shown on every event you publish"
+              doneLabel="✓ Logo added — click to replace"
               style={{ marginBottom: 16 }}
-            >
-              {logo ? '✓ Logo added' : 'logo + — Brand logo — shown on every event you publish'}
-            </div>
+            />
 
             <div className="form-row">
               <div className="field">
@@ -145,16 +146,14 @@ export default function Onboarding() {
             </p>
             <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginBottom: 12 }}>1 · Identity (Aadhaar + selfie)</h3>
-              <div
-                className={`upload-box ${aadhaar ? 'done' : ''}`}
-                onClick={() => setAadhaar((v) => !v)}
+              <FileDropBox
+                value={aadhaar}
+                onChange={setAadhaar}
+                label="⬆ upload Aadhaar front"
+                doneLabel="✓ Aadhaar uploaded — click to replace"
                 style={{ marginBottom: 10 }}
-              >
-                {aadhaar ? '✓ Aadhaar uploaded' : '⬆ upload Aadhaar front'}
-              </div>
-              <div className={`upload-box ${selfie ? 'done' : ''}`} onClick={() => setSelfie((v) => !v)}>
-                {selfie ? '✓ Selfie captured' : '📷 Capture selfie'}
-              </div>
+              />
+              <FileDropBox value={selfie} onChange={setSelfie} label="📷 Capture selfie" doneLabel="✓ Selfie captured — click to replace" />
             </div>
 
             <div className="card" style={{ marginBottom: 16 }}>

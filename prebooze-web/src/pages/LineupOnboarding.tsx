@@ -6,16 +6,17 @@ import RoleTaken from '../components/RoleTaken';
 import { existingRole } from '../lib/roles';
 import { loadDraft, saveDraft, clearDraft } from '../lib/formDraft';
 import WysiwygEditor from '../components/WysiwygEditor';
+import { FileDropBox } from '../components/FileDropBox';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 const DRAFT_ID = 'lineup';
 type Draft = {
-  photo: boolean; stageName: string; category: string; loc: LocationValue; bio: string; links: string;
-  sample: string; idDoc: boolean; selfie: boolean;
+  photo: string; stageName: string; category: string; loc: LocationValue; bio: string; links: string;
+  sample: string; idDoc: string; selfie: string;
 };
 const emptyDraft: Draft = {
-  photo: false, stageName: '', category: 'DJ', loc: emptyLocation(), bio: '', links: '', sample: '',
-  idDoc: false, selfie: false,
+  photo: '', stageName: '', category: 'DJ', loc: emptyLocation(), bio: '', links: '', sample: '',
+  idDoc: '', selfie: '',
 };
 
 /** Line-up onboarding — same 2-step pattern as organizer onboarding:
@@ -108,13 +109,13 @@ export default function LineupOnboarding() {
               if (step1Valid) setStep(2);
             }}
           >
-            <div
-              className={`upload-box ${photo ? 'done' : ''}`}
-              onClick={() => setPhoto((p) => !p)}
+            <FileDropBox
+              value={photo}
+              onChange={setPhoto}
+              label="📷 photo + — Add a press shot — it headlines your profile and event chips"
+              doneLabel="✓ Profile photo added — click to replace"
               style={{ marginBottom: 16 }}
-            >
-              {photo ? '✓ Profile photo added' : '📷 photo + — Add a press shot — it headlines your profile and event chips'}
-            </div>
+            />
             <div className="field">
               <span>Stage / brand name</span>
               <input value={stageName} onChange={(e) => setStageName(e.target.value)} placeholder="e.g. DJ Nova" autoFocus />
@@ -159,15 +160,17 @@ export default function LineupOnboarding() {
             </p>
             <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginBottom: 12 }}>1 · Government ID</h3>
-              <div className={`upload-box ${idDoc ? 'done' : ''}`} onClick={() => setIdDoc((v) => !v)}>
-                {idDoc ? '✓ ID uploaded' : '⬆ upload Aadhaar / passport front'}
-              </div>
+              <FileDropBox value={idDoc} onChange={setIdDoc} label="⬆ upload Aadhaar / passport front" doneLabel="✓ ID uploaded — click to replace" />
             </div>
             <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginBottom: 12 }}>2 · Selfie match</h3>
-              <div className={`upload-box ${selfie ? 'done' : ''}`} onClick={() => setSelfie((v) => !v)} style={{ padding: 30 }}>
-                {selfie ? '✓ Selfie captured' : '🤳 camera frame — face in oval · 📷 Capture selfie'}
-              </div>
+              <FileDropBox
+                value={selfie}
+                onChange={setSelfie}
+                label="🤳 camera frame — face in oval · 📷 Capture selfie"
+                doneLabel="✓ Selfie captured — click to replace"
+                style={{ padding: selfie ? undefined : 30 }}
+              />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>

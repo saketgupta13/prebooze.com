@@ -4,6 +4,7 @@ import { useApp } from '../../store/AppContext';
 import { INTEREST_TAGS } from '../../data/mock';
 import LocationPicker, { emptyLocation } from '../../components/LocationPicker';
 import WysiwygEditor from '../../components/WysiwygEditor';
+import { FileDropBox } from '../../components/FileDropBox';
 
 export default function ProfileCompletion() {
   const { user, updateUser } = useApp();
@@ -25,7 +26,7 @@ export default function ProfileCompletion() {
   });
   const [interests, setInterests] = useState<string[]>(user?.interests ?? []);
   const [loc, setLoc] = useState(emptyLocation);
-  const [photo, setPhoto] = useState(false);
+  const [photo, setPhoto] = useState('');
 
   const pct = useMemo(() => {
     const fields = Object.values(form).filter((v) => v.trim()).length;
@@ -60,13 +61,13 @@ export default function ProfileCompletion() {
         </div>
 
         <form className="card" onSubmit={save}>
-          <div
-            className={`upload-box ${photo ? 'done' : ''}`}
-            onClick={() => setPhoto((p) => !p)}
+          <FileDropBox
+            value={photo}
+            onChange={setPhoto}
+            label="📷 photo + — Add a profile picture — it appears on your tickets and reviews"
+            doneLabel="✓ Photo added — click to replace"
             style={{ marginBottom: 16 }}
-          >
-            {photo ? '✓ Photo added' : '📷 photo + — Add a profile picture — it appears on your tickets and reviews'}
-          </div>
+          />
 
           <div className="form-row">
             <div className="field">

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useApp } from '../../store/AppContext';
 import WysiwygEditor from '../../components/WysiwygEditor';
+import { FileDropBox } from '../../components/FileDropBox';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 
 export default function LineupSettings() {
   const { user, updateUser, toast } = useApp();
-  const [photo, setPhoto] = useState(false);
+  const [photo, setPhoto] = useState('');
   const [form, setForm] = useState({
     lineupName: user?.lineupName ?? '',
     lineupCategory: user?.lineupCategory ?? 'DJ',
@@ -27,9 +28,13 @@ export default function LineupSettings() {
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 16 }}>Profile & settings</h1>
       <form className="card" onSubmit={save}>
-        <div className={`upload-box ${photo ? 'done' : ''}`} onClick={() => setPhoto((v) => !v)} style={{ marginBottom: 16 }}>
-          {photo ? '✓ Photo added' : '📷 photo + — Add a profile photo — shown on your public profile and event posters'}
-        </div>
+        <FileDropBox
+          value={photo}
+          onChange={setPhoto}
+          label="📷 photo + — Add a profile photo — shown on your public profile and event posters"
+          doneLabel="✓ Photo added — click to replace"
+          style={{ marginBottom: 16 }}
+        />
         <div className="form-row">
           <div className="field">
             <span>Stage name</span>

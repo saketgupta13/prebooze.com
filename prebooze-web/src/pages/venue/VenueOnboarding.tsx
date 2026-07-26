@@ -8,6 +8,7 @@ import { existingRole } from '../../lib/roles';
 import { notify } from '../../lib/notify';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
 import WysiwygEditor from '../../components/WysiwygEditor';
+import { FileDropBox, GalleryDropBox } from '../../components/FileDropBox';
 
 const VENUE_TYPES = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
@@ -16,12 +17,12 @@ const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'
 
 const DRAFT_ID = 'venue';
 type Draft = {
-  photos: boolean; name: string; vtype: string; loc: LocationValue; address: string; capacity: string;
-  amenities: string[]; timings: string; about: string; license: boolean; addressProof: boolean;
+  photos: string[]; name: string; vtype: string; loc: LocationValue; address: string; capacity: string;
+  amenities: string[]; timings: string; about: string; license: string; addressProof: string;
 };
 const emptyDraft: Draft = {
-  photos: false, name: '', vtype: VENUE_TYPES[0], loc: emptyLocation(), address: '', capacity: '',
-  amenities: [], timings: '', about: '', license: false, addressProof: false,
+  photos: [], name: '', vtype: VENUE_TYPES[0], loc: emptyLocation(), address: '', capacity: '',
+  amenities: [], timings: '', about: '', license: '', addressProof: '',
 };
 
 /** Venue-partner onboarding — same 2-step pattern as other roles:
@@ -131,8 +132,9 @@ export default function VenueOnboarding() {
               if (step1Valid) setStep(2);
             }}
           >
-            <div className={`upload-box ${photos ? 'done' : ''}`} onClick={() => setPhotos((v) => !v)} style={{ marginBottom: 16 }}>
-              {photos ? '✓ Venue photos added' : '📷 upload venue photos — entrance, floor, stage (up to 8)'}
+            <div style={{ marginBottom: 16 }}>
+              <div className="tiny muted" style={{ marginBottom: 6 }}>📷 venue photos — entrance, floor, stage (up to 8)</div>
+              <GalleryDropBox value={photos} onChange={setPhotos} max={8} />
             </div>
             <div className="form-row">
               <div className="field">
@@ -193,15 +195,11 @@ export default function VenueOnboarding() {
             </p>
             <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginBottom: 12 }}>1 · Operating license</h3>
-              <div className={`upload-box ${license ? 'done' : ''}`} onClick={() => setLicense((v) => !v)}>
-                {license ? '✓ License uploaded' : '⬆ upload bar / entertainment operating license'}
-              </div>
+              <FileDropBox value={license} onChange={setLicense} label="⬆ upload bar / entertainment operating license" doneLabel="✓ License uploaded — click to replace" />
             </div>
             <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginBottom: 12 }}>2 · Address proof</h3>
-              <div className={`upload-box ${addressProof ? 'done' : ''}`} onClick={() => setAddressProof((v) => !v)}>
-                {addressProof ? '✓ Address proof uploaded' : '⬆ upload utility bill / lease / registration'}
-              </div>
+              <FileDropBox value={addressProof} onChange={setAddressProof} label="⬆ upload utility bill / lease / registration" doneLabel="✓ Address proof uploaded — click to replace" />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
+import { FileDropBox } from '../../components/FileDropBox';
 
 /** Guest ID verification — the one part of KYC that's fully automatic.
  * Government ID + selfie are checked instantly (OCR + face-match via our KYC
@@ -12,8 +13,8 @@ export default function IdVerification() {
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from;
 
-  const [idDoc, setIdDoc] = useState(false);
-  const [selfie, setSelfie] = useState(false);
+  const [idDoc, setIdDoc] = useState('');
+  const [selfie, setSelfie] = useState('');
   const [checking, setChecking] = useState(false);
 
   const canSubmit = idDoc && selfie && !checking;
@@ -44,25 +45,25 @@ export default function IdVerification() {
 
         <div className="card" style={{ marginBottom: 16 }}>
           <h3 style={{ marginBottom: 12 }}>1 · Government ID</h3>
-          <div
-            className={`upload-box ${idDoc ? 'done' : ''}`}
-            onClick={() => setIdDoc((v) => !v)}
+          <FileDropBox
+            value={idDoc}
+            onChange={setIdDoc}
+            label="⬆ upload Aadhaar, PAN, driving licence or passport"
+            doneLabel="✓ ID uploaded — click to replace"
             style={{ marginBottom: 4 }}
-          >
-            {idDoc ? '✓ ID uploaded' : '⬆ upload Aadhaar, PAN, driving licence or passport'}
-          </div>
+          />
           <div className="tiny muted-2">Front side, all details clearly visible.</div>
         </div>
 
         <div className="card" style={{ marginBottom: 16 }}>
           <h3 style={{ marginBottom: 12 }}>2 · Selfie capture</h3>
-          <div
-            className={`upload-box ${selfie ? 'done' : ''}`}
-            onClick={() => setSelfie((v) => !v)}
-            style={{ padding: 34 }}
-          >
-            {selfie ? '✓ Selfie captured' : '🤳 camera frame — face in oval · 📷 Capture selfie'}
-          </div>
+          <FileDropBox
+            value={selfie}
+            onChange={setSelfie}
+            label="🤳 camera frame — face in oval · 📷 Capture selfie"
+            doneLabel="✓ Selfie captured — click to replace"
+            style={{ padding: selfie ? undefined : 34 }}
+          />
         </div>
 
         <button className="btn btn-pri btn-block btn-lg" disabled={!canSubmit} onClick={submit}>
