@@ -1,29 +1,145 @@
-import { useState } from 'react';
-import { useAdmin } from '../store/AdminContext';
-import { enabledCityNames, PERM_MODULES } from '../store/data';
+import { useEffect, useState } from 'react';
 import { Tag } from '../components/ui';
-import type { PermSet } from '../types';
+import { liveStaff, liveRoles, PERM_MODULES, LiveApiError, type LiveStaff, type Perms, type PermKey } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
-const PERM_KEYS: (keyof PermSet)[] = ['view', 'edit', 'approve'];
+const TITLE = 'Staff & roles';
+const PERM_KEYS: PermKey[] = ['view', 'edit', 'approve'];
+
+const fmtLastActive = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'invited';
 
 export default function StaffRoles() {
-  const { staff, roles, addStaff, updateStaffRole, removeStaff, setRolePerm, addRole, removeRole, toast, locations } = useAdmin();
-  const roleNames = Object.keys(roles);
-  const cities = enabledCityNames(locations);
+  const session = useLiveSession();
+  const { token } = session;
+
+  const [staff, setStaff] = useState<LiveStaff[]>([]);
+  const [roles, setRoles] = useState<Record<string, Perms>>({});
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [lastTempPassword, setLastTempPassword] = useState<{ email: string; password: string } | null>(null);
+
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
   const [inviteRole, setInviteRole] = useState('Support');
-  const [inviteCity, setInviteCity] = useState(cities[0] ?? 'Austin');
   const [selectedRole, setSelectedRole] = useState('Finance');
   const [showAddRole, setShowAddRole] = useState(false);
   const [newRole, setNewRole] = useState('');
 
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    Promise.all([liveStaff.list(), liveRoles.list()])
+      .then(([s, r]) => {
+        setStaff(s);
+        setRoles(r);
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  const roleNames = Object.keys(roles);
   const matrix = roles[selectedRole] ?? {};
   const isOwnerRole = selectedRole === 'Owner';
 
+  const addStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    try {
+      const created = await liveStaff.create({
+        email: inviteEmail.trim(),
+        roleName: inviteRole,
+        phone: invitePhone.trim() || undefined,
+      });
+      setLastTempPassword({ email: created.email, password: created.tempPassword });
+      setInviteEmail('');
+      setInvitePhone('');
+      setShowInvite(false);
+      load();
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to invite staff');
+    }
+  };
+
+  const updateStaffRole = async (id: string, roleName: string) => {
+    try {
+      await liveStaff.updateRole(id, roleName);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to update role');
+    }
+  };
+
+  const removeStaff = async (s: LiveStaff) => {
+    if (!window.confirm(`Remove ${s.name}? Their access is revoked immediately.`)) return;
+    try {
+      await liveStaff.remove(s.id);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to remove');
+    }
+  };
+
+  const addRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newRole.trim();
+    if (!name) return;
+    if (roles[name]) {
+      setErr(`Role "${name}" already exists`);
+      return;
+    }
+    try {
+      await liveRoles.add(name);
+      setSelectedRole(name);
+      setNewRole('');
+      setShowAddRole(false);
+      load();
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to add role');
+    }
+  };
+
+  const setRolePerm = async (roleName: string, module: string, key: PermKey, value: boolean) => {
+    try {
+      await liveRoles.setPerm(roleName, module, key, value);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to update permission');
+    }
+  };
+
+  const removeRole = async (name: string) => {
+    if (!window.confirm(`Remove the "${name}" role?`)) return;
+    try {
+      await liveRoles.remove(name);
+      setSelectedRole('Finance');
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to remove role');
+    }
+  };
+
   return (
     <div className="stack fade" style={{ maxWidth: 900 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+      {lastTempPassword && (
+        <div className="card" style={{ borderColor: 'var(--accent)' }}>
+          Invited <b>{lastTempPassword.email}</b> — temp password: <code>{lastTempPassword.password}</code> (also emailed)
+        </div>
+      )}
+
       <div className="page-hd">
         <h1 className="page-title">Staff &amp; roles</h1>
         <button className="btn btn-pri" onClick={() => setShowInvite((v) => !v)}>+ Invite staff</button>
@@ -33,14 +149,7 @@ export default function StaffRoles() {
         <form
           className="card"
           style={{ border: '1px solid var(--green)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: 12 }}
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!inviteEmail.trim()) return;
-            addStaff({ name: inviteEmail.trim(), role: inviteRole, lastActive: 'invited', city: inviteCity, phone: invitePhone.trim() || undefined });
-            setInviteEmail('');
-            setInvitePhone('');
-            setShowInvite(false);
-          }}
+          onSubmit={addStaff}
         >
           <input
             className="input"
@@ -62,11 +171,6 @@ export default function StaffRoles() {
               <option key={r}>{r}</option>
             ))}
           </select>
-          <select className="input" style={{ width: 120 }} value={inviteCity} onChange={(e) => setInviteCity(e.target.value)}>
-            {cities.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
           <button type="submit" className="btn btn-pri btn-sm">Invite</button>
         </form>
       )}
@@ -81,10 +185,13 @@ export default function StaffRoles() {
           <span style={{ width: 60 }} />
         </div>
         {staff.map((s) => {
-          const isOwner = s.role === 'Owner';
+          const isOwner = s.roleName === 'Owner';
           return (
-            <div key={s.name} className="trow" style={{ minWidth: 480 }}>
-              <span style={{ flex: 1.6, fontWeight: 700 }}>{s.name}</span>
+            <div key={s.id} className="trow" style={{ minWidth: 480 }}>
+              <span style={{ flex: 1.6 }}>
+                <div style={{ fontWeight: 700 }}>{s.name}</div>
+                <div className="tiny muted">{s.email}</div>
+              </span>
               <span style={{ flex: 1.3 }}>
                 {isOwner ? (
                   <Tag label="Owner" cls="tag-green" />
@@ -92,8 +199,8 @@ export default function StaffRoles() {
                   <select
                     className="input"
                     style={{ padding: '4px 8px', fontSize: 12, width: 'fit-content' }}
-                    value={s.role}
-                    onChange={(e) => updateStaffRole(s.name, e.target.value)}
+                    value={s.roleName}
+                    onChange={(e) => updateStaffRole(s.id, e.target.value)}
                   >
                     {roleNames.filter((r) => r !== 'Owner').map((r) => (
                       <option key={r}>{r}</option>
@@ -102,16 +209,10 @@ export default function StaffRoles() {
                 )}
               </span>
               <span style={{ flex: 0.8 }} className="muted">{s.city ?? '—'}</span>
-              <span style={{ flex: 1 }} className="muted">{s.lastActive}</span>
+              <span style={{ flex: 1 }} className="muted">{fmtLastActive(s.lastActiveAt)}</span>
               <span style={{ width: 60, display: 'flex', justifyContent: 'flex-end' }}>
                 {!isOwner && (
-                  <button
-                    className="btn btn-danger btn-sm"
-                    style={{ padding: '3px 8px' }}
-                    onClick={() => {
-                      if (window.confirm(`Remove ${s.name}? Their access is revoked immediately.`)) removeStaff(s.name);
-                    }}
-                  >
+                  <button className="btn btn-danger btn-sm" style={{ padding: '3px 8px' }} onClick={() => removeStaff(s)}>
                     ✕
                   </button>
                 )}
@@ -119,6 +220,7 @@ export default function StaffRoles() {
             </div>
           );
         })}
+        {staff.length === 0 && !loading && <div className="trow muted">No staff yet.</div>}
       </div>
       <div className="tiny hint">changing a role applies its permission matrix to that member immediately</div>
 
@@ -132,19 +234,7 @@ export default function StaffRoles() {
         <form
           className="card"
           style={{ border: '1px solid var(--green)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: 12 }}
-          onSubmit={(e) => {
-            e.preventDefault();
-            const name = newRole.trim();
-            if (!name) return;
-            if (roles[name]) {
-              toast(`Role "${name}" already exists`);
-              return;
-            }
-            addRole(name);
-            setSelectedRole(name);
-            setNewRole('');
-            setShowAddRole(false);
-          }}
+          onSubmit={addRole}
         >
           <input
             className="input"
@@ -194,17 +284,9 @@ export default function StaffRoles() {
         ))}
         {!isOwnerRole && (
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            <button className="btn btn-pri btn-sm" onClick={() => toast(`Permissions saved for ${selectedRole} ✓`)}>
-              Save role
-            </button>
             <button
               className="btn btn-danger btn-sm"
-              onClick={() => {
-                if (window.confirm(`Remove the "${selectedRole}" role?`)) {
-                  removeRole(selectedRole);
-                  setSelectedRole('Finance');
-                }
-              }}
+              onClick={() => removeRole(selectedRole)}
             >
               ✕ Remove role
             </button>
