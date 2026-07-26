@@ -3,7 +3,8 @@
  * feature swaps from localStorage to live data. */
 import { apiFetch, apiUpload } from './client';
 import type {
-  Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayMethod, Person, User, Venue, WaitlistEntry,
+  Booking, Coupon, Event, Featured, HelpTicket, JobApplication, LineupProfile, Organizer, PayMethod, Person,
+  PromoterProfile, User, Venue, WaitlistEntry,
 } from '../types';
 import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, WalletTx } from '../store/AppContext';
 
@@ -42,15 +43,15 @@ export const kyc = {
 export const catalog = {
   events: (q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string }) => apiFetch<Event[]>('/events', { query: q }),
   event: (slug: string) => apiFetch<Event>(`/events/${slug}`),
-  venues: (city: string) => apiFetch<Venue[]>('/venues', { query: { city } }),
+  venues: (city?: string) => apiFetch<Venue[]>('/venues', { query: { city } }),
   venueSeo: (id: string) => apiFetch<{ title: string; description: string; keywords: string }>(`/venues/${id}/seo`),
-  organizers: (city: string) => apiFetch<unknown[]>('/organizers', { query: { city } }),
+  organizers: (city?: string) => apiFetch<Organizer[]>('/organizers', { query: { city } }),
   organizerSeo: (id: string) => apiFetch<{ title: string; description: string; keywords: string }>(`/organizers/${id}/seo`),
-  promoters: (city: string) => apiFetch<unknown[]>('/promoters', { query: { city } }),
+  promoters: (city?: string) => apiFetch<PromoterProfile[]>('/promoters', { query: { city } }),
   promoterSeo: (id: string) => apiFetch<{ title: string; description: string; keywords: string }>(`/promoters/${id}/seo`),
-  lineups: (city: string) => apiFetch<unknown[]>('/lineups', { query: { city } }),
+  lineups: (city?: string) => apiFetch<LineupProfile[]>('/lineups', { query: { city } }),
   lineupSeo: (id: string) => apiFetch<{ title: string; description: string; keywords: string }>(`/lineups/${id}/seo`),
-  people: (city: string) => apiFetch<Person[]>('/people', { query: { city } }),
+  people: (city?: string) => apiFetch<Person[]>('/people', { query: { city } }),
   featured: (city: string) => apiFetch<Featured[]>('/featured', { query: { city } }),
   categories: () => apiFetch<{ name: string; icon: string; subs: string[] }[]>('/categories'),
   cities: () => apiFetch<{ name: string; icon?: string; top: boolean; events: number }[]>('/cities'),

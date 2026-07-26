@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LINEUPS } from '../data/mock';
 import { useApp } from '../store/AppContext';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { LineupProfile } from '../types';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import DirectoryCard from '../components/DirectoryCard';
 
@@ -9,10 +12,18 @@ import DirectoryCard from '../components/DirectoryCard';
 export default function Lineups() {
   const { city, following, toggleFollow, featured } = useApp();
   const feat = featuredRefs(featured, 'lineup', city);
-  const cats = ['All', ...Array.from(new Set(LINEUPS.filter((l) => l.city === city).map((l) => l.category)))];
+
+  const [liveLineups, setLiveLineups] = useState<LineupProfile[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.lineups(city).then(setLiveLineups).catch(() => setLiveLineups([]));
+  }, [city]);
+
+  const pool = liveLineups ?? LINEUPS.filter((l) => l.city === city);
+  const cats = ['All', ...Array.from(new Set(pool.map((l) => l.category)))];
   const [catF, setCatF] = useState('All');
   const list = featuredFirst(
-    [...LINEUPS].filter((l) => l.city === city && (catF === 'All' || l.category === catF)).sort((a, b) => b.followers - a.followers),
+    [...pool].filter((l) => catF === 'All' || l.category === catF).sort((a, b) => b.followers - a.followers),
     (l) => l.slug,
     feat
   );

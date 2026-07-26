@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, VENUES } from '../data/mock';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { Venue, Event } from '../types';
 import Poster from '../components/Poster';
 import ShareButton from '../components/ShareButton';
 import EventCard from '../components/EventCard';
@@ -12,7 +15,16 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 export default function VenueDetail() {
   const { id } = useParams();
   const { following, toggleFollow, favVenues, toggleFavVenue } = useApp();
-  const venue = VENUES.find((v) => v.id === id);
+
+  const [liveVenues, setLiveVenues] = useState<Venue[] | null>(null);
+  const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.venues().then(setLiveVenues).catch(() => setLiveVenues([]));
+    catalog.events({}).then(setLiveEvents).catch(() => setLiveEvents([]));
+  }, []);
+
+  const venue = (liveVenues ?? VENUES).find((v) => v.id === id);
   const liveSeo = useEntitySeo('venue', id);
   useSeo(liveSeo, venue?.name);
 
@@ -29,7 +41,7 @@ export default function VenueDetail() {
     );
   }
 
-  const events = EVENTS.filter((e) => e.venueId === venue.id && e.status === 'approved');
+  const events = (liveEvents ?? EVENTS).filter((e) => e.venueId === venue.id && e.status === 'approved');
   const followKey = 'venue:' + venue.id;
   const isFollowing = following.includes(followKey);
 
@@ -75,7 +87,7 @@ export default function VenueDetail() {
 
         <div className="stat3" style={{ maxWidth: 520, marginBottom: 24 }}>
           <div className="s">
-            <div className="v">{events.length || 3}</div>
+            <div className="v">{liveEvents ? events.length : events.length || 3}</div>
             <div className="l">upcoming</div>
           </div>
           <div className="s">

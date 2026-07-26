@@ -108,6 +108,36 @@ export interface Organizer {
   logoHue: number;
 }
 
+export interface PromoterProfile {
+  id: string;
+  slug: string;
+  name: string;
+  verified: boolean;
+  city: string;
+  bio: string;
+  links: string[];
+  followers: number;
+  eventsPromoted: number;
+  guestsBrought: number;
+  showRate: number;
+  hue: number;
+}
+
+export interface LineupProfile {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  verified: boolean;
+  city: string;
+  bio: string;
+  links: string[];
+  followers: number;
+  eventsPlayed: number;
+  hue: number;
+  emoji: string;
+}
+
 /** A paid featured placement — surfaces an item first in its own slider/directory. */
 export interface Featured {
   id: string;

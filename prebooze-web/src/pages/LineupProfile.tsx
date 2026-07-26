@@ -1,6 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, LINEUPS, lineupBySlug } from '../data/mock';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { LineupProfile as LineupProfileData, Event } from '../types';
 import Poster from '../components/Poster';
 import ShareButton from '../components/ShareButton';
 import EventCard from '../components/EventCard';
@@ -12,7 +16,16 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 export default function LineupProfile() {
   const { slug } = useParams();
   const { following, toggleFollow } = useApp();
-  const lineup = lineupBySlug(slug ?? '');
+
+  const [liveLineups, setLiveLineups] = useState<LineupProfileData[] | null>(null);
+  const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.lineups().then(setLiveLineups).catch(() => setLiveLineups([]));
+    catalog.events({}).then(setLiveEvents).catch(() => setLiveEvents([]));
+  }, []);
+
+  const lineup = liveLineups ? liveLineups.find((l) => l.slug === slug) : lineupBySlug(slug ?? '');
   const liveSeo = useEntitySeo('lineup', slug);
   useSeo(liveSeo, lineup?.name);
 
@@ -29,10 +42,10 @@ export default function LineupProfile() {
 
   const followKey = 'lineup:' + lineup.slug;
   const isFollowing = following.includes(followKey);
-  const upcoming = EVENTS.filter(
+  const upcoming = (liveEvents ?? EVENTS).filter(
     (e) => e.status === 'approved' && e.lineup.some((l) => l.name.toLowerCase() === lineup.name.toLowerCase())
   );
-  const more = LINEUPS.filter((l) => l.slug !== lineup.slug && l.category === lineup.category).slice(0, 3);
+  const more = (liveLineups ?? LINEUPS).filter((l) => l.slug !== lineup.slug && l.category === lineup.category).slice(0, 3);
 
   return (
     <main className="page">

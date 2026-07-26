@@ -1,6 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, PROMOTERS, promoterBySlug } from '../data/mock';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { PromoterProfile as PromoterProfileData, Event } from '../types';
 import { friendsAtEvents } from '../lib/social';
 import FriendsProof from '../components/FriendsProof';
 import ShareButton from '../components/ShareButton';
@@ -14,7 +18,16 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 export default function PromoterProfile() {
   const { slug } = useParams();
   const { following, toggleFollow } = useApp();
-  const promoter = promoterBySlug(slug ?? '');
+
+  const [livePromoters, setLivePromoters] = useState<PromoterProfileData[] | null>(null);
+  const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.promoters().then(setLivePromoters).catch(() => setLivePromoters([]));
+    catalog.events({}).then(setLiveEvents).catch(() => setLiveEvents([]));
+  }, []);
+
+  const promoter = livePromoters ? livePromoters.find((p) => p.slug === slug) : promoterBySlug(slug ?? '');
   const liveSeo = useEntitySeo('promoter', slug);
   useSeo(liveSeo, promoter?.name);
 
@@ -31,11 +44,12 @@ export default function PromoterProfile() {
 
   const followKey = 'promoter:' + promoter.slug;
   const isFollowing = following.includes(followKey);
+  const eventPool = liveEvents ?? EVENTS;
   // Events this promoter is on the allow-list for; fall back to a sample of live events.
-  const promoted = EVENTS.filter((e) => e.promoterConfig?.allowedPromoters?.includes(promoter.slug));
-  const promoting = promoted.length ? promoted : EVENTS.filter((e) => e.status === 'approved').slice(0, 3);
+  const promoted = eventPool.filter((e) => e.promoterConfig?.allowedPromoters?.includes(promoter.slug));
+  const promoting = promoted.length ? promoted : eventPool.filter((e) => e.status === 'approved').slice(0, 3);
   const friends = friendsAtEvents(promoting.map((e) => e.id), following);
-  const more = PROMOTERS.filter((p) => p.slug !== promoter.slug).slice(0, 3);
+  const more = (livePromoters ?? PROMOTERS).filter((p) => p.slug !== promoter.slug).slice(0, 3);
 
   return (
     <main className="page">

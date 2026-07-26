@@ -1,6 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, ORGANIZERS, PAST_EVENTS } from '../data/mock';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { Organizer, Event } from '../types';
 import { friendsAtEvents } from '../lib/social';
 import FriendsProof from '../components/FriendsProof';
 import ShareButton from '../components/ShareButton';
@@ -13,7 +17,16 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 export default function OrganizerProfile() {
   const { id } = useParams();
   const { following, toggleFollow } = useApp();
-  const org = ORGANIZERS.find((o) => o.id === id);
+
+  const [liveOrgs, setLiveOrgs] = useState<Organizer[] | null>(null);
+  const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.organizers().then(setLiveOrgs).catch(() => setLiveOrgs([]));
+    catalog.events({}).then(setLiveEvents).catch(() => setLiveEvents([]));
+  }, []);
+
+  const org = (liveOrgs ?? ORGANIZERS).find((o) => o.id === id);
   const liveSeo = useEntitySeo('organizer', id);
   useSeo(liveSeo, org?.brandName);
 
@@ -30,7 +43,7 @@ export default function OrganizerProfile() {
     );
   }
 
-  const upcoming = EVENTS.filter((e) => e.organizerId === org.id && e.status === 'approved');
+  const upcoming = (liveEvents ?? EVENTS).filter((e) => (e.organizer?.id ?? e.organizerId) === org.id && e.status === 'approved');
   const isFollowing = following.includes(org.id);
   const friends = friendsAtEvents(upcoming.map((e) => e.id), following);
 

@@ -1,13 +1,30 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, VENUES } from '../data/mock';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { Event, Venue } from '../types';
 import EventCard from '../components/EventCard';
 
-/** Saved events — the guest's wishlist. */
+/** Saved events — the guest's wishlist. Wishlist/favourite membership itself
+ * is still local-only (see AppContext) — this just makes sure a real event
+ * or venue the guest saved actually resolves to something instead of
+ * silently vanishing because it isn't in the local mock seed. */
 export default function Wishlist() {
   const { wishlist, myEvents, favVenues, toggleFavVenue } = useApp();
-  const all = [...myEvents, ...EVENTS];
+
+  const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  const [liveVenues, setLiveVenues] = useState<Venue[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.events({}).then(setLiveEvents).catch(() => setLiveEvents([]));
+    catalog.venues().then(setLiveVenues).catch(() => setLiveVenues([]));
+  }, []);
+
+  const all = [...myEvents, ...EVENTS, ...(liveEvents ?? [])];
   const saved = wishlist.map((id) => all.find((e) => e.id === id)).filter((e): e is NonNullable<typeof e> => !!e);
+  const venuePool = [...VENUES, ...(liveVenues ?? [])];
 
   return (
     <main className="page">
@@ -39,7 +56,7 @@ export default function Wishlist() {
         ) : (
           <div className="grid-3">
             {favVenues.map((id) => {
-              const v = VENUES.find((x) => x.id === id);
+              const v = venuePool.find((x) => x.id === id);
               if (!v) return null;
               return (
                 <div key={id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

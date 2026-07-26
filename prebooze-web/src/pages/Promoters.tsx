@@ -1,6 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PROMOTERS } from '../data/mock';
 import { useApp } from '../store/AppContext';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { PromoterProfile } from '../types';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import DirectoryCard from '../components/DirectoryCard';
 
@@ -8,8 +12,17 @@ import DirectoryCard from '../components/DirectoryCard';
 export default function Promoters() {
   const { city, following, toggleFollow, featured } = useApp();
   const feat = featuredRefs(featured, 'promoter', city);
+
+  const [livePromoters, setLivePromoters] = useState<PromoterProfile[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.promoters(city).then(setLivePromoters).catch(() => setLivePromoters([]));
+  }, [city]);
+
   const list = featuredFirst(
-    [...PROMOTERS].filter((p) => p.city === city).sort((a, b) => b.showRate - a.showRate),
+    livePromoters
+      ? [...livePromoters].sort((a, b) => b.showRate - a.showRate)
+      : [...PROMOTERS].filter((p) => p.city === city).sort((a, b) => b.showRate - a.showRate),
     (p) => p.slug,
     feat
   );

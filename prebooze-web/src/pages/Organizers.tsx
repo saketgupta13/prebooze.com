@@ -1,6 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EVENTS, ORGANIZERS } from '../data/mock';
 import { useApp } from '../store/AppContext';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { Organizer, Event } from '../types';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import DirectoryCard from '../components/DirectoryCard';
 
@@ -8,8 +12,19 @@ import DirectoryCard from '../components/DirectoryCard';
 export default function Organizers() {
   const { city, following, toggleFollow, featured } = useApp();
   const feat = featuredRefs(featured, 'organizer', city);
+
+  const [liveOrgs, setLiveOrgs] = useState<Organizer[] | null>(null);
+  const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.organizers(city).then(setLiveOrgs).catch(() => setLiveOrgs([]));
+    catalog.events({ city }).then(setLiveEvents).catch(() => setLiveEvents([]));
+  }, [city]);
+
   const list = featuredFirst(
-    [...ORGANIZERS].filter((o) => o.city === city).sort((a, b) => b.eventsHosted - a.eventsHosted),
+    liveOrgs
+      ? [...liveOrgs].sort((a, b) => b.eventsHosted - a.eventsHosted)
+      : [...ORGANIZERS].filter((o) => o.city === city).sort((a, b) => b.eventsHosted - a.eventsHosted),
     (o) => o.id,
     feat
   );
@@ -28,7 +43,7 @@ export default function Organizers() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(258px, 1fr))', gap: 14 }}>
           {list.map((o) => {
             const isFollowing = following.includes(o.id);
-            const live = EVENTS.filter((e) => e.organizerId === o.id && e.status === 'approved').length;
+            const live = (liveEvents ?? EVENTS).filter((e) => (e.organizer?.id ?? e.organizerId) === o.id && e.status === 'approved').length;
             return (
               <DirectoryCard
                 key={o.id}

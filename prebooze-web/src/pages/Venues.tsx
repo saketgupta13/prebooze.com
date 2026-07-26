@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, VENUES } from '../data/mock';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { Venue, Event } from '../types';
 import Poster from '../components/Poster';
 
 const TYPES = ['Venue type', 'Concert hall', 'Club', 'Rooftop bar', 'Open-air', 'Warehouse'];
@@ -13,15 +16,23 @@ export default function Venues() {
   const [cap, setCap] = useState(CAPS[0]);
   const [q, setQ] = useState('');
 
+  const [liveVenues, setLiveVenues] = useState<Venue[] | null>(null);
+  const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.venues(city).then(setLiveVenues).catch(() => setLiveVenues([]));
+    catalog.events({ city }).then(setLiveEvents).catch(() => setLiveEvents([]));
+  }, [city]);
+
   const venues = useMemo(() => {
-    let list = VENUES.filter((v) => v.city === city);
+    let list = liveVenues ?? VENUES.filter((v) => v.city === city);
     if (q) list = list.filter((v) => v.name.toLowerCase().includes(q.toLowerCase()));
     if (type !== TYPES[0]) list = list.filter((v) => v.type === type);
     if (cap === CAPS[1]) list = list.filter((v) => v.capacity < 500);
     if (cap === CAPS[2]) list = list.filter((v) => v.capacity >= 500 && v.capacity <= 2500);
     if (cap === CAPS[3]) list = list.filter((v) => v.capacity > 2500);
     return list;
-  }, [q, type, cap, city]);
+  }, [liveVenues, q, type, cap, city]);
 
   return (
     <main className="page">
@@ -47,7 +58,7 @@ export default function Venues() {
 
         <div className="grid-3">
           {venues.map((v) => {
-            const count = EVENTS.filter((e) => e.venueId === v.id && e.status === 'approved').length;
+            const count = (liveEvents ?? EVENTS).filter((e) => e.venueId === v.id && e.status === 'approved').length;
             const fav = favVenues.includes(v.id);
             return (
               <Link key={v.id} to={`/venues/${v.id}`} className="ecard" style={{ position: 'relative' }}>
@@ -67,7 +78,7 @@ export default function Venues() {
                   <div className="meta">
                     {v.type} · {v.locality}
                   </div>
-                  <div className="small accent bold">{count || 2} upcoming events</div>
+                  <div className="small accent bold">{liveVenues ? count : count || 2} upcoming events</div>
                 </div>
               </Link>
             );
