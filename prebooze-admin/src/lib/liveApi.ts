@@ -518,21 +518,37 @@ export const liveLocations = {
   removeCity: (name: string) => liveFetch<{ ok: true }>(`/admin/locations/cities/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 };
 
-export interface LiveJob { id: string; title: string; team: string; loc: string; type: string; status: string; }
-export interface LiveApplicant { id: string; jobId: string; name: string; email: string; phone: string; appliedAt: string; }
+export interface LiveJob { id: string; title: string; team: string; loc: string; type: string; status: string; about: string; }
+export interface LiveApplicant { id: string; jobId: string; name: string; email: string; phone: string; note: string; appliedAt: string; }
+export interface LiveCareerTeam { name: string }
 export const liveCareers = {
   listJobs: () => liveFetch<LiveJob[]>('/admin/careers/jobs'),
   createJob: (body: { title: string; team?: string; loc?: string; type?: string; about?: string }) => liveFetch<LiveJob>('/admin/careers/jobs', { body }),
+  updateJob: (id: string, patch: { title?: string; team?: string; loc?: string; type?: string; about?: string }) =>
+    liveFetch<LiveJob>(`/admin/careers/jobs/${id}`, { method: 'PATCH', body: patch }),
   toggleJob: (id: string) => liveFetch<LiveJob>(`/admin/careers/jobs/${id}/toggle`, { method: 'POST' }),
   removeJob: (id: string) => liveFetch<{ ok: true }>(`/admin/careers/jobs/${id}`, { method: 'DELETE' }),
   listApplicants: (jobId?: string) => liveFetch<LiveApplicant[]>('/admin/careers/applicants' + (jobId ? `?jobId=${jobId}` : '')),
+  listTeams: () => liveFetch<LiveCareerTeam[]>('/admin/careers/teams'),
+  addTeam: (name: string) => liveFetch<LiveCareerTeam>('/admin/careers/teams', { body: { name } }),
 };
 
+export interface LiveReferralRow {
+  code: string;
+  referrer: string;
+  referrerPhone: string;
+  referee: string;
+  refereePhone: string;
+  status: string;
+  createdAt: string;
+}
 export interface LiveReferralAnalytics {
   totalReferrals: number;
+  qualified: number;
   conversion: number;
   creditsIssued: number;
   topReferrers: { name: string; joined: number; qualified: number }[];
+  referrals: LiveReferralRow[];
 }
 export const liveReferrals = {
   analytics: () => liveFetch<LiveReferralAnalytics>('/admin/referrals'),

@@ -1,71 +1,109 @@
-import { useAdmin } from '../store/AdminContext';
-import { fmt } from '../store/data';
+import { useEffect, useState } from 'react';
 import { Kpi } from '../components/ui';
-import type { ReferralRates } from '../types';
+import { liveReferrals, LiveApiError, type LiveReferralAnalytics } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
-/** Refer & earn — program config (reward amounts) + platform-wide analytics. */
+const TITLE = 'Refer & earn';
+const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
+
+/** Refer & earn — program config (reward amounts, real PlatformSettings
+ * fields) + platform-wide analytics (ReferralsAdminService.analytics), the
+ * same real numbers ReferralsService.mine() derives from per-user. */
 export default function Referrals() {
-  const { adminReferrals, referralRates, updateReferralRate } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
 
-  const qualified = adminReferrals.filter((r) => r.status === 'qualified');
-  const conversion = adminReferrals.length ? Math.round((qualified.length / adminReferrals.length) * 100) : 0;
-  // referee welcome credit issues on every join; referrer reward only on qualification
-  const creditsIssued = adminReferrals.length * referralRates.referee + qualified.length * referralRates.referrer;
+  const [analytics, setAnalytics] = useState<LiveReferralAnalytics | null>(null);
+  const [rates, setRates] = useState<{ referee: number; referrer: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
-  const top = (() => {
-    const m = new Map<string, { name: string; joined: number; qualified: number }>();
-    adminReferrals.forEach((r) => {
-      const cur = m.get(r.referrerPhone) ?? { name: r.referrer, joined: 0, qualified: 0 };
-      cur.joined += 1;
-      if (r.status === 'qualified') cur.qualified += 1;
-      m.set(r.referrerPhone, cur);
-    });
-    return [...m.values()].sort((a, b) => b.qualified - a.qualified || b.joined - a.joined).slice(0, 5);
-  })();
-  const maxJoined = Math.max(...top.map((t) => t.joined), 1);
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    Promise.all([liveReferrals.analytics(), liveReferrals.rates()])
+      .then(([a, r]) => {
+        setAnalytics(a);
+        setRates(r);
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
 
-  const RATES: { key: keyof ReferralRates; label: string; hint: string }[] = [
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  const updateRate = async (key: 'referee' | 'referrer', value: number) => {
+    if (!rates) return;
+    const next = { ...rates, [key]: value };
+    setRates(next);
+    try {
+      await liveReferrals.updateRates({ [key]: value });
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to save');
+    }
+  };
+
+  const RATES: { key: 'referee' | 'referrer'; label: string; hint: string }[] = [
     { key: 'referee', label: 'Friend (welcome credit)', hint: 'issued instantly on signup via a referral link' },
     { key: 'referrer', label: 'Referrer (reward)', hint: 'issued when the friend makes their first paid booking' },
   ];
 
+  const top = analytics?.topReferrers ?? [];
+  const maxJoined = Math.max(...top.map((t) => t.joined), 1);
+  const referrals = analytics?.referrals ?? [];
+
   return (
     <div className="stack fade" style={{ maxWidth: 1100, gap: 14 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+
       <div className="page-hd">
         <h1 className="page-title">Refer &amp; earn</h1>
         <span className="small muted">two-sided wallet credits · rates apply across the guest app</span>
       </div>
 
-      <div className="kpi-grid">
-        <Kpi label="Friends referred" value={fmt(adminReferrals.length)} />
-        <Kpi label="Qualified (booked)" value={fmt(qualified.length)} delta={`${conversion}% conversion`} deltaColor="var(--green)" />
-        <Kpi label="Credits issued" value={`₹${fmt(creditsIssued)}`} delta="welcome + rewards" deltaColor="var(--muted)" />
-        <Kpi label="Cost / qualified user" value={`₹${fmt(qualified.length ? Math.round(creditsIssued / qualified.length) : 0)}`} />
-      </div>
+      {analytics && (
+        <div className="kpi-grid">
+          <Kpi label="Friends referred" value={fmt(analytics.totalReferrals)} />
+          <Kpi label="Qualified (booked)" value={fmt(analytics.qualified)} delta={`${analytics.conversion}% conversion`} deltaColor="var(--green)" />
+          <Kpi label="Credits issued" value={`₹${fmt(analytics.creditsIssued)}`} delta="welcome + rewards" deltaColor="var(--muted)" />
+          <Kpi label="Cost / qualified user" value={`₹${fmt(analytics.qualified ? Math.round(analytics.creditsIssued / analytics.qualified) : 0)}`} />
+        </div>
+      )}
 
       {/* Reward config */}
-      <div className="card">
-        <div className="display" style={{ fontWeight: 700, marginBottom: 4 }}>Reward amounts</div>
-        <div className="tiny hint" style={{ marginBottom: 10 }}>editable — the guest app charges/credits these amounts</div>
-        <div className="two-col" style={{ gap: 12 }}>
-          {RATES.map((r) => (
-            <div className="field" key={r.key}>
-              <label>{r.label}</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span className="muted">₹</span>
-                <input
-                  className="input"
-                  style={{ padding: '6px 8px' }}
-                  value={String(referralRates[r.key])}
-                  inputMode="numeric"
-                  onChange={(e) => updateReferralRate({ [r.key]: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 } as Partial<ReferralRates>)}
-                />
+      {rates && (
+        <div className="card">
+          <div className="display" style={{ fontWeight: 700, marginBottom: 4 }}>Reward amounts</div>
+          <div className="tiny hint" style={{ marginBottom: 10 }}>editable — the guest app charges/credits these amounts</div>
+          <div className="two-col" style={{ gap: 12 }}>
+            {RATES.map((r) => (
+              <div className="field" key={r.key}>
+                <label>{r.label}</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="muted">₹</span>
+                  <input
+                    className="input"
+                    style={{ padding: '6px 8px' }}
+                    value={String(rates[r.key])}
+                    inputMode="numeric"
+                    onChange={(e) => updateRate(r.key, parseInt(e.target.value.replace(/\D/g, ''), 10) || 0)}
+                  />
+                </div>
+                <span className="tiny muted" style={{ marginTop: 4 }}>{r.hint}</span>
               </div>
-              <span className="tiny muted" style={{ marginTop: 4 }}>{r.hint}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Top referrers */}
       <div className="card">
@@ -75,13 +113,14 @@ export default function Referrals() {
             <div key={t.name}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                 <b>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`} {t.name}</b>
-                <span className="muted">{t.joined} referred · {t.qualified} booked · ₹{fmt(t.qualified * referralRates.referrer)} earned</span>
+                <span className="muted">{t.joined} referred · {t.qualified} booked · ₹{fmt(t.qualified * (rates?.referrer ?? 0))} earned</span>
               </div>
               <div style={{ height: 8, background: 'rgba(139,195,74,.12)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
                 <div style={{ width: `${(t.joined / maxJoined) * 100}%`, height: '100%', background: 'var(--green)', opacity: 0.5 + (t.joined / maxJoined) * 0.5 }} />
               </div>
             </div>
           ))}
+          {top.length === 0 && !loading && <div className="muted small">No referrals yet.</div>}
         </div>
       </div>
 
@@ -94,8 +133,8 @@ export default function Referrals() {
           <span style={{ flex: 1 }}>Status</span>
           <span style={{ flex: 1 }}>Credits</span>
         </div>
-        {adminReferrals.map((r) => (
-          <div key={r.id} className="trow" style={{ minWidth: 620 }}>
+        {referrals.map((r) => (
+          <div key={r.code} className="trow" style={{ minWidth: 620 }}>
             <span style={{ flex: 1.3 }}>
               <b>{r.referrer}</b>
               <span className="tiny muted" style={{ display: 'block' }}>{r.referrerPhone}</span>
@@ -104,15 +143,16 @@ export default function Referrals() {
               {r.referee}
               <span className="tiny muted" style={{ display: 'block' }}>{r.refereePhone}</span>
             </span>
-            <span style={{ flex: 0.8 }} className="muted">{r.joinedAt}</span>
+            <span style={{ flex: 0.8 }} className="muted">{new Date(r.createdAt).toLocaleDateString('en-IN')}</span>
             <span style={{ flex: 1 }}>
               {r.status === 'qualified' ? <span className="tag tag-green">qualified ✓</span> : <span className="tag" style={{ borderColor: 'var(--border)' }}>joined</span>}
             </span>
             <span style={{ flex: 1 }} className="muted">
-              ₹{fmt(referralRates.referee + (r.status === 'qualified' ? referralRates.referrer : 0))}
+              ₹{fmt((rates?.referee ?? 0) + (r.status === 'qualified' ? (rates?.referrer ?? 0) : 0))}
             </span>
           </div>
         ))}
+        {referrals.length === 0 && !loading && <div className="trow muted">No referrals yet.</div>}
       </div>
       <div className="tiny hint">
         welcome credit issues on signup · referrer reward only after the friend's first paid booking · self-referrals and duplicate phones are blocked in the app

@@ -1,12 +1,27 @@
-import { useState } from 'react';
-import { useAdmin } from '../store/AdminContext';
+import { useEffect, useState } from 'react';
 import WysiwygEditor from '../components/WysiwygEditor';
+import { liveCareers, LiveApiError, type LiveJob, type LiveApplicant, type LiveCareerTeam } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
-/** Careers — post/edit/close jobs, create teams, review applicants. */
+const TITLE = 'Careers';
+
+/** Careers — post/edit/close jobs, create teams, review applicants. Real
+ * CareersAdminService data; removeJob genuinely refuses to delete a job
+ * with real applicants on file (close it instead), same guard the backend
+ * enforces. */
 export default function CareersAdmin() {
-  const { jobs, addJob, updateJob, toggleJob, removeJob, applicants, teams, addTeam } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
+
+  const [jobs, setJobs] = useState<LiveJob[]>([]);
+  const [applicants, setApplicants] = useState<LiveApplicant[]>([]);
+  const [teams, setTeams] = useState<LiveCareerTeam[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
   const [title, setTitle] = useState('');
-  const [team, setTeam] = useState(teams[0] ?? 'Engineering');
+  const [team, setTeam] = useState('');
   const [loc, setLoc] = useState('');
   const [type, setType] = useState('Full-time');
   const [about, setAbout] = useState('');
@@ -14,6 +29,28 @@ export default function CareersAdmin() {
   const [openJob, setOpenJob] = useState<string | null>(null);
   const [newTeam, setNewTeam] = useState('');
   const [teamOpen, setTeamOpen] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    Promise.all([liveCareers.listJobs(), liveCareers.listApplicants(), liveCareers.listTeams()])
+      .then(([j, a, t]) => {
+        setJobs(j);
+        setApplicants(a);
+        setTeams(t);
+        if (!team && t[0]) setTeam(t[0].name);
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (token) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
 
   const startEdit = (id: string) => {
     const j = jobs.find((x) => x.id === id);
@@ -23,16 +60,47 @@ export default function CareersAdmin() {
   };
   const reset = () => { setEditingId(null); setTitle(''); setLoc(''); setAbout(''); };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !loc.trim()) return;
-    if (editingId) updateJob(editingId, { title: title.trim(), team, loc: loc.trim(), type, about: about.trim() || undefined });
-    else addJob({ title: title.trim(), team, loc: loc.trim(), type, about: about.trim() || undefined });
-    reset();
+    try {
+      if (editingId) await liveCareers.updateJob(editingId, { title: title.trim(), team, loc: loc.trim(), type, about: about.trim() });
+      else await liveCareers.createJob({ title: title.trim(), team, loc: loc.trim(), type, about: about.trim() });
+      reset();
+      load();
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to save job');
+    }
+  };
+
+  const toggleJob = async (id: string) => {
+    try { await liveCareers.toggleJob(id); load(); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed to update'); }
+  };
+
+  const removeJob = async (id: string) => {
+    try { await liveCareers.removeJob(id); load(); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed to remove'); }
+  };
+
+  const addTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTeam.trim()) return;
+    try {
+      await liveCareers.addTeam(newTeam.trim());
+      setTeam(newTeam.trim());
+      setNewTeam('');
+      setTeamOpen(false);
+      load();
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to add team');
+    }
   };
 
   return (
     <div className="stack fade" style={{ maxWidth: 1000, gap: 14 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+
       <div className="page-hd">
         <h1 className="page-title">Careers</h1>
         <span className="small muted">{jobs.filter((j) => j.status === 'open').length} open · {applicants.length} applicants · {teams.length} teams</span>
@@ -52,7 +120,7 @@ export default function CareersAdmin() {
           <label>Team</label>
           <div style={{ display: 'flex', gap: 4 }}>
             <select className="input" value={team} onChange={(e) => setTeam(e.target.value)}>
-              {teams.map((t) => <option key={t}>{t}</option>)}
+              {teams.map((t) => <option key={t.name}>{t.name}</option>)}
             </select>
             <button type="button" className="btn btn-ghost btn-sm" title="Create a new team" onClick={() => setTeamOpen((v) => !v)}>+</button>
           </div>
@@ -75,11 +143,7 @@ export default function CareersAdmin() {
       </form>
 
       {teamOpen && (
-        <form
-          className="card"
-          style={{ display: 'flex', gap: 8, alignItems: 'center' }}
-          onSubmit={(e) => { e.preventDefault(); addTeam(newTeam); setNewTeam(''); setTeamOpen(false); }}
-        >
+        <form className="card" style={{ display: 'flex', gap: 8, alignItems: 'center' }} onSubmit={addTeam}>
           <b className="small">New team</b>
           <input className="input" style={{ maxWidth: 220, padding: '6px 10px' }} value={newTeam} onChange={(e) => setNewTeam(e.target.value)} placeholder="e.g. Finance" autoFocus />
           <button className="btn btn-pri btn-sm">Create team ✓</button>
@@ -114,7 +178,7 @@ export default function CareersAdmin() {
                   <button className="chip" style={{ fontSize: 10.5, padding: '3px 10px', borderColor: j.status === 'open' ? 'var(--green)' : 'var(--red)', color: j.status === 'open' ? undefined : 'var(--red)' }} onClick={() => toggleJob(j.id)}>
                     {j.status === 'open' ? 'Open' : 'Closed'}
                   </button>
-                  <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => removeJob(j.id)}>✕</button>
+                  <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => removeJob(j.id)} title={apps.length > 0 ? 'Has applicants — close it instead' : 'Remove'}>✕</button>
                 </span>
               </div>
               {openJob === j.id && (
@@ -130,7 +194,7 @@ export default function CareersAdmin() {
                         <span style={{ flex: 1.2, fontWeight: 700 }}>{a.name}</span>
                         <span style={{ flex: 1.4 }} className="muted">{a.email} · {a.phone}</span>
                         <span style={{ flex: 1.6 }} className="muted tiny">{a.note}</span>
-                        <span style={{ flex: 0.6 }} className="muted tiny">{a.appliedAt}</span>
+                        <span style={{ flex: 0.6 }} className="muted tiny">{new Date(a.appliedAt).toLocaleDateString('en-IN')}</span>
                       </div>
                     ))
                   )}
@@ -139,6 +203,7 @@ export default function CareersAdmin() {
             </div>
           );
         })}
+        {jobs.length === 0 && !loading && <div className="trow muted">No job postings yet.</div>}
       </div>
       <div className="tiny hint">open roles appear on the guest careers page (with their job id) · applications land here per job</div>
     </div>
