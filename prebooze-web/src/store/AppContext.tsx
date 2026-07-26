@@ -158,6 +158,7 @@ export interface SubPromoter {
 
 interface Selection {
   eventId: string;
+  eventSlug?: string; // present for real (live-backend) events — lets Checkout refetch by slug, the only lookup the public catalog API supports
   qty: Record<string, number>; // tierId -> qty
 }
 
@@ -186,6 +187,7 @@ interface AppState {
   setSelection: (s: Selection | null) => void;
   holdExpiry: number | null; // epoch ms when the current checkout hold lapses
   startHold: () => void;
+  setHold: (expiresAt: number) => void; // arm the hold at an explicit epoch — used for the real server-issued hold expiry
   clearHold: () => void;
   carts: CartRecord[];
   captureCart: (c: Omit<CartRecord, 'status' | 'updatedAt'>) => void;
@@ -614,6 +616,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       holdExpiry,
       startHold: () => setHoldExpiry(Date.now() + CART_HOLD_MINUTES * 60000),
+      setHold: (expiresAt) => setHoldExpiry(expiresAt),
       clearHold: () => setHoldExpiry(null),
       carts,
       captureCart: (c) =>

@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp, CART_HOLD_MINUTES } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
-import type { Booking } from '../types';
+import type { Booking, Event, PayMethod } from '../types';
+import { bookings, catalog, wallet, type BookingQuote } from '../api';
+import { isBackendEnabled } from '../api/client';
 import { existingRole, roleHome, roleLabel } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 
@@ -12,24 +14,85 @@ const ABSORBED_NOTE: Record<string, string> = {
   Split: 'split between you and the organizer',
 };
 
+function loadRazorpayScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if ((window as unknown as { Razorpay?: unknown }).Razorpay) return resolve();
+    const existing = document.getElementById('razorpay-checkout-js') as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', () => reject(new Error('Could not load the payment widget — check your connection')));
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = 'razorpay-checkout-js';
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Could not load the payment widget — check your connection'));
+    document.body.appendChild(script);
+  });
+}
+
 export default function Checkout() {
-  const { user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, captureCart, setCartStatus, pendingPromoterRef, setPendingPromoterRef, walletBalance, spendWallet, payMethods, setDefaultPayMethod } = useApp();
+  const {
+    user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, setHold, clearHold,
+    captureCart, setCartStatus, pendingPromoterRef, setPendingPromoterRef, walletBalance, spendWallet, payMethods,
+    setDefaultPayMethod,
+  } = useApp();
   const navigate = useNavigate();
   const { feeLabel, absorbedBy, bookingFee } = usePlatformInfo();
 
-  const event = selection
-    ? (eventById(selection.eventId) ?? myEvents.find((e) => e.id === selection.eventId))
-    : undefined;
+  const wantsLive = Boolean(selection?.eventSlug) && isBackendEnabled();
 
-  // Cart hold timer — arm on entry, tick every second, release (hard) on expiry.
+  // ---- real event (by slug — the only lookup the public catalog supports) ----
+  const [liveEvent, setLiveEvent] = useState<Event | null>(null);
+  useEffect(() => {
+    if (!selection?.eventSlug || !isBackendEnabled()) return;
+    catalog.event(selection.eventSlug).then(setLiveEvent).catch(() => {});
+  }, [selection?.eventSlug]);
+
+  const event = liveEvent ?? (selection ? (eventById(selection.eventId) ?? myEvents.find((e) => e.id === selection.eventId)) : undefined);
+
+  // ---- real hold (Redis-backed, 8-min TTL) — only for real events, needs a logged-in guest ----
+  const [holdId, setHoldId] = useState<string | null>(null);
+  const [holdErr, setHoldErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (!liveEvent || !selection || !user || holdId) return;
+    bookings
+      .hold(liveEvent.id, selection.qty)
+      .then((h) => {
+        setHoldId(h.holdId);
+        setHold(new Date(h.expiresAt).getTime());
+      })
+      .catch((e) => setHoldErr(e.message ?? 'Could not hold your tickets — they may have sold out'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveEvent, selection, user]);
+
+  // logged-out guest landed here with a real-event selection (e.g. a stale
+  // persisted selection) — send them to login first, same as EventDetail's book()
+  useEffect(() => {
+    if (wantsLive && !user) navigate('/login', { state: { from: '/checkout' } });
+  }, [wantsLive, user, navigate]);
+
+  // ---- real wallet balance + saved pay methods ----
+  const [liveWalletBalance, setLiveWalletBalance] = useState(0);
+  const [livePayMethods, setLivePayMethods] = useState<PayMethod[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled() || !user) return;
+    wallet.balance().then((w) => setLiveWalletBalance(w.balance)).catch(() => {});
+    wallet.payMethods().then(setLivePayMethods).catch(() => {});
+  }, [user]);
+
+  // Cart hold timer — arm on entry (mock path only; the real hold effect above
+  // arms this from the server's expiresAt), tick every second, release on expiry.
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
   useEffect(() => {
-    if (selection && holdExpiry == null) startHold();
-  }, [selection, holdExpiry, startHold]);
+    if (!selection || holdExpiry != null || wantsLive) return;
+    startHold();
+  }, [selection, holdExpiry, startHold, wantsLive]);
   const remaining = holdExpiry ? Math.max(0, holdExpiry - now) : 0;
   const expired = holdExpiry != null && holdExpiry <= now;
   const lowTime = remaining <= 60000;
@@ -69,8 +132,46 @@ export default function Checkout() {
   }, [appliedCode, coupons, subtotal]);
 
   const [useCredit, setUseCredit] = useState(true);
-  const creditApplied = useCredit ? Math.min(walletBalance, Math.max(0, subtotal + fee - discount)) : 0;
+  const effectiveWalletBalance = liveEvent ? liveWalletBalance : walletBalance;
+  const creditApplied = useCredit ? Math.min(effectiveWalletBalance, Math.max(0, subtotal + fee - discount)) : 0;
   const total = subtotal + fee - discount - creditApplied;
+
+  // ---- real, server-priced quote — never trust the client math above for a
+  // real event; it's only the pre-quote placeholder shown before this resolves. ----
+  const [quote, setQuote] = useState<BookingQuote | null>(null);
+  const [quoting, setQuoting] = useState(false);
+  useEffect(() => {
+    if (!holdId) return;
+    let cancelled = false;
+    setQuoting(true);
+    bookings
+      .quote(holdId, appliedCode ?? undefined, useCredit ? effectiveWalletBalance : 0)
+      .then((q) => {
+        if (cancelled) return;
+        setQuote(q);
+        if (appliedCode) setCouponMsg({ ok: true, text: `${appliedCode} applied — you save ₹${q.discount}` });
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        if (appliedCode) {
+          setCouponMsg({ ok: false, text: e.message ?? `"${appliedCode}" isn't valid for this event` });
+          setAppliedCode(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setQuoting(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holdId, appliedCode, useCredit, effectiveWalletBalance]);
+
+  const finalSubtotal = quote?.subtotal ?? subtotal;
+  const finalFee = quote?.fee ?? fee;
+  const finalDiscount = quote?.discount ?? discount;
+  const finalCredit = quote?.walletCreditUsed ?? creditApplied;
+  const finalTotal = quote?.total ?? total;
 
   const cartId = user && selection ? `${user.phone}::${selection.eventId}` : null;
 
@@ -117,6 +218,16 @@ export default function Checkout() {
     );
   }
 
+  if (wantsLive && !liveEvent && !holdErr) {
+    return (
+      <main className="page">
+        <div className="container center" style={{ padding: '80px 0' }}>
+          <h1>Loading your checkout…</h1>
+        </div>
+      </main>
+    );
+  }
+
   if (!event || !selection || lines.length === 0) {
     return (
       <main className="page">
@@ -128,6 +239,29 @@ export default function Checkout() {
           <Link to="/browse" className="btn btn-pri">
             Browse events
           </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (holdErr) {
+    return (
+      <main className="page">
+        <div className="container center" style={{ padding: '72px 0' }}>
+          <div className="card card-shadow" style={{ maxWidth: 460, margin: '0 auto', textAlign: 'center' }}>
+            <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}>⏱</div>
+            <h1 style={{ fontSize: 22, marginTop: 8 }}>{holdErr}</h1>
+            <button
+              className="btn btn-pri btn-lg"
+              style={{ marginTop: 8 }}
+              onClick={() => {
+                setSelection(null);
+                navigate(`/events/${event.slug}`);
+              }}
+            >
+              Pick tickets again →
+            </button>
+          </div>
         </div>
       </main>
     );
@@ -149,6 +283,7 @@ export default function Checkout() {
               className="btn btn-pri btn-lg"
               onClick={() => {
                 setSelection(null);
+                clearHold();
                 navigate(`/events/${slug}`);
               }}
             >
@@ -160,10 +295,16 @@ export default function Checkout() {
     );
   }
 
-  const venue = venueById(event.venueId);
+  const venue = event.venue ?? venueById(event.venueId);
 
   const applyCoupon = () => {
     const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    if (liveEvent) {
+      // real validation happens server-side in the quote effect below
+      setAppliedCode(code);
+      return;
+    }
     const c = coupons.find((x) => x.code === code);
     if (!c) return setCouponMsg({ ok: false, text: `“${code}” isn't a valid code` });
     if (c.status !== 'active') return setCouponMsg({ ok: false, text: `${code} is paused right now` });
@@ -175,13 +316,81 @@ export default function Checkout() {
     setCouponMsg({ ok: true, text: `${code} applied — you save ₹${save}` });
   };
 
-  const pay = () => {
-    if (!name.trim() || !whatsapp.trim()) {
-      setCouponMsg({ ok: false, text: 'Main attendee name and WhatsApp number are required' });
-      return;
-    }
+  const afterBookingSuccess = (id: string) => {
+    if (cartId) setCartStatus(cartId, 'completed');
+    setSelection(null);
+    clearHold();
+    setPendingPromoterRef(null);
+    navigate('/confirmation/' + encodeURIComponent(id));
+  };
+
+  const payLive = async () => {
+    if (!holdId) return;
     setPaying(true);
-    // Razorpay integration point — mocked for now
+    try {
+      const q = quote ?? (await bookings.quote(holdId, appliedCode ?? undefined, useCredit ? effectiveWalletBalance : 0));
+      const guestsPayload = allGuests
+        ? Array.from({ length: ticketCount - 1 }, (_, i) => ({
+            name: (guestNames[i]?.trim()) || `Guest ${i + 2}`,
+            gender: guestGenders[i] || undefined,
+            whatsapp: guestPhones[i]?.trim() || undefined,
+          }))
+        : undefined;
+
+      const finishCreate = (razorpay?: { orderId: string; paymentId: string; signature: string }) =>
+        bookings.create({
+          holdId,
+          mainGuest: name.trim(),
+          whatsapp: whatsapp.trim(),
+          guests: guestsPayload,
+          couponCode: appliedCode ?? undefined,
+          walletCredit: useCredit ? effectiveWalletBalance : 0,
+          promoterRef: pendingPromoterRef ?? undefined,
+          payMethodId: (livePayMethods ?? []).some((m) => m.id === payMethod) ? payMethod : undefined,
+          razorpay,
+        });
+
+      if (q.total > 0 && q.razorpayOrderId && q.razorpayKeyId) {
+        await loadRazorpayScript();
+        const Razorpay = (window as unknown as { Razorpay: new (opts: Record<string, unknown>) => { open: () => void; on: (evt: string, cb: (e: unknown) => void) => void } }).Razorpay;
+        const rzp = new Razorpay({
+          key: q.razorpayKeyId,
+          order_id: q.razorpayOrderId,
+          amount: q.total * 100,
+          currency: 'INR',
+          name: 'Prebooze',
+          description: event.title,
+          prefill: { name: name.trim(), contact: whatsapp.trim(), email: email.trim() || undefined },
+          theme: { color: '#9be13d' },
+          handler: async (resp: unknown) => {
+            const r = resp as { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
+            try {
+              const booking = await finishCreate({ orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature });
+              afterBookingSuccess(booking.id);
+            } catch (e) {
+              setPaying(false);
+              setCouponMsg({ ok: false, text: (e as Error).message ?? 'Payment succeeded but the booking could not be finalized — contact support' });
+            }
+          },
+          modal: { ondismiss: () => setPaying(false) },
+        });
+        rzp.on('payment.failed', () => {
+          setPaying(false);
+          setCouponMsg({ ok: false, text: 'Payment failed or was cancelled' });
+        });
+        rzp.open();
+      } else {
+        const booking = await finishCreate(undefined);
+        afterBookingSuccess(booking.id);
+      }
+    } catch (e) {
+      setPaying(false);
+      setCouponMsg({ ok: false, text: (e as Error).message ?? 'Something went wrong — please try again' });
+    }
+  };
+
+  const payMock = () => {
+    setPaying(true);
     setTimeout(() => {
       const id = '#TKT-' + Math.floor(10000 + Math.random() * 89999);
       const guests = [
@@ -212,15 +421,22 @@ export default function Checkout() {
         promoterRef: pendingPromoterRef ?? undefined,
       };
       addBooking(booking);
-      // remember the method used as the preferred (default) one
       if (payMethods.some((m) => m.id === payMethod)) setDefaultPayMethod(payMethod);
       if (creditApplied > 0) spendWallet(creditApplied, `Paid at checkout — ${id}`);
-      if (cartId) setCartStatus(cartId, 'completed');
-      setSelection(null);
-      setPendingPromoterRef(null);
-      navigate('/confirmation/' + encodeURIComponent(id));
+      afterBookingSuccess(id);
     }, 900);
   };
+
+  const pay = () => {
+    if (!name.trim() || !whatsapp.trim()) {
+      setCouponMsg({ ok: false, text: 'Main attendee name and WhatsApp number are required' });
+      return;
+    }
+    if (liveEvent) payLive();
+    else payMock();
+  };
+
+  const displayPayMethods = liveEvent ? (livePayMethods ?? []) : payMethods;
 
   return (
     <main className="page">
@@ -369,7 +585,7 @@ export default function Checkout() {
                   value={couponInput}
                   onChange={(e) => setCouponInput(e.target.value)}
                 />
-                <button className="btn btn-ghost" style={{ flex: '0 0 auto' }} onClick={applyCoupon}>
+                <button className="btn btn-ghost" style={{ flex: '0 0 auto' }} onClick={applyCoupon} disabled={quoting}>
                   Apply
                 </button>
               </div>
@@ -379,19 +595,20 @@ export default function Checkout() {
                   {couponMsg.text}
                 </div>
               )}
-              <div className="tiny muted-2" style={{ marginTop: 8 }}>
-                Try FIRST50 — 50% off up to ₹100 for first-time users
-              </div>
+              {!liveEvent && (
+                <div className="tiny muted-2" style={{ marginTop: 8 }}>
+                  Try FIRST50 — 50% off up to ₹100 for first-time users
+                </div>
+              )}
             </div>
 
             {/* Payment */}
             <div className="card">
               <h3 style={{ marginBottom: 14 }}>Pay with</h3>
               {[
-                ...payMethods.map((m) => ({ id: m.id, label: `${m.type === 'upi' ? '🅿️' : '💳'} ${m.label}${m.isDefault ? ' · default' : ''} (saved)` })),
+                ...displayPayMethods.map((m) => ({ id: m.id, label: `${m.type === 'upi' ? '🅿️' : '💳'} ${m.label}${m.isDefault ? ' · default' : ''} (saved)` })),
                 { id: 'razorpay', label: 'Razorpay — UPI / cards / netbanking' },
-                { id: 'card', label: 'Card •••• 4242' },
-                { id: 'wallet', label: 'Apple / Google Pay' },
+                ...(liveEvent ? [] : [{ id: 'card', label: 'Card •••• 4242' }, { id: 'wallet', label: 'Apple / Google Pay' }]),
               ].map((m) => (
                 <label key={m.id} className={`payopt ${payMethod === m.id ? 'on' : ''}`}>
                   <input
@@ -422,32 +639,32 @@ export default function Checkout() {
             ))}
             <div className="kv">
               <span className="k">{feeLabel} <span className="muted" style={{ fontSize: 11 }}>({ABSORBED_NOTE[absorbedBy] ?? ABSORBED_NOTE.Guest})</span></span>
-              <span>₹{fee}</span>
+              <span>₹{finalFee}</span>
             </div>
-            {discount > 0 && (
+            {finalDiscount > 0 && (
               <div className="kv">
                 <span className="k accent">Coupon {appliedCode}</span>
-                <span className="accent">−₹{discount}</span>
+                <span className="accent">−₹{finalDiscount}</span>
               </div>
             )}
-            {walletBalance > 0 && (
+            {effectiveWalletBalance > 0 && (
               <label className="checkbox-row" style={{ margin: '8px 0 2px', fontSize: 13 }}>
                 <input type="checkbox" checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} />
-                👛 Use ₹{Math.min(walletBalance, Math.max(0, subtotal + fee - discount))} Prebooze credit (balance ₹{walletBalance})
+                👛 Use ₹{Math.min(effectiveWalletBalance, Math.max(0, finalSubtotal + finalFee - finalDiscount))} Prebooze credit (balance ₹{effectiveWalletBalance})
               </label>
             )}
-            {creditApplied > 0 && (
+            {finalCredit > 0 && (
               <div className="kv">
                 <span className="k accent">Wallet credit</span>
-                <span className="accent">−₹{creditApplied}</span>
+                <span className="accent">−₹{finalCredit}</span>
               </div>
             )}
             <div className="total-row">
               <span>Total</span>
-              <span>₹{total}</span>
+              <span>₹{finalTotal}</span>
             </div>
-            <button className="btn btn-pri btn-block btn-lg" onClick={pay} disabled={paying}>
-              {paying ? 'Processing…' : `Pay ₹${total}`}
+            <button className="btn btn-pri btn-block btn-lg" onClick={pay} disabled={paying || (liveEvent ? !holdId : false) || quoting}>
+              {paying ? 'Processing…' : `Pay ₹${finalTotal}`}
             </button>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
               🔒 secured by Razorpay · free cancellation up to 48h

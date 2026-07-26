@@ -1,10 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
+import { bookings as bookingsApi } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { Booking } from '../types';
 import QRCode from '../components/QRCode';
 import { downloadTicket } from '../lib/ticket';
 import { downloadIcs } from '../lib/calendar';
+
+const REFUND_BADGE: Record<string, { cls: string; label: string }> = {
+  refunded: { cls: 'badge-accent', label: 'Refunded ↩' },
+  refund_requested: { cls: 'badge-accent', label: 'Refund pending ⏳' },
+  cancelled: { cls: 'badge-danger', label: 'Cancelled' },
+};
 
 export default function MyBookings() {
   const { bookings, refundBooking, myEvents } = useApp();
@@ -12,23 +21,46 @@ export default function MyBookings() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refundingId, setRefundingId] = useState<string | null>(null);
 
-  const resolveEvent = (eventId: string) =>
-    eventById(eventId) ?? myEvents.find((e) => e.id === eventId);
+  const [liveBookings, setLiveBookings] = useState<Booking[] | null>(null);
+  const refetchLive = () => {
+    if (!isBackendEnabled()) return;
+    bookingsApi.list().then(setLiveBookings).catch(() => setLiveBookings([]));
+  };
+  useEffect(refetchLive, []);
+
+  const allBookings = liveBookings ?? bookings;
+
+  const resolveEvent = (b: Booking) =>
+    b.event ?? eventById(b.eventId) ?? myEvents.find((e) => e.id === b.eventId);
 
   const list = useMemo(() => {
     const now = Date.now();
-    return bookings.filter((b) => {
-      const ev = resolveEvent(b.eventId);
+    return allBookings.filter((b) => {
+      const ev = resolveEvent(b);
       if (!ev) return false;
       const isPast = new Date(ev.date).getTime() < now;
       return tab === 'past' ? isPast : !isPast;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookings, tab, myEvents]);
+  }, [allBookings, tab, myEvents]);
 
   const selected = list.find((b) => b.id === selectedId) ?? list[0];
-  const event = selected ? resolveEvent(selected.eventId) : undefined;
-  const venue = event ? venueById(event.venueId) : undefined;
+  const event = selected ? resolveEvent(selected) : undefined;
+  const venue = event ? (event.venue ?? venueById(event.venueId)) : undefined;
+
+  const doRefund = async (id: string, refundTo: 'wallet' | 'source') => {
+    if (liveBookings) {
+      try {
+        await bookingsApi.cancel(id, refundTo);
+        refetchLive();
+      } catch {
+        // surfaced nowhere specific — the booking simply won't show as refunded; safe to retry
+      }
+    } else {
+      refundBooking(id, refundTo);
+    }
+    setRefundingId(null);
+  };
 
   return (
     <main className="page">
@@ -54,7 +86,7 @@ export default function MyBookings() {
           <div className="bookings-grid">
             <div className="blist">
               {list.map((b) => {
-                const ev = resolveEvent(b.eventId);
+                const ev = resolveEvent(b);
                 return (
                   <button
                     key={b.id}
@@ -67,7 +99,9 @@ export default function MyBookings() {
                       {b.status === 'cancelled' && (
                         <span className="danger-text"> · cancelled</span>
                       )}
-                      {b.status === 'refunded' && <span className="accent"> · refunded</span>}
+                      {(b.status === 'refunded' || b.status === 'refund_requested') && (
+                        <span className="accent"> · {b.status === 'refunded' ? 'refunded' : 'refund pending'}</span>
+                      )}
                     </div>
                   </button>
                 );
@@ -86,10 +120,8 @@ export default function MyBookings() {
                       💳 Paid ₹{selected.total} ·{' '}
                       {selected.status === 'confirmed' ? (
                         <span className="badge badge-ok">Confirmed ✓</span>
-                      ) : selected.status === 'refunded' ? (
-                        <span className="badge badge-accent">Refunded ↩</span>
                       ) : (
-                        <span className="badge badge-danger">Cancelled</span>
+                        <span className={`badge ${REFUND_BADGE[selected.status].cls}`}>{REFUND_BADGE[selected.status].label}</span>
                       )}
                     </span>
                   </div>
@@ -112,13 +144,13 @@ export default function MyBookings() {
                       <div style={{ display: 'grid', gap: 8 }}>
                         <button
                           className="btn btn-pri btn-sm"
-                          onClick={() => { refundBooking(selected.id, 'wallet'); setRefundingId(null); }}
+                          onClick={() => doRefund(selected.id, 'wallet')}
                         >
                           👛 Prebooze wallet — instant credit
                         </button>
                         <button
                           className="btn btn-ghost btn-sm"
-                          onClick={() => { refundBooking(selected.id, 'source'); setRefundingId(null); }}
+                          onClick={() => doRefund(selected.id, 'source')}
                         >
                           💳 Original payment method — 5–7 business days
                         </button>

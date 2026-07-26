@@ -129,7 +129,7 @@ export default function EventDetail() {
 
   const book = () => {
     if (existingRole(user)) return; // business/elevated-role account — checkout also blocks this
-    setSelection({ eventId: event.id, qty });
+    setSelection({ eventId: event.id, eventSlug: liveEvent ? event.slug : undefined, qty });
     if (!user) {
       navigate('/login', { state: { from: '/checkout' } });
     } else {

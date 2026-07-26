@@ -170,12 +170,14 @@ export interface Booking {
   discount: number;
   total: number;
   couponCode?: string;
-  status: 'confirmed' | 'cancelled' | 'refunded';
+  status: 'confirmed' | 'cancelled' | 'refunded' | 'refund_requested';
   guests: BookingGuest[];
   mainGuest: string;
   whatsapp: string;
   createdAt: string;
   promoterRef?: string; // promoter slug credited with this sale (affiliate commission)
+  event?: Event; // embedded event+venue — present on real (live-backend) bookings only
+  qrToken?: string;
 }
 
 export interface Coupon {

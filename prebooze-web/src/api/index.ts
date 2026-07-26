@@ -59,12 +59,36 @@ export const catalog = {
 };
 
 // ---------- bookings, holds, waitlist ----------
+export interface BookingQuote {
+  subtotal: number;
+  fee: number;
+  discount: number;
+  walletCreditUsed: number;
+  total: number;
+  razorpayOrderId?: string;
+  razorpayKeyId?: string;
+}
+export interface CreateBookingInput {
+  holdId: string;
+  mainGuest: string;
+  whatsapp: string;
+  guests?: { name: string; gender?: string; whatsapp?: string }[];
+  couponCode?: string;
+  walletCredit?: number;
+  promoterRef?: string;
+  payMethodId?: string;
+  razorpay?: { orderId: string; paymentId: string; signature: string };
+}
 export const bookings = {
   hold: (eventId: string, qty: Record<string, number>) => apiFetch<{ holdId: string; expiresAt: string }>('/bookings/hold', { body: { eventId, qty } }),
-  create: (holdId: string, payload: Partial<Booking> & { walletCredit?: number; payMethodId?: string; couponCode?: string; promoterRef?: string }) =>
-    apiFetch<Booking>('/bookings', { body: { holdId, ...payload } }),
+  quote: (holdId: string, couponCode?: string, walletCredit?: number) =>
+    apiFetch<BookingQuote>('/bookings/quote', { body: { holdId, couponCode, walletCredit } }),
+  create: (input: CreateBookingInput) => apiFetch<Booking>('/bookings', { body: input }),
   list: () => apiFetch<Booking[]>('/bookings'),
-  cancel: (id: string, refundTo: 'wallet' | 'source') => apiFetch<Booking>(`/bookings/${id}/cancel`, { body: { refundTo } }),
+  // booking ids contain a literal "#" (e.g. "#TKT-12345"), which the URL
+  // parser treats as a fragment separator if left unencoded — silently
+  // truncating the path. Must percent-encode; server-side decodes it back.
+  cancel: (id: string, refundTo: 'wallet' | 'source') => apiFetch<Booking>(`/bookings/${encodeURIComponent(id)}/cancel`, { body: { refundTo } }),
   checkIn: (id: string, count: number) => apiFetch<Booking>(`/bookings/${id}/check-in`, { body: { count } }),
   waitlistJoin: (eventId: string) => apiFetch<WaitlistEntry>(`/events/${eventId}/waitlist`, { method: 'POST' }),
   waitlist: (eventId: string) => apiFetch<WaitlistEntry[]>(`/events/${eventId}/waitlist`),

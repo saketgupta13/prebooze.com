@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
+import { bookings as bookingsApi } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { Booking } from '../types';
 import QRCode from '../components/QRCode';
 import { downloadTicket } from '../lib/ticket';
 import { downloadIcs } from '../lib/calendar';
@@ -10,10 +13,28 @@ export default function Confirmation() {
   const { id } = useParams();
   const { bookings, myEvents, user, updateUser } = useApp();
   const [copied, setCopied] = useState(false);
-  const booking = bookings.find((b) => b.id === decodeURIComponent(id ?? ''));
+
+  const [liveBookings, setLiveBookings] = useState<Booking[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    bookingsApi.list().then(setLiveBookings).catch(() => setLiveBookings([]));
+  }, []);
+
+  const loading = isBackendEnabled() && liveBookings === null;
+  const booking = (liveBookings ?? bookings).find((b) => b.id === decodeURIComponent(id ?? ''));
   const event = booking
-    ? (eventById(booking.eventId) ?? myEvents.find((e) => e.id === booking.eventId))
+    ? (booking.event ?? eventById(booking.eventId) ?? myEvents.find((e) => e.id === booking.eventId))
     : undefined;
+
+  if (loading) {
+    return (
+      <main className="page">
+        <div className="container center" style={{ padding: '80px 0' }}>
+          <h1>Loading your ticket…</h1>
+        </div>
+      </main>
+    );
+  }
 
   if (!booking || !event) {
     return (
@@ -28,7 +49,7 @@ export default function Confirmation() {
     );
   }
 
-  const venue = venueById(event.venueId);
+  const venue = event.venue ?? venueById(event.venueId);
   const shareUrl = `${window.location.origin}/events/${event.slug}`;
   const visibility = user?.attendanceVisibility ?? 'off';
   const copy = () => {
