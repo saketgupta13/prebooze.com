@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { EVENTS, VENUES } from '../data/mock';
+import { EVENTS, VENUES, fmtCount } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Venue, Event } from '../types';
@@ -14,7 +14,7 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 
 export default function VenueDetail() {
   const { id } = useParams();
-  const { following, toggleFollow, favVenues, toggleFavVenue } = useApp();
+  const { user, following, toggleFollow, favVenues, toggleFavVenue } = useApp();
 
   const [liveVenues, setLiveVenues] = useState<Venue[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
@@ -52,6 +52,7 @@ export default function VenueDetail() {
   const events = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter((e) => e.venueId === venue.id && e.status === 'approved');
   const followKey = 'venue:' + venue.id;
   const isFollowing = following.includes(followKey);
+  const isOwnProfile = user?.isVenue && user.venueId === venue.id;
 
   return (
     <main className="page">
@@ -68,14 +69,11 @@ export default function VenueDetail() {
               {venue.name} {venue.verified && <span className="verified">✓</span>}
             </h1>
             <div className="muted small">
-              {venue.type} · {venue.locality} · followed by guests & hosts · {venue.followers}{' '}
+              {venue.type} · {venue.locality} · followed by guests & hosts · {fmtCount(venue.followers)}{' '}
               followers
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <span className="icon-round">ig</span>
-            <span className="icon-round">x</span>
-            <span className="icon-round">🌐</span>
             <button
               className="btn btn-ghost btn-sm"
               title={favVenues.includes(venue.id) ? 'Remove favourite' : 'Favourite this venue'}
@@ -83,12 +81,14 @@ export default function VenueDetail() {
             >
               {favVenues.includes(venue.id) ? '❤️ Favourited' : '🤍 Favourite'}
             </button>
-            <button
-              className={`btn btn-sm ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
-              onClick={() => toggleFollow(followKey)}
-            >
-              {isFollowing ? 'Following ✓' : '+ Follow'}
-            </button>
+            {!isOwnProfile && (
+              <button
+                className={`btn btn-sm ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
+                onClick={() => toggleFollow(followKey)}
+              >
+                {isFollowing ? 'Following ✓' : '+ Follow'}
+              </button>
+            )}
             <ShareButton path={`/venues/${venue.id}`} />
           </div>
         </div>

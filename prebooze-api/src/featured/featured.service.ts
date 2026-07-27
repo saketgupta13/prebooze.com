@@ -73,9 +73,14 @@ export class FeaturedService {
   /** Creates the request AND a real Razorpay order for the amount owed —
    * the request stays `paid: false` until `confirmPayment` verifies a real
    * checkout signature; `adminApprove` refuses to approve an unpaid one.
-   * Previously this only ever recorded a pending request with an invoice
-   * nobody was ever actually charged for — same documented gap as Promoter
-   * subscription used to be before real Razorpay billing landed there. */
+   * No Invoice is created here — an invoice is a billing document that
+   * claims money changed hands, and at this point it hasn't. It used to be
+   * created unconditionally right here, so cancelling the Razorpay checkout
+   * still left behind a real, "issued" invoice for a payment that never
+   * happened. It's created in confirmPayment now, only once the signature
+   * actually verifies. gstPct/gstAmount/total are persisted on the row so
+   * that later invoice reflects exactly what this order charged, even if
+   * admin changes the platform GST% before the guest finishes paying. */
   async request(userId: string, input: { type: FeaturedType; refId: string; billing: 'per_event' | 'monthly' }) {
     if (!input.type || !input.refId) throw new BadRequestException('type and refId are required');
     if (input.type === 'event' && input.billing !== 'per_event') throw new BadRequestException('Events are featured per-event, not monthly');
@@ -94,7 +99,7 @@ export class FeaturedService {
     // pending/active/expired record already existed for this exact item
     await this.prisma.featured.deleteMany({ where: { type: input.type as never, refId: input.refId } });
     let row = await this.prisma.featured.create({
-      data: { type: input.type as never, refId: input.refId, city, billing: input.billing as never, amount, expiresAt },
+      data: { type: input.type as never, refId: input.refId, city, billing: input.billing as never, amount, expiresAt, gstPct, gstAmount, total },
     });
 
     const { orderId } = await this.razorpay.createOrder(total * 100, row.id);
@@ -107,13 +112,6 @@ export class FeaturedService {
       await this.email.sendTemplate(user.email, 'featured_submitted', {
         name: user.name, amount: money(amount), itemLabel,
       }).catch(() => {});
-
-      await this.invoices.create({
-        type: 'featured', refId: row.id, role: input.type === 'event' ? 'organizer' : input.type,
-        payerName: user.name, payerEmail: user.email, payerPhone: user.phone, city,
-        description: `Featured placement — ${itemLabel}`,
-        subtotal: amount, gstPct, gstAmount, total,
-      }).catch(() => {});
     }
 
     return { ...row, razorpayOrder: { orderId, amount: total * 100, keyId: process.env.RAZORPAY_KEY_ID || undefined } };
@@ -124,7 +122,8 @@ export class FeaturedService {
    * ownership the same way `request()` did — Featured has no userId column
    * (refId + type is the only link back to an owner), so this is the only
    * way to confirm the caller confirming payment is the same one who made
-   * the request. */
+   * the request. The real Invoice is created here, once, only on the branch
+   * where the signature actually verifies. */
   async confirmPayment(userId: string, id: string, proof: { paymentId: string; signature: string }) {
     const row = await this.prisma.featured.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Featured request not found');
@@ -135,7 +134,46 @@ export class FeaturedService {
     const valid = this.razorpay.verifyPaymentSignature(row.razorpayOrderId, proof.paymentId, proof.signature);
     if (!valid) throw new BadRequestException('Payment verification failed');
 
-    return this.prisma.featured.update({ where: { id }, data: { paid: true, paymentId: proof.paymentId } });
+    const updated = await this.prisma.featured.update({ where: { id }, data: { paid: true, paymentId: proof.paymentId } });
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (user) {
+      const itemLabel = `${row.type} (${row.refId})`;
+      const business = await this.resolveBillingIdentity(row.type as FeaturedType, row.refId);
+      await this.invoices.create({
+        type: 'featured', refId: row.id, role: row.type === 'event' ? 'organizer' : (row.type as never),
+        payerName: user.name, payerEmail: user.email, payerPhone: user.phone, city: row.city,
+        payerBrand: business?.brand, payerGstin: business?.gstin, payerPan: business?.pan,
+        description: `Featured placement — ${itemLabel}`,
+        subtotal: row.amount, gstPct: row.gstPct ?? 0, gstAmount: row.gstAmount ?? 0, total: row.total ?? row.amount,
+      }).catch(() => {});
+    }
+
+    return updated;
+  }
+
+  /** Real business identity for the invoice's "bill to" — an organizer's
+   * brand/GSTIN/PAN, distinct from the individual account holder's name.
+   * Venue/promoter/lineup have no GSTIN/PAN modeled, just a brand name. */
+  private async resolveBillingIdentity(type: FeaturedType, refId: string): Promise<{ brand: string; gstin?: string | null; pan?: string | null } | null> {
+    if (type === 'organizer') {
+      const org = await this.prisma.organizer.findUnique({ where: { id: refId } });
+      return org ? { brand: org.brandName, gstin: org.gstin, pan: org.pan } : null;
+    }
+    if (type === 'event') {
+      const event = await this.prisma.event.findUnique({ where: { id: refId }, include: { organizer: true } });
+      return event ? { brand: event.organizer.brandName, gstin: event.organizer.gstin, pan: event.organizer.pan } : null;
+    }
+    if (type === 'venue') {
+      const venue = await this.prisma.venue.findUnique({ where: { id: refId } });
+      return venue ? { brand: venue.name } : null;
+    }
+    if (type === 'promoter') {
+      const p = await this.prisma.promoter.findFirst({ where: { OR: [{ id: refId }, { slug: refId }] } });
+      return p ? { brand: p.name } : null;
+    }
+    const l = await this.prisma.lineup.findFirst({ where: { OR: [{ id: refId }, { slug: refId }] } });
+    return l ? { brand: l.name } : null;
   }
 
   /** The caller's own current Featured row for this exact item, if any —

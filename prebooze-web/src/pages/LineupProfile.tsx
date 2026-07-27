@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { EVENTS, LINEUPS, lineupBySlug } from '../data/mock';
+import { EVENTS, LINEUPS, lineupBySlug, fmtCount } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { LineupProfile as LineupProfileData, Event } from '../types';
 import Poster from '../components/Poster';
+import SocialIcon, { guessPlatform } from '../components/SocialIcon';
 import ShareButton from '../components/ShareButton';
 import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
@@ -15,7 +16,7 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 /** Public line-up profile — artists, DJs, sponsors and promoters guests can follow. */
 export default function LineupProfile() {
   const { slug } = useParams();
-  const { following, toggleFollow } = useApp();
+  const { user, following, toggleFollow } = useApp();
 
   const [liveLineups, setLiveLineups] = useState<LineupProfileData[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
@@ -42,6 +43,7 @@ export default function LineupProfile() {
 
   const followKey = 'lineup:' + lineup.slug;
   const isFollowing = following.includes(followKey);
+  const isOwnProfile = user?.isLineup && user.lineupUsername === lineup.slug;
   const upcoming = (liveEvents ?? EVENTS).filter(
     (e) => e.status === 'approved' && e.lineup.some((l) => l.name.toLowerCase() === lineup.name.toLowerCase())
   );
@@ -63,14 +65,16 @@ export default function LineupProfile() {
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {lineup.links.map((l) => (
-              <span key={l} className="icon-round" title={l}>{l.split('/')[0].slice(0, 2)}</span>
+              <a key={l} className="icon-round" href={l.startsWith('http') ? l : `https://${l}`} target="_blank" rel="noopener noreferrer" title={l}><SocialIcon platform={guessPlatform(l)} /></a>
             ))}
-            <button
-              className={`btn ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
-              onClick={() => toggleFollow(followKey)}
-            >
-              {isFollowing ? 'Following ✓' : '+ Follow'}
-            </button>
+            {!isOwnProfile && (
+              <button
+                className={`btn ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
+                onClick={() => toggleFollow(followKey)}
+              >
+                {isFollowing ? 'Following ✓' : '+ Follow'}
+              </button>
+            )}
             <ShareButton path={`/lineup/${slug}`} />
           </div>
         </div>
@@ -79,7 +83,7 @@ export default function LineupProfile() {
           <div>
             <div className="stat3" style={{ marginBottom: 16 }}>
               <div className="s">
-                <div className="v">{lineup.followers >= 1000 ? (lineup.followers / 1000).toFixed(1).replace('.0', '') + 'k' : lineup.followers}</div>
+                <div className="v">{fmtCount(lineup.followers)}</div>
                 <div className="l">followers</div>
               </div>
               <div className="s">
@@ -148,7 +152,7 @@ export default function LineupProfile() {
                         <h3 style={{ fontSize: 14 }}>
                           {l.name} {l.verified && <span className="verified">✓</span>}
                         </h3>
-                        <div className="meta">{l.followers >= 1000 ? (l.followers / 1000).toFixed(1).replace('.0', '') + 'k' : l.followers} followers</div>
+                        <div className="meta">{fmtCount(l.followers)} followers</div>
                       </div>
                     </Link>
                   ))}

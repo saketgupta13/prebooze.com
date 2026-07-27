@@ -72,7 +72,7 @@ export default function Onboarding() {
   const otherRole = existingRole(user);
   if (otherRole && otherRole !== 'organizer') return <RoleTaken has={otherRole} />;
 
-  const step1Valid = brand.trim() && username.trim() && pan.trim() && (noGst || gstin.trim());
+  const step1Valid = brand.trim() && username.trim() && pan.trim() && (noGst || gstin.trim()) && types.length > 0;
   const step2Valid = aadhaar && selfie && bankName.trim() && account.trim() && accountHolder.trim() && ifsc.trim();
   const pct = step === 1 ? 50 : 90;
 

@@ -28,15 +28,19 @@ export function invoicePdfBuffer(inv: Invoice): Promise<Buffer> {
     doc.moveTo(50, 105).lineTo(545, 105).strokeColor('#ddd').stroke();
 
     doc.fillColor(MUTED).fontSize(9).text('BILL TO', 50, 120);
-    doc.fillColor('#000').fontSize(11).font('Helvetica-Bold').text(inv.payerName, 50, 134);
+    doc.fillColor('#000').fontSize(11).font('Helvetica-Bold').text(inv.payerBrand || inv.payerName, 50, 134);
     doc.font('Helvetica').fontSize(9).fillColor(MUTED);
     let y = 150;
+    if (inv.payerBrand) { doc.text(`Contact: ${inv.payerName}`, 50, y); y += 13; }
     if (inv.payerEmail) { doc.text(inv.payerEmail, 50, y); y += 13; }
     if (inv.payerPhone) { doc.text(inv.payerPhone, 50, y); y += 13; }
     if (inv.city) { doc.text(inv.city, 50, y); y += 13; }
+    if (inv.payerGstin) { doc.text(`GSTIN: ${inv.payerGstin}`, 50, y); y += 13; }
+    if (inv.payerPan) { doc.text(`PAN: ${inv.payerPan}`, 50, y); y += 13; }
     doc.text(`Role: ${cap(inv.role)}`, 50, y);
+    y += 13;
 
-    const tableTop = 220;
+    const tableTop = Math.max(220, y + 16);
     doc.fillColor('#fff').rect(50, tableTop, 495, 22).fill(GREEN);
     doc.fillColor('#000').fontSize(9).font('Helvetica-Bold');
     doc.text('DESCRIPTION', 58, tableTop + 6);
@@ -62,7 +66,7 @@ export function invoicePdfBuffer(inv: Invoice): Promise<Buffer> {
     doc.text(fmt(inv.total), 470, rowY, { align: 'right', width: 67 });
 
     doc.font('Helvetica').fontSize(8).fillColor(MUTED)
-      .text('This is a system-generated invoice from Prebooze. For questions, contact support via the app.', 50, 760, { width: 495, align: 'center' });
+      .text('This is a system-generated invoice from Prebooze. For questions, contact support via the website or email info@prebooze.com.', 50, 760, { width: 495, align: 'center' });
 
     doc.end();
   });

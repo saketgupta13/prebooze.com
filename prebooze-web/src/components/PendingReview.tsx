@@ -1,10 +1,32 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { roleLabel, roleOnboardingPath, type Role } from '../lib/roles';
+import { useApp } from '../store/AppContext';
+import { auth } from '../api';
+import { isBackendEnabled } from '../api/client';
+
+const POLL_MS = 30000;
 
 /** Shown in place of the console while an elevated-role application is
  * waiting on manual review — every organizer/promoter/lineup/venue signup
- * is reviewed by the Prebooze team; nothing here is automatic. */
+ * is reviewed by the Prebooze team; nothing here is automatic on the review
+ * side. The "unlocks automatically" promise below IS real though: AppContext
+ * only fetches /me once on mount, so without this poll an approval landing
+ * while this exact tab is sitting open would never be picked up short of a
+ * manual reload — this closes that gap by re-checking every 30s and pushing
+ * any change straight into the shared user object. */
 export default function PendingReview({ role }: { role: Role }) {
+  const { updateUser } = useApp();
+
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    const id = setInterval(() => {
+      auth.me().then(updateUser).catch(() => {});
+    }, POLL_MS);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <main className="page">
       <div className="container center" style={{ padding: '72px 0' }}>

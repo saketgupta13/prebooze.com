@@ -610,6 +610,18 @@ export const fmtTime = (isoStr: string) =>
 
 export const fmtMoney = (n: number) => '₹' + n.toLocaleString('en-IN');
 
+/** Follower/guest-count style formatting — plain number under 1,000, then
+ * k/m/b once it crosses each threshold. Shared so every profile page
+ * (organizer/venue/promoter/lineup) renders counts the same way instead of
+ * each hand-rolling its own (one of which used to divide-by-1000-and-append-k
+ * unconditionally, showing "0k" for zero followers). */
+export const fmtCount = (n: number): string => {
+  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1).replace('.0', '') + 'b';
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0', '') + 'm';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'k';
+  return String(n);
+};
+
 // ---- Blog (guest-facing side of the admin Blogs CMS) ----
 export interface BlogPost {
   slug: string;

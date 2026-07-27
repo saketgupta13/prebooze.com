@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useApp } from '../../store/AppContext';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import { RealUploadBox } from '../../components/RealUploadBox';
@@ -19,6 +20,7 @@ const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporat
  * Prisma fields, no endpoints) — dropped rather than left as toggles that
  * silently do nothing. Team & roles stays reachable via its own nav item. */
 export default function Settings() {
+  const { updateUser } = useApp();
   const [org, setOrg] = useState<Organizer | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -93,6 +95,11 @@ export default function Settings() {
       });
       setOrg(updated);
       setOpen(null);
+      // Header reads user.orgBrand/orgLogoUrl (a copy set once at KYC time) —
+      // without this, a rename/logo change here would show correctly on
+      // this page but the header would keep showing the old value until a
+      // full page reload remounted AppContext's one-time /me fetch.
+      updateUser({ orgBrand: updated.brandName, orgLogoUrl: updated.logoUrl ?? undefined });
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Failed to save');
     } finally {

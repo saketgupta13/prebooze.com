@@ -237,6 +237,7 @@ export class KycService {
       id: await unique('id'),
       brandName: user.orgBrand || user.name || 'Organizer',
       username: await unique('username'),
+      verified: true, // this row is only ever created at the moment KYC is approved
       city: user.city || '',
       country: str('country'),
       state: str('state'),
@@ -291,6 +292,7 @@ export class KycService {
       id: await uniqueId(),
       slug: await uniqueSlug(),
       name: user.promoterBrand || user.name || 'Promoter',
+      verified: true, // this row is only ever created at the moment KYC is approved
       city: user.city || '',
       bio: '',
       userId: user.id,
@@ -342,6 +344,7 @@ export class KycService {
       id: await uniqueId(),
       slug: await uniqueSlug(),
       name: user.lineupName || user.name || 'Lineup',
+      verified: true, // this row is only ever created at the moment KYC is approved
       category,
       city: user.city || '',
       bio: user.bio || '',

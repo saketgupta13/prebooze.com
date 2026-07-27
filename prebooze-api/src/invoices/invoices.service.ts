@@ -12,6 +12,9 @@ export interface CreateInvoiceInput {
   payerName: string;
   payerEmail?: string | null;
   payerPhone?: string | null;
+  payerBrand?: string | null;
+  payerGstin?: string | null;
+  payerPan?: string | null;
   city?: string | null;
   description: string;
   subtotal: number;
@@ -57,6 +60,9 @@ export class InvoicesService {
           payerName: input.payerName,
           payerEmail: input.payerEmail || null,
           payerPhone: input.payerPhone || null,
+          payerBrand: input.payerBrand || null,
+          payerGstin: input.payerGstin || null,
+          payerPan: input.payerPan || null,
           city: input.city || null,
           description: input.description,
           subtotal: input.subtotal,

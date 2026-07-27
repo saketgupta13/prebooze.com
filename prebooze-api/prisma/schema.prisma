@@ -682,6 +682,13 @@ model Featured {
   razorpayOrderId String?
   paymentId       String?
   paid            Boolean   @default(false)
+  // GST breakdown at the moment the Razorpay order was created — persisted
+  // so the Invoice generated in confirmPayment (only once payment actually
+  // clears) reflects exactly what was charged, even if admin changes the
+  // platform GST% between request() and confirmPayment().
+  gstPct    Float?
+  gstAmount Int?
+  total     Int?
 
   // Automatic "expiring in 3 days" reminder (CronService.featuredExpiringSoonTick)
   // — distinct from the already-expired manual reminder button/endpoint.
@@ -1305,6 +1312,13 @@ model Invoice {
   payerName   String
   payerEmail  String?
   payerPhone  String?
+  // Business identity snapshot — for a "featured" invoice billed to an
+  // organizer, payerName is the individual account holder's name; these are
+  // the actual business details (brand, GSTIN, PAN) a real tax invoice
+  // should show for the entity being billed, captured at issue time.
+  payerBrand  String?
+  payerGstin  String?
+  payerPan    String?
   city        String?
   description String
   subtotal    Float

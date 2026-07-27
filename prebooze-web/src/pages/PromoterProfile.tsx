@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { EVENTS, PROMOTERS, promoterBySlug } from '../data/mock';
+import { EVENTS, PROMOTERS, promoterBySlug, fmtCount } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { PromoterProfile as PromoterProfileData, Event } from '../types';
@@ -9,6 +9,7 @@ import { friendsAtEvents } from '../lib/social';
 import FriendsProof from '../components/FriendsProof';
 import ShareButton from '../components/ShareButton';
 import Poster from '../components/Poster';
+import SocialIcon, { guessPlatform } from '../components/SocialIcon';
 import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
 import { useSeo } from '../lib/useSeo';
@@ -17,7 +18,7 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 /** Public promoter profile — followable, shows the events they're promoting. */
 export default function PromoterProfile() {
   const { slug } = useParams();
-  const { following, toggleFollow } = useApp();
+  const { user, following, toggleFollow } = useApp();
 
   const [livePromoters, setLivePromoters] = useState<PromoterProfileData[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
@@ -44,6 +45,7 @@ export default function PromoterProfile() {
 
   const followKey = 'promoter:' + promoter.slug;
   const isFollowing = following.includes(followKey);
+  const isOwnProfile = user?.isPromoter && user.promoterUsername === promoter.slug;
   const eventPool = liveEvents ?? EVENTS;
   // Events this promoter is on the allow-list for; fall back to a sample of live events.
   const promoted = eventPool.filter((e) => e.promoterConfig?.allowedPromoters?.includes(promoter.slug));
@@ -67,11 +69,13 @@ export default function PromoterProfile() {
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {promoter.links.map((l) => (
-              <span key={l} className="icon-round" title={l}>{l.split('/')[0].slice(0, 2)}</span>
+              <a key={l} className="icon-round" href={l.startsWith('http') ? l : `https://${l}`} target="_blank" rel="noopener noreferrer" title={l}><SocialIcon platform={guessPlatform(l)} /></a>
             ))}
-            <button className={`btn ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(followKey)}>
-              {isFollowing ? 'Following ✓' : '+ Follow'}
-            </button>
+            {!isOwnProfile && (
+              <button className={`btn ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(followKey)}>
+                {isFollowing ? 'Following ✓' : '+ Follow'}
+              </button>
+            )}
             <ShareButton path={`/promoter/${promoter.slug}`} />
           </div>
         </div>
@@ -82,7 +86,7 @@ export default function PromoterProfile() {
           <div>
             <div className="stat3" style={{ marginBottom: 16 }}>
               <div className="s">
-                <div className="v">{promoter.followers >= 1000 ? (promoter.followers / 1000).toFixed(1).replace('.0', '') + 'k' : promoter.followers}</div>
+                <div className="v">{fmtCount(promoter.followers)}</div>
                 <div className="l">followers</div>
               </div>
               <div className="s">
@@ -90,7 +94,7 @@ export default function PromoterProfile() {
                 <div className="l">events</div>
               </div>
               <div className="s">
-                <div className="v">{(promoter.guestsBrought / 1000).toFixed(1).replace('.0', '')}k</div>
+                <div className="v">{fmtCount(promoter.guestsBrought)}</div>
                 <div className="l">guests brought</div>
               </div>
             </div>
@@ -135,7 +139,7 @@ export default function PromoterProfile() {
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <h3 style={{ fontSize: 14 }}>{p.name} {p.verified && <span className="verified">✓</span>}</h3>
-                      <div className="meta">{p.followers >= 1000 ? (p.followers / 1000).toFixed(1).replace('.0', '') + 'k' : p.followers} followers</div>
+                      <div className="meta">{fmtCount(p.followers)} followers</div>
                     </div>
                   </Link>
                 ))}

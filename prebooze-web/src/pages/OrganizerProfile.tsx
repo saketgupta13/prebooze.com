@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { EVENTS, ORGANIZERS } from '../data/mock';
+import { EVENTS, ORGANIZERS, fmtCount } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Organizer, Event } from '../types';
@@ -9,6 +9,7 @@ import { friendsAtEvents } from '../lib/social';
 import FriendsProof from '../components/FriendsProof';
 import ShareButton from '../components/ShareButton';
 import Poster from '../components/Poster';
+import SocialIcon, { guessPlatform } from '../components/SocialIcon';
 import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
 import { useSeo } from '../lib/useSeo';
@@ -16,7 +17,7 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 
 export default function OrganizerProfile() {
   const { id } = useParams();
-  const { following, toggleFollow } = useApp();
+  const { user, following, toggleFollow } = useApp();
 
   const [liveOrgs, setLiveOrgs] = useState<Organizer[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
@@ -56,6 +57,7 @@ export default function OrganizerProfile() {
   const upcoming = orgEvents.filter((e) => new Date(e.date).getTime() >= now);
   const past = orgEvents.filter((e) => new Date(e.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date));
   const isFollowing = following.includes(org.id);
+  const isOwnProfile = user?.isOrganizer && user.orgUsername === org.username;
   const friends = friendsAtEvents(upcoming.map((e) => e.id), following);
 
   const linkHref = (l: string) => (l.startsWith('http') ? l : `https://${l}`);
@@ -75,23 +77,32 @@ export default function OrganizerProfile() {
               @{org.username} · {org.city} · since {org.since}
             </div>
             <div className="muted small rich-text" style={{ marginTop: 6, maxWidth: 480 }} dangerouslySetInnerHTML={{ __html: org.about }} />
+            {org.eventTypes && (
+              <div className="chip-row" style={{ marginTop: 8 }}>
+                {org.eventTypes.split(',').map((t) => t.trim()).filter(Boolean).map((t) => (
+                  <span key={t} className="tag">{t}</span>
+                ))}
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {social?.instagram && (
-              <a className="icon-round" href={linkHref(social.instagram)} target="_blank" rel="noopener noreferrer" title={social.instagram}>ig</a>
+              <a className="icon-round" href={linkHref(social.instagram)} target="_blank" rel="noopener noreferrer" title={social.instagram}><SocialIcon platform="instagram" /></a>
             )}
             {social?.facebook && (
-              <a className="icon-round" href={linkHref(social.facebook)} target="_blank" rel="noopener noreferrer" title={social.facebook}>fb</a>
+              <a className="icon-round" href={linkHref(social.facebook)} target="_blank" rel="noopener noreferrer" title={social.facebook}><SocialIcon platform="facebook" /></a>
             )}
             {otherLinks.map((l, i) => (
-              <a key={i} className="icon-round" href={linkHref(l)} target="_blank" rel="noopener noreferrer" title={l}>🌐</a>
+              <a key={i} className="icon-round" href={linkHref(l)} target="_blank" rel="noopener noreferrer" title={l}><SocialIcon platform={guessPlatform(l)} /></a>
             ))}
-            <button
-              className={`btn btn-sm ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
-              onClick={() => toggleFollow(org.id)}
-            >
-              {isFollowing ? 'Following ✓' : '+ Follow'}
-            </button>
+            {!isOwnProfile && (
+              <button
+                className={`btn btn-sm ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
+                onClick={() => toggleFollow(org.id)}
+              >
+                {isFollowing ? 'Following ✓' : '+ Follow'}
+              </button>
+            )}
             <ShareButton path={`/organizers/${org.id}`} />
           </div>
         </div>
@@ -102,7 +113,7 @@ export default function OrganizerProfile() {
           <div>
             <div className="stat3" style={{ marginBottom: 16 }}>
               <div className="s">
-                <div className="v">{(org.followers / 1000).toFixed(1).replace('.0', '')}k</div>
+                <div className="v">{fmtCount(org.followers)}</div>
                 <div className="l">followers</div>
               </div>
               <div className="s">
@@ -123,7 +134,7 @@ export default function OrganizerProfile() {
               </div>
               <div className="kv">
                 <span className="k">Joined</span>
-                <span>Jan {org.since}</span>
+                <span>{org.since}</span>
               </div>
             </div>
           </div>
