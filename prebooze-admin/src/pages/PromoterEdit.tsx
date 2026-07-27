@@ -1,51 +1,77 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
 import WysiwygEditor from '../components/WysiwygEditor';
 import SeoFields, { emptySeo } from '../components/SeoFields';
+import { livePromoters, LiveApiError, type LivePromoter } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate } from '../components/LiveChrome';
+import type { Seo } from '../types';
 
-/** Edit an existing promoter's profile, plan and status. */
+const TITLE = 'Edit promoter';
+
+/** Edit an existing promoter's profile — real Promoter row. */
 export default function PromoterEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { promoters, subTiers, updatePromoter, toast } = useAdmin();
-  const p = promoters.find((x) => x.id === id);
+  const session = useLiveSession();
+  const { token } = session;
 
-  const [name, setName] = useState(p?.name ?? '');
-  const [contact, setContact] = useState(p?.contact ?? '');
-  const [city, setCity] = useState(p?.city ?? '');
-  const [plan, setPlan] = useState(p?.plan ?? 'free');
-  const [status, setStatus] = useState(p?.status ?? 'pending');
-  const [kyc, setKyc] = useState(p?.kyc ?? 'pending');
-  const [bio, setBio] = useState(p?.bio ?? '');
-  const [seo, setSeo] = useState(p?.seo ?? emptySeo());
+  const [p, setP] = useState<LivePromoter | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
-  if (!p) {
+  const [name, setName] = useState('');
+  const [contact, setContact] = useState('');
+  const [city, setCity] = useState('');
+  const [bio, setBio] = useState('');
+  const [seo, setSeo] = useState<Seo>(emptySeo());
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    livePromoters
+      .list()
+      .then((promoters) => {
+        const found = promoters.find((x) => x.id === id);
+        setP(found ?? null);
+        if (found) {
+          setName(found.name);
+          setContact(found.contact ?? '');
+          setCity(found.city);
+          setBio(found.bio ?? '');
+          setSeo((found.seo as Seo | null) ?? emptySeo());
+        }
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token, id]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  if (!loading && !p) {
     return (
       <div className="stack fade">
+        {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Promoter not found</h1>
         <Link to="/promoters" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Promoters</Link>
       </div>
     );
   }
+  if (!p) {
+    return <div className="stack fade"><div className="tiny muted">Loading…</div></div>;
+  }
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !contact.trim()) {
-      toast('Name and contact are required');
-      return;
+    if (!name.trim()) { setErr('Name is required'); return; }
+    try {
+      await livePromoters.update(p.id, { name: name.trim(), contact: contact.trim(), city: city.trim() || '—', bio: bio.trim(), seo });
+      navigate(`/promoters/${p.id}`);
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to save');
     }
-    updatePromoter(p.id, {
-      name: name.trim(),
-      contact: contact.trim(),
-      city: city.trim() || '—',
-      plan,
-      status,
-      kyc,
-      bio: bio.trim() || undefined,
-      seo,
-    });
-    navigate(`/promoters/${p.id}`);
   };
 
   return (
@@ -54,6 +80,7 @@ export default function PromoterEdit() {
         <Link to={`/promoters/${p.id}`} style={{ fontSize: 13 }}>← {p.name}</Link>
         <h1 className="page-title">Edit promoter</h1>
       </div>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
 
       <form className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }} onSubmit={save}>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -66,38 +93,9 @@ export default function PromoterEdit() {
             <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} />
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div className="field" style={{ flex: 1 }}>
-            <label>City</label>
-            <input className="input" value={city} onChange={(e) => setCity(e.target.value)} />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Subscription plan</label>
-            <select className="input" value={plan} onChange={(e) => setPlan(e.target.value)}>
-              {subTiers.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Account status</label>
-            <select className="input" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
-              <option value="approved">Approved</option>
-              <option value="pending">Pending</option>
-              <option value="rejected">Rejected / suspended</option>
-            </select>
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>KYC state</label>
-            <select className="input" value={kyc} onChange={(e) => setKyc(e.target.value)}>
-              <option value="verified">Verified</option>
-              <option value="submitted">Submitted</option>
-              <option value="pending">Pending</option>
-              <option value="flagged">Flagged</option>
-            </select>
-          </div>
+        <div className="field">
+          <label>City</label>
+          <input className="input" value={city} onChange={(e) => setCity(e.target.value)} />
         </div>
         <div className="field">
           <label>Bio</label>

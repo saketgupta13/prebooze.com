@@ -1,86 +1,106 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
-import { ORGANIZER_STATUS, Tag } from '../components/ui';
+import { Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import WysiwygEditor from '../components/WysiwygEditor';
+import { liveOrganizers, LiveApiError, type LiveOrganizer } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate } from '../components/LiveChrome';
+import type { Seo } from '../types';
 
-/** Edit organizer — mirrors the organizer onboarding flow: business profile then KYC & bank. */
+const TITLE = 'Edit organizer';
+
+/** Edit organizer — real Organizer row (business profile + compliance
+ * fields). Bank/KYC docs upload stays a mock toggle here (no real bank
+ * verification/penny-drop backend exists yet); the account number itself,
+ * if entered, is genuinely saved as bankLast4. */
 export default function OrganizerEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { organizers, updateOrganizer, toast } = useAdmin();
-  const org = organizers.find((o) => o.id === id);
+  const session = useLiveSession();
+  const { token } = session;
 
-  const [form, setForm] = useState(() => ({
-    name: org?.name ?? '',
-    contactPerson: org?.contactPerson ?? '',
-    contact: org?.contact ?? '',
-    phone: org?.phone ?? '',
-    city: org?.city ?? '',
-    eventTypes: org?.eventTypes ?? '',
-    about: org?.about ?? '',
-    links: org?.links ?? '',
-    gstin: org?.gstin ?? '',
-    pan: org?.pan ?? '',
-  }));
-  const [logo, setLogo] = useState(true);
-  const [aadhaar, setAadhaar] = useState(org?.kyc === 'verified');
-  const [seo, setSeo] = useState(org?.seo ?? emptySeo());
-  const [bank, setBank] = useState(org?.bankLast4 ?? '');
-  const [ifsc, setIfsc] = useState(org?.bankLast4 ? 'HDFC0001234' : '');
+  const [org, setOrg] = useState<LiveOrganizer | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
-  if (!org) {
+  const [form, setForm] = useState({
+    brandName: '', contactPerson: '', contact: '', phone: '', city: '', eventTypes: '', about: '', links: '', gstin: '', pan: '',
+  });
+  const [seo, setSeo] = useState<Seo>(emptySeo());
+  const [bank, setBank] = useState('');
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    liveOrganizers
+      .list()
+      .then((orgs) => {
+        const o = orgs.find((x) => x.id === id);
+        setOrg(o ?? null);
+        if (o) {
+          setForm({
+            brandName: o.brandName, contactPerson: o.contactPerson ?? '', contact: o.contact ?? '', phone: o.phone ?? '',
+            city: o.city, eventTypes: o.eventTypes ?? '', about: o.about ?? '', links: o.links ?? '', gstin: o.gstin ?? '', pan: o.pan ?? '',
+          });
+          setSeo((o.seo as Seo | null) ?? emptySeo());
+        }
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token, id]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  if (!loading && !org) {
     return (
       <div className="stack fade">
+        {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Organizer not found</h1>
         <Link to="/organizers" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Organizers</Link>
       </div>
     );
   }
+  if (!org) {
+    return <div className="stack fade"><div className="tiny muted">Loading…</div></div>;
+  }
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) {
-      toast('Organizer name is required');
-      return;
+    if (!form.brandName.trim()) { setErr('Organizer name is required'); return; }
+    try {
+      await liveOrganizers.update(org.id, {
+        ...form,
+        brandName: form.brandName.trim(),
+        bankLast4: bank ? bank.slice(-4) : org.bankLast4 ?? undefined,
+        seo,
+      });
+      navigate(`/organizers/${org.id}`);
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to save');
     }
-    updateOrganizer(org.id, {
-      ...form,
-      name: form.name.trim(),
-      kyc: aadhaar && bank ? 'verified' : org.kyc,
-      bankLast4: bank ? bank.slice(-4) : org.bankLast4,
-      seo,
-    });
-    navigate(`/organizers/${org.id}`);
   };
 
   return (
     <form className="stack fade" style={{ maxWidth: 560, gap: 14 }} onSubmit={save}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to={`/organizers/${org.id}`} style={{ fontSize: 13 }}>← {org.name}</Link>
+        <Link to={`/organizers/${org.id}`} style={{ fontSize: 13 }}>← {org.brandName}</Link>
         <h1 className="page-title">Edit organizer</h1>
-        <Tag {...ORGANIZER_STATUS[org.status]} />
+        {org.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Unverified" cls="" />}
       </div>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
 
-      {/* Step 1 — business profile (same fields as onboarding) */}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div className="display" style={{ fontWeight: 700 }}>1 · Business profile</div>
-        <button
-          type="button"
-          className="dashed-box"
-          style={{ background: 'none', textAlign: 'left', cursor: 'pointer', color: logo ? 'var(--green)' : 'var(--muted)', fontSize: 11.5 }}
-          onClick={() => setLogo((v) => !v)}
-        >
-          {logo ? '✓ Brand logo uploaded — shown on every event' : '+ upload brand logo'}
-        </button>
+        <div className="display" style={{ fontWeight: 700 }}>Business profile</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <div className="field" style={{ flex: 1 }}>
             <label>Organizer / brand name</label>
-            <input className="input" value={form.name} onChange={set('name')} />
+            <input className="input" value={form.brandName} onChange={set('brandName')} />
           </div>
           <div className="field" style={{ flex: 1 }}>
             <label>Contact person</label>
@@ -127,36 +147,20 @@ export default function OrganizerEdit() {
         </div>
       </div>
 
-      {/* Step 2 — KYC & bank (same as onboarding) */}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div className="display" style={{ fontWeight: 700 }}>2 · KYC &amp; bank for payouts</div>
-        <button
-          type="button"
-          className="dashed-box"
-          style={{ background: 'none', textAlign: 'left', cursor: 'pointer', color: aadhaar ? 'var(--green)' : 'var(--muted)', fontSize: 11.5 }}
-          onClick={() => setAadhaar((v) => !v)}
-        >
-          {aadhaar ? '✓ Aadhaar + selfie verified with UIDAI' : '+ upload Aadhaar front + capture selfie'}
-        </button>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Bank account number</label>
-            <input className="input" value={bank} onChange={(e) => setBank(e.target.value)} inputMode="numeric" placeholder={org.bankLast4 ? `•••• ${org.bankLast4}` : 'Account number'} />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>IFSC code</label>
-            <input className="input" value={ifsc} onChange={(e) => setIfsc(e.target.value)} />
-          </div>
+        <div className="display" style={{ fontWeight: 700 }}>Bank for payouts</div>
+        <div className="field">
+          <label>Bank account number</label>
+          <input className="input" value={bank} onChange={(e) => setBank(e.target.value)} inputMode="numeric" placeholder={org.bankLast4 ? `•••• ${org.bankLast4}` : 'Account number'} />
         </div>
-        {bank && ifsc && <div className="small green">✓ penny-drop verification passed</div>}
-        <div className="tiny hint">KYC status: {org.kyc} · changing bank details re-triggers penny-drop verification</div>
+        <div className="tiny hint">only the last 4 digits are stored · leave blank to keep the current details</div>
       </div>
 
       <SeoFields
         seo={seo}
         onChange={setSeo}
-        slug={'/organizers/' + form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
-        fallbackTitle={`${form.name || 'Organizer'} — events & tickets`}
+        slug={'/organizers/' + form.brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
+        fallbackTitle={`${form.brandName || 'Organizer'} — events & tickets`}
       />
 
       <div style={{ display: 'flex', gap: 10 }}>

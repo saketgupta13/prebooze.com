@@ -1,26 +1,41 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
 import { fmt, stripHtml } from '../store/data';
-import { CityFilterDropdown, GradientPhoto, ORGANIZER_STATUS, SearchBox, Tag } from '../components/ui';
-import { enabledCityNames } from '../store/data';
-import type { Promoter } from '../types';
+import { CityFilterDropdown, GradientPhoto, SearchBox, Tag } from '../components/ui';
+import { livePromoters, LiveApiError, type LivePromoter } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
-const earned = (p: Promoter) => (p.perHeadEarned ?? 0) + (p.commissionEarned ?? 0);
+const TITLE = 'Promoters';
 
-/** Promoter / PR management — mirrors Organizers: approve KYC, view, suspend. */
+/** Real promoter directory — already-approved Promoter catalog rows
+ * (pending self-serve applications live in Verifications, not here — see
+ * KycService.approve). Verified toggles the real ✓ badge; earnings/payout
+ * dashboards from the mock have no admin-readable backing (no
+ * PromoterWithdrawal admin endpoint exists yet), dropped rather than faked. */
 export function Promoters() {
-  const { promoters, subTiers, setPromoterStatus2, locations } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
   const navigate = useNavigate();
+
+  const [promoters, setPromoters] = useState<LivePromoter[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
   const [cityF, setCityF] = useState('All');
   const [query, setQuery] = useState('');
-  const cities = enabledCityNames(locations);
-  const pending = promoters.filter((p) => p.status === 'pending').length;
-  const planName = (id: string) => subTiers.find((t) => t.id === id)?.name ?? id;
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    livePromoters.list().then(setPromoters).catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load')).finally(() => setLoading(false));
+  };
+  useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token]);
+
+  const cities = useMemo(() => [...new Set(promoters.map((p) => p.city).filter(Boolean))].sort(), [promoters]);
 
   const top = useMemo(
-    () => [...promoters].filter((p) => earned(p) > 0).sort((a, b) => earned(b) - earned(a)).slice(0, 5),
-    [promoters]
+    () => [...promoters].filter((p) => p.guestsBrought > 0).sort((a, b) => b.guestsBrought - a.guestsBrought).slice(0, 5),
+    [promoters],
   );
 
   const list = useMemo(() => {
@@ -28,22 +43,27 @@ export function Promoters() {
     if (cityF !== 'All') l = l.filter((p) => p.city === cityF);
     if (query.trim()) {
       const q = query.toLowerCase();
-      l = l.filter((p) => (p.name + p.contact).toLowerCase().includes(q));
+      l = l.filter((p) => (p.name + (p.contact ?? '')).toLowerCase().includes(q));
     }
     return l;
   }, [promoters, cityF, query]);
 
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  const toggleVerified = async (p: LivePromoter, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try { await livePromoters.setVerified(p.id, !p.verified); load(); } catch (err2) { setErr(err2 instanceof LiveApiError ? err2.message : 'Failed to update'); }
+  };
+
   return (
     <div className="stack fade" style={{ maxWidth: 1100 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+
       <div className="page-hd">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <h1 className="page-title">Promoters</h1>
-          {pending > 0 && (
-            <span className="chip" style={{ borderColor: 'var(--red)', color: 'var(--red)', fontWeight: 700 }}>
-              {pending} awaiting review
-            </span>
-          )}
-        </div>
+        <h1 className="page-title">Promoters</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <Link to="/promoters/tiers" className="btn btn-ghost btn-sm">Subscription tiers</Link>
           <Link to="/promoters/new" className="btn btn-pri btn-sm">+ Add promoter</Link>
@@ -54,20 +74,19 @@ export function Promoters() {
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span className="display" style={{ fontWeight: 700 }}>🏆 Top promoters</span>
-            <span className="tiny muted">by total earned</span>
+            <span className="tiny muted">by guests brought</span>
           </div>
           <div className="stack" style={{ gap: 8 }}>
             {top.map((p, i) => {
-              const maxE = earned(top[0]);
-              const e = earned(p);
+              const maxG = top[0].guestsBrought || 1;
               return (
                 <div key={p.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/promoters/${p.id}`)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                     <b>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`} {p.name}</b>
-                    <span className="muted">₹{fmt(e)} · {p.showRate}% show · {fmt(p.guestsBrought ?? 0)} guests</span>
+                    <span className="muted">{p.showRate}% show · {fmt(p.guestsBrought)} guests</span>
                   </div>
                   <div style={{ height: 8, background: 'rgba(139,195,74,.12)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
-                    <div style={{ width: `${(e / maxE) * 100}%`, height: '100%', background: 'var(--green)', opacity: 0.5 + (e / maxE) * 0.5 }} />
+                    <div style={{ width: `${(p.guestsBrought / maxG) * 100}%`, height: '100%', background: 'var(--green)', opacity: 0.5 + (p.guestsBrought / maxG) * 0.5 }} />
                   </div>
                 </div>
               );
@@ -82,49 +101,39 @@ export function Promoters() {
       </div>
 
       <div className="tblwrap">
-        <div className="thead" style={{ minWidth: 860 }}>
+        <div className="thead" style={{ minWidth: 760 }}>
           <span style={{ flex: 1.6 }}>Promoter</span>
           <span style={{ flex: 1 }}>City</span>
-          <span style={{ flex: 0.9 }}>Plan</span>
-          <span style={{ flex: 1 }}>Guests / mo</span>
+          <span style={{ flex: 1 }}>Events promoted</span>
           <span style={{ flex: 0.9 }}>Show-rate</span>
-          <span style={{ flex: 1 }}>Earned</span>
           <span style={{ flex: 1 }}>Status</span>
-          <span style={{ flex: 1.4 }} />
+          <span style={{ flex: 1 }} />
         </div>
         {list.map((p) => (
-          <div
-            key={p.id}
-            className="trow clickable"
-            style={{ minWidth: 860, background: p.status === 'pending' ? 'rgba(255,107,94,.06)' : undefined }}
-            onClick={() => navigate(`/promoters/${p.id}`)}
-          >
+          <div key={p.id} className="trow clickable" style={{ minWidth: 760 }} onClick={() => navigate(`/promoters/${p.id}`)}>
             <span style={{ flex: 1.6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
               <GradientPhoto seed={p.name.charCodeAt(0) * 6} style={{ width: 28, height: 28, borderRadius: '50%', flex: 'none', padding: 0 }} />
               {p.name}
             </span>
             <span style={{ flex: 1 }} className="muted">{p.city}</span>
-            <span style={{ flex: 0.9 }}>{planName(p.plan)}</span>
-            <span style={{ flex: 1 }}>{p.guestsThisMonth}</span>
+            <span style={{ flex: 1 }}>{p.eventsPromoted}</span>
             <span style={{ flex: 0.9 }} className={p.showRate >= 70 ? 'green' : p.showRate > 0 ? '' : 'hint'}>
               {p.showRate ? `${p.showRate}%` : '—'}
             </span>
-            <span style={{ flex: 1 }} className={earned(p) > 0 ? '' : 'hint'}>{earned(p) > 0 ? `₹${fmt(earned(p))}` : '—'}</span>
-            <span style={{ flex: 1 }}><Tag {...ORGANIZER_STATUS[p.status]} /></span>
-            <span style={{ flex: 1.4, display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-              {p.status === 'pending' && (
-                <>
-                  <button className="btn btn-pri btn-sm" onClick={(e) => { e.stopPropagation(); setPromoterStatus2(p.id, 'approved'); }}>Approve</button>
-                  <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); setPromoterStatus2(p.id, 'rejected'); }}>Reject</button>
-                </>
-              )}
+            <span style={{ flex: 1 }}>
+              {p.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Unverified" cls="" />}
+            </span>
+            <span style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-ghost btn-sm" onClick={(e) => toggleVerified(p, e)}>
+                {p.verified ? 'Unverify' : 'Verify'}
+              </button>
             </span>
           </div>
         ))}
-        {list.length === 0 && <div className="trow muted">No promoters match.</div>}
+        {list.length === 0 && !loading && <div className="trow muted">No promoters match.</div>}
       </div>
       <div className="tiny hint">
-        approving unlocks promoting for that PR · organizers still choose which promoters to allow per event · click a row for detail
+        pending promoter applications are reviewed under Verifications · organizers still choose which promoters to allow per event · click a row for detail
       </div>
     </div>
   );
@@ -132,167 +141,82 @@ export function Promoters() {
 
 export function PromoterDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
-  const { promoters, subTiers, setPromoterStatus2, removePromoter2, toast } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
+
+  const [promoters, setPromoters] = useState<LivePromoter[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    livePromoters.list().then(setPromoters).catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load')).finally(() => setLoading(false));
+  };
+  useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token]);
+
+  const gate = useLiveGate('Promoter detail', session);
+  if (gate) return gate;
+
   const p = promoters.find((x) => x.id === id);
 
-  if (!p) {
+  if (!loading && !p) {
     return (
       <div className="stack fade">
+        {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Promoter not found</h1>
         <Link to="/promoters" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Promoters</Link>
       </div>
     );
   }
-  const planName = subTiers.find((t) => t.id === p.plan)?.name ?? p.plan;
+  if (!p) {
+    return <div className="stack fade"><div className="tiny muted">Loading…</div></div>;
+  }
+
+  const toggleVerified = async () => {
+    try { await livePromoters.setVerified(p.id, !p.verified); load(); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed to update'); }
+  };
 
   return (
     <div className="stack fade" style={{ maxWidth: 900, gap: 14 }}>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Link to="/promoters" style={{ fontSize: 13 }}>← Promoters</Link>
         <GradientPhoto seed={p.name.charCodeAt(0) * 6} style={{ width: 40, height: 40, borderRadius: '50%', flex: 'none', padding: 0 }} />
         <h1 className="display" style={{ fontSize: 18 }}>{p.name}</h1>
-        <Tag {...ORGANIZER_STATUS[p.status]} />
+        {p.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Unverified" cls="" />}
         <div style={{ flex: 1 }} />
-        {p.status === 'pending' && (
-          <>
-            <button className="btn btn-pri btn-sm" onClick={() => setPromoterStatus2(p.id, 'approved')}>Approve ✓</button>
-            <button className="btn btn-danger btn-sm" onClick={() => setPromoterStatus2(p.id, 'rejected')}>Reject</button>
-          </>
-        )}
-        {p.status === 'approved' && (
-          <button className="btn btn-danger btn-sm" onClick={() => setPromoterStatus2(p.id, 'rejected')}>Suspend</button>
-        )}
+        <button className="btn btn-ghost btn-sm" onClick={toggleVerified}>{p.verified ? 'Unverify' : 'Verify ✓'}</button>
         <Link to={`/promoters/${p.id}/edit`} className="btn btn-ghost btn-sm">Edit</Link>
-        <button className="btn btn-ghost btn-sm" onClick={() => toast('Message sent to promoter ✓')}>Message</button>
       </div>
-      <div className="small muted">{p.contact} · {p.city} · {stripHtml(p.bio ?? '')}</div>
+      <div className="small muted">{p.contact || '—'} · {p.city} · {stripHtml(p.bio ?? '')}</div>
 
       <div className="kpi-grid">
-        <div className="kpi"><div className="l">Plan</div><div className="v">{planName}</div></div>
-        <div className="kpi"><div className="l">Guests this month</div><div className="v">{fmt(p.guestsThisMonth)}</div></div>
         <div className="kpi"><div className="l">Events promoted</div><div className="v">{p.eventsPromoted}</div></div>
+        <div className="kpi"><div className="l">Guests brought (lifetime)</div><div className="v">{fmt(p.guestsBrought)}</div></div>
         <div className="kpi"><div className="l">Show-up rate</div><div className="v">{p.showRate ? `${p.showRate}%` : '—'}</div></div>
+        <div className="kpi"><div className="l">Followers</div><div className="v">{fmt(p.followers)}</div></div>
       </div>
 
       <div className="card">
-        <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>KYC &amp; verification</div>
-        <div className="kv"><span className="k">Identity KYC</span><span className={p.kyc === 'verified' ? 'green' : p.kyc === 'flagged' ? 'red' : 'muted'}>{p.kyc}</span></div>
-        <div className="kv"><span className="k">Account status</span><span>{ORGANIZER_STATUS[p.status].label}</span></div>
-        <div className="kv"><span className="k">Subscription</span><span>{planName}</span></div>
+        <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>Account</div>
+        <div className="kv"><span className="k">Verification</span><span className={p.verified ? 'green' : 'muted'}>{p.verified ? 'verified' : 'unverified'}</span></div>
+        <div className="kv"><span className="k">Subscription plan</span><span>{p.planId}</span></div>
       </div>
-
-      {(() => {
-        const totalEarned = (p.perHeadEarned ?? 0) + (p.commissionEarned ?? 0);
-        const avail = Math.max(0, totalEarned - (p.withdrawn ?? 0));
-        const payouts = p.payouts ?? [];
-        return (
-          <>
-            <div className="card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                <span className="display" style={{ fontWeight: 700 }}>Earnings</span>
-                <span className="tag" style={{ borderColor: 'var(--border)' }}>organizer-funded</span>
-              </div>
-              <div className="kpi-grid">
-                <div className="kpi"><div className="l">Guests brought (lifetime)</div><div className="v">{fmt(p.guestsBrought ?? 0)}</div></div>
-                <div className="kpi"><div className="l">Per-head payouts</div><div className="v">₹{fmt(p.perHeadEarned ?? 0)}</div></div>
-                <div className="kpi"><div className="l">Gate commission</div><div className="v">₹{fmt(p.commissionEarned ?? 0)}</div></div>
-                <div className="kpi"><div className="l">Total earned</div><div className="v green">₹{fmt(totalEarned)}</div></div>
-              </div>
-              <div className="kv" style={{ marginTop: 8 }}><span className="k">Paid out by organizers</span><span>₹{fmt(p.withdrawn ?? 0)}</span></div>
-              <div className="kv"><span className="k">Outstanding (owed by organizers)</span><span className="green" style={{ fontWeight: 700 }}>₹{fmt(avail)}</span></div>
-              <div className="tiny hint" style={{ marginTop: 6 }}>Prebooze doesn’t fund promoter payouts — organizers pay their promoters directly. This is admin visibility only.</div>
-            </div>
-
-            <div className="card">
-              <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>Payout activity <span className="tiny muted" style={{ fontWeight: 400 }}>(read-only)</span></div>
-              {payouts.length === 0 ? (
-                <div className="muted small">No payouts yet.</div>
-              ) : (
-                <div className="tblwrap" style={{ border: 'none' }}>
-                  <div className="thead" style={{ minWidth: 300 }}>
-                    <span style={{ flex: 1 }}>Date</span>
-                    <span style={{ flex: 1 }}>Amount</span>
-                    <span style={{ flex: 1 }}>Status</span>
-                  </div>
-                  {payouts.map((w) => (
-                    <div key={w.id} className="trow" style={{ minWidth: 300 }}>
-                      <span style={{ flex: 1 }} className="muted">{w.date}</span>
-                      <span style={{ flex: 1, fontWeight: 700 }}>₹{fmt(w.amount)}</span>
-                      <span style={{ flex: 1 }} className={w.status === 'paid' ? 'green' : 'muted'}>{w.status === 'paid' ? 'paid by organizer' : 'processing'}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="tiny hint" style={{ marginTop: 6 }}>per-head settles on verified arrivals · gate commission when a listed guest arrives late and buys a ticket · all settled by the organizer</div>
-            </div>
-
-            <button
-              className="btn btn-danger btn-sm"
-              style={{ width: 'fit-content' }}
-              onClick={() => {
-                if (window.confirm(`Remove ${p.name} entirely?`)) {
-                  removePromoter2(p.id);
-                  navigate('/promoters');
-                }
-              }}
-            >
-              ✕ Remove promoter
-            </button>
-          </>
-        );
-      })()}
     </div>
   );
 }
 
 export function PromoterTiers() {
-  const { subTiers, updateSubTier } = useAdmin();
   return (
     <div className="stack fade" style={{ maxWidth: 700 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Link to="/promoters" style={{ fontSize: 13 }}>← Promoters</Link>
         <h1 className="page-title">Subscription tiers</h1>
       </div>
-      <div className="tiny hint" style={{ marginTop: -6 }}>edit the plans promoters can buy — changes apply to the promoter app’s subscription page</div>
-
-      <div className="tblwrap">
-        <div className="thead" style={{ minWidth: 480 }}>
-          <span style={{ flex: 1.4 }}>Tier</span>
-          <span style={{ flex: 1 }}>Price ₹ / mo</span>
-          <span style={{ flex: 1.2 }}>Guests / month</span>
-        </div>
-        {subTiers.map((t) => (
-          <div key={t.id} className="trow" style={{ minWidth: 480 }}>
-            <span style={{ flex: 1.4 }}>
-              <input className="input" style={{ padding: '5px 8px' }} value={t.name} onChange={(e) => updateSubTier(t.id, { name: e.target.value })} />
-            </span>
-            <span style={{ flex: 1 }}>
-              <input
-                className="input"
-                style={{ padding: '5px 8px' }}
-                value={String(t.price)}
-                inputMode="numeric"
-                onChange={(e) => updateSubTier(t.id, { price: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 })}
-              />
-            </span>
-            <span style={{ flex: 1.2, display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input
-                className="input"
-                style={{ padding: '5px 8px', width: 90 }}
-                value={t.guests < 0 ? '' : String(t.guests)}
-                inputMode="numeric"
-                placeholder={t.guests < 0 ? '∞' : ''}
-                onChange={(e) => updateSubTier(t.id, { guests: e.target.value === '' ? -1 : parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 })}
-              />
-              <button className="chip" onClick={() => updateSubTier(t.id, { guests: t.guests < 0 ? 100 : -1 })}>
-                {t.guests < 0 ? 'unlimited ✓' : 'set unlimited'}
-              </button>
-            </span>
-          </div>
-        ))}
+      <div className="tiny hint">
+        subscription plan pricing is managed under <Link to="/subscription-plans">Subscription plans</Link>, the same real plans a promoter subscribes to in their own app.
       </div>
-      <div className="tiny hint">guests / month is the list-add quota; blank or “unlimited” = no cap</div>
     </div>
   );
 }

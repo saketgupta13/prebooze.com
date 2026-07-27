@@ -1,95 +1,92 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAdmin } from '../store/AdminContext';
-import { enabledCityNames } from '../store/data';
-import { CityFilterDropdown, ORGANIZER_STATUS, Tag } from '../components/ui';
+import { CityFilterDropdown, Tag } from '../components/ui';
+import { liveOrganizers, LiveApiError, type LiveOrganizer } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
+const TITLE = 'Organizers';
+
+/** Real organizer directory — Organizer catalog rows (already-approved;
+ * pending applications live entirely in Verifications, not here — see
+ * KycService.approve, which is what actually creates these rows). Verified
+ * toggles the real ✓ badge shown across the guest site. */
 export default function Organizers() {
-  const { organizers, setOrganizerStatus, removeOrganizer, locations } = useAdmin();
-  const [cityF, setCityF] = useState('All');
-  const cities = enabledCityNames(locations);
+  const session = useLiveSession();
+  const { token } = session;
   const navigate = useNavigate();
-  const pending = organizers.filter((o) => o.status === 'pending').length;
+
+  const [organizers, setOrganizers] = useState<LiveOrganizer[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [cityF, setCityF] = useState('All');
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    liveOrganizers.list().then(setOrganizers).catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load')).finally(() => setLoading(false));
+  };
+  useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token]);
+
+  const cities = useMemo(() => [...new Set(organizers.map((o) => o.city).filter(Boolean))].sort(), [organizers]);
+
+  const gate = useLiveGate(TITLE, session);
+  if (gate) return gate;
+
+  const toggleVerified = async (o: LiveOrganizer, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try { await liveOrganizers.setVerified(o.id, !o.verified); load(); } catch (err2) { setErr(err2 instanceof LiveApiError ? err2.message : 'Failed to update'); }
+  };
+
+  const list = cityF === 'All' ? organizers : organizers.filter((o) => o.city === cityF);
 
   return (
     <div className="stack fade" style={{ maxWidth: 1100 }}>
+      <LiveHeaderBar title={TITLE} session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+
       <div className="page-hd">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <h1 className="page-title">Organizers</h1>
-          {pending > 0 && (
-            <span className="chip" style={{ borderColor: 'var(--red)', color: 'var(--red)', fontWeight: 700 }}>
-              {pending} awaiting review
-            </span>
-          )}
-        </div>
+        <h1 className="page-title">Organizers</h1>
         <Link to="/organizers/new" className="btn btn-pri">+ Add organizer</Link>
       </div>
 
       <CityFilterDropdown value={cityF} onChange={setCityF} cities={cities} />
 
       <div className="tblwrap">
-        <div className="thead" style={{ minWidth: 680 }}>
+        <div className="thead" style={{ minWidth: 640 }}>
           <span style={{ flex: 1.6 }}>Organizer</span>
           <span style={{ flex: 1.6 }}>Contact</span>
           <span style={{ flex: 1 }}>City</span>
           <span style={{ flex: 0.8 }}>Events</span>
-          <span style={{ flex: 1 }}>KYC</span>
           <span style={{ flex: 1 }}>Status</span>
-          <span style={{ flex: 1.4 }} />
+          <span style={{ flex: 1 }} />
         </div>
-        {(cityF === 'All' ? organizers : organizers.filter((o) => o.city === cityF)).map((o) => (
+        {list.map((o) => (
           <div
             key={o.id}
             className="trow clickable"
-            style={{ minWidth: 680, background: o.status === 'pending' ? 'rgba(255,107,94,.06)' : undefined }}
+            style={{ minWidth: 640 }}
             onClick={() => navigate(`/organizers/${o.id}`)}
           >
-            <span style={{ flex: 1.6, fontWeight: 700 }}>{o.name}</span>
-            <span style={{ flex: 1.6 }} className="muted">{o.contact}</span>
+            <span style={{ flex: 1.6, fontWeight: 700 }}>{o.brandName}</span>
+            <span style={{ flex: 1.6 }} className="muted">{o.contact || '—'}</span>
             <span style={{ flex: 1 }} className="muted">{o.city}</span>
-            <span style={{ flex: 0.8 }}>{o.events}</span>
-            <span style={{ flex: 1 }} className="muted">{o.kyc}</span>
-            <span style={{ flex: 1 }}><Tag {...ORGANIZER_STATUS[o.status]} /></span>
-            <span style={{ flex: 1.4, display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-              {o.status === 'pending' && (
-                <>
-                  <button
-                    className="btn btn-pri btn-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOrganizerStatus(o.id, 'approved');
-                    }}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOrganizerStatus(o.id, 'rejected');
-                    }}
-                  >
-                    Reject
-                  </button>
-                </>
-              )}
-              <button
-                className="btn btn-danger btn-sm"
-                style={{ padding: '2px 7px' }}
-                title="Remove organizer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (window.confirm(`Remove ${o.name}? Their events stay but lose the link.`)) removeOrganizer(o.id);
-                }}
-              >
-                ✕
+            <span style={{ flex: 0.8 }}>{o.eventsHosted}</span>
+            <span style={{ flex: 1 }}>
+              {o.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Unverified" cls="" />}
+            </span>
+            <span style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-ghost btn-sm" onClick={(e) => toggleVerified(o, e)}>
+                {o.verified ? 'Unverify' : 'Verify'}
               </button>
             </span>
           </div>
         ))}
+        {list.length === 0 && !loading && <div className="trow muted">No organizers match.</div>}
       </div>
       <div className="tiny hint">
-        approving unlocks event creation for that organizer · rejecting keeps their account read-only · click a row to open its detail page
+        pending organizer applications are reviewed under Verifications · click a row to open its detail page
       </div>
     </div>
   );

@@ -251,25 +251,50 @@ export const liveCustomers = {
   setBlocked: (id: string, blocked: boolean) => liveFetch<{ ok: true }>(`/admin/customers/${id}/block`, { method: 'PATCH', body: { blocked } }),
 };
 
-export interface LiveOrganizer { id: string; brandName: string; username: string; city: string; verified: boolean; eventsHosted: number; }
-export interface LivePromoter { id: string; name: string; slug: string; city: string; verified: boolean; eventsPromoted: number; }
-export interface LiveVenue { id: string; name: string; city: string; type: string; capacity: number; verified: boolean; }
-export interface LiveLineup { id: string; name: string; slug: string; city: string; category: string; verified: boolean; }
+export interface LiveOrganizer {
+  id: string; brandName: string; username: string; verified: boolean; city: string; since: string;
+  rating: number; reviewCount: number; eventsHosted: number; followers: number; following: number;
+  about: string; logoHue: number; contact: string; contactPerson: string | null; phone: string | null;
+  eventTypes: string | null; links: string | null; gstin: string | null; pan: string | null;
+  bankLast4: string | null; seo: Seo | null;
+}
+export interface LivePromoter {
+  id: string; slug: string; name: string; verified: boolean; city: string; bio: string; links: string[];
+  followers: number; eventsPromoted: number; guestsBrought: number; showRate: number; planId: string;
+  contact: string | null; seo: Seo | null;
+}
+export interface LiveLineup {
+  id: string; slug: string; name: string; category: string; verified: boolean; city: string; bio: string;
+  links: string[]; followers: number; eventsPlayed: number; hue: number; emoji: string; seo: Seo | null;
+}
+export interface LiveVenue {
+  id: string; name: string; verified: boolean; type: string; locality: string; city: string; address: string;
+  capacity: number; rating: number; followers: number; amenities: string[]; about: string; timings: string | null;
+  photoHue: number; license: string | null; contact: string | null; rules: string | null; seo: Seo | null;
+}
 
 export const liveOrganizers = {
   list: () => liveFetch<LiveOrganizer[]>('/admin/organizers'),
+  create: (body: { brandName: string; city?: string; contact?: string }) => liveFetch<LiveOrganizer>('/admin/organizers', { body }),
+  update: (id: string, body: Partial<LiveOrganizer>) => liveFetch<LiveOrganizer>(`/admin/organizers/${id}`, { method: 'PATCH', body }),
   setVerified: (id: string, verified: boolean) => liveFetch<LiveOrganizer>(`/admin/organizers/${id}/verify`, { method: 'POST', body: { verified } }),
 };
 export const livePromoters = {
   list: () => liveFetch<LivePromoter[]>('/admin/promoters'),
+  create: (body: { name: string; city?: string; contact?: string }) => liveFetch<LivePromoter>('/admin/promoters', { body }),
+  update: (id: string, body: Partial<LivePromoter>) => liveFetch<LivePromoter>(`/admin/promoters/${id}`, { method: 'PATCH', body }),
   setVerified: (id: string, verified: boolean) => liveFetch<LivePromoter>(`/admin/promoters/${id}/verify`, { method: 'POST', body: { verified } }),
 };
 export const liveVenues = {
   list: () => liveFetch<LiveVenue[]>('/admin/venues'),
+  create: (body: { name: string; city: string; address?: string; capacity?: number; type?: string }) => liveFetch<LiveVenue>('/admin/venues', { body }),
+  update: (id: string, body: Partial<LiveVenue>) => liveFetch<LiveVenue>(`/admin/venues/${id}`, { method: 'PATCH', body }),
   setVerified: (id: string, verified: boolean) => liveFetch<LiveVenue>(`/admin/venues/${id}/verify`, { method: 'POST', body: { verified } }),
 };
 export const liveLineups = {
   list: () => liveFetch<LiveLineup[]>('/admin/lineups'),
+  create: (body: { name: string; category?: string; city?: string }) => liveFetch<LiveLineup>('/admin/lineups', { body }),
+  update: (id: string, body: Partial<LiveLineup>) => liveFetch<LiveLineup>(`/admin/lineups/${id}`, { method: 'PATCH', body }),
   setVerified: (id: string, verified: boolean) => liveFetch<LiveLineup>(`/admin/lineups/${id}/verify`, { method: 'POST', body: { verified } }),
 };
 

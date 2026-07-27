@@ -1,12 +1,15 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useState } from 'react';
-import { AMENITY_PRESETS, enabledCityNames } from '../store/data';
-import { useAdmin } from '../store/AdminContext';
+import { useEffect, useMemo, useState } from 'react';
+import { AMENITY_PRESETS } from '../store/data';
 import { fmt } from '../store/data';
 import { CityFilterDropdown, EVENT_STATUS, GradientPhoto, Kpi, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import MapEmbed from '../components/MapEmbed';
 import WysiwygEditor from '../components/WysiwygEditor';
+import { liveVenues, liveEvents, LiveApiError, type LiveVenue, type LiveEvent } from '../lib/liveApi';
+import { useLiveSession } from '../lib/useLiveSession';
+import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import type { Seo } from '../types';
 
 /** Chip-based amenities editor with presets + custom add. */
 function AmenitiesEditor({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
@@ -53,15 +56,44 @@ function AmenitiesEditor({ value, onChange }: { value: string[]; onChange: (v: s
   );
 }
 
+/** Real venue directory — Venue catalog rows (already-verified, or created
+ * automatically at KYC onboard time, see VenueService.onboard and
+ * KycService.approve). No delete endpoint exists (venues stay linked to
+ * their event history), so the mock's "remove venue" button is dropped. */
 export function Venues() {
-  const { venues, removeVenue, locations } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
   const navigate = useNavigate();
+  const [venues, setVenues] = useState<LiveVenue[]>([]);
+  const [events, setEvents] = useState<LiveEvent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
   const [city, setCity] = useState('All');
-  const cities = enabledCityNames(locations);
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    Promise.all([liveVenues.list(), liveEvents.list()])
+      .then(([v, e]) => { setVenues(v); setEvents(e); })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token]);
+
+  const cities = useMemo(() => [...new Set(venues.map((v) => v.city).filter(Boolean))].sort(), [venues]);
+  const eventCount = (venueId: string) => events.filter((e) => e.venueId === venueId).length;
+
+  const gate = useLiveGate('Venues', session);
+  if (gate) return gate;
+
   const list = city === 'All' ? venues : venues.filter((v) => v.city === city);
 
   return (
     <div className="stack fade" style={{ maxWidth: 1100 }}>
+      <LiveHeaderBar title="Venues" session={session} />
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+
       <div className="page-hd">
         <h1 className="page-title">Venues</h1>
         <Link to="/venues/new" className="btn btn-pri">+ Add venue</Link>
@@ -76,7 +108,6 @@ export function Venues() {
           <span style={{ flex: 1 }}>Events</span>
           <span style={{ flex: 1.2 }}>License</span>
           <span style={{ flex: 1 }}>Status</span>
-          <span style={{ width: 34 }} />
         </div>
         {list.map((v) => (
           <div
@@ -86,97 +117,67 @@ export function Venues() {
             onClick={() => navigate(`/venues/${v.id}`)}
           >
             <span style={{ flex: 2, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <GradientPhoto seed={v.name.length * 7 + v.name.charCodeAt(0)} style={{ width: 42, height: 28, borderRadius: 5, flex: 'none', padding: 0 }} />
+              <GradientPhoto seed={v.photoHue} style={{ width: 42, height: 28, borderRadius: 5, flex: 'none', padding: 0 }} />
               {v.name}
             </span>
-            <span style={{ flex: 1 }} className="muted">{typeof v.capacity === 'number' ? fmt(v.capacity) : v.capacity}</span>
+            <span style={{ flex: 1 }} className="muted">{fmt(v.capacity)}</span>
             <span style={{ flex: 0.9 }} className="muted">{v.city}</span>
-            <span style={{ flex: 1 }}>{v.events}</span>
-            <span style={{ flex: 1.2 }} className={v.verified ? 'muted' : 'red'}>{v.license}</span>
+            <span style={{ flex: 1 }}>{eventCount(v.id)}</span>
+            <span style={{ flex: 1.2 }} className={v.verified ? 'muted' : 'red'}>{v.license || '—'}</span>
             <span style={{ flex: 1 }}>
               {v.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Docs pending" cls="tag-red" />}
             </span>
-            <span style={{ width: 34, display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                className="btn btn-danger btn-sm"
-                style={{ padding: '2px 7px' }}
-                title="Remove venue"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (window.confirm(`Remove ${v.name}? Events at this venue keep their records.`)) removeVenue(v.id);
-                }}
-              >
-                ✕
-              </button>
-            </span>
           </div>
         ))}
+        {list.length === 0 && !loading && <div className="trow muted">No venues match.</div>}
       </div>
       <div className="tiny hint">venue detail: address + map pin, photos, license docs, contact person, house rules</div>
     </div>
   );
 }
 
-/** Photo slider — cycles all venue images with ‹ › controls and dots. */
-function VenueSlider({ name }: { name: string }) {
-  const photos = [
-    { seed: name.charCodeAt(0) * 3, label: `${name} — main hall` },
-    { seed: name.charCodeAt(0) * 3 + 11, label: 'stage' },
-    { seed: name.charCodeAt(0) * 3 + 23, label: 'bar' },
-    { seed: name.charCodeAt(0) * 3 + 37, label: 'entry' },
-    { seed: name.charCodeAt(0) * 3 + 51, label: 'crowd' },
-  ];
-  const [idx, setIdx] = useState(0);
-  const go = (d: number) => setIdx((i) => (i + d + photos.length) % photos.length);
-  return (
-    <div style={{ position: 'relative' }}>
-      <GradientPhoto seed={photos[idx].seed} label={`${photos[idx].label} · ${idx + 1}/${photos.length}`} style={{ height: 200 }} />
-      <button
-        onClick={() => go(-1)}
-        className="btn btn-ghost btn-sm"
-        style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', background: 'rgba(11,12,7,.7)' }}
-      >
-        ‹
-      </button>
-      <button
-        onClick={() => go(1)}
-        className="btn btn-ghost btn-sm"
-        style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'rgba(11,12,7,.7)' }}
-      >
-        ›
-      </button>
-      <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6 }}>
-        {photos.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setIdx(i)}
-            aria-label={`photo ${i + 1}`}
-            style={{ width: 8, height: 8, borderRadius: '50%', border: 'none', cursor: 'pointer', background: i === idx ? 'var(--green)' : 'rgba(241,243,234,.35)' }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function VenueDetail() {
   const { id } = useParams();
-  const { venues, events } = useAdmin();
+  const session = useLiveSession();
+  const { token } = session;
+  const [venues, setVenues] = useState<LiveVenue[]>([]);
+  const [events, setEvents] = useState<LiveEvent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    Promise.all([liveVenues.list(), liveEvents.list()])
+      .then(([v, e]) => { setVenues(v); setEvents(e); })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token]);
+
+  const gate = useLiveGate('Venue detail', session);
+  if (gate) return gate;
+
   const venue = venues.find((v) => v.id === id);
 
-  if (!venue) {
+  if (!loading && !venue) {
     return (
       <div className="stack fade">
+        {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Venue not found</h1>
         <Link to="/venues" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Venues</Link>
       </div>
     );
   }
+  if (!venue) {
+    return <div className="stack fade"><div className="tiny muted">Loading…</div></div>;
+  }
 
-  const here = events.filter((e) => e.venue === venue.name);
+  const here = events.filter((e) => e.venueId === venue.id);
 
   return (
     <div className="stack fade" style={{ maxWidth: 900, gap: 14 }}>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Link to="/venues" style={{ fontSize: 13 }}>← Venues</Link>
         <h1 className="display" style={{ fontSize: 18 }}>{venue.name}</h1>
@@ -186,22 +187,20 @@ export function VenueDetail() {
       </div>
       {venue.address && <div className="small muted">{venue.address} · map pin set 📍</div>}
 
-      <VenueSlider name={venue.name} />
+      <GradientPhoto seed={venue.photoHue} label={venue.name} style={{ height: 200 }} />
 
       <div className="kpi-grid">
-        <Kpi label="Capacity" value={typeof venue.capacity === 'number' ? fmt(venue.capacity) : venue.capacity} />
-        <Kpi label="Events hosted" value={venue.events} />
-        <Kpi label="License" value={<span style={{ fontSize: 14 }}>{venue.license}</span>} alert={!venue.verified} />
+        <Kpi label="Capacity" value={fmt(venue.capacity)} />
+        <Kpi label="Events hosted" value={here.length} />
+        <Kpi label="License" value={<span style={{ fontSize: 14 }}>{venue.license || '—'}</span>} alert={!venue.verified} />
       </div>
 
       <div className="dashed-box tiny" style={{ color: 'var(--muted)' }}>
-        {venue.type ? `Type: ${venue.type} · ` : ''}Contact: {venue.contact ?? '—'} · house rules: {venue.rules ?? '—'}
+        {venue.type ? `Type: ${venue.type} · ` : ''}Contact: {venue.contact || '—'} · house rules: {venue.rules || '—'}
       </div>
-      {(venue.amenities ?? []).length > 0 && (
+      {venue.amenities.length > 0 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {(venue.amenities ?? []).map((a) => (
-            <span key={a} className="tag tag-green">{a}</span>
-          ))}
+          {venue.amenities.map((a) => <span key={a} className="tag tag-green">{a}</span>)}
         </div>
       )}
 
@@ -212,52 +211,50 @@ export function VenueDetail() {
         {here.map((ev) => (
           <div key={ev.id} className="trow" style={{ minWidth: 400 }}>
             <span style={{ flex: 2, fontWeight: 700 }}>{ev.title}</span>
-            <span style={{ flex: 1 }} className="muted">{ev.date}</span>
-            <span style={{ flex: 1 }}><Tag {...EVENT_STATUS[ev.status]} /></span>
+            <span style={{ flex: 1 }} className="muted">{new Date(ev.date).toLocaleDateString('en-IN')}</span>
+            <span style={{ flex: 1 }}><Tag {...(EVENT_STATUS[ev.status as keyof typeof EVENT_STATUS] ?? EVENT_STATUS.draft)} /></span>
           </div>
         ))}
-        {here.length === 0 && <div className="trow muted">No events at this venue yet.</div>}
+        {here.length === 0 && !loading && <div className="trow muted">No events at this venue yet.</div>}
       </div>
     </div>
   );
 }
 
 export function AddVenue() {
-  const { addVenue, toast, locations } = useAdmin();
+  const session = useLiveSession();
   const navigate = useNavigate();
-  const cities = enabledCityNames(locations);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [capacity, setCapacity] = useState('');
   const [type, setType] = useState('Indoor');
-  const [vcity, setVcity] = useState(cities[0] ?? 'Austin');
+  const [vcity, setVcity] = useState('');
   const [contact, setContact] = useState('');
   const [rules, setRules] = useState('');
   const [about, setAbout] = useState('');
   const [timings, setTimings] = useState('');
   const [amenities, setAmenities] = useState<string[]>([]);
-  const [docs, setDocs] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const gate = useLiveGate('Add venue', session);
+  if (gate) return gate;
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toast('Enter a venue name');
-      return;
+    if (!name.trim()) { setErr('Enter a venue name'); return; }
+    if (!vcity.trim()) { setErr('Enter a city'); return; }
+    setSaving(true);
+    setErr('');
+    try {
+      const created = await liveVenues.create({ name: name.trim(), city: vcity.trim(), address: address.trim() || undefined, capacity: capacity ? parseInt(capacity, 10) : undefined, type });
+      await liveVenues.update(created.id, { contact: contact.trim() || undefined, rules: rules.trim() || undefined, about: about.trim() || undefined, timings: timings.trim() || undefined, amenities });
+      navigate('/venues');
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to save venue');
+      setSaving(false);
     }
-    addVenue({
-      id: 'v' + Date.now(),
-      name: name.trim(),
-      city: vcity,
-      amenities,
-      capacity: capacity ? parseInt(capacity, 10) || capacity : '—',
-      events: 0,
-      license: docs ? 'under review' : 'docs pending',
-      verified: false,
-      address: address.trim() || undefined,
-      about: about.trim() || undefined,
-      timings: timings.trim() || undefined,
-    });
-    navigate('/venues');
   };
 
   return (
@@ -266,7 +263,7 @@ export function AddVenue() {
         <Link to="/venues" style={{ fontSize: 13 }}>← Venues</Link>
         <h1 className="page-title">Add new venue</h1>
       </div>
-      <div className="ph" style={{ height: 80, borderRadius: 10 }}>+ upload venue photos</div>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Venue name" autoFocus />
       <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address / map pin 📍" />
       <MapEmbed query={`${address}, ${vcity}`} />
@@ -278,11 +275,7 @@ export function AddVenue() {
           <option>Rooftop</option>
           <option>Warehouse</option>
         </select>
-        <select className="input" value={vcity} onChange={(e) => setVcity(e.target.value)}>
-          {cities.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
+        <input className="input" value={vcity} onChange={(e) => setVcity(e.target.value)} placeholder="City" />
       </div>
       <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Contact person + phone" />
       <input className="input" value={rules} onChange={(e) => setRules(e.target.value)} placeholder="House rules / notes" />
@@ -295,72 +288,101 @@ export function AddVenue() {
         <WysiwygEditor value={about} onChange={setAbout} minHeight={60} />
       </div>
       <AmenitiesEditor value={amenities} onChange={setAmenities} />
-      <button
-        type="button"
-        className="dashed-box"
-        style={{ background: 'none', textAlign: 'left', color: docs ? 'var(--green)' : 'var(--muted)', fontSize: 11.5, cursor: 'pointer' }}
-        onClick={() => setDocs((d) => !d)}
-      >
-        {docs
-          ? '✓ License / permit docs attached'
-          : '+ upload license / permit docs — required before venue is marked Verified'}
-      </button>
-      <button type="submit" className="btn btn-pri" style={{ padding: 10, fontSize: 13 }}>Save venue</button>
-      <div className="tiny red">new venue starts as "Docs pending" until license reviewed</div>
+      <button type="submit" className="btn btn-pri" style={{ padding: 10, fontSize: 13 }} disabled={saving}>{saving ? 'Saving…' : 'Save venue'}</button>
+      <div className="tiny red">new venue starts as "Docs pending" until verified</div>
     </form>
   );
 }
-
 
 /** Edit venue — same form as Add venue (the venue onboarding flow), prefilled. */
 export function EditVenue() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { venues, updateVenue, toast } = useAdmin();
-  const venue = venues.find((v) => v.id === id);
+  const session = useLiveSession();
+  const { token } = session;
 
-  const [name, setName] = useState(venue?.name ?? '');
-  const [address, setAddress] = useState(venue?.address ?? '');
-  const [capacity, setCapacity] = useState(String(venue?.capacity ?? ''));
-  const [type, setType] = useState(venue?.type ?? 'Indoor');
-  const [contact, setContact] = useState(venue?.contact ?? '');
-  const [rules, setRules] = useState(venue?.rules ?? '');
-  const [about, setAbout] = useState(venue?.about ?? '');
-  const [timings, setTimings] = useState(venue?.timings ?? '');
-  const [docs, setDocs] = useState(venue?.verified ?? false);
-  const [amenities, setAmenities] = useState<string[]>(venue?.amenities ?? []);
-  const [seo, setSeo] = useState(venue?.seo ?? emptySeo());
+  const [venue, setVenue] = useState<LiveVenue | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
-  if (!venue) {
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [capacity, setCapacity] = useState('');
+  const [type, setType] = useState('Indoor');
+  const [contact, setContact] = useState('');
+  const [rules, setRules] = useState('');
+  const [about, setAbout] = useState('');
+  const [timings, setTimings] = useState('');
+  const [verified, setVerified] = useState(false);
+  const [amenities, setAmenities] = useState<string[]>([]);
+  const [seo, setSeo] = useState<Seo>(emptySeo());
+  const [venueCity, setVenueCity] = useState('');
+
+  const load = () => {
+    setLoading(true);
+    setErr('');
+    liveVenues
+      .list()
+      .then((venues) => {
+        const v = venues.find((x) => x.id === id);
+        setVenue(v ?? null);
+        if (v) {
+          setName(v.name);
+          setAddress(v.address);
+          setCapacity(String(v.capacity));
+          setType(v.type || 'Indoor');
+          setContact(v.contact ?? '');
+          setRules(v.rules ?? '');
+          setAbout(v.about ?? '');
+          setTimings(v.timings ?? '');
+          setVerified(v.verified);
+          setAmenities(v.amenities);
+          setSeo((v.seo as Seo | null) ?? emptySeo());
+          setVenueCity(v.city);
+        }
+      })
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token, id]);
+
+  const gate = useLiveGate('Edit venue', session);
+  if (gate) return gate;
+
+  if (!loading && !venue) {
     return (
       <div className="stack fade">
+        {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Venue not found</h1>
         <Link to="/venues" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Venues</Link>
       </div>
     );
   }
+  if (!venue) {
+    return <div className="stack fade"><div className="tiny muted">Loading…</div></div>;
+  }
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toast('Venue name is required');
-      return;
+    if (!name.trim()) { setErr('Venue name is required'); return; }
+    try {
+      await liveVenues.update(venue.id, {
+        name: name.trim(),
+        address: address.trim(),
+        capacity: parseInt(capacity, 10) || venue.capacity,
+        type,
+        contact: contact.trim() || undefined,
+        rules: rules.trim() || undefined,
+        about: about.trim() || undefined,
+        timings: timings.trim() || undefined,
+        amenities,
+        seo,
+      });
+      if (verified !== venue.verified) await liveVenues.setVerified(venue.id, verified);
+      navigate(`/venues/${venue.id}`);
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to save');
     }
-    updateVenue(venue.id, {
-      name: name.trim(),
-      address: address.trim() || undefined,
-      capacity: parseInt(capacity, 10) || venue.capacity,
-      type,
-      contact: contact.trim() || undefined,
-      rules: rules.trim() || undefined,
-      about: about.trim() || undefined,
-      timings: timings.trim() || undefined,
-      verified: docs,
-      license: docs ? venue.license.replace('docs pending', 'under review') : venue.license,
-      amenities,
-      seo,
-    });
-    navigate(`/venues/${venue.id}`);
   };
 
   return (
@@ -370,7 +392,7 @@ export function EditVenue() {
         <h1 className="page-title">Edit venue</h1>
         {venue.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Docs pending" cls="tag-red" />}
       </div>
-      <div className="ph" style={{ height: 80, borderRadius: 10 }}>venue photos — 4 uploaded · + add more</div>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div className="field">
         <label>Venue name</label>
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
@@ -379,7 +401,7 @@ export function EditVenue() {
         <label>Address / map pin 📍</label>
         <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} />
       </div>
-      <MapEmbed query={`${address}, ${venue?.city ?? ""}`} />
+      <MapEmbed query={`${address}, ${venueCity}`} />
       <div style={{ display: 'flex', gap: 8 }}>
         <div className="field" style={{ flex: 1 }}>
           <label>Capacity</label>
@@ -412,14 +434,10 @@ export function EditVenue() {
         <WysiwygEditor value={about} onChange={setAbout} minHeight={60} />
       </div>
       <AmenitiesEditor value={amenities} onChange={setAmenities} />
-      <button
-        type="button"
-        className="dashed-box"
-        style={{ background: 'none', textAlign: 'left', color: docs ? 'var(--green)' : 'var(--muted)', fontSize: 11.5, cursor: 'pointer' }}
-        onClick={() => setDocs((d) => !d)}
-      >
-        {docs ? '✓ License / permit docs on file — venue Verified' : '+ upload license / permit docs — required before venue is marked Verified'}
-      </button>
+      <label className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input type="checkbox" checked={verified} onChange={() => setVerified((v) => !v)} style={{ accentColor: 'var(--green)' }} />
+        Verified venue ✓ (license/permit docs on file)
+      </label>
       <SeoFields
         seo={seo}
         onChange={setSeo}

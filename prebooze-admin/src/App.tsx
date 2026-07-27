@@ -44,7 +44,6 @@ import { Lineups, LineupEdit } from './pages/Lineups';
 import Reviews from './pages/Reviews';
 import { Promoters, PromoterDetail, PromoterTiers } from './pages/Promoters';
 import SubscriptionPlansLive from './pages/SubscriptionPlansLive';
-import DirectoryLive from './pages/DirectoryLive';
 import SettingsLive from './pages/SettingsLive';
 import AddPromoter from './pages/AddPromoter';
 import PromoterEdit from './pages/PromoterEdit';
@@ -89,7 +88,6 @@ export default function App() {
         <Route path="/promoters/new" element={<AddPromoter />} />
         <Route path="/promoters/tiers" element={<PromoterTiers />} />
         <Route path="/subscription-plans" element={<SubscriptionPlansLive />} />
-        <Route path="/directory-live" element={<DirectoryLive />} />
         <Route path="/promoters/:id" element={<PromoterDetail />} />
         <Route path="/promoters/:id/edit" element={<PromoterEdit />} />
         <Route path="/locations" element={<Locations />} />
