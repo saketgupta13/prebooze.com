@@ -1,13 +1,28 @@
-import { Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Patch, Post, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { VenueService } from './venue.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
+import { StorageService } from '../kyc/storage.service';
 
 type AuthedReq = { user: { sub: string } };
 
 @Controller('venue')
 @UseGuards(JwtAuthGuard)
 export class VenueController {
-  constructor(private venue: VenueService) {}
+  constructor(
+    private venue: VenueService,
+    private storage: StorageService,
+  ) {}
+
+  /** Onboarding's license/address-proof fields are plain string URLs, not
+   * multipart uploads (see VenueService.onboard) — this is what produces
+   * those URLs, same local-disk StorageService as KYC docs / admin media. */
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  upload(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) throw new BadRequestException('file is required (max 20MB)');
+    return { url: this.storage.save(file) };
+  }
 
   @Post('onboard')
   onboard(@Req() req: AuthedReq, @Body() body: Parameters<VenueService['onboard']>[1]) {

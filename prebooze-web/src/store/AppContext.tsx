@@ -5,7 +5,7 @@ import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } from '../data/mock';
 import { notify } from '../lib/notify';
 import { auth, referrals as referralsApi } from '../api';
-import { isBackendEnabled, setToken, clearToken } from '../api/client';
+import { isBackendEnabled, setToken, clearToken, getToken } from '../api/client';
 
 export interface GuestReview {
   id: string;
@@ -293,6 +293,20 @@ function normalizeUser(u: User | null): User | null {
   return u;
 }
 
+/** The real backend's toApiUser() never sends `pendingRole` (see
+ * auth.service.ts) — only `roleStatus` paired with the role-specific brand
+ * field set at submission time. The pending/rejected-review screens
+ * (OrganizerLayout/VenueLayout/etc.) gate on `pendingRole` though, so it has
+ * to be derived client-side from whichever brand field is actually set. */
+function inferPendingRole(u: User): User['pendingRole'] {
+  if (u.roleStatus !== 'pending' && u.roleStatus !== 'rejected') return undefined;
+  if (u.orgBrand) return 'organizer';
+  if (u.promoterBrand) return 'promoter';
+  if (u.lineupName) return 'lineup';
+  if (u.venueName) return 'venue';
+  return undefined;
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => normalizeUser(load('pb_user', null)));
   const [city, setCity] = useState<string>(() => load('pb_city', 'Austin'));
@@ -381,6 +395,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_user', JSON.stringify(user));
   }, [user]);
+  // Refresh from the real backend once on mount — a role application getting
+  // approved/rejected happens entirely server-side (admin panel), so the
+  // locally-cached user (last written at login or at submission time) goes
+  // stale until this catches it up. No polling — the console layouts
+  // (OrganizerLayout etc.) already re-render off `user`, so a page load or
+  // reload is when this matters, not while the tab sits open.
+  useEffect(() => {
+    if (!isBackendEnabled() || !getToken()) return;
+    auth
+      .me()
+      .then((apiUser) => setUser(normalizeUser({ ...apiUser, pendingRole: inferPendingRole(apiUser) })))
+      .catch(() => {}); // expired/invalid token — leave cached user as-is rather than force a logout on a transient error
+  }, []);
   useEffect(() => {
     localStorage.setItem('pb_city', JSON.stringify(city));
   }, [city]);
@@ -526,7 +553,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (isBackendEnabled()) {
           const { token, user: apiUser, isNew } = await auth.verifyOtp(pendingRequestId, code);
           setToken(token);
-          setUser(normalizeUser(apiUser));
+          setUser(normalizeUser({ ...apiUser, pendingRole: inferPendingRole(apiUser) }));
           if (isNew) {
             const pendingRef = load<string | null>('pb_pending_ref', null);
             if (pendingRef) {

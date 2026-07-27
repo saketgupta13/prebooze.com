@@ -7,6 +7,9 @@ import { existingRole } from '../../lib/roles';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
 import WysiwygEditor from '../../components/WysiwygEditor';
 import { FileDropBox } from '../../components/FileDropBox';
+import { dataUrlToFile } from '../../lib/fileUtils';
+import { kyc } from '../../api';
+import { isBackendEnabled, ApiError } from '../../api/client';
 
 const DRAFT_ID = 'organizer';
 type Draft = {
@@ -19,9 +22,11 @@ const emptyDraft: Draft = {
 };
 
 export default function Onboarding() {
-  const { user, submitRoleApplication } = useApp();
+  const { user, submitRoleApplication, updateUser } = useApp();
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState('');
 
   const draft0 = loadDraft(DRAFT_ID, emptyDraft);
   const [logo, setLogo] = useState(draft0.logo);
@@ -51,10 +56,34 @@ export default function Onboarding() {
   const step2Valid = aadhaar && selfie && account.trim() && ifsc.trim();
   const pct = step === 1 ? 50 : 90;
 
-  const submit = () => {
-    submitRoleApplication('organizer', { orgBrand: brand.trim(), orgUsername: username.trim() });
-    clearDraft(DRAFT_ID);
-    navigate('/organizer'); // console redirects to a "pending review" screen until the team approves
+  const submit = async () => {
+    if (!isBackendEnabled()) {
+      submitRoleApplication('organizer', { orgBrand: brand.trim(), orgUsername: username.trim() });
+      clearDraft(DRAFT_ID);
+      navigate('/organizer'); // console redirects to a "pending review" screen until the team approves
+      return;
+    }
+    setErr('');
+    setSubmitting(true);
+    try {
+      const [aadhaarFile, selfieFile] = await Promise.all([
+        dataUrlToFile(aadhaar, 'aadhaar.jpg'),
+        dataUrlToFile(selfie, 'selfie.jpg'),
+      ]);
+      const payload = {
+        brand: brand.trim(), brandName: brand.trim(), username: username.trim(),
+        city: loc.city, types, about, links: links.trim(),
+        gstin: gstin.trim(), pan: pan.trim(), bankAccount: account.trim(), bankIfsc: ifsc.trim(),
+      };
+      const res = await kyc.submitRole('organizer', payload, [aadhaarFile, selfieFile]);
+      updateUser({ ...res.user, pendingRole: 'organizer' });
+      clearDraft(DRAFT_ID);
+      navigate('/organizer'); // console redirects to a "pending review" screen until the team approves
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Failed to submit — try again');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -175,12 +204,13 @@ export default function Onboarding() {
               )}
             </div>
 
+            {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn btn-ghost" onClick={() => setStep(1)}>
                 ← Back
               </button>
-              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!step2Valid} onClick={submit}>
-                Submit — get the verified ✓ badge
+              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!step2Valid || submitting} onClick={submit}>
+                {submitting ? 'Submitting…' : 'Submit — get the verified ✓ badge'}
               </button>
             </div>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>

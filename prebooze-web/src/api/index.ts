@@ -251,6 +251,11 @@ export const platform = {
 
 // ---------- venue partner ----------
 export const venuePartner = {
+  upload: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiUpload<{ url: string }>('/venue/upload', form);
+  },
   onboard: (v: Partial<Venue> & { licenseDoc?: string; addressProofDoc?: string }) => apiFetch<Venue>('/venue/onboard', { body: v }),
   myListing: () => apiFetch<Venue>('/venue/listing'),
   updateListing: (patch: Partial<Venue>) => apiFetch<Venue>('/venue/listing', { method: 'PATCH', body: patch }),

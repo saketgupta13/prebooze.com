@@ -8,7 +8,10 @@ import { existingRole } from '../../lib/roles';
 import { notify } from '../../lib/notify';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
 import WysiwygEditor from '../../components/WysiwygEditor';
-import { FileDropBox, GalleryDropBox } from '../../components/FileDropBox';
+import { FileDropBox } from '../../components/FileDropBox';
+import { dataUrlToFile } from '../../lib/fileUtils';
+import { auth, venuePartner } from '../../api';
+import { isBackendEnabled, ApiError } from '../../api/client';
 
 const VENUE_TYPES = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
@@ -17,23 +20,22 @@ const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'
 
 const DRAFT_ID = 'venue';
 type Draft = {
-  photos: string[]; name: string; vtype: string; loc: LocationValue; address: string; capacity: string;
+  name: string; vtype: string; loc: LocationValue; address: string; capacity: string;
   amenities: string[]; timings: string; about: string; license: string; addressProof: string;
 };
 const emptyDraft: Draft = {
-  photos: [], name: '', vtype: VENUE_TYPES[0], loc: emptyLocation(), address: '', capacity: '',
+  name: '', vtype: VENUE_TYPES[0], loc: emptyLocation(), address: '', capacity: '',
   amenities: [], timings: '', about: '', license: '', addressProof: '',
 };
 
 /** Venue-partner onboarding — same 2-step pattern as other roles:
  * listing details → license & documents, then Pending admin review. */
 export default function VenueOnboarding() {
-  const { user, submitRoleApplication, addMyVenue } = useApp();
+  const { user, submitRoleApplication, addMyVenue, updateUser } = useApp();
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
 
   const draft0 = loadDraft(DRAFT_ID, emptyDraft);
-  const [photos, setPhotos] = useState(draft0.photos);
   const [name, setName] = useState(draft0.name);
   const [vtype, setVtype] = useState(draft0.vtype);
   const [loc, setLoc] = useState(draft0.loc);
@@ -46,10 +48,12 @@ export default function VenueOnboarding() {
   const [license, setLicense] = useState(draft0.license);
   const [addressProof, setAddressProof] = useState(draft0.addressProof);
   const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState('');
 
   useEffect(() => {
-    saveDraft(DRAFT_ID, { photos, name, vtype, loc, address, capacity, amenities, timings, about, license, addressProof });
-  }, [photos, name, vtype, loc, address, capacity, amenities, timings, about, license, addressProof]);
+    saveDraft(DRAFT_ID, { name, vtype, loc, address, capacity, amenities, timings, about, license, addressProof });
+  }, [name, vtype, loc, address, capacity, amenities, timings, about, license, addressProof]);
 
   if (!user) return <Navigate to="/login" state={{ from: '/venue/onboarding' }} replace />;
   const otherRole = existingRole(user);
@@ -62,28 +66,58 @@ export default function VenueOnboarding() {
   const toggleAmenity = (a: string) =>
     setAmenities((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
 
-  const submit = () => {
-    const id = slugify(name) || `venue-${Date.now()}`;
-    addMyVenue({
-      id,
-      name: name.trim(),
-      verified: false,
-      type: vtype,
-      locality: '',
-      city: loc.city,
-      address: address.trim(),
-      capacity: Number(capacity),
-      rating: 0,
-      followers: 0,
-      amenities,
-      about: about.trim(),
-      timings: timings.trim() || undefined,
-      photoHue: Math.floor(Math.random() * 360),
-    });
-    submitRoleApplication('venue', { venueName: name.trim(), venueId: id });
-    notify(user.phone, 'welcome', { name: name.trim() }, user.email || undefined);
-    clearDraft(DRAFT_ID);
-    setDone(true);
+  const submit = async () => {
+    if (!isBackendEnabled()) {
+      const id = slugify(name) || `venue-${Date.now()}`;
+      addMyVenue({
+        id,
+        name: name.trim(),
+        verified: false,
+        type: vtype,
+        locality: '',
+        city: loc.city,
+        address: address.trim(),
+        capacity: Number(capacity),
+        rating: 0,
+        followers: 0,
+        amenities,
+        about: about.trim(),
+        timings: timings.trim() || undefined,
+        photoHue: Math.floor(Math.random() * 360),
+      });
+      submitRoleApplication('venue', { venueName: name.trim(), venueId: id });
+      notify(user.phone, 'welcome', { name: name.trim() }, user.email || undefined);
+      clearDraft(DRAFT_ID);
+      setDone(true);
+      return;
+    }
+    setErr('');
+    setSubmitting(true);
+    try {
+      const [licenseFile, addressProofFile] = await Promise.all([
+        dataUrlToFile(license, 'license.jpg'),
+        dataUrlToFile(addressProof, 'address-proof.jpg'),
+      ]);
+      const [{ url: licenseUrl }, { url: addressProofUrl }] = await Promise.all([
+        venuePartner.upload(licenseFile),
+        venuePartner.upload(addressProofFile),
+      ]);
+      await venuePartner.onboard({
+        name: name.trim(), type: vtype, city: loc.city, address: address.trim(),
+        capacity: Number(capacity), amenities, timings: timings.trim() || undefined, about: about.trim(),
+        licenseDoc: licenseUrl, addressProofDoc: addressProofUrl,
+      });
+      // onboard() only returns the new Venue row — refetch /me for the
+      // authoritative roleStatus/venueId the layout gate needs.
+      const fresh = await auth.me();
+      updateUser({ ...fresh, pendingRole: 'venue' });
+      clearDraft(DRAFT_ID);
+      setDone(true);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Failed to submit — try again');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (done) {
@@ -132,10 +166,6 @@ export default function VenueOnboarding() {
               if (step1Valid) setStep(2);
             }}
           >
-            <div style={{ marginBottom: 16 }}>
-              <div className="tiny muted" style={{ marginBottom: 6 }}>📷 venue photos — entrance, floor, stage (up to 8)</div>
-              <GalleryDropBox value={photos} onChange={setPhotos} max={8} />
-            </div>
             <div className="form-row">
               <div className="field">
                 <span>Venue name</span>
@@ -201,10 +231,11 @@ export default function VenueOnboarding() {
               <h3 style={{ marginBottom: 12 }}>2 · Address proof</h3>
               <FileDropBox value={addressProof} onChange={setAddressProof} label="⬆ upload utility bill / lease / registration" doneLabel="✓ Address proof uploaded — click to replace" />
             </div>
+            {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>
-              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!license || !addressProof} onClick={submit}>
-                Submit for review 🏛
+              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!license || !addressProof || submitting} onClick={submit}>
+                {submitting ? 'Submitting…' : 'Submit for review 🏛'}
               </button>
             </div>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
