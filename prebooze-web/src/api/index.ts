@@ -209,8 +209,15 @@ export interface OrgLedgerTx {
 }
 export const organizer = {
   me: () => apiFetch<Organizer>('/organizer/me'),
+  updateMe: (patch: { about?: string; links?: string; gstin?: string; pan?: string; bankAccount?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) =>
+    apiFetch<Organizer>('/organizer/me', { method: 'PATCH', body: patch }),
   events: () => apiFetch<Event[]>('/organizer/events'),
-  upsertEvent: (e: Partial<Event>) => apiFetch<Event>('/organizer/events', { body: e }),
+  upsertEvent: (e: {
+    id?: string; title: string; description?: string; category?: string; subCategory?: string; ageLimit?: string;
+    tags?: string[]; date?: string; durationHrs?: number; venueId: string; status?: 'draft' | 'pending';
+    conditions?: string[]; rules?: unknown; lineup?: unknown; seo?: unknown; promoterConfig?: unknown;
+    tiers?: { id?: string; name: string; price: number; quantity: number; includes?: string[]; description?: string }[];
+  }) => apiFetch<Event>('/organizer/events', { body: e }),
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),
   coupons: () => apiFetch<Coupon[]>('/organizer/coupons'),
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/organizer/coupons', { body: c }),

@@ -1,65 +1,68 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useApp } from '../../store/AppContext';
-import { ATTENDEES, EVENTS, eventById, venueById } from '../../data/mock';
-import type { Attendee } from '../../types';
+import { organizer, type OrgAttendee } from '../../api';
+import { ApiError } from '../../api/client';
+import type { Event } from '../../types';
 
 const STATUS_FILTERS = ['All', 'Checked in', 'Confirmed', 'Refunded'];
 
+interface Row extends OrgAttendee {
+  eventId: string;
+  eventTitle: string;
+  city: string;
+}
+
+/** Real attendees across every event this organizer runs — GET
+ * /organizer/events then GET /organizer/events/:id/attendees per event
+ * (no single cross-event endpoint exists, same N+1 as Dashboard). */
 export default function Attendees() {
-  const { bookings, myEvents } = useApp();
+  const [events, setEvents] = useState<Event[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
   const [eventF, setEventF] = useState('All');
   const [cityF, setCityF] = useState('All');
-  const orgEvents = [...myEvents, ...EVENTS.filter((e) => e.organizerId === 'livewire' && !myEvents.some((m) => m.id === e.id))];
-  const cityOf = (eventId: string | undefined) => {
-    if (!eventId) return 'Austin';
-    const ev = myEvents.find((e) => e.id === eventId) ?? eventById(eventId);
-    return ev ? (venueById(ev.venueId)?.city ?? 'Austin') : 'Austin';
-  };
-  const cities = ['All', ...new Set(orgEvents.map((e) => venueById(e.venueId)?.city).filter(Boolean) as string[])];
 
-  // Merge seeded attendees with real bookings made in this browser
-  const rows = useMemo<Attendee[]>(() => {
-    const fromBookings: (Attendee & { eventId?: string })[] = bookings.map((b) => ({
-      bookingId: b.id,
-      eventId: b.eventId,
-      name: b.mainGuest,
-      phone: b.whatsapp.slice(0, 6) + '•••' + b.whatsapp.slice(-3),
-      tickets: b.tierName,
-      qty: b.qty,
-      status:
-        b.status === 'cancelled'
-          ? 'refunded'
-          : b.guests.some((g) => g.checkedIn)
-            ? 'checked-in'
-            : 'confirmed',
-    }));
-    return [...fromBookings, ...ATTENDEES.map((a) => ({ ...a, eventId: 'ev-1' }))];
-  }, [bookings]);
+  useEffect(() => {
+    organizer
+      .events()
+      .then(async (evs) => {
+        setEvents(evs);
+        const perEvent = await Promise.all(
+          evs.map((e) =>
+            organizer.attendees(e.id).then((list) => list.map((a) => ({ ...a, eventId: e.id, eventTitle: e.title, city: e.venue?.city ?? '' })))
+          )
+        );
+        setRows(perEvent.flat());
+      })
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load attendees'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const cities = useMemo(() => ['All', ...new Set(events.map((e) => e.venue?.city).filter(Boolean) as string[])], [events]);
+
+  const rowStatus = (r: Row) => (r.checkedIn ? 'checked-in' : r.bookingStatus === 'cancelled' || r.bookingStatus === 'refunded' ? 'refunded' : 'confirmed');
 
   const filtered = rows.filter((r) => {
-    const rEvent = (r as Attendee & { eventId?: string }).eventId;
-    if (eventF !== 'All') {
-      const ev = myEvents.find((e) => e.id === rEvent) ?? eventById(rEvent ?? '');
-      if ((ev?.title ?? '') !== eventF) return false;
-    }
-    if (cityF !== 'All' && cityOf(rEvent) !== cityF) return false;
-    if (q && !(r.name + r.phone + r.bookingId).toLowerCase().includes(q.toLowerCase())) return false;
-    if (status === 'Checked in') return r.status === 'checked-in';
-    if (status === 'Confirmed') return r.status === 'confirmed';
-    if (status === 'Refunded') return r.status === 'refunded';
+    if (eventF !== 'All' && r.eventTitle !== eventF) return false;
+    if (cityF !== 'All' && r.city !== cityF) return false;
+    if (q && !(r.name + r.whatsapp + r.bookingId).toLowerCase().includes(q.toLowerCase())) return false;
+    const s = rowStatus(r);
+    if (status === 'Checked in') return s === 'checked-in';
+    if (status === 'Confirmed') return s === 'confirmed';
+    if (status === 'Refunded') return s === 'refunded';
     return true;
   });
 
-  const total = rows.reduce((a, r) => a + r.qty, 0);
-  const checkedIn = rows.filter((r) => r.status === 'checked-in').reduce((a, r) => a + r.qty, 0);
+  const total = rows.length;
+  const checkedIn = rows.filter((r) => r.checkedIn).length;
 
   const exportCsv = () => {
     const csv = [
-      'name,booking,phone,tickets,status',
-      ...rows.map((r) => `"${r.name}",${r.bookingId},${r.phone},"${r.tickets}",${r.status}`),
+      'name,booking,phone,tier,event,status',
+      ...rows.map((r) => `"${r.name}",${r.bookingId},${r.whatsapp},"${r.tierName}","${r.eventTitle}",${rowStatus(r)}`),
     ].join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -72,6 +75,7 @@ export default function Attendees() {
       <div className="breadcrumb">
         <Link to="/organizer/events">Events</Link> / {eventF === 'All' ? 'All events' : eventF} / Attendees
       </div>
+      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
         <input
           placeholder="🔍 Search name / phone / booking #"
@@ -79,18 +83,14 @@ export default function Attendees() {
           onChange={(e) => setQ(e.target.value)}
           style={{ maxWidth: 280 }}
         />
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          style={{ maxWidth: 140 }}
-        >
+        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 140 }}>
           {STATUS_FILTERS.map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
         <select value={eventF} onChange={(e) => setEventF(e.target.value)} style={{ maxWidth: 190 }}>
           <option>All</option>
-          {orgEvents.map((e) => (
+          {events.map((e) => (
             <option key={e.id}>{e.title}</option>
           ))}
         </select>
@@ -119,21 +119,27 @@ export default function Attendees() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r) => (
-              <tr key={r.bookingId + r.name}>
-                <td className="bold">
-                  {r.name} <span className="muted-2">· {r.bookingId}</span>
-                </td>
-                <td className="muted">{r.phone}</td>
-                <td>{r.tickets}</td>
-                <td>
-                  {r.status === 'checked-in' && <span className="badge badge-ok">Checked in ✓</span>}
-                  {r.status === 'confirmed' && <span className="badge badge-pending">Confirmed</span>}
-                  {r.status === 'refunded' && <span className="badge badge-danger">Refunded</span>}
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
+            {loading && (
+              <tr><td colSpan={4} className="muted center">Loading…</td></tr>
+            )}
+            {!loading && filtered.map((r, i) => {
+              const s = rowStatus(r);
+              return (
+                <tr key={r.bookingId + r.name + i}>
+                  <td className="bold">
+                    {r.name} <span className="muted-2">· {r.bookingId}</span>
+                  </td>
+                  <td className="muted">{r.whatsapp}</td>
+                  <td>{r.tierName}</td>
+                  <td>
+                    {s === 'checked-in' && <span className="badge badge-ok">Checked in ✓</span>}
+                    {s === 'confirmed' && <span className="badge badge-pending">Confirmed</span>}
+                    {s === 'refunded' && <span className="badge badge-danger">Refunded</span>}
+                  </td>
+                </tr>
+              );
+            })}
+            {!loading && filtered.length === 0 && (
               <tr>
                 <td colSpan={4} className="muted center">
                   No attendees match.

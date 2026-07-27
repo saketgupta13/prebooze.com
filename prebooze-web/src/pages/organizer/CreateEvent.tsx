@@ -1,17 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { CATEGORY_TREE, EVENTS, LINEUPS, PROMOTERS, VENUES, fmtDate, fmtTime, subsFor } from '../../data/mock';
-import type { Event, TicketTier } from '../../types';
+import { CATEGORY_TREE, fmtDate, fmtTime, subsFor } from '../../data/mock';
+import type { Event, LineupProfile, PromoterProfile, Venue } from '../../types';
 import Poster, { categoryEmoji } from '../../components/Poster';
 import Accordion from '../../components/Accordion';
-import { FileDropBox, GalleryDropBox } from '../../components/FileDropBox';
 import WysiwygEditor from '../../components/WysiwygEditor';
+import { organizer, catalog } from '../../api';
+import { ApiError } from '../../api/client';
 
 const STEPS = ['1 Basics', '2 Tickets', '3 Rules & line-up', '4 Promoters', '5 SEO & publish'];
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
 
 interface TierDraft {
+  id?: string;
   name: string;
   price: string;
   quantity: string;
@@ -19,95 +21,130 @@ interface TierDraft {
   description: string;
 }
 
+const DEFAULT_TIERS: TierDraft[] = [{ name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '' }];
+
+/** Real event create/edit wizard — POST /organizer/events (upsert semantics,
+ * see OrganizerService.saveEvent). Two things the old mock let an organizer
+ * do that have no real backend today, dropped rather than faked:
+ *  - Event banner / gallery / social-post images: the real Event.galleryUrls
+ *    etc. are only ever written by admin (adminSetPoster's own comment says
+ *    "NOT full admin event CRUD" — there's no organizer-facing upload route
+ *    at all yet). An organizer can still fully create/submit an event; art
+ *    gets added by the team after approval.
+ *  - Ad-hoc "+ add new venue" / "+ create new line-up" from inside the
+ *    wizard: venues and line-ups are their own onboarding + KYC flows, not
+ *    something an organizer can spin up inline. Pick from the real roster. */
 export default function CreateEvent() {
-  const { user, addEvent, upsertEvent, myEvents, customLineups, addCustomLineup, myVenues, addMyVenue } = useApp();
+  const { user } = useApp();
   const { id: editId } = useParams();
-  const editing = editId ? (myEvents.find((e) => e.id === editId) ?? EVENTS.find((e) => e.id === editId)) : undefined;
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [preview, setPreview] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [lineups, setLineups] = useState<LineupProfile[]>([]);
+  const [promoters, setPromoters] = useState<PromoterProfile[]>([]);
+  const [editing, setEditing] = useState<Event | undefined>(undefined);
 
   // Step 1 — basics
-  const [bannerDataUrl, setBannerDataUrl] = useState(editing?.bannerDataUrl ?? '');
-  const [galleryDataUrls, setGalleryDataUrls] = useState<string[]>(editing?.galleryDataUrls ?? []);
-  const [title, setTitle] = useState(editing?.title ?? '');
-  const [description, setDescription] = useState(editing?.description ?? '');
-  const [category, setCategory] = useState(editing?.category ?? 'Concerts');
-  const [subCategory, setSubCategory] = useState(editing?.subCategory ?? subsFor(editing?.category ?? 'Concerts')[0] ?? '');
-  const [socialPostDataUrl, setSocialPostDataUrl] = useState(editing?.socialBanners?.postDataUrl ?? '');
-  const [socialStoryDataUrl, setSocialStoryDataUrl] = useState(editing?.socialBanners?.storyDataUrl ?? '');
-  const socialPost = !!socialPostDataUrl;
-  const socialStory = !!socialStoryDataUrl;
-  const [ageLimit, setAgeLimit] = useState(editing?.ageLimit ?? '18+');
-  const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : '');
-  const [time, setTime] = useState(() => {
-    if (!editing) return '20:00';
-    const d = new Date(editing.date);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  });
-  const [duration, setDuration] = useState(String(editing?.durationHrs ?? '3'));
-  const [venueId, setVenueId] = useState(editing?.venueId ?? VENUES[0].id);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('Concerts');
+  const [subCategory, setSubCategory] = useState(subsFor('Concerts')[0] ?? '');
+  const [ageLimit, setAgeLimit] = useState('18+');
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('20:00');
+  const [duration, setDuration] = useState('3');
+  const [venueId, setVenueId] = useState('');
   const [venueSearch, setVenueSearch] = useState('');
-  const [showAddVenue, setShowAddVenue] = useState(false);
-  const [nvName, setNvName] = useState('');
-  const [nvLocality, setNvLocality] = useState('');
 
   // Step 2 — tickets
-  const [tiers, setTiers] = useState<TierDraft[]>(
-    editing
-      ? editing.tiers.map((t) => ({
-          name: t.name,
-          price: String(t.price),
-          quantity: String(t.quantity),
-          includes: t.includes,
-          description: t.description ?? '',
-        }))
-      : [{ name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '' }]
-  );
-  const [earlyBird, setEarlyBird] = useState(false);
-  const [guestCap, setGuestCap] = useState('10');
+  const [tiers, setTiers] = useState<TierDraft[]>(DEFAULT_TIERS);
 
   // Step 3 — rules & lineup
-  const [conditions, setConditions] = useState(editing ? editing.conditions.join('\n') : 'Photo ID required\nNo re-entry');
-  const [dressCode, setDressCode] = useState(editing?.rules.find((r) => r.title === 'Dress code')?.body ?? 'Smart casual — no flip-flops or sleeveless shirts.');
-  const [foodRule, setFoodRule] = useState(editing?.rules.find((r) => r.title === 'Food & drinks')?.body ?? 'Full bar inside. Outside food & drinks not permitted.');
-  const [prohibited, setProhibited] = useState(editing?.rules.find((r) => r.title === 'Prohibited items')?.body ?? 'No weapons, illegal substances or professional cameras.');
-  const [lineupSel, setLineupSel] = useState<{ name: string; role: string }[]>(
-    editing ? editing.lineup.map((l) => ({ name: l.name, role: l.role })) : [{ name: 'DJ Nova', role: 'Opening DJ' }]
-  );
-  const [showNewLineup, setShowNewLineup] = useState(false);
-  const [nlName, setNlName] = useState('');
-  const [nlRole, setNlRole] = useState('Headline artist');
+  const [conditions, setConditions] = useState('Photo ID required\nNo re-entry');
+  const [dressCode, setDressCode] = useState('Smart casual — no flip-flops or sleeveless shirts.');
+  const [foodRule, setFoodRule] = useState('Full bar inside. Outside food & drinks not permitted.');
+  const [prohibited, setProhibited] = useState('No weapons, illegal substances or professional cameras.');
+  const [lineupSel, setLineupSel] = useState<{ name: string; role: string }[]>([]);
 
   // Step 4 — promoters
-  const pc = editing?.promoterConfig;
-  const [promoEnabled, setPromoEnabled] = useState(pc?.enabled ?? false);
-  const [promoCap, setPromoCap] = useState(String(pc?.cap ?? 200));
-  const [promoCutoff, setPromoCutoff] = useState(pc?.cutoff ?? '01:00');
-  const [allowedPromoters, setAllowedPromoters] = useState<string[]>(pc?.allowedPromoters ?? []);
-  const [perHead, setPerHead] = useState(pc?.perHeadPayout ?? false);
-  const [perHeadAmt, setPerHeadAmt] = useState(String(pc?.perHeadAmount ?? 100));
-  const [allowTeams, setAllowTeams] = useState(pc?.allowTeams ?? false);
+  const [promoEnabled, setPromoEnabled] = useState(false);
+  const [promoCap, setPromoCap] = useState('200');
+  const [promoCutoff, setPromoCutoff] = useState('01:00');
+  const [allowedPromoters, setAllowedPromoters] = useState<string[]>([]);
+  const [perHead, setPerHead] = useState(false);
+  const [perHeadAmt, setPerHeadAmt] = useState('100');
+  const [allowTeams, setAllowTeams] = useState(false);
   const togglePromoter = (slug: string) =>
     setAllowedPromoters((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]));
 
   // Step 5 — SEO
-  const [seoTitle, setSeoTitle] = useState(editing?.seo?.title ?? '');
-  const [seoDesc, setSeoDesc] = useState(editing?.seo?.description ?? '');
-  const [seoSlug, setSeoSlug] = useState(editing?.seo?.slug ?? '');
-  const [seoKeywords, setSeoKeywords] = useState(editing?.seo?.keywords.join(', ') ?? '');
+  const [seoTitle, setSeoTitle] = useState('');
+  const [seoDesc, setSeoDesc] = useState('');
+  const [seoSlug, setSeoSlug] = useState('');
+  const [seoKeywords, setSeoKeywords] = useState('');
 
-  // available line-ups: platform roster + this organizer's custom ones
-  const availableLineups = [
-    ...LINEUPS.map((l) => ({ name: l.name, role: l.category === 'DJ' ? 'Opening DJ' : l.category === 'Sponsor' ? 'Sponsor' : l.category === 'Promoter' ? 'Promoter' : 'Headline artist' })),
-    ...customLineups,
-  ];
+  useEffect(() => {
+    Promise.all([
+      catalog.venues(),
+      catalog.lineups(),
+      catalog.promoters(),
+      editId ? organizer.events().then((evs) => evs.find((e) => e.id === editId)) : Promise.resolve(undefined),
+    ])
+      .then(([vs, ls, ps, ev]) => {
+        setVenues(vs);
+        setLineups(ls);
+        setPromoters(ps);
+        if (ev) {
+          setEditing(ev);
+          setTitle(ev.title);
+          setDescription(ev.description);
+          setCategory(ev.category);
+          setSubCategory(ev.subCategory ?? subsFor(ev.category)[0] ?? '');
+          setAgeLimit(ev.ageLimit);
+          setDate(ev.date.slice(0, 10));
+          const d = new Date(ev.date);
+          setTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+          setDuration(String(ev.durationHrs));
+          setVenueId(ev.venueId);
+          setTiers(ev.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), includes: t.includes, description: t.description ?? '' })));
+          setConditions(ev.conditions.join('\n'));
+          setDressCode(ev.rules.find((r) => r.title === 'Dress code')?.body ?? '');
+          setFoodRule(ev.rules.find((r) => r.title === 'Food & drinks')?.body ?? '');
+          setProhibited(ev.rules.find((r) => r.title === 'Prohibited items')?.body ?? '');
+          setLineupSel(ev.lineup);
+          const pc = ev.promoterConfig;
+          if (pc) {
+            setPromoEnabled(pc.enabled);
+            setPromoCap(String(pc.cap));
+            setPromoCutoff(pc.cutoff);
+            setAllowedPromoters(pc.allowedPromoters);
+            setPerHead(pc.perHeadPayout);
+            setPerHeadAmt(String(pc.perHeadAmount));
+            setAllowTeams(pc.allowTeams);
+          }
+          setSeoTitle(ev.seo?.title ?? '');
+          setSeoDesc(ev.seo?.description ?? '');
+          setSeoSlug(ev.seo?.slug ?? '');
+          setSeoKeywords(ev.seo?.keywords.join(', ') ?? '');
+        } else if (vs.length) {
+          setVenueId(vs[0].id);
+        }
+      })
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
+      .finally(() => setReady(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
+
   const toggleLineup = (l: { name: string; role: string }) =>
     setLineupSel((prev) =>
       prev.some((x) => x.name === l.name) ? prev.filter((x) => x.name !== l.name) : [...prev, l]
     );
-  const allVenues = [...VENUES.filter((v) => !myVenues.some((m) => m.id === v.id)), ...myVenues];
-  const venueMatches = allVenues.filter((v) =>
+  const venueMatches = venues.filter((v) =>
     (v.name + ' ' + v.locality + ' ' + v.city).toLowerCase().includes(venueSearch.toLowerCase())
   );
 
@@ -121,24 +158,19 @@ export default function CreateEvent() {
   );
 
   const step1Valid = title.trim() && date && venueId;
-  const tiersValid = tiers.every((t) => t.name.trim() && +t.price >= 0 && +t.quantity > 0);
+  const tiersValid = tiers.length > 0 && tiers.every((t) => t.name.trim() && +t.price >= 0 && +t.quantity > 0);
 
-  const buildEvent = (status: Event['status']): Event => ({
-    id: editing?.id ?? 'my-' + Date.now(),
-    slug: slug || 'my-event-' + Date.now(),
+  const buildPayload = (status: 'draft' | 'pending') => ({
+    id: editing?.id,
     title: title.trim() || 'Untitled event',
     description: description.trim(),
     category,
     subCategory,
-    socialBanners: { post: socialPost, postDataUrl: socialPostDataUrl, story: socialStory, storyDataUrl: socialStoryDataUrl },
-    bannerDataUrl,
-    galleryDataUrls,
     ageLimit,
     tags: [category === 'Concerts' ? 'Concert' : category, ageLimit],
     date: new Date(`${date}T${time}`).toISOString(),
     durationHrs: +duration,
     venueId,
-    organizerId: 'livewire',
     status,
     conditions: conditions.split('\n').filter(Boolean),
     rules: [
@@ -147,18 +179,14 @@ export default function CreateEvent() {
       { title: 'Prohibited items', body: prohibited },
     ],
     lineup: lineupSel,
-    tiers: tiers.map(
-      (t, i): TicketTier => ({
-        id: 't' + (i + 1),
-        name: t.name.trim(),
-        price: +t.price,
-        quantity: +t.quantity,
-        sold: editing?.tiers[i]?.name === t.name.trim() ? editing.tiers[i].sold : 0,
-        includes: t.includes,
-        description: t.description.trim() || undefined,
-      })
-    ),
-    posterHue: (title.length * 47) % 360,
+    tiers: tiers.map((t) => ({
+      id: t.id,
+      name: t.name.trim(),
+      price: +t.price,
+      quantity: +t.quantity,
+      includes: t.includes,
+      description: t.description.trim() || undefined,
+    })),
     seo: {
       title: seoTitle || `${title} | tickets`,
       description: seoDesc || description.slice(0, 160),
@@ -176,26 +204,26 @@ export default function CreateEvent() {
     },
   });
 
-  const saveDraft = () => {
-    if (editing) upsertEvent(buildEvent('draft'));
-    else addEvent(buildEvent('draft'));
-    navigate('/organizer/events');
+  const save = async (status: 'draft' | 'pending') => {
+    setErr('');
+    setSaving(true);
+    try {
+      await organizer.upsertEvent(buildPayload(status));
+      navigate('/organizer/events');
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Failed to save event');
+      setSaving(false);
+    }
   };
 
-  // Edited events always go back through admin approval
-  const submitForApproval = () => {
-    if (editing) upsertEvent(buildEvent('pending'));
-    else addEvent(buildEvent('pending'));
-    navigate('/organizer/events');
-  };
-
-  const venue = VENUES.find((v) => v.id === venueId)!;
-
+  const venue = venues.find((v) => v.id === venueId);
   const setTier = (i: number, patch: Partial<TierDraft>) =>
     setTiers((prev) => prev.map((t, x) => (x === i ? { ...t, ...patch } : t)));
 
+  if (!ready) return <div className="muted">Loading…</div>;
+
   if (preview) {
-    const ev = buildEvent('pending');
+    const ev = buildPayload('pending');
     return (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
@@ -204,20 +232,21 @@ export default function CreateEvent() {
             <button className="btn btn-ghost" onClick={() => setPreview(false)}>
               ✎ Keep editing
             </button>
-            <button className="btn btn-pri" onClick={submitForApproval}>
-              Submit for approval →
+            <button className="btn btn-pri" disabled={saving} onClick={() => save('pending')}>
+              {saving ? 'Submitting…' : 'Submit for approval →'}
             </button>
           </div>
         </div>
+        {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
 
         <div className="card">
           <div className="detail-head">
-            <Poster hue={ev.posterHue} emoji={categoryEmoji(ev.category)} label="portrait banner 3:4" />
+            <Poster hue={(title.length * 47) % 360} emoji={categoryEmoji(ev.category)} label="portrait banner 3:4" />
             <div className="detail-title">
               <h1 style={{ fontSize: 24 }}>{ev.title}</h1>
               <div className="detail-meta">
                 <span>📅 {fmtDate(ev.date)}, {fmtTime(ev.date)}</span>
-                <span>📍 {venue.name}, {venue.city}</span>
+                <span>📍 {venue?.name}, {venue?.city}</span>
                 <span>⏱ {ev.durationHrs} hrs</span>
               </div>
               <div className="chip-row">
@@ -260,12 +289,9 @@ export default function CreateEvent() {
           </Link>{' '}
           {editing ? `Edit event — ${editing.title}` : 'Create event'}
         </h1>
-        {editing ? (
-          <span className="badge badge-pending">edits resubmit for admin approval</span>
-        ) : (
-          <span className="badge badge-ok">Draft saved ✓</span>
-        )}
+        {editing && <span className="badge badge-pending">edits resubmit for admin approval</span>}
       </div>
+      {err && <div className="danger-text small" style={{ margin: '10px 0' }}>✕ {err}</div>}
 
       <div className="wizard-steps">
         {STEPS.map((s, i) => (
@@ -283,15 +309,8 @@ export default function CreateEvent() {
 
       {step === 0 && (
         <div className="card">
-          <FileDropBox
-            value={bannerDataUrl}
-            onChange={setBannerDataUrl}
-            style={{ marginBottom: 16, padding: 30 }}
-            label="⬆ portrait banner · 3:4 · min 900px — shown on cards & event page"
-          />
-          <div className="field">
-            <span>Gallery photos <span className="muted-2">(up to 6)</span></span>
-            <GalleryDropBox value={galleryDataUrls} onChange={setGalleryDataUrls} />
+          <div className="tiny muted" style={{ marginBottom: 16 }}>
+            📷 Banner, gallery and social-share images are added by our team once your event is approved.
           </div>
           <div className="field">
             <span>Event title</span>
@@ -327,23 +346,6 @@ export default function CreateEvent() {
               </select>
             </div>
           </div>
-          <div className="field">
-            <span>Social media banners <span className="muted-2">(shared on WhatsApp/Instagram · max 5 MB each)</span></span>
-            <div className="form-row">
-              <FileDropBox
-                value={socialPostDataUrl}
-                onChange={setSocialPostDataUrl}
-                label="⬆ Post banner — square 1:1 · ≤5 MB"
-                doneLabel="✓ Post banner uploaded (1:1)"
-              />
-              <FileDropBox
-                value={socialStoryDataUrl}
-                onChange={setSocialStoryDataUrl}
-                label="⬆ Story banner — 9:16 · ≤5 MB"
-                doneLabel="✓ Story banner uploaded (9:16)"
-              />
-            </div>
-          </div>
           <div className="form-row">
             <div className="field">
               <span>Date</span>
@@ -364,7 +366,7 @@ export default function CreateEvent() {
             </div>
           </div>
           <div className="field">
-            <span>Venue — search or add new 📍</span>
+            <span>Venue</span>
             <input
               value={venueSearch}
               onChange={(e) => setVenueSearch(e.target.value)}
@@ -382,52 +384,15 @@ export default function CreateEvent() {
                   {v.name} · {v.locality || v.city}
                 </button>
               ))}
-              {venueMatches.length === 0 && <span className="muted small">no venues match “{venueSearch}”</span>}
-              <button type="button" className="chip" onClick={() => setShowAddVenue((v) => !v)}>
-                + add new venue
-              </button>
+              {venueMatches.length === 0 && <span className="muted small">no venues match "{venueSearch}"</span>}
             </div>
-            {showAddVenue && (
-              <div className="form-row" style={{ marginTop: 10 }}>
-                <input value={nvName} onChange={(e) => setNvName(e.target.value)} placeholder="Venue name" />
-                <input value={nvLocality} onChange={(e) => setNvLocality(e.target.value)} placeholder="Locality" />
-                <button
-                  type="button"
-                  className="btn btn-pri"
-                  style={{ flex: '0 0 auto' }}
-                  onClick={() => {
-                    if (!nvName.trim()) return;
-                    const nv = {
-                      id: 'mv-' + Date.now(),
-                      name: nvName.trim(),
-                      verified: false,
-                      type: 'Indoor',
-                      locality: nvLocality.trim() || 'TBD',
-                      city: 'Austin',
-                      address: `${nvLocality.trim() || 'TBD'}, Austin`,
-                      capacity: 200,
-                      rating: 0,
-                      followers: 0,
-                      amenities: [],
-                      about: 'Added by organizer — pending venue verification.',
-                      photoHue: (nvName.length * 53) % 360,
-                    };
-                    addMyVenue(nv);
-                    setVenueId(nv.id);
-                    setVenueSearch('');
-                    setShowAddVenue(false);
-                    setNvName('');
-                    setNvLocality('');
-                  }}
-                >
-                  Add ✓
-                </button>
-              </div>
-            )}
+            <div className="tiny muted-2" style={{ marginTop: 6 }}>
+              Venue not listed? They need to register as a Prebooze venue partner first.
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button className="btn btn-ghost" onClick={saveDraft}>
-              Save draft
+            <button className="btn btn-ghost" disabled={saving} onClick={() => save('draft')}>
+              {saving ? 'Saving…' : 'Save draft'}
             </button>
             <button className="btn btn-pri" disabled={!step1Valid} onClick={() => setStep(1)}>
               Next: Tickets →
@@ -514,18 +479,6 @@ export default function CreateEvent() {
             >
               + Add tier
             </button>
-            <button className={`chip ${earlyBird ? 'on' : ''}`} onClick={() => setEarlyBird((v) => !v)}>
-              {earlyBird ? '✓ early-bird window' : '+ early-bird window'}
-            </button>
-            <label className="chip static">
-              guest-list limit per booking:&nbsp;
-              <input
-                value={guestCap}
-                onChange={(e) => setGuestCap(e.target.value)}
-                style={{ width: 44, padding: '2px 6px', fontSize: 12 }}
-                inputMode="numeric"
-              />
-            </label>
           </div>
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
@@ -559,48 +512,22 @@ export default function CreateEvent() {
             <input value={prohibited} onChange={(e) => setProhibited(e.target.value)} />
           </div>
           <div className="field">
-            <span>Line-up & partners — pick from the roster or create new</span>
+            <span>Line-up & partners — pick from the real roster</span>
             <div className="chip-row" style={{ marginBottom: 8 }}>
-              {availableLineups.map((l) => {
+              {lineups.map((l) => {
+                const role = l.category === 'DJ' ? 'Opening DJ' : l.category === 'Sponsor' ? 'Sponsor' : l.category === 'Promoter' ? 'Promoter' : 'Headline artist';
                 const on = lineupSel.some((x) => x.name === l.name);
                 return (
-                  <button key={l.name} type="button" className={`chip ${on ? 'on' : ''}`} onClick={() => toggleLineup(l)}>
+                  <button key={l.id} type="button" className={`chip ${on ? 'on' : ''}`} onClick={() => toggleLineup({ name: l.name, role })}>
                     {l.name}
                     {on ? ' ✓' : ''}
                   </button>
                 );
               })}
-              <button type="button" className="chip" onClick={() => setShowNewLineup((v) => !v)}>
-                + create new
-              </button>
             </div>
-            {showNewLineup && (
-              <div className="form-row" style={{ marginBottom: 8 }}>
-                <input value={nlName} onChange={(e) => setNlName(e.target.value)} placeholder="Name (e.g. MC Echo)" />
-                <select value={nlRole} onChange={(e) => setNlRole(e.target.value)} style={{ flex: '0 0 170px' }}>
-                  <option>Headline artist</option>
-                  <option>Opening DJ</option>
-                  <option>Host</option>
-                  <option>Sponsor</option>
-                  <option>Promoter</option>
-                </select>
-                <button
-                  type="button"
-                  className="btn btn-pri"
-                  style={{ flex: '0 0 auto' }}
-                  onClick={() => {
-                    if (!nlName.trim()) return;
-                    const nl = { name: nlName.trim(), role: nlRole };
-                    addCustomLineup(nl);
-                    setLineupSel((prev) => [...prev, nl]);
-                    setNlName('');
-                    setShowNewLineup(false);
-                  }}
-                >
-                  Add ✓
-                </button>
-              </div>
-            )}
+            <div className="tiny muted-2" style={{ marginBottom: 8 }}>
+              Artist not listed? They need to register as a Prebooze line-up first.
+            </div>
             {lineupSel.length > 0 && (
               <div className="tiny muted-2">
                 on the bill: {lineupSel.map((l) => `${l.name} (${l.role})`).join(' · ')}
@@ -650,7 +577,7 @@ export default function CreateEvent() {
               <div className="field">
                 <span>Allowed promoters — only these can promote your event</span>
                 <div className="chip-row">
-                  {PROMOTERS.map((p) => (
+                  {promoters.map((p) => (
                     <button
                       key={p.slug}
                       type="button"
@@ -713,7 +640,7 @@ export default function CreateEvent() {
             <input
               value={seoTitle}
               onChange={(e) => setSeoTitle(e.target.value)}
-              placeholder={`${title || 'Event'} | ${venue.city} tickets`}
+              placeholder={`${title || 'Event'} | ${venue?.city ?? ''} tickets`}
             />
           </div>
           <div className="field">
@@ -734,7 +661,7 @@ export default function CreateEvent() {
               Search preview:
             </div>
             <div style={{ color: '#8ab4f8', fontSize: 16, fontWeight: 600 }}>
-              {seoTitle || `${title || 'Your event'} | ${venue.city} tickets`}
+              {seoTitle || `${title || 'Your event'} | ${venue?.city ?? ''} tickets`}
             </div>
             <div style={{ color: '#4fd394', fontSize: 12 }}>prebooze.com/events/{slug || 'your-event'}</div>
             <div className="muted small">{seoDesc || description.slice(0, 140) || 'Meta description preview…'}</div>

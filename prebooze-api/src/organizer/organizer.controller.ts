@@ -18,6 +18,11 @@ export class OrganizerController {
     return this.organizer.me(req.user.sub);
   }
 
+  @Patch('me')
+  updateMe(@Req() req: AuthedReq, @Body() body: Parameters<OrganizerService['updateMe']>[1]) {
+    return this.organizer.updateMe(req.user.sub, body);
+  }
+
   @Get('events')
   events(@Req() req: AuthedReq) {
     return this.organizer.events(req.user.sub);

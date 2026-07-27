@@ -62,6 +62,30 @@ export class OrganizerService {
     return this.myOrganizer(userId);
   }
 
+  /** Self-serve profile edit — the counterpart to VenueService.updateListing.
+   * Didn't exist before: an approved organizer had no way to update their
+   * own about/links/GSTIN/PAN/bank short of re-running onboarding, which
+   * actually fails once approved (KycService.submitRole rejects a second
+   * application for a role you already hold). City/brand slug stay
+   * admin-only, same "changes go through support" boundary as Venue. */
+  async updateMe(userId: string, patch: { about?: string; links?: string; gstin?: string; pan?: string; bankAccount?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) {
+    const org = await this.myOrganizer(userId);
+    return this.prisma.organizer.update({
+      where: { id: org.id },
+      data: {
+        about: patch.about?.trim(),
+        links: patch.links,
+        gstin: patch.gstin?.trim().toUpperCase() || null,
+        pan: patch.pan?.trim().toUpperCase(),
+        contact: patch.contact?.trim(),
+        contactPerson: patch.contactPerson?.trim(),
+        phone: patch.phone?.trim(),
+        eventTypes: patch.eventTypes,
+        bankLast4: patch.bankAccount ? patch.bankAccount.trim().slice(-4) : undefined,
+      },
+    });
+  }
+
   // ---------- subscription (Razorpay-billed organizer plans) ----------
   async subscriptionTiers() {
     return this.subscriptions.tiers('organizer');

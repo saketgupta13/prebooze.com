@@ -106,6 +106,16 @@ export interface Organizer {
   following: number;
   about: string;
   logoHue: number;
+  // Business/compliance fields — only present on the real GET /organizer/me
+  // self-serve response, never on the public catalog (GET /organizers).
+  contact?: string;
+  contactPerson?: string;
+  phone?: string;
+  eventTypes?: string;
+  links?: string;
+  gstin?: string;
+  pan?: string;
+  bankLast4?: string;
 }
 
 export interface PromoterProfile {

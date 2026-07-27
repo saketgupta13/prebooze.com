@@ -1,12 +1,21 @@
-import { useState } from 'react';
-import { useApp } from '../../store/AppContext';
-import { EVENTS } from '../../data/mock';
-import type { Coupon } from '../../types';
+import { useEffect, useState } from 'react';
+import { organizer } from '../../api';
+import { ApiError } from '../../api/client';
+import type { Coupon, Event } from '../../types';
 
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** Real coupons — GET/POST /organizer/coupons (upsert semantics, status
+ * flip doubles as pause/resume). No delete endpoint exists server-side, so
+ * unlike the old mock there's no delete button — pause achieves the same
+ * practical effect (coupon stops applying) without pretending to remove it. */
 export default function Coupons() {
-  const { coupons, addCoupon, updateCoupon, removeCoupon, toggleCoupon } = useApp();
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const [code, setCode] = useState('');
   const [type, setType] = useState<'percent' | 'flat'>('percent');
@@ -19,6 +28,14 @@ export default function Coupons() {
   const [firstOnly, setFirstOnly] = useState(false);
   const [err, setErr] = useState('');
 
+  const load = () => {
+    Promise.all([organizer.coupons(), organizer.events()])
+      .then(([c, evs]) => { setCoupons(c); setEvents(evs); })
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
   const startEdit = (c: Coupon) => {
     setEditingId(c.id);
     setShowForm(true);
@@ -29,37 +46,49 @@ export default function Coupons() {
     setUsageLimit(String(c.usageLimit));
     setPerUser(String(c.perUserLimit));
     setScope(c.eventScope);
+    setValidTill(c.validTill.slice(0, 10));
     setFirstOnly(c.firstTimeOnly);
     window.scrollTo(0, 0);
   };
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const c = code.trim().toUpperCase();
     if (!c) return setErr('Coupon code is required');
-    if (coupons.some((x) => x.code === c && x.id !== editingId)) return setErr(`${c} already exists`);
     if (!+value || +value <= 0) return setErr('Discount value must be positive');
-    const payload = {
-      code: c,
-      type,
-      value: +value,
-      maxDiscount: type === 'percent' ? +maxDiscount || undefined : undefined,
-      usageLimit: +usageLimit || 100,
-      perUserLimit: +perUser || 1,
-      eventScope: scope,
-      validTill: validTill
-        ? new Date(validTill).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-        : '31 Dec',
-      firstTimeOnly: firstOnly,
-    };
-    if (editingId) {
-      updateCoupon(editingId, payload);
-      setEditingId(null);
-    } else {
-      addCoupon({ id: 'c' + Date.now(), used: 0, status: 'active', ...payload });
-    }
-    setCode('');
     setErr('');
+    setBusy(true);
+    try {
+      const payload = {
+        id: editingId ?? undefined,
+        code: c,
+        type,
+        value: +value,
+        maxDiscount: type === 'percent' ? +maxDiscount || undefined : undefined,
+        usageLimit: +usageLimit || 100,
+        perUserLimit: +perUser || 1,
+        eventScope: scope,
+        validTill: validTill ? new Date(validTill).toISOString() : undefined,
+        firstTimeOnly: firstOnly,
+      };
+      await organizer.upsertCoupon(payload);
+      setEditingId(null);
+      setCode('');
+      load();
+    } catch (e2) {
+      setErr(e2 instanceof ApiError ? e2.message : 'Failed to save coupon');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleStatus = async (c: Coupon) => {
+    try {
+      await organizer.upsertCoupon({ id: c.id, status: c.status === 'active' ? 'paused' : 'active' });
+      load();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Failed to update coupon');
+    }
   };
 
   return (
@@ -70,6 +99,7 @@ export default function Coupons() {
           {showForm ? 'Hide form' : '+ Create coupon'}
         </button>
       </div>
+      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
 
       {showForm && (
         <form className="card" style={{ marginBottom: 18 }} onSubmit={save}>
@@ -77,7 +107,7 @@ export default function Coupons() {
           <div className="form-row">
             <div className="field">
               <span>Code</span>
-              <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="FIRST50" />
+              <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="FIRST50" disabled={!!editingId} />
             </div>
             <div className="field">
               <span>Type</span>
@@ -112,7 +142,7 @@ export default function Coupons() {
               <span>Events</span>
               <select value={scope} onChange={(e) => setScope(e.target.value)}>
                 <option value="all">All</option>
-                {EVENTS.filter((e) => e.organizerId === 'livewire' && e.status === 'approved').map((e) => (
+                {events.filter((e) => e.status === 'approved').map((e) => (
                   <option key={e.id} value={e.title}>
                     {e.title}
                   </option>
@@ -128,13 +158,8 @@ export default function Coupons() {
             <input type="checkbox" checked={firstOnly} onChange={(e) => setFirstOnly(e.target.checked)} />
             First-time users only
           </label>
-          {err && (
-            <div className="danger-text small" style={{ marginBottom: 10 }}>
-              ✕ {err}
-            </div>
-          )}
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-pri">{editingId ? 'Save changes ✓' : 'Save coupon'}</button>
+            <button className="btn btn-pri" disabled={busy}>{busy ? 'Saving…' : editingId ? 'Save changes ✓' : 'Save coupon'}</button>
             {editingId && (
               <button
                 type="button"
@@ -152,7 +177,9 @@ export default function Coupons() {
       )}
 
       <div className="card">
-        <h3 style={{ marginBottom: 8 }}>Active coupons</h3>
+        <h3 style={{ marginBottom: 8 }}>Coupons</h3>
+        {loading && <div className="muted small">Loading…</div>}
+        {!loading && coupons.length === 0 && <div className="muted small">No coupons yet.</div>}
         {coupons.map((c) => (
           <div key={c.id} className="evrow">
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -168,25 +195,16 @@ export default function Coupons() {
               </div>
               <div className="tiny muted-2">
                 used {c.used}/{c.usageLimit} · {c.eventScope === 'all' ? 'all events' : c.eventScope} ·
-                valid till {c.validTill}
+                valid till {fmtDate(c.validTill)}
               </div>
             </div>
             <span className={`badge ${c.status === 'active' ? 'badge-ok' : 'badge-pending'}`}>
               {c.status === 'active' ? 'Active' : 'Paused'}
             </span>
-            <button className="btn btn-ghost btn-sm" onClick={() => toggleCoupon(c.id)}>
+            <button className="btn btn-ghost btn-sm" onClick={() => toggleStatus(c)}>
               {c.status === 'active' ? 'Pause' : 'Resume'}
             </button>
             <button className="btn btn-ghost btn-sm" onClick={() => startEdit(c)}>✎ Edit</button>
-            <button
-              className="btn btn-danger-ghost btn-sm"
-              style={{ border: '1.5px solid var(--danger)', color: 'var(--danger)', borderRadius: 8 }}
-              onClick={() => {
-                if (window.confirm(`Delete coupon ${c.code}?`)) removeCoupon(c.id);
-              }}
-            >
-              ✕
-            </button>
           </div>
         ))}
       </div>
