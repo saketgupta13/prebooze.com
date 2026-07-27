@@ -1,14 +1,29 @@
-import { SEED_REVIEWS } from '../../data/mock';
-import { useApp } from '../../store/AppContext';
+import { useEffect, useState } from 'react';
+import { organizer, social } from '../../api';
+import { ApiError } from '../../api/client';
 import Stars from '../../components/Stars';
+import type { GuestReview } from '../../store/AppContext';
 
-/** Organizer's reviews — view-only. Moderation (edit/remove) is admin-only. */
+/** Real reviews — GET /organizers/:id/reviews (view-only; moderation is
+ * admin-only, same boundary the old mock already described). */
 export default function OrgReviews() {
-  const { reviews } = useApp();
-  const seedMine = SEED_REVIEWS.filter((r) => r.targetType === 'organizer' && r.targetId === 'livewire');
-  const guestMine = reviews['organizer:livewire'] ?? [];
-  const mine = [...guestMine, ...seedMine];
-  const avg = mine.length ? mine.reduce((a, r) => a + r.rating, 0) / mine.length : 0;
+  const [reviews, setReviews] = useState<GuestReview[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    organizer
+      .me()
+      .then((org) => social.organizerReviews(org.id))
+      .then(setReviews)
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load reviews'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const avg = reviews.length ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length : 0;
+  const fiveStarShare = reviews.length ? Math.round((reviews.filter((r) => r.rating === 5).length / reviews.length) * 100) : 0;
+
+  if (loading) return <div className="muted">Loading…</div>;
 
   return (
     <div>
@@ -16,15 +31,17 @@ export default function OrgReviews() {
       <div className="muted small" style={{ marginBottom: 18 }}>
         what guests said after your events — reviews are moderated by Prebooze and can't be edited or removed by organizers
       </div>
+      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
 
       <div className="kpis" style={{ marginBottom: 18 }}>
         <div className="kpi"><div className="l">Average rating</div><div className="v">★ {avg.toFixed(1)}</div></div>
-        <div className="kpi"><div className="l">Total reviews</div><div className="v">{mine.length + 179}</div></div>
-        <div className="kpi"><div className="l">5-star share</div><div className="v accent">{Math.round((mine.filter((r) => r.rating === 5).length / Math.max(mine.length, 1)) * 100)}%</div></div>
+        <div className="kpi"><div className="l">Total reviews</div><div className="v">{reviews.length}</div></div>
+        <div className="kpi"><div className="l">5-star share</div><div className="v accent">{fiveStarShare}%</div></div>
       </div>
 
       <div className="card">
-        {mine.map((r) => (
+        {reviews.length === 0 && <div className="muted small">No reviews yet.</div>}
+        {reviews.map((r) => (
           <div key={r.id} className="review" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <span className="avatar">👤</span>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -32,7 +49,7 @@ export default function OrgReviews() {
                 <span className="bold">{r.author}</span> · <Stars rating={r.rating} /> ·{' '}
                 <span className="muted-2 small">{r.eventTitle} · {r.date}</span>
               </div>
-              <div className="muted">“{r.text}”</div>
+              <div className="muted">"{r.text}"</div>
             </div>
           </div>
         ))}
