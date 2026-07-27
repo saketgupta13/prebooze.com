@@ -23,12 +23,12 @@ const DRAFT_ID = 'organizer';
 // re-uploading after a fresh page load is the right expectation for ID docs.
 type Draft = {
   brand: string; username: string; loc: LocationValue; types: string[]; about: string;
-  links: string[]; gstin: string; noGst: boolean; pan: string;
+  instagram: string; facebook: string; other: string[]; gstin: string; noGst: boolean; pan: string;
   bankName: string; account: string; accountHolder: string; ifsc: string;
 };
 const emptyDraft: Draft = {
   brand: '', username: '', loc: emptyLocation(), types: [], about: '',
-  links: [''], gstin: '', noGst: false, pan: '',
+  instagram: '', facebook: '', other: [''], gstin: '', noGst: false, pan: '',
   bankName: '', account: '', accountHolder: '', ifsc: '',
 };
 
@@ -46,7 +46,9 @@ export default function Onboarding() {
   const [loc, setLoc] = useState(draft0.loc);
   const [types, setTypes] = useState<string[]>(draft0.types);
   const [about, setAbout] = useState(draft0.about);
-  const [links, setLinks] = useState<string[]>(draft0.links.length ? draft0.links : ['']);
+  const [instagram, setInstagram] = useState(draft0.instagram);
+  const [facebook, setFacebook] = useState(draft0.facebook);
+  const [other, setOther] = useState<string[]>(draft0.other.length ? draft0.other : ['']);
   const [gstin, setGstin] = useState(draft0.gstin);
   const [noGst, setNoGst] = useState(draft0.noGst);
   const [pan, setPan] = useState(draft0.pan);
@@ -61,11 +63,11 @@ export default function Onboarding() {
 
   useEffect(() => {
     try {
-      saveDraft(DRAFT_ID, { brand, username, loc, types, about, links, gstin, noGst, pan, bankName, account, accountHolder, ifsc });
+      saveDraft(DRAFT_ID, { brand, username, loc, types, about, instagram, facebook, other, gstin, noGst, pan, bankName, account, accountHolder, ifsc });
     } catch {
       // best-effort — a full localStorage quota shouldn't block onboarding itself
     }
-  }, [brand, username, loc, types, about, links, gstin, noGst, pan, bankName, account, accountHolder, ifsc]);
+  }, [brand, username, loc, types, about, instagram, facebook, other, gstin, noGst, pan, bankName, account, accountHolder, ifsc]);
 
   const otherRole = existingRole(user);
   if (otherRole && otherRole !== 'organizer') return <RoleTaken has={otherRole} />;
@@ -75,12 +77,12 @@ export default function Onboarding() {
   const pct = step === 1 ? 50 : 90;
 
   const toggleType = (t: string) => setTypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
-  const setLink = (i: number, v: string) => setLinks((prev) => prev.map((l, idx) => (idx === i ? v : l)));
-  const addLink = () => setLinks((prev) => [...prev, '']);
-  const removeLink = (i: number) => setLinks((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : ['']));
+  const setOtherLink = (i: number, v: string) => setOther((prev) => prev.map((l, idx) => (idx === i ? v : l)));
+  const addOtherLink = () => setOther((prev) => [...prev, '']);
+  const removeOtherLink = (i: number) => setOther((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : ['']));
 
   const submit = async () => {
-    const linksJoined = links.map((l) => l.trim()).filter(Boolean).join(' · ');
+    const otherLinks = other.map((l) => l.trim()).filter(Boolean);
     if (!isBackendEnabled()) {
       submitRoleApplication('organizer', { orgBrand: brand.trim(), orgUsername: username.trim() });
       clearDraft(DRAFT_ID);
@@ -96,7 +98,8 @@ export default function Onboarding() {
       ]);
       const payload = {
         brand: brand.trim(), brandName: brand.trim(), username: username.trim(),
-        city: loc.city, types, about, links: linksJoined,
+        city: loc.city, country: loc.country, state: loc.state, pincode: loc.pincode, types, about,
+        socialLinks: { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined, other: otherLinks },
         gstin: noGst ? '' : gstin.trim().toUpperCase(), pan: pan.trim().toUpperCase(),
         bankName: bankName.trim(), bankAccount: account.trim(), accountHolderName: accountHolder.trim(), bankIfsc: ifsc.trim(),
       };
@@ -170,19 +173,29 @@ export default function Onboarding() {
             </div>
             <div className="field">
               <span>Website & social links</span>
+              <div className="form-row">
+                <div className="field">
+                  <span>Instagram</span>
+                  <input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="instagram.com/yourbrand" />
+                </div>
+                <div className="field">
+                  <span>Facebook</span>
+                  <input value={facebook} onChange={(e) => setFacebook(e.target.value)} placeholder="facebook.com/yourbrand" />
+                </div>
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {links.map((l, i) => (
+                {other.map((l, i) => (
                   <div key={i} style={{ display: 'flex', gap: 6 }}>
                     <input
                       style={{ flex: 1 }}
                       value={l}
-                      onChange={(e) => setLink(i, e.target.value)}
-                      placeholder={i === 0 ? 'Website, Instagram, X…' : 'Another link'}
+                      onChange={(e) => setOtherLink(i, e.target.value)}
+                      placeholder={i === 0 ? 'Website, X, YouTube…' : 'Another link'}
                     />
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeLink(i)} title="Remove">✕</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeOtherLink(i)} title="Remove">✕</button>
                   </div>
                 ))}
-                <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addLink}>+ Add another link</button>
+                <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addOtherLink}>+ Add another link</button>
               </div>
             </div>
             <div className="form-row">
@@ -193,8 +206,8 @@ export default function Onboarding() {
               <div className="field">
                 <span>GSTIN</span>
                 <input value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} disabled={noGst} maxLength={15} />
-                <label className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                  <input type="checkbox" checked={noGst} onChange={() => setNoGst((v) => !v)} style={{ accentColor: 'var(--green)' }} />
+                <label className="checkbox-row" style={{ marginTop: 6 }}>
+                  <input type="checkbox" checked={noGst} onChange={() => setNoGst((v) => !v)} />
                   I don't have a GSTIN
                 </label>
               </div>

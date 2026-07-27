@@ -44,6 +44,7 @@ export function toApiUser(u: User) {
     isOrganizer: u.role === 'organizer',
     orgBrand: u.orgBrand ?? undefined,
     orgUsername: u.orgUsername ?? undefined,
+    orgLogoUrl: u.orgLogoUrl ?? undefined,
     isLineup: u.role === 'lineup' || undefined,
     lineupName: u.lineupName ?? undefined,
     lineupCategory: u.lineupCategory ?? undefined,

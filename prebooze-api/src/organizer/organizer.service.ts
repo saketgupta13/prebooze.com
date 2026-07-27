@@ -137,8 +137,11 @@ export class OrganizerService {
    * brand/username/city are theirs to correct or rebrand. Username changes
    * are checked for collision the same way KycService.newOrganizerRow picks
    * one at creation time, just rejecting instead of auto-suffixing since
-   * this is a deliberate rename, not a first-pick. */
-  async updateMe(userId: string, patch: { brandName?: string; username?: string; city?: string; logoUrl?: string; about?: string; links?: string; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) {
+   * this is a deliberate rename, not a first-pick. brandName/logoUrl are
+   * also mirrored onto User.orgBrand/orgLogoUrl — those are read straight
+   * off the JWT-fetched user for the global header, so a rename here used
+   * to go stale there until this synced it back. */
+  async updateMe(userId: string, patch: { brandName?: string; username?: string; city?: string; country?: string; state?: string; pincode?: string; logoUrl?: string; about?: string; socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) {
     const org = await this.myOrganizer(userId);
 
     const username = patch.username?.trim().toLowerCase();
@@ -148,15 +151,18 @@ export class OrganizerService {
       if (taken) throw new BadRequestException('That username is already taken');
     }
 
-    return this.prisma.organizer.update({
+    const updated = await this.prisma.organizer.update({
       where: { id: org.id },
       data: {
         brandName: patch.brandName?.trim(),
         username,
         city: patch.city?.trim(),
+        country: patch.country?.trim(),
+        state: patch.state?.trim(),
+        pincode: patch.pincode?.trim(),
         logoUrl: patch.logoUrl,
         about: patch.about?.trim(),
-        links: patch.links,
+        socialLinks: patch.socialLinks as Prisma.InputJsonValue,
         gstin: patch.gstin?.trim().toUpperCase() || null,
         pan: patch.pan?.trim().toUpperCase(),
         contact: patch.contact?.trim(),
@@ -170,6 +176,18 @@ export class OrganizerService {
         ifsc: patch.ifsc?.trim().toUpperCase(),
       },
     });
+
+    if (org.userId && (patch.brandName !== undefined || patch.logoUrl !== undefined)) {
+      await this.prisma.user.update({
+        where: { id: org.userId },
+        data: {
+          orgBrand: patch.brandName !== undefined ? updated.brandName : undefined,
+          orgLogoUrl: patch.logoUrl !== undefined ? updated.logoUrl : undefined,
+        },
+      });
+    }
+
+    return updated;
   }
 
 

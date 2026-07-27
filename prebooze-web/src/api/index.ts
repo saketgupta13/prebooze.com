@@ -212,7 +212,7 @@ export interface OrgLedgerTx {
 }
 export const organizer = {
   me: () => apiFetch<Organizer>('/organizer/me'),
-  updateMe: (patch: { brandName?: string; username?: string; city?: string; logoUrl?: string; about?: string; links?: string; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) =>
+  updateMe: (patch: { brandName?: string; username?: string; city?: string; country?: string; state?: string; pincode?: string; logoUrl?: string; about?: string; socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) =>
     apiFetch<Organizer>('/organizer/me', { method: 'PATCH', body: patch }),
   upload: (file: File) => {
     const form = new FormData();

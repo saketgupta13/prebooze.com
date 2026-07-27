@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import { RealUploadBox } from '../../components/RealUploadBox';
+import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import type { Organizer } from '../../types';
 
 const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
@@ -27,10 +28,13 @@ export default function Settings() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [brandName, setBrandName] = useState('');
   const [username, setUsername] = useState('');
-  const [city, setCity] = useState('');
+  const [loc, setLoc] = useState<LocationValue>(emptyLocation());
   const [about, setAbout] = useState('');
-  const [links, setLinks] = useState<string[]>(['']);
+  const [instagram, setInstagram] = useState('');
+  const [facebook, setFacebook] = useState('');
+  const [other, setOther] = useState<string[]>(['']);
   const [gstin, setGstin] = useState('');
+  const [noGst, setNoGst] = useState(false);
   const [pan, setPan] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [contact, setContact] = useState('');
@@ -48,11 +52,14 @@ export default function Settings() {
         setLogoUrl(o.logoUrl ?? null);
         setBrandName(o.brandName ?? '');
         setUsername(o.username ?? '');
-        setCity(o.city ?? '');
+        setLoc({ country: o.country || 'India', state: o.state ?? '', city: o.city ?? '', pincode: o.pincode ?? '' });
         setAbout(o.about ?? '');
-        const l = (o.links ?? '').split(' · ').map((x) => x.trim()).filter(Boolean);
-        setLinks(l.length ? l : ['']);
+        setInstagram(o.socialLinks?.instagram ?? '');
+        setFacebook(o.socialLinks?.facebook ?? '');
+        const o2 = o.socialLinks?.other ?? [];
+        setOther(o2.length ? o2 : ['']);
         setGstin(o.gstin ?? '');
+        setNoGst(!o.gstin);
         setPan(o.pan ?? '');
         setContactPerson(o.contactPerson ?? '');
         setContact(o.contact ?? '');
@@ -68,18 +75,21 @@ export default function Settings() {
 
   const toggleOpen = (key: string) => setOpen((o) => (o === key ? null : key));
   const toggleType = (t: string) => setEventTypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
-  const setLink = (i: number, v: string) => setLinks((prev) => prev.map((l, idx) => (idx === i ? v : l)));
-  const addLink = () => setLinks((prev) => [...prev, '']);
-  const removeLink = (i: number) => setLinks((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : ['']));
+  const setOtherLink = (i: number, v: string) => setOther((prev) => prev.map((l, idx) => (idx === i ? v : l)));
+  const addOtherLink = () => setOther((prev) => [...prev, '']);
+  const removeOtherLink = (i: number) => setOther((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : ['']));
 
   const saveProfile = async () => {
     setErr('');
     setSaving(true);
     try {
-      const linksJoined = links.map((l) => l.trim()).filter(Boolean).join(' · ');
       const updated = await organizer.updateMe({
-        brandName: brandName.trim(), username: username.trim(), city: city.trim(), logoUrl: logoUrl ?? undefined,
-        about, links: linksJoined, gstin, pan, contactPerson, contact, eventTypes: eventTypes.join(', '),
+        brandName: brandName.trim(), username: username.trim(),
+        city: loc.city.trim(), country: loc.country.trim(), state: loc.state.trim(), pincode: loc.pincode.trim(),
+        logoUrl: logoUrl ?? undefined,
+        about,
+        socialLinks: { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined, other: other.map((l) => l.trim()).filter(Boolean) },
+        gstin: noGst ? '' : gstin, pan, contactPerson, contact, eventTypes: eventTypes.join(', '),
       });
       setOrg(updated);
       setOpen(null);
@@ -140,39 +150,44 @@ export default function Settings() {
                   <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} />
                 </div>
               </div>
-              <div className="form-row">
-                <div className="field">
-                  <span>City</span>
-                  <input value={city} onChange={(e) => setCity(e.target.value)} />
-                </div>
-                <div className="field">
-                  <span>Contact person</span>
-                  <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} />
-                </div>
+              <div className="field">
+                <span>Contact person</span>
+                <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} />
               </div>
               <div className="field">
                 <span>Business email</span>
                 <input value={contact} onChange={(e) => setContact(e.target.value)} />
               </div>
+              <LocationPicker value={loc} onChange={setLoc} />
               <div className="field">
                 <span>About the brand</span>
                 <textarea value={about} onChange={(e) => setAbout(e.target.value)} rows={3} />
               </div>
               <div className="field">
                 <span>Website & social links</span>
+                <div className="form-row">
+                  <div className="field">
+                    <span>Instagram</span>
+                    <input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="instagram.com/yourbrand" />
+                  </div>
+                  <div className="field">
+                    <span>Facebook</span>
+                    <input value={facebook} onChange={(e) => setFacebook(e.target.value)} placeholder="facebook.com/yourbrand" />
+                  </div>
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {links.map((l, i) => (
+                  {other.map((l, i) => (
                     <div key={i} style={{ display: 'flex', gap: 6 }}>
                       <input
                         style={{ flex: 1 }}
                         value={l}
-                        onChange={(e) => setLink(i, e.target.value)}
-                        placeholder={i === 0 ? 'Website, Instagram, X…' : 'Another link'}
+                        onChange={(e) => setOtherLink(i, e.target.value)}
+                        placeholder={i === 0 ? 'Website, X, YouTube…' : 'Another link'}
                       />
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeLink(i)} title="Remove">✕</button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeOtherLink(i)} title="Remove">✕</button>
                     </div>
                   ))}
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addLink}>+ Add another link</button>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addOtherLink}>+ Add another link</button>
                 </div>
               </div>
               <div className="field">
@@ -192,7 +207,11 @@ export default function Settings() {
                 </div>
                 <div className="field">
                   <span>GSTIN</span>
-                  <input value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} />
+                  <input value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} disabled={noGst} maxLength={15} />
+                  <label className="checkbox-row" style={{ marginTop: 6 }}>
+                    <input type="checkbox" checked={noGst} onChange={() => setNoGst((v) => !v)} />
+                    I don't have a GSTIN
+                  </label>
                 </div>
               </div>
               <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={saving} onClick={saveProfile}>

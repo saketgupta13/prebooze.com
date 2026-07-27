@@ -108,13 +108,16 @@ export interface Organizer {
   about: string;
   logoHue: number;
   logoUrl?: string | null; // real, uploaded logo — public, same as the public catalog's photoHue/galleryUrls pattern
+  country?: string;
+  state?: string;
+  pincode?: string;
+  socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; // public — real handles, shown on the profile
   // Business/compliance fields — only present on the real GET /organizer/me
   // self-serve response, never on the public catalog (GET /organizers).
   contact?: string;
   contactPerson?: string;
   phone?: string;
   eventTypes?: string;
-  links?: string;
   gstin?: string;
   pan?: string;
   bankLast4?: string;
@@ -300,6 +303,7 @@ export interface User {
   isOrganizer: boolean;
   orgBrand?: string;
   orgUsername?: string;
+  orgLogoUrl?: string;
   isLineup?: boolean;
   lineupName?: string;
   lineupCategory?: string;

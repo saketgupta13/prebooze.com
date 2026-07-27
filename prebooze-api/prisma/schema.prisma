@@ -66,6 +66,10 @@ model User {
   roleStatus       KycStatus? // null = never applied; mirrors the latest submission's status
   orgBrand         String?
   orgUsername      String?
+  // Denormalized from Organizer.logoUrl (kept in sync in OrganizerService.updateMe)
+  // so the global header can show it without a second fetch on every page —
+  // same reasoning as orgBrand/orgUsername above.
+  orgLogoUrl       String?
   lineupName       String?
   lineupCategory   String?
   lineupUsername   String?
@@ -204,6 +208,12 @@ model Organizer {
   username     String  @unique
   verified     Boolean @default(false)
   city         String
+  // Full location, same fields Onboarding.tsx's LocationPicker already
+  // collects — only city used to be persisted, silently dropping
+  // country/state/pincode even though the applicant filled them in.
+  country      String?
+  state        String?
+  pincode      String?
   since        String
   rating       Float   @default(0)
   reviewCount  Int     @default(0)
@@ -231,12 +241,17 @@ model Organizer {
 
   // admin-only business/compliance fields — prebooze-admin's Organizer type
   // (src/types.ts) has no equivalent in the pre-Admin-API schema; added for
-  // the directory CRUD slice. Never shown on the public catalog response.
+  // the directory CRUD slice. contact/contactPerson/phone/gstin/pan are
+  // never shown on the public catalog response; socialLinks IS public (it's
+  // meant for guests to find the organizer's real socials).
   contact       String  @default("") // business contact email
   contactPerson String?
   phone         String?
   eventTypes    String?
-  links         String?
+  // {instagram?, facebook?, other?: string[]} — structured, so the public
+  // profile can render a real Instagram/Facebook icon instead of guessing
+  // from a freeform delimited string.
+  socialLinks   Json?
   gstin         String?
   pan           String?
   // Full payout bank details — same plaintext-on-admin-view precedent as

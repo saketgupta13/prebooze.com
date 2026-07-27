@@ -132,7 +132,11 @@ export default function Header() {
 
         {user ? (
           <div className="hdr-user" role="button" tabIndex={0} onClick={() => setMenuOpen((o) => !o)}>
-            <span className="avatar">👤</span>
+            {user.isOrganizer && user.orgLogoUrl ? (
+              <img src={user.orgLogoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
+            ) : (
+              <span className="avatar">👤</span>
+            )}
             {displayName.split(' ')[0]} ▾
             {menuOpen && (
               <div className="menu" onClick={(e) => e.stopPropagation()}>

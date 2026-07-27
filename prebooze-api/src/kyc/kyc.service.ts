@@ -231,18 +231,22 @@ export class KycService {
     const str = (k: string) => (typeof payload?.[k] === 'string' ? (payload[k] as string).trim() : '') || undefined;
     const types = Array.isArray(payload?.types) ? (payload!.types as string[]).join(', ') : str('types');
     const bankAccount = str('bankAccount');
+    const social = payload?.socialLinks as { instagram?: string; facebook?: string; other?: string[] } | undefined;
 
     return {
       id: await unique('id'),
       brandName: user.orgBrand || user.name || 'Organizer',
       username: await unique('username'),
       city: user.city || '',
+      country: str('country'),
+      state: str('state'),
+      pincode: str('pincode'),
       since: String(new Date().getFullYear()),
       about: str('about') ?? '',
       logoHue: h,
       userId: user.id,
       eventTypes: types,
-      links: str('links'),
+      socialLinks: social ?? undefined,
       gstin: str('gstin'),
       pan: str('pan'),
       contact: str('contact'),

@@ -58,14 +58,9 @@ export default function OrganizerProfile() {
   const isFollowing = following.includes(org.id);
   const friends = friendsAtEvents(upcoming.map((e) => e.id), following);
 
-  const socialLinks = (org.links ?? '').split(' · ').map((l) => l.trim()).filter(Boolean);
-  const linkIcon = (l: string) => {
-    const url = l.toLowerCase();
-    if (url.includes('instagram') || url.startsWith('ig/')) return 'ig';
-    if (url.includes('x.com') || url.includes('twitter') || url.startsWith('x/')) return 'x';
-    return '🌐';
-  };
-  const linkHref = (l: string) => (l.startsWith('http') ? l : `https://${l.replace(/^(ig|x|fb|wa)\//, '')}`);
+  const linkHref = (l: string) => (l.startsWith('http') ? l : `https://${l}`);
+  const social = org.socialLinks;
+  const otherLinks = social?.other ?? [];
 
   return (
     <main className="page">
@@ -82,10 +77,14 @@ export default function OrganizerProfile() {
             <div className="muted small rich-text" style={{ marginTop: 6, maxWidth: 480 }} dangerouslySetInnerHTML={{ __html: org.about }} />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {socialLinks.map((l, i) => (
-              <a key={i} className="icon-round" href={linkHref(l)} target="_blank" rel="noopener noreferrer" title={l}>
-                {linkIcon(l)}
-              </a>
+            {social?.instagram && (
+              <a className="icon-round" href={linkHref(social.instagram)} target="_blank" rel="noopener noreferrer" title={social.instagram}>ig</a>
+            )}
+            {social?.facebook && (
+              <a className="icon-round" href={linkHref(social.facebook)} target="_blank" rel="noopener noreferrer" title={social.facebook}>fb</a>
+            )}
+            {otherLinks.map((l, i) => (
+              <a key={i} className="icon-round" href={linkHref(l)} target="_blank" rel="noopener noreferrer" title={l}>🌐</a>
             ))}
             <button
               className={`btn btn-sm ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
