@@ -18,14 +18,20 @@ export default function Venues() {
 
   const [liveVenues, setLiveVenues] = useState<Venue[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
     if (!isBackendEnabled()) return;
-    catalog.venues(city).then(setLiveVenues).catch(() => setLiveVenues([]));
-    catalog.events({ city }).then(setLiveEvents).catch(() => setLiveEvents([]));
+    setLoading(true);
+    Promise.all([catalog.venues(city), catalog.events({ city })])
+      .then(([vs, evs]) => { setLiveVenues(vs); setLiveEvents(evs); })
+      .catch(() => { setLiveVenues([]); setLiveEvents([]); })
+      .finally(() => setLoading(false));
   }, [city]);
 
+  // Mock is only a stand-in for offline dev mode — never a "loading"
+  // placeholder in production (see the equivalent note in Organizers.tsx).
   const venues = useMemo(() => {
-    let list = liveVenues ?? VENUES.filter((v) => v.city === city);
+    let list = liveVenues ?? (isBackendEnabled() ? [] : VENUES.filter((v) => v.city === city));
     if (q) list = list.filter((v) => v.name.toLowerCase().includes(q.toLowerCase()));
     if (type !== TYPES[0]) list = list.filter((v) => v.type === type);
     if (cap === CAPS[1]) list = list.filter((v) => v.capacity < 500);
@@ -55,10 +61,11 @@ export default function Venues() {
         <h1 style={{ fontSize: 21, marginBottom: 18 }}>
           {venues.length} venue{venues.length === 1 ? '' : 's'} in <span className="accent">{city}</span>
         </h1>
+        {loading && <div className="tiny muted" style={{ marginBottom: 12 }}>Loading…</div>}
 
         <div className="grid-3">
           {venues.map((v) => {
-            const count = (liveEvents ?? EVENTS).filter((e) => e.venueId === v.id && e.status === 'approved').length;
+            const count = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter((e) => e.venueId === v.id && e.status === 'approved').length;
             const fav = favVenues.includes(v.id);
             return (
               <Link key={v.id} to={`/venues/${v.id}`} className="ecard" style={{ position: 'relative' }}>
@@ -78,13 +85,13 @@ export default function Venues() {
                   <div className="meta">
                     {v.type} · {v.locality}
                   </div>
-                  <div className="small accent bold">{liveVenues ? count : count || 2} upcoming events</div>
+                  <div className="small accent bold">{count} upcoming event{count === 1 ? '' : 's'}</div>
                 </div>
               </Link>
             );
           })}
         </div>
-        {venues.length === 0 && <div className="empty">No venues match those filters.</div>}
+        {!loading && venues.length === 0 && <div className="empty">No venues match those filters.</div>}
       </div>
     </main>
   );

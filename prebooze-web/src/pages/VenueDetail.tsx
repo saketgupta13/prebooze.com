@@ -18,15 +18,23 @@ export default function VenueDetail() {
 
   const [liveVenues, setLiveVenues] = useState<Venue[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
     if (!isBackendEnabled()) return;
-    catalog.venues().then(setLiveVenues).catch(() => setLiveVenues([]));
-    catalog.events({}).then(setLiveEvents).catch(() => setLiveEvents([]));
+    setLoading(true);
+    Promise.all([catalog.venues(), catalog.events({})])
+      .then(([vs, evs]) => { setLiveVenues(vs); setLiveEvents(evs); })
+      .catch(() => { setLiveVenues([]); setLiveEvents([]); })
+      .finally(() => setLoading(false));
   }, []);
 
-  const venue = (liveVenues ?? VENUES).find((v) => v.id === id);
+  const venue = (liveVenues ?? (isBackendEnabled() ? [] : VENUES)).find((v) => v.id === id);
   const liveSeo = useEntitySeo('venue', id);
   useSeo(liveSeo, venue?.name);
+
+  if (loading && !venue) {
+    return <main className="page"><div className="container center" style={{ padding: '80px 0' }}><div className="muted">Loading…</div></div></main>;
+  }
 
   if (!venue) {
     return (
@@ -41,7 +49,7 @@ export default function VenueDetail() {
     );
   }
 
-  const events = (liveEvents ?? EVENTS).filter((e) => e.venueId === venue.id && e.status === 'approved');
+  const events = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter((e) => e.venueId === venue.id && e.status === 'approved');
   const followKey = 'venue:' + venue.id;
   const isFollowing = following.includes(followKey);
 
@@ -87,7 +95,7 @@ export default function VenueDetail() {
 
         <div className="stat3" style={{ maxWidth: 520, marginBottom: 24 }}>
           <div className="s">
-            <div className="v">{liveEvents ? events.length : events.length || 3}</div>
+            <div className="v">{events.length}</div>
             <div className="l">upcoming</div>
           </div>
           <div className="s">

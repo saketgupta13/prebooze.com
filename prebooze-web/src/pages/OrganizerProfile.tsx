@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { EVENTS, ORGANIZERS, PAST_EVENTS } from '../data/mock';
+import { EVENTS, ORGANIZERS } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Organizer, Event } from '../types';
@@ -20,15 +20,23 @@ export default function OrganizerProfile() {
 
   const [liveOrgs, setLiveOrgs] = useState<Organizer[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
     if (!isBackendEnabled()) return;
-    catalog.organizers().then(setLiveOrgs).catch(() => setLiveOrgs([]));
-    catalog.events({}).then(setLiveEvents).catch(() => setLiveEvents([]));
+    setLoading(true);
+    Promise.all([catalog.organizers(), catalog.events({})])
+      .then(([orgs, evs]) => { setLiveOrgs(orgs); setLiveEvents(evs); })
+      .catch(() => { setLiveOrgs([]); setLiveEvents([]); })
+      .finally(() => setLoading(false));
   }, []);
 
-  const org = (liveOrgs ?? ORGANIZERS).find((o) => o.id === id);
+  const org = (liveOrgs ?? (isBackendEnabled() ? [] : ORGANIZERS)).find((o) => o.id === id);
   const liveSeo = useEntitySeo('organizer', id);
   useSeo(liveSeo, org?.brandName);
+
+  if (loading && !org) {
+    return <main className="page"><div className="container center" style={{ padding: '80px 0' }}><div className="muted">Loading…</div></div></main>;
+  }
 
   if (!org) {
     return (
@@ -43,7 +51,10 @@ export default function OrganizerProfile() {
     );
   }
 
-  const upcoming = (liveEvents ?? EVENTS).filter((e) => (e.organizer?.id ?? e.organizerId) === org.id && e.status === 'approved');
+  const orgEvents = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter((e) => (e.organizer?.id ?? e.organizerId) === org.id && e.status === 'approved');
+  const now = Date.now();
+  const upcoming = orgEvents.filter((e) => new Date(e.date).getTime() >= now);
+  const past = orgEvents.filter((e) => new Date(e.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date));
   const isFollowing = following.includes(org.id);
   const friends = friendsAtEvents(upcoming.map((e) => e.id), following);
 
@@ -95,14 +106,10 @@ export default function OrganizerProfile() {
             </div>
 
             <div className="card">
-              <h3 style={{ marginBottom: 8 }}>Verified organizer</h3>
+              <h3 style={{ marginBottom: 8 }}>{org.verified ? 'Verified organizer' : 'Organizer status'}</h3>
               <div className="kv">
                 <span className="k">Identity KYC</span>
-                <span className="verified">✓</span>
-              </div>
-              <div className="kv">
-                <span className="k">Bank verified</span>
-                <span className="verified">✓</span>
+                <span className={org.verified ? 'verified' : 'muted'}>{org.verified ? '✓ verified' : 'pending'}</span>
               </div>
               <div className="kv">
                 <span className="k">Joined</span>
@@ -129,21 +136,17 @@ export default function OrganizerProfile() {
 
             <section className="section">
               <div className="section-hd">
-                <h2>Past events ({org.eventsHosted})</h2>
+                <h2>Past events ({past.length})</h2>
               </div>
-              <div className="grid-3">
-                {PAST_EVENTS.slice(0, 6).map((p) => (
-                  <div key={p.title} className="ecard">
-                    <Poster hue={p.hue} emoji="📸" label="poster" />
-                    <div>
-                      <h3>{p.title}</h3>
-                      <div className="meta">
-                        {p.date} · ★ {p.orgRating}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {past.length ? (
+                <div className="grid-3">
+                  {past.slice(0, 6).map((e) => (
+                    <EventCard key={e.id} event={e} />
+                  ))}
+                </div>
+              ) : (
+                <div className="empty">No past events yet.</div>
+              )}
             </section>
 
             <ReviewsSection targetType="organizer" targetId={org.id} prompt="How was the event / organizer?" />

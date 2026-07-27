@@ -15,16 +15,25 @@ export default function Organizers() {
 
   const [liveOrgs, setLiveOrgs] = useState<Organizer[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
     if (!isBackendEnabled()) return;
-    catalog.organizers(city).then(setLiveOrgs).catch(() => setLiveOrgs([]));
-    catalog.events({ city }).then(setLiveEvents).catch(() => setLiveEvents([]));
+    setLoading(true);
+    Promise.all([catalog.organizers(city), catalog.events({ city })])
+      .then(([orgs, evs]) => { setLiveOrgs(orgs); setLiveEvents(evs); })
+      .catch(() => { setLiveOrgs([]); setLiveEvents([]); })
+      .finally(() => setLoading(false));
   }, [city]);
 
+  // Mock is only ever a stand-in for offline dev mode (no VITE_API_URL) —
+  // never a "loading" placeholder in production, which used to flash real
+  // guests a page of fabricated organizers before the real fetch resolved.
   const list = featuredFirst(
     liveOrgs
       ? [...liveOrgs].sort((a, b) => b.eventsHosted - a.eventsHosted)
-      : [...ORGANIZERS].filter((o) => o.city === city).sort((a, b) => b.eventsHosted - a.eventsHosted),
+      : isBackendEnabled()
+        ? []
+        : [...ORGANIZERS].filter((o) => o.city === city).sort((a, b) => b.eventsHosted - a.eventsHosted),
     (o) => o.id,
     feat
   );
@@ -40,6 +49,7 @@ export default function Organizers() {
           Verified event brands — concerts, comedy, festivals and warehouse parties near you.
         </p>
 
+        {loading && <div className="tiny muted">Loading…</div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(258px, 1fr))', gap: 14 }}>
           {list.map((o) => {
             const isFollowing = following.includes(o.id);
@@ -69,7 +79,7 @@ export default function Organizers() {
             );
           })}
         </div>
-        {list.length === 0 && <div className="empty">No organizers in {city} yet.</div>}
+        {!loading && list.length === 0 && <div className="empty">No organizers in {city} yet.</div>}
       </div>
     </main>
   );
