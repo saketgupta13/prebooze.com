@@ -23,11 +23,13 @@ const DRAFT_ID = 'organizer';
 // re-uploading after a fresh page load is the right expectation for ID docs.
 type Draft = {
   brand: string; username: string; loc: LocationValue; types: string[]; about: string;
-  links: string[]; gstin: string; noGst: boolean; pan: string; account: string; ifsc: string;
+  links: string[]; gstin: string; noGst: boolean; pan: string;
+  bankName: string; account: string; accountHolder: string; ifsc: string;
 };
 const emptyDraft: Draft = {
   brand: '', username: '', loc: emptyLocation(), types: [], about: '',
-  links: [''], gstin: '', noGst: false, pan: '', account: '', ifsc: '',
+  links: [''], gstin: '', noGst: false, pan: '',
+  bankName: '', account: '', accountHolder: '', ifsc: '',
 };
 
 export default function Onboarding() {
@@ -52,22 +54,24 @@ export default function Onboarding() {
   // Step 2 — KYC + bank
   const [aadhaar, setAadhaar] = useState('');
   const [selfie, setSelfie] = useState('');
+  const [bankName, setBankName] = useState(draft0.bankName);
   const [account, setAccount] = useState(draft0.account);
+  const [accountHolder, setAccountHolder] = useState(draft0.accountHolder);
   const [ifsc, setIfsc] = useState(draft0.ifsc);
 
   useEffect(() => {
     try {
-      saveDraft(DRAFT_ID, { brand, username, loc, types, about, links, gstin, noGst, pan, account, ifsc });
+      saveDraft(DRAFT_ID, { brand, username, loc, types, about, links, gstin, noGst, pan, bankName, account, accountHolder, ifsc });
     } catch {
       // best-effort — a full localStorage quota shouldn't block onboarding itself
     }
-  }, [brand, username, loc, types, about, links, gstin, noGst, pan, account, ifsc]);
+  }, [brand, username, loc, types, about, links, gstin, noGst, pan, bankName, account, accountHolder, ifsc]);
 
   const otherRole = existingRole(user);
   if (otherRole && otherRole !== 'organizer') return <RoleTaken has={otherRole} />;
 
   const step1Valid = brand.trim() && username.trim() && pan.trim() && (noGst || gstin.trim());
-  const step2Valid = aadhaar && selfie && account.trim() && ifsc.trim();
+  const step2Valid = aadhaar && selfie && bankName.trim() && account.trim() && accountHolder.trim() && ifsc.trim();
   const pct = step === 1 ? 50 : 90;
 
   const toggleType = (t: string) => setTypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
@@ -94,7 +98,7 @@ export default function Onboarding() {
         brand: brand.trim(), brandName: brand.trim(), username: username.trim(),
         city: loc.city, types, about, links: linksJoined,
         gstin: noGst ? '' : gstin.trim().toUpperCase(), pan: pan.trim().toUpperCase(),
-        bankAccount: account.trim(), bankIfsc: ifsc.trim(),
+        bankName: bankName.trim(), bankAccount: account.trim(), accountHolderName: accountHolder.trim(), bankIfsc: ifsc.trim(),
       };
       const res = await kyc.submitRole('organizer', payload, [aadhaarFile, selfieFile]);
       updateUser({ ...res.user, pendingRole: 'organizer' });
@@ -232,6 +236,16 @@ export default function Onboarding() {
               <h3 style={{ marginBottom: 12 }}>3 · Bank for payouts</h3>
               <div className="form-row">
                 <div className="field">
+                  <span>Bank name</span>
+                  <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. HDFC Bank" />
+                </div>
+                <div className="field">
+                  <span>Account holder's name</span>
+                  <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="field">
                   <span>Account number</span>
                   <input value={account} onChange={(e) => setAccount(e.target.value)} inputMode="numeric" />
                 </div>
@@ -240,7 +254,7 @@ export default function Onboarding() {
                   <input value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} />
                 </div>
               </div>
-              {account && ifsc && (
+              {bankName && account && accountHolder && ifsc && (
                 <div className="small" style={{ color: '#4fd394' }}>
                   ✓ bank details captured — verified during manual review
                 </div>

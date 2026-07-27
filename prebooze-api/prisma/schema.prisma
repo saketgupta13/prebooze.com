@@ -188,6 +188,12 @@ model Venue {
   rules   String?
   seo     Json?
 
+  // Real photo gallery — venue's own upload (POST /venue/upload), shown on
+  // the public venue page and to organizers picking a venue at event
+  // creation. Unlike photoHue (the placeholder every venue always has),
+  // this is optional and empty until the venue owner uploads something.
+  galleryUrls String[] @default([])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -229,8 +235,17 @@ model Organizer {
   links         String?
   gstin         String?
   pan           String?
-  bankLast4     String?
-  seo           Json?
+  // Full payout bank details — same plaintext-on-admin-view precedent as
+  // gstin/pan above (no field-level encryption anywhere in this schema).
+  // bankLast4 stays as the masked value shown back to the organizer
+  // themselves; bankAccountNumber is the real number, only ever surfaced to
+  // admin/staff for actually processing a payout.
+  bankLast4         String?
+  bankName          String?
+  bankAccountNumber String?
+  accountHolderName String?
+  ifsc              String?
+  seo               Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

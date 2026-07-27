@@ -23,6 +23,12 @@ export class FeaturedController {
     return this.featured.confirmPayment(req.user.sub, id, body);
   }
 
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  mine(@Req() req: AuthedReq, @Query('type') type: Parameters<FeaturedService['mine']>[1], @Query('refId') refId: string) {
+    return this.featured.mine(req.user.sub, type, refId);
+  }
+
   @Get('rates')
   rates() {
     return this.featured.rates();

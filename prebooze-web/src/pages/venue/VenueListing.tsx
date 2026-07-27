@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import MapEmbed from '../../components/MapEmbed';
 import WysiwygEditor from '../../components/WysiwygEditor';
+import { RealGalleryUploadBox } from '../../components/RealUploadBox';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Venue } from '../../types';
@@ -11,10 +12,9 @@ const VENUE_TYPES = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-
 const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
 
 /** Edit the public venue listing — what guests and organizers see. Real
- * GET/PATCH /venue/listing. No photo-gallery field exists on the real Venue
- * model (same gap as Organizer/Lineup — only a hue-based placeholder), so
- * unlike the old mock there's no photo upload here; adding one would be a
- * silent no-op. */
+ * GET/PATCH /venue/listing, including a real photo gallery (POST
+ * /venue/upload, Venue.galleryUrls) — this is the "media" section a newly
+ * onboarded venue uses to add real photos. */
 export default function VenueListing() {
   const { updateUser, toast } = useApp();
   const [venue, setVenue] = useState<Venue | null>(null);
@@ -29,6 +29,7 @@ export default function VenueListing() {
   const [amenities, setAmenities] = useState<string[]>([]);
   const [about, setAbout] = useState('');
   const [timings, setTimings] = useState('');
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
 
   useEffect(() => {
     venuePartner
@@ -42,6 +43,7 @@ export default function VenueListing() {
         setAmenities(v.amenities);
         setAbout(v.about);
         setTimings(v.timings ?? '');
+        setGalleryUrls(v.galleryUrls ?? []);
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load your listing'))
       .finally(() => setLoading(false));
@@ -62,6 +64,7 @@ export default function VenueListing() {
       const updated = await venuePartner.updateListing({
         name: name.trim(), type: vtype, address: address.trim(),
         capacity: Number(capacity), amenities, about: about.trim(), timings: timings.trim() || undefined,
+        galleryUrls,
       });
       setVenue(updated);
       updateUser({ venueName: updated.name });
@@ -136,6 +139,10 @@ export default function VenueListing() {
         <div className="field">
           <span>ℹ️ About the venue</span>
           <WysiwygEditor value={about} onChange={setAbout} minHeight={80} />
+        </div>
+        <div className="field">
+          <span>📷 Photos (up to 6) — shown in the guest directory and to organizers picking a venue</span>
+          <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={venuePartner.upload} />
         </div>
         <button className="btn btn-pri btn-lg" disabled={saving}>{saving ? 'Saving…' : 'Save listing ✓'}</button>
         <span className="tiny muted-2" style={{ marginLeft: 10 }}>city changes go through support — keeps the directory clean</span>

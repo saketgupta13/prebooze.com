@@ -40,7 +40,11 @@ export async function apiFetch<T>(path: string, options: { method?: string; body
     const err = await res.json().catch(() => ({}));
     throw new ApiError(res.status, err.code ?? 'ERROR', err.message ?? res.statusText);
   }
-  return res.status === 204 ? (undefined as T) : res.json();
+  if (res.status === 204) return undefined as T;
+  // Nest sends an empty body (not "null") for a controller returning null —
+  // res.json() throws on that, so check for empty text first.
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 /** Multipart upload — for KYC document + selfie submissions. */

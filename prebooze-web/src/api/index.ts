@@ -212,13 +212,19 @@ export interface OrgLedgerTx {
 }
 export const organizer = {
   me: () => apiFetch<Organizer>('/organizer/me'),
-  updateMe: (patch: { about?: string; links?: string; gstin?: string; pan?: string; bankAccount?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) =>
+  updateMe: (patch: { about?: string; links?: string; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) =>
     apiFetch<Organizer>('/organizer/me', { method: 'PATCH', body: patch }),
+  upload: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiUpload<{ url: string }>('/organizer/upload', form);
+  },
   events: () => apiFetch<Event[]>('/organizer/events'),
   upsertEvent: (e: {
     id?: string; title: string; description?: string; category?: string; subCategory?: string; ageLimit?: string;
     tags?: string[]; date?: string; durationHrs?: number; venueId: string; status?: 'draft' | 'pending';
     conditions?: string[]; rules?: unknown; lineup?: unknown; seo?: unknown; promoterConfig?: unknown;
+    posterUrl?: string | null; galleryUrls?: string[]; teaserVideoUrl?: string | null; socialBanners?: { postUrl?: string; storyUrl?: string };
     tiers?: { id?: string; name: string; price: number; quantity: number; includes?: string[]; description?: string }[];
   }) => apiFetch<Event>('/organizer/events', { body: e }),
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),
@@ -308,8 +314,12 @@ export const lineup = {
 
 // ---------- featured ----------
 export const featured = {
-  request: (input: Omit<Featured, 'id' | 'status' | 'createdAt'>) => apiFetch<Featured>('/featured/request', { body: input }),
-  rates: () => apiFetch<{ perEvent: number; organizerMonthly: number; promoterMonthly: number; lineupMonthly: number }>('/featured/rates'),
+  request: (input: { type: Featured['type']; refId: string; billing: 'per_event' | 'monthly' }) =>
+    apiFetch<Featured & { razorpayOrder: { orderId: string; amount: number; keyId?: string } }>('/featured/request', { body: input }),
+  confirmPayment: (id: string, proof: { paymentId: string; signature: string }) =>
+    apiFetch<Featured>(`/featured/${id}/confirm-payment`, { body: proof }),
+  mine: (type: Featured['type'], refId: string) => apiFetch<Featured | null>('/featured/mine', { query: { type, refId } }),
+  rates: () => apiFetch<{ perEvent: number; organizerMonthly: number; promoterMonthly: number; lineupMonthly: number; venueMonthly: number }>('/featured/rates'),
 };
 
 // ---------- support / careers / misc ----------

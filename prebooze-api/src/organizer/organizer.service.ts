@@ -43,6 +43,7 @@ export interface EventInput {
   galleryUrls?: string[];
   teaserVideoUrl?: string | null;
   socialBanners?: unknown;
+  posterUrl?: string | null;
   tiers?: TierInput[];
 }
 
@@ -137,7 +138,7 @@ export class OrganizerService {
    * actually fails once approved (KycService.submitRole rejects a second
    * application for a role you already hold). City/brand slug stay
    * admin-only, same "changes go through support" boundary as Venue. */
-  async updateMe(userId: string, patch: { about?: string; links?: string; gstin?: string; pan?: string; bankAccount?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) {
+  async updateMe(userId: string, patch: { about?: string; links?: string; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) {
     const org = await this.myOrganizer(userId);
     return this.prisma.organizer.update({
       where: { id: org.id },
@@ -151,6 +152,10 @@ export class OrganizerService {
         phone: patch.phone?.trim(),
         eventTypes: patch.eventTypes,
         bankLast4: patch.bankAccount ? patch.bankAccount.trim().slice(-4) : undefined,
+        bankAccountNumber: patch.bankAccount?.trim(),
+        bankName: patch.bankName?.trim(),
+        accountHolderName: patch.accountHolderName?.trim(),
+        ifsc: patch.ifsc?.trim().toUpperCase(),
       },
     });
   }
@@ -251,6 +256,7 @@ export class OrganizerService {
       galleryUrls: input.galleryUrls ?? existing?.galleryUrls ?? [],
       teaserVideoUrl: input.teaserVideoUrl !== undefined ? input.teaserVideoUrl : (existing?.teaserVideoUrl ?? null),
       socialBanners: (input.socialBanners ?? existing?.socialBanners) as Prisma.InputJsonValue,
+      posterUrl: input.posterUrl !== undefined ? input.posterUrl : (existing?.posterUrl ?? null),
     };
 
     await this.prisma.event.upsert({
@@ -368,6 +374,8 @@ export class OrganizerService {
       validTill?: string;
       firstTimeOnly?: boolean;
       status?: 'active' | 'paused';
+      gender?: string;
+      description?: string;
     },
   ) {
     const org = await this.myOrganizer(userId);
@@ -393,6 +401,8 @@ export class OrganizerService {
           validTill: body.validTill ? new Date(body.validTill) : undefined,
           firstTimeOnly: body.firstTimeOnly,
           status: body.status,
+          gender: body.gender,
+          description: body.description,
         },
       });
     }
@@ -413,6 +423,8 @@ export class OrganizerService {
         validTill: body.validTill ? new Date(body.validTill) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         firstTimeOnly: !!body.firstTimeOnly,
         status: body.status ?? 'active',
+        gender: body.gender ?? 'all',
+        description: body.description,
         organizerId: org.id,
       },
     });

@@ -1,21 +1,36 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { OrganizerService } from './organizer.service';
 import type { EventInput } from './organizer.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StaffAuthGuard } from '../admin/staff-auth.guard';
 import { PermissionGuard } from '../admin/permission.guard';
 import { RequirePermission } from '../admin/permission.decorator';
+import { StorageService } from '../kyc/storage.service';
 
 type AuthedReq = { user: { sub: string } };
 
 @Controller('organizer')
 @UseGuards(JwtAuthGuard)
 export class OrganizerController {
-  constructor(private organizer: OrganizerService) {}
+  constructor(
+    private organizer: OrganizerService,
+    private storage: StorageService,
+  ) {}
 
   @Get('me')
   me(@Req() req: AuthedReq) {
     return this.organizer.me(req.user.sub);
+  }
+
+  /** Real file upload for event media (poster, gallery, teaser, social
+   * banners) at creation time — same local-disk StorageService as
+   * venue/admin uploads, just organizer-scoped. */
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 80 * 1024 * 1024 } }))
+  upload(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) throw new BadRequestException('file is required (max 80MB)');
+    return { url: this.storage.save(file) };
   }
 
   @Patch('me')

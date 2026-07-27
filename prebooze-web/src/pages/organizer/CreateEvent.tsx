@@ -6,6 +6,8 @@ import type { Event, LineupProfile, PromoterProfile, Venue } from '../../types';
 import Poster, { categoryEmoji } from '../../components/Poster';
 import Accordion from '../../components/Accordion';
 import WysiwygEditor from '../../components/WysiwygEditor';
+import SearchableSelect from '../../components/SearchableSelect';
+import { RealUploadBox, RealGalleryUploadBox, RealVideoUploadBox } from '../../components/RealUploadBox';
 import { organizer, catalog } from '../../api';
 import { ApiError } from '../../api/client';
 
@@ -23,17 +25,20 @@ interface TierDraft {
 
 const DEFAULT_TIERS: TierDraft[] = [{ name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '' }];
 
+interface RuleDraft { title: string; body: string }
+const DEFAULT_RULES: RuleDraft[] = [
+  { title: 'Dress code', body: 'Smart casual — no flip-flops or sleeveless shirts.' },
+  { title: 'Food & drinks', body: 'Full bar inside. Outside food & drinks not permitted.' },
+  { title: 'Prohibited items', body: 'No weapons, illegal substances or professional cameras.' },
+];
+
 /** Real event create/edit wizard — POST /organizer/events (upsert semantics,
- * see OrganizerService.saveEvent). Two things the old mock let an organizer
- * do that have no real backend today, dropped rather than faked:
- *  - Event banner / gallery / social-post images: the real Event.galleryUrls
- *    etc. are only ever written by admin (adminSetPoster's own comment says
- *    "NOT full admin event CRUD" — there's no organizer-facing upload route
- *    at all yet). An organizer can still fully create/submit an event; art
- *    gets added by the team after approval.
- *  - Ad-hoc "+ add new venue" / "+ create new line-up" from inside the
- *    wizard: venues and line-ups are their own onboarding + KYC flows, not
- *    something an organizer can spin up inline. Pick from the real roster. */
+ * see OrganizerService.saveEvent). Poster/gallery/teaser/social images upload
+ * for real via POST /organizer/upload, same StorageService as admin/venue.
+ * Ad-hoc "+ add new venue" / "+ create new line-up" from inside the wizard
+ * is still out of scope — venues and line-ups are their own onboarding + KYC
+ * flows, not something an organizer can spin up inline. Pick from the real
+ * roster. */
 export default function CreateEvent() {
   const { user } = useApp();
   const { id: editId } = useParams();
@@ -59,16 +64,20 @@ export default function CreateEvent() {
   const [time, setTime] = useState('20:00');
   const [duration, setDuration] = useState('3');
   const [venueId, setVenueId] = useState('');
-  const [venueSearch, setVenueSearch] = useState('');
+
+  // Step 0 — media (real uploads, POST /organizer/upload)
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [teaserVideoUrl, setTeaserVideoUrl] = useState<string | null>(null);
+  const [socialPostUrl, setSocialPostUrl] = useState('');
+  const [socialStoryUrl, setSocialStoryUrl] = useState('');
 
   // Step 2 — tickets
   const [tiers, setTiers] = useState<TierDraft[]>(DEFAULT_TIERS);
 
   // Step 3 — rules & lineup
   const [conditions, setConditions] = useState('Photo ID required\nNo re-entry');
-  const [dressCode, setDressCode] = useState('Smart casual — no flip-flops or sleeveless shirts.');
-  const [foodRule, setFoodRule] = useState('Full bar inside. Outside food & drinks not permitted.');
-  const [prohibited, setProhibited] = useState('No weapons, illegal substances or professional cameras.');
+  const [rules, setRules] = useState<RuleDraft[]>(DEFAULT_RULES);
   const [lineupSel, setLineupSel] = useState<{ name: string; role: string }[]>([]);
 
   // Step 4 — promoters
@@ -111,11 +120,14 @@ export default function CreateEvent() {
           setTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
           setDuration(String(ev.durationHrs));
           setVenueId(ev.venueId);
+          setPosterUrl(ev.posterUrl ?? null);
+          setGalleryUrls(ev.galleryUrls ?? []);
+          setTeaserVideoUrl(ev.teaserVideoUrl ?? null);
+          setSocialPostUrl(ev.socialBanners?.postUrl ?? '');
+          setSocialStoryUrl(ev.socialBanners?.storyUrl ?? '');
           setTiers(ev.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), includes: t.includes, description: t.description ?? '' })));
           setConditions(ev.conditions.join('\n'));
-          setDressCode(ev.rules.find((r) => r.title === 'Dress code')?.body ?? '');
-          setFoodRule(ev.rules.find((r) => r.title === 'Food & drinks')?.body ?? '');
-          setProhibited(ev.rules.find((r) => r.title === 'Prohibited items')?.body ?? '');
+          setRules(ev.rules.length ? ev.rules.map((r) => ({ title: r.title, body: r.body })) : DEFAULT_RULES);
           setLineupSel(ev.lineup);
           const pc = ev.promoterConfig;
           if (pc) {
@@ -144,9 +156,8 @@ export default function CreateEvent() {
     setLineupSel((prev) =>
       prev.some((x) => x.name === l.name) ? prev.filter((x) => x.name !== l.name) : [...prev, l]
     );
-  const venueMatches = venues.filter((v) =>
-    (v.name + ' ' + v.locality + ' ' + v.city).toLowerCase().includes(venueSearch.toLowerCase())
-  );
+  const venueLabel = (v: Venue) => `${v.name} · ${v.locality || v.city}`;
+  const setRule = (i: number, patch: Partial<RuleDraft>) => setRules((prev) => prev.map((r, x) => (x === i ? { ...r, ...patch } : r)));
 
   const slug = useMemo(
     () =>
@@ -173,12 +184,12 @@ export default function CreateEvent() {
     venueId,
     status,
     conditions: conditions.split('\n').filter(Boolean),
-    rules: [
-      { title: 'Dress code', body: dressCode },
-      { title: 'Food & drinks', body: foodRule },
-      { title: 'Prohibited items', body: prohibited },
-    ],
+    rules: rules.filter((r) => r.title.trim() || r.body.trim()),
     lineup: lineupSel,
+    posterUrl,
+    galleryUrls,
+    teaserVideoUrl,
+    socialBanners: { postUrl: socialPostUrl || undefined, storyUrl: socialStoryUrl || undefined },
     tiers: tiers.map((t) => ({
       id: t.id,
       name: t.name.trim(),
@@ -309,8 +320,27 @@ export default function CreateEvent() {
 
       {step === 0 && (
         <div className="card">
-          <div className="tiny muted" style={{ marginBottom: 16 }}>
-            📷 Banner, gallery and social-share images are added by our team once your event is approved.
+          <div className="field">
+            <span>Poster (portrait 3:4) — shown on your event card & page</span>
+            <RealUploadBox value={posterUrl} onChange={setPosterUrl} upload={organizer.upload} label="⬆ upload poster" style={{ height: 200, width: 160 }} />
+          </div>
+          <div className="field">
+            <span>Gallery photos (optional, up to 6)</span>
+            <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={organizer.upload} />
+          </div>
+          <div className="field">
+            <span>Teaser reel (optional)</span>
+            <RealVideoUploadBox value={teaserVideoUrl} onChange={setTeaserVideoUrl} upload={organizer.upload} label="⬆ teaser video · 9:16" />
+          </div>
+          <div className="form-row">
+            <div className="field">
+              <span>Social post image (1:1, optional)</span>
+              <RealUploadBox value={socialPostUrl || null} onChange={setSocialPostUrl} upload={organizer.upload} label="⬆ post 1:1" style={{ height: 110, width: 110 }} />
+            </div>
+            <div className="field">
+              <span>Social story image (9:16, optional)</span>
+              <RealUploadBox value={socialStoryUrl || null} onChange={setSocialStoryUrl} upload={organizer.upload} label="⬆ story 9:16" style={{ height: 160, width: 90 }} />
+            </div>
           </div>
           <div className="field">
             <span>Event title</span>
@@ -367,25 +397,15 @@ export default function CreateEvent() {
           </div>
           <div className="field">
             <span>Venue</span>
-            <input
-              value={venueSearch}
-              onChange={(e) => setVenueSearch(e.target.value)}
-              placeholder="🔍 type to search venues…"
-              style={{ marginBottom: 8 }}
+            <SearchableSelect
+              value={venue ? venueLabel(venue) : ''}
+              onChange={(label) => {
+                const v = venues.find((vv) => venueLabel(vv) === label);
+                if (v) setVenueId(v.id);
+              }}
+              options={venues.map(venueLabel)}
+              placeholder="🔍 search venues…"
             />
-            <div className="chip-row">
-              {venueMatches.map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  className={`chip ${venueId === v.id ? 'on' : ''}`}
-                  onClick={() => setVenueId(v.id)}
-                >
-                  {v.name} · {v.locality || v.city}
-                </button>
-              ))}
-              {venueMatches.length === 0 && <span className="muted small">no venues match "{venueSearch}"</span>}
-            </div>
             <div className="tiny muted-2" style={{ marginTop: 6 }}>
               Venue not listed? They need to register as a Prebooze venue partner first.
             </div>
@@ -499,38 +519,54 @@ export default function CreateEvent() {
             <textarea value={conditions} onChange={(e) => setConditions(e.target.value)} />
           </div>
           <h3 style={{ margin: '6px 0 10px' }}>Party rules (accordions on event page)</h3>
-          <div className="field">
-            <span>Dress code</span>
-            <input value={dressCode} onChange={(e) => setDressCode(e.target.value)} />
-          </div>
-          <div className="field">
-            <span>Food & drinks</span>
-            <input value={foodRule} onChange={(e) => setFoodRule(e.target.value)} />
-          </div>
-          <div className="field">
-            <span>Prohibited items</span>
-            <input value={prohibited} onChange={(e) => setProhibited(e.target.value)} />
+          {rules.map((r, i) => (
+            <div key={i} className="form-row" style={{ alignItems: 'center' }}>
+              <div className="field" style={{ flex: '0 0 160px' }}>
+                <span>Rule title</span>
+                <input value={r.title} onChange={(e) => setRule(i, { title: e.target.value })} placeholder="e.g. Age policy" />
+              </div>
+              <div className="field" style={{ flex: 1 }}>
+                <span>Details</span>
+                <input value={r.body} onChange={(e) => setRule(i, { body: e.target.value })} />
+              </div>
+              <button
+                className="icon-round"
+                style={{ alignSelf: 'center', flex: '0 0 auto', background: 'none' }}
+                onClick={() => setRules((prev) => prev.filter((_, x) => x !== i))}
+                title="Remove rule"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <div className="chip-row" style={{ marginBottom: 16 }}>
+            <button type="button" className="chip" onClick={() => setRules((prev) => [...prev, { title: '', body: '' }])}>
+              + Add rule
+            </button>
           </div>
           <div className="field">
             <span>Line-up & partners — pick from the real roster</span>
-            <div className="chip-row" style={{ marginBottom: 8 }}>
-              {lineups.map((l) => {
+            <SearchableSelect
+              value=""
+              onChange={(name) => {
+                const l = lineups.find((x) => x.name === name);
+                if (!l) return;
                 const role = l.category === 'DJ' ? 'Opening DJ' : l.category === 'Sponsor' ? 'Sponsor' : l.category === 'Promoter' ? 'Promoter' : 'Headline artist';
-                const on = lineupSel.some((x) => x.name === l.name);
-                return (
-                  <button key={l.id} type="button" className={`chip ${on ? 'on' : ''}`} onClick={() => toggleLineup({ name: l.name, role })}>
-                    {l.name}
-                    {on ? ' ✓' : ''}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="tiny muted-2" style={{ marginBottom: 8 }}>
+                toggleLineup({ name: l.name, role });
+              }}
+              options={lineups.filter((l) => !lineupSel.some((x) => x.name === l.name)).map((l) => l.name)}
+              placeholder="🔍 search line-up & partners to add…"
+            />
+            <div className="tiny muted-2" style={{ margin: '8px 0' }}>
               Artist not listed? They need to register as a Prebooze line-up first.
             </div>
             {lineupSel.length > 0 && (
-              <div className="tiny muted-2">
-                on the bill: {lineupSel.map((l) => `${l.name} (${l.role})`).join(' · ')}
+              <div className="chip-row">
+                {lineupSel.map((l) => (
+                  <button key={l.name} type="button" className="chip on" onClick={() => toggleLineup(l)} title="Remove from bill">
+                    {l.name} ({l.role}) ✕
+                  </button>
+                ))}
               </div>
             )}
           </div>

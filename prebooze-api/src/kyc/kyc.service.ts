@@ -245,7 +245,14 @@ export class KycService {
       links: str('links'),
       gstin: str('gstin'),
       pan: str('pan'),
+      contact: str('contact'),
+      contactPerson: str('contactPerson'),
+      phone: str('phone'),
       bankLast4: bankAccount ? bankAccount.slice(-4) : undefined,
+      bankAccountNumber: bankAccount,
+      bankName: str('bankName'),
+      accountHolderName: str('accountHolderName'),
+      ifsc: str('bankIfsc')?.toUpperCase(),
     };
   }
 

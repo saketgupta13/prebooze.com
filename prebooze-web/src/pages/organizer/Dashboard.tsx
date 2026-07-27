@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FEATURED_PRICING } from '../../data/mock';
 import PromoteCard from '../../components/PromoteCard';
 import { organizer, type OrgAttendee } from '../../api';
 import { ApiError } from '../../api/client';
@@ -115,7 +114,7 @@ export default function Dashboard() {
       </div>
 
       {profile && (
-        <PromoteCard type="organizer" refId={profile.id} city={profile.city || 'All'} label="your brand" monthly={FEATURED_PRICING.organizerMonthly} />
+        <PromoteCard type="organizer" refId={profile.id} city={profile.city || 'All'} label="your brand" />
       )}
 
       <div className="card" style={{ marginBottom: 18 }}>

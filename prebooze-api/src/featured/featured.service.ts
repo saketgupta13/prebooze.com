@@ -138,6 +138,14 @@ export class FeaturedService {
     return this.prisma.featured.update({ where: { id }, data: { paid: true, paymentId: proof.paymentId } });
   }
 
+  /** The caller's own current Featured row for this exact item, if any —
+   * lets the frontend show real status (pending/active/expiresAt) instead
+   * of a local guess. Reuses resolveTarget purely for its ownership check. */
+  async mine(userId: string, type: FeaturedType, refId: string) {
+    await this.resolveTarget(userId, type, refId);
+    return this.prisma.featured.findFirst({ where: { type: type as never, refId } });
+  }
+
   async rates() {
     const s = await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
     return {

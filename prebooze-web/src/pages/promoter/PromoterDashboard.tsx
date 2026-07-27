@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { EVENTS, FEATURED_PRICING, SUB_TIERS, fmtMoney, promoterBySlug } from '../../data/mock';
+import { EVENTS, SUB_TIERS, fmtMoney, promoterBySlug } from '../../data/mock';
 import { commissionEarnings, guestsThisMonth, perHeadEarnings, planQuota } from '../../lib/promoterEarnings';
 import PromoteCard from '../../components/PromoteCard';
 
@@ -63,7 +63,7 @@ export default function PromoterDashboard() {
       )}
 
       {mySlug && (
-        <PromoteCard type="promoter" refId={mySlug} city={promoterBySlug(mySlug)?.city ?? user?.city ?? 'Austin'} label="your PR profile" monthly={FEATURED_PRICING.promoterMonthly} />
+        <PromoteCard type="promoter" refId={mySlug} city={promoterBySlug(mySlug)?.city ?? user?.city ?? 'Austin'} label="your PR profile" />
       )}
 
       <div className="card" style={{ marginBottom: 18 }}>

@@ -90,6 +90,7 @@ export interface Venue {
   about: string;
   timings?: string; // e.g. "Wed–Sun · 8 PM – 2 AM"
   photoHue: number;
+  galleryUrls?: string[]; // real, uploaded via POST /venue/upload
 }
 
 export interface Organizer {
@@ -116,6 +117,10 @@ export interface Organizer {
   gstin?: string;
   pan?: string;
   bankLast4?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
+  accountHolderName?: string;
+  ifsc?: string;
 }
 
 export interface PromoterProfile {
@@ -159,6 +164,7 @@ export interface Featured {
   amount: number;
   createdAt: string;
   expiresAt: string;
+  paid?: boolean;
 }
 
 /** A followable guest — the social graph behind "Who's going". */
@@ -233,6 +239,8 @@ export interface Coupon {
   validTill: string;
   firstTimeOnly: boolean;
   status: 'active' | 'paused';
+  gender?: 'all' | 'women' | 'men' | 'other';
+  description?: string;
 }
 
 export interface Payout {

@@ -109,7 +109,7 @@ export class CatalogService {
       select: {
         id: true, name: true, verified: true, type: true, locality: true, city: true, address: true,
         capacity: true, rating: true, followers: true, amenities: true, about: true, timings: true,
-        photoHue: true, contact: true, rules: true, seo: true, createdAt: true, updatedAt: true,
+        photoHue: true, galleryUrls: true, contact: true, rules: true, seo: true, createdAt: true, updatedAt: true,
       },
     });
   }

@@ -4,11 +4,15 @@ import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Organizer } from '../../types';
 
-/** Real organizer self-serve settings — GET/PATCH /organizer/me. Team
- * members, notification prefs, refund-policy defaults and self-deactivation
- * had no real backend behind them at all (no Prisma fields, no endpoints) —
- * dropped rather than left as toggles that silently do nothing. Team & roles
- * stays reachable via its own nav item, tracked separately as still-mock. */
+const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
+
+/** Real organizer self-serve settings — GET/PATCH /organizer/me. Every field
+ * captured at onboarding (Onboarding.tsx) round-trips here pre-filled, since
+ * GET /organizer/me returns the same row KycService.newOrganizerRow wrote at
+ * approval time. Team members, notification prefs, refund-policy defaults
+ * and self-deactivation had no real backend behind them at all (no Prisma
+ * fields, no endpoints) — dropped rather than left as toggles that silently
+ * do nothing. Team & roles stays reachable via its own nav item. */
 export default function Settings() {
   const [org, setOrg] = useState<Organizer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +26,11 @@ export default function Settings() {
   const [pan, setPan] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [contact, setContact] = useState('');
+  const [eventTypes, setEventTypes] = useState<string[]>([]);
+  const [bankName, setBankName] = useState('');
   const [bank, setBank] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+  const [ifsc, setIfsc] = useState('');
 
   useEffect(() => {
     organizer
@@ -35,18 +43,24 @@ export default function Settings() {
         setPan(o.pan ?? '');
         setContactPerson(o.contactPerson ?? '');
         setContact(o.contact ?? '');
+        setEventTypes(o.eventTypes ? o.eventTypes.split(',').map((t) => t.trim()).filter(Boolean) : []);
+        setBankName(o.bankName ?? '');
+        setBank(o.bankAccountNumber ?? '');
+        setAccountHolder(o.accountHolderName ?? '');
+        setIfsc(o.ifsc ?? '');
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   }, []);
 
   const toggleOpen = (key: string) => setOpen((o) => (o === key ? null : key));
+  const toggleType = (t: string) => setEventTypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
   const saveProfile = async () => {
     setErr('');
     setSaving(true);
     try {
-      const updated = await organizer.updateMe({ about, links, gstin, pan, contactPerson, contact });
+      const updated = await organizer.updateMe({ about, links, gstin, pan, contactPerson, contact, eventTypes: eventTypes.join(', ') });
       setOrg(updated);
       setOpen(null);
     } catch (e) {
@@ -57,13 +71,12 @@ export default function Settings() {
   };
 
   const saveBank = async () => {
-    if (!bank.trim()) return;
+    if (!bankName.trim() || !bank.trim() || !accountHolder.trim() || !ifsc.trim()) return;
     setErr('');
     setSaving(true);
     try {
-      const updated = await organizer.updateMe({ bankAccount: bank });
+      const updated = await organizer.updateMe({ bankName, bankAccount: bank, accountHolderName: accountHolder, ifsc });
       setOrg(updated);
-      setBank('');
       setOpen(null);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Failed to save');
@@ -108,6 +121,16 @@ export default function Settings() {
                 <span>Website & social links</span>
                 <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="site · ig · X" />
               </div>
+              <div className="field">
+                <span>Event types you host</span>
+                <div className="chip-row">
+                  {EVENT_TYPES.map((t) => (
+                    <button type="button" key={t} className={`chip ${eventTypes.includes(t) ? 'on' : ''}`} onClick={() => toggleType(t)}>
+                      {t}{eventTypes.includes(t) ? ' ✓' : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="form-row">
                 <div className="field">
                   <span>PAN number</span>
@@ -129,22 +152,37 @@ export default function Settings() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="bold small">Bank for payouts</div>
             <div className="tiny muted">
-              {org.bankLast4 ? `bank •••• ${org.bankLast4}` : 'no bank details on file'}
+              {org.bankLast4 ? `${org.bankName ? org.bankName + ' · ' : ''}•••• ${org.bankLast4}` : 'no bank details on file'}
             </div>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={() => toggleOpen('bank')}>
             {open === 'bank' ? 'Close' : 'Manage'}
           </button>
           {open === 'bank' && (
-            <div style={{ flexBasis: '100%', paddingTop: 12 }}>
-              <div className="field">
-                <span>New account number</span>
-                <input value={bank} onChange={(e) => setBank(e.target.value)} inputMode="numeric" placeholder={org.bankLast4 ? `•••• ${org.bankLast4}` : 'Account number'} />
+            <div style={{ flexBasis: '100%', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="form-row">
+                <div className="field">
+                  <span>Bank name</span>
+                  <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. HDFC Bank" />
+                </div>
+                <div className="field">
+                  <span>Account holder's name</span>
+                  <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} />
+                </div>
               </div>
-              <button className="btn btn-pri btn-sm" disabled={!bank.trim() || saving} onClick={saveBank}>
+              <div className="form-row">
+                <div className="field">
+                  <span>Account number</span>
+                  <input value={bank} onChange={(e) => setBank(e.target.value)} inputMode="numeric" />
+                </div>
+                <div className="field">
+                  <span>IFSC code</span>
+                  <input value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} />
+                </div>
+              </div>
+              <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={!bankName.trim() || !bank.trim() || !accountHolder.trim() || !ifsc.trim() || saving} onClick={saveBank}>
                 {saving ? 'Saving…' : 'Save bank details ✓'}
               </button>
-              <div className="tiny muted-2" style={{ marginTop: 6 }}>only the last 4 digits are stored, same as what admin sees</div>
             </div>
           )}
         </div>

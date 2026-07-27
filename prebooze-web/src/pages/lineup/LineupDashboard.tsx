@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { EVENTS, FEATURED_PRICING, fmtDate, fmtTime, lineupBySlug, venueById } from '../../data/mock';
+import { EVENTS, fmtDate, fmtTime, lineupBySlug, venueById } from '../../data/mock';
 import PromoteCard from '../../components/PromoteCard';
 
 export default function LineupDashboard() {
@@ -27,7 +27,7 @@ export default function LineupDashboard() {
       </div>
 
       {slug && (
-        <PromoteCard type="lineup" refId={slug} city={city} label="your artist profile" monthly={FEATURED_PRICING.lineupMonthly} />
+        <PromoteCard type="lineup" refId={slug} city={city} label="your artist profile" />
       )}
 
       <div className="card">

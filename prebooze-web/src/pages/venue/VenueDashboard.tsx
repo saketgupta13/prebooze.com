@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FEATURED_PRICING, fmtDate, fmtTime } from '../../data/mock';
+import { fmtDate, fmtTime } from '../../data/mock';
 import PromoteCard from '../../components/PromoteCard';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
@@ -66,7 +66,7 @@ export default function VenueDashboard() {
         </div>
       </div>
 
-      <PromoteCard type="venue" refId={venue.id} city={venue.city} label="your venue" monthly={FEATURED_PRICING.venueMonthly} />
+      <PromoteCard type="venue" refId={venue.id} city={venue.city} label="your venue" />
 
       <div className="card" style={{ marginBottom: 18 }}>
         <h3 style={{ marginBottom: 10 }}>Listing checklist</h3>

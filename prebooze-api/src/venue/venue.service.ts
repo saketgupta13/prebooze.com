@@ -14,6 +14,7 @@ interface OnboardInput {
   about?: string;
   licenseDoc?: string;
   addressProofDoc?: string;
+  galleryUrls?: string[];
 }
 
 @Injectable()
@@ -150,6 +151,7 @@ export class VenueService {
         amenities: patch.amenities,
         timings: patch.timings,
         about: patch.about?.trim(),
+        galleryUrls: patch.galleryUrls,
       },
     });
   }
