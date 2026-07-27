@@ -216,6 +216,8 @@ model Organizer {
   user    User?               @relation(fields: [userId], references: [id])
   coupons Coupon[]
   ledger  OrganizerLedgerTx[]
+  roles   OrgRole[]
+  staff   OrgStaff[]
 
   // admin-only business/compliance fields — prebooze-admin's Organizer type
   // (src/types.ts) has no equivalent in the pre-Admin-API schema; added for
@@ -910,6 +912,34 @@ model OrganizerLedgerTx {
   eventTitle  String?
   note        String?
   createdAt   DateTime  @default(now())
+}
+
+// Organizer's own team/permissions system — same view/edit-per-module shape
+// as admin's StaffRole/Staff, just organizer-scoped instead of platform-wide
+// and with a smaller, organizer-relevant module list (no login/password —
+// these aren't real accounts, just a roster + roles for door/ops staff).
+model OrgRole {
+  id          String    @id @default(cuid())
+  organizerId String
+  organizer   Organizer @relation(fields: [organizerId], references: [id])
+  name        String
+  permissions Json // Record<module, {view: bool, edit: bool}>
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([organizerId, name])
+}
+
+model OrgStaff {
+  id          String    @id @default(cuid())
+  organizerId String
+  organizer   Organizer @relation(fields: [organizerId], references: [id])
+  name        String
+  phone       String?
+  roleName    String
+  scan        Boolean   @default(false) // gate-scanner access, independent of the role matrix
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 // ============================================================================

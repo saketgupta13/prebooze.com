@@ -276,6 +276,31 @@ export interface OrgLiveMonitor {
   salesPaused: boolean;
 }
 
+// ---------- organizer team & roles ----------
+export interface OrgStaffMember {
+  id: string;
+  name: string;
+  phone: string | null;
+  roleName: string;
+  scan: boolean;
+  createdAt: string;
+}
+export type OrgPermKey = 'view' | 'edit';
+export type OrgModulePerms = Record<string, Record<OrgPermKey, boolean>>; // module -> {view, edit}
+export const orgTeam = {
+  listStaff: () => apiFetch<OrgStaffMember[]>('/organizer/team'),
+  addStaff: (body: { name: string; phone?: string; roleName?: string; scan?: boolean }) => apiFetch<OrgStaffMember>('/organizer/team', { body }),
+  updateStaffRole: (id: string, roleName: string) => apiFetch<OrgStaffMember>(`/organizer/team/${id}/role`, { body: { roleName } }),
+  removeStaff: (id: string) => apiFetch<{ ok: true }>(`/organizer/team/${id}`, { method: 'DELETE' }),
+};
+export const orgRoles = {
+  list: () => apiFetch<Record<string, OrgModulePerms>>('/organizer/roles'), // roleName -> module -> {view, edit}
+  add: (name: string) => apiFetch<unknown>('/organizer/roles', { body: { name } }),
+  setPerm: (name: string, module: string, key: OrgPermKey, value: boolean) =>
+    apiFetch<unknown>(`/organizer/roles/${encodeURIComponent(name)}/perm`, { body: { module, key, value } }),
+  remove: (name: string) => apiFetch<{ ok: true }>(`/organizer/roles/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+};
+
 // ---------- lineup (artist) ----------
 export const lineup = {
   subscription: subscriptionApi('lineup'),

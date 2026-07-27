@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { OrganizerController, AdminEventsController } from './organizer.controller';
+import { OrgTeamController, OrgRolesController } from './org-team.controller';
 import { OrganizerService } from './organizer.service';
+import { OrgTeamService } from './org-team.service';
 import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StaffAuthGuard } from '../admin/staff-auth.guard';
@@ -15,7 +17,7 @@ import { GuestListService } from '../admin/guestlist.service';
 import { LiveMonitorService } from '../admin/live-monitor.service';
 
 @Module({
-  controllers: [OrganizerController, AdminEventsController],
-  providers: [OrganizerService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, RazorpayService, SubscriptionsService, GuestListService, LiveMonitorService],
+  controllers: [OrganizerController, AdminEventsController, OrgTeamController, OrgRolesController],
+  providers: [OrganizerService, OrgTeamService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, RazorpayService, SubscriptionsService, GuestListService, LiveMonitorService],
 })
 export class OrganizerModule {}
