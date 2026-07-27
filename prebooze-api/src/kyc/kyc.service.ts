@@ -147,7 +147,7 @@ export class KycService {
         this.prisma.user.findUnique({ where: { id: sub.userId } }),
         this.prisma.organizer.findUnique({ where: { userId: sub.userId } }),
       ]);
-      if (user && !existing) ops.push(this.prisma.organizer.create({ data: await this.newOrganizerRow(user) }));
+      if (user && !existing) ops.push(this.prisma.organizer.create({ data: await this.newOrganizerRow(user, sub.payload as Record<string, unknown> | null) }));
     }
 
     // same reasoning for promoter — PromoterGuest.promoterSlug and
@@ -199,8 +199,18 @@ export class KycService {
 
   /** Picks a free slug-style id/username for a newly-approved organizer,
    * falling back to a numeric suffix on collision (e.g. two organizers both
-   * picking "nightowl" at KYC time — the seeded catalog isn't reserved). */
-  private async newOrganizerRow(user: { id: string; orgBrand: string | null; orgUsername: string | null; name: string; city: string }) {
+   * picking "nightowl" at KYC time — the seeded catalog isn't reserved).
+   * `payload` is the raw onboarding submission (Onboarding.tsx) — without
+   * pulling from it, every business-profile field the applicant actually
+   * filled in (about/links/gstin/pan/bank) landed nowhere, leaving admin's
+   * "Edit organizer" page blank after approval despite the applicant having
+   * entered all of it. Bank account is truncated to last-4 on the way in —
+   * the full number lives only in the KycSubmission payload, never on the
+   * readable Organizer row. */
+  private async newOrganizerRow(
+    user: { id: string; orgBrand: string | null; orgUsername: string | null; name: string; city: string },
+    payload: Record<string, unknown> | null,
+  ) {
     const base = (user.orgUsername || user.orgBrand || user.name || 'organizer')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -218,15 +228,24 @@ export class KycService {
     let h = 0;
     for (const c of user.id) h = (h * 31 + c.charCodeAt(0)) % 360;
 
+    const str = (k: string) => (typeof payload?.[k] === 'string' ? (payload[k] as string).trim() : '') || undefined;
+    const types = Array.isArray(payload?.types) ? (payload!.types as string[]).join(', ') : str('types');
+    const bankAccount = str('bankAccount');
+
     return {
       id: await unique('id'),
       brandName: user.orgBrand || user.name || 'Organizer',
       username: await unique('username'),
       city: user.city || '',
       since: String(new Date().getFullYear()),
-      about: '',
+      about: str('about') ?? '',
       logoHue: h,
       userId: user.id,
+      eventTypes: types,
+      links: str('links'),
+      gstin: str('gstin'),
+      pan: str('pan'),
+      bankLast4: bankAccount ? bankAccount.slice(-4) : undefined,
     };
   }
 

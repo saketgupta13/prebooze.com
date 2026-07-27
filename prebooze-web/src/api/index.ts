@@ -189,13 +189,32 @@ export const promoter = {
 };
 
 // ---------- organizer ----------
+export interface OrgAttendee {
+  bookingId: string;
+  bookingStatus: string;
+  tierName: string;
+  name: string;
+  gender?: string;
+  whatsapp: string;
+  checkedIn: boolean;
+}
+export interface OrgLedgerTx {
+  id: string;
+  type: 'sale' | 'refund' | 'withdrawal';
+  amount: number;
+  eventId?: string;
+  eventTitle?: string;
+  note?: string;
+  createdAt: string;
+}
 export const organizer = {
+  me: () => apiFetch<Organizer>('/organizer/me'),
   events: () => apiFetch<Event[]>('/organizer/events'),
   upsertEvent: (e: Partial<Event>) => apiFetch<Event>('/organizer/events', { body: e }),
-  attendees: (eventId: string) => apiFetch<unknown[]>(`/organizer/events/${eventId}/attendees`),
+  attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),
   coupons: () => apiFetch<Coupon[]>('/organizer/coupons'),
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/organizer/coupons', { body: c }),
-  payouts: () => apiFetch<unknown>('/organizer/payouts'),
+  payouts: () => apiFetch<{ balance: number; ledger: OrgLedgerTx[] }>('/organizer/payouts'),
   withdraw: (amount: number) => apiFetch<void>('/organizer/withdraw', { body: { amount } }),
   abandonedCarts: () => apiFetch<CartRecord[]>('/organizer/carts'),
   remindCart: (id: string) => apiFetch<void>(`/organizer/carts/${id}/remind`, { method: 'POST' }),

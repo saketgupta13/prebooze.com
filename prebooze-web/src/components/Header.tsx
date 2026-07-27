@@ -10,6 +10,11 @@ export default function Header() {
   const { user, city, logout } = useApp();
   const { logoUrl } = usePlatformInfo();
   const heldRole = existingRole(user);
+  // A role account's display name lives on its brand field, not user.name —
+  // organizer/venue applicants in particular never fill in a guest name at
+  // all (they skip guest profile completion), so falling back to "Profile"
+  // left the header looking broken for every approved/pending role account.
+  const displayName = user?.name || user?.orgBrand || user?.promoterBrand || user?.lineupName || user?.venueName || 'Profile';
   const navigate = useNavigate();
   const [cityOpen, setCityOpen] = useState(false);
   const [autoDetect, setAutoDetect] = useState(false);
@@ -128,7 +133,7 @@ export default function Header() {
         {user ? (
           <div className="hdr-user" role="button" tabIndex={0} onClick={() => setMenuOpen((o) => !o)}>
             <span className="avatar">👤</span>
-            {user.name ? user.name.split(' ')[0] : 'Profile'} ▾
+            {displayName.split(' ')[0]} ▾
             {menuOpen && (
               <div className="menu" onClick={(e) => e.stopPropagation()}>
                 {/* Any elevated role (organizer/promoter/lineup/venue) is a

@@ -11,14 +11,23 @@ import { dataUrlToFile } from '../../lib/fileUtils';
 import { kyc } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
 
+const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
+
 const DRAFT_ID = 'organizer';
+// Deliberately excludes logo/aadhaar/selfie — those are full-size photo data
+// URLs, and persisting a couple of MB-sized images into localStorage risks
+// hitting the per-origin quota (~5-10MB total). When that write throws, it
+// used to take the whole draft down with it, which is what made switching
+// steps look like it "forgot" the uploads. Photos now just live in React
+// state — fine across step 1 <-> step 2 within the same visit, and
+// re-uploading after a fresh page load is the right expectation for ID docs.
 type Draft = {
-  logo: string; brand: string; username: string; loc: LocationValue; types: string; about: string;
-  links: string; gstin: string; pan: string; aadhaar: string; selfie: string; account: string; ifsc: string;
+  brand: string; username: string; loc: LocationValue; types: string[]; about: string;
+  links: string[]; gstin: string; noGst: boolean; pan: string; account: string; ifsc: string;
 };
 const emptyDraft: Draft = {
-  logo: '', brand: '', username: '', loc: emptyLocation(), types: 'Concerts', about: '',
-  links: '', gstin: '', pan: '', aadhaar: '', selfie: '', account: '', ifsc: '',
+  brand: '', username: '', loc: emptyLocation(), types: [], about: '',
+  links: [''], gstin: '', noGst: false, pan: '', account: '', ifsc: '',
 };
 
 export default function Onboarding() {
@@ -29,34 +38,45 @@ export default function Onboarding() {
   const [err, setErr] = useState('');
 
   const draft0 = loadDraft(DRAFT_ID, emptyDraft);
-  const [logo, setLogo] = useState(draft0.logo);
+  const [logo, setLogo] = useState('');
   const [brand, setBrand] = useState(user?.orgBrand || draft0.brand);
   const [username, setUsername] = useState(user?.orgUsername || draft0.username);
   const [loc, setLoc] = useState(draft0.loc);
-  const [types, setTypes] = useState(draft0.types);
+  const [types, setTypes] = useState<string[]>(draft0.types);
   const [about, setAbout] = useState(draft0.about);
-  const [links, setLinks] = useState(draft0.links);
+  const [links, setLinks] = useState<string[]>(draft0.links.length ? draft0.links : ['']);
   const [gstin, setGstin] = useState(draft0.gstin);
+  const [noGst, setNoGst] = useState(draft0.noGst);
   const [pan, setPan] = useState(draft0.pan);
 
   // Step 2 — KYC + bank
-  const [aadhaar, setAadhaar] = useState(draft0.aadhaar);
-  const [selfie, setSelfie] = useState(draft0.selfie);
+  const [aadhaar, setAadhaar] = useState('');
+  const [selfie, setSelfie] = useState('');
   const [account, setAccount] = useState(draft0.account);
   const [ifsc, setIfsc] = useState(draft0.ifsc);
 
   useEffect(() => {
-    saveDraft(DRAFT_ID, { logo, brand, username, loc, types, about, links, gstin, pan, aadhaar, selfie, account, ifsc });
-  }, [logo, brand, username, loc, types, about, links, gstin, pan, aadhaar, selfie, account, ifsc]);
+    try {
+      saveDraft(DRAFT_ID, { brand, username, loc, types, about, links, gstin, noGst, pan, account, ifsc });
+    } catch {
+      // best-effort — a full localStorage quota shouldn't block onboarding itself
+    }
+  }, [brand, username, loc, types, about, links, gstin, noGst, pan, account, ifsc]);
 
   const otherRole = existingRole(user);
   if (otherRole && otherRole !== 'organizer') return <RoleTaken has={otherRole} />;
 
-  const step1Valid = brand.trim() && username.trim() && pan.trim();
+  const step1Valid = brand.trim() && username.trim() && pan.trim() && (noGst || gstin.trim());
   const step2Valid = aadhaar && selfie && account.trim() && ifsc.trim();
   const pct = step === 1 ? 50 : 90;
 
+  const toggleType = (t: string) => setTypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  const setLink = (i: number, v: string) => setLinks((prev) => prev.map((l, idx) => (idx === i ? v : l)));
+  const addLink = () => setLinks((prev) => [...prev, '']);
+  const removeLink = (i: number) => setLinks((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : ['']));
+
   const submit = async () => {
+    const linksJoined = links.map((l) => l.trim()).filter(Boolean).join(' · ');
     if (!isBackendEnabled()) {
       submitRoleApplication('organizer', { orgBrand: brand.trim(), orgUsername: username.trim() });
       clearDraft(DRAFT_ID);
@@ -72,8 +92,9 @@ export default function Onboarding() {
       ]);
       const payload = {
         brand: brand.trim(), brandName: brand.trim(), username: username.trim(),
-        city: loc.city, types, about, links: links.trim(),
-        gstin: gstin.trim(), pan: pan.trim(), bankAccount: account.trim(), bankIfsc: ifsc.trim(),
+        city: loc.city, types, about, links: linksJoined,
+        gstin: noGst ? '' : gstin.trim().toUpperCase(), pan: pan.trim().toUpperCase(),
+        bankAccount: account.trim(), bankIfsc: ifsc.trim(),
       };
       const res = await kyc.submitRole('organizer', payload, [aadhaarFile, selfieFile]);
       updateUser({ ...res.user, pendingRole: 'organizer' });
@@ -131,13 +152,13 @@ export default function Onboarding() {
             <LocationPicker value={loc} onChange={setLoc} />
             <div className="field">
               <span>Event types you host</span>
-              <select value={types} onChange={(e) => setTypes(e.target.value)}>
-                <option>Concerts</option>
-                <option>Comedy</option>
-                <option>Festivals</option>
-                <option>Club nights</option>
-                <option>Mixed</option>
-              </select>
+              <div className="chip-row">
+                {EVENT_TYPES.map((t) => (
+                  <button type="button" key={t} className={`chip ${types.includes(t) ? 'on' : ''}`} onClick={() => toggleType(t)}>
+                    {t}{types.includes(t) ? ' ✓' : ''}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="field">
               <span>About your brand</span>
@@ -145,16 +166,33 @@ export default function Onboarding() {
             </div>
             <div className="field">
               <span>Website & social links</span>
-              <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="site / ig / X +" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {links.map((l, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      style={{ flex: 1 }}
+                      value={l}
+                      onChange={(e) => setLink(i, e.target.value)}
+                      placeholder={i === 0 ? 'Website, Instagram, X…' : 'Another link'}
+                    />
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeLink(i)} title="Remove">✕</button>
+                  </div>
+                ))}
+                <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addLink}>+ Add another link</button>
+              </div>
             </div>
             <div className="form-row">
               <div className="field">
-                <span>GSTIN (optional)</span>
-                <input value={gstin} onChange={(e) => setGstin(e.target.value)} />
+                <span>PAN number</span>
+                <input value={pan} onChange={(e) => setPan(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} maxLength={10} />
               </div>
               <div className="field">
-                <span>PAN number</span>
-                <input value={pan} onChange={(e) => setPan(e.target.value)} />
+                <span>GSTIN</span>
+                <input value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} disabled={noGst} maxLength={15} />
+                <label className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                  <input type="checkbox" checked={noGst} onChange={() => setNoGst((v) => !v)} style={{ accentColor: 'var(--green)' }} />
+                  I don't have a GSTIN
+                </label>
               </div>
             </div>
 
@@ -174,19 +212,24 @@ export default function Onboarding() {
               enabled.
             </p>
             <div className="card" style={{ marginBottom: 16 }}>
-              <h3 style={{ marginBottom: 12 }}>1 · Identity (Aadhaar + selfie)</h3>
+              <h3 style={{ marginBottom: 4 }}>1 · Government ID</h3>
+              <p className="tiny muted" style={{ marginBottom: 12 }}>Aadhaar, PAN card, or any government photo ID</p>
               <FileDropBox
                 value={aadhaar}
                 onChange={setAadhaar}
-                label="⬆ upload Aadhaar front"
-                doneLabel="✓ Aadhaar uploaded — click to replace"
-                style={{ marginBottom: 10 }}
+                label="⬆ upload a clear photo of your ID"
+                doneLabel="✓ ID uploaded — click to replace"
               />
-              <FileDropBox value={selfie} onChange={setSelfie} label="📷 Capture selfie" doneLabel="✓ Selfie captured — click to replace" />
             </div>
 
             <div className="card" style={{ marginBottom: 16 }}>
-              <h3 style={{ marginBottom: 12 }}>2 · Bank for payouts</h3>
+              <h3 style={{ marginBottom: 4 }}>2 · Live selfie</h3>
+              <p className="tiny muted" style={{ marginBottom: 12 }}>Used to match against your ID — good lighting, face clearly visible</p>
+              <FileDropBox value={selfie} onChange={setSelfie} label="📷 capture or upload a selfie" doneLabel="✓ Selfie captured — click to replace" />
+            </div>
+
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginBottom: 12 }}>3 · Bank for payouts</h3>
               <div className="form-row">
                 <div className="field">
                   <span>Account number</span>
@@ -194,7 +237,7 @@ export default function Onboarding() {
                 </div>
                 <div className="field">
                   <span>IFSC code</span>
-                  <input value={ifsc} onChange={(e) => setIfsc(e.target.value)} />
+                  <input value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} />
                 </div>
               </div>
               {account && ifsc && (

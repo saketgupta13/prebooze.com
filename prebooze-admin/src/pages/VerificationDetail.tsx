@@ -4,6 +4,7 @@ import { Tag } from '../components/ui';
 import { liveKyc, resolveDocUrl, LiveApiError, type LiveKycApplication } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
+import { downloadFile } from '../lib/download';
 
 const TITLE = 'Verification detail';
 const KIND_ICON: Record<string, string> = { organizer: '🧑‍💼', promoter: '📣', lineup: '🎤', venue: '📍' };
@@ -123,9 +124,9 @@ export default function VerificationDetail() {
               <div key={`${d.type}-${i}`} style={{ width: 200 }}>
                 <img src={url} alt={d.type} style={{ width: '100%', borderRadius: 8, border: '1px solid rgba(139,195,74,.2)' }} />
                 <div className="tiny" style={{ fontWeight: 700, marginTop: 4 }}>{d.type}</div>
-                <a href={url} download className="btn btn-ghost btn-sm" style={{ marginTop: 4, display: 'inline-block' }}>
+                <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 4 }} onClick={() => downloadFile(url, `${d.type}${url.slice(url.lastIndexOf('.'))}`)}>
                   ⬇ Download
-                </a>
+                </button>
               </div>
             );
           })}

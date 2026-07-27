@@ -58,6 +58,10 @@ export class OrganizerService {
     private subscriptions: SubscriptionsService,
   ) {}
 
+  async me(userId: string) {
+    return this.myOrganizer(userId);
+  }
+
   // ---------- subscription (Razorpay-billed organizer plans) ----------
   async subscriptionTiers() {
     return this.subscriptions.tiers('organizer');

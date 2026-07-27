@@ -13,6 +13,11 @@ type AuthedReq = { user: { sub: string } };
 export class OrganizerController {
   constructor(private organizer: OrganizerService) {}
 
+  @Get('me')
+  me(@Req() req: AuthedReq) {
+    return this.organizer.me(req.user.sub);
+  }
+
   @Get('events')
   events(@Req() req: AuthedReq) {
     return this.organizer.events(req.user.sub);

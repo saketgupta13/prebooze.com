@@ -9,9 +9,15 @@ export class CustomersService {
 
   /** "organizers" segment (mirroring prebooze-admin's Customer.segment) means
    * any elevated role, not literally just organizers — the mock's directory
-   * lumps every business account together as one non-"guests" bucket. */
+   * lumps every business account together as one non-"guests" bucket.
+   * `role` only flips from null on APPROVAL though — a pending or rejected
+   * role application must still count as non-guest here, otherwise every
+   * organizer/venue applicant sits in the Customers list looking like a
+   * regular guest (with a blank name, since they never went through guest
+   * profile completion) until someone gets around to reviewing them. */
   async list(segment?: 'guests' | 'organizers') {
-    const where = segment === 'guests' ? { role: null } : segment === 'organizers' ? { role: { not: null } } : {};
+    const isGuest = { role: null, roleStatus: null } as const;
+    const where = segment === 'guests' ? isGuest : segment === 'organizers' ? { NOT: isGuest } : {};
     const users = await this.prisma.user.findMany({ where, orderBy: { createdAt: 'desc' } });
     if (!users.length) return [];
 
@@ -36,7 +42,7 @@ export class CustomersService {
         bookings: s?._count.id ?? 0,
         spend: s?._sum.total ?? 0,
         status: u.blocked ? 'blocked' : u.idVerified ? 'active' : 'unverified',
-        segment: u.role ? 'organizers' : 'guests',
+        segment: u.role || u.roleStatus ? 'organizers' : 'guests',
       };
     });
   }

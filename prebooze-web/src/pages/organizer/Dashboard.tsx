@@ -1,30 +1,78 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useApp } from '../../store/AppContext';
-import { EVENTS, FEATURED_PRICING, fmtDate, venueById } from '../../data/mock';
+import { FEATURED_PRICING } from '../../data/mock';
 import PromoteCard from '../../components/PromoteCard';
+import { organizer, type OrgAttendee } from '../../api';
+import { ApiError } from '../../api/client';
+import type { Event, Organizer } from '../../types';
 
-const SALES = [42, 55, 38, 61, 74, 52, 68, 85, 62, 91, 78, 96, 84, 108];
+const fmtMoney = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN');
+const DAY_MS = 86400000;
 
+/** Real organizer dashboard — GET /organizer/me + /organizer/events +
+ * /organizer/payouts (the real earnings ledger), plus /organizer/events/:id/
+ * attendees for each live event to get real check-in/unique-customer counts.
+ * Every number here is derived from those responses; nothing is seeded or
+ * randomly generated. "Bookings" (not "tickets") is the honest unit for the
+ * 30-day/trend numbers — the ledger records one `sale` entry per booking,
+ * not per ticket, so claiming a ticket count there would be fabricated. */
 export default function Dashboard() {
-  const { myEvents, bookings } = useApp();
+  const [profile, setProfile] = useState<Organizer | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [ledger, setLedger] = useState<{ id: string; type: string; amount: number; eventId?: string; createdAt: string }[]>([]);
+  const [attendees, setAttendees] = useState<OrgAttendee[]>([]);
   const [topCity, setTopCity] = useState('All');
-  // Everything on this dashboard is scoped to THIS organizer (LiveWire) only
-  const orgEvents = [...myEvents, ...EVENTS.filter((e) => e.organizerId === 'livewire')];
-  const live = orgEvents.filter((e) => e.status === 'approved');
-  const orgEventIds = new Set(orgEvents.map((e) => e.id));
-  const orgBookings = bookings.filter((b) => orgEventIds.has(b.eventId));
-  const uniqueCustomers = new Set(orgBookings.map((b) => b.whatsapp)).size + 512;
-  const cities = ['All', ...new Set(live.map((e) => venueById(e.venueId)?.city).filter(Boolean) as string[])];
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    Promise.all([organizer.me(), organizer.events(), organizer.payouts()])
+      .then(async ([me, evs, pay]) => {
+        setProfile(me);
+        setEvents(evs);
+        setLedger(pay.ledger);
+        const live = evs.filter((e) => e.status === 'approved');
+        const perEvent = await Promise.all(live.map((e) => organizer.attendees(e.id).catch(() => [] as OrgAttendee[])));
+        setAttendees(perEvent.flat());
+      })
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load dashboard'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const live = events.filter((e) => e.status === 'approved');
+  const liveIds = new Set(live.map((e) => e.id));
+  const cities = ['All', ...new Set(live.map((e) => e.venue?.city).filter(Boolean) as string[])];
+
   const topPool = live
-    .map((e) => ({ ...e, soldTotal: e.tiers.reduce((a, t) => a + t.sold, 0), city: venueById(e.venueId)?.city ?? '' }))
+    .map((e) => ({ ...e, soldTotal: e.tiers.reduce((a, t) => a + t.sold, 0), city: e.venue?.city ?? '' }))
     .filter((e) => e.soldTotal > 0 && (topCity === 'All' || e.city === topCity))
     .sort((a, b) => b.soldTotal - a.soldTotal)
     .slice(0, 5);
   const maxTop = Math.max(...topPool.map((e) => e.soldTotal), 1);
+
   const capAll = live.reduce((a, e) => a + e.tiers.reduce((x, t) => x + t.quantity, 0), 0);
   const soldAll = live.reduce((a, e) => a + e.tiers.reduce((x, t) => x + t.sold, 0), 0);
-  const max = Math.max(...SALES);
+  const checkedIn = attendees.filter((a) => a.checkedIn).length;
+  const refundedCount = ledger.filter((t) => t.type === 'refund' && (!t.eventId || liveIds.has(t.eventId))).length;
+  const uniqueCustomers = new Set(attendees.map((a) => a.whatsapp)).size;
+
+  const cutoff30 = Date.now() - 30 * DAY_MS;
+  const recent = ledger.filter((t) => new Date(t.createdAt).getTime() >= cutoff30);
+  const bookings30d = recent.filter((t) => t.type === 'sale').length;
+  const revenue30d = recent.filter((t) => t.type === 'sale' || t.type === 'refund').reduce((a, t) => a + t.amount, 0);
+
+  const last14 = Array.from({ length: 14 }, (_, i) => {
+    const dayStart = Date.now() - (13 - i) * DAY_MS;
+    const d = new Date(dayStart);
+    d.setHours(0, 0, 0, 0);
+    const dayEnd = d.getTime() + DAY_MS;
+    return ledger.filter((t) => t.type === 'sale' && new Date(t.createdAt).getTime() >= d.getTime() && new Date(t.createdAt).getTime() < dayEnd).length;
+  });
+  const maxDay = Math.max(...last14, 1);
+
+  const upcoming = [...live].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 4);
+
+  if (loading) return <div className="muted">Loading…</div>;
 
   return (
     <div>
@@ -34,15 +82,16 @@ export default function Dashboard() {
           + Create event
         </Link>
       </div>
+      {err && <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)', marginBottom: 14 }}>{err}</div>}
 
       <div className="kpis" style={{ marginBottom: 14 }}>
         <div className="kpi">
-          <div className="l">Tickets sold (30d)</div>
-          <div className="v">1,284</div>
+          <div className="l">Bookings (30d)</div>
+          <div className="v">{bookings30d.toLocaleString()}</div>
         </div>
         <div className="kpi">
-          <div className="l">Revenue</div>
-          <div className="v">₹38.2k</div>
+          <div className="l">Revenue (30d)</div>
+          <div className="v">{fmtMoney(revenue30d)}</div>
         </div>
         <div className="kpi">
           <div className="l">Live events</div>
@@ -50,7 +99,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Your totals — scoped to this organizer only */}
       <div className="kpis" style={{ marginBottom: 18 }}>
         <div className="kpi">
           <div className="l">Your customers</div>
@@ -58,17 +106,18 @@ export default function Dashboard() {
         </div>
         <div className="kpi">
           <div className="l">Your events (all statuses)</div>
-          <div className="v">{orgEvents.length}</div>
+          <div className="v">{events.length}</div>
         </div>
         <div className="kpi">
-          <div className="l">Your bookings</div>
-          <div className="v">{(orgBookings.length + 1279).toLocaleString()}</div>
+          <div className="l">Total bookings (all-time)</div>
+          <div className="v">{ledger.filter((t) => t.type === 'sale').length.toLocaleString()}</div>
         </div>
       </div>
 
-      <PromoteCard type="organizer" refId="livewire" city="Austin" label="your brand" monthly={FEATURED_PRICING.organizerMonthly} />
+      {profile && (
+        <PromoteCard type="organizer" refId={profile.id} city={profile.city || 'All'} label="your brand" monthly={FEATURED_PRICING.organizerMonthly} />
+      )}
 
-      {/* Top selling events with city filter */}
       <div className="card" style={{ marginBottom: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
           <h3>Top selling events</h3>
@@ -97,7 +146,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Ticket statistics */}
       <div className="card" style={{ marginBottom: 18 }}>
         <h3 style={{ marginBottom: 4 }}>Ticket statistics</h3>
         <div className="tiny muted-2" style={{ marginBottom: 10 }}>
@@ -107,8 +155,8 @@ export default function Dashboard() {
           [
             ['Sold', soldAll, 'var(--accent)'],
             ['Available', Math.max(0, capAll - soldAll), 'rgba(155,225,61,.35)'],
-            ['Checked in', Math.round(soldAll * 0.42), '#8ab4f8'],
-            ['Refunded', Math.round(soldAll * 0.02), 'var(--danger)'],
+            ['Checked in', checkedIn, '#8ab4f8'],
+            ['Refunded', refundedCount, 'var(--danger)'],
           ] as [string, number, string][]
         ).map(([label, v, color]) => (
           <div key={label} style={{ marginBottom: 8 }}>
@@ -122,30 +170,32 @@ export default function Dashboard() {
           </div>
         ))}
         <div className="tiny muted-2">
-          sell-through {capAll ? Math.round((soldAll / capAll) * 100) : 0}% · check-in rate 42%
+          sell-through {capAll ? Math.round((soldAll / capAll) * 100) : 0}%
+          {soldAll ? ` · check-in rate ${Math.round((checkedIn / soldAll) * 100)}%` : ''}
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
-        <h3 style={{ marginBottom: 4 }}>Sales over time</h3>
-        <div className="muted tiny">last 14 days · tickets/day</div>
+        <h3 style={{ marginBottom: 4 }}>Bookings over time</h3>
+        <div className="muted tiny">last 14 days</div>
         <div className="chart">
-          {SALES.map((v, i) => (
-            <div key={i} className="col" style={{ height: `${(v / max) * 100}%` }} title={`${v} tickets`} />
+          {last14.map((v, i) => (
+            <div key={i} className="col" style={{ height: `${(v / maxDay) * 100}%` }} title={`${v} bookings`} />
           ))}
         </div>
       </div>
 
       <div className="card">
         <h3 style={{ marginBottom: 8 }}>Upcoming events</h3>
-        {live.slice(0, 4).map((e) => {
+        {upcoming.length === 0 && <div className="muted small">No live events yet.</div>}
+        {upcoming.map((e) => {
           const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
           const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
           return (
             <div key={e.id} className="evrow">
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="bold small">
-                  {e.title} <span className="muted">· {fmtDate(e.date)}</span>
+                  {e.title} <span className="muted">· {new Date(e.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
                   <div className="bar">
@@ -156,7 +206,7 @@ export default function Dashboard() {
                   </span>
                 </div>
               </div>
-              <Link to="/organizer/attendees" className="btn btn-ghost btn-sm">
+              <Link to={`/organizer/attendees?event=${e.id}`} className="btn btn-ghost btn-sm">
                 Attendees →
               </Link>
             </div>

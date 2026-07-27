@@ -54,7 +54,13 @@ export default function Otp() {
     try {
       const result = await loginWithOtp(digits.join(''));
       const from = (location.state as { from?: string } | null)?.from;
-      if (result === 'new') {
+      // Someone signing up specifically to become an organizer/venue partner
+      // shouldn't be funneled through guest profile completion + guest ID
+      // verification first — that's a different identity flow (their own
+      // onboarding form *is* the KYC submission) and shows a "Skip for now"
+      // escape hatch that has no business being in a required flow.
+      const skipsGuestFunnel = from === '/organizer/onboarding' || from === '/venue/onboarding';
+      if (result === 'new' && !skipsGuestFunnel) {
         navigate('/complete-profile', { state: { from } });
       } else {
         navigate(from ?? '/');

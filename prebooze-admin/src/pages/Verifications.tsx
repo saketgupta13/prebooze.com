@@ -4,6 +4,7 @@ import { Tag } from '../components/ui';
 import { liveKyc, resolveDocUrl, LiveApiError, type LiveKycApplication } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import { downloadFile } from '../lib/download';
 
 const TITLE = 'Verifications';
 const KIND_ICON: Record<string, string> = { organizer: '🧑‍💼', promoter: '📣', lineup: '🎤', venue: '📍' };
@@ -19,9 +20,9 @@ function DocumentModal({ doc, onClose }: { doc: { type: string; path: string }; 
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
         <img src={url} alt={doc.type} style={{ width: '100%', borderRadius: 8 }} />
-        <a href={url} download className="btn btn-pri btn-sm" style={{ marginTop: 10, display: 'inline-block' }}>
+        <button type="button" className="btn btn-pri btn-sm" style={{ marginTop: 10 }} onClick={() => downloadFile(url, `${doc.type}${url.slice(url.lastIndexOf('.'))}`)}>
           ⬇ Download
-        </a>
+        </button>
       </div>
     </div>
   );

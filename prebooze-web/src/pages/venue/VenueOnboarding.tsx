@@ -19,13 +19,19 @@ const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', '
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 const DRAFT_ID = 'venue';
+// license/addressProof deliberately excluded — they're full-size photo data
+// URLs, and persisting a couple of MB-sized images into localStorage risks
+// hitting the per-origin quota (~5-10MB total). When that write throws it
+// used to take the whole draft down with it, which is what made switching
+// steps look like it "forgot" the uploads. Photos now just live in React
+// state — fine across step 1 <-> step 2 within the same visit.
 type Draft = {
   name: string; vtype: string; loc: LocationValue; address: string; capacity: string;
-  amenities: string[]; timings: string; about: string; license: string; addressProof: string;
+  amenities: string[]; timings: string; about: string;
 };
 const emptyDraft: Draft = {
   name: '', vtype: VENUE_TYPES[0], loc: emptyLocation(), address: '', capacity: '',
-  amenities: [], timings: '', about: '', license: '', addressProof: '',
+  amenities: [], timings: '', about: '',
 };
 
 /** Venue-partner onboarding — same 2-step pattern as other roles:
@@ -45,15 +51,19 @@ export default function VenueOnboarding() {
   const [timings, setTimings] = useState(draft0.timings);
   const [about, setAbout] = useState(draft0.about);
 
-  const [license, setLicense] = useState(draft0.license);
-  const [addressProof, setAddressProof] = useState(draft0.addressProof);
+  const [license, setLicense] = useState('');
+  const [addressProof, setAddressProof] = useState('');
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    saveDraft(DRAFT_ID, { name, vtype, loc, address, capacity, amenities, timings, about, license, addressProof });
-  }, [name, vtype, loc, address, capacity, amenities, timings, about, license, addressProof]);
+    try {
+      saveDraft(DRAFT_ID, { name, vtype, loc, address, capacity, amenities, timings, about });
+    } catch {
+      // best-effort — a full localStorage quota shouldn't block onboarding itself
+    }
+  }, [name, vtype, loc, address, capacity, amenities, timings, about]);
 
   if (!user) return <Navigate to="/login" state={{ from: '/venue/onboarding' }} replace />;
   const otherRole = existingRole(user);
