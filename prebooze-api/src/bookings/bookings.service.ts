@@ -518,7 +518,14 @@ export class BookingsService {
     return booking;
   }
 
-  async checkIn(qrToken: string) {
+  /** `scannerUserId` is whoever is operating the scanner (the organizer's
+   * own JWT — same auth mechanism as a guest's, since an approved organizer
+   * is still just a User row with role='organizer'). Previously this had no
+   * ownership check at all: any authenticated JWT holder who got hold of a
+   * valid token could check in a booking on any organizer's event. Now it's
+   * scoped the same way every other gate-ops endpoint is (see
+   * OrganizerService.myEvent) — must be the organizer who owns the event. */
+  async checkIn(qrToken: string, scannerUserId: string) {
     let payload: { bookingId: string };
     try {
       payload = await this.jwt.verifyAsync(qrToken);
@@ -526,10 +533,15 @@ export class BookingsService {
       await this.logCheckIn({ ok: false, reason: 'invalid or expired QR' });
       throw new BadRequestException('Invalid or expired ticket QR');
     }
-    const booking = await this.prisma.booking.findUnique({ where: { id: payload.bookingId } });
+    const booking = await this.prisma.booking.findUnique({ where: { id: payload.bookingId }, include: { event: true } });
     if (!booking) {
       await this.logCheckIn({ ok: false, reason: 'invalid QR — booking not found' });
       throw new NotFoundException('Booking not found');
+    }
+    const scannerOrg = await this.prisma.organizer.findUnique({ where: { userId: scannerUserId } });
+    if (!scannerOrg || scannerOrg.id !== booking.event.organizerId) {
+      await this.logCheckIn({ ok: false, reason: 'scanned by an organizer who does not own this event', eventId: booking.eventId, bookingId: booking.id });
+      throw new ForbiddenException('This ticket is for a different event than the one you manage');
     }
     if (booking.status !== 'confirmed') {
       await this.logCheckIn({ ok: false, reason: `ticket is ${booking.status}, not valid for entry`, eventId: booking.eventId, bookingId: booking.id, guestName: booking.mainGuest, tierName: booking.tierName });

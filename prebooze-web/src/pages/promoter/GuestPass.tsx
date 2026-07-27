@@ -56,7 +56,7 @@ export default function GuestPass() {
                 {guest.name} · <span className="badge badge-accent">Free entry</span>
               </div>
 
-              <QRCode seed={`${guest.id}-${rotation}`} caption="rotates every 5s · screenshot-proof" />
+              <QRCode value={`${guest.id}-${rotation}`} caption="rotates every 5s · screenshot-proof" />
 
               {cutoff && (
                 <div

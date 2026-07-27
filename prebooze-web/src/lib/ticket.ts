@@ -1,36 +1,6 @@
+import QRCodeLib from 'qrcode';
 import type { Booking, Event, Venue } from '../types';
 import { fmtDate, fmtTime } from '../data/mock';
-
-/** Same proprietary salted pattern as the on-screen QRCode component —
- * only the Prebooze scanner can validate it, generic QR readers can't. */
-const SALT = 'PBZ1|';
-function qrCells(seed: string, n = 21): boolean[] {
-  const salted = SALT + seed;
-  let h = 2166136261;
-  for (let i = 0; i < salted.length; i++) {
-    h ^= salted.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  const rand = () => {
-    h ^= h << 13;
-    h ^= h >>> 17;
-    h ^= h << 5;
-    return (h >>> 0) / 4294967295;
-  };
-  const cells: boolean[] = [];
-  for (let i = 0; i < n * n; i++) cells.push(rand() > 0.58);
-  return cells;
-}
-
-const finder = (cx: number, cy: number, x: number, y: number): boolean | null => {
-  const dx = x - cx;
-  const dy = y - cy;
-  if (dx >= 0 && dx < 7 && dy >= 0 && dy < 7) {
-    const ring = Math.max(Math.abs(dx - 3), Math.abs(dy - 3));
-    return ring !== 2 && ring !== 3 ? true : ring === 3;
-  }
-  return null;
-};
 
 const loadLogo = (): Promise<HTMLImageElement | null> =>
   new Promise((resolve) => {
@@ -90,8 +60,11 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // QR block
-  const n = 21;
+  // QR block — real, standard QR encoding the booking's signed check-in
+  // token (booking.qrToken), high error-correction so the logo cutout below
+  // doesn't break decodability.
+  const qr = QRCodeLib.create(booking.qrToken || booking.id, { errorCorrectionLevel: 'H' });
+  const n = qr.modules.size;
   const qsize = 340;
   const cell = qsize / n;
   const qx = (W - qsize) / 2;
@@ -103,14 +76,11 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   ctx.lineWidth = 2;
   roundRect(ctx, qx - 18, qy - 18, qsize + 36, qsize + 36, 14);
   ctx.stroke();
-  const cells = qrCells(booking.id);
   ctx.fillStyle = '#9be13d';
-  for (let i = 0; i < n * n; i++) {
-    const x = i % n;
-    const y = Math.floor(i / n);
-    const f = finder(0, 0, x, y) ?? finder(n - 7, 0, x, y) ?? finder(0, n - 7, x, y);
-    const on = f !== null ? f : cells[i];
-    if (on) ctx.fillRect(qx + x * cell, qy + y * cell, cell + 0.5, cell + 0.5);
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      if (qr.modules.get(y, x)) ctx.fillRect(qx + x * cell, qy + y * cell, cell + 0.5, cell + 0.5);
+    }
   }
 
   // brand bunny in the QR centre on black
@@ -135,7 +105,7 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   ctx.fillStyle = '#7d8070';
   ctx.font = '600 12px Manrope, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('Prebooze code — scans only with the Prebooze scanner', W / 2, qy + qsize + 36);
+  ctx.fillText('Present this QR code at the gate for entry', W / 2, qy + qsize + 36);
   ctx.textAlign = 'left';
 
   // booking id + guest list + footer

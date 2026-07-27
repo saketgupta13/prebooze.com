@@ -163,7 +163,7 @@ export default function MyBookings() {
                 </div>
                 {selected.status === 'confirmed' && (
                   <div style={{ textAlign: 'center' }}>
-                    <QRCode seed={selected.id} caption={`valid for ${selected.qty} guest${selected.qty > 1 ? 's' : ''}`} />
+                    <QRCode value={selected.qrToken || selected.id} caption={`valid for ${selected.qty} guest${selected.qty > 1 ? 's' : ''}`} />
                     <div style={{ marginTop: 10 }}>
                       <button className="btn btn-pri btn-sm" onClick={() => downloadTicket(selected, event, venue)}>
                         ⬇ Download ticket

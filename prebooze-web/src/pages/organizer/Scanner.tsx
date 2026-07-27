@@ -1,22 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { organizer, promoter, type OrgAttendee, type OrgPromoterGuest } from '../../api';
+import { bookings, organizer, promoter, type OrgAttendee, type OrgPromoterGuest } from '../../api';
 import { ApiError } from '../../api/client';
-import type { Event } from '../../types';
+import type { Booking, Event } from '../../types';
+import CameraQRScanner from '../../components/CameraQRScanner';
 
 type ScanState =
   | { mode: 'idle' }
+  | { mode: 'checked-in'; booking: Booking }
   | { mode: 'valid-booking'; row: OrgAttendee }
   | { mode: 'valid-promoter'; row: OrgPromoterGuest }
   | { mode: 'invalid'; reason: string };
 
-/** Real gate check-in — no live QR camera scanning yet (the ticket's on-screen
- * "QR" is decorative noise keyed off the booking id, not a real scannable
- * code — see lib/ticket.ts; making that real is a guest-facing change,
- * tracked separately). What *is* fully real here: looking a guest up by
- * booking # or name against this event's actual attendees/promoter-guests,
- * and checking them in via POST /organizer/events/:id/check-in or the real
- * promoter check-in endpoint. */
+/** Real gate check-in — camera scan decodes the guest's real signed-JWT QR
+ * (via jsQR) and checks it in atomically through POST /bookings/check-in,
+ * which now verifies the scanning organizer actually owns the ticket's
+ * event (see the ownership-check comment on BookingsService.checkIn — that
+ * was a real gap before this). Manual entry (booking #/name/promoter pass)
+ * stays as a fallback for when the camera isn't practical. */
 export default function Scanner() {
   const [events, setEvents] = useState<Event[]>([]);
   const [eventId, setEventId] = useState('');
@@ -25,8 +26,8 @@ export default function Scanner() {
   const [loading, setLoading] = useState(true);
   const [state, setState] = useState<ScanState>({ mode: 'idle' });
   const [manual, setManual] = useState('');
-  const [count, setCount] = useState(1);
   const [busy, setBusy] = useState(false);
+  const [useCamera, setUseCamera] = useState(true);
 
   useEffect(() => {
     organizer
@@ -51,6 +52,20 @@ export default function Scanner() {
 
   const event = events.find((e) => e.id === eventId);
 
+  const onQrScanned = async (token: string) => {
+    if (busy || state.mode !== 'idle') return;
+    setBusy(true);
+    try {
+      const updated = await bookings.checkIn(token);
+      setState({ mode: 'checked-in', booking: updated });
+      load();
+    } catch (e) {
+      setState({ mode: 'invalid', reason: e instanceof ApiError ? e.message : 'Check-in failed' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const lookup = (raw: string) => {
     const q = raw.trim().toLowerCase();
     if (!q) return;
@@ -64,14 +79,13 @@ export default function Scanner() {
     if (!row) return setState({ mode: 'invalid', reason: 'Not found — booking number or guest name unknown' });
     if (row.bookingStatus !== 'confirmed') return setState({ mode: 'invalid', reason: `Booking is ${row.bookingStatus}, not valid for entry` });
     if (row.checkedIn) return setState({ mode: 'invalid', reason: 'Already checked in' });
-    setCount(1);
     setState({ mode: 'valid-booking', row });
   };
 
   const confirmBooking = async (row: OrgAttendee) => {
     setBusy(true);
     try {
-      await organizer.manualCheckIn(eventId, row.bookingId.replace('#', ''), count);
+      await organizer.manualCheckIn(eventId, row.bookingId.replace('#', ''), 1);
       setState({ mode: 'idle' });
       setManual('');
       load();
@@ -101,6 +115,26 @@ export default function Scanner() {
 
   if (!loading && events.length === 0) {
     return <div className="muted small">No live events yet — the scanner works once an event is approved.</div>;
+  }
+
+  if (state.mode === 'checked-in') {
+    const b = state.booking;
+    return (
+      <div className="scanner card-shadow">
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <div className="confirm-tick">✓</div>
+          <h2>Checked in</h2>
+          <div style={{ textAlign: 'left', margin: '18px 0' }}>
+            <div className="kv"><span className="k">Booking</span><span className="bold">{b.id}</span></div>
+            <div className="kv"><span className="k">Guest</span><span>{b.mainGuest}</span></div>
+            <div className="kv"><span className="k">Tickets</span><span>{b.tierName} · {b.qty}</span></div>
+          </div>
+          <button className="btn btn-pri btn-block btn-lg" onClick={() => setState({ mode: 'idle' })}>
+            Scan next →
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (state.mode === 'valid-promoter') {
@@ -156,7 +190,7 @@ export default function Scanner() {
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}>✕</div>
-          <h2 className="danger-text">Not found</h2>
+          <h2 className="danger-text">Not valid</h2>
           <p className="muted small" style={{ margin: '10px 0 20px' }}>{state.reason}</p>
           <button className="btn btn-pri btn-block" onClick={() => setState({ mode: 'idle' })}>Try again</button>
         </div>
@@ -174,24 +208,37 @@ export default function Scanner() {
       </div>
 
       <div style={{ padding: 16 }}>
-        <form
-          className="form-row"
-          onSubmit={(e) => { e.preventDefault(); lookup(manual); }}
-        >
-          <input
-            placeholder="Enter booking #, guest name, or promoter pass"
-            value={manual}
-            onChange={(e) => setManual(e.target.value)}
-            autoFocus
-          />
-          <button className="btn btn-pri" style={{ flex: '0 0 auto' }}>Find</button>
-        </form>
+        {useCamera ? (
+          <>
+            <CameraQRScanner onScan={onQrScanned} active={state.mode === 'idle' && !busy} />
+            <button className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 10 }} onClick={() => setUseCamera(false)}>
+              ⌨ Switch to manual entry
+            </button>
+          </>
+        ) : (
+          <>
+            <form className="form-row" onSubmit={(e) => { e.preventDefault(); lookup(manual); }}>
+              <input
+                placeholder="Enter booking #, guest name, or promoter pass"
+                value={manual}
+                onChange={(e) => setManual(e.target.value)}
+                autoFocus
+              />
+              <button className="btn btn-pri" style={{ flex: '0 0 auto' }}>Find</button>
+            </form>
+            <button className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 10 }} onClick={() => setUseCamera(true)}>
+              📷 Switch to camera scan
+            </button>
+          </>
+        )}
         <div className="small muted center" style={{ marginTop: 12 }}>
           {loading ? 'Loading…' : `✓ ${checkedInTotal} checked in · ${total} total`}
         </div>
-        <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-          camera QR scanning isn't available yet — tickets don't have a real scannable code to read (see the note in this file). Manual entry is fully real.
-        </div>
+        {useCamera && (
+          <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
+            camera scans check in instantly · promoter free-entry passes still need manual entry (their QR isn't ticket-linked)
+          </div>
+        )}
       </div>
     </div>
   );

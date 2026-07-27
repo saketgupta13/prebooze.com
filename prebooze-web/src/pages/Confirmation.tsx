@@ -79,7 +79,7 @@ export default function Confirmation() {
             <span className="badge badge-ok">Confirmed ✓</span>
           </div>
           <QRCode
-            seed={booking.id}
+            value={booking.qrToken || booking.id}
             caption={`Scan at entry — valid for ${booking.qty} guest${booking.qty > 1 ? 's' : ''}`}
           />
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
