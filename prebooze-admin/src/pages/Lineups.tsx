@@ -7,6 +7,7 @@ import SeoFields, { emptySeo } from '../components/SeoFields';
 import { liveLineups, LiveApiError, type LiveLineup } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import PlansAndSubscribers from '../components/PlansAndSubscribers';
 import type { Seo } from '../types';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
@@ -97,6 +98,8 @@ export function Lineups() {
       <div className="tiny hint">
         line-ups appear as chips on event pages and as followable profiles on the guest site · click a row to edit
       </div>
+
+      <PlansAndSubscribers role="lineup" roleLabel="Line-up" />
     </div>
   );
 }

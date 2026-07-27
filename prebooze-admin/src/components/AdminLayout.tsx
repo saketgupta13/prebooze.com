@@ -60,7 +60,6 @@ const MOBILE_NAV = [
 const EXTRA_NAV = [
   { to: '/staff', icon: '🧑‍💻', label: 'Staff & roles' },
   { to: '/email-templates', icon: '✉️', label: 'Email templates' },
-  { to: '/subscription-plans', icon: '💳', label: 'Subscription plans (live)' },
   { to: '/settings', icon: '⚙', label: 'Settings' },
   { to: '/profile', icon: '👤', label: 'Profile' },
 ];
@@ -202,10 +201,6 @@ export default function AdminLayout() {
           <NavLink to="/email-templates" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
             <span>✉️</span>
             <span>Email templates</span>
-          </NavLink>
-          <NavLink to="/subscription-plans" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
-            <span>💳</span>
-            <span>Subscription plans (live)</span>
           </NavLink>
           <NavLink to="/settings" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
             <span>⚙</span>

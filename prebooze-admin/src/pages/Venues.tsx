@@ -9,6 +9,7 @@ import WysiwygEditor from '../components/WysiwygEditor';
 import { liveVenues, liveEvents, LiveApiError, type LiveVenue, type LiveEvent } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import PlansAndSubscribers from '../components/PlansAndSubscribers';
 import type { Seo } from '../types';
 
 /** Chip-based amenities editor with presets + custom add. */
@@ -132,6 +133,8 @@ export function Venues() {
         {list.length === 0 && !loading && <div className="trow muted">No venues match.</div>}
       </div>
       <div className="tiny hint">venue detail: address + map pin, photos, license docs, contact person, house rules</div>
+
+      <PlansAndSubscribers role="venue" roleLabel="Venue" />
     </div>
   );
 }

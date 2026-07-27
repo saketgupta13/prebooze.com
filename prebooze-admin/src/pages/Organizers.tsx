@@ -4,6 +4,7 @@ import { CityFilterDropdown, Tag } from '../components/ui';
 import { liveOrganizers, LiveApiError, type LiveOrganizer } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import PlansAndSubscribers from '../components/PlansAndSubscribers';
 
 const TITLE = 'Organizers';
 
@@ -88,6 +89,8 @@ export default function Organizers() {
       <div className="tiny hint">
         pending organizer applications are reviewed under Verifications · click a row to open its detail page
       </div>
+
+      <PlansAndSubscribers role="organizer" roleLabel="Organizer" />
     </div>
   );
 }

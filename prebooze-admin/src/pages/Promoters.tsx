@@ -5,6 +5,7 @@ import { CityFilterDropdown, GradientPhoto, SearchBox, Tag } from '../components
 import { livePromoters, LiveApiError, type LivePromoter } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import PlansAndSubscribers from '../components/PlansAndSubscribers';
 
 const TITLE = 'Promoters';
 
@@ -65,7 +66,6 @@ export function Promoters() {
       <div className="page-hd">
         <h1 className="page-title">Promoters</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Link to="/promoters/tiers" className="btn btn-ghost btn-sm">Subscription tiers</Link>
           <Link to="/promoters/new" className="btn btn-pri btn-sm">+ Add promoter</Link>
         </div>
       </div>
@@ -135,6 +135,8 @@ export function Promoters() {
       <div className="tiny hint">
         pending promoter applications are reviewed under Verifications · organizers still choose which promoters to allow per event · click a row for detail
       </div>
+
+      <PlansAndSubscribers role="promoter" roleLabel="Promoter" />
     </div>
   );
 }
@@ -202,20 +204,6 @@ export function PromoterDetail() {
         <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>Account</div>
         <div className="kv"><span className="k">Verification</span><span className={p.verified ? 'green' : 'muted'}>{p.verified ? 'verified' : 'unverified'}</span></div>
         <div className="kv"><span className="k">Subscription plan</span><span>{p.planId}</span></div>
-      </div>
-    </div>
-  );
-}
-
-export function PromoterTiers() {
-  return (
-    <div className="stack fade" style={{ maxWidth: 700 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/promoters" style={{ fontSize: 13 }}>← Promoters</Link>
-        <h1 className="page-title">Subscription tiers</h1>
-      </div>
-      <div className="tiny hint">
-        subscription plan pricing is managed under <Link to="/subscription-plans">Subscription plans</Link>, the same real plans a promoter subscribes to in their own app.
       </div>
     </div>
   );
