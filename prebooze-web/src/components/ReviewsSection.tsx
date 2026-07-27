@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { SEED_REVIEWS } from '../data/mock';
-import { socialReviews, type OrgReview } from '../api';
+import { socialReviews, type OrgReview, type VenueReview } from '../api';
 import { isBackendEnabled, ApiError } from '../api/client';
 import type { ReviewTargetType } from '../types';
 import Stars from './Stars';
 
 /** Guest-facing rating + review list + write-a-review form, shared by every
  * reviewable role (organizer/promoter/venue/lineup) — guests are never
- * reviewable, there's no fifth usage of this component. Organizer reviews
- * are real (GET/POST /organizers/:id/reviews, OrgReview model) — promoter/
- * venue/lineup have no equivalent backend yet, so those three stay on the
- * local mock (AppContext.addReview) same as before. */
+ * reviewable, there's no fifth usage of this component. Organizer and venue
+ * reviews are real (GET/POST /organizers|venues/:id/reviews, OrgReview/
+ * VenueReview models) — promoter/lineup have no equivalent backend yet, so
+ * those two stay on the local mock (AppContext.addReview). */
 export default function ReviewsSection({
   targetType,
   targetId,
@@ -22,14 +22,15 @@ export default function ReviewsSection({
   prompt: string;
 }) {
   const { user, reviews, addReview, toast } = useApp();
-  const isRealTarget = targetType === 'organizer' && isBackendEnabled();
+  const isRealTarget = (targetType === 'organizer' || targetType === 'venue') && isBackendEnabled();
 
-  const [liveReviews, setLiveReviews] = useState<OrgReview[] | null>(null);
+  const [liveReviews, setLiveReviews] = useState<(OrgReview | VenueReview)[] | null>(null);
   const [posting, setPosting] = useState(false);
   useEffect(() => {
     if (!isRealTarget) return;
-    socialReviews.organizer(targetId).then(setLiveReviews).catch(() => setLiveReviews([]));
-  }, [isRealTarget, targetId]);
+    const fetcher = targetType === 'venue' ? socialReviews.venue : socialReviews.organizer;
+    fetcher(targetId).then(setLiveReviews).catch(() => setLiveReviews([]));
+  }, [isRealTarget, targetType, targetId]);
 
   const key = `${targetType}:${targetId}`;
   const seedMine = SEED_REVIEWS.filter((r) => r.targetType === targetType && r.targetId === targetId);
@@ -48,7 +49,9 @@ export default function ReviewsSection({
     }
     setPosting(true);
     try {
-      const created = await socialReviews.addOrganizerReview(targetId, rating, text);
+      const created = targetType === 'venue'
+        ? await socialReviews.addVenueReview(targetId, rating, text)
+        : await socialReviews.addOrganizerReview(targetId, rating, text);
       setLiveReviews((prev) => [created, ...(prev ?? [])]);
       toast('Review posted ✓');
     } catch (e) {

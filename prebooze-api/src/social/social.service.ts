@@ -185,4 +185,46 @@ export class SocialService {
       date: formatReviewDate(row.createdAt),
     };
   }
+
+  // ---- venue reviews ----
+  // Same real backing as organizer reviews above — ReviewsSection.tsx's own
+  // doc comment used to say venue/promoter/lineup "have no equivalent
+  // backend yet" and stayed on local mock state; venue now does.
+  async venueReviews(venueId: string) {
+    const rows = await this.prisma.venueReview.findMany({
+      where: { venueId },
+      orderBy: { createdAt: 'desc' },
+      include: { user: true },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      author: r.user.name || 'Guest',
+      rating: r.rating,
+      text: r.text,
+      venueId: r.venueId,
+      date: formatReviewDate(r.createdAt),
+    }));
+  }
+
+  async addVenueReview(userId: string, venueId: string, rating: number, text: string) {
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new BadRequestException('rating must be 1-5');
+    if (!text?.trim()) throw new BadRequestException('text is required');
+    const row = await this.prisma.venueReview.create({ data: { userId, venueId, rating, text } });
+
+    const agg = await this.prisma.venueReview.aggregate({ where: { venueId }, _avg: { rating: true }, _count: true });
+    await this.prisma.venue.update({
+      where: { id: venueId },
+      data: { rating: Math.round((agg._avg.rating ?? 0) * 10) / 10, reviewCount: agg._count },
+    });
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    return {
+      id: row.id,
+      author: user?.name || 'Guest',
+      rating,
+      text,
+      venueId,
+      date: formatReviewDate(row.createdAt),
+    };
+  }
 }

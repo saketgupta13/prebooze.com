@@ -85,6 +85,7 @@ export interface Venue {
   address: string;
   capacity: number;
   rating: number;
+  reviewCount?: number; // real, aggregated from VenueReview — absent on offline-mode mock seed data
   followers: number;
   amenities: string[];
   about: string;

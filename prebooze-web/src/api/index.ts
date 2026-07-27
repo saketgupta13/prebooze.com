@@ -61,7 +61,7 @@ export const catalog = {
   trending: () => apiFetch<string[]>('/search/trending'),
 };
 
-// ---------- real organizer reviews (guest-facing) ----------
+// ---------- real organizer/venue reviews (guest-facing) ----------
 export interface OrgReview {
   id: string;
   author: string;
@@ -70,9 +70,19 @@ export interface OrgReview {
   organizerId: string;
   date: string;
 }
+export interface VenueReview {
+  id: string;
+  author: string;
+  rating: number;
+  text: string;
+  venueId: string;
+  date: string;
+}
 export const socialReviews = {
   organizer: (id: string) => apiFetch<OrgReview[]>(`/organizers/${id}/reviews`),
   addOrganizerReview: (id: string, rating: number, text: string) => apiFetch<OrgReview>(`/organizers/${id}/reviews`, { body: { rating, text } }),
+  venue: (id: string) => apiFetch<VenueReview[]>(`/venues/${id}/reviews`),
+  addVenueReview: (id: string, rating: number, text: string) => apiFetch<VenueReview>(`/venues/${id}/reviews`, { body: { rating, text } }),
 };
 
 // ---------- bookings, holds, waitlist ----------
@@ -410,7 +420,7 @@ export const venuePartner = {
     return apiUpload<{ url: string }>('/venue/upload', form);
   },
   onboard: (v: Partial<Venue> & { licenseDoc?: string; addressProofDoc?: string }) => apiFetch<Venue>('/venue/onboard', { body: v }),
-  myListing: () => apiFetch<Venue>('/venue/listing'),
+  myListing: () => apiFetch<Venue & { favourites: number }>('/venue/listing'),
   updateListing: (patch: Partial<Venue>) => apiFetch<Venue>('/venue/listing', { method: 'PATCH', body: patch }),
   events: () => apiFetch<Event[]>('/venue/events'),
   subscription: subscriptionApi('venue'),

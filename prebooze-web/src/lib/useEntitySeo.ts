@@ -12,11 +12,12 @@ const FETCH: Record<EntityKind, (id: string) => Promise<EntitySeo>> = {
   lineup: catalog.lineupSeo,
 };
 
-/** Organizer/Venue/Promoter/Lineup profile pages are still mock-data pages
- * (see prebooze-web architecture notes) — their id/slug rarely matches a
- * real backend row, so this quietly returns null (useSeo then falls back to
- * fallbackTitle, exactly as if no override existed) unless the viewed
- * entity genuinely exists in the live PlatformSettings-backed directory. */
+/** Falls back to the mock catalog in offline/dev mode (no backend configured)
+ * — an id/slug from that seed data won't match any real backend row, so
+ * this quietly returns null (useSeo then falls back to fallbackTitle,
+ * exactly as if no override existed) rather than erroring. Against a real
+ * backend, Organizer/Venue/Promoter/Lineup profile pages are live and this
+ * resolves for real. */
 export function useEntitySeo(kind: EntityKind, id: string | undefined): EntitySeo | null {
   const [seo, setSeo] = useState<EntitySeo | null>(null);
   useEffect(() => {

@@ -6,14 +6,12 @@ import { money } from '../notifications/email-templates';
 import { InvoicesService } from '../invoices/invoices.service';
 import { RazorpayService } from '../payments/razorpay.service';
 
-/** Mirrors prebooze-web's FEATURED_PRICING (src/data/mock.ts). The typed
- * frontend contract (src/api/index.ts featured.rates()) omits venueMonthly
- * even though Featured.type includes 'venue' and the mock pricing table has
- * it — included here anyway since a venue partner requesting featured
- * placement needs a real rate, not a gap. Used only as the seed default now
- * — real rates live on PlatformSettings, admin-editable (Admin API
- * "featured rates" slice — this was flagged in this file's own comment as
- * "separate Admin API work" and left a hardcoded constant until now). */
+/** Mirrors prebooze-web's FEATURED_PRICING (src/data/mock.ts), including
+ * venueMonthly (the frontend contract, src/api/index.ts featured.rates(),
+ * already includes it too). Used only as the seed default now — real rates
+ * live on PlatformSettings, admin-editable (Admin API "featured rates"
+ * slice — this was flagged in this file's own comment as "separate Admin
+ * API work" and left a hardcoded constant until now). */
 const FALLBACK_RATES = { perEvent: 2000, organizerMonthly: 4999, promoterMonthly: 2999, lineupMonthly: 1999, venueMonthly: 3999 };
 
 type FeaturedType = 'event' | 'organizer' | 'promoter' | 'lineup' | 'venue';

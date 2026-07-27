@@ -110,6 +110,7 @@ export class VenueService {
         about: input.about.trim(),
         timings: input.timings,
         photoHue: h,
+        userId,
       },
     });
 
@@ -131,8 +132,14 @@ export class VenueService {
     return venue;
   }
 
+  /** `favourites` is computed here, not stored — VenueFavourite rows exist
+   * (guests can favourite a venue) but nothing ever aggregated them onto a
+   * field the dashboard could read; VenueDashboard.tsx's "Followers &
+   * favourites" stat was silently only ever showing the Follow-table count. */
   async myListing(userId: string) {
-    return this.myVenue(userId);
+    const venue = await this.myVenue(userId);
+    const favourites = await this.prisma.venueFavourite.count({ where: { venueId: venue.id } });
+    return { ...venue, favourites };
   }
 
   /** City changes are admin-gated — everything else an owner can edit freely. */

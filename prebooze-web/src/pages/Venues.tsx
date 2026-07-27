@@ -77,7 +77,7 @@ export default function Venues() {
                 >
                   {fav ? '❤️' : '🤍'}
                 </button>
-                <Poster hue={v.photoHue} emoji="🏛" label="venue photo" variant="landscape" />
+                <Poster hue={v.photoHue} emoji="🏛" label={v.galleryUrls?.[0] ? undefined : 'venue photo'} imageUrl={v.galleryUrls?.[0]} variant="landscape" />
                 <div>
                   <h3>
                     {v.name} {v.verified && <span className="verified">✓</span>}

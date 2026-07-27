@@ -229,10 +229,15 @@ export class SubscriptionsService {
       const u = await this.prisma.user.findUnique({ where: { id: l.userId } });
       return u?.email ? { email: u.email, name: l.name } : null;
     }
-    // venue: no Venue.userId FK — linked in the reverse direction (User.venueId)
-    const u = await this.prisma.user.findFirst({ where: { venueId: entityId } });
+    // venue: Venue.userId is only populated for venues onboarded after that
+    // field was added — fall back to the reverse User.venueId scalar
+    // (a findFirst, not findUnique — the pre-existing workaround) for any
+    // venue onboarded before then.
+    const v = await this.prisma.venue.findUnique({ where: { id: entityId }, select: { userId: true, name: true } });
+    const u = v?.userId
+      ? await this.prisma.user.findUnique({ where: { id: v.userId } })
+      : await this.prisma.user.findFirst({ where: { venueId: entityId } });
     if (!u?.email) return null;
-    const v = await this.prisma.venue.findUnique({ where: { id: entityId }, select: { name: true } });
     return { email: u.email, name: v?.name ?? u.name };
   }
 

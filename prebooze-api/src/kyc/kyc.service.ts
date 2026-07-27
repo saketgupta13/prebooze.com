@@ -53,6 +53,13 @@ export class KycService {
   // ---------- elevated roles: manual only ----------
   async submitRole(userId: string, kind: RoleKind, payload: Record<string, unknown>, files: Express.Multer.File[]) {
     if (!ROLE_KINDS.includes(kind)) throw new BadRequestException('Unknown role');
+    // Venue has its own dedicated submission path (POST /venue/onboard),
+    // which actually creates the Venue catalog row and requires the
+    // license/address-proof documents this generic endpoint doesn't
+    // validate. Blocking it here closes a real gap: this endpoint would
+    // otherwise happily set User.venueId to any client-supplied string with
+    // no corresponding Venue row and no ownership check at all.
+    if (kind === 'venue') throw new BadRequestException('Venue applications go through POST /venue/onboard');
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new BadRequestException();
     if (user.role) {
@@ -99,7 +106,7 @@ export class KycService {
     if (kind === 'organizer') Object.assign(profilePatch, { orgBrand: payload.brand, orgUsername: payload.username });
     if (kind === 'promoter') Object.assign(profilePatch, { promoterBrand: payload.brand, promoterUsername: payload.username });
     if (kind === 'lineup') Object.assign(profilePatch, { lineupName: payload.name, lineupCategory: payload.category, lineupUsername: payload.username });
-    if (kind === 'venue') Object.assign(profilePatch, { venueName: payload.name, venueId: payload.venueId });
+    // no venue case here — kind === 'venue' is rejected above, before this point
 
     const updated = await this.prisma.user.update({ where: { id: userId }, data: profilePatch });
     return { status: 'pending', user: toApiUser(updated) };

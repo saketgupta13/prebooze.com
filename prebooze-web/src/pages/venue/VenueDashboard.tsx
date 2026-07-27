@@ -8,7 +8,7 @@ import type { Event, Venue } from '../../types';
 
 /** Real venue overview — GET /venue/listing + GET /venue/events. */
 export default function VenueDashboard() {
-  const [venue, setVenue] = useState<Venue | null>(null);
+  const [venue, setVenue] = useState<(Venue & { favourites: number }) | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -61,7 +61,7 @@ export default function VenueDashboard() {
           <div className="tiny muted">Events hosted</div>
         </div>
         <div className="card center">
-          <div style={{ fontSize: 26, fontWeight: 800 }}>{venue.followers}</div>
+          <div style={{ fontSize: 26, fontWeight: 800 }}>{venue.followers + venue.favourites}</div>
           <div className="tiny muted">Followers & favourites</div>
         </div>
       </div>

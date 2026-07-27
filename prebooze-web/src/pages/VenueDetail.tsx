@@ -59,7 +59,7 @@ export default function VenueDetail() {
       <div className="container">
         {(() => {
           const labels = ['main hall', 'stage', 'bar', 'entry', 'crowd', 'terrace'];
-          return <VenueSlider hue={venue.photoHue} labels={labels} />;
+          return <VenueSlider hue={venue.photoHue} labels={labels} galleryUrls={venue.galleryUrls} />;
         })()}
 
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', margin: '22px 0', flexWrap: 'wrap' }}>
@@ -103,8 +103,8 @@ export default function VenueDetail() {
             <div className="l">capacity</div>
           </div>
           <div className="s">
-            <div className="v">★ {venue.rating}</div>
-            <div className="l">rating</div>
+            <div className="v">{venue.reviewCount ? `★ ${venue.rating.toFixed(1)}` : '—'}</div>
+            <div className="l">{venue.reviewCount ? `${venue.reviewCount} review${venue.reviewCount === 1 ? '' : 's'}` : 'no reviews yet'}</div>
           </div>
         </div>
 
@@ -172,16 +172,23 @@ export default function VenueDetail() {
 }
 
 
-/** Image slider cycling all venue photos with ‹ › controls and dots. */
-function VenueSlider({ hue, labels }: { hue: number; labels: string[] }) {
+/** Image slider cycling the venue's own uploaded gallery photos when it has
+ * any (VenueListing.tsx's real upload, up to 6 — previously captured and
+ * stored but never actually rendered anywhere guest-facing); falls back to
+ * the hue-gradient placeholder + generic labels for a venue that hasn't
+ * uploaded photos yet. */
+function VenueSlider({ hue, labels, galleryUrls }: { hue: number; labels: string[]; galleryUrls?: string[] }) {
+  const photos = galleryUrls?.length ? galleryUrls : undefined;
+  const count = photos?.length ?? labels.length;
   const [idx, setIdx] = useState(0);
-  const go = (d: number) => setIdx((i) => (i + d + labels.length) % labels.length);
+  const go = (d: number) => setIdx((i) => (i + d + count) % count);
   return (
     <div style={{ position: 'relative' }}>
       <Poster
         hue={(hue + idx * 40) % 360}
         emoji="🏛"
-        label={`${labels[idx]} · photo ${idx + 1} of ${labels.length}`}
+        label={photos ? undefined : `${labels[idx]} · photo ${idx + 1} of ${labels.length}`}
+        imageUrl={photos?.[idx]}
         variant="landscape"
       />
       <button className="btn btn-ghost btn-sm" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(26,28,23,.75)' }} onClick={() => go(-1)}>
@@ -191,7 +198,7 @@ function VenueSlider({ hue, labels }: { hue: number; labels: string[] }) {
         ›
       </button>
       <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6 }}>
-        {labels.map((_, i) => (
+        {Array.from({ length: count }).map((_, i) => (
           <button
             key={i}
             aria-label={`photo ${i + 1}`}

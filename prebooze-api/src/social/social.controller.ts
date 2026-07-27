@@ -83,4 +83,20 @@ export class SocialController {
   ) {
     return this.social.addReview(req.user.sub, id, rating, text);
   }
+
+  @Get('venues/:id/reviews')
+  venueReviews(@Param('id') id: string) {
+    return this.social.venueReviews(id);
+  }
+
+  @Post('venues/:id/reviews')
+  @UseGuards(JwtAuthGuard)
+  addVenueReview(
+    @Req() req: AuthedReq,
+    @Param('id') id: string,
+    @Body('rating') rating: number,
+    @Body('text') text: string,
+  ) {
+    return this.social.addVenueReview(req.user.sub, id, rating, text);
+  }
 }
