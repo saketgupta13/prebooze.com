@@ -1,37 +1,54 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useApp } from '../../store/AppContext';
-import { EVENTS, FEATURED_PRICING, VENUES, fmtDate, fmtTime } from '../../data/mock';
+import { FEATURED_PRICING, fmtDate, fmtTime } from '../../data/mock';
 import PromoteCard from '../../components/PromoteCard';
+import { venuePartner } from '../../api';
+import { ApiError } from '../../api/client';
+import type { Event, Venue } from '../../types';
 
-/** Venue overview — verification status, listing health and events at a glance. */
+/** Real venue overview — GET /venue/listing + GET /venue/events. */
 export default function VenueDashboard() {
-  const { user, myEvents } = useApp();
-  const venue = VENUES.find((v) => v.id === user?.venueId);
+  const [venue, setVenue] = useState<Venue | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
 
-  const here = [...EVENTS, ...myEvents].filter((e) => e.venueId === user?.venueId && e.status === 'approved');
+  useEffect(() => {
+    Promise.all([venuePartner.myListing(), venuePartner.events()])
+      .then(([v, evs]) => {
+        setVenue(v);
+        setEvents(evs);
+      })
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load dashboard'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="muted">Loading…</div>;
+  if (err || !venue) return <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>{err || 'Listing not found'}</div>;
+
   const now = Date.now();
-  const upcoming = here.filter((e) => new Date(e.date).getTime() >= now).sort((a, b) => a.date.localeCompare(b.date));
-  const past = here.filter((e) => new Date(e.date).getTime() < now);
+  const upcoming = events.filter((e) => new Date(e.date).getTime() >= now).sort((a, b) => a.date.localeCompare(b.date));
+  const past = events.filter((e) => new Date(e.date).getTime() < now);
 
   const checklist = [
-    { t: 'Listing details complete', done: Boolean(venue?.about && venue.capacity > 0) },
-    { t: 'Amenities added', done: (venue?.amenities.length ?? 0) > 0 },
-    { t: 'Verification', done: Boolean(venue?.verified) },
-    { t: 'First event hosted', done: here.length > 0 },
+    { t: 'Listing details complete', done: Boolean(venue.about && venue.capacity > 0) },
+    { t: 'Amenities added', done: venue.amenities.length > 0 },
+    { t: 'Verification', done: venue.verified },
+    { t: 'First event hosted', done: events.length > 0 },
   ];
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
-        <h1 style={{ fontSize: 24 }}>{venue?.name ?? user?.venueName ?? 'Your venue'} 🏛</h1>
-        {venue?.verified ? (
+        <h1 style={{ fontSize: 24 }}>{venue.name} 🏛</h1>
+        {venue.verified ? (
           <span className="badge badge-ok">Verified ✓</span>
         ) : (
           <span className="badge badge-pending">Pending review ◌ · ~24h</span>
         )}
       </div>
       <p className="muted small" style={{ margin: '4px 0 18px' }}>
-        {venue ? `${venue.type} · ${venue.city} · capacity ${venue.capacity}` : 'Complete your listing to appear in the directory.'}
+        {venue.type} · {venue.city} · capacity {venue.capacity}
       </p>
 
       <div className="grid-3" style={{ marginBottom: 18 }}>
@@ -44,14 +61,12 @@ export default function VenueDashboard() {
           <div className="tiny muted">Events hosted</div>
         </div>
         <div className="card center">
-          <div style={{ fontSize: 26, fontWeight: 800 }}>{venue?.followers ?? 0}</div>
+          <div style={{ fontSize: 26, fontWeight: 800 }}>{venue.followers}</div>
           <div className="tiny muted">Followers & favourites</div>
         </div>
       </div>
 
-      {venue && (
-        <PromoteCard type="venue" refId={venue.id} city={venue.city} label="your venue" monthly={FEATURED_PRICING.venueMonthly} />
-      )}
+      <PromoteCard type="venue" refId={venue.id} city={venue.city} label="your venue" monthly={FEATURED_PRICING.venueMonthly} />
 
       <div className="card" style={{ marginBottom: 18 }}>
         <h3 style={{ marginBottom: 10 }}>Listing checklist</h3>
@@ -63,7 +78,7 @@ export default function VenueDashboard() {
         ))}
         <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
           <Link to="/venue/listing" className="btn btn-pri btn-sm">Edit my listing →</Link>
-          {venue && <Link to={`/venues/${venue.id}`} className="btn btn-ghost btn-sm">View public page ↗</Link>}
+          <Link to={`/venues/${venue.id}`} className="btn btn-ghost btn-sm">View public page ↗</Link>
         </div>
       </div>
 

@@ -1,23 +1,39 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
+import { auth } from '../../api';
+import { ApiError } from '../../api/client';
 
-/** Venue account settings — contact, notifications, payment method pointer. */
+/** Venue account settings — contact, notifications, payment method pointer.
+ * Real PATCH /me (the same generic profile endpoint every role's contact
+ * fields ride on — no venue-specific backend needed here). */
 export default function VenueSettings() {
   const { user, updateUser, toast } = useApp();
   const [contact, setContact] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser({ name: contact.trim(), email: email.trim() });
-    toast('Settings saved ✓');
+    setErr('');
+    setSaving(true);
+    try {
+      const updated = await auth.updateMe({ name: contact.trim(), email: email.trim() });
+      updateUser(updated);
+      toast('Settings saved ✓');
+    } catch (e2) {
+      setErr(e2 instanceof ApiError ? e2.message : 'Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 16 }}>Settings</h1>
 
+      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
       <form className="card" onSubmit={save} style={{ marginBottom: 18 }}>
         <h3 style={{ marginBottom: 12 }}>Contact</h3>
         <div className="form-row">
@@ -34,7 +50,7 @@ export default function VenueSettings() {
           <span>WhatsApp number</span>
           <input value={user?.phone ?? ''} disabled />
         </div>
-        <button className="btn btn-pri">Save ✓</button>
+        <button className="btn btn-pri" disabled={saving}>{saving ? 'Saving…' : 'Save ✓'}</button>
       </form>
 
       <div className="card" style={{ marginBottom: 18 }}>

@@ -1,57 +1,87 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { VENUES } from '../../data/mock';
 import MapEmbed from '../../components/MapEmbed';
 import WysiwygEditor from '../../components/WysiwygEditor';
-import { GalleryDropBox } from '../../components/FileDropBox';
+import { venuePartner } from '../../api';
+import { ApiError } from '../../api/client';
+import type { Venue } from '../../types';
 
 const VENUE_TYPES = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
 
-/** Edit the public venue listing — what guests and organizers see. */
+/** Edit the public venue listing — what guests and organizers see. Real
+ * GET/PATCH /venue/listing. No photo-gallery field exists on the real Venue
+ * model (same gap as Organizer/Lineup — only a hue-based placeholder), so
+ * unlike the old mock there's no photo upload here; adding one would be a
+ * silent no-op. */
 export default function VenueListing() {
-  const { user, updateUser, updateMyVenue, toast } = useApp();
-  const venue = VENUES.find((v) => v.id === user?.venueId);
+  const { updateUser, toast } = useApp();
+  const [venue, setVenue] = useState<Venue | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
 
-  const [name, setName] = useState(venue?.name ?? user?.venueName ?? '');
-  const [vtype, setVtype] = useState(venue?.type ?? VENUE_TYPES[0]);
-  const [address, setAddress] = useState(venue?.address ?? '');
-  const [capacity, setCapacity] = useState(String(venue?.capacity ?? ''));
-  const [amenities, setAmenities] = useState<string[]>(venue?.amenities ?? []);
-  const [about, setAbout] = useState(venue?.about ?? '');
-  const [timings, setTimings] = useState(venue?.timings ?? '');
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [name, setName] = useState('');
+  const [vtype, setVtype] = useState(VENUE_TYPES[0]);
+  const [address, setAddress] = useState('');
+  const [capacity, setCapacity] = useState('');
+  const [amenities, setAmenities] = useState<string[]>([]);
+  const [about, setAbout] = useState('');
+  const [timings, setTimings] = useState('');
 
-  if (!venue) {
-    return (
-      <div className="card">
-        Listing record not found. <Link to="/venue/onboarding" className="link">Re-run onboarding →</Link>
-      </div>
-    );
-  }
+  useEffect(() => {
+    venuePartner
+      .myListing()
+      .then((v) => {
+        setVenue(v);
+        setName(v.name);
+        setVtype(v.type);
+        setAddress(v.address);
+        setCapacity(String(v.capacity));
+        setAmenities(v.amenities);
+        setAbout(v.about);
+        setTimings(v.timings ?? '');
+      })
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load your listing'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const toggleAmenity = (a: string) =>
     setAmenities((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !address.trim() || !(Number(capacity) > 0) || !about.trim()) {
       toast('Name, address, capacity and about are required');
       return;
     }
-    updateMyVenue(venue.id, {
-      name: name.trim(),
-      type: vtype,
-      address: address.trim(),
-      capacity: Number(capacity),
-      amenities,
-      about: about.trim(),
-      timings: timings.trim() || undefined,
-    });
-    updateUser({ venueName: name.trim() });
-    toast('Listing updated ✓ changes are live');
+    setErr('');
+    setSaving(true);
+    try {
+      const updated = await venuePartner.updateListing({
+        name: name.trim(), type: vtype, address: address.trim(),
+        capacity: Number(capacity), amenities, about: about.trim(), timings: timings.trim() || undefined,
+      });
+      setVenue(updated);
+      updateUser({ venueName: updated.name });
+      toast('Listing updated ✓ changes are live');
+    } catch (e2) {
+      setErr(e2 instanceof ApiError ? e2.message : 'Failed to save listing');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) return <div className="muted">Loading…</div>;
+
+  if (!venue) {
+    return (
+      <div className="card">
+        {err || 'Listing record not found.'} <Link to="/venue" className="link">← Back</Link>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -63,11 +93,8 @@ export default function VenueListing() {
         This is exactly what guests see in the directory and what organizers see when picking a venue.
       </p>
 
+      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
       <form className="card" onSubmit={save}>
-        <div style={{ marginBottom: 16 }}>
-          <div className="tiny muted" style={{ marginBottom: 6 }}>📷 update venue photos — entrance, floor, stage (up to 8)</div>
-          <GalleryDropBox value={photos} onChange={setPhotos} max={8} />
-        </div>
         <div className="form-row">
           <div className="field">
             <span>Venue name</span>
@@ -110,7 +137,7 @@ export default function VenueListing() {
           <span>ℹ️ About the venue</span>
           <WysiwygEditor value={about} onChange={setAbout} minHeight={80} />
         </div>
-        <button className="btn btn-pri btn-lg">Save listing ✓</button>
+        <button className="btn btn-pri btn-lg" disabled={saving}>{saving ? 'Saving…' : 'Save listing ✓'}</button>
         <span className="tiny muted-2" style={{ marginLeft: 10 }}>city changes go through support — keeps the directory clean</span>
       </form>
     </div>
