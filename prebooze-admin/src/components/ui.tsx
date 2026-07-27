@@ -359,6 +359,60 @@ export function MultiSelectSearch({ items, selectedIds, onChange, placeholder, e
   );
 }
 
+/** Searchable single-select, same look/behavior as MultiSelectSearch but
+ * for exactly-one-pick fields (event's venue/organizer) — replaces a plain
+ * <select> once the directory is large enough that scrolling it is worse
+ * than typing to filter, same reasoning as the guest-facing SearchableSelect. */
+export function SingleSelectSearch({ items, selectedId, onChange, placeholder }: {
+  items: { id: string; label: string; sub?: string }[];
+  selectedId: string;
+  onChange: (id: string) => void;
+  placeholder: string;
+}) {
+  const [query, setQuery] = useState('');
+  const [focused, setFocused] = useState(false);
+  const selected = items.find((i) => i.id === selectedId);
+  const q = query.trim().toLowerCase();
+  const results = items.filter((i) => !q || i.label.toLowerCase().includes(q)).slice(0, 8);
+
+  return (
+    <div className="search-box" style={{ position: 'relative' }}>
+      <span style={{ opacity: 0.6 }}>🔍</span>
+      <input
+        value={focused ? query : (selected?.label ?? '')}
+        onChange={(e) => setQuery(e.target.value)}
+        onFocus={() => { setFocused(true); setQuery(''); }}
+        onBlur={() => setTimeout(() => setFocused(false), 150)}
+        placeholder={placeholder}
+      />
+      {focused && (
+        <div
+          className="card"
+          style={{ position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 40, padding: 6, maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
+          {results.length === 0 && <div className="tiny muted" style={{ padding: '6px 8px' }}>No matches for "{query}"</div>}
+          {results.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onMouseDown={() => { onChange(r.id); setQuery(''); }}
+              style={{
+                display: 'flex', justifyContent: 'space-between', gap: 8, textAlign: 'left',
+                background: 'none', border: 'none', padding: '6px 8px', borderRadius: 6, cursor: 'pointer', color: 'var(--text)',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(139,195,74,.1)'; }}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+            >
+              <span style={{ fontSize: 12.5 }}>{r.label}</span>
+              {r.sub && <span className="tiny muted">{r.sub}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Real city filter — sourced from the admin-managed Locations tree's
  * enabled cities, not whatever happens to appear in a given page's own
  * data (the old per-page pattern) or the tiny hardcoded ADMIN_CITIES list. */

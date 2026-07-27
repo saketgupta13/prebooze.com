@@ -6,11 +6,20 @@ import {
 } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
-import { MultiSelectSearch } from '../components/ui';
+import { MultiSelectSearch, SingleSelectSearch } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import WysiwygEditor from '../components/WysiwygEditor';
 import RealImageUpload from '../components/RealImageUpload';
 import RealVideoUpload from '../components/RealVideoUpload';
+
+const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
+
+interface RuleDraft { title: string; body: string }
+const DEFAULT_RULES: RuleDraft[] = [
+  { title: 'Dress code', body: 'Smart casual — no flip-flops or sleeveless shirts.' },
+  { title: 'Food & drinks', body: 'Full bar inside. Outside food & drinks not permitted.' },
+  { title: 'Prohibited items', body: 'No weapons, illegal substances or professional cameras.' },
+];
 
 type EditorTab = 'basics' | 'tickets' | 'media' | 'rules' | 'commission' | 'lineup' | 'seo';
 const TABS: { key: EditorTab; label: string }[] = [
@@ -23,9 +32,9 @@ const TABS: { key: EditorTab; label: string }[] = [
   { key: 'seo', label: '7 · SEO' },
 ];
 
-interface TierDraft { id?: string; name: string; price: string; quantity: string; description: string; sold?: number; }
+interface TierDraft { id?: string; name: string; price: string; quantity: string; description: string; includes: string[]; sold?: number; }
 
-const emptyTier = (): TierDraft => ({ name: 'General', price: '450', quantity: '200', description: '' });
+const emptyTier = (): TierDraft => ({ name: 'General', price: '450', quantity: '200', description: '', includes: ['Entry'] });
 
 /** Real, single event editor — replaces the old mock EventEditor.tsx.
  * Backs the whole real create/edit flow via OrganizerService.adminUpsertEvent.
@@ -63,9 +72,16 @@ export default function EventEditorReal() {
   const [ageLimit, setAgeLimit] = useState('18+');
   const [tiers, setTiers] = useState<TierDraft[]>([emptyTier()]);
   const [conditions, setConditions] = useState('');
+  const [rules, setRules] = useState<RuleDraft[]>(DEFAULT_RULES);
   const [commission, setCommissionState] = useState('10');
   const [lineupItems, setLineupItems] = useState<{ name: string; role: string }[]>([]);
   const [allowedPromoters, setAllowedPromoters] = useState<string[]>([]);
+  const [promoEnabled, setPromoEnabled] = useState(false);
+  const [promoCap, setPromoCap] = useState('50');
+  const [promoCutoff, setPromoCutoff] = useState('23:00');
+  const [perHead, setPerHead] = useState(false);
+  const [perHeadAmt, setPerHeadAmt] = useState('100');
+  const [allowTeams, setAllowTeams] = useState(false);
   const [seo, setSeo] = useState(emptySeo());
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [teaserVideoUrl, setTeaserVideoUrl] = useState('');
@@ -96,13 +112,20 @@ export default function EventEditorReal() {
               setAgeLimit(found.ageLimit ?? '18+');
               setTiers(
                 found.tiers.length
-                  ? found.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), description: t.description ?? '', sold: t.sold }))
+                  ? found.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), description: t.description ?? '', includes: t.includes ?? [], sold: t.sold }))
                   : [emptyTier()],
               );
               setConditions((found.conditions ?? []).join('\n'));
+              setRules(found.rules?.length ? found.rules : DEFAULT_RULES);
               setCommissionState(found.commission == null ? '' : String(found.commission));
               setLineupItems(found.lineup ?? []);
               setAllowedPromoters(found.promoterConfig?.allowedPromoters ?? []);
+              setPromoEnabled(found.promoterConfig?.enabled ?? false);
+              setPromoCap(String(found.promoterConfig?.cap ?? 50));
+              setPromoCutoff(found.promoterConfig?.cutoff ?? '23:00');
+              setPerHead(found.promoterConfig?.perHeadPayout ?? false);
+              setPerHeadAmt(String(found.promoterConfig?.perHeadAmount ?? 100));
+              setAllowTeams(found.promoterConfig?.allowTeams ?? false);
               setSeo(found.seo ? { ...found.seo, keywords: Array.isArray(found.seo.keywords) ? found.seo.keywords.join(', ') : found.seo.keywords } : emptySeo());
               setGalleryUrls(found.galleryUrls ?? []);
               setTeaserVideoUrl(found.teaserVideoUrl ?? '');
@@ -136,16 +159,17 @@ export default function EventEditorReal() {
     durationHrs: parseFloat(durationHrs) || undefined,
     venueId,
     conditions: conditions.split('\n').map((s) => s.trim()).filter(Boolean),
+    rules: rules.filter((r) => r.title.trim() || r.body.trim()),
     lineup: lineupItems,
     seo,
     promoterConfig: {
-      enabled: allowedPromoters.length > 0,
-      cap: existing?.promoterConfig?.cap ?? 50,
-      cutoff: existing?.promoterConfig?.cutoff ?? '23:00',
+      enabled: promoEnabled,
+      cap: parseInt(promoCap, 10) || 0,
+      cutoff: promoCutoff,
       allowedPromoters,
-      perHeadPayout: existing?.promoterConfig?.perHeadPayout ?? false,
-      perHeadAmount: existing?.promoterConfig?.perHeadAmount ?? 0,
-      allowTeams: existing?.promoterConfig?.allowTeams ?? false,
+      perHeadPayout: perHead,
+      perHeadAmount: parseInt(perHeadAmt, 10) || 0,
+      allowTeams,
     },
     galleryUrls,
     teaserVideoUrl: teaserVideoUrl || null,
@@ -156,6 +180,7 @@ export default function EventEditorReal() {
       price: parseInt(t.price, 10) || 0,
       quantity: parseInt(t.quantity, 10) || 0,
       description: t.description || undefined,
+      includes: t.includes,
     })),
   });
 
@@ -215,6 +240,7 @@ export default function EventEditorReal() {
   };
 
   const patchTier = (i: number, p: Partial<TierDraft>) => setTiers((prev) => prev.map((t, x) => (x === i ? { ...t, ...p } : t)));
+  const patchRule = (i: number, p: Partial<RuleDraft>) => setRules((prev) => prev.map((r, x) => (x === i ? { ...r, ...p } : r)));
 
   if (loading) return <div className="stack fade"><div className="tiny muted">Loading…</div></div>;
 
@@ -287,15 +313,21 @@ export default function EventEditorReal() {
           </div>
           <div className="field">
             <label>Venue</label>
-            <select className="input" value={venueId} onChange={(e) => setVenueId(e.target.value)}>
-              {venues.map((v) => <option key={v.id} value={v.id}>{v.name} · {v.city}</option>)}
-            </select>
+            <SingleSelectSearch
+              items={venues.map((v) => ({ id: v.id, label: v.name, sub: v.city }))}
+              selectedId={venueId}
+              onChange={setVenueId}
+              placeholder="🔍 search venues…"
+            />
           </div>
           <div className="field">
             <label>Organizer</label>
-            <select className="input" value={organizerId} onChange={(e) => setOrganizerId(e.target.value)}>
-              {organizers.map((o) => <option key={o.id} value={o.id}>{o.brandName}</option>)}
-            </select>
+            <SingleSelectSearch
+              items={organizers.map((o) => ({ id: o.id, label: o.brandName }))}
+              selectedId={organizerId}
+              onChange={setOrganizerId}
+              placeholder="🔍 search organizers…"
+            />
           </div>
           <div className="field">
             <label>Date &amp; time</label>
@@ -334,8 +366,23 @@ export default function EventEditorReal() {
                 ✕
               </button>
               <div className="field" style={{ flexBasis: '100%' }}>
+                <label>Ticket description — shown under this tier on the event page</label>
+                <input className="input" value={t.description} onChange={(e) => patchTier(i, { description: e.target.value })} placeholder="e.g. Best value — entry, welcome drink and access to both stages" />
+              </div>
+              <div className="field" style={{ flexBasis: '100%' }}>
                 <label>What's included</label>
-                <input className="input" value={t.description} onChange={(e) => patchTier(i, { description: e.target.value })} placeholder="e.g. Entry + 1 welcome drink" />
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {INCLUDE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      className={`chip ${t.includes.includes(opt) ? 'on' : ''}`}
+                      onClick={() => patchTier(i, { includes: t.includes.includes(opt) ? t.includes.filter((x) => x !== opt) : [...t.includes, opt] })}
+                    >
+                      {opt}{t.includes.includes(opt) ? ' ✓' : ''}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           ))}
@@ -401,9 +448,36 @@ export default function EventEditorReal() {
       )}
 
       {tab === 'rules' && (
-        <div className="field">
-          <label>Event conditions (one per line — bullets on the guest page)</label>
-          <textarea className="input" style={{ minHeight: 120, resize: 'vertical' }} value={conditions} onChange={(e) => setConditions(e.target.value)} placeholder={'Photo ID required\nNo re-entry'} />
+        <div className="stack" style={{ gap: 14 }}>
+          <div className="field">
+            <label>Event conditions (one per line — bullets on the guest page)</label>
+            <textarea className="input" style={{ minHeight: 120, resize: 'vertical' }} value={conditions} onChange={(e) => setConditions(e.target.value)} placeholder={'Photo ID required\nNo re-entry'} />
+          </div>
+          <div>
+            <b style={{ fontSize: 13 }}>Party rules (accordions on the event page)</b>
+            <div className="stack" style={{ gap: 8, marginTop: 8 }}>
+              {rules.map((r, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <div className="field" style={{ flex: '0 0 180px' }}>
+                    <label>Rule title</label>
+                    <input className="input" value={r.title} onChange={(e) => patchRule(i, { title: e.target.value })} placeholder="e.g. Age policy" />
+                  </div>
+                  <div className="field" style={{ flex: 1, minWidth: 160 }}>
+                    <label>Details</label>
+                    <input className="input" value={r.body} onChange={(e) => patchRule(i, { body: e.target.value })} />
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={() => setRules((prev) => prev.filter((_, x) => x !== i))}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <button type="button" className="btn btn-ghost btn-sm" style={{ width: 'fit-content' }} onClick={() => setRules((prev) => [...prev, { title: '', body: '' }])}>+ Add rule</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -433,17 +507,50 @@ export default function EventEditorReal() {
               onChange={(names) => setLineupItems(names.map((n) => lineupItems.find((l) => l.name === n) ?? { name: n, role: 'Performer' }))}
             />
           </div>
-          <div className="field" style={{ marginTop: 6 }}>
-            <label>Promoters allowed to run guest lists for this event</label>
-            <MultiSelectSearch
-              chipIcon="📣"
-              placeholder="Search registered promoters by name…"
-              emptyHint="No promoters registered yet."
-              items={promoters.map((p) => ({ id: p.slug, label: p.name, sub: p.city, disabled: !p.verified, disabledLabel: '(unverified)' }))}
-              selectedIds={allowedPromoters}
-              onChange={setAllowedPromoters}
-            />
-          </div>
+          <div className="hr" style={{ margin: '4px 0' }} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="checkbox" checked={promoEnabled} onChange={(e) => setPromoEnabled(e.target.checked)} />
+            <b style={{ fontSize: 13 }}>Enable promoter guest lists for this event</b>
+          </label>
+          {promoEnabled && (
+            <>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div className="field" style={{ flex: 1, minWidth: 140 }}>
+                  <label>Free-entry cap (total passes)</label>
+                  <input className="input" inputMode="numeric" value={promoCap} onChange={(e) => setPromoCap(e.target.value.replace(/\D/g, ''))} />
+                </div>
+                <div className="field" style={{ flex: 1, minWidth: 140 }}>
+                  <label>Free entry valid before</label>
+                  <input className="input" type="time" value={promoCutoff} onChange={(e) => setPromoCutoff(e.target.value)} />
+                </div>
+              </div>
+              <div className="field">
+                <label>Promoters allowed to run guest lists for this event</label>
+                <MultiSelectSearch
+                  chipIcon="📣"
+                  placeholder="Search registered promoters by name…"
+                  emptyHint="No promoters registered yet."
+                  items={promoters.map((p) => ({ id: p.slug, label: p.name, sub: p.city, disabled: !p.verified, disabledLabel: '(unverified)' }))}
+                  selectedIds={allowedPromoters}
+                  onChange={setAllowedPromoters}
+                />
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="checkbox" checked={perHead} onChange={(e) => setPerHead(e.target.checked)} />
+                <span>Pay promoters per verified arrival</span>
+              </label>
+              {perHead && (
+                <div className="field" style={{ maxWidth: 200, marginLeft: 24 }}>
+                  <label>₹ per confirmed check-in</label>
+                  <input className="input" inputMode="numeric" value={perHeadAmt} onChange={(e) => setPerHeadAmt(e.target.value.replace(/\D/g, ''))} />
+                </div>
+              )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="checkbox" checked={allowTeams} onChange={(e) => setAllowTeams(e.target.checked)} />
+                <span>Allow promoter teams / sub-promoters</span>
+              </label>
+            </>
+          )}
         </div>
       )}
 

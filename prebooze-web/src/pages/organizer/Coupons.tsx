@@ -170,17 +170,20 @@ export default function Coupons() {
               <input type="date" value={validTill} onChange={(e) => setValidTill(e.target.value)} />
             </div>
           </div>
-          <div className="form-row">
-            <div className="field">
-              <span>Audience</span>
-              <select value={gender} onChange={(e) => setGender(e.target.value as typeof gender)}>
-                {GENDERS.map((g) => <option key={g.key} value={g.key}>{g.label}</option>)}
-              </select>
+          <div className="field">
+            <span>Note (optional — for your own reference)</span>
+            <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Instagram launch offer" />
+          </div>
+          <div className="field">
+            <span>Audience — gender</span>
+            <div className="chip-row">
+              {GENDERS.map((g) => (
+                <button type="button" key={g.key} className={`chip ${gender === g.key ? 'on' : ''}`} onClick={() => setGender(g.key)}>
+                  {g.label}{gender === g.key ? ' ✓' : ''}
+                </button>
+              ))}
             </div>
-            <div className="field" style={{ flex: 2 }}>
-              <span>Note (optional — for your own reference)</span>
-              <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Instagram launch offer" />
-            </div>
+            <div className="tiny muted-2" style={{ marginTop: 4 }}>checked against verified profile gender at checkout · gender-targeted codes enable ladies-night pricing without separate tiers</div>
           </div>
           <label className="checkbox-row" style={{ marginBottom: 14 }}>
             <input type="checkbox" checked={firstOnly} onChange={(e) => setFirstOnly(e.target.checked)} />

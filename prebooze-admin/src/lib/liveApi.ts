@@ -99,10 +99,12 @@ export interface LiveTicketTier {
   price: number;
   quantity: number;
   description: string | null;
+  includes: string[];
   sold: number;
 }
 export interface LiveSeo { title: string; description: string; keywords: string; }
 export interface LiveLineupItem { name: string; role: string; }
+export interface LivePartyRule { title: string; body: string; }
 export interface LivePromoterConfig { enabled: boolean; cap: number; cutoff: string; allowedPromoters: string[]; perHeadPayout: boolean; perHeadAmount: number; allowTeams: boolean; }
 export interface LiveEvent {
   id: string;
@@ -118,6 +120,7 @@ export interface LiveEvent {
   status: 'draft' | 'pending' | 'approved' | 'rejected';
   rejectionReason: string | null;
   conditions: string[];
+  rules: LivePartyRule[];
   lineup: LiveLineupItem[];
   posterHue: number;
   posterUrl: string | null;
@@ -148,6 +151,7 @@ export interface LiveEventInput {
   venueId: string;
   status?: 'draft' | 'pending';
   conditions?: string[];
+  rules?: LivePartyRule[];
   lineup?: LiveLineupItem[];
   posterHue?: number;
   seo?: LiveSeo;
@@ -155,7 +159,7 @@ export interface LiveEventInput {
   galleryUrls?: string[];
   teaserVideoUrl?: string | null;
   socialBanners?: { postUrl?: string; storyUrl?: string };
-  tiers?: { id?: string; name: string; price: number; quantity: number; description?: string }[];
+  tiers?: { id?: string; name: string; price: number; quantity: number; description?: string; includes?: string[] }[];
 }
 export const liveEvents = {
   list: (status?: string) => liveFetch<LiveEvent[]>('/admin/events' + (status ? `?status=${status}` : '')),
