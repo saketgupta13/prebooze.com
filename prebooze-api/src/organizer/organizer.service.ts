@@ -7,6 +7,8 @@ import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { NotificationsService } from '../admin/notifications.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { GuestListService } from '../admin/guestlist.service';
+import { LiveMonitorService } from '../admin/live-monitor.service';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService — a cart still `active` past this is abandoned
 
@@ -56,10 +58,77 @@ export class OrganizerService {
     private email: EmailService,
     private notifications: NotificationsService,
     private subscriptions: SubscriptionsService,
+    private guestListSvc: GuestListService,
+    private liveMonitorSvc: LiveMonitorService,
   ) {}
 
   async me(userId: string) {
     return this.myOrganizer(userId);
+  }
+
+  /** Every gate-ops endpoint below (guest list, live monitor, manual
+   * check-in, promoter guests) needs the same "is this my event" check
+   * before touching it — factored out once rather than repeated five times. */
+  private async myEvent(userId: string, eventId: string) {
+    const org = await this.myOrganizer(userId);
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event || event.organizerId !== org.id) throw new ForbiddenException("Not your event");
+    return event;
+  }
+
+  // ---------- gate ops: guest list (reuses AdminGuestListService — same
+  // GuestListEntry model, just organizer-owned instead of staff-operated) ----------
+  async guestList(userId: string, eventId: string) {
+    await this.myEvent(userId, eventId);
+    return this.guestListSvc.list(eventId);
+  }
+
+  async addGuestListEntry(userId: string, eventId: string, body: Parameters<GuestListService['add']>[2]) {
+    const org = await this.myOrganizer(userId);
+    await this.myEvent(userId, eventId);
+    return this.guestListSvc.add(eventId, org.brandName, body);
+  }
+
+  async toggleGuestArrived(userId: string, entryId: string) {
+    const entry = await this.prisma.guestListEntry.findUnique({ where: { id: entryId } });
+    if (!entry) throw new NotFoundException('Guest list entry not found');
+    await this.myEvent(userId, entry.eventId);
+    return this.guestListSvc.toggleArrived(entryId);
+  }
+
+  async removeGuestListEntry(userId: string, entryId: string) {
+    const entry = await this.prisma.guestListEntry.findUnique({ where: { id: entryId } });
+    if (!entry) throw new NotFoundException('Guest list entry not found');
+    await this.myEvent(userId, entry.eventId);
+    return this.guestListSvc.remove(entryId);
+  }
+
+  /** All promoter-brought guests for this event, across every promoter —
+   * unlike PromoterService.guests() (scoped to one promoter's own slug),
+   * the organizer needs the full door list for their own event. */
+  async promoterGuests(userId: string, eventId: string) {
+    await this.myEvent(userId, eventId);
+    return this.prisma.promoterGuest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
+  }
+
+  // ---------- gate ops: live monitor (reuses AdminLiveMonitorService) ----------
+  async live(userId: string, eventId: string) {
+    await this.myEvent(userId, eventId);
+    return this.liveMonitorSvc.live(eventId);
+  }
+
+  async manualCheckIn(userId: string, eventId: string, name: string, count?: number) {
+    await this.myEvent(userId, eventId);
+    return this.liveMonitorSvc.manualCheckIn(eventId, name, count);
+  }
+
+  /** Organizer-owned counterpart to AdminEventsController's pause-sales
+   * (staff can already do this for any event; this lets the organizer do it
+   * for their own without needing to call support). Same Event.salesPaused
+   * field, enforced in the same place (priceHold()). */
+  async setSalesPaused(userId: string, eventId: string, paused: boolean) {
+    await this.myEvent(userId, eventId);
+    return this.prisma.event.update({ where: { id: eventId }, data: { salesPaused: paused } });
   }
 
   /** Self-serve profile edit — the counterpart to VenueService.updateListing.

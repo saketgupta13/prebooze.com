@@ -11,9 +11,11 @@ import { NotificationsService } from '../admin/notifications.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { RazorpayService } from '../payments/razorpay.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { GuestListService } from '../admin/guestlist.service';
+import { LiveMonitorService } from '../admin/live-monitor.service';
 
 @Module({
   controllers: [OrganizerController, AdminEventsController],
-  providers: [OrganizerService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, RazorpayService, SubscriptionsService],
+  providers: [OrganizerService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, RazorpayService, SubscriptionsService, GuestListService, LiveMonitorService],
 })
 export class OrganizerModule {}

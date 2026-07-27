@@ -90,7 +90,10 @@ export const bookings = {
   // parser treats as a fragment separator if left unencoded — silently
   // truncating the path. Must percent-encode; server-side decodes it back.
   cancel: (id: string, refundTo: 'wallet' | 'source') => apiFetch<Booking>(`/bookings/${encodeURIComponent(id)}/cancel`, { body: { refundTo } }),
-  checkIn: (id: string, count: number) => apiFetch<Booking>(`/bookings/${id}/check-in`, { body: { count } }),
+  // real route is /bookings/check-in with the QR's signed token in the body
+  // — not /bookings/:id/check-in like this used to declare (that endpoint
+  // never existed; nothing called this wrapper before now).
+  checkIn: (token: string) => apiFetch<Booking>('/bookings/check-in', { body: { token } }),
   waitlistJoin: (eventId: string) => apiFetch<WaitlistEntry>(`/events/${eventId}/waitlist`, { method: 'POST' }),
   waitlist: (eventId: string) => apiFetch<WaitlistEntry[]>(`/events/${eventId}/waitlist`),
 };
@@ -226,7 +229,52 @@ export const organizer = {
   abandonedCarts: () => apiFetch<CartRecord[]>('/organizer/carts'),
   remindCart: (id: string) => apiFetch<void>(`/organizer/carts/${id}/remind`, { method: 'POST' }),
   subscription: subscriptionApi('organizer'),
+  // ---- gate ops: guest list, promoter guests, live monitor ----
+  guestList: (eventId: string) => apiFetch<{ entries: OrgGuestListEntry[]; namesCount: number; totalHeads: number; arrived: number }>(`/organizer/events/${eventId}/guest-list`),
+  addGuestListEntry: (eventId: string, body: { name: string; phone: string; plusOnes?: number; companions?: { name: string; phone: string }[] }) =>
+    apiFetch<OrgGuestListEntry>(`/organizer/events/${eventId}/guest-list`, { body }),
+  toggleGuestArrived: (id: string) => apiFetch<OrgGuestListEntry>(`/organizer/guest-list/${id}/toggle-arrived`, { method: 'POST' }),
+  removeGuestListEntry: (id: string) => apiFetch<{ ok: true }>(`/organizer/guest-list/${id}`, { method: 'DELETE' }),
+  promoterGuests: (eventId: string) => apiFetch<OrgPromoterGuest[]>(`/organizer/events/${eventId}/promoter-guests`),
+  live: (eventId: string) => apiFetch<OrgLiveMonitor>(`/organizer/events/${eventId}/live`),
+  manualCheckIn: (eventId: string, name: string, count?: number) => apiFetch<unknown>(`/organizer/events/${eventId}/check-in`, { body: { name, count } }),
+  setSalesPaused: (eventId: string, paused: boolean) => apiFetch<Event>(`/organizer/events/${eventId}/pause-sales`, { method: 'PATCH', body: { paused } }),
 };
+
+export interface OrgGuestListEntry {
+  id: string;
+  eventId: string;
+  name: string;
+  phone: string;
+  plusOnes: number;
+  companions: { name: string; phone: string }[];
+  addedBy: string;
+  arrived: boolean;
+  createdAt: string;
+}
+export interface OrgPromoterGuest {
+  id: string;
+  eventId: string;
+  promoterSlug: string;
+  name: string;
+  phone: string;
+  age?: string;
+  gender?: string;
+  arrived: boolean;
+  arrivedAt?: string;
+  createdAt: string;
+}
+export interface OrgLiveMonitor {
+  total: number;
+  checkedIn: number;
+  remaining: number;
+  pct: number;
+  scanRate: number;
+  rejected: number;
+  histogram: number[];
+  feed: { ok: boolean; text: string; at: string }[];
+  salesPaused: boolean;
+}
 
 // ---------- lineup (artist) ----------
 export const lineup = {

@@ -1,79 +1,110 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useApp } from '../../store/AppContext';
-import { PROMOTERS, eventById } from '../../data/mock';
-import { cutoffDate, isPassValid } from '../../lib/promoterPass';
-import Stepper from '../../components/Stepper';
+import { organizer, promoter, type OrgAttendee, type OrgPromoterGuest } from '../../api';
+import { ApiError } from '../../api/client';
+import type { Event } from '../../types';
 
 type ScanState =
-  | { mode: 'scanning' }
-  | { mode: 'valid'; bookingId: string }
-  | { mode: 'promoter'; guestId: string }
+  | { mode: 'idle' }
+  | { mode: 'valid-booking'; row: OrgAttendee }
+  | { mode: 'valid-promoter'; row: OrgPromoterGuest }
   | { mode: 'invalid'; reason: string };
 
+/** Real gate check-in — no live QR camera scanning yet (the ticket's on-screen
+ * "QR" is decorative noise keyed off the booking id, not a real scannable
+ * code — see lib/ticket.ts; making that real is a guest-facing change,
+ * tracked separately). What *is* fully real here: looking a guest up by
+ * booking # or name against this event's actual attendees/promoter-guests,
+ * and checking them in via POST /organizer/events/:id/check-in or the real
+ * promoter check-in endpoint. */
 export default function Scanner() {
-  const { bookings, checkInBooking, myEvents, promoterGuests, checkInPromoterGuest } = useApp();
-  const [state, setState] = useState<ScanState>({ mode: 'scanning' });
+  const [events, setEvents] = useState<Event[]>([]);
+  const [eventId, setEventId] = useState('');
+  const [attendees, setAttendees] = useState<OrgAttendee[]>([]);
+  const [promoterGuests, setPromoterGuests] = useState<OrgPromoterGuest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<ScanState>({ mode: 'idle' });
   const [manual, setManual] = useState('');
-  const [torch, setTorch] = useState(false);
   const [count, setCount] = useState(1);
-  const [checkedInTotal, setCheckedInTotal] = useState(128);
+  const [busy, setBusy] = useState(false);
 
-  const findBooking = (idRaw: string) => {
-    const id = idRaw.trim().toUpperCase();
-    const norm = id.startsWith('#') ? id : '#' + id.replace(/^TKT-?/, 'TKT-');
-    return bookings.find(
-      (b) => b.id.toUpperCase() === norm || b.id.toUpperCase() === '#TKT-' + id.replace(/\D/g, '')
-    );
+  useEffect(() => {
+    organizer
+      .events()
+      .then((evs) => {
+        const live = evs.filter((e) => e.status === 'approved');
+        setEvents(live);
+        if (live.length) setEventId(live[0].id);
+        else setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const load = () => {
+    if (!eventId) return;
+    setLoading(true);
+    Promise.all([organizer.attendees(eventId), organizer.promoterGuests(eventId)])
+      .then(([a, p]) => { setAttendees(a); setPromoterGuests(p); })
+      .finally(() => setLoading(false));
   };
+  useEffect(load, [eventId]);
 
-  const allEvents = [...myEvents];
-  const eventOf = (id: string) => eventById(id) ?? allEvents.find((e) => e.id === id);
+  const event = events.find((e) => e.id === eventId);
 
-  const findPromoterGuest = (idRaw: string) => {
-    const q = idRaw.trim().toLowerCase();
-    return promoterGuests.find((g) => g.id.toLowerCase() === q || g.name.toLowerCase() === q);
-  };
-
-  const lookup = (idRaw: string) => {
-    // promoter free-entry pass?
-    const pg = findPromoterGuest(idRaw);
+  const lookup = (raw: string) => {
+    const q = raw.trim().toLowerCase();
+    if (!q) return;
+    const pg = promoterGuests.find((g) => g.id.toLowerCase() === q || g.name.toLowerCase() === q);
     if (pg) {
-      const ev = eventOf(pg.eventId);
       if (pg.arrived) return setState({ mode: 'invalid', reason: 'This free-entry pass is already checked in' });
-      if (ev && !isPassValid(ev)) return setState({ mode: 'invalid', reason: 'Free-entry window has closed for this pass' });
-      return setState({ mode: 'promoter', guestId: pg.id });
+      return setState({ mode: 'valid-promoter', row: pg });
     }
-    const b = findBooking(idRaw);
-    if (!b) return setState({ mode: 'invalid', reason: 'Not found — booking number or guest name unknown' });
-    if (b.status !== 'confirmed')
-      return setState({ mode: 'invalid', reason: 'Booking was cancelled / refunded' });
-    if (b.guests.every((g) => g.checkedIn))
-      return setState({ mode: 'invalid', reason: 'QR already used — all guests checked in' });
-    setCount(b.guests.filter((g) => !g.checkedIn).length);
-    setState({ mode: 'valid', bookingId: b.id });
+    const norm = q.startsWith('#') ? q : '#' + q.replace(/^tkt-?/, 'tkt-');
+    const row = attendees.find((a) => a.bookingId.toLowerCase() === norm || a.name.toLowerCase() === q);
+    if (!row) return setState({ mode: 'invalid', reason: 'Not found — booking number or guest name unknown' });
+    if (row.bookingStatus !== 'confirmed') return setState({ mode: 'invalid', reason: `Booking is ${row.bookingStatus}, not valid for entry` });
+    if (row.checkedIn) return setState({ mode: 'invalid', reason: 'Already checked in' });
+    setCount(1);
+    setState({ mode: 'valid-booking', row });
   };
 
-  const simulateScan = () => {
-    // prefer a still-valid promoter free-entry pass, then a booking
-    const pg = promoterGuests.find((g) => {
-      if (g.arrived) return false;
-      const ev = eventOf(g.eventId);
-      return ev ? isPassValid(ev) : false;
-    });
-    if (pg) return lookup(pg.id);
-    const candidate = bookings.find(
-      (b) => b.status === 'confirmed' && b.guests.some((g) => !g.checkedIn)
-    );
-    if (candidate) lookup(candidate.id);
-    else setState({ mode: 'invalid', reason: 'Nothing to scan yet — capture a promoter guest or make a booking first' });
+  const confirmBooking = async (row: OrgAttendee) => {
+    setBusy(true);
+    try {
+      await organizer.manualCheckIn(eventId, row.bookingId.replace('#', ''), count);
+      setState({ mode: 'idle' });
+      setManual('');
+      load();
+    } catch (e) {
+      setState({ mode: 'invalid', reason: e instanceof ApiError ? e.message : 'Check-in failed' });
+    } finally {
+      setBusy(false);
+    }
   };
 
-  if (state.mode === 'promoter') {
-    const g = promoterGuests.find((x) => x.id === state.guestId)!;
-    const ev = eventOf(g.eventId);
-    const promoter = PROMOTERS.find((p) => p.slug === g.promoterSlug);
-    const cutoff = ev ? cutoffDate(ev) : null;
+  const confirmPromoter = async (row: OrgPromoterGuest) => {
+    setBusy(true);
+    try {
+      await promoter.checkInGuest(row.id);
+      setState({ mode: 'idle' });
+      setManual('');
+      load();
+    } catch (e) {
+      setState({ mode: 'invalid', reason: e instanceof ApiError ? e.message : 'Check-in failed' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const checkedInTotal = attendees.filter((a) => a.checkedIn).length + promoterGuests.filter((g) => g.arrived).length;
+  const total = attendees.length + promoterGuests.length;
+
+  if (!loading && events.length === 0) {
+    return <div className="muted small">No live events yet — the scanner works once an event is approved.</div>;
+  }
+
+  if (state.mode === 'valid-promoter') {
+    const g = state.row;
     return (
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
@@ -81,25 +112,14 @@ export default function Scanner() {
           <h2>Free entry — valid</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Guest</span><span className="bold">{g.name}</span></div>
-            <div className="kv"><span className="k">Brought by</span><span>📣 {promoter?.name ?? g.promoterSlug}</span></div>
+            <div className="kv"><span className="k">Brought by</span><span>📣 {g.promoterSlug}</span></div>
             <div className="kv"><span className="k">Age · gender</span><span>{g.age} · {g.gender}</span></div>
-            <div className="kv"><span className="k">Event</span><span>{ev?.title}</span></div>
-            {cutoff && <div className="kv"><span className="k">Free until</span><span>{cutoff.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span></div>}
+            <div className="kv"><span className="k">Event</span><span>{event?.title}</span></div>
           </div>
-          <button
-            className="btn btn-pri btn-block btn-lg"
-            onClick={() => {
-              checkInPromoterGuest(g.id);
-              setCheckedInTotal((t) => t + 1);
-              setState({ mode: 'scanning' });
-            }}
-          >
-            Check in {g.name.split(' ')[0]} ✓
+          <button className="btn btn-pri btn-block btn-lg" disabled={busy} onClick={() => confirmPromoter(g)}>
+            {busy ? 'Checking in…' : `Check in ${g.name.split(' ')[0]} ✓`}
           </button>
-          <div className="tiny muted-2" style={{ marginTop: 10 }}>
-            carry ID matching “{g.name}” · counts toward {promoter?.name ?? 'the promoter'}'s arrivals
-          </div>
-          <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }} onClick={() => setState({ mode: 'scanning' })}>
+          <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }} onClick={() => setState({ mode: 'idle' })}>
             Scan next →
           </button>
         </div>
@@ -107,65 +127,23 @@ export default function Scanner() {
     );
   }
 
-  if (state.mode === 'valid') {
-    const b = bookings.find((x) => x.id === state.bookingId)!;
-    const ev = eventById(b.eventId) ?? myEvents.find((e) => e.id === b.eventId);
-    const remaining = b.guests.filter((g) => !g.checkedIn).length;
+  if (state.mode === 'valid-booking') {
+    const row = state.row;
     return (
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick">✓</div>
           <h2>Valid ticket</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
-            <div className="kv">
-              <span className="k">Booking</span>
-              <span className="bold">{b.id}</span>
-            </div>
-            <div className="kv">
-              <span className="k">Event</span>
-              <span>{ev?.title}</span>
-            </div>
-            <div className="kv">
-              <span className="k">Main guest</span>
-              <span>
-                {b.mainGuest} <span className="verified">✓</span>
-              </span>
-            </div>
-            <div className="kv">
-              <span className="k">Tickets</span>
-              <span>{b.tierName}</span>
-            </div>
-            <div className="kv">
-              <span className="k">Guests</span>
-              <span>{b.guests.map((g) => g.name.split(' ')[0]).join(' · ')}</span>
-            </div>
-            <div className="kv" style={{ alignItems: 'center' }}>
-              <span className="k">Checking in</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Stepper value={count} onChange={setCount} min={1} max={remaining} />
-                <span className="muted small">of {remaining}</span>
-              </span>
-            </div>
+            <div className="kv"><span className="k">Booking</span><span className="bold">{row.bookingId}</span></div>
+            <div className="kv"><span className="k">Event</span><span>{event?.title}</span></div>
+            <div className="kv"><span className="k">Guest</span><span>{row.name}</span></div>
+            <div className="kv"><span className="k">Tickets</span><span>{row.tierName}</span></div>
           </div>
-          <button
-            className="btn btn-pri btn-block btn-lg"
-            onClick={() => {
-              const already = b.guests.filter((g) => g.checkedIn).length;
-              checkInBooking(b.id, already + count);
-              setCheckedInTotal((t) => t + count);
-              setState({ mode: 'scanning' });
-            }}
-          >
-            Check in {count} guest{count > 1 ? 's' : ''} ✓
+          <button className="btn btn-pri btn-block btn-lg" disabled={busy} onClick={() => confirmBooking(row)}>
+            {busy ? 'Checking in…' : 'Check in ✓'}
           </button>
-          <div className="tiny muted-2" style={{ marginTop: 10 }}>
-            partial check-in supported — remaining guests can enter later
-          </div>
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{ marginTop: 12 }}
-            onClick={() => setState({ mode: 'scanning' })}
-          >
+          <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }} onClick={() => setState({ mode: 'idle' })}>
             Scan next →
           </button>
         </div>
@@ -177,16 +155,10 @@ export default function Scanner() {
     return (
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}>
-            ✕
-          </div>
-          <h2 className="danger-text">Invalid ticket</h2>
-          <p className="muted small" style={{ margin: '10px 0 20px' }}>
-            {state.reason}
-          </p>
-          <button className="btn btn-pri btn-block" onClick={() => setState({ mode: 'scanning' })}>
-            Scan again
-          </button>
+          <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}>✕</div>
+          <h2 className="danger-text">Not found</h2>
+          <p className="muted small" style={{ margin: '10px 0 20px' }}>{state.reason}</p>
+          <button className="btn btn-pri btn-block" onClick={() => setState({ mode: 'idle' })}>Try again</button>
         </div>
       </div>
     );
@@ -194,54 +166,31 @@ export default function Scanner() {
 
   return (
     <div className="scanner card-shadow">
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 16px' }}>
-        <Link to="/organizer/attendees" className="small muted">
-          ← Exit scanner
-        </Link>
-        <button
-          className={`small ${torch ? 'accent' : 'muted'}`}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
-          onClick={() => setTorch((t) => !t)}
-        >
-          🔦 torch {torch ? 'on' : ''}
-        </button>
-      </div>
-      <div className="small muted center" style={{ paddingBottom: 8 }}>
-        Indie Night Live · gate check-in
-      </div>
-
-      <div className="scan-view" style={torch ? { filter: 'brightness(1.4)' } : undefined}>
-        <button
-          className="scan-frame"
-          style={{ background: 'none', cursor: 'pointer' }}
-          onClick={simulateScan}
-          title="Simulate a scan"
-        >
-          ⌖
-        </button>
-        <div className="small">align QR in frame — scanning… hold steady</div>
-        <div className="tiny muted-2">(demo: tap the frame to simulate a scan)</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 16px', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <Link to="/organizer/attendees" className="small muted">← Exit scanner</Link>
+        <select value={eventId} onChange={(e) => setEventId(e.target.value)} style={{ maxWidth: 200 }}>
+          {events.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
+        </select>
       </div>
 
       <div style={{ padding: 16 }}>
         <form
           className="form-row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (manual.trim()) lookup(manual);
-          }}
+          onSubmit={(e) => { e.preventDefault(); lookup(manual); }}
         >
           <input
             placeholder="Enter booking #, guest name, or promoter pass"
             value={manual}
             onChange={(e) => setManual(e.target.value)}
+            autoFocus
           />
-          <button className="btn btn-ghost" style={{ flex: '0 0 auto' }}>
-            Find
-          </button>
+          <button className="btn btn-pri" style={{ flex: '0 0 auto' }}>Find</button>
         </form>
         <div className="small muted center" style={{ marginTop: 12 }}>
-          ✓ {checkedInTotal} checked in · 412 total
+          {loading ? 'Loading…' : `✓ ${checkedInTotal} checked in · ${total} total`}
+        </div>
+        <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
+          camera QR scanning isn't available yet — tickets don't have a real scannable code to read (see the note in this file). Manual entry is fully real.
         </div>
       </div>
     </div>

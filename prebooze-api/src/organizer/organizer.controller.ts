@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { OrganizerService } from './organizer.service';
 import type { EventInput } from './organizer.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -86,6 +86,48 @@ export class OrganizerController {
   @Post('subscription/cancel')
   cancelSubscription(@Req() req: AuthedReq) {
     return this.organizer.cancelSubscription(req.user.sub);
+  }
+
+  // ---------- gate ops: guest list, promoter guests, live monitor ----------
+
+  @Get('events/:id/guest-list')
+  guestList(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.organizer.guestList(req.user.sub, id);
+  }
+
+  @Post('events/:id/guest-list')
+  addGuestListEntry(@Req() req: AuthedReq, @Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.organizer.addGuestListEntry(req.user.sub, id, body);
+  }
+
+  @Post('guest-list/:id/toggle-arrived')
+  toggleGuestArrived(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.organizer.toggleGuestArrived(req.user.sub, id);
+  }
+
+  @Delete('guest-list/:id')
+  removeGuestListEntry(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.organizer.removeGuestListEntry(req.user.sub, id);
+  }
+
+  @Get('events/:id/promoter-guests')
+  promoterGuests(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.organizer.promoterGuests(req.user.sub, id);
+  }
+
+  @Get('events/:id/live')
+  live(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.organizer.live(req.user.sub, id);
+  }
+
+  @Post('events/:id/check-in')
+  manualCheckIn(@Req() req: AuthedReq, @Param('id') id: string, @Body('name') name: string, @Body('count') count?: number) {
+    return this.organizer.manualCheckIn(req.user.sub, id, name, count);
+  }
+
+  @Patch('events/:id/pause-sales')
+  setSalesPaused(@Req() req: AuthedReq, @Param('id') id: string, @Body('paused') paused: boolean) {
+    return this.organizer.setSalesPaused(req.user.sub, id, paused);
   }
 }
 
