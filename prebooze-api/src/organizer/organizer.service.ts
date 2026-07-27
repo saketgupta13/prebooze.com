@@ -8,6 +8,7 @@ import { money } from '../notifications/email-templates';
 import { NotificationsService } from '../admin/notifications.service';
 import { GuestListService } from '../admin/guestlist.service';
 import { LiveMonitorService } from '../admin/live-monitor.service';
+import { OrgAccessService } from './org-access.service';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService — a cart still `active` past this is abandoned
 
@@ -59,10 +60,25 @@ export class OrganizerService {
     private notifications: NotificationsService,
     private guestListSvc: GuestListService,
     private liveMonitorSvc: LiveMonitorService,
+    private orgAccess: OrgAccessService,
   ) {}
 
+  /** Any team member (any role) can call this for basic org display context
+   * (brand/logo/city — several dashboard pages need it just to show "who am
+   * I working for"). KYC/banking fields (PAN, GSTIN, bank account) are only
+   * included for the real owner or a team member with "Settings & team"
+   * view — the same people who can actually reach the Settings page that
+   * displays/edits them. This isn't just least-privilege: Settings.tsx
+   * always round-trips whatever me() returned back through updateMe() on
+   * save (empty string -> explicitly cleared, not "unchanged"), so blanket-
+   * redacting for someone who WILL submit that form would silently wipe the
+   * organizer's real GSTIN/PAN/bank details the next time they saved
+   * anything else on the page. */
   async me(userId: string) {
-    return this.myOrganizer(userId);
+    const access = await this.orgAccess.resolve(userId);
+    if (access.isOwner || access.can('Settings & team', 'view') || access.can('Settings & team', 'edit')) return access.org;
+    const { gstin: _gstin, pan: _pan, bankAccountNumber: _bank, bankLast4: _bankLast4, bankName: _bankName, accountHolderName: _holder, ifsc: _ifsc, ...safe } = access.org;
+    return safe;
   }
 
   /** Every gate-ops endpoint below (guest list, live monitor, manual
@@ -78,17 +94,19 @@ export class OrganizerService {
   // ---------- gate ops: guest list (reuses AdminGuestListService — same
   // GuestListEntry model, just organizer-owned instead of staff-operated) ----------
   async guestList(userId: string, eventId: string) {
+    await this.orgAccess.require(userId, 'Guest list', 'view');
     await this.myEvent(userId, eventId);
     return this.guestListSvc.list(eventId);
   }
 
   async addGuestListEntry(userId: string, eventId: string, body: Parameters<GuestListService['add']>[2]) {
-    const org = await this.myOrganizer(userId);
+    const org = await this.orgAccess.require(userId, 'Guest list', 'edit');
     await this.myEvent(userId, eventId);
     return this.guestListSvc.add(eventId, org.brandName, body);
   }
 
   async toggleGuestArrived(userId: string, entryId: string) {
+    await this.orgAccess.require(userId, 'Guest list', 'edit');
     const entry = await this.prisma.guestListEntry.findUnique({ where: { id: entryId } });
     if (!entry) throw new NotFoundException('Guest list entry not found');
     await this.myEvent(userId, entry.eventId);
@@ -96,6 +114,7 @@ export class OrganizerService {
   }
 
   async removeGuestListEntry(userId: string, entryId: string) {
+    await this.orgAccess.require(userId, 'Guest list', 'edit');
     const entry = await this.prisma.guestListEntry.findUnique({ where: { id: entryId } });
     if (!entry) throw new NotFoundException('Guest list entry not found');
     await this.myEvent(userId, entry.eventId);
@@ -106,17 +125,20 @@ export class OrganizerService {
    * unlike PromoterService.guests() (scoped to one promoter's own slug),
    * the organizer needs the full door list for their own event. */
   async promoterGuests(userId: string, eventId: string) {
+    await this.orgAccess.require(userId, 'Guest list', 'view');
     await this.myEvent(userId, eventId);
     return this.prisma.promoterGuest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
   }
 
   // ---------- gate ops: live monitor (reuses AdminLiveMonitorService) ----------
   async live(userId: string, eventId: string) {
+    await this.orgAccess.require(userId, 'Attendees & check-in', 'view');
     await this.myEvent(userId, eventId);
     return this.liveMonitorSvc.live(eventId);
   }
 
   async manualCheckIn(userId: string, eventId: string, name: string, count?: number) {
+    await this.orgAccess.require(userId, 'Attendees & check-in', 'edit');
     await this.myEvent(userId, eventId);
     return this.liveMonitorSvc.manualCheckIn(eventId, name, count);
   }
@@ -126,6 +148,7 @@ export class OrganizerService {
    * for their own without needing to call support). Same Event.salesPaused
    * field, enforced in the same place (priceHold()). */
   async setSalesPaused(userId: string, eventId: string, paused: boolean) {
+    await this.orgAccess.require(userId, 'Events & wizard', 'edit');
     await this.myEvent(userId, eventId);
     return this.prisma.event.update({ where: { id: eventId }, data: { salesPaused: paused } });
   }
@@ -142,7 +165,7 @@ export class OrganizerService {
    * off the JWT-fetched user for the global header, so a rename here used
    * to go stale there until this synced it back. */
   async updateMe(userId: string, patch: { brandName?: string; username?: string; city?: string; country?: string; state?: string; pincode?: string; logoUrl?: string; about?: string; socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) {
-    const org = await this.myOrganizer(userId);
+    const org = await this.orgAccess.require(userId, 'Settings & team', 'edit');
 
     const username = patch.username?.trim().toLowerCase();
     if (username && username !== org.username) {
@@ -192,10 +215,13 @@ export class OrganizerService {
   }
 
 
+  /** Resolves the org row for the real owner OR an invited team member —
+   * plain resolution only, no permission check (callers that need one call
+   * orgAccess.require directly; this is for internal ownership lookups like
+   * myEvent, and for spots where any team member should pass regardless of
+   * role, same as before team members existed at all). */
   private async myOrganizer(userId: string) {
-    const org = await this.prisma.organizer.findUnique({ where: { userId } });
-    if (!org) throw new ForbiddenException('Not an approved organizer');
-    return org;
+    return (await this.orgAccess.resolve(userId)).org;
   }
 
   private async uniqueSlug(base: string) {
@@ -209,7 +235,7 @@ export class OrganizerService {
 
   // ---------- events ----------
   async events(userId: string) {
-    const org = await this.myOrganizer(userId);
+    const org = await this.orgAccess.require(userId, 'Events & wizard', 'view');
     return this.prisma.event.findMany({
       where: { organizerId: org.id },
       include: { tiers: true, venue: true },
@@ -292,7 +318,7 @@ export class OrganizerService {
   }
 
   async upsertEvent(userId: string, input: EventInput) {
-    const org = await this.myOrganizer(userId);
+    const org = await this.orgAccess.require(userId, 'Events & wizard', 'edit');
     if (input.id) {
       const existing = await this.prisma.event.findUnique({ where: { id: input.id } });
       if (existing && existing.organizerId !== org.id) throw new ForbiddenException();
@@ -346,7 +372,7 @@ export class OrganizerService {
   }
 
   async attendees(userId: string, eventId: string) {
-    const org = await this.myOrganizer(userId);
+    const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'view');
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
     if (event.organizerId !== org.id) throw new ForbiddenException();
@@ -368,7 +394,7 @@ export class OrganizerService {
 
   // ---------- coupons ----------
   async coupons(userId: string) {
-    const org = await this.myOrganizer(userId);
+    const org = await this.orgAccess.require(userId, 'Coupons', 'view');
     return this.prisma.coupon.findMany({ where: { organizerId: org.id }, orderBy: { validTill: 'desc' } });
   }
 
@@ -390,7 +416,7 @@ export class OrganizerService {
       description?: string;
     },
   ) {
-    const org = await this.myOrganizer(userId);
+    const org = await this.orgAccess.require(userId, 'Coupons', 'edit');
 
     if (body.eventScope && body.eventScope !== 'all') {
       const owns = await this.prisma.event.findFirst({ where: { organizerId: org.id, title: body.eventScope } });
@@ -444,7 +470,7 @@ export class OrganizerService {
 
   // ---------- payouts ----------
   async payouts(userId: string) {
-    const org = await this.myOrganizer(userId);
+    const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'view');
     const [agg, ledger] = await Promise.all([
       this.prisma.organizerLedgerTx.aggregate({ where: { organizerId: org.id }, _sum: { amount: true } }),
       this.prisma.organizerLedgerTx.findMany({ where: { organizerId: org.id }, orderBy: { createdAt: 'desc' } }),
@@ -453,7 +479,7 @@ export class OrganizerService {
   }
 
   async withdraw(userId: string, amount: number) {
-    const org = await this.myOrganizer(userId);
+    const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'edit');
     if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Enter a valid amount');
     const agg = await this.prisma.organizerLedgerTx.aggregate({ where: { organizerId: org.id }, _sum: { amount: true } });
     const balance = agg._sum.amount ?? 0;
@@ -463,7 +489,11 @@ export class OrganizerService {
       data: { organizerId: org.id, type: 'withdrawal', amount: -amount, note: 'Withdrawal to bank' },
     });
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    // Notify the account owner, not whoever triggered it — the payout lands
+    // in the owner's bank account (org.bankAccountNumber) regardless of
+    // which team member with "Payouts & withdrawals" edit access clicked
+    // withdraw, so that's who needs to know it happened.
+    const user = org.userId ? await this.prisma.user.findUnique({ where: { id: org.userId } }) : null;
     if (user) {
       await this.wa.send(user.phone, 'organizer_payout', [String(amount)]).catch(() => {});
       await this.email.sendTemplate(user.email, 'payout_processed', {
@@ -478,7 +508,7 @@ export class OrganizerService {
    * still `active`, and older than the hold TTL — computed lazily here, not
    * by a background job (there's no cron infra yet — see BACKEND.md). */
   async carts(userId: string) {
-    const org = await this.myOrganizer(userId);
+    const org = await this.orgAccess.require(userId, 'Events & wizard', 'view');
     const eventIds = (await this.prisma.event.findMany({ where: { organizerId: org.id }, select: { id: true } })).map((e) => e.id);
     if (!eventIds.length) return [];
 
@@ -582,7 +612,7 @@ export class OrganizerService {
   }
 
   async remindCart(userId: string, id: string) {
-    const org = await this.myOrganizer(userId);
+    const org = await this.orgAccess.require(userId, 'Events & wizard', 'edit');
     const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: true } });
     if (!cart) throw new NotFoundException('Cart not found');
     if (cart.event.organizerId !== org.id) throw new ForbiddenException();

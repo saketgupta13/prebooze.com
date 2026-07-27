@@ -128,6 +128,12 @@ export class AuthService {
     const user =
       existing ?? (await this.prisma.user.create({ data: { phone: rec.phone, referralCode: referralCodeFor(rec.phone) } }));
 
+    // Lazily link any organizer team invites sent to this phone before this
+    // login — invites are created by phone (OrgTeamService.addStaff), often
+    // before the invitee has ever logged in at all, so there's no User row
+    // to link at invite time. Idempotent no-op once already linked.
+    await this.prisma.orgStaff.updateMany({ where: { phone: user.phone, userId: null }, data: { userId: user.id } });
+
     const token = await this.jwt.signAsync({ sub: user.id, phone: user.phone });
     return { token, user: toApiUser(user), isNew: !existing };
   }

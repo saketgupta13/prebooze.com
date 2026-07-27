@@ -195,6 +195,15 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     tokens: ['name', 'roleLabel', 'reasonBlock'],
   },
   {
+    id: 'org_team_invite', name: 'Organizer team invite', category: 'Roles',
+    trigger: 'An organizer invites a team member (OrgTeamService.addStaff)',
+    preheader: "You've been added to a Prebooze team",
+    defaultSubject: '{{orgBrand}} added you to their Prebooze team ✓',
+    defaultBody: `<p>Hey {{name}},</p><p><b>{{orgBrand}}</b> added you to their team on Prebooze as <b>{{roleName}}</b>. Log in with your phone number ({{phone}}) to get started — you'll see exactly what your role gives you access to.</p>`,
+    cta: { label: 'Log in →', urlTemplate: '{{webUrl}}/login' },
+    tokens: ['name', 'orgBrand', 'roleName', 'phone'],
+  },
+  {
     id: 'payout_processed', name: 'Payout processed', category: 'Roles',
     trigger: 'An organizer or promoter withdraws their balance',
     preheader: 'Your withdrawal was processed',

@@ -7,7 +7,7 @@ import { existingRole } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 
 export default function Header() {
-  const { user, city, logout } = useApp();
+  const { user, city, logout, orgTeamAccess } = useApp();
   const { logoUrl } = usePlatformInfo();
   const heldRole = existingRole(user);
   // A role account's display name lives on its brand field, not user.name —
@@ -168,9 +168,9 @@ export default function Header() {
                 <Link to="/help" onClick={() => setMenuOpen(false)}>
                   🛟 Help center
                 </Link>
-                {user.isOrganizer && (
+                {(user.isOrganizer || orgTeamAccess) && (
                   <Link to="/organizer" onClick={() => setMenuOpen(false)}>
-                    ▦ Organizer console
+                    ▦ {orgTeamAccess && !user.isOrganizer ? `Team console — ${orgTeamAccess.organizerBrand}` : 'Organizer console'}
                   </Link>
                 )}
                 {user.isPromoter && (

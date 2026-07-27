@@ -16,8 +16,12 @@ export default function OrgTeamRoles() {
   const [err, setErr] = useState('');
   const [showInvite, setShowInvite] = useState(false);
   const [inviteName, setInviteName] = useState('');
+  const [invitePhone, setInvitePhone] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('Door staff');
   const [inviteScan, setInviteScan] = useState(true);
+  const [inviting, setInviting] = useState(false);
+  const [inviteSent, setInviteSent] = useState(false);
   const [selectedRole, setSelectedRole] = useState('Manager');
   const [showAddRole, setShowAddRole] = useState(false);
   const [newRole, setNewRole] = useState('');
@@ -42,15 +46,28 @@ export default function OrgTeamRoles() {
 
   const invite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteName.trim()) return;
+    if (!inviteName.trim() || !invitePhone.trim()) return;
     setErr('');
+    setInviting(true);
     try {
-      await orgTeam.addStaff({ name: inviteName.trim(), roleName: inviteRole, scan: inviteScan });
+      await orgTeam.addStaff({
+        name: inviteName.trim(),
+        phone: invitePhone.trim(),
+        email: inviteEmail.trim() || undefined,
+        roleName: inviteRole,
+        scan: inviteScan,
+      });
       setInviteName('');
+      setInvitePhone('');
+      setInviteEmail('');
       setShowInvite(false);
+      setInviteSent(true);
+      setTimeout(() => setInviteSent(false), 4000);
       load();
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : 'Failed to invite');
+    } finally {
+      setInviting(false);
     }
   };
 
@@ -123,12 +140,13 @@ export default function OrgTeamRoles() {
         <button className="btn btn-pri" onClick={() => setShowInvite((v) => !v)}>+ Invite member</button>
       </div>
       {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {inviteSent && <div className="small" style={{ marginBottom: 10, color: 'var(--accent)' }}>✓ Invite sent — they can log in with that phone number now.</div>}
 
       {showInvite && (
         <form className="card" style={{ borderColor: 'var(--accent)', marginBottom: 16 }} onSubmit={invite}>
-          <div className="form-row" style={{ alignItems: 'flex-end' }}>
+          <div className="form-row">
             <div className="field">
-              <span>Name or phone</span>
+              <span>Name</span>
               <input value={inviteName} onChange={(e) => setInviteName(e.target.value)} autoFocus />
             </div>
             <div className="field" style={{ flex: '0 0 160px' }}>
@@ -139,12 +157,25 @@ export default function OrgTeamRoles() {
                 ))}
               </select>
             </div>
-            <button className="btn btn-pri" style={{ flex: '0 0 auto' }}>Invite ✓</button>
+          </div>
+          <div className="form-row" style={{ alignItems: 'flex-end' }}>
+            <div className="field">
+              <span>Phone number</span>
+              <input value={invitePhone} onChange={(e) => setInvitePhone(e.target.value)} placeholder="+91 98765 43210" />
+            </div>
+            <div className="field">
+              <span>Email (optional)</span>
+              <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="for an extra email invite" />
+            </div>
+            <button className="btn btn-pri" style={{ flex: '0 0 auto' }} disabled={inviting}>{inviting ? 'Sending…' : 'Invite ✓'}</button>
           </div>
           <label className="checkbox-row">
             <input type="checkbox" checked={inviteScan} onChange={() => setInviteScan((v) => !v)} />
             allow door-scan access
           </label>
+          <div className="tiny muted-2" style={{ marginTop: 6 }}>
+            They'll get a WhatsApp + email invite and log in with this phone number — the console they see is scoped to the role you pick.
+          </div>
         </form>
       )}
 
@@ -154,7 +185,9 @@ export default function OrgTeamRoles() {
           <div key={m.id} className="evrow">
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="bold small">{m.name}</div>
-              <div className="tiny muted">{m.scan ? '📷 door-scan access' : 'no scan access'}</div>
+              <div className="tiny muted">
+                {m.phone ?? 'no phone on file'} · {m.scan ? '📷 door-scan access' : 'no scan access'}
+              </div>
             </div>
             {m.roleName === 'Owner' ? (
               <span className="badge badge-accent">Owner</span>

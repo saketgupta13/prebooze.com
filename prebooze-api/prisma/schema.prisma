@@ -104,6 +104,7 @@ model User {
   promoterProfile  Promoter? // set once this user's promoter KYC is approved
   lineupProfile    Lineup? // set once this user's lineup KYC is approved
   helpTickets      HelpTicket[]
+  orgStaffMemberships OrgStaff[] // organizer team invites this phone has accepted (possibly more than one org)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -961,8 +962,11 @@ model OrganizerLedgerTx {
 
 // Organizer's own team/permissions system — same view/edit-per-module shape
 // as admin's StaffRole/Staff, just organizer-scoped instead of platform-wide
-// and with a smaller, organizer-relevant module list (no login/password —
-// these aren't real accounts, just a roster + roles for door/ops staff).
+// and with a smaller, organizer-relevant module list. Unlike admin staff
+// (separate email+password login), a team member logs in with their own
+// phone via the normal guest OTP flow — OrgStaff.userId (below) is what
+// links that login to this organizer's console + role, resolved by
+// OrgAccessService.
 model OrgRole {
   id          String    @id @default(cuid())
   organizerId String
@@ -983,8 +987,23 @@ model OrgStaff {
   phone       String?
   roleName    String
   scan        Boolean   @default(false) // gate-scanner access, independent of the role matrix
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+
+  // Real invite-to-login linkage — set immediately at invite time if a User
+  // with this phone already exists, otherwise lazily backfilled the next
+  // time this phone completes OTP login (see AuthService.verifyOtp). Once
+  // set, OrgAccessService resolves this user's organizer-console access via
+  // this row + its role's permission matrix, the same way it resolves a
+  // real owner — this is what makes "invite member" an actual login path
+  // instead of a decorative name label. Not globally unique: the same
+  // person can be staff at more than one organizer.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizerId, phone])
+  @@index([userId])
 }
 
 // ============================================================================

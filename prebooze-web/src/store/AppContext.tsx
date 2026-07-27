@@ -4,7 +4,7 @@ import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayM
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } from '../data/mock';
 import { notify } from '../lib/notify';
-import { auth, referrals as referralsApi, social as socialApi } from '../api';
+import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTeamApi, type OrgTeamAccess } from '../api';
 import { isBackendEnabled, setToken, clearToken, getToken } from '../api/client';
 
 export interface GuestReview {
@@ -271,6 +271,19 @@ interface AppState {
   setOrgRolePerm: (role: string, module: string, key: keyof OrgPermSet, value: boolean) => void;
   addOrgRole: (name: string) => void;
   removeOrgRole: (name: string) => boolean;
+  /** Real "am I on someone's team" access — set only for an invited
+   * organizer team member (not the real owner, who uses the normal
+   * isOrganizer path). null while logged out or if the logged-in user
+   * isn't staff anywhere; see orgTeamAccessLoaded to distinguish "still
+   * loading" from "confirmed not staff". See orgTeam.mine(). */
+  orgTeamAccess: OrgTeamAccess | null;
+  /** False until the orgTeamAccess bootstrap fetch resolves (or is skipped
+   * because there's no session) — OrganizerLayout must wait for this before
+   * treating a null orgTeamAccess as "definitely not on a team," otherwise
+   * a team member's console flashes the onboarding redirect on every load
+   * (the fetch is async; orgTeamAccess is null on the very first render
+   * regardless of whether they're staff). */
+  orgTeamAccessLoaded: boolean;
 }
 
 const Ctx = createContext<AppState>(null as unknown as AppState);
@@ -357,6 +370,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [followRequests, setFollowRequests] = useState<string[]>(() => load('pb_follow_requests', ['p6', 'p7']));
   const [pendingPhone, setPendingPhone] = useState('');
   const [pendingRequestId, setPendingRequestId] = useState('');
+  const [orgTeamAccess, setOrgTeamAccess] = useState<OrgTeamAccess | null>(null);
+  const [orgTeamAccessLoaded, setOrgTeamAccessLoaded] = useState(() => !isBackendEnabled() || !getToken());
   const [orgBalance, setOrgBalance] = useState<number>(() => load('pb_org_balance', 84320));
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(() => load('pb_withdrawals', []));
   const [team, setTeam] = useState<TeamMember[]>(() =>
@@ -425,6 +440,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setFavVenues(s.favouriteVenues);
       })
       .catch(() => {});
+  }, []);
+  // Real "am I on an organizer's team" bootstrap — an invited team member
+  // isn't isOrganizer (that flag is reserved for the real KYC-approved
+  // owner), so OrganizerLayout needs this separately to decide whether to
+  // let a non-owner into a permission-scoped console at all.
+  useEffect(() => {
+    if (!isBackendEnabled() || !getToken()) return;
+    orgTeamApi
+      .mine()
+      .then(setOrgTeamAccess)
+      .catch(() => {})
+      .finally(() => setOrgTeamAccessLoaded(true));
   }, []);
   useEffect(() => {
     localStorage.setItem('pb_city', JSON.stringify(city));
@@ -572,6 +599,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const { token, user: apiUser, isNew } = await auth.verifyOtp(pendingRequestId, code);
           setToken(token);
           setUser(normalizeUser({ ...apiUser, pendingRole: inferPendingRole(apiUser) }));
+          // Bootstrap effects above only run once on mount (before a token
+          // existed) — a fresh in-SPA login needs its own fetch so a team
+          // member's console access is ready the moment they land on
+          // /organizer, not only after a page reload.
+          orgTeamApi.mine().then(setOrgTeamAccess).catch(() => {}).finally(() => setOrgTeamAccessLoaded(true));
           if (isNew) {
             const pendingRef = load<string | null>('pb_pending_ref', null);
             if (pendingRef) {
@@ -652,6 +684,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       logout: () => {
         setUser(null);
+        setOrgTeamAccess(null);
+        setOrgTeamAccessLoaded(true);
         clearToken();
       },
       // changing the cart always resets any active hold; checkout re-arms it on entry
@@ -987,8 +1021,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toast(`Role "${name}" removed`);
         return true;
       },
+      orgTeamAccess,
+      orgTeamAccessLoaded,
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, waitlists, jobApps, reviews, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, waitlists, jobApps, reviews, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

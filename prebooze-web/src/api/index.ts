@@ -323,9 +323,21 @@ export interface OrgStaffMember {
 }
 export type OrgPermKey = 'view' | 'edit';
 export type OrgModulePerms = Record<string, Record<OrgPermKey, boolean>>; // module -> {view, edit}
+export interface OrgTeamAccess {
+  organizerId: string;
+  organizerBrand: string;
+  organizerLogoUrl: string | null;
+  roleName: string;
+  permissions: OrgModulePerms;
+  scan: boolean;
+}
 export const orgTeam = {
+  /** "Am I on someone's team?" — null if not. Called once after login to
+   * decide whether to route a non-owner into a permission-scoped organizer
+   * console. */
+  mine: () => apiFetch<OrgTeamAccess | null>('/organizer/team/mine'),
   listStaff: () => apiFetch<OrgStaffMember[]>('/organizer/team'),
-  addStaff: (body: { name: string; phone?: string; roleName?: string; scan?: boolean }) => apiFetch<OrgStaffMember>('/organizer/team', { body }),
+  addStaff: (body: { name: string; phone: string; email?: string; roleName?: string; scan?: boolean }) => apiFetch<OrgStaffMember>('/organizer/team', { body }),
   updateStaffRole: (id: string, roleName: string) => apiFetch<OrgStaffMember>(`/organizer/team/${id}/role`, { body: { roleName } }),
   removeStaff: (id: string) => apiFetch<{ ok: true }>(`/organizer/team/${id}`, { method: 'DELETE' }),
 };

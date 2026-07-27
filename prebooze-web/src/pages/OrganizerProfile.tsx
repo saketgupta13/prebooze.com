@@ -117,8 +117,8 @@ export default function OrganizerProfile() {
                 <div className="l">followers</div>
               </div>
               <div className="s">
-                <div className="v">{org.following}</div>
-                <div className="l">following</div>
+                <div className="v">{org.reviewCount ? `${org.rating.toFixed(1)} ★` : '—'}</div>
+                <div className="l">{org.reviewCount ? `${org.reviewCount} review${org.reviewCount === 1 ? '' : 's'}` : 'no reviews yet'}</div>
               </div>
               <div className="s">
                 <div className="v">{org.eventsHosted}</div>

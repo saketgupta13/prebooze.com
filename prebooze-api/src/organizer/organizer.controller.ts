@@ -3,6 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { OrganizerService } from './organizer.service';
 import type { EventInput } from './organizer.service';
+import { OrgAccessService } from './org-access.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StaffAuthGuard } from '../admin/staff-auth.guard';
 import { PermissionGuard } from '../admin/permission.guard';
@@ -19,6 +20,7 @@ export class OrganizerController {
     private organizer: OrganizerService,
     private storage: StorageService,
     private invoices: InvoicesService,
+    private orgAccess: OrgAccessService,
   ) {}
 
   @Get('me')
@@ -28,10 +30,14 @@ export class OrganizerController {
 
   /** Real file upload for event media (poster, gallery, teaser, social
    * banners) at creation time — same local-disk StorageService as
-   * venue/admin uploads, just organizer-scoped. */
+   * venue/admin uploads, just organizer-scoped. Previously had no
+   * organizer/permission check at all (any authenticated user, including a
+   * plain guest, could call this as anonymous file storage) — now requires
+   * real "Events & wizard" edit access, same as the event save itself. */
   @Post('upload')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 80 * 1024 * 1024 } }))
-  upload(@UploadedFile() file?: Express.Multer.File) {
+  async upload(@Req() req: AuthedReq, @UploadedFile() file?: Express.Multer.File) {
+    await this.orgAccess.require(req.user.sub, 'Events & wizard', 'edit');
     if (!file) throw new BadRequestException('file is required (max 80MB)');
     return { url: this.storage.save(file) };
   }
@@ -42,14 +48,19 @@ export class OrganizerController {
   }
 
   /** Real Featured billing history — same Invoice rows admin sees, filtered
-   * to this organizer's own phone number (see InvoicesService.mine). */
+   * to this organizer's own phone number (see InvoicesService.mine).
+   * Owner-only: billing/invoices don't map onto any team-role permission
+   * module, and filtering by phone specifically means a team member's own
+   * phone wouldn't even return the right rows. */
   @Get('invoices')
-  myInvoices(@Req() req: AuthedReq) {
+  async myInvoices(@Req() req: AuthedReq) {
+    await this.orgAccess.requireOwner(req.user.sub);
     return this.invoices.mine('organizer', req.user.phone);
   }
 
   @Get('invoices/:id/pdf')
   async myInvoicePdf(@Req() req: AuthedReq, @Param('id') id: string, @Res() res: Response) {
+    await this.orgAccess.requireOwner(req.user.sub);
     const { filename, buffer } = await this.invoices.pdfForOwner(id, 'organizer', req.user.phone);
     res.set({
       'Content-Type': 'application/pdf',

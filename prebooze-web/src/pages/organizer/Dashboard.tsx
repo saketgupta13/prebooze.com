@@ -24,10 +24,22 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
+  // `me()` is the only hard requirement — any team member (any role) can
+  // call it (see OrganizerService.me). events/payouts/attendees are each
+  // gated on their own permission module though, so a narrower role (e.g.
+  // the default "Door staff", which has no Events/Payouts view) degrades
+  // those sections to empty instead of failing the whole dashboard — the
+  // relevant nav items are already hidden for that role anyway (see
+  // OrganizerLayout), this just keeps the one always-visible page usable.
   useEffect(() => {
-    Promise.all([organizer.me(), organizer.events(), organizer.payouts()])
-      .then(async ([me, evs, pay]) => {
+    organizer
+      .me()
+      .then(async (me) => {
         setProfile(me);
+        const [evs, pay] = await Promise.all([
+          organizer.events().catch(() => [] as Event[]),
+          organizer.payouts().catch(() => ({ balance: 0, ledger: [] as { id: string; type: string; amount: number; eventId?: string; createdAt: string }[] })),
+        ]);
         setEvents(evs);
         setLedger(pay.ledger);
         const live = evs.filter((e) => e.status === 'approved');

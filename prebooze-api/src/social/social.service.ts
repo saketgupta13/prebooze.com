@@ -162,6 +162,19 @@ export class SocialService {
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new BadRequestException('rating must be 1-5');
     if (!text?.trim()) throw new BadRequestException('text is required');
     const row = await this.prisma.orgReview.create({ data: { userId, organizerId, rating, text } });
+
+    // Organizer.rating/reviewCount are display-only aggregates shown on the
+    // public profile (OrganizerProfile.tsx) and OrgReviews.tsx's own KPI
+    // strip — real OrgReview rows were being created here the whole time
+    // but nothing ever recomputed these two fields, so every organizer's
+    // public rating stayed frozen at whatever it seeded at (usually 0),
+    // dead-real reviews notwithstanding.
+    const agg = await this.prisma.orgReview.aggregate({ where: { organizerId }, _avg: { rating: true }, _count: true });
+    await this.prisma.organizer.update({
+      where: { id: organizerId },
+      data: { rating: Math.round((agg._avg.rating ?? 0) * 10) / 10, reviewCount: agg._count },
+    });
+
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     return {
       id: row.id,

@@ -3,6 +3,7 @@ import { OrganizerController, AdminEventsController } from './organizer.controll
 import { OrgTeamController, OrgRolesController } from './org-team.controller';
 import { OrganizerService } from './organizer.service';
 import { OrgTeamService } from './org-team.service';
+import { OrgAccessService } from './org-access.service';
 import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StaffAuthGuard } from '../admin/staff-auth.guard';
@@ -18,6 +19,6 @@ import { InvoicesService } from '../invoices/invoices.service';
 
 @Module({
   controllers: [OrganizerController, AdminEventsController, OrgTeamController, OrgRolesController],
-  providers: [OrganizerService, OrgTeamService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, GuestListService, LiveMonitorService, StorageService, InvoicesService],
+  providers: [OrganizerService, OrgTeamService, OrgAccessService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, GuestListService, LiveMonitorService, StorageService, InvoicesService],
 })
 export class OrganizerModule {}

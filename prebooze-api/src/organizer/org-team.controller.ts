@@ -9,6 +9,16 @@ type AuthedReq = { user: { sub: string } };
 export class OrgTeamController {
   constructor(private team: OrgTeamService) {}
 
+  /** "Am I on someone's team, and with what role?" — called once after
+   * login to decide whether to route into an organizer console at all for
+   * a user who isn't an owner. Unlike every other route on this
+   * controller, deliberately has no permission requirement of its own
+   * (any authenticated user can ask this about themselves). */
+  @Get('mine')
+  mine(@Req() req: AuthedReq) {
+    return this.team.mine(req.user.sub);
+  }
+
   @Get()
   listStaff(@Req() req: AuthedReq) {
     return this.team.listStaff(req.user.sub);
