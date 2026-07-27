@@ -177,7 +177,13 @@ interface AppState {
   setCity: (c: string) => void;
   setPendingPhone: (p: string) => void;
   requestOtp: (phone: string) => Promise<void>;
-  loginWithOtp: (code: string) => Promise<'new' | 'existing'>;
+  /** `isTeamMember` is resolved (awaited, not fire-and-forget) as part of
+   * login itself — an invited organizer team member should never be
+   * funneled through guest profile-completion/ID-verification, the same
+   * way an organizer-onboarding signup already skips it, but that decision
+   * has to be made the instant OTP verification resolves, before any
+   * re-render could pick up orgTeamAccess from context. */
+  loginWithOtp: (code: string) => Promise<{ status: 'new' | 'existing'; isTeamMember: boolean }>;
   updateUser: (patch: Partial<User>) => void;
   // Submits an elevated-role application for manual review — never activates
   // the role directly. Guest ID verification is separate (see idVerified /
@@ -602,8 +608,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           // Bootstrap effects above only run once on mount (before a token
           // existed) — a fresh in-SPA login needs its own fetch so a team
           // member's console access is ready the moment they land on
-          // /organizer, not only after a page reload.
-          orgTeamApi.mine().then(setOrgTeamAccess).catch(() => {}).finally(() => setOrgTeamAccessLoaded(true));
+          // /organizer, not only after a page reload. Awaited (not
+          // fire-and-forget) so the caller (Otp.tsx) can make its
+          // skip-guest-funnel navigation decision off the real result
+          // instead of stale context.
+          const access = await orgTeamApi.mine().catch(() => null);
+          setOrgTeamAccess(access);
+          setOrgTeamAccessLoaded(true);
           if (isNew) {
             const pendingRef = load<string | null>('pb_pending_ref', null);
             if (pendingRef) {
@@ -611,14 +622,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
               localStorage.removeItem('pb_pending_ref');
             }
           }
-          return isNew ? 'new' : 'existing';
+          return { status: isNew ? 'new' : 'existing', isTeamMember: !!access };
         }
         // ---- offline/mock mode (no VITE_API_URL) — unchanged local fallback ----
         const existing = normalizeUser(load<User | null>('pb_known_' + pendingPhone, null));
         if (existing) {
           localStorage.setItem('pb_known_' + existing.phone, JSON.stringify(existing));
           setUser(existing);
-          return 'existing';
+          return { status: 'existing', isTeamMember: false };
         }
         const fresh: User = {
           phone: pendingPhone,
@@ -664,7 +675,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
           localStorage.removeItem('pb_pending_ref');
         }
-        return 'new';
+        return { status: 'new', isTeamMember: false };
       },
       updateUser: (patch) => {
         setUser((u) => {

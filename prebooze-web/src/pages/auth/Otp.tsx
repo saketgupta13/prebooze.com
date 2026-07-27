@@ -58,12 +58,15 @@ export default function Otp() {
       // shouldn't be funneled through guest profile completion + guest ID
       // verification first — that's a different identity flow (their own
       // onboarding form *is* the KYC submission) and shows a "Skip for now"
-      // escape hatch that has no business being in a required flow.
-      const skipsGuestFunnel = from === '/organizer/onboarding' || from === '/venue/onboarding';
-      if (result === 'new' && !skipsGuestFunnel) {
+      // escape hatch that has no business being in a required flow. Same
+      // for an invited organizer team member logging in for the first
+      // time — there's no onboarding form for them at all (see
+      // OrganizerLayout's TeamConsole), just this normal phone/OTP login.
+      const skipsGuestFunnel = from === '/organizer/onboarding' || from === '/venue/onboarding' || result.isTeamMember;
+      if (result.status === 'new' && !skipsGuestFunnel) {
         navigate('/complete-profile', { state: { from } });
       } else {
-        navigate(from ?? '/');
+        navigate(from ?? (result.isTeamMember ? '/organizer' : '/'));
       }
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Invalid code — please try again');
