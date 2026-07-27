@@ -56,14 +56,17 @@ export class WhatsappService {
     ]);
   }
 
-  /** Campaign 'otp_phone_change' — same Authentication-template shape as
-   * otp_login (Copy Code button, code passed both in the body param and the
-   * button param), kept as its own campaign so the message text can say
-   * "verify your new number" instead of "log in". Needs its own AiSensy/Meta
-   * template approval before this actually delivers in production, same as
-   * any other new campaign name added to this file. */
+  /** Reuses the already-approved 'otp_login' campaign rather than a
+   * separate 'otp_phone_change' one — a brand-new campaign needs its own
+   * manual AiSensy/Meta template review before it can send anything in
+   * production (confirmed the hard way: request-change returned "Couldn't
+   * send your code right now" in prod because that template didn't exist
+   * yet). Same 4-digit Authentication-template code, just for a different
+   * intent — if a distinct "verify your new number" message is wanted later,
+   * get 'otp_phone_change' approved on AiSensy first, then swap the
+   * campaign name back here. */
   async sendPhoneChangeOtp(phone: string, code: string): Promise<void> {
-    return this.send(phone, 'otp_phone_change', [code], [
+    return this.send(phone, 'otp_login', [code], [
       { type: 'button', sub_type: 'url', index: 0, parameters: [{ type: 'text', text: code }] },
     ]);
   }

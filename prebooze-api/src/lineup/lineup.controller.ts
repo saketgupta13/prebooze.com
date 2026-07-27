@@ -1,16 +1,20 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { LineupService } from './lineup.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 
 type AuthedReq = { user: { sub: string } };
 
-/** Same route shape as /organizer, /promoter, /venue's subscription
- * endpoints — see LineupService for why this controller only carries
- * subscription routes and nothing else. */
+/** Same route shape as /organizer, /promoter, /venue's self-serve +
+ * subscription endpoints — see LineupService for scope. */
 @Controller('lineup')
 @UseGuards(JwtAuthGuard)
 export class LineupController {
   constructor(private lineup: LineupService) {}
+
+  @Patch('me')
+  updateMe(@Req() req: AuthedReq, @Body() body: Parameters<LineupService['updateMe']>[1]) {
+    return this.lineup.updateMe(req.user.sub, body);
+  }
 
   @Get('subscription/tiers')
   subscriptionTiers() {

@@ -177,12 +177,13 @@ export class OrganizerService {
       },
     });
 
-    if (org.userId && (patch.brandName !== undefined || patch.logoUrl !== undefined)) {
+    if (org.userId && (patch.brandName !== undefined || patch.logoUrl !== undefined || username)) {
       await this.prisma.user.update({
         where: { id: org.userId },
         data: {
           orgBrand: patch.brandName !== undefined ? updated.brandName : undefined,
           orgLogoUrl: patch.logoUrl !== undefined ? updated.logoUrl : undefined,
+          orgUsername: username ? updated.username : undefined,
         },
       });
     }

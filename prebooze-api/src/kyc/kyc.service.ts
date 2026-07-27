@@ -147,7 +147,16 @@ export class KycService {
         this.prisma.user.findUnique({ where: { id: sub.userId } }),
         this.prisma.organizer.findUnique({ where: { userId: sub.userId } }),
       ]);
-      if (user && !existing) ops.push(this.prisma.organizer.create({ data: await this.newOrganizerRow(user, sub.payload as Record<string, unknown> | null) }));
+      if (user && !existing) {
+        const row = await this.newOrganizerRow(user, sub.payload as Record<string, unknown> | null);
+        ops.push(this.prisma.organizer.create({ data: row }));
+        // Organizer.username is normalized (lowercased, collision-suffixed);
+        // User.orgUsername was captured raw at submission time and never
+        // touched again — sync it now so any exact-match comparison against
+        // the real catalog username (e.g. the public-profile "is this my
+        // own page" check) doesn't silently mismatch on casing forever.
+        ops.push(this.prisma.user.update({ where: { id: sub.userId }, data: { orgUsername: row.username } }));
+      }
     }
 
     // same reasoning for promoter — PromoterGuest.promoterSlug and
@@ -158,7 +167,11 @@ export class KycService {
         this.prisma.user.findUnique({ where: { id: sub.userId } }),
         this.prisma.promoter.findUnique({ where: { userId: sub.userId } }),
       ]);
-      if (user && !existing) ops.push(this.prisma.promoter.create({ data: await this.newPromoterRow(user) }));
+      if (user && !existing) {
+        const row = await this.newPromoterRow(user);
+        ops.push(this.prisma.promoter.create({ data: row }));
+        ops.push(this.prisma.user.update({ where: { id: sub.userId }, data: { promoterUsername: row.slug } }));
+      }
     }
 
     // Unlike organizer/promoter, the Venue catalog row already exists —
@@ -183,7 +196,11 @@ export class KycService {
         this.prisma.user.findUnique({ where: { id: sub.userId } }),
         this.prisma.lineup.findUnique({ where: { userId: sub.userId } }),
       ]);
-      if (user && !existing) ops.push(this.prisma.lineup.create({ data: await this.newLineupRow(user) }));
+      if (user && !existing) {
+        const row = await this.newLineupRow(user);
+        ops.push(this.prisma.lineup.create({ data: row }));
+        ops.push(this.prisma.user.update({ where: { id: sub.userId }, data: { lineupUsername: row.slug } }));
+      }
     }
 
     await this.prisma.$transaction(ops);

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { CITIES } from '../../data/mock';
+import { promoter as promoterApi } from '../../api';
+import { ApiError } from '../../api/client';
 import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 
 export default function PromoterSettings() {
@@ -9,6 +11,22 @@ export default function PromoterSettings() {
   const [brand, setBrand] = useState(user?.promoterBrand ?? '');
   const [username, setUsername] = useState(user?.promoterUsername ?? '');
   const [city, setCity] = useState(user?.city ?? 'Austin');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const save = async () => {
+    setErr('');
+    setSaving(true);
+    try {
+      const updated = await promoterApi.updateMe({ brandName: brand.trim(), username: username.trim(), city });
+      updateUser({ promoterBrand: updated.name, promoterUsername: updated.slug, city: updated.city });
+      toast('Profile saved ✓');
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div>
@@ -18,6 +36,7 @@ export default function PromoterSettings() {
       </div>
       <div className="card" style={{ maxWidth: 520, marginBottom: 16 }}>
         <h3 style={{ marginBottom: 12 }}>Promoter profile</h3>
+        {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
         <div className="form-row">
           <div className="field">
             <span>Brand name</span>
@@ -36,14 +55,8 @@ export default function PromoterSettings() {
             ))}
           </select>
         </div>
-        <button
-          className="btn btn-pri"
-          onClick={() => {
-            updateUser({ promoterBrand: brand.trim(), promoterUsername: username.trim(), city });
-            toast('Profile saved ✓');
-          }}
-        >
-          Save changes
+        <button className="btn btn-pri" disabled={saving} onClick={save}>
+          {saving ? 'Saving…' : 'Save changes'}
         </button>
       </div>
 

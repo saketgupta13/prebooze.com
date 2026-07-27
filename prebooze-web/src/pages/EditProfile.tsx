@@ -4,6 +4,8 @@ import { useApp } from '../store/AppContext';
 import { CITIES, INTEREST_TAGS } from '../data/mock';
 import WysiwygEditor from '../components/WysiwygEditor';
 import ChangePhoneNumber from '../components/ChangePhoneNumber';
+import { auth } from '../api';
+import { ApiError } from '../api/client';
 
 export default function EditProfile() {
   const { user, updateUser } = useApp();
@@ -22,16 +24,27 @@ export default function EditProfile() {
     socials: user?.socials ?? '',
   });
   const [interests, setInterests] = useState<string[]>(user?.interests ?? []);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
 
   if (!user) return null;
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser({ ...form, interests });
-    navigate('/profile');
+    setErr('');
+    setSaving(true);
+    try {
+      const updated = await auth.updateMe({ ...form, interests });
+      updateUser(updated);
+      navigate('/profile');
+    } catch (e2) {
+      setErr(e2 instanceof ApiError ? e2.message : 'Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -42,6 +55,7 @@ export default function EditProfile() {
           <span className="accent">{user.profilePct}% complete</span>
         </div>
         <h1 style={{ fontSize: 24, marginBottom: 18 }}>Edit profile</h1>
+        {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
 
         <form className="card" onSubmit={save}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
@@ -144,7 +158,7 @@ export default function EditProfile() {
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-pri">Save changes</button>
+            <button className="btn btn-pri" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
             <Link to="/profile" className="btn btn-ghost">
               Cancel
             </Link>

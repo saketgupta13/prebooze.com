@@ -3,6 +3,8 @@ import { useApp } from '../../store/AppContext';
 import WysiwygEditor from '../../components/WysiwygEditor';
 import { FileDropBox } from '../../components/FileDropBox';
 import ChangePhoneNumber from '../../components/ChangePhoneNumber';
+import { lineup as lineupApi } from '../../api';
+import { ApiError } from '../../api/client';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 
@@ -16,13 +18,30 @@ export default function LineupSettings() {
     bio: user?.bio ?? '',
     socials: user?.socials ?? '',
   });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser(form);
-    toast('Artist profile saved ✓');
+    setErr('');
+    setSaving(true);
+    try {
+      const updated = await lineupApi.updateMe({
+        name: form.lineupName.trim(),
+        category: form.lineupCategory,
+        city: form.city.trim(),
+        bio: form.bio,
+        socials: form.socials,
+      });
+      updateUser({ lineupName: updated.name, lineupCategory: updated.category, city: updated.city, bio: updated.bio, socials: form.socials });
+      toast('Artist profile saved ✓');
+    } catch (e2) {
+      setErr(e2 instanceof ApiError ? e2.message : 'Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -31,6 +50,7 @@ export default function LineupSettings() {
       <div style={{ marginBottom: 16 }}>
         <ChangePhoneNumber />
       </div>
+      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
       <form className="card" onSubmit={save}>
         <FileDropBox
           value={photo}
@@ -63,7 +83,7 @@ export default function LineupSettings() {
           <span>Links (socials / music)</span>
           <input value={form.socials} onChange={set('socials')} placeholder="ig / spotify / soundcloud" />
         </div>
-        <button className="btn btn-pri btn-block btn-lg" style={{ marginTop: 8 }}>Save changes</button>
+        <button className="btn btn-pri btn-block btn-lg" style={{ marginTop: 8 }} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
       </form>
     </div>
   );

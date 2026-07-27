@@ -4,7 +4,7 @@ import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayM
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } from '../data/mock';
 import { notify } from '../lib/notify';
-import { auth, referrals as referralsApi } from '../api';
+import { auth, referrals as referralsApi, social as socialApi } from '../api';
 import { isBackendEnabled, setToken, clearToken, getToken } from '../api/client';
 
 export interface GuestReview {
@@ -408,6 +408,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .then((apiUser) => setUser(normalizeUser({ ...apiUser, pendingRole: inferPendingRole(apiUser) })))
       .catch(() => {}); // expired/invalid token — leave cached user as-is rather than force a logout on a transient error
   }, []);
+  // Real follow/interested/wishlist/favourite state — a real backend (Follow/
+  // EventInterest/EventWishlist/VenueFavourite models) has existed the whole
+  // time, but toggleFollow etc. below only ever touched local state until
+  // now. One bundled fetch to seed all four, mirroring how they used to boot
+  // from localStorage together — real state then takes over from here via
+  // the real POST/DELETE calls each toggle makes.
+  useEffect(() => {
+    if (!isBackendEnabled() || !getToken()) return;
+    socialApi
+      .mySocialState()
+      .then((s) => {
+        setFollowing(s.following);
+        setInterested(s.interested);
+        setWishlist(s.wishlist);
+        setFavVenues(s.favouriteVenues);
+      })
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     localStorage.setItem('pb_city', JSON.stringify(city));
   }, [city]);
@@ -719,11 +737,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       myReferralCode: user ? referralCodeFor(user.phone) : '',
       referrals,
       wishlist,
-      toggleWishlist: (eventId) =>
-        setWishlist((prev) => (prev.includes(eventId) ? prev.filter((e) => e !== eventId) : [eventId, ...prev])),
+      toggleWishlist: (eventId) => {
+        const nowOn = !wishlist.includes(eventId);
+        setWishlist((prev) => (prev.includes(eventId) ? prev.filter((e) => e !== eventId) : [eventId, ...prev]));
+        if (isBackendEnabled() && getToken()) {
+          socialApi.wishlist(eventId, nowOn).catch(() => {
+            setWishlist((prev) => (nowOn ? prev.filter((e) => e !== eventId) : [eventId, ...prev]));
+          });
+        }
+      },
       favVenues,
-      toggleFavVenue: (venueId) =>
-        setFavVenues((prev) => (prev.includes(venueId) ? prev.filter((v) => v !== venueId) : [venueId, ...prev])),
+      toggleFavVenue: (venueId) => {
+        const nowOn = !favVenues.includes(venueId);
+        setFavVenues((prev) => (prev.includes(venueId) ? prev.filter((v) => v !== venueId) : [venueId, ...prev]));
+        if (isBackendEnabled() && getToken()) {
+          socialApi.favVenue(venueId, nowOn).catch(() => {
+            setFavVenues((prev) => (nowOn ? prev.filter((v) => v !== venueId) : [venueId, ...prev]));
+          });
+        }
+      },
       payMethods: user ? (payMethodsMap[user.phone] ?? []) : [],
       addPayMethod: (m) => {
         if (!user) return;
@@ -816,10 +848,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
             c.id === id ? { ...c, status: c.status === 'active' ? 'paused' : 'active' } : c
           )
         ),
-      toggleFollow: (id) =>
-        setFollowing((prev) =>
-          prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
-        ),
+      toggleFollow: (id) => {
+        const nowFollowing = !following.includes(id);
+        setFollowing((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]));
+        if (isBackendEnabled() && getToken()) {
+          (nowFollowing ? socialApi.follow(id) : socialApi.unfollow(id)).catch(() => {
+            // real call failed — revert the optimistic local update
+            setFollowing((prev) => (nowFollowing ? prev.filter((f) => f !== id) : [...prev, id]));
+          });
+        }
+      },
       featured,
       requestFeatured: (input) => {
         if (user) notify(user.phone, 'featured_submitted', { amount: String(input.amount), what: `${input.type} (${input.refId})` }, user.email || undefined);
@@ -829,10 +867,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ]);
       },
       interested,
-      toggleInterested: (eventId) =>
+      toggleInterested: (eventId) => {
+        const nowOn = !interested.includes(eventId);
         setInterested((prev) =>
           prev.includes(eventId) ? prev.filter((e) => e !== eventId) : [eventId, ...prev]
-        ),
+        );
+        if (isBackendEnabled() && getToken()) {
+          socialApi.interested(eventId, nowOn).catch(() => {
+            setInterested((prev) => (nowOn ? prev.filter((e) => e !== eventId) : [eventId, ...prev]));
+          });
+        }
+      },
       followers,
       followRequests,
       acceptFollowRequest: (personId) => {

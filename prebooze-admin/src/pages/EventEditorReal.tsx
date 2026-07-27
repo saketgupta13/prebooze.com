@@ -512,6 +512,7 @@ export default function EventEditorReal() {
             <input type="checkbox" checked={promoEnabled} onChange={(e) => setPromoEnabled(e.target.checked)} />
             <b style={{ fontSize: 13 }}>Enable promoter guest lists for this event</b>
           </label>
+          {!promoEnabled && <div className="tiny muted" style={{ marginLeft: 24 }}>Check this to pick which promoters can run guest lists, free-entry cap, cutoff time and payout.</div>}
           {promoEnabled && (
             <>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

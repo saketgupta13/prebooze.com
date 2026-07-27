@@ -43,7 +43,7 @@ export default function LineupProfile() {
 
   const followKey = 'lineup:' + lineup.slug;
   const isFollowing = following.includes(followKey);
-  const isOwnProfile = user?.isLineup && user.lineupUsername === lineup.slug;
+  const isOwnProfile = user?.isLineup && user.lineupUsername?.toLowerCase() === lineup.slug.toLowerCase();
   const upcoming = (liveEvents ?? EVENTS).filter(
     (e) => e.status === 'approved' && e.lineup.some((l) => l.name.toLowerCase() === lineup.name.toLowerCase())
   );

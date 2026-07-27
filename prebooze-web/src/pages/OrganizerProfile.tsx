@@ -57,7 +57,7 @@ export default function OrganizerProfile() {
   const upcoming = orgEvents.filter((e) => new Date(e.date).getTime() >= now);
   const past = orgEvents.filter((e) => new Date(e.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date));
   const isFollowing = following.includes(org.id);
-  const isOwnProfile = user?.isOrganizer && user.orgUsername === org.username;
+  const isOwnProfile = user?.isOrganizer && user.orgUsername?.toLowerCase() === org.username.toLowerCase();
   const friends = friendsAtEvents(upcoming.map((e) => e.id), following);
 
   const linkHref = (l: string) => (l.startsWith('http') ? l : `https://${l}`);
@@ -134,7 +134,7 @@ export default function OrganizerProfile() {
               </div>
               <div className="kv">
                 <span className="k">Joined</span>
-                <span>{org.since}</span>
+                <span>{org.createdAt ? new Date(org.createdAt).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : org.since}</span>
               </div>
             </div>
           </div>

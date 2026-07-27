@@ -51,6 +51,45 @@ export class PromoterService {
     return promoter;
   }
 
+  /** Self-serve profile edit — same pattern as OrganizerService.updateMe:
+   * username changes are collision-checked and rejected (not auto-suffixed),
+   * and brandName/username are mirrored onto User.promoterBrand/promoterUsername
+   * so the global header + self-follow check (case-normalized on both sides)
+   * stay in sync. PromoterSettings.tsx only edits brand/username/city today,
+   * hence the narrow patch shape — Promoter.bio/links exist on the model but
+   * have no editor UI yet. */
+  async updateMe(userId: string, patch: { brandName?: string; username?: string; city?: string }) {
+    const promoter = await this.myPromoter(userId);
+
+    const slug = patch.username?.trim().toLowerCase();
+    if (slug && slug !== promoter.slug) {
+      if (!/^[a-z0-9-]{3,30}$/.test(slug)) throw new BadRequestException('Username must be 3-30 characters — letters, numbers and hyphens only');
+      const taken = await this.prisma.promoter.findUnique({ where: { slug } });
+      if (taken) throw new BadRequestException('That username is already taken');
+    }
+
+    const updated = await this.prisma.promoter.update({
+      where: { id: promoter.id },
+      data: {
+        name: patch.brandName?.trim(),
+        slug,
+        city: patch.city?.trim(),
+      },
+    });
+
+    if (promoter.userId && (patch.brandName !== undefined || slug)) {
+      await this.prisma.user.update({
+        where: { id: promoter.userId },
+        data: {
+          promoterBrand: patch.brandName !== undefined ? updated.name : undefined,
+          promoterUsername: slug ? updated.slug : undefined,
+        },
+      });
+    }
+
+    return updated;
+  }
+
   // ---------- promotions & guest lists ----------
   async promotions(userId: string) {
     const promoter = await this.myPromoter(userId);

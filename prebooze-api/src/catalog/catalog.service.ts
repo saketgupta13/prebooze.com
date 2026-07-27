@@ -47,6 +47,17 @@ export class CatalogService {
     return [...items].sort((a, b) => Number(featured.has(idOf(b))) - Number(featured.has(idOf(a))));
   }
 
+  /** Real follower counts from the Follow table, keyed exactly the way each
+   * profile page's own `toggleFollow` call keys it (organizer: bare id,
+   * venue/promoter/lineup: "type:id-or-slug" prefixed) — replaces the
+   * static seed `followers` int, which real follow/unfollow clicks never
+   * moved since the frontend only wrote to local state before this. */
+  private async realFollowerCounts(keys: string[]): Promise<Map<string, number>> {
+    if (!keys.length) return new Map();
+    const rows = await this.prisma.follow.groupBy({ by: ['followeeKey'], where: { followeeKey: { in: keys } }, _count: true });
+    return new Map(rows.map((r) => [r.followeeKey, r._count]));
+  }
+
   /** An event is "over" once its window (date → date + durationHrs) has
    * fully elapsed — same definition Admin API's dashboard "live now" stat
    * uses. Filtered in application code, not the Prisma `where`, since the
@@ -103,7 +114,7 @@ export class CatalogService {
   async venues(city?: string) {
     // `license` (operating-license reference, directory-CRUD slice) excluded
     // — same reasoning as PUBLIC_ORGANIZER_SELECT.
-    return this.prisma.venue.findMany({
+    const rows = await this.prisma.venue.findMany({
       where: city ? { city } : {},
       orderBy: { rating: 'desc' },
       select: {
@@ -112,6 +123,8 @@ export class CatalogService {
         photoHue: true, galleryUrls: true, contact: true, rules: true, seo: true, createdAt: true, updatedAt: true,
       },
     });
+    const counts = await this.realFollowerCounts(rows.map((v) => `venue:${v.id}`));
+    return rows.map((v) => ({ ...v, followers: counts.get(`venue:${v.id}`) ?? v.followers }));
   }
 
   async organizers(city?: string) {
@@ -120,23 +133,29 @@ export class CatalogService {
       orderBy: { eventsHosted: 'desc' },
       select: PUBLIC_ORGANIZER_SELECT,
     });
-    if (!city) return rows;
+    const counts = await this.realFollowerCounts(rows.map((o) => o.id));
+    const withCounts = rows.map((o) => ({ ...o, followers: counts.get(o.id) ?? o.followers }));
+    if (!city) return withCounts;
     const featured = await this.activeFeaturedRefs('organizer', city);
-    return this.sortFeaturedFirst(rows, (o) => o.id, featured);
+    return this.sortFeaturedFirst(withCounts, (o) => o.id, featured);
   }
 
   async promoters(city?: string) {
     const rows = await this.prisma.promoter.findMany({ where: city ? { city } : {}, orderBy: { showRate: 'desc' } });
-    if (!city) return rows;
+    const counts = await this.realFollowerCounts(rows.map((p) => `promoter:${p.slug}`));
+    const withCounts = rows.map((p) => ({ ...p, followers: counts.get(`promoter:${p.slug}`) ?? p.followers }));
+    if (!city) return withCounts;
     const featured = await this.activeFeaturedRefs('promoter', city);
-    return this.sortFeaturedFirst(rows, (p) => p.slug, featured);
+    return this.sortFeaturedFirst(withCounts, (p) => p.slug, featured);
   }
 
   async lineups(city?: string) {
     const rows = await this.prisma.lineup.findMany({ where: city ? { city } : {}, orderBy: { followers: 'desc' } });
-    if (!city) return rows;
+    const counts = await this.realFollowerCounts(rows.map((l) => `lineup:${l.slug}`));
+    const withCounts = rows.map((l) => ({ ...l, followers: counts.get(`lineup:${l.slug}`) ?? l.followers }));
+    if (!city) return withCounts;
     const featured = await this.activeFeaturedRefs('lineup', city);
-    return this.sortFeaturedFirst(rows, (l) => l.slug, featured);
+    return this.sortFeaturedFirst(withCounts, (l) => l.slug, featured);
   }
 
   async people(city?: string) {

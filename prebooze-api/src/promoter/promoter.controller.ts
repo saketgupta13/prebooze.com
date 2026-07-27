@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards, Req } from '@nestjs/common';
 import { PromoterService } from './promoter.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 
@@ -8,6 +8,11 @@ type AuthedReq = { user: { sub: string } };
 @UseGuards(JwtAuthGuard)
 export class PromoterController {
   constructor(private promoter: PromoterService) {}
+
+  @Patch('me')
+  updateMe(@Req() req: AuthedReq, @Body() body: Parameters<PromoterService['updateMe']>[1]) {
+    return this.promoter.updateMe(req.user.sub, body);
+  }
 
   @Get('promotions')
   promotions(@Req() req: AuthedReq) {

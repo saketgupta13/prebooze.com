@@ -100,6 +100,7 @@ export interface Organizer {
   verified: boolean;
   city: string;
   since: string;
+  createdAt?: string; // real signup timestamp — since is year-only, this is what gives "Joined" a real month
   rating: number;
   reviewCount: number;
   eventsHosted: number;

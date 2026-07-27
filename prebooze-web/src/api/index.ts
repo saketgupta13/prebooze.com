@@ -134,6 +134,7 @@ export const referrals = {
 export const social = {
   follow: (key: string) => apiFetch<void>('/follows', { body: { key } }),
   unfollow: (key: string) => apiFetch<void>('/follows', { method: 'DELETE', body: { key } }),
+  mySocialState: () => apiFetch<{ following: string[]; interested: string[]; wishlist: string[]; favouriteVenues: string[] }>('/me/social'),
   followers: () => apiFetch<Person[]>('/me/followers'),
   followRequests: () => apiFetch<Person[]>('/me/follow-requests'),
   respondRequest: (personId: string, accept: boolean) => apiFetch<void>(`/me/follow-requests/${personId}`, { body: { accept } }),
@@ -194,6 +195,8 @@ function subscriptionApi(prefix: 'organizer' | 'promoter' | 'venue' | 'lineup') 
 
 // ---------- promoter ----------
 export const promoter = {
+  updateMe: (patch: { brandName?: string; username?: string; city?: string }) =>
+    apiFetch<{ id: string; name: string; slug: string; city: string }>('/promoter/me', { method: 'PATCH', body: patch }),
   promotions: () => apiFetch<Event[]>('/promoter/promotions'),
   guests: (eventId: string) => apiFetch<PromoterGuest[]>(`/promoter/events/${eventId}/guests`),
   captureGuest: (eventSlug: string, promoterSlug: string, guest: Omit<PromoterGuest, 'id' | 'createdAt' | 'arrived'>) =>
@@ -336,6 +339,8 @@ export const orgRoles = {
 
 // ---------- lineup (artist) ----------
 export const lineup = {
+  updateMe: (patch: { name?: string; category?: string; city?: string; bio?: string; socials?: string }) =>
+    apiFetch<{ id: string; name: string; category: string; city: string; bio: string; links: string[] }>('/lineup/me', { method: 'PATCH', body: patch }),
   subscription: subscriptionApi('lineup'),
 };
 

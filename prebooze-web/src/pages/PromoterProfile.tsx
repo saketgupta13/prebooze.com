@@ -45,7 +45,7 @@ export default function PromoterProfile() {
 
   const followKey = 'promoter:' + promoter.slug;
   const isFollowing = following.includes(followKey);
-  const isOwnProfile = user?.isPromoter && user.promoterUsername === promoter.slug;
+  const isOwnProfile = user?.isPromoter && user.promoterUsername?.toLowerCase() === promoter.slug.toLowerCase();
   const eventPool = liveEvents ?? EVENTS;
   // Events this promoter is on the allow-list for; fall back to a sample of live events.
   const promoted = eventPool.filter((e) => e.promoterConfig?.allowedPromoters?.includes(promoter.slug));
