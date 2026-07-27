@@ -55,4 +55,16 @@ export class WhatsappService {
       { type: 'button', sub_type: 'url', index: 0, parameters: [{ type: 'text', text: code }] },
     ]);
   }
+
+  /** Campaign 'otp_phone_change' — same Authentication-template shape as
+   * otp_login (Copy Code button, code passed both in the body param and the
+   * button param), kept as its own campaign so the message text can say
+   * "verify your new number" instead of "log in". Needs its own AiSensy/Meta
+   * template approval before this actually delivers in production, same as
+   * any other new campaign name added to this file. */
+  async sendPhoneChangeOtp(phone: string, code: string): Promise<void> {
+    return this.send(phone, 'otp_phone_change', [code], [
+      { type: 'button', sub_type: 'url', index: 0, parameters: [{ type: 'text', text: code }] },
+    ]);
+  }
 }

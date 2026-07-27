@@ -42,4 +42,16 @@ export class AuthController {
   updateMe(@Req() req: { user: { sub: string } }, @Body() patch: Record<string, unknown>) {
     return this.auth.updateMe(req.user.sub, patch);
   }
+
+  @Post('me/phone/request-change')
+  @UseGuards(JwtAuthGuard)
+  requestPhoneChange(@Req() req: { user: { sub: string } }, @Body('newPhone') newPhone: string) {
+    return this.auth.requestPhoneChange(req.user.sub, newPhone);
+  }
+
+  @Post('me/phone/confirm-change')
+  @UseGuards(JwtAuthGuard)
+  confirmPhoneChange(@Req() req: { user: { sub: string } }, @Body() dto: VerifyOtpDto) {
+    return this.auth.confirmPhoneChange(req.user.sub, dto.requestId, dto.code);
+  }
 }

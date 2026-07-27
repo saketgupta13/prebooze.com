@@ -5,6 +5,7 @@ import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import { RealUploadBox } from '../../components/RealUploadBox';
 import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
+import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 import type { Organizer } from '../../types';
 
 const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
@@ -40,6 +41,7 @@ export default function Settings() {
   const [pan, setPan] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [contact, setContact] = useState('');
+  const [orgPhone, setOrgPhone] = useState('');
   const [eventTypes, setEventTypes] = useState<string[]>([]);
   const [bankName, setBankName] = useState('');
   const [bank, setBank] = useState('');
@@ -65,6 +67,7 @@ export default function Settings() {
         setPan(o.pan ?? '');
         setContactPerson(o.contactPerson ?? '');
         setContact(o.contact ?? '');
+        setOrgPhone(o.phone ?? '');
         setEventTypes(o.eventTypes ? o.eventTypes.split(',').map((t) => t.trim()).filter(Boolean) : []);
         setBankName(o.bankName ?? '');
         setBank(o.bankAccountNumber ?? '');
@@ -91,7 +94,7 @@ export default function Settings() {
         logoUrl: logoUrl ?? undefined,
         about,
         socialLinks: { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined, other: other.map((l) => l.trim()).filter(Boolean) },
-        gstin: noGst ? '' : gstin, pan, contactPerson, contact, eventTypes: eventTypes.join(', '),
+        gstin: noGst ? '' : gstin, pan, contactPerson, contact, phone: orgPhone, eventTypes: eventTypes.join(', '),
       });
       setOrg(updated);
       setOpen(null);
@@ -132,6 +135,9 @@ export default function Settings() {
         <Link to={`/organizers/${org.id}`} className="link small bold">View public profile ↗</Link>
       </div>
       {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      <div style={{ marginBottom: 16 }}>
+        <ChangePhoneNumber />
+      </div>
       <div className="card">
         <div className="evrow" style={{ flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -157,9 +163,15 @@ export default function Settings() {
                   <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} />
                 </div>
               </div>
-              <div className="field">
-                <span>Contact person</span>
-                <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} />
+              <div className="form-row">
+                <div className="field">
+                  <span>Contact person</span>
+                  <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} />
+                </div>
+                <div className="field">
+                  <span>Business mobile number</span>
+                  <input value={orgPhone} onChange={(e) => setOrgPhone(e.target.value)} placeholder="separate from your login number" />
+                </div>
               </div>
               <div className="field">
                 <span>Business email</span>

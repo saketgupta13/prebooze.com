@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../../store/AppContext';
 import WysiwygEditor from '../../components/WysiwygEditor';
 import { FileDropBox } from '../../components/FileDropBox';
+import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 
@@ -27,6 +28,9 @@ export default function LineupSettings() {
   return (
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 16 }}>Profile & settings</h1>
+      <div style={{ marginBottom: 16 }}>
+        <ChangePhoneNumber />
+      </div>
       <form className="card" onSubmit={save}>
         <FileDropBox
           value={photo}

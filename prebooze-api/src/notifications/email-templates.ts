@@ -80,6 +80,14 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     tokens: ['name'],
   },
   {
+    id: 'phone_number_changed', name: 'Login phone number changed', category: 'Guest',
+    trigger: 'AuthService.confirmPhoneChange — a self-serve login-number change is completed',
+    preheader: 'Your login number was updated',
+    defaultSubject: 'Your Prebooze login number changed',
+    defaultBody: `<p>Hey {{name}},</p><p>Your Prebooze login number was just changed to <b>{{newPhone}}</b>. If that wasn't you, contact support right away — your old number no longer works for OTP login on this account.</p>`,
+    tokens: ['name', 'newPhone'],
+  },
+  {
     id: 'booking_confirmed', name: 'Booking confirmed', category: 'Guest',
     trigger: 'A booking is created and payment succeeds',
     preheader: 'Your tickets are confirmed',
@@ -127,6 +135,15 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     defaultBody: `<p>Hey {{name}},</p><p>You were this close to booking <b>{{eventTitle}}</b> — your spot isn't held forever. Finish up before it sells out.</p>`,
     cta: { label: 'Complete booking →', urlTemplate: '{{eventUrl}}' },
     tokens: ['name', 'eventTitle', 'eventUrl'],
+  },
+  {
+    id: 'review_request', name: 'Post-event review request', category: 'Guest',
+    trigger: 'CronService.reviewRequestTick — a day after an attended, confirmed booking\'s event ends',
+    preheader: 'How was it? Leave a quick review',
+    defaultSubject: 'How was {{eventTitle}}?',
+    defaultBody: `<p>Hey {{name}},</p><p>Hope <b>{{eventTitle}}</b> by {{organizerName}} was a good one. Got a minute to rate it and leave a review? It helps other guests decide, and helps {{organizerName}} know what worked.</p>`,
+    cta: { label: 'Write a review →', urlTemplate: '{{webUrl}}/organizers/{{organizerId}}' },
+    tokens: ['name', 'eventTitle', 'organizerName', 'organizerId'],
   },
   {
     id: 'referral_welcome', name: 'Referral welcome credit', category: 'Guest',

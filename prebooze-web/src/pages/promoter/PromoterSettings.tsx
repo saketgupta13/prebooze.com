@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { CITIES } from '../../data/mock';
+import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 
 export default function PromoterSettings() {
   const { user, updateUser, toast } = useApp();
@@ -12,6 +13,9 @@ export default function PromoterSettings() {
   return (
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 18 }}>Profile &amp; settings</h1>
+      <div style={{ maxWidth: 520, marginBottom: 16 }}>
+        <ChangePhoneNumber />
+      </div>
       <div className="card" style={{ maxWidth: 520, marginBottom: 16 }}>
         <h3 style={{ marginBottom: 12 }}>Promoter profile</h3>
         <div className="form-row">

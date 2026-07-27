@@ -138,6 +138,82 @@ export class AuthService {
     return toApiUser(user);
   }
 
+  /** Self-serve login-number change, step 1 of 2 — same OTP mechanics as
+   * requestOtp (rate limit, 4-digit code, 5 min TTL, WhatsApp delivery) but
+   * scoped to the calling user and a specific new number, not anonymous
+   * login. The code goes to the NEW number (proves they actually control
+   * it) — Redis key is namespaced separately from login OTPs so a login
+   * code can never be replayed to hijack a phone-change and vice versa. */
+  async requestPhoneChange(userId: string, rawNewPhone: string) {
+    const current = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!current) throw new UnauthorizedException();
+    const newPhone = normalizePhone(rawNewPhone);
+    if (newPhone === current.phone) throw new BadRequestException("That's already your number");
+
+    const taken = await this.prisma.user.findUnique({ where: { phone: newPhone } });
+    if (taken) throw new BadRequestException('That number is already registered to another account');
+
+    const rlKey = `phone-change-rl:${userId}`;
+    const sent = await this.redis.incr(rlKey);
+    if (sent === 1) await this.redis.expire(rlKey, 3600);
+    if (sent > MAX_OTPS_PER_HOUR) throw new BadRequestException('Too many attempts — try again later');
+
+    const requestId = randomBytes(16).toString('hex');
+    const code = String(randomInt(1000, 10000));
+    await this.redis.set(
+      `phone-change-otp:${requestId}`,
+      JSON.stringify({ userId, newPhone, code, attempts: 0 }),
+      'EX',
+      OTP_TTL_S,
+    );
+    try {
+      await this.wa.sendPhoneChangeOtp(newPhone, code);
+    } catch {
+      await this.redis.del(`phone-change-otp:${requestId}`);
+      throw new BadRequestException("Couldn't send your code right now — please try again shortly");
+    }
+    return this.wa.live ? { requestId } : { requestId, devCode: code };
+  }
+
+  /** Step 2 — verifies the code sent to the new number, then flips
+   * User.phone. Notifies the OLD email on file (if any) as a security
+   * measure, same reasoning as any "your password changed" email: if the
+   * change wasn't really them, the notice goes somewhere the attacker
+   * (who only has the new phone) doesn't control. */
+  async confirmPhoneChange(userId: string, requestId: string, code: string) {
+    const key = `phone-change-otp:${requestId}`;
+    const raw = await this.redis.get(key);
+    if (!raw) throw new UnauthorizedException('Code expired — request a new one');
+    const rec = JSON.parse(raw) as { userId: string; newPhone: string; code: string; attempts: number };
+    if (rec.userId !== userId) throw new UnauthorizedException('This code was not requested by you');
+
+    if (rec.attempts >= MAX_VERIFY_ATTEMPTS) {
+      await this.redis.del(key);
+      throw new UnauthorizedException('Too many attempts — request a new code');
+    }
+    if (rec.code !== code) {
+      rec.attempts += 1;
+      const ttl = await this.redis.ttl(key);
+      await this.redis.set(key, JSON.stringify(rec), 'EX', Math.max(ttl, 1));
+      throw new UnauthorizedException('Incorrect code');
+    }
+    await this.redis.del(key);
+
+    const before = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!before) throw new UnauthorizedException();
+    let user: User;
+    try {
+      user = await this.prisma.user.update({ where: { id: userId }, data: { phone: rec.newPhone } });
+    } catch {
+      throw new BadRequestException('That number was just taken by someone else — try again');
+    }
+
+    if (before.email) {
+      await this.email.sendTemplate(before.email, 'phone_number_changed', { name: user.name, newPhone: user.phone }).catch(() => {});
+    }
+    return toApiUser(user);
+  }
+
   /** Plain profile fields only. `idVerified` is granted exclusively by the
    * automatic guest KYC check (POST /kyc/guest); `role`/`roleStatus` are
    * granted exclusively by an admin approving a KycSubmission

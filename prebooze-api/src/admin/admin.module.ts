@@ -59,6 +59,8 @@ import { StaffAlertsService } from '../notifications/staff-alerts';
 import { RazorpayService } from '../payments/razorpay.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { FeaturedService } from '../featured/featured.service';
+import { BookingsService } from '../bookings/bookings.service';
+import { HoldsService } from '../bookings/holds.service';
 import { redisProvider } from '../redis.provider';
 
 // JwtModule is registered `global: true` in AuthModule, so JwtService is
@@ -128,6 +130,8 @@ import { redisProvider } from '../redis.provider';
     RazorpayService,
     SubscriptionsService,
     FeaturedService,
+    BookingsService,
+    HoldsService,
     CronService,
     StaffAuthGuard,
     OwnerOnlyGuard,

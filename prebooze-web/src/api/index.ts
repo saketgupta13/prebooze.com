@@ -15,6 +15,8 @@ export const auth = {
   me: () => apiFetch<User>('/me'),
   updateMe: (patch: Partial<User>) => apiFetch<User>('/me', { method: 'PATCH', body: patch }),
   logout: () => apiFetch<void>('/auth/logout', { method: 'POST' }),
+  requestPhoneChange: (newPhone: string) => apiFetch<{ requestId: string; devCode?: string }>('/me/phone/request-change', { body: { newPhone } }),
+  confirmPhoneChange: (requestId: string, code: string) => apiFetch<User>('/me/phone/confirm-change', { body: { requestId, code } }),
 };
 
 // ---------- identity & role verification ----------
@@ -57,6 +59,20 @@ export const catalog = {
   cities: () => apiFetch<{ name: string; icon?: string; top: boolean; events: number }[]>('/cities'),
   search: (q: string) => apiFetch<{ label: string; type: string; to: string }[]>('/search', { query: { q } }),
   trending: () => apiFetch<string[]>('/search/trending'),
+};
+
+// ---------- real organizer reviews (guest-facing) ----------
+export interface OrgReview {
+  id: string;
+  author: string;
+  rating: number;
+  text: string;
+  organizerId: string;
+  date: string;
+}
+export const socialReviews = {
+  organizer: (id: string) => apiFetch<OrgReview[]>(`/organizers/${id}/reviews`),
+  addOrganizerReview: (id: string, rating: number, text: string) => apiFetch<OrgReview>(`/organizers/${id}/reviews`, { body: { rating, text } }),
 };
 
 // ---------- bookings, holds, waitlist ----------

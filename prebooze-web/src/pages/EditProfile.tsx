@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { CITIES, INTEREST_TAGS } from '../data/mock';
 import WysiwygEditor from '../components/WysiwygEditor';
+import ChangePhoneNumber from '../components/ChangePhoneNumber';
 
 export default function EditProfile() {
   const { user, updateUser } = useApp();
@@ -135,19 +136,11 @@ export default function EditProfile() {
             </div>
           </div>
 
-          <div
-            className="card"
-            style={{ background: 'var(--surface-2)', padding: 14, marginBottom: 16, fontSize: 13 }}
-          >
-            <span className="muted">Phone</span> <span className="bold">{user.phone}</span>{' '}
-            <span className="verified">✓</span>
+          <div style={{ marginBottom: 16 }}>
+            <ChangePhoneNumber />
             {user.idVerified && (
-              <>
-                {' '}
-                · Aadhaar verified <span className="verified">✓</span>
-              </>
-            )}{' '}
-            — <span className="muted-2">contact support to change</span>
+              <div className="tiny muted-2" style={{ marginTop: 6 }}>Aadhaar verified <span className="verified">✓</span></div>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { auth } from '../../api';
 import { ApiError } from '../../api/client';
+import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 
 /** Venue account settings — contact, notifications, payment method pointer.
  * Real PATCH /me (the same generic profile endpoint every role's contact
@@ -46,12 +47,12 @@ export default function VenueSettings() {
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="venue@mail.com" />
           </div>
         </div>
-        <div className="field">
-          <span>WhatsApp number</span>
-          <input value={user?.phone ?? ''} disabled />
-        </div>
         <button className="btn btn-pri" disabled={saving}>{saving ? 'Saving…' : 'Save ✓'}</button>
       </form>
+
+      <div style={{ marginBottom: 18 }}>
+        <ChangePhoneNumber />
+      </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
         <h3 style={{ marginBottom: 8 }}>Notifications</h3>

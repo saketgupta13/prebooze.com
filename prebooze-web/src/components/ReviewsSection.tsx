@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { SEED_REVIEWS } from '../data/mock';
+import { socialReviews, type OrgReview } from '../api';
+import { isBackendEnabled, ApiError } from '../api/client';
 import type { ReviewTargetType } from '../types';
 import Stars from './Stars';
 
 /** Guest-facing rating + review list + write-a-review form, shared by every
  * reviewable role (organizer/promoter/venue/lineup) — guests are never
- * reviewable, there's no fifth usage of this component. The headline
- * average is computed live from the actual review list (seed + guest-
- * submitted) rather than a separate static rating field, so it can never
- * drift out of sync with what's actually shown below it. */
+ * reviewable, there's no fifth usage of this component. Organizer reviews
+ * are real (GET/POST /organizers/:id/reviews, OrgReview model) — promoter/
+ * venue/lineup have no equivalent backend yet, so those three stay on the
+ * local mock (AppContext.addReview) same as before. */
 export default function ReviewsSection({
   targetType,
   targetId,
@@ -20,11 +22,41 @@ export default function ReviewsSection({
   prompt: string;
 }) {
   const { user, reviews, addReview, toast } = useApp();
+  const isRealTarget = targetType === 'organizer' && isBackendEnabled();
+
+  const [liveReviews, setLiveReviews] = useState<OrgReview[] | null>(null);
+  const [posting, setPosting] = useState(false);
+  useEffect(() => {
+    if (!isRealTarget) return;
+    socialReviews.organizer(targetId).then(setLiveReviews).catch(() => setLiveReviews([]));
+  }, [isRealTarget, targetId]);
+
   const key = `${targetType}:${targetId}`;
   const seedMine = SEED_REVIEWS.filter((r) => r.targetType === targetType && r.targetId === targetId);
   const guestMine = reviews[key] ?? [];
-  const all = [...guestMine, ...seedMine];
+  const all = isRealTarget ? (liveReviews ?? []) : [...guestMine, ...seedMine];
   const avg = all.length ? all.reduce((a, r) => a + r.rating, 0) / all.length : 0;
+
+  const submit = async (rating: number, text: string) => {
+    if (!user) {
+      toast('Log in to write a review');
+      return;
+    }
+    if (!isRealTarget) {
+      addReview(targetType, targetId, rating, text);
+      return;
+    }
+    setPosting(true);
+    try {
+      const created = await socialReviews.addOrganizerReview(targetId, rating, text);
+      setLiveReviews((prev) => [created, ...(prev ?? [])]);
+      toast('Review posted ✓');
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : 'Failed to post review');
+    } finally {
+      setPosting(false);
+    }
+  };
 
   return (
     <section className="section">
@@ -43,21 +75,11 @@ export default function ReviewsSection({
             <span className="muted small">No reviews yet — be the first</span>
           )}
         </div>
-        <ReviewForm
-          loggedIn={!!user}
-          onSubmit={(rating, text) => {
-            if (!user) {
-              toast('Log in to write a review');
-              return;
-            }
-            addReview(targetType, targetId, rating, text);
-          }}
-          prompt={prompt}
-        />
+        <ReviewForm loggedIn={!!user} busy={posting} onSubmit={submit} prompt={prompt} />
         {all.map((r) => (
           <div key={r.id} className="review">
             <span className="bold">{r.author}</span> · <Stars rating={r.rating} /> ·{' '}
-            <span className="muted-2">{r.eventTitle ?? r.date}</span>
+            <span className="muted-2">{'eventTitle' in r ? (r.eventTitle ?? r.date) : r.date}</span>
             <div className="muted">“{r.text}”</div>
           </div>
         ))}
@@ -68,7 +90,7 @@ export default function ReviewsSection({
 }
 
 /** Inline write-a-review form (star pick + text). */
-function ReviewForm({ onSubmit, loggedIn, prompt }: { onSubmit: (rating: number, text: string) => void; loggedIn: boolean; prompt: string }) {
+function ReviewForm({ onSubmit, loggedIn, busy, prompt }: { onSubmit: (rating: number, text: string) => void; loggedIn: boolean; busy?: boolean; prompt: string }) {
   const [rating, setRating] = useState(0);
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
@@ -102,7 +124,7 @@ function ReviewForm({ onSubmit, loggedIn, prompt }: { onSubmit: (rating: number,
       </div>
       <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={prompt} style={{ marginBottom: 8 }} />
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-pri btn-sm" disabled={!rating || !text.trim() || !loggedIn}>{loggedIn ? 'Post review' : 'Log in to review'}</button>
+        <button className="btn btn-pri btn-sm" disabled={!rating || !text.trim() || !loggedIn || busy}>{!loggedIn ? 'Log in to review' : busy ? 'Posting…' : 'Post review'}</button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancel</button>
       </div>
     </form>

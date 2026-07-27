@@ -748,6 +748,10 @@ model Booking {
   checkedIn   Boolean   @default(false)
   checkedInAt DateTime?
 
+  // CronService.reviewRequestTick — null = not yet sent, set once so the
+  // daily tick doesn't re-prompt the same guest every day forever.
+  reviewReminderSentAt DateTime?
+
   createdAt DateTime @default(now())
 }
 

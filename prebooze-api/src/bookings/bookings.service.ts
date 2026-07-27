@@ -583,6 +583,36 @@ export class BookingsService {
     return this.prisma.waitlistEntry.findMany({ where: { eventId }, orderBy: { joinedAt: 'asc' } });
   }
 
+  /** Automatic — called daily by CronService.reviewRequestTick. Prompts a
+   * guest to review the organizer a day after the event they had a real
+   * confirmed booking for actually ended. `event.date` is a coarse fetch
+   * window (Event has no stored "ends at"), the real end-time check
+   * (date + durationHrs) happens in JS since Prisma can't filter on a
+   * computed column. Gated by reviewReminderSentAt the same way
+   * FeaturedService.remindExpiringSoon gates its own reminder. */
+  async remindForReview(): Promise<{ remindedCount: number }> {
+    const windowStart = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000); // events that started up to 3 days ago
+    const windowEnd = new Date(Date.now() - 12 * 60 * 60 * 1000); // ...and started at least 12h ago
+    const candidates = await this.prisma.booking.findMany({
+      where: { status: 'confirmed', reviewReminderSentAt: null, event: { date: { gte: windowStart, lte: windowEnd } } },
+      include: { event: { include: { organizer: true } }, user: true },
+    });
+
+    let remindedCount = 0;
+    for (const b of candidates) {
+      const endsAt = b.event.date.getTime() + b.event.durationHrs * 60 * 60 * 1000;
+      const hoursSinceEnd = (Date.now() - endsAt) / (60 * 60 * 1000);
+      if (hoursSinceEnd < 24 || hoursSinceEnd > 72) continue; // ask once, a day-to-three-days after it actually ended
+
+      const data = { name: b.user.name || b.mainGuest, eventTitle: b.event.title, organizerName: b.event.organizer.brandName, organizerId: b.event.organizerId };
+      await this.email.sendTemplate(b.user.email, 'review_request', data).catch(() => {});
+      await this.wa.send(b.user.phone, 'review_reminder', [data.eventTitle, data.organizerName]).catch(() => {});
+      await this.prisma.booking.update({ where: { id: b.id }, data: { reviewReminderSentAt: new Date() } });
+      remindedCount++;
+    }
+    return { remindedCount };
+  }
+
   private async walletBalance(userId: string): Promise<number> {
     const agg = await this.prisma.walletTx.aggregate({ where: { userId }, _sum: { amount: true } });
     return agg._sum.amount ?? 0;

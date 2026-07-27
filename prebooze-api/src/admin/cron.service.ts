@@ -6,6 +6,7 @@ import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { FeaturedService } from '../featured/featured.service';
+import { BookingsService } from '../bookings/bookings.service';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -23,6 +24,7 @@ export class CronService {
     private email: EmailService,
     private staffAlerts: StaffAlertsService,
     private featured: FeaturedService,
+    private bookings: BookingsService,
   ) {}
 
   /** Runs the same batch-payout logic as the manual "Run batch" button in
@@ -104,5 +106,15 @@ export class CronService {
   async featuredExpiringSoonTick() {
     const { remindedCount } = await this.featured.remindExpiringSoon();
     if (remindedCount) this.log.log(`Featured expiring-soon: reminded ${remindedCount} owner(s)`);
+  }
+
+  /** Daily — prompts guests with a real confirmed booking to review the
+   * organizer once the event has actually finished (see
+   * BookingsService.remindForReview for the exact 24-72h-after-end window
+   * and the reviewReminderSentAt gate). */
+  @Cron('0 11 * * *')
+  async reviewRequestTick() {
+    const { remindedCount } = await this.bookings.remindForReview();
+    if (remindedCount) this.log.log(`Review request: reminded ${remindedCount} guest(s)`);
   }
 }
