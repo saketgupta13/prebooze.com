@@ -1,9 +1,9 @@
 /** Typed API surface — one function per backend endpoint (see BACKEND.md).
  * These are the real connections: point VITE_API_URL at the server and every
  * feature swaps from localStorage to live data. */
-import { apiFetch, apiUpload } from './client';
+import { apiFetch, apiUpload, API_URL, getToken, ApiError } from './client';
 import type {
-  Booking, Coupon, Event, Featured, HelpTicket, JobApplication, LineupProfile, Organizer, PayMethod, Person,
+  Booking, Coupon, Event, Featured, HelpTicket, Invoice, JobApplication, LineupProfile, Organizer, PayMethod, Person,
   PromoterProfile, User, Venue, WaitlistEntry,
 } from '../types';
 import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, WalletTx } from '../store/AppContext';
@@ -212,12 +212,24 @@ export interface OrgLedgerTx {
 }
 export const organizer = {
   me: () => apiFetch<Organizer>('/organizer/me'),
-  updateMe: (patch: { about?: string; links?: string; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) =>
+  updateMe: (patch: { brandName?: string; username?: string; city?: string; logoUrl?: string; about?: string; links?: string; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) =>
     apiFetch<Organizer>('/organizer/me', { method: 'PATCH', body: patch }),
   upload: (file: File) => {
     const form = new FormData();
     form.append('file', file);
     return apiUpload<{ url: string }>('/organizer/upload', form);
+  },
+  invoices: () => apiFetch<Invoice[]>('/organizer/invoices'),
+  downloadInvoicePdf: async (id: string, filename: string) => {
+    const res = await fetch(`${API_URL}/organizer/invoices/${id}/pdf`, { headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {} });
+    if (!res.ok) throw new ApiError(res.status, 'ERROR', 'Failed to download PDF');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   },
   events: () => apiFetch<Event[]>('/organizer/events'),
   upsertEvent: (e: {
@@ -234,7 +246,6 @@ export const organizer = {
   withdraw: (amount: number) => apiFetch<void>('/organizer/withdraw', { body: { amount } }),
   abandonedCarts: () => apiFetch<CartRecord[]>('/organizer/carts'),
   remindCart: (id: string) => apiFetch<void>(`/organizer/carts/${id}/remind`, { method: 'POST' }),
-  subscription: subscriptionApi('organizer'),
   // ---- gate ops: guest list, promoter guests, live monitor ----
   guestList: (eventId: string) => apiFetch<{ entries: OrgGuestListEntry[]; namesCount: number; totalHeads: number; arrived: number }>(`/organizer/events/${eventId}/guest-list`),
   addGuestListEntry: (eventId: string, body: { name: string; phone: string; plusOnes?: number; companions?: { name: string; phone: string }[] }) =>

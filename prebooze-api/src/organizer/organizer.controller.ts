@@ -1,5 +1,6 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { OrganizerService } from './organizer.service';
 import type { EventInput } from './organizer.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -7,8 +8,9 @@ import { StaffAuthGuard } from '../admin/staff-auth.guard';
 import { PermissionGuard } from '../admin/permission.guard';
 import { RequirePermission } from '../admin/permission.decorator';
 import { StorageService } from '../kyc/storage.service';
+import { InvoicesService } from '../invoices/invoices.service';
 
-type AuthedReq = { user: { sub: string } };
+type AuthedReq = { user: { sub: string; phone: string } };
 
 @Controller('organizer')
 @UseGuards(JwtAuthGuard)
@@ -16,6 +18,7 @@ export class OrganizerController {
   constructor(
     private organizer: OrganizerService,
     private storage: StorageService,
+    private invoices: InvoicesService,
   ) {}
 
   @Get('me')
@@ -36,6 +39,24 @@ export class OrganizerController {
   @Patch('me')
   updateMe(@Req() req: AuthedReq, @Body() body: Parameters<OrganizerService['updateMe']>[1]) {
     return this.organizer.updateMe(req.user.sub, body);
+  }
+
+  /** Real Featured billing history — same Invoice rows admin sees, filtered
+   * to this organizer's own phone number (see InvoicesService.mine). */
+  @Get('invoices')
+  myInvoices(@Req() req: AuthedReq) {
+    return this.invoices.mine('organizer', req.user.phone);
+  }
+
+  @Get('invoices/:id/pdf')
+  async myInvoicePdf(@Req() req: AuthedReq, @Param('id') id: string, @Res() res: Response) {
+    const { filename, buffer } = await this.invoices.pdfForOwner(id, 'organizer', req.user.phone);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+    });
+    res.send(buffer);
   }
 
   @Get('events')
@@ -81,26 +102,6 @@ export class OrganizerController {
   @Post('carts/:id/remind')
   remindCart(@Req() req: AuthedReq, @Param('id') id: string) {
     return this.organizer.remindCart(req.user.sub, id);
-  }
-
-  @Get('subscription/tiers')
-  subscriptionTiers() {
-    return this.organizer.subscriptionTiers();
-  }
-
-  @Get('subscription')
-  mySubscription(@Req() req: AuthedReq) {
-    return this.organizer.mySubscription(req.user.sub);
-  }
-
-  @Post('subscription')
-  subscribe(@Req() req: AuthedReq, @Body('tierId') tierId: string) {
-    return this.organizer.subscribe(req.user.sub, tierId);
-  }
-
-  @Post('subscription/cancel')
-  cancelSubscription(@Req() req: AuthedReq) {
-    return this.organizer.cancelSubscription(req.user.sub);
   }
 
   // ---------- gate ops: guest list, promoter guests, live monitor ----------

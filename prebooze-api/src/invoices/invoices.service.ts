@@ -88,6 +88,22 @@ export class InvoicesService {
     return inv;
   }
 
+  /** Self-serve invoice history — Invoice has no organizerId/userId column
+   * (only payer contact fields), so ownership is matched on the caller's own
+   * phone number (User.phone is unique) the same way it was written at
+   * FeaturedService.request() time. */
+  async mine(role: string, payerPhone: string) {
+    return this.prisma.invoice.findMany({ where: { role, payerPhone }, orderBy: { issuedAt: 'desc' } });
+  }
+
+  /** Ownership-checked PDF fetch for the self-serve endpoints — throws
+   * instead of returning someone else's invoice if the phone doesn't match. */
+  async pdfForOwner(id: string, role: string, payerPhone: string) {
+    const inv = await this.get(id);
+    if (inv.role !== role || inv.payerPhone !== payerPhone) throw new NotFoundException('Invoice not found');
+    return this.pdf(id);
+  }
+
   async pdf(id: string) {
     const inv = await this.get(id);
     const buffer = await invoicePdfBuffer(inv);

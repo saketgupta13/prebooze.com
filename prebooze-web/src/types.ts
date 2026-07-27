@@ -107,6 +107,7 @@ export interface Organizer {
   following: number;
   about: string;
   logoHue: number;
+  logoUrl?: string | null; // real, uploaded logo — public, same as the public catalog's photoHue/galleryUrls pattern
   // Business/compliance fields — only present on the real GET /organizer/me
   // self-serve response, never on the public catalog (GET /organizers).
   contact?: string;
@@ -241,6 +242,26 @@ export interface Coupon {
   status: 'active' | 'paused';
   gender?: 'all' | 'women' | 'men' | 'other';
   description?: string;
+}
+
+export interface Invoice {
+  id: string;
+  number: string;
+  type: 'booking' | 'featured';
+  refId: string;
+  role: 'guest' | 'organizer' | 'promoter' | 'venue' | 'lineup';
+  payerName: string;
+  payerEmail?: string | null;
+  payerPhone?: string | null;
+  city?: string | null;
+  description: string;
+  subtotal: number;
+  gstPct: number;
+  gstAmount: number;
+  total: number;
+  status: 'issued' | 'void';
+  issuedAt: string;
+  lastSentAt?: string | null;
 }
 
 export interface Payout {

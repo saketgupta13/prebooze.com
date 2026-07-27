@@ -11,14 +11,13 @@ import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { NotificationsService } from '../admin/notifications.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
-import { RazorpayService } from '../payments/razorpay.service';
-import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { GuestListService } from '../admin/guestlist.service';
 import { LiveMonitorService } from '../admin/live-monitor.service';
 import { StorageService } from '../kyc/storage.service';
+import { InvoicesService } from '../invoices/invoices.service';
 
 @Module({
   controllers: [OrganizerController, AdminEventsController, OrgTeamController, OrgRolesController],
-  providers: [OrganizerService, OrgTeamService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, RazorpayService, SubscriptionsService, GuestListService, LiveMonitorService, StorageService],
+  providers: [OrganizerService, OrgTeamService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, GuestListService, LiveMonitorService, StorageService, InvoicesService],
 })
 export class OrganizerModule {}

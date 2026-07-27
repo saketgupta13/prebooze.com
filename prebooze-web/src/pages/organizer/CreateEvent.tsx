@@ -11,7 +11,7 @@ import { RealUploadBox, RealGalleryUploadBox, RealVideoUploadBox } from '../../c
 import { organizer, catalog } from '../../api';
 import { ApiError } from '../../api/client';
 
-const STEPS = ['1 Basics', '2 Tickets', '3 Rules & line-up', '4 Promoters', '5 SEO & publish'];
+const STEPS = ['1 Basics', '2 Media', '3 Tickets', '4 Rules & line-up', '5 Promoters', '6 SEO & publish'];
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
 
 interface TierDraft {
@@ -321,28 +321,6 @@ export default function CreateEvent() {
       {step === 0 && (
         <div className="card">
           <div className="field">
-            <span>Poster (portrait 3:4) — shown on your event card & page</span>
-            <RealUploadBox value={posterUrl} onChange={setPosterUrl} upload={organizer.upload} label="⬆ upload poster" style={{ height: 200, width: 160 }} />
-          </div>
-          <div className="field">
-            <span>Gallery photos (optional, up to 6)</span>
-            <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={organizer.upload} />
-          </div>
-          <div className="field">
-            <span>Teaser reel (optional)</span>
-            <RealVideoUploadBox value={teaserVideoUrl} onChange={setTeaserVideoUrl} upload={organizer.upload} label="⬆ teaser video · 9:16" />
-          </div>
-          <div className="form-row">
-            <div className="field">
-              <span>Social post image (1:1, optional)</span>
-              <RealUploadBox value={socialPostUrl || null} onChange={setSocialPostUrl} upload={organizer.upload} label="⬆ post 1:1" style={{ height: 110, width: 110 }} />
-            </div>
-            <div className="field">
-              <span>Social story image (9:16, optional)</span>
-              <RealUploadBox value={socialStoryUrl || null} onChange={setSocialStoryUrl} upload={organizer.upload} label="⬆ story 9:16" style={{ height: 160, width: 90 }} />
-            </div>
-          </div>
-          <div className="field">
             <span>Event title</span>
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Event title" />
           </div>
@@ -415,13 +393,50 @@ export default function CreateEvent() {
               {saving ? 'Saving…' : 'Save draft'}
             </button>
             <button className="btn btn-pri" disabled={!step1Valid} onClick={() => setStep(1)}>
-              Next: Tickets →
+              Next: Media →
             </button>
           </div>
         </div>
       )}
 
       {step === 1 && (
+        <div className="card">
+          <h3 style={{ marginBottom: 4 }}>Event media</h3>
+          <p className="muted small" style={{ marginBottom: 16 }}>All optional — a poster helps your event stand out, everything else is a nice-to-have.</p>
+          <div className="field">
+            <span>Poster (portrait 3:4) — shown on your event card & page</span>
+            <RealUploadBox value={posterUrl} onChange={setPosterUrl} upload={organizer.upload} label="⬆ upload poster" style={{ height: 200, width: 160 }} />
+          </div>
+          <div className="field">
+            <span>Gallery photos (optional, up to 6)</span>
+            <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={organizer.upload} />
+          </div>
+          <div className="field">
+            <span>Teaser reel (optional)</span>
+            <RealVideoUploadBox value={teaserVideoUrl} onChange={setTeaserVideoUrl} upload={organizer.upload} label="⬆ teaser video · 9:16" />
+          </div>
+          <div className="form-row">
+            <div className="field">
+              <span>Social post image (1:1, optional)</span>
+              <RealUploadBox value={socialPostUrl || null} onChange={setSocialPostUrl} upload={organizer.upload} label="⬆ post 1:1" style={{ height: 110, width: 110 }} />
+            </div>
+            <div className="field">
+              <span>Social story image (9:16, optional)</span>
+              <RealUploadBox value={socialStoryUrl || null} onChange={setSocialStoryUrl} upload={organizer.upload} label="⬆ story 9:16" style={{ height: 160, width: 90 }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
+            <button className="btn btn-ghost" onClick={() => setStep(0)}>
+              ← Back
+            </button>
+            <button className="btn btn-pri" onClick={() => setStep(2)}>
+              Next: Tickets →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 2 && (
         <div className="card">
           <h3 style={{ marginBottom: 12 }}>Ticket tiers</h3>
           {tiers.map((t, i) => (
@@ -502,17 +517,17 @@ export default function CreateEvent() {
           </div>
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
-            <button className="btn btn-ghost" onClick={() => setStep(0)}>
+            <button className="btn btn-ghost" onClick={() => setStep(1)}>
               ← Back
             </button>
-            <button className="btn btn-pri" disabled={!tiersValid} onClick={() => setStep(2)}>
+            <button className="btn btn-pri" disabled={!tiersValid} onClick={() => setStep(3)}>
               Next: Rules & line-up →
             </button>
           </div>
         </div>
       )}
 
-      {step === 2 && (
+      {step === 3 && (
         <div className="card">
           <div className="field">
             <span>Event conditions (one per line — shown as bullets)</span>
@@ -571,17 +586,17 @@ export default function CreateEvent() {
             )}
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
-            <button className="btn btn-ghost" onClick={() => setStep(1)}>
+            <button className="btn btn-ghost" onClick={() => setStep(2)}>
               ← Back
             </button>
-            <button className="btn btn-pri" onClick={() => setStep(3)}>
+            <button className="btn btn-pri" onClick={() => setStep(4)}>
               Next: Promoters →
             </button>
           </div>
         </div>
       )}
 
-      {step === 3 && (
+      {step === 4 && (
         <div className="card">
           <h3 style={{ marginBottom: 4 }}>Promoter guest lists</h3>
           <p className="muted small" style={{ marginBottom: 14 }}>
@@ -658,17 +673,17 @@ export default function CreateEvent() {
           )}
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 16 }}>
-            <button className="btn btn-ghost" onClick={() => setStep(2)}>
+            <button className="btn btn-ghost" onClick={() => setStep(3)}>
               ← Back
             </button>
-            <button className="btn btn-pri" onClick={() => setStep(4)}>
+            <button className="btn btn-pri" onClick={() => setStep(5)}>
               Next: SEO & publish →
             </button>
           </div>
         </div>
       )}
 
-      {step === 4 && (
+      {step === 5 && (
         <div className="card">
           <h3 style={{ marginBottom: 12 }}>SEO options</h3>
           <div className="field">
@@ -709,7 +724,7 @@ export default function CreateEvent() {
           </Accordion>
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 16 }}>
-            <button className="btn btn-ghost" onClick={() => setStep(3)}>
+            <button className="btn btn-ghost" onClick={() => setStep(4)}>
               ← Back
             </button>
             <button className="btn btn-pri" disabled={!step1Valid || !tiersValid} onClick={() => setPreview(true)}>

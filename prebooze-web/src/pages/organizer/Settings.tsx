@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
+import { RealUploadBox } from '../../components/RealUploadBox';
 import type { Organizer } from '../../types';
 
 const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
 
 /** Real organizer self-serve settings — GET/PATCH /organizer/me. Every field
- * captured at onboarding (Onboarding.tsx) round-trips here pre-filled, since
- * GET /organizer/me returns the same row KycService.newOrganizerRow wrote at
- * approval time. Team members, notification prefs, refund-policy defaults
- * and self-deactivation had no real backend behind them at all (no Prisma
- * fields, no endpoints) — dropped rather than left as toggles that silently
- * do nothing. Team & roles stays reachable via its own nav item. */
+ * captured at onboarding (Onboarding.tsx) round-trips here pre-filled and
+ * editable, since GET /organizer/me returns the same row
+ * KycService.newOrganizerRow wrote at approval time — including brand name,
+ * username and city, which used to be "changes go through support" (see git
+ * history); an organizer now corrects/rebrands those themselves, same as
+ * everything else here. Team members, notification prefs, refund-policy
+ * defaults and self-deactivation had no real backend behind them at all (no
+ * Prisma fields, no endpoints) — dropped rather than left as toggles that
+ * silently do nothing. Team & roles stays reachable via its own nav item. */
 export default function Settings() {
   const [org, setOrg] = useState<Organizer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,8 +24,12 @@ export default function Settings() {
   const [err, setErr] = useState('');
   const [open, setOpen] = useState<string | null>(null);
 
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [brandName, setBrandName] = useState('');
+  const [username, setUsername] = useState('');
+  const [city, setCity] = useState('');
   const [about, setAbout] = useState('');
-  const [links, setLinks] = useState('');
+  const [links, setLinks] = useState<string[]>(['']);
   const [gstin, setGstin] = useState('');
   const [pan, setPan] = useState('');
   const [contactPerson, setContactPerson] = useState('');
@@ -37,8 +45,13 @@ export default function Settings() {
       .me()
       .then((o) => {
         setOrg(o);
+        setLogoUrl(o.logoUrl ?? null);
+        setBrandName(o.brandName ?? '');
+        setUsername(o.username ?? '');
+        setCity(o.city ?? '');
         setAbout(o.about ?? '');
-        setLinks(o.links ?? '');
+        const l = (o.links ?? '').split(' · ').map((x) => x.trim()).filter(Boolean);
+        setLinks(l.length ? l : ['']);
         setGstin(o.gstin ?? '');
         setPan(o.pan ?? '');
         setContactPerson(o.contactPerson ?? '');
@@ -55,12 +68,19 @@ export default function Settings() {
 
   const toggleOpen = (key: string) => setOpen((o) => (o === key ? null : key));
   const toggleType = (t: string) => setEventTypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  const setLink = (i: number, v: string) => setLinks((prev) => prev.map((l, idx) => (idx === i ? v : l)));
+  const addLink = () => setLinks((prev) => [...prev, '']);
+  const removeLink = (i: number) => setLinks((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : ['']));
 
   const saveProfile = async () => {
     setErr('');
     setSaving(true);
     try {
-      const updated = await organizer.updateMe({ about, links, gstin, pan, contactPerson, contact, eventTypes: eventTypes.join(', ') });
+      const linksJoined = links.map((l) => l.trim()).filter(Boolean).join(' · ');
+      const updated = await organizer.updateMe({
+        brandName: brandName.trim(), username: username.trim(), city: city.trim(), logoUrl: logoUrl ?? undefined,
+        about, links: linksJoined, gstin, pan, contactPerson, contact, eventTypes: eventTypes.join(', '),
+      });
       setOrg(updated);
       setOpen(null);
     } catch (e) {
@@ -90,28 +110,49 @@ export default function Settings() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, marginBottom: 18 }}>Settings</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+        <h1 style={{ fontSize: 24, marginBottom: 18 }}>Settings</h1>
+        <Link to={`/organizers/${org.id}`} className="link small bold">View public profile ↗</Link>
+      </div>
       {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
       <div className="card">
         <div className="evrow" style={{ flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="bold small">Brand profile</div>
-            <div className="tiny muted">{org.brandName} · about, links, GSTIN, PAN — public page</div>
+            <div className="tiny muted">{org.brandName} · everything from your onboarding application, editable</div>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={() => toggleOpen('profile')}>
             {open === 'profile' ? 'Close' : 'Manage'}
           </button>
           {open === 'profile' && (
             <div style={{ flexBasis: '100%', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="field">
+                <span>Logo</span>
+                <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={organizer.upload} label="⬆ upload logo" style={{ height: 100, width: 100 }} />
+              </div>
               <div className="form-row">
+                <div className="field">
+                  <span>Organizer / brand name</span>
+                  <input value={brandName} onChange={(e) => setBrandName(e.target.value)} />
+                </div>
+                <div className="field">
+                  <span>Username</span>
+                  <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="field">
+                  <span>City</span>
+                  <input value={city} onChange={(e) => setCity(e.target.value)} />
+                </div>
                 <div className="field">
                   <span>Contact person</span>
                   <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} />
                 </div>
-                <div className="field">
-                  <span>Business email</span>
-                  <input value={contact} onChange={(e) => setContact(e.target.value)} />
-                </div>
+              </div>
+              <div className="field">
+                <span>Business email</span>
+                <input value={contact} onChange={(e) => setContact(e.target.value)} />
               </div>
               <div className="field">
                 <span>About the brand</span>
@@ -119,7 +160,20 @@ export default function Settings() {
               </div>
               <div className="field">
                 <span>Website & social links</span>
-                <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="site · ig · X" />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {links.map((l, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        style={{ flex: 1 }}
+                        value={l}
+                        onChange={(e) => setLink(i, e.target.value)}
+                        placeholder={i === 0 ? 'Website, Instagram, X…' : 'Another link'}
+                      />
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeLink(i)} title="Remove">✕</button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addLink}>+ Add another link</button>
+                </div>
               </div>
               <div className="field">
                 <span>Event types you host</span>

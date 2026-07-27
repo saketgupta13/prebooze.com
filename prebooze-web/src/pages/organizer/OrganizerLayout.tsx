@@ -14,7 +14,7 @@ const NAV = [
   { to: '/organizer/carts', label: '🛒 Abandoned carts' },
   { to: '/organizer/payouts', label: '💰 Payouts' },
   { to: '/organizer/team', label: '🛡 Team & roles' },
-  { to: '/organizer/subscription', label: '💳 Subscription' },
+  { to: '/organizer/billing', label: '⭐ Featured & billing' },
   { to: '/organizer/settings', label: '⚙ Settings' },
 ];
 

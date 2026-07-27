@@ -212,6 +212,10 @@ model Organizer {
   following    Int     @default(0)
   about        String
   logoHue      Int
+  // Real, uploaded logo (POST /organizer/upload) — optional, falls back to
+  // the logoHue placeholder when unset. Same real-upload-over-hue-placeholder
+  // move as Venue.galleryUrls / Event.posterUrl.
+  logoUrl      String?
   events       Event[]
 
   // links this catalog row to the real User who owns the console — created

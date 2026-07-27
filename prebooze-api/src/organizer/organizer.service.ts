@@ -6,7 +6,6 @@ import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { NotificationsService } from '../admin/notifications.service';
-import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { GuestListService } from '../admin/guestlist.service';
 import { LiveMonitorService } from '../admin/live-monitor.service';
 
@@ -58,7 +57,6 @@ export class OrganizerService {
     private wa: WhatsappService,
     private email: EmailService,
     private notifications: NotificationsService,
-    private subscriptions: SubscriptionsService,
     private guestListSvc: GuestListService,
     private liveMonitorSvc: LiveMonitorService,
   ) {}
@@ -133,16 +131,30 @@ export class OrganizerService {
   }
 
   /** Self-serve profile edit — the counterpart to VenueService.updateListing.
-   * Didn't exist before: an approved organizer had no way to update their
-   * own about/links/GSTIN/PAN/bank short of re-running onboarding, which
-   * actually fails once approved (KycService.submitRole rejects a second
-   * application for a role you already hold). City/brand slug stay
-   * admin-only, same "changes go through support" boundary as Venue. */
-  async updateMe(userId: string, patch: { about?: string; links?: string; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) {
+   * Covers every field the onboarding form itself captures, so there's no
+   * "changes go through support" gap for organizers — unlike Venue (whose
+   * city stays admin-gated for directory integrity), an organizer's own
+   * brand/username/city are theirs to correct or rebrand. Username changes
+   * are checked for collision the same way KycService.newOrganizerRow picks
+   * one at creation time, just rejecting instead of auto-suffixing since
+   * this is a deliberate rename, not a first-pick. */
+  async updateMe(userId: string, patch: { brandName?: string; username?: string; city?: string; logoUrl?: string; about?: string; links?: string; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) {
     const org = await this.myOrganizer(userId);
+
+    const username = patch.username?.trim().toLowerCase();
+    if (username && username !== org.username) {
+      if (!/^[a-z0-9-]{3,30}$/.test(username)) throw new BadRequestException('Username must be 3-30 characters — letters, numbers and hyphens only');
+      const taken = await this.prisma.organizer.findUnique({ where: { username } });
+      if (taken) throw new BadRequestException('That username is already taken');
+    }
+
     return this.prisma.organizer.update({
       where: { id: org.id },
       data: {
+        brandName: patch.brandName?.trim(),
+        username,
+        city: patch.city?.trim(),
+        logoUrl: patch.logoUrl,
         about: patch.about?.trim(),
         links: patch.links,
         gstin: patch.gstin?.trim().toUpperCase() || null,
@@ -160,25 +172,6 @@ export class OrganizerService {
     });
   }
 
-  // ---------- subscription (Razorpay-billed organizer plans) ----------
-  async subscriptionTiers() {
-    return this.subscriptions.tiers('organizer');
-  }
-
-  async mySubscription(userId: string) {
-    const org = await this.myOrganizer(userId);
-    return this.subscriptions.current('organizer', org.id);
-  }
-
-  async subscribe(userId: string, tierId: string) {
-    const org = await this.myOrganizer(userId);
-    return this.subscriptions.subscribe('organizer', org.id, tierId);
-  }
-
-  async cancelSubscription(userId: string) {
-    const org = await this.myOrganizer(userId);
-    return this.subscriptions.cancel('organizer', org.id);
-  }
 
   private async myOrganizer(userId: string) {
     const org = await this.prisma.organizer.findUnique({ where: { userId } });

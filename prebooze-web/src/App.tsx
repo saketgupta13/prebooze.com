@@ -54,7 +54,7 @@ import OrgAbandonedCarts from './pages/organizer/OrgAbandonedCarts';
 import OrgLiveMonitor from './pages/organizer/OrgLiveMonitor';
 import OrgReviews from './pages/organizer/OrgReviews';
 import OrgTeamRoles from './pages/organizer/OrgTeamRoles';
-import OrganizerSubscription from './pages/organizer/OrganizerSubscription';
+import OrganizerBilling from './pages/organizer/OrganizerBilling';
 import HostLanding from './pages/static/HostLanding';
 import About from './pages/static/About';
 import Contact from './pages/static/Contact';
@@ -276,7 +276,7 @@ export default function App() {
           <Route path="live" element={<OrgLiveMonitor />} />
           <Route path="reviews" element={<OrgReviews />} />
           <Route path="team" element={<OrgTeamRoles />} />
-          <Route path="subscription" element={<OrganizerSubscription />} />
+          <Route path="billing" element={<OrganizerBilling />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 

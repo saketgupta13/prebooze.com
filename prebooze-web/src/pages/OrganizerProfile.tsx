@@ -58,11 +58,20 @@ export default function OrganizerProfile() {
   const isFollowing = following.includes(org.id);
   const friends = friendsAtEvents(upcoming.map((e) => e.id), following);
 
+  const socialLinks = (org.links ?? '').split(' · ').map((l) => l.trim()).filter(Boolean);
+  const linkIcon = (l: string) => {
+    const url = l.toLowerCase();
+    if (url.includes('instagram') || url.startsWith('ig/')) return 'ig';
+    if (url.includes('x.com') || url.includes('twitter') || url.startsWith('x/')) return 'x';
+    return '🌐';
+  };
+  const linkHref = (l: string) => (l.startsWith('http') ? l : `https://${l.replace(/^(ig|x|fb|wa)\//, '')}`);
+
   return (
     <main className="page">
       <div className="container">
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 22, flexWrap: 'wrap' }}>
-          <Poster hue={org.logoHue} emoji="🎧" variant="square" className="" />
+          <Poster hue={org.logoHue} emoji="🎧" variant="square" className="" imageUrl={org.logoUrl} />
           <div style={{ flex: 1, minWidth: 220 }}>
             <h1 style={{ fontSize: 24 }}>
               {org.brandName} {org.verified && <span className="verified">✓</span>}
@@ -73,9 +82,11 @@ export default function OrganizerProfile() {
             <div className="muted small rich-text" style={{ marginTop: 6, maxWidth: 480 }} dangerouslySetInnerHTML={{ __html: org.about }} />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <span className="icon-round">ig</span>
-            <span className="icon-round">x</span>
-            <span className="icon-round">🌐</span>
+            {socialLinks.map((l, i) => (
+              <a key={i} className="icon-round" href={linkHref(l)} target="_blank" rel="noopener noreferrer" title={l}>
+                {linkIcon(l)}
+              </a>
+            ))}
             <button
               className={`btn btn-sm ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
               onClick={() => toggleFollow(org.id)}

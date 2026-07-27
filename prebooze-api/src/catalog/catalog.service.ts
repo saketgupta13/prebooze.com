@@ -11,7 +11,7 @@ type FeaturedType = 'event' | 'organizer' | 'promoter' | 'lineup' | 'venue';
 const PUBLIC_ORGANIZER_SELECT = {
   id: true, brandName: true, username: true, verified: true, city: true, since: true,
   rating: true, reviewCount: true, eventsHosted: true, followers: true, following: true,
-  about: true, logoHue: true, contact: true, eventTypes: true, links: true, seo: true,
+  about: true, logoHue: true, logoUrl: true, contact: true, eventTypes: true, links: true, seo: true,
   createdAt: true, updatedAt: true,
 } as const;
 
