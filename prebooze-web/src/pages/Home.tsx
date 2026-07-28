@@ -225,7 +225,7 @@ export default function Home() {
                   <span className="badge badge-accent">{h.emoji} {h.badge} · {city}</span>
                   <h1>{h.title}</h1>
                   <p>{h.text}</p>
-                  <Link to={h.to} className="btn btn-pri btn-lg" style={{ marginTop: 18 }}>{h.cta}</Link>
+                  <Link to={h.to} className="btn btn-pri btn-lg hero-cta">{h.cta}</Link>
                 </div>
               </div>
             );
@@ -428,8 +428,9 @@ export default function Home() {
             {topVenues.map((v) => {
               const count = (liveEvents ?? EVENTS).filter((e) => (e.venue?.id ?? e.venueId) === v.id && e.status === 'approved').length;
               return (
-                <Link key={v.id} to={`/venues/${v.id}`} className="ecard">
-                  <Poster hue={v.photoHue} emoji="🏛" label="venue photo" variant="landscape" />
+                <Link key={v.id} to={`/venues/${v.id}`} className="ecard" style={{ position: 'relative' }}>
+                  <Poster hue={v.photoHue} emoji="🏛" label={v.galleryUrls?.[0] ? undefined : 'venue photo'} imageUrl={v.galleryUrls?.[0]} variant="landscape" />
+                  {v.logoUrl && <img src={v.logoUrl} alt="" className="ecard-logo" />}
                   <div>
                     <h3>
                       {v.name} {v.verified && <span className="verified">✓</span>}{' '}

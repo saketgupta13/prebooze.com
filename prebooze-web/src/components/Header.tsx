@@ -8,6 +8,83 @@ import CityPicker from './CityPicker';
 import { existingRole } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 
+type Suggestion = { label: string; type: string; to: string };
+
+/** Self-contained search input + suggestions dropdown — rendered twice by
+ * Header (desktop, inline in the header row; mobile, in its own row below
+ * the header), each with independent open/close state so opening one never
+ * affects the other. The actual query/results/trending list live in Header
+ * and are passed down, so both instances share one debounced fetch instead
+ * of duplicating network calls. */
+function SearchBox({
+  className, q, setQ, suggestions, trending, navigate, submitSearch,
+}: {
+  className: string;
+  q: string;
+  setQ: (v: string) => void;
+  suggestions: Suggestion[];
+  trending: string[];
+  navigate: ReturnType<typeof useNavigate>;
+  submitSearch: (e: React.FormEvent) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
+
+  return (
+    <form className={className} onSubmit={(e) => { setOpen(false); submitSearch(e); }} ref={ref} style={{ position: 'relative' }}>
+      🔍
+      <input
+        placeholder="Search events, artists, venues…"
+        value={q}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+      />
+      {open && (
+        <div className="ss-list" style={{ top: 'calc(100% + 6px)' }}>
+          {q.trim() === '' ? (
+            <>
+              <div className="tiny muted-2" style={{ padding: '6px 10px 4px', fontWeight: 700, letterSpacing: 0.5 }}>🔥 TRENDING</div>
+              {trending.map((t) => (
+                <button
+                  type="button"
+                  key={t}
+                  className="ss-opt"
+                  onMouseDown={(e) => { e.preventDefault(); setQ(t); setOpen(false); navigate('/browse?q=' + encodeURIComponent(t)); }}
+                >
+                  🔎 {t}
+                </button>
+              ))}
+            </>
+          ) : suggestions.length ? (
+            suggestions.map((s) => (
+              <button
+                type="button"
+                key={s.type + s.to}
+                className="ss-opt"
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                onMouseDown={(e) => { e.preventDefault(); setOpen(false); setQ(''); navigate(s.to); }}
+              >
+                <span>{s.label}</span>
+                <span className="tag" style={{ fontSize: 9.5 }}>{s.type}</span>
+              </button>
+            ))
+          ) : (
+            <div className="ss-empty">No matches — press Enter to search events</div>
+          )}
+        </div>
+      )}
+    </form>
+  );
+}
+
 export default function Header() {
   const { user, city, logout, orgTeamAccess } = useApp();
   const { logoUrl } = usePlatformInfo();
@@ -22,16 +99,6 @@ export default function Header() {
   const [autoDetect, setAutoDetect] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [q, setQ] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const searchRef = useRef<HTMLFormElement>(null);
-
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
-    };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, []);
 
   // live suggestions across events, venues, artists and organizers — real
   // GET /search (debounced) when a backend is configured; the local mock
@@ -98,49 +165,7 @@ export default function Header() {
           <img src={logoUrl || '/prebooze-logo.png'} alt="Prebooze" />
         </Link>
 
-        <form className="hdr-search" onSubmit={(e) => { setSearchOpen(false); submitSearch(e); }} ref={searchRef} style={{ position: 'relative' }}>
-          🔍
-          <input
-            placeholder="Search events, artists, venues…"
-            value={q}
-            onFocus={() => setSearchOpen(true)}
-            onChange={(e) => { setQ(e.target.value); setSearchOpen(true); }}
-          />
-          {searchOpen && (
-            <div className="ss-list" style={{ top: 'calc(100% + 6px)' }}>
-              {q.trim() === '' ? (
-                <>
-                  <div className="tiny muted-2" style={{ padding: '6px 10px 4px', fontWeight: 700, letterSpacing: 0.5 }}>🔥 TRENDING</div>
-                  {trending.map((t) => (
-                    <button
-                      type="button"
-                      key={t}
-                      className="ss-opt"
-                      onMouseDown={(e) => { e.preventDefault(); setQ(t); setSearchOpen(false); navigate('/browse?q=' + encodeURIComponent(t)); }}
-                    >
-                      🔎 {t}
-                    </button>
-                  ))}
-                </>
-              ) : suggestions.length ? (
-                suggestions.map((s) => (
-                  <button
-                    type="button"
-                    key={s.type + s.to}
-                    className="ss-opt"
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                    onMouseDown={(e) => { e.preventDefault(); setSearchOpen(false); setQ(''); navigate(s.to); }}
-                  >
-                    <span>{s.label}</span>
-                    <span className="tag" style={{ fontSize: 9.5 }}>{s.type}</span>
-                  </button>
-                ))
-              ) : (
-                <div className="ss-empty">No matches — press Enter to search events</div>
-              )}
-            </div>
-          )}
-        </form>
+        <SearchBox className="hdr-search" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} />
 
         <button className="hdr-city" onClick={() => { setAutoDetect(false); setCityOpen(true); }}>
           📍 {city} ▾
@@ -239,6 +264,13 @@ export default function Header() {
             Login
           </Link>
         )}
+      </div>
+
+      {/* Mobile-only search row — .hdr-search hides at the same breakpoint
+          this shows at (see index.css), so search stays reachable on
+          mobile instead of just vanishing with the desktop nav links. */}
+      <div className="container hdr-search-mobile-row">
+        <SearchBox className="hdr-search hdr-search-mobile" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} />
       </div>
     </header>
   );

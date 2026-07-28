@@ -50,8 +50,8 @@ export default function Login() {
 
           <div className="field">
             <span>Phone number</span>
-            <div className="form-row">
-              <select style={{ flex: '0 0 116px' }} value={code} onChange={(e) => setCode(e.target.value)}>
+            <div className="form-row phone-row">
+              <select value={code} onChange={(e) => setCode(e.target.value)}>
                 {enabledCountries.map((c) => (
                   <option key={c.iso} value={c.dial}>{c.flag} {c.dial}</option>
                 ))}

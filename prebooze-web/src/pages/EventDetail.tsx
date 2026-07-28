@@ -161,7 +161,7 @@ export default function EventDetail() {
         </div>
 
         <div className="detail-grid">
-          <div>
+          <div className="detail-top">
             {/* Head */}
             <div className="detail-head">
               <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} label="portrait banner 3:4" imageUrl={event.posterUrl} />
@@ -202,7 +202,11 @@ export default function EventDetail() {
                     className="evrow"
                     style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
                   >
-                    <span style={{ width: 34, height: 34, borderRadius: '50%', background: `hsl(${organizer.logoHue} 55% 45%)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🎧</span>
+                    {organizer.logoUrl ? (
+                      <img src={organizer.logoUrl} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    ) : (
+                      <span style={{ width: 34, height: 34, borderRadius: '50%', background: `hsl(${organizer.logoHue} 55% 45%)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🎧</span>
+                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="tiny muted-2">Hosted by</div>
                       <div className="bold small">
@@ -256,7 +260,9 @@ export default function EventDetail() {
                 </button>
               )}
             </section>
+          </div>
 
+          <div className="detail-rest">
             {/* Teaser reel */}
             {event.teaserVideoUrl && (
               <section className="section">

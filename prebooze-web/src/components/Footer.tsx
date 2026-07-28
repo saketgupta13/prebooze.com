@@ -78,7 +78,7 @@ export default function Footer() {
         <div className="ftr-base">
           <img src={logoUrl || '/prebooze-logo.png'} alt="" />
           <span>{footerCopyright}</span>
-          <span style={{ flex: 1 }} />
+          <span className="ftr-spacer" />
           <Link to="/legal/guest-policy">Guest policy</Link>
           <Link to="/legal/organizer-policy">Organizer policy</Link>
           <Link to="/legal/disclaimer">Disclaimer</Link>
