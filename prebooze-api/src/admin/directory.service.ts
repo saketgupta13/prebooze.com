@@ -186,6 +186,7 @@ const PROMOTER_EDITABLE = ['name', 'city', 'bio', 'contact', 'links', 'planId', 
 const LINEUP_EDITABLE = ['name', 'category', 'city', 'bio', 'links', 'seo'];
 const VENUE_EDITABLE = [
   'name', 'type', 'locality', 'city', 'address', 'capacity', 'amenities', 'about', 'timings', 'license', 'contact', 'rules', 'seo',
+  'contactPerson', 'contactPersonPhone', 'socialLinks',
 ];
 
 function sanitizePatch(patch: Record<string, unknown>, allowed: string[]): Record<string, unknown> {

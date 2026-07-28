@@ -22,6 +22,7 @@ import { stripHtml } from '../lib/richtext';
 import { useSeo } from '../lib/useSeo';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import Poster, { categoryEmoji } from '../components/Poster';
+import { PageLoader } from '../components/Loader';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
 import Stepper from '../components/Stepper';
@@ -66,6 +67,7 @@ export default function EventDetail() {
   useSeo(event?.seo, event?.title);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [expanded, setExpanded] = useState(false);
+  const [ticketBoxOpen, setTicketBoxOpen] = useState(false);
 
   // Real waitlist queue (GET /events/:id/waitlist — public, shown to
   // logged-out guests too) — was purely local mock state before; refetched
@@ -94,11 +96,7 @@ export default function EventDetail() {
   }, [qty, event]);
 
   if (!loaded) {
-    return (
-      <main className="page">
-        <div className="container center" style={{ padding: '80px 0' }} />
-      </main>
-    );
+    return <PageLoader />;
   }
 
   if (!event) {
@@ -120,6 +118,7 @@ export default function EventDetail() {
   const venue = event.venue ?? venueById(event.venueId);
   const organizer = event.organizer ?? organizerById(event.organizerId);
   const ticketCount = Object.values(qty).reduce((a, b) => a + b, 0);
+  const minPrice = Math.min(...event.tiers.map((t) => t.price));
   const recommended = liveEvent ? liveRecommended : EVENTS.filter((e) => e.status === 'approved' && e.id !== event.id).slice(0, 4);
   const reviews = liveEvent ? liveReviews : REVIEWS;
 
@@ -390,14 +389,25 @@ export default function EventDetail() {
             </section>
           </div>
 
-          {/* Sticky ticket selector */}
+          {/* Sticky ticket selector — collapsed to a single "Book ticket" bar
+              by default (this is what actually sticks/scrolls with you); the
+              full tier list only takes over the card once you tap it. */}
           <aside className="ticket-box card card-shadow">
             {refPromoter && (
               <div className="dashed-box" style={{ border: '1.5px dashed var(--accent)', borderRadius: 10, padding: '8px 10px', fontSize: 12, marginBottom: 12 }}>
                 📣 Referred by <b>{refPromoter.name}</b> — they’ll be credited for your booking.
               </div>
             )}
-            <h3 style={{ marginBottom: 6 }}>Select tickets</h3>
+            {!ticketBoxOpen ? (
+              <button className="btn btn-pri btn-block btn-lg" onClick={() => setTicketBoxOpen(true)}>
+                {allSoldOut ? '😔 Sold out — join the waitlist' : `🎟 Book ticket — from ₹${minPrice} →`}
+              </button>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <h3>Select tickets</h3>
+                  <button className="btn btn-ghost btn-sm" aria-label="Collapse" onClick={() => setTicketBoxOpen(false)}>✕</button>
+                </div>
             {event.tiers.map((t) => {
               const left = t.quantity - t.sold;
               const soldOut = left <= 0;
@@ -487,9 +497,11 @@ export default function EventDetail() {
                 {status === 'interested' ? '★ Interested — saved' : '☆ Interested'}
               </button>
             )}
-            <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-              🔒 secure checkout · free cancellation up to 48h
-            </div>
+                <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
+                  🔒 secure checkout · free cancellation up to 48h
+                </div>
+              </>
+            )}
           </aside>
         </div>
 

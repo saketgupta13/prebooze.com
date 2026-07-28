@@ -24,6 +24,15 @@ const PUBLIC_ORGANIZER_SELECT = {
   createdAt: true, updatedAt: true,
 } as const;
 
+// Excludes contactPerson/contactPersonPhone — same admin-only/private
+// reasoning as PUBLIC_ORGANIZER_SELECT above.
+const PUBLIC_VENUE_SELECT = {
+  id: true, name: true, verified: true, type: true, locality: true, city: true, address: true,
+  capacity: true, rating: true, reviewCount: true, followers: true, amenities: true, about: true, timings: true,
+  photoHue: true, galleryUrls: true, logoUrl: true, contact: true, rules: true, seo: true, socialLinks: true,
+  createdAt: true, updatedAt: true,
+} as const;
+
 // Excludes the admin-only/private fields added for the Reports/Payments
 // slices (commission, paidOut, payoutUtr — a privately negotiated take-rate
 // and internal payout bookkeeping) and the rejection note (only meaningful
@@ -76,7 +85,7 @@ export class CatalogService {
   }
 
   // ---------- events ----------
-  async events(q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string }) {
+  async events(q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string }) {
     const events = await this.prisma.event.findMany({
       where: {
         status: 'approved',
@@ -84,6 +93,8 @@ export class CatalogService {
         ...(q.cat ? { category: q.cat } : {}),
         ...(q.sub ? { subCategory: q.sub } : {}),
         ...(q.search ? { title: { contains: q.search, mode: 'insensitive' } } : {}),
+        ...(q.organizerId ? { organizerId: q.organizerId } : {}),
+        ...(q.venueId ? { venueId: q.venueId } : {}),
       },
       select: PUBLIC_EVENT_SELECT,
       orderBy: { date: 'asc' },
@@ -126,14 +137,25 @@ export class CatalogService {
     const rows = await this.prisma.venue.findMany({
       where: city ? { city } : {},
       orderBy: { rating: 'desc' },
-      select: {
-        id: true, name: true, verified: true, type: true, locality: true, city: true, address: true,
-        capacity: true, rating: true, reviewCount: true, followers: true, amenities: true, about: true, timings: true,
-        photoHue: true, galleryUrls: true, logoUrl: true, contact: true, rules: true, seo: true, createdAt: true, updatedAt: true,
-      },
+      select: PUBLIC_VENUE_SELECT,
     });
     const counts = await this.realFollowerCounts(rows.map((v) => `venue:${v.id}`));
     return rows.map((v) => ({ ...v, followers: counts.get(`venue:${v.id}`) ?? v.followers }));
+  }
+
+  /** Single-venue fetch — the detail page used to call venues() (every venue
+   * in the whole city or, on some pages, unfiltered) just to find the one it
+   * needed, which meant shipping every other venue's full profile over the
+   * wire on every visit. Same real GET-by-id gap organizers/promoters/
+   * lineups had below. */
+  async venue(id: string) {
+    const venue = await this.prisma.venue.findUnique({
+      where: { id },
+      select: PUBLIC_VENUE_SELECT,
+    });
+    if (!venue) throw new NotFoundException('Venue not found');
+    const counts = await this.realFollowerCounts([`venue:${venue.id}`]);
+    return { ...venue, followers: counts.get(`venue:${venue.id}`) ?? venue.followers };
   }
 
   async organizers(city?: string) {
@@ -149,6 +171,13 @@ export class CatalogService {
     return this.sortFeaturedFirst(withCounts, (o) => o.id, featured);
   }
 
+  async organizer(id: string) {
+    const org = await this.prisma.organizer.findUnique({ where: { id }, select: PUBLIC_ORGANIZER_SELECT });
+    if (!org) throw new NotFoundException('Organizer not found');
+    const counts = await this.realFollowerCounts([org.id]);
+    return { ...org, followers: counts.get(org.id) ?? org.followers };
+  }
+
   async promoters(city?: string) {
     const rows = await this.prisma.promoter.findMany({ where: city ? { city } : {}, orderBy: { showRate: 'desc' } });
     const counts = await this.realFollowerCounts(rows.map((p) => `promoter:${p.slug}`));
@@ -158,6 +187,13 @@ export class CatalogService {
     return this.sortFeaturedFirst(withCounts, (p) => p.slug, featured);
   }
 
+  async promoter(slug: string) {
+    const promoter = await this.prisma.promoter.findUnique({ where: { slug } });
+    if (!promoter) throw new NotFoundException('Promoter not found');
+    const counts = await this.realFollowerCounts([`promoter:${slug}`]);
+    return { ...promoter, followers: counts.get(`promoter:${slug}`) ?? promoter.followers };
+  }
+
   async lineups(city?: string) {
     const rows = await this.prisma.lineup.findMany({ where: city ? { city } : {}, orderBy: { followers: 'desc' } });
     const counts = await this.realFollowerCounts(rows.map((l) => `lineup:${l.slug}`));
@@ -165,6 +201,13 @@ export class CatalogService {
     if (!city) return withCounts;
     const featured = await this.activeFeaturedRefs('lineup', city);
     return this.sortFeaturedFirst(withCounts, (l) => l.slug, featured);
+  }
+
+  async lineup(slug: string) {
+    const lineup = await this.prisma.lineup.findUnique({ where: { slug } });
+    if (!lineup) throw new NotFoundException('Line-up not found');
+    const counts = await this.realFollowerCounts([`lineup:${slug}`]);
+    return { ...lineup, followers: counts.get(`lineup:${slug}`) ?? lineup.followers };
   }
 
   async people(city?: string) {
@@ -248,6 +291,26 @@ export class CatalogService {
       eventsByCity.set(city, (eventsByCity.get(city) ?? 0) + c._count);
     }
     return cities.map((c) => ({ name: c.name, icon: c.icon ?? undefined, top: c.top, events: eventsByCity.get(c.name) ?? 0 }));
+  }
+
+  /** Real, admin-managed venue-type tags (Admin > Content > Venue types),
+   * each with a real "how many upcoming events happen at a venue of this
+   * type" count — Venue.type is a comma-joined free-text string (same
+   * multi-select convention as Organizer.eventTypes), so this tallies by
+   * splitting each event's venue's type string and matching against the
+   * real type vocabulary, the same way cities() aggregates by venue.city. */
+  async venueTypes() {
+    const types = await this.prisma.venueType.findMany({ orderBy: { sort: 'asc' } });
+    const events = await this.prisma.event.findMany({
+      where: { status: 'approved' },
+      select: { venue: { select: { type: true } } },
+    });
+    const counts = new Map<string, number>();
+    for (const e of events) {
+      const tags = (e.venue?.type ?? '').split(',').map((t) => t.trim()).filter(Boolean);
+      for (const t of tags) counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+    return types.map((t) => ({ name: t.name, icon: t.icon ?? undefined, events: counts.get(t.name) ?? 0 }));
   }
 
   // ---------- search ----------

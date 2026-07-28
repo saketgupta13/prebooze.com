@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PromoteCard from '../../components/PromoteCard';
+import Loader from '../../components/Loader';
 import { organizer, type OrgAttendee } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event, Organizer } from '../../types';
@@ -83,7 +84,7 @@ export default function Dashboard() {
 
   const upcoming = [...live].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 4);
 
-  if (loading) return <div className="muted">Loading…</div>;
+  if (loading) return <Loader />;
 
   return (
     <div>

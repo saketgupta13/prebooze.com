@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { organizer, type OrgLiveMonitor } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event } from '../../types';
+import Loader from '../../components/Loader';
 
 const ago = (iso: string) => {
   const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
@@ -92,7 +93,7 @@ export default function OrgLiveMonitor() {
   };
 
   if (events.length === 0 && !loading) return <div className="muted small">No live events yet — the monitor works once an event is approved.</div>;
-  if (loading && !data) return <div className="muted">Loading…</div>;
+  if (loading && !data) return <Loader />;
 
   const maxH = data ? Math.max(...data.histogram, 1) : 1;
 

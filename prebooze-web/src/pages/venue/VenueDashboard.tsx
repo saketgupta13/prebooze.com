@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fmtDate, fmtTime } from '../../data/mock';
 import PromoteCard from '../../components/PromoteCard';
+import Loader from '../../components/Loader';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event, Venue } from '../../types';
@@ -23,7 +24,7 @@ export default function VenueDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="muted">Loading…</div>;
+  if (loading) return <Loader />;
   if (err || !venue) return <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>{err || 'Listing not found'}</div>;
 
   const now = Date.now();

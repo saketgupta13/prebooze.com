@@ -6,6 +6,7 @@ import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { LineupProfile as LineupProfileData, Event } from '../types';
 import Poster from '../components/Poster';
+import { PageLoader } from '../components/Loader';
 import SocialIcon, { guessPlatform } from '../components/SocialIcon';
 import ShareButton from '../components/ShareButton';
 import EventCard from '../components/EventCard';
@@ -18,24 +19,27 @@ export default function LineupProfile() {
   const { slug } = useParams();
   const { user, following, toggleFollow, netFollowers } = useApp();
 
+  // Single-entity fetch for the profile itself (GET /lineups/:slug) — the
+  // list fetch is now only for the "more line-ups" section below.
+  const [liveLineup, setLiveLineup] = useState<LineupProfileData | null>(null);
   const [liveLineups, setLiveLineups] = useState<LineupProfileData[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
   const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
-    if (!isBackendEnabled()) return;
+    if (!isBackendEnabled() || !slug) return;
     setLoading(true);
-    Promise.all([catalog.lineups(), catalog.events({})])
-      .then(([ls, evs]) => { setLiveLineups(ls); setLiveEvents(evs); })
-      .catch(() => { setLiveLineups([]); setLiveEvents([]); })
+    Promise.all([catalog.lineup(slug), catalog.lineups(), catalog.events({})])
+      .then(([l, ls, evs]) => { setLiveLineup(l); setLiveLineups(ls); setLiveEvents(evs); })
+      .catch(() => setLiveLineup(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [slug]);
 
-  const lineup = (liveLineups ?? (isBackendEnabled() ? [] : LINEUPS)).find((l) => l.slug === slug) ?? (isBackendEnabled() ? undefined : lineupBySlug(slug ?? ''));
+  const lineup = liveLineup ?? (isBackendEnabled() ? undefined : lineupBySlug(slug ?? ''));
   const liveSeo = useEntitySeo('lineup', slug);
   useSeo(liveSeo, lineup?.name);
 
   if (loading && !lineup) {
-    return <main className="page"><div className="container center" style={{ padding: '80px 0' }}><div className="muted">Loading…</div></div></main>;
+    return <PageLoader />;
   }
 
   if (!lineup) {

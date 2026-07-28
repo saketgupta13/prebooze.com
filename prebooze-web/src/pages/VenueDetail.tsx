@@ -6,7 +6,9 @@ import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Venue, Event } from '../types';
 import Poster from '../components/Poster';
+import { PageLoader } from '../components/Loader';
 import ShareButton from '../components/ShareButton';
+import SocialIcon, { guessPlatform } from '../components/SocialIcon';
 import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
 import { useSeo } from '../lib/useSeo';
@@ -16,24 +18,27 @@ export default function VenueDetail() {
   const { id } = useParams();
   const { user, following, toggleFollow, favVenues, toggleFavVenue, netFollowers } = useApp();
 
-  const [liveVenues, setLiveVenues] = useState<Venue[] | null>(null);
+  // Single-entity fetches (GET /venues/:id + GET /events?venueId=) — see
+  // the same note in OrganizerProfile.tsx for why this replaced fetching
+  // every venue/event in the catalog just to find one.
+  const [liveVenue, setLiveVenue] = useState<Venue | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
   const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
-    if (!isBackendEnabled()) return;
+    if (!isBackendEnabled() || !id) return;
     setLoading(true);
-    Promise.all([catalog.venues(), catalog.events({})])
-      .then(([vs, evs]) => { setLiveVenues(vs); setLiveEvents(evs); })
-      .catch(() => { setLiveVenues([]); setLiveEvents([]); })
+    Promise.all([catalog.venue(id), catalog.events({ venueId: id })])
+      .then(([v, evs]) => { setLiveVenue(v); setLiveEvents(evs); })
+      .catch(() => setLiveVenue(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [id]);
 
-  const venue = (liveVenues ?? (isBackendEnabled() ? [] : VENUES)).find((v) => v.id === id);
+  const venue = liveVenue ?? (isBackendEnabled() ? undefined : VENUES.find((v) => v.id === id));
   const liveSeo = useEntitySeo('venue', id);
   useSeo(liveSeo, venue?.name);
 
   if (loading && !venue) {
-    return <main className="page"><div className="container center" style={{ padding: '80px 0' }}><div className="muted">Loading…</div></div></main>;
+    return <PageLoader />;
   }
 
   if (!venue) {
@@ -49,7 +54,9 @@ export default function VenueDetail() {
     );
   }
 
-  const events = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter((e) => e.venueId === venue.id && e.status === 'approved');
+  // liveEvents is already server-scoped to this venue — only the mock
+  // fallback still needs the client-side filter.
+  const events = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.venueId === venue.id && e.status === 'approved'));
   const followKey = 'venue:' + venue.id;
   const isFollowing = following.includes(followKey);
   const isOwnProfile = user?.isVenue && user.venueId === venue.id;
@@ -78,12 +85,23 @@ export default function VenueDetail() {
             {venue.type && (
               <div className="chip-row" style={{ marginTop: 6 }}>
                 {venue.type.split(',').map((t) => t.trim()).filter(Boolean).map((t) => (
-                  <span key={t} className="tag">{t}</span>
+                  <Link key={t} to={`/venues?type=${encodeURIComponent(t)}`} className="tag" style={{ textDecoration: 'none' }}>
+                    #{t.replace(/\s+/g, '')}
+                  </Link>
                 ))}
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {venue.socialLinks?.instagram && (
+              <a className="icon-round" href={venue.socialLinks.instagram.startsWith('http') ? venue.socialLinks.instagram : `https://${venue.socialLinks.instagram}`} target="_blank" rel="noopener noreferrer" title={venue.socialLinks.instagram}><SocialIcon platform="instagram" /></a>
+            )}
+            {venue.socialLinks?.facebook && (
+              <a className="icon-round" href={venue.socialLinks.facebook.startsWith('http') ? venue.socialLinks.facebook : `https://${venue.socialLinks.facebook}`} target="_blank" rel="noopener noreferrer" title={venue.socialLinks.facebook}><SocialIcon platform="facebook" /></a>
+            )}
+            {venue.socialLinks?.other?.map((l, i) => (
+              <a key={i} className="icon-round" href={l.startsWith('http') ? l : `https://${l}`} target="_blank" rel="noopener noreferrer" title={l}><SocialIcon platform={guessPlatform(l)} /></a>
+            ))}
             <button
               className="btn btn-ghost btn-sm"
               title={favVenues.includes(venue.id) ? 'Remove favourite' : 'Favourite this venue'}
@@ -118,8 +136,8 @@ export default function VenueDetail() {
           </div>
         </div>
 
-        <div className="grid-2" style={{ alignItems: 'stretch', marginBottom: 10 }}>
-          <div className="card">
+        <div className="grid-2 venue-info-grid" style={{ alignItems: 'stretch', marginBottom: 10 }}>
+          <div className="card venue-map-card">
             <iframe
               title={`Map — ${venue.name}`}
               src={`https://maps.google.com/maps?q=${encodeURIComponent(`${venue.name}, ${venue.address}, ${venue.city}`)}&z=15&output=embed`}
@@ -137,7 +155,7 @@ export default function VenueDetail() {
               🧭 Get directions →
             </a>
           </div>
-          <div className="card">
+          <div className="card venue-about-card">
             <h3 style={{ marginBottom: 10 }}>Amenities</h3>
             <div className="chip-row" style={{ marginBottom: 16 }}>
               {venue.amenities.map((a) => (

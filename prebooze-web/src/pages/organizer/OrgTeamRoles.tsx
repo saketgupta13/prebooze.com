@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { orgRoles, orgTeam, type OrgModulePerms, type OrgPermKey, type OrgStaffMember } from '../../api';
 import { ApiError } from '../../api/client';
+import Loader from '../../components/Loader';
 
 const PERM_MODULES = ['Events & wizard', 'Attendees & check-in', 'Guest list', 'Coupons', 'Payouts & withdrawals', 'Reviews', 'Settings & team'];
 const PERM_KEYS: OrgPermKey[] = ['view', 'edit'];
@@ -131,7 +132,7 @@ export default function OrgTeamRoles() {
     }
   };
 
-  if (loading) return <div className="muted">Loading…</div>;
+  if (loading) return <Loader />;
 
   return (
     <div>

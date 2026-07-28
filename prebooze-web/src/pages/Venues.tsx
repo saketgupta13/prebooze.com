@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, VENUES } from '../data/mock';
 import { catalog } from '../api';
@@ -7,16 +7,18 @@ import { isBackendEnabled } from '../api/client';
 import type { Venue, Event } from '../types';
 import Poster from '../components/Poster';
 
-// Same vocabulary venue onboarding/listing use (VenueOnboarding.tsx,
-// VenueListing.tsx) — this filter list previously used a completely
-// different, disconnected set of type names ('Concert hall', 'Club', etc.)
-// that no real onboarded venue could ever actually match.
-const TYPES = ['Venue type', 'Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
+const TYPE_PLACEHOLDER = 'Venue type';
+// Offline fallback only — real vocabulary comes from GET /venue-types
+// (Admin > Content > Venue types) below.
+const TYPES_FALLBACK = [TYPE_PLACEHOLDER, 'Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const CAPS = ['Capacity', 'Under 500', '500–2500', '2500+'];
 
 export default function Venues() {
   const { city, favVenues, toggleFavVenue } = useApp();
-  const [type, setType] = useState(TYPES[0]);
+  const [params] = useSearchParams();
+  // Deep-link support for the #Hashtag venue-type links on VenueDetail.tsx
+  // (?type=Nightclub) — falls back to the "no filter" placeholder otherwise.
+  const [type, setType] = useState(params.get('type') || TYPE_PLACEHOLDER);
   const [cap, setCap] = useState(CAPS[0]);
   const [q, setQ] = useState('');
 
@@ -32,6 +34,13 @@ export default function Venues() {
       .finally(() => setLoading(false));
   }, [city]);
 
+  const [liveTypeNames, setLiveTypeNames] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.venueTypes().then((rows) => setLiveTypeNames(rows.map((r) => r.name))).catch(() => setLiveTypeNames([]));
+  }, []);
+  const TYPES = [TYPE_PLACEHOLDER, ...(liveTypeNames ?? (isBackendEnabled() ? [] : TYPES_FALLBACK.slice(1)))];
+
   // Mock is only a stand-in for offline dev mode — never a "loading"
   // placeholder in production (see the equivalent note in Organizers.tsx).
   const venues = useMemo(() => {
@@ -40,7 +49,7 @@ export default function Venues() {
     // v.type is a comma-joined multi-select string (e.g. "Nightclub, Rooftop")
     // — match if the selected filter is one of the venue's types, not an
     // exact-equal on the whole string.
-    if (type !== TYPES[0]) list = list.filter((v) => v.type.split(',').map((t) => t.trim()).includes(type));
+    if (type !== TYPE_PLACEHOLDER) list = list.filter((v) => v.type.split(',').map((t) => t.trim()).includes(type));
     if (cap === CAPS[1]) list = list.filter((v) => v.capacity < 500);
     if (cap === CAPS[2]) list = list.filter((v) => v.capacity >= 500 && v.capacity <= 2500);
     if (cap === CAPS[3]) list = list.filter((v) => v.capacity > 2500);

@@ -4,11 +4,13 @@ import { useApp } from '../../store/AppContext';
 import MapEmbed from '../../components/MapEmbed';
 import WysiwygEditor from '../../components/WysiwygEditor';
 import { RealGalleryUploadBox, RealUploadBox } from '../../components/RealUploadBox';
-import { venuePartner } from '../../api';
-import { ApiError } from '../../api/client';
+import Loader from '../../components/Loader';
+import { venuePartner, catalog } from '../../api';
+import { ApiError, isBackendEnabled } from '../../api/client';
 import type { Venue } from '../../types';
 
-const VENUE_TYPES = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
+// Offline fallback only — see the live fetch below.
+const VENUE_TYPES_FALLBACK = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
 
 /** Venue.type is stored as a comma-joined string (same convention as
@@ -30,7 +32,7 @@ export default function VenueListing() {
   const [err, setErr] = useState('');
 
   const [name, setName] = useState('');
-  const [vtypes, setVtypes] = useState<string[]>([VENUE_TYPES[0]]);
+  const [vtypes, setVtypes] = useState<string[]>([VENUE_TYPES_FALLBACK[0]]);
   const [address, setAddress] = useState('');
   const [capacity, setCapacity] = useState('');
   const [amenities, setAmenities] = useState<string[]>([]);
@@ -38,6 +40,17 @@ export default function VenueListing() {
   const [timings, setTimings] = useState('');
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [contactPerson, setContactPerson] = useState('');
+  const [contactPersonPhone, setContactPersonPhone] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [facebook, setFacebook] = useState('');
+
+  const [venueTypeOptions, setVenueTypeOptions] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.venueTypes().then((rows) => setVenueTypeOptions(rows.map((r) => r.name))).catch(() => setVenueTypeOptions([]));
+  }, []);
+  const VENUE_TYPES = venueTypeOptions ?? (isBackendEnabled() ? [] : VENUE_TYPES_FALLBACK);
 
   useEffect(() => {
     venuePartner
@@ -53,6 +66,10 @@ export default function VenueListing() {
         setTimings(v.timings ?? '');
         setGalleryUrls(v.galleryUrls ?? []);
         setLogoUrl(v.logoUrl ?? null);
+        setContactPerson(v.contactPerson ?? '');
+        setContactPersonPhone(v.contactPersonPhone ?? '');
+        setInstagram(v.socialLinks?.instagram ?? '');
+        setFacebook(v.socialLinks?.facebook ?? '');
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load your listing'))
       .finally(() => setLoading(false));
@@ -76,6 +93,9 @@ export default function VenueListing() {
         name: name.trim(), type: vtypes.join(', '), address: address.trim(),
         capacity: Number(capacity), amenities, about: about.trim(), timings: timings.trim() || undefined,
         galleryUrls, logoUrl: logoUrl || undefined,
+        contactPerson: contactPerson.trim() || undefined,
+        contactPersonPhone: contactPersonPhone.trim() || undefined,
+        socialLinks: (instagram.trim() || facebook.trim()) ? { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined } : undefined,
       });
       setVenue(updated);
       updateUser({ venueName: updated.name });
@@ -87,7 +107,7 @@ export default function VenueListing() {
     }
   };
 
-  if (loading) return <div className="muted">Loading…</div>;
+  if (loading) return <Loader />;
 
   if (!venue) {
     return (
@@ -155,6 +175,23 @@ export default function VenueListing() {
         <div className="field">
           <span>ℹ️ About the venue</span>
           <WysiwygEditor value={about} onChange={setAbout} minHeight={80} />
+        </div>
+        <div className="form-row">
+          <div className="field">
+            <span>Contact person name</span>
+            <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} />
+          </div>
+          <div className="field">
+            <span>Contact person phone</span>
+            <input value={contactPersonPhone} onChange={(e) => setContactPersonPhone(e.target.value)} inputMode="tel" />
+          </div>
+        </div>
+        <div className="field">
+          <span>Social media — shown on your public venue page</span>
+          <div className="form-row">
+            <input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="instagram.com/yourvenue" />
+            <input value={facebook} onChange={(e) => setFacebook(e.target.value)} placeholder="facebook.com/yourvenue" />
+          </div>
         </div>
         <div className="field">
           <span>📷 Photos (up to 6) — shown in the guest directory and to organizers picking a venue</span>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import PromoteCard from '../../components/PromoteCard';
+import Loader from '../../components/Loader';
 import type { Invoice, Venue } from '../../types';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -38,7 +39,7 @@ export default function VenueBilling() {
     }
   };
 
-  if (loading) return <div className="muted">Loading…</div>;
+  if (loading) return <Loader />;
   if (!venue) return <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>{err || 'Failed to load'}</div>;
 
   return (

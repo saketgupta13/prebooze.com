@@ -6,7 +6,7 @@ export class CatalogController {
   constructor(private catalog: CatalogService) {}
 
   @Get('events')
-  events(@Query() q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string }) {
+  events(@Query() q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string }) {
     return this.catalog.events(q);
   }
 
@@ -25,6 +25,11 @@ export class CatalogController {
     return this.catalog.venueSeo(id);
   }
 
+  @Get('venues/:id')
+  venue(@Param('id') id: string) {
+    return this.catalog.venue(id);
+  }
+
   @Get('organizers')
   organizers(@Query('city') city?: string) {
     return this.catalog.organizers(city);
@@ -33,6 +38,11 @@ export class CatalogController {
   @Get('organizers/:id/seo')
   organizerSeo(@Param('id') id: string) {
     return this.catalog.organizerSeo(id);
+  }
+
+  @Get('organizers/:id')
+  organizer(@Param('id') id: string) {
+    return this.catalog.organizer(id);
   }
 
   @Get('promoters')
@@ -45,6 +55,11 @@ export class CatalogController {
     return this.catalog.promoterSeo(id);
   }
 
+  @Get('promoters/:slug')
+  promoter(@Param('slug') slug: string) {
+    return this.catalog.promoter(slug);
+  }
+
   @Get('lineups')
   lineups(@Query('city') city?: string) {
     return this.catalog.lineups(city);
@@ -53,6 +68,11 @@ export class CatalogController {
   @Get('lineups/:id/seo')
   lineupSeo(@Param('id') id: string) {
     return this.catalog.lineupSeo(id);
+  }
+
+  @Get('lineups/:slug')
+  lineup(@Param('slug') slug: string) {
+    return this.catalog.lineup(slug);
   }
 
   @Get('people')
@@ -73,6 +93,11 @@ export class CatalogController {
   @Get('cities')
   cities() {
     return this.catalog.cities();
+  }
+
+  @Get('venue-types')
+  venueTypes() {
+    return this.catalog.venueTypes();
   }
 
   @Get('search')

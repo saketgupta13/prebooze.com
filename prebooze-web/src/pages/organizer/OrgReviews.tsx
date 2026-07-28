@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { organizer, social } from '../../api';
 import { ApiError } from '../../api/client';
 import Stars from '../../components/Stars';
+import Loader from '../../components/Loader';
 import type { GuestReview } from '../../store/AppContext';
 
 /** Real reviews — GET /organizers/:id/reviews (view-only; moderation is
@@ -23,7 +24,7 @@ export default function OrgReviews() {
   const avg = reviews.length ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length : 0;
   const fiveStarShare = reviews.length ? Math.round((reviews.filter((r) => r.rating === 5).length / reviews.length) * 100) : 0;
 
-  if (loading) return <div className="muted">Loading…</div>;
+  if (loading) return <Loader />;
 
   return (
     <div>

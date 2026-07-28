@@ -93,6 +93,9 @@ export interface Venue {
   photoHue: number;
   galleryUrls?: string[]; // real, uploaded via POST /venue/upload
   logoUrl?: string | null; // real, uploaded via POST /venue/upload — same role as Organizer.logoUrl
+  socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; // public — same shape as Organizer.socialLinks
+  contactPerson?: string; // admin/venue-owner only — never in the public catalog select
+  contactPersonPhone?: string;
 }
 
 export interface Organizer {

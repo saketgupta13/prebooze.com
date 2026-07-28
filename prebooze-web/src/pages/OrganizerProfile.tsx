@@ -7,6 +7,7 @@ import { isBackendEnabled } from '../api/client';
 import type { Organizer, Event } from '../types';
 import { friendsAtEvents } from '../lib/social';
 import FriendsProof from '../components/FriendsProof';
+import { PageLoader } from '../components/Loader';
 import ShareButton from '../components/ShareButton';
 import SocialIcon, { guessPlatform } from '../components/SocialIcon';
 import EventCard from '../components/EventCard';
@@ -18,24 +19,29 @@ export default function OrganizerProfile() {
   const { id } = useParams();
   const { user, following, toggleFollow, netFollowers } = useApp();
 
-  const [liveOrgs, setLiveOrgs] = useState<Organizer[] | null>(null);
+  // Single-entity fetches (GET /organizers/:id + GET /events?organizerId=)
+  // — this used to fetch every organizer and every event in the whole
+  // catalog just to find the one profile being viewed, which meant a
+  // slower load (and a longer "Loading…" screen) that only got worse as
+  // the catalog grew.
+  const [liveOrg, setLiveOrg] = useState<Organizer | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
   const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
-    if (!isBackendEnabled()) return;
+    if (!isBackendEnabled() || !id) return;
     setLoading(true);
-    Promise.all([catalog.organizers(), catalog.events({})])
-      .then(([orgs, evs]) => { setLiveOrgs(orgs); setLiveEvents(evs); })
-      .catch(() => { setLiveOrgs([]); setLiveEvents([]); })
+    Promise.all([catalog.organizer(id), catalog.events({ organizerId: id })])
+      .then(([org, evs]) => { setLiveOrg(org); setLiveEvents(evs); })
+      .catch(() => setLiveOrg(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [id]);
 
-  const org = (liveOrgs ?? (isBackendEnabled() ? [] : ORGANIZERS)).find((o) => o.id === id);
+  const org = liveOrg ?? (isBackendEnabled() ? undefined : ORGANIZERS.find((o) => o.id === id));
   const liveSeo = useEntitySeo('organizer', id);
   useSeo(liveSeo, org?.brandName);
 
   if (loading && !org) {
-    return <main className="page"><div className="container center" style={{ padding: '80px 0' }}><div className="muted">Loading…</div></div></main>;
+    return <PageLoader />;
   }
 
   if (!org) {
@@ -51,7 +57,9 @@ export default function OrganizerProfile() {
     );
   }
 
-  const orgEvents = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter((e) => (e.organizer?.id ?? e.organizerId) === org.id && e.status === 'approved');
+  // liveEvents is already server-scoped to this organizer (GET /events?
+  // organizerId=) — only the mock fallback still needs the client-side filter.
+  const orgEvents = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => (e.organizer?.id ?? e.organizerId) === org.id && e.status === 'approved'));
   const now = Date.now();
   const upcoming = orgEvents.filter((e) => new Date(e.date).getTime() >= now);
   const past = orgEvents.filter((e) => new Date(e.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date));

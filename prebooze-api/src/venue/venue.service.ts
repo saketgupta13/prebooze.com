@@ -16,6 +16,9 @@ interface OnboardInput {
   addressProofDoc?: string;
   galleryUrls?: string[];
   logoUrl?: string;
+  contactPerson?: string;
+  contactPersonPhone?: string;
+  socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
 }
 
 @Injectable()
@@ -112,6 +115,9 @@ export class VenueService {
         timings: input.timings,
         photoHue: h,
         logoUrl: input.logoUrl,
+        contactPerson: input.contactPerson?.trim(),
+        contactPersonPhone: input.contactPersonPhone?.trim(),
+        socialLinks: input.socialLinks as Prisma.InputJsonValue,
         userId,
       },
     });
@@ -178,6 +184,9 @@ export class VenueService {
         about: patch.about?.trim(),
         galleryUrls: patch.galleryUrls,
         logoUrl: patch.logoUrl,
+        contactPerson: patch.contactPerson?.trim(),
+        contactPersonPhone: patch.contactPersonPhone?.trim(),
+        socialLinks: patch.socialLinks as Prisma.InputJsonValue,
       },
     });
 

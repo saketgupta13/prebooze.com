@@ -11,10 +11,14 @@ import WysiwygEditor from '../../components/WysiwygEditor';
 import { FileDropBox } from '../../components/FileDropBox';
 import { RealUploadBox } from '../../components/RealUploadBox';
 import { dataUrlToFile } from '../../lib/fileUtils';
-import { auth, venuePartner } from '../../api';
+import { auth, venuePartner, catalog } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
 
-const VENUE_TYPES = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
+// Offline/dev-mode fallback only — the real, admin-managed list (Admin >
+// Content > Venue types) is fetched below and used whenever a backend is
+// configured, same "mock is never a loading placeholder in production"
+// rule as every other real-taxonomy fetch in this app.
+const VENUE_TYPES_FALLBACK = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
 
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -32,7 +36,7 @@ type Draft = {
   amenities: string[]; timings: string; about: string;
 };
 const emptyDraft: Draft = {
-  name: '', vtypes: [VENUE_TYPES[0]], loc: emptyLocation(), address: '', capacity: '',
+  name: '', vtypes: [VENUE_TYPES_FALLBACK[0]], loc: emptyLocation(), address: '', capacity: '',
   amenities: [], timings: '', about: '',
 };
 
@@ -53,6 +57,17 @@ export default function VenueOnboarding() {
   const [timings, setTimings] = useState(draft0.timings);
   const [about, setAbout] = useState(draft0.about);
   const [logoUrl, setLogoUrl] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [contactPersonPhone, setContactPersonPhone] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [facebook, setFacebook] = useState('');
+
+  const [venueTypeOptions, setVenueTypeOptions] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.venueTypes().then((rows) => setVenueTypeOptions(rows.map((r) => r.name))).catch(() => setVenueTypeOptions([]));
+  }, []);
+  const VENUE_TYPES = venueTypeOptions ?? (isBackendEnabled() ? [] : VENUE_TYPES_FALLBACK);
 
   const [license, setLicense] = useState('');
   const [addressProof, setAddressProof] = useState('');
@@ -100,6 +115,9 @@ export default function VenueOnboarding() {
         timings: timings.trim() || undefined,
         photoHue: Math.floor(Math.random() * 360),
         logoUrl: logoUrl || undefined,
+        contactPerson: contactPerson.trim() || undefined,
+        contactPersonPhone: contactPersonPhone.trim() || undefined,
+        socialLinks: (instagram.trim() || facebook.trim()) ? { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined } : undefined,
       });
       submitRoleApplication('venue', { venueName: name.trim(), venueId: id });
       notify(user.phone, 'welcome', { name: name.trim() }, user.email || undefined);
@@ -122,6 +140,9 @@ export default function VenueOnboarding() {
         name: name.trim(), type: vtypes.join(', '), city: loc.city, address: address.trim(),
         capacity: Number(capacity), amenities, timings: timings.trim() || undefined, about: about.trim(),
         licenseDoc: licenseUrl, addressProofDoc: addressProofUrl, logoUrl: logoUrl || undefined,
+        contactPerson: contactPerson.trim() || undefined,
+        contactPersonPhone: contactPersonPhone.trim() || undefined,
+        socialLinks: (instagram.trim() || facebook.trim()) ? { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined } : undefined,
       });
       // onboard() only returns the new Venue row — refetch /me for the
       // authoritative roleStatus/venueId the layout gate needs.
@@ -229,6 +250,23 @@ export default function VenueOnboarding() {
             <div className="field">
               <span>ℹ️ About the venue</span>
               <WysiwygEditor value={about} onChange={setAbout} minHeight={80} />
+            </div>
+            <div className="form-row">
+              <div className="field">
+                <span>Contact person name</span>
+                <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} placeholder="Who should we reach out to?" />
+              </div>
+              <div className="field">
+                <span>Contact person phone</span>
+                <input value={contactPersonPhone} onChange={(e) => setContactPersonPhone(e.target.value)} placeholder="+91 …" inputMode="tel" />
+              </div>
+            </div>
+            <div className="field">
+              <span>Social media (optional) — shown on your public venue page</span>
+              <div className="form-row">
+                <input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="instagram.com/yourvenue" />
+                <input value={facebook} onChange={(e) => setFacebook(e.target.value)} placeholder="facebook.com/yourvenue" />
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>

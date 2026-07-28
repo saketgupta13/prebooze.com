@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fmtMoney } from '../../data/mock';
+import Loader from '../../components/Loader';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Organizer } from '../../types';
@@ -40,7 +41,7 @@ export default function Withdraw() {
     }
   };
 
-  if (loading) return <div className="muted">Loading…</div>;
+  if (loading) return <Loader />;
 
   return (
     <div>

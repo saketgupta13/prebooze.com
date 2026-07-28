@@ -6,7 +6,7 @@ import { CityFilterDropdown, EVENT_STATUS, GradientPhoto, Kpi, Tag } from '../co
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import MapEmbed from '../components/MapEmbed';
 import WysiwygEditor from '../components/WysiwygEditor';
-import { liveVenues, liveEvents, LiveApiError, type LiveVenue, type LiveEvent } from '../lib/liveApi';
+import { liveVenues, liveEvents, liveVenueTypes, LiveApiError, type LiveVenue, type LiveEvent, type LiveVenueType } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import PlansAndSubscribers from '../components/PlansAndSubscribers';
@@ -53,6 +53,55 @@ function AmenitiesEditor({ value, onChange }: { value: string[]; onChange: (v: s
           + Add
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Venue "type" tags — toggled from the real, admin-managed VenueType list
+ * (Content > Venue types), not free text. Venue.type itself stays a plain
+ * comma-joined string in the DB (same convention as Organizer.eventTypes),
+ * this component only owns the array<->string conversion at its edges. */
+function VenueTypeEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [options, setOptions] = useState<LiveVenueType[]>([]);
+  useEffect(() => { liveVenueTypes.list().then(setOptions).catch(() => setOptions([])); }, []);
+  const selected = value.split(',').map((t) => t.trim()).filter(Boolean);
+  const toggle = (name: string) => {
+    const next = selected.includes(name) ? selected.filter((t) => t !== name) : [...selected, name];
+    onChange(next.join(', '));
+  };
+  return (
+    <div className="field">
+      <label>Venue type</label>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {options.map((t) => (
+          <button key={t.name} type="button" className={`chip ${selected.includes(t.name) ? 'on' : ''}`} onClick={() => toggle(t.name)}>
+            {selected.includes(t.name) ? '✓ ' : ''}{t.icon} {t.name}
+          </button>
+        ))}
+        {options.length === 0 && <span className="tiny muted">No venue types configured yet — add some under Content &gt; Venue types.</span>}
+      </div>
+    </div>
+  );
+}
+
+/** Instagram/Facebook inputs — same {instagram?, facebook?, other?: string[]}
+ * shape as Organizer.socialLinks. `other` isn't exposed here (no admin need
+ * for it yet); venue owners can still set it themselves via VenueListing.tsx. */
+function SocialLinksEditor({ value, onChange }: { value: { instagram?: string; facebook?: string; other?: string[] } | null; onChange: (v: { instagram?: string; facebook?: string; other?: string[] }) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <input
+        className="input"
+        value={value?.instagram ?? ''}
+        onChange={(e) => onChange({ ...value, instagram: e.target.value })}
+        placeholder="instagram.com/…"
+      />
+      <input
+        className="input"
+        value={value?.facebook ?? ''}
+        onChange={(e) => onChange({ ...value, facebook: e.target.value })}
+        placeholder="facebook.com/…"
+      />
     </div>
   );
 }
@@ -236,6 +285,9 @@ export function AddVenue() {
   const [type, setType] = useState('');
   const [vcity, setVcity] = useState('');
   const [contact, setContact] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [contactPersonPhone, setContactPersonPhone] = useState('');
+  const [socialLinks, setSocialLinks] = useState<{ instagram?: string; facebook?: string; other?: string[] } | null>(null);
   const [rules, setRules] = useState('');
   const [about, setAbout] = useState('');
   const [timings, setTimings] = useState('');
@@ -252,7 +304,10 @@ export function AddVenue() {
     setErr('');
     try {
       const created = await liveVenues.create({ name: name.trim(), city: vcity.trim(), address: address.trim() || undefined, capacity: capacity ? parseInt(capacity, 10) : undefined, type });
-      await liveVenues.update(created.id, { contact: contact.trim() || undefined, rules: rules.trim() || undefined, about: about.trim() || undefined, timings: timings.trim() || undefined, amenities });
+      await liveVenues.update(created.id, {
+        contact: contact.trim() || undefined, rules: rules.trim() || undefined, about: about.trim() || undefined, timings: timings.trim() || undefined, amenities,
+        contactPerson: contactPerson.trim() || undefined, contactPersonPhone: contactPersonPhone.trim() || undefined, socialLinks: socialLinks ?? undefined,
+      });
       navigate('/venues');
     } catch (e2) {
       setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to save venue');
@@ -272,10 +327,14 @@ export function AddVenue() {
       <MapEmbed query={`${address}, ${vcity}`} />
       <div style={{ display: 'flex', gap: 8 }}>
         <input className="input" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="Capacity" inputMode="numeric" />
-        <input className="input" value={type} onChange={(e) => setType(e.target.value)} placeholder="e.g. Nightclub, Rooftop" />
         <input className="input" value={vcity} onChange={(e) => setVcity(e.target.value)} placeholder="City" />
       </div>
-      <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Contact person + phone" />
+      <VenueTypeEditor value={type} onChange={setType} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input className="input" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} placeholder="Contact person name" />
+        <input className="input" value={contactPersonPhone} onChange={(e) => setContactPersonPhone(e.target.value)} placeholder="Contact person phone" />
+      </div>
+      <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Business contact email" />
       <input className="input" value={rules} onChange={(e) => setRules(e.target.value)} placeholder="House rules / notes" />
       <div className="card" style={{ padding: 12 }}>
         <div className="tiny" style={{ fontWeight: 700, marginBottom: 6 }}>🕒 Timings</div>
@@ -284,6 +343,10 @@ export function AddVenue() {
       <div className="card" style={{ padding: 12 }}>
         <div className="tiny" style={{ fontWeight: 700, marginBottom: 6 }}>ℹ️ About the venue</div>
         <WysiwygEditor value={about} onChange={setAbout} minHeight={60} />
+      </div>
+      <div className="card" style={{ padding: 12 }}>
+        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6 }}>🔗 Social media</div>
+        <SocialLinksEditor value={socialLinks} onChange={setSocialLinks} />
       </div>
       <AmenitiesEditor value={amenities} onChange={setAmenities} />
       <button type="submit" className="btn btn-pri" style={{ padding: 10, fontSize: 13 }} disabled={saving}>{saving ? 'Saving…' : 'Save venue'}</button>
@@ -308,6 +371,9 @@ export function EditVenue() {
   const [capacity, setCapacity] = useState('');
   const [type, setType] = useState('');
   const [contact, setContact] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [contactPersonPhone, setContactPersonPhone] = useState('');
+  const [socialLinks, setSocialLinks] = useState<{ instagram?: string; facebook?: string; other?: string[] } | null>(null);
   const [rules, setRules] = useState('');
   const [about, setAbout] = useState('');
   const [timings, setTimings] = useState('');
@@ -330,6 +396,9 @@ export function EditVenue() {
           setCapacity(String(v.capacity));
           setType(v.type || 'Indoor');
           setContact(v.contact ?? '');
+          setContactPerson(v.contactPerson ?? '');
+          setContactPersonPhone(v.contactPersonPhone ?? '');
+          setSocialLinks(v.socialLinks ?? null);
           setRules(v.rules ?? '');
           setAbout(v.about ?? '');
           setTimings(v.timings ?? '');
@@ -370,6 +439,9 @@ export function EditVenue() {
         capacity: parseInt(capacity, 10) || venue.capacity,
         type,
         contact: contact.trim() || undefined,
+        contactPerson: contactPerson.trim() || undefined,
+        contactPersonPhone: contactPersonPhone.trim() || undefined,
+        socialLinks: socialLinks ?? undefined,
         rules: rules.trim() || undefined,
         about: about.trim() || undefined,
         timings: timings.trim() || undefined,
@@ -405,13 +477,20 @@ export function EditVenue() {
           <label>Capacity</label>
           <input className="input" value={capacity} onChange={(e) => setCapacity(e.target.value)} inputMode="numeric" />
         </div>
+      </div>
+      <VenueTypeEditor value={type} onChange={setType} />
+      <div style={{ display: 'flex', gap: 8 }}>
         <div className="field" style={{ flex: 1 }}>
-          <label>Type</label>
-          <input className="input" value={type} onChange={(e) => setType(e.target.value)} placeholder="e.g. Nightclub, Rooftop" />
+          <label>Contact person name</label>
+          <input className="input" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} />
+        </div>
+        <div className="field" style={{ flex: 1 }}>
+          <label>Contact person phone</label>
+          <input className="input" value={contactPersonPhone} onChange={(e) => setContactPersonPhone(e.target.value)} />
         </div>
       </div>
       <div className="field">
-        <label>Contact person + phone</label>
+        <label>Business contact email</label>
         <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} />
       </div>
       <div className="field">
@@ -425,6 +504,10 @@ export function EditVenue() {
       <div className="field">
         <label>ℹ️ About the venue</label>
         <WysiwygEditor value={about} onChange={setAbout} minHeight={60} />
+      </div>
+      <div className="card" style={{ padding: 12 }}>
+        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6 }}>🔗 Social media</div>
+        <SocialLinksEditor value={socialLinks} onChange={setSocialLinks} />
       </div>
       <AmenitiesEditor value={amenities} onChange={setAmenities} />
       <label className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

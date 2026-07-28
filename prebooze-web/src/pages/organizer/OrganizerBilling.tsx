@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import PromoteCard from '../../components/PromoteCard';
+import Loader from '../../components/Loader';
 import type { Invoice, Organizer } from '../../types';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -40,7 +41,7 @@ export default function OrganizerBilling() {
     }
   };
 
-  if (loading) return <div className="muted">Loading…</div>;
+  if (loading) return <Loader />;
   if (!profile) return <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>{err || 'Failed to load'}</div>;
 
   return (

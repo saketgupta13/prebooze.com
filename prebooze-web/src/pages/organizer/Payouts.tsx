@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fmtMoney } from '../../data/mock';
+import Loader from '../../components/Loader';
 import { organizer, type OrgLedgerTx } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Organizer } from '../../types';
@@ -41,7 +42,7 @@ export default function Payouts() {
     a.click();
   };
 
-  if (loading) return <div className="muted">Loading…</div>;
+  if (loading) return <Loader />;
 
   return (
     <div>

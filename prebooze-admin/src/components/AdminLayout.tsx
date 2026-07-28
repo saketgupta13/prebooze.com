@@ -42,6 +42,7 @@ const CONTENT_NAV = [
   { to: '/faqs', icon: '❓', label: 'FAQs' },
   { to: '/categories', icon: '🗂', label: 'Categories' },
   { to: '/trending', icon: '🔥', label: 'Trending searches' },
+  { to: '/venue-types', icon: '🏷', label: 'Venue types' },
   { to: '/blogs', icon: '✍', label: 'Blogs' },
   { to: '/pages', icon: '📄', label: 'Pages' },
   { to: '/policies', icon: '📜', label: 'Policies' },

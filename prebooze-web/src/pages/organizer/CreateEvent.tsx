@@ -4,6 +4,7 @@ import { useApp } from '../../store/AppContext';
 import { fmtDate, fmtTime } from '../../data/mock';
 import type { Event, LineupProfile, PromoterProfile, Venue } from '../../types';
 import Poster, { categoryEmoji } from '../../components/Poster';
+import Loader from '../../components/Loader';
 import Accordion from '../../components/Accordion';
 import WysiwygEditor from '../../components/WysiwygEditor';
 import SearchableSelect from '../../components/SearchableSelect';
@@ -237,7 +238,7 @@ export default function CreateEvent() {
   const setTier = (i: number, patch: Partial<TierDraft>) =>
     setTiers((prev) => prev.map((t, x) => (x === i ? { ...t, ...patch } : t)));
 
-  if (!ready) return <div className="muted">Loading…</div>;
+  if (!ready) return <Loader />;
 
   if (preview) {
     const ev = buildPayload('pending');

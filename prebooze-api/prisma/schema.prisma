@@ -211,6 +211,15 @@ model Venue {
   rules   String?
   seo     Json?
 
+  // Same admin-only-vs-public split as Organizer.contactPerson/phone/
+  // socialLinks above: contactPerson/contactPersonPhone are never in the
+  // public catalog select (a private line to the venue's own staff, not
+  // guest-facing); socialLinks is public, same {instagram?, facebook?,
+  // other?: string[]} shape.
+  contactPerson      String?
+  contactPersonPhone String?
+  socialLinks        Json?
+
   // Real photo gallery — venue's own upload (POST /venue/upload), shown on
   // the public venue page and to organizers picking a venue at event
   // creation. Unlike photoHue (the placeholder every venue always has),
@@ -416,6 +425,18 @@ model State {
 
 model TrendingSearch {
   term String @id
+  sort Int    @default(0)
+}
+
+// Master list of venue "type" tags (e.g. Nightclub, Rooftop, Warehouse) —
+// Venue.type itself stays the existing plain comma-joined string (changing
+// that to a real relation would touch every venue-directory read), this is
+// the real, admin-managed vocabulary those comma-joined values are picked
+// from, replacing the free-text venue-type input with a real multi-select
+// and giving each tag a real "N events at this type of venue" count.
+model VenueType {
+  name String @id
+  icon String?
   sort Int    @default(0)
 }
 

@@ -4,6 +4,7 @@ import { useApp } from '../../store/AppContext';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import { RealUploadBox } from '../../components/RealUploadBox';
+import Loader from '../../components/Loader';
 import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 import type { Organizer } from '../../types';
@@ -125,7 +126,7 @@ export default function Settings() {
     }
   };
 
-  if (loading) return <div className="muted">Loading…</div>;
+  if (loading) return <Loader />;
   if (!org) return <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>{err || 'Failed to load'}</div>;
 
   return (

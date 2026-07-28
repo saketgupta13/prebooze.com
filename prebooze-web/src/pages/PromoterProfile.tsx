@@ -9,6 +9,7 @@ import { friendsAtEvents } from '../lib/social';
 import FriendsProof from '../components/FriendsProof';
 import ShareButton from '../components/ShareButton';
 import Poster from '../components/Poster';
+import { PageLoader } from '../components/Loader';
 import SocialIcon, { guessPlatform } from '../components/SocialIcon';
 import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
@@ -20,24 +21,28 @@ export default function PromoterProfile() {
   const { slug } = useParams();
   const { user, following, toggleFollow, netFollowers } = useApp();
 
+  // Single-entity fetch for the profile itself (GET /promoters/:slug) — the
+  // list fetch is now only for the "more promoters" section below, which
+  // genuinely needs the list.
+  const [livePromoter, setLivePromoter] = useState<PromoterProfileData | null>(null);
   const [livePromoters, setLivePromoters] = useState<PromoterProfileData[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
   const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
-    if (!isBackendEnabled()) return;
+    if (!isBackendEnabled() || !slug) return;
     setLoading(true);
-    Promise.all([catalog.promoters(), catalog.events({})])
-      .then(([ps, evs]) => { setLivePromoters(ps); setLiveEvents(evs); })
-      .catch(() => { setLivePromoters([]); setLiveEvents([]); })
+    Promise.all([catalog.promoter(slug), catalog.promoters(), catalog.events({})])
+      .then(([p, ps, evs]) => { setLivePromoter(p); setLivePromoters(ps); setLiveEvents(evs); })
+      .catch(() => setLivePromoter(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [slug]);
 
-  const promoter = (livePromoters ?? (isBackendEnabled() ? [] : PROMOTERS)).find((p) => p.slug === slug) ?? (isBackendEnabled() ? undefined : promoterBySlug(slug ?? ''));
+  const promoter = livePromoter ?? (isBackendEnabled() ? undefined : promoterBySlug(slug ?? ''));
   const liveSeo = useEntitySeo('promoter', slug);
   useSeo(liveSeo, promoter?.name);
 
   if (loading && !promoter) {
-    return <main className="page"><div className="container center" style={{ padding: '80px 0' }}><div className="muted">Loading…</div></div></main>;
+    return <PageLoader />;
   }
 
   if (!promoter) {

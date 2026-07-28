@@ -275,6 +275,8 @@ export interface LiveVenue {
   id: string; name: string; verified: boolean; type: string; locality: string; city: string; address: string;
   capacity: number; rating: number; followers: number; amenities: string[]; about: string; timings: string | null;
   photoHue: number; license: string | null; contact: string | null; rules: string | null; seo: Seo | null;
+  contactPerson: string | null; contactPersonPhone: string | null;
+  socialLinks: { instagram?: string; facebook?: string; other?: string[] } | null;
 }
 
 export interface LiveOrgStaffMember {
@@ -539,6 +541,15 @@ export const liveTrending = {
   reorder: (term: string, sort: number) =>
     liveFetch<LiveTrendingTerm>(`/admin/trending/${encodeURIComponent(term)}`, { method: 'PATCH', body: { sort } }),
   remove: (term: string) => liveFetch<{ ok: true }>(`/admin/trending/${encodeURIComponent(term)}`, { method: 'DELETE' }),
+};
+
+export interface LiveVenueType { name: string; icon: string | null; sort: number; events: number; }
+export const liveVenueTypes = {
+  list: () => liveFetch<LiveVenueType[]>('/admin/venue-types'),
+  add: (name: string, icon?: string) => liveFetch<LiveVenueType>('/admin/venue-types', { body: { name, icon } }),
+  update: (name: string, body: { icon?: string; sort?: number }) =>
+    liveFetch<LiveVenueType>(`/admin/venue-types/${encodeURIComponent(name)}`, { method: 'PATCH', body }),
+  remove: (name: string) => liveFetch<{ ok: true }>(`/admin/venue-types/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 };
 
 export interface LivePromo {

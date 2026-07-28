@@ -1,6 +1,7 @@
 import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import PendingReview, { RejectedReview } from '../../components/PendingReview';
+import { PageLoader } from '../../components/Loader';
 
 // `module` is the exact OrgRole permission-matrix key that gates this nav
 // item's visibility for an invited team member (see OrgTeamRoles.tsx's
@@ -38,7 +39,7 @@ export default function OrganizerLayout() {
     // must wait for it before concluding "not staff anywhere" and bouncing
     // to onboarding, or a team member's console flashes/redirects wrong on
     // every load.
-    if (!orgTeamAccessLoaded) return <div className="page container muted">Loading…</div>;
+    if (!orgTeamAccessLoaded) return <PageLoader />;
     if (user.pendingRole === 'organizer' && user.roleStatus === 'pending') return <PendingReview role="organizer" />;
     if (user.pendingRole === 'organizer' && user.roleStatus === 'rejected') return <RejectedReview role="organizer" reason={user.roleRejectionReason} />;
     return <Navigate to="/organizer/onboarding" replace />;
