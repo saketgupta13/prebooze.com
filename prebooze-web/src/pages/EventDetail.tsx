@@ -21,6 +21,7 @@ import { existingRole, roleLabel } from '../lib/roles';
 import { stripHtml } from '../lib/richtext';
 import { useSeo } from '../lib/useSeo';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
+import { useIsMobile } from '../lib/useIsMobile';
 import Poster, { categoryEmoji } from '../components/Poster';
 import { PageLoader } from '../components/Loader';
 import Accordion from '../components/Accordion';
@@ -68,6 +69,11 @@ export default function EventDetail() {
   const [qty, setQty] = useState<Record<string, number>>({});
   const [expanded, setExpanded] = useState(false);
   const [ticketBoxOpen, setTicketBoxOpen] = useState(false);
+  // Collapsible "single Book ticket button" is a mobile-only pattern — on
+  // desktop the ticket box stays exactly what it always was, a normal
+  // sticky sidebar showing the full tier list.
+  const isMobile = useIsMobile();
+  const showFullTicketBox = !isMobile || ticketBoxOpen;
 
   // Real waitlist queue (GET /events/:id/waitlist — public, shown to
   // logged-out guests too) — was purely local mock state before; refetched
@@ -153,7 +159,7 @@ export default function EventDetail() {
   };
 
   return (
-    <main className="page">
+    <main className={`page ${isMobile ? 'event-detail-page-mobile' : ''}`}>
       <div className="container">
         <div className="breadcrumb">
           <Link to="/browse">Events</Link> / {event.title}
@@ -389,16 +395,21 @@ export default function EventDetail() {
             </section>
           </div>
 
-          {/* Sticky ticket selector — collapsed to a single "Book ticket" bar
-              by default (this is what actually sticks/scrolls with you); the
-              full tier list only takes over the card once you tap it. */}
-          <aside className="ticket-box card card-shadow">
-            {refPromoter && (
+          {/* Mobile only: the "single Book ticket button" pattern, fixed to
+              the bottom of the screen (not sticky-top) — tapping it opens
+              the full tier list as a bottom sheet with a backdrop. Desktop
+              never collapses at all; it's the same sticky sidebar it always
+              was. */}
+          {isMobile && ticketBoxOpen && (
+            <div className="ticket-sheet-backdrop" onClick={() => setTicketBoxOpen(false)} />
+          )}
+          <aside className={`ticket-box card card-shadow ${isMobile ? (ticketBoxOpen ? 'ticket-box-sheet' : 'ticket-box-bar') : ''}`}>
+            {refPromoter && showFullTicketBox && (
               <div className="dashed-box" style={{ border: '1.5px dashed var(--accent)', borderRadius: 10, padding: '8px 10px', fontSize: 12, marginBottom: 12 }}>
                 📣 Referred by <b>{refPromoter.name}</b> — they’ll be credited for your booking.
               </div>
             )}
-            {!ticketBoxOpen ? (
+            {!showFullTicketBox ? (
               <button className="btn btn-pri btn-block btn-lg" onClick={() => setTicketBoxOpen(true)}>
                 {allSoldOut ? '😔 Sold out — join the waitlist' : `🎟 Book ticket — from ₹${minPrice} →`}
               </button>
@@ -406,7 +417,9 @@ export default function EventDetail() {
               <>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                   <h3>Select tickets</h3>
-                  <button className="btn btn-ghost btn-sm" aria-label="Collapse" onClick={() => setTicketBoxOpen(false)}>✕</button>
+                  {isMobile && (
+                    <button className="btn btn-ghost btn-sm" aria-label="Collapse" onClick={() => setTicketBoxOpen(false)}>✕</button>
+                  )}
                 </div>
             {event.tiers.map((t) => {
               const left = t.quantity - t.sold;

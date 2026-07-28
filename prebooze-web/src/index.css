@@ -1081,13 +1081,39 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   .hdr-search-mobile-row { display: block; }
   .hdr-links { display: none; }
   .kpis { grid-template-columns: 1fr; }
-  /* Stays sticky on mobile too now that it sits inline in the scroll
-     order (right after the head) instead of a fixed-width sidebar — top
-     offset is taller than desktop's 82px because the mobile header is two
-     rows (logo row + the search row added below it), not one. */
-  .ticket-box { top: 118px; }
   .hero { padding: 34px 22px; }
   .hero h1 { font-size: 26px; }
+  /* Mobile ticket box: position:fixed takes it out of the grid/document
+     flow entirely (viewport is its containing block), so grid-area/sticky
+     positioning above no longer apply — collapsed state is a slim bottom
+     bar, expanded is a bottom sheet with its own scroll + a backdrop
+     behind it. Desktop is untouched (EventDetail.tsx only adds these
+     classes when isMobile). */
+  .ticket-box-bar, .ticket-box-sheet {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 60;
+    margin: 0;
+    border-radius: 0;
+    border-left: none; border-right: none; border-bottom: none;
+  }
+  .ticket-box-bar { box-shadow: 0 -4px 16px rgba(0,0,0,.3); }
+  .ticket-box-sheet {
+    max-height: 82vh;
+    overflow-y: auto;
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
+    box-shadow: 0 -8px 28px rgba(0,0,0,.4);
+  }
+  .ticket-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(5,6,4,.6);
+    z-index: 59;
+  }
+  /* The fixed bottom bar/sheet would otherwise sit on top of the page's
+     own last bit of content (Recommended events) — reserve real space
+     for it instead of just covering whatever happens to be there. */
+  .event-detail-page-mobile { padding-bottom: 76px; }
 }
 @media (max-width: 560px) {
   .grid-4, .grid-3, .grid-2, .reels { grid-template-columns: repeat(2, 1fr); }
