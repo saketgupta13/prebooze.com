@@ -15,6 +15,7 @@ interface OnboardInput {
   licenseDoc?: string;
   addressProofDoc?: string;
   galleryUrls?: string[];
+  logoUrl?: string;
 }
 
 @Injectable()
@@ -110,16 +111,27 @@ export class VenueService {
         about: input.about.trim(),
         timings: input.timings,
         photoHue: h,
+        logoUrl: input.logoUrl,
         userId,
       },
     });
 
+    // Full submitted form, not just {venueId, name, city} — admin's
+    // Verification detail screen renders every payload key generically
+    // (VerificationDetail.tsx: Object.entries(app.payload)), so a venue
+    // application used to show almost nothing there while organizer/
+    // promoter/lineup applications already showed everything they
+    // submitted. licenseDoc/addressProofDoc are excluded — those are
+    // already shown as real document images in the Documents section below.
     await this.prisma.kycSubmission.create({
       data: {
         userId,
         kind: 'venue',
         status: 'pending',
-        payload: { venueId: id, name: venue.name, city: venue.city } as Prisma.InputJsonValue,
+        payload: {
+          venueId: id, name: venue.name, type: venue.type, city: venue.city, address: venue.address,
+          capacity: venue.capacity, amenities: venue.amenities, timings: venue.timings, about: venue.about,
+        } as Prisma.InputJsonValue,
         documents: [
           { type: 'license', path: input.licenseDoc },
           { type: 'address_proof', path: input.addressProofDoc },
@@ -159,6 +171,7 @@ export class VenueService {
         timings: patch.timings,
         about: patch.about?.trim(),
         galleryUrls: patch.galleryUrls,
+        logoUrl: patch.logoUrl,
       },
     });
   }

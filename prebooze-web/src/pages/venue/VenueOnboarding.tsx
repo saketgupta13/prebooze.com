@@ -9,6 +9,7 @@ import { notify } from '../../lib/notify';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
 import WysiwygEditor from '../../components/WysiwygEditor';
 import { FileDropBox } from '../../components/FileDropBox';
+import { RealUploadBox } from '../../components/RealUploadBox';
 import { dataUrlToFile } from '../../lib/fileUtils';
 import { auth, venuePartner } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
@@ -19,18 +20,19 @@ const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', '
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 const DRAFT_ID = 'venue';
-// license/addressProof deliberately excluded — they're full-size photo data
-// URLs, and persisting a couple of MB-sized images into localStorage risks
-// hitting the per-origin quota (~5-10MB total). When that write throws it
-// used to take the whole draft down with it, which is what made switching
-// steps look like it "forgot" the uploads. Photos now just live in React
-// state — fine across step 1 <-> step 2 within the same visit.
+// license/addressProof/logo deliberately excluded — they're full-size photo
+// data URLs (or, for logo, a real hosted URL that doesn't need draft
+// persistence at all), and persisting a couple of MB-sized images into
+// localStorage risks hitting the per-origin quota (~5-10MB total). When that
+// write throws it used to take the whole draft down with it, which is what
+// made switching steps look like it "forgot" the uploads. Photos now just
+// live in React state — fine across step 1 <-> step 2 within the same visit.
 type Draft = {
-  name: string; vtype: string; loc: LocationValue; address: string; capacity: string;
+  name: string; vtypes: string[]; loc: LocationValue; address: string; capacity: string;
   amenities: string[]; timings: string; about: string;
 };
 const emptyDraft: Draft = {
-  name: '', vtype: VENUE_TYPES[0], loc: emptyLocation(), address: '', capacity: '',
+  name: '', vtypes: [VENUE_TYPES[0]], loc: emptyLocation(), address: '', capacity: '',
   amenities: [], timings: '', about: '',
 };
 
@@ -43,13 +45,14 @@ export default function VenueOnboarding() {
 
   const draft0 = loadDraft(DRAFT_ID, emptyDraft);
   const [name, setName] = useState(draft0.name);
-  const [vtype, setVtype] = useState(draft0.vtype);
+  const [vtypes, setVtypes] = useState<string[]>(draft0.vtypes ?? emptyDraft.vtypes);
   const [loc, setLoc] = useState(draft0.loc);
   const [address, setAddress] = useState(draft0.address);
   const [capacity, setCapacity] = useState(draft0.capacity);
   const [amenities, setAmenities] = useState<string[]>(draft0.amenities);
   const [timings, setTimings] = useState(draft0.timings);
   const [about, setAbout] = useState(draft0.about);
+  const [logoUrl, setLogoUrl] = useState('');
 
   const [license, setLicense] = useState('');
   const [addressProof, setAddressProof] = useState('');
@@ -59,22 +62,24 @@ export default function VenueOnboarding() {
 
   useEffect(() => {
     try {
-      saveDraft(DRAFT_ID, { name, vtype, loc, address, capacity, amenities, timings, about });
+      saveDraft(DRAFT_ID, { name, vtypes, loc, address, capacity, amenities, timings, about });
     } catch {
       // best-effort — a full localStorage quota shouldn't block onboarding itself
     }
-  }, [name, vtype, loc, address, capacity, amenities, timings, about]);
+  }, [name, vtypes, loc, address, capacity, amenities, timings, about]);
 
   if (!user) return <Navigate to="/login" state={{ from: '/venue/onboarding' }} replace />;
   const otherRole = existingRole(user);
   if (otherRole && otherRole !== 'venue') return <RoleTaken has={otherRole} />;
   if (user.isVenue && !done) return <Navigate to="/venue" replace />;
 
-  const step1Valid = name.trim() && loc.city && address.trim() && Number(capacity) > 0 && about.trim();
+  const step1Valid = name.trim() && vtypes.length > 0 && loc.city && address.trim() && Number(capacity) > 0 && about.trim();
   const pct = done ? 100 : step === 1 ? 50 : 90;
 
   const toggleAmenity = (a: string) =>
     setAmenities((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
+  const toggleVtype = (t: string) =>
+    setVtypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
   const submit = async () => {
     if (!isBackendEnabled()) {
@@ -83,7 +88,7 @@ export default function VenueOnboarding() {
         id,
         name: name.trim(),
         verified: false,
-        type: vtype,
+        type: vtypes.join(', '),
         locality: '',
         city: loc.city,
         address: address.trim(),
@@ -94,6 +99,7 @@ export default function VenueOnboarding() {
         about: about.trim(),
         timings: timings.trim() || undefined,
         photoHue: Math.floor(Math.random() * 360),
+        logoUrl: logoUrl || undefined,
       });
       submitRoleApplication('venue', { venueName: name.trim(), venueId: id });
       notify(user.phone, 'welcome', { name: name.trim() }, user.email || undefined);
@@ -113,9 +119,9 @@ export default function VenueOnboarding() {
         venuePartner.upload(addressProofFile),
       ]);
       await venuePartner.onboard({
-        name: name.trim(), type: vtype, city: loc.city, address: address.trim(),
+        name: name.trim(), type: vtypes.join(', '), city: loc.city, address: address.trim(),
         capacity: Number(capacity), amenities, timings: timings.trim() || undefined, about: about.trim(),
-        licenseDoc: licenseUrl, addressProofDoc: addressProofUrl,
+        licenseDoc: licenseUrl, addressProofDoc: addressProofUrl, logoUrl: logoUrl || undefined,
       });
       // onboard() only returns the new Venue row — refetch /me for the
       // authoritative roleStatus/venueId the layout gate needs.
@@ -141,7 +147,7 @@ export default function VenueOnboarding() {
             verified badge, appears in the {loc.city} venue directory, and organizers can pick it while creating events.
           </p>
           <div className="card" style={{ textAlign: 'left', marginBottom: 18 }}>
-            <div className="kv"><span className="k">Listing</span><span>{name} · {vtype} · {loc.city}</span></div>
+            <div className="kv"><span className="k">Listing</span><span>{name} · {vtypes.join(', ')} · {loc.city}</span></div>
             <div className="kv"><span className="k">Capacity</span><span>{capacity} guests</span></div>
             <div className="kv"><span className="k">Status</span><span className="badge badge-pending">Pending review ◌ · ~24h</span></div>
           </div>
@@ -176,17 +182,23 @@ export default function VenueOnboarding() {
               if (step1Valid) setStep(2);
             }}
           >
-            <div className="form-row">
-              <div className="field">
-                <span>Venue name</span>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Neon Warehouse" autoFocus />
+            <div className="field">
+              <span>Venue name</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Neon Warehouse" autoFocus />
+            </div>
+            <div className="field">
+              <span>Venue type — pick all that apply</span>
+              <div className="chip-row">
+                {VENUE_TYPES.map((t) => (
+                  <button type="button" key={t} className={`chip ${vtypes.includes(t) ? 'on' : ''}`} onClick={() => toggleVtype(t)}>
+                    {t}
+                  </button>
+                ))}
               </div>
-              <div className="field">
-                <span>Venue type</span>
-                <select value={vtype} onChange={(e) => setVtype(e.target.value)}>
-                  {VENUE_TYPES.map((t) => <option key={t}>{t}</option>)}
-                </select>
-              </div>
+            </div>
+            <div className="field">
+              <span>Logo (optional) — shown next to your venue name in the directory</span>
+              <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={venuePartner.upload} label="⬆ upload logo" doneLabel="✓ Logo uploaded — click to replace" style={{ height: 100, width: 100 }} />
             </div>
             <LocationPicker value={loc} onChange={setLoc} />
             <div className="form-row">

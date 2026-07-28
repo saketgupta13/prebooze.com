@@ -88,7 +88,7 @@ import VenueDashboard from './pages/venue/VenueDashboard';
 import VenueListing from './pages/venue/VenueListing';
 import VenueEvents from './pages/venue/VenueEvents';
 import VenueSettings from './pages/venue/VenueSettings';
-import VenueSubscription from './pages/venue/VenueSubscription';
+import VenueBilling from './pages/venue/VenueBilling';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useApp();
@@ -305,7 +305,7 @@ export default function App() {
           <Route index element={<VenueDashboard />} />
           <Route path="listing" element={<VenueListing />} />
           <Route path="events" element={<VenueEvents />} />
-          <Route path="subscription" element={<VenueSubscription />} />
+          <Route path="billing" element={<VenueBilling />} />
           <Route path="settings" element={<VenueSettings />} />
         </Route>
 

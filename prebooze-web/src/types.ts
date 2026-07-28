@@ -92,6 +92,7 @@ export interface Venue {
   timings?: string; // e.g. "Wed–Sun · 8 PM – 2 AM"
   photoHue: number;
   galleryUrls?: string[]; // real, uploaded via POST /venue/upload
+  logoUrl?: string | null; // real, uploaded via POST /venue/upload — same role as Organizer.logoUrl
 }
 
 export interface Organizer {

@@ -7,7 +7,11 @@ import { isBackendEnabled } from '../api/client';
 import type { Venue, Event } from '../types';
 import Poster from '../components/Poster';
 
-const TYPES = ['Venue type', 'Concert hall', 'Club', 'Rooftop bar', 'Open-air', 'Warehouse'];
+// Same vocabulary venue onboarding/listing use (VenueOnboarding.tsx,
+// VenueListing.tsx) — this filter list previously used a completely
+// different, disconnected set of type names ('Concert hall', 'Club', etc.)
+// that no real onboarded venue could ever actually match.
+const TYPES = ['Venue type', 'Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const CAPS = ['Capacity', 'Under 500', '500–2500', '2500+'];
 
 export default function Venues() {
@@ -33,7 +37,10 @@ export default function Venues() {
   const venues = useMemo(() => {
     let list = liveVenues ?? (isBackendEnabled() ? [] : VENUES.filter((v) => v.city === city));
     if (q) list = list.filter((v) => v.name.toLowerCase().includes(q.toLowerCase()));
-    if (type !== TYPES[0]) list = list.filter((v) => v.type === type);
+    // v.type is a comma-joined multi-select string (e.g. "Nightclub, Rooftop")
+    // — match if the selected filter is one of the venue's types, not an
+    // exact-equal on the whole string.
+    if (type !== TYPES[0]) list = list.filter((v) => v.type.split(',').map((t) => t.trim()).includes(type));
     if (cap === CAPS[1]) list = list.filter((v) => v.capacity < 500);
     if (cap === CAPS[2]) list = list.filter((v) => v.capacity >= 500 && v.capacity <= 2500);
     if (cap === CAPS[3]) list = list.filter((v) => v.capacity > 2500);

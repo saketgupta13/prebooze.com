@@ -63,15 +63,25 @@ export default function VenueDetail() {
         })()}
 
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', margin: '22px 0', flexWrap: 'wrap' }}>
-          <span className="avatar" style={{ width: 58, height: 58, fontSize: 24 }}>🏛</span>
+          {venue.logoUrl ? (
+            <img src={venue.logoUrl} alt="" className="avatar" style={{ width: 58, height: 58, objectFit: 'cover' }} />
+          ) : (
+            <span className="avatar" style={{ width: 58, height: 58, fontSize: 24 }}>🏛</span>
+          )}
           <div style={{ flex: 1, minWidth: 200 }}>
             <h1 style={{ fontSize: 24 }}>
               {venue.name} {venue.verified && <span className="verified">✓</span>}
             </h1>
             <div className="muted small">
-              {venue.type} · {venue.locality} · followed by guests & hosts · {fmtCount(venue.followers)}{' '}
-              followers
+              {venue.locality} · followed by guests & hosts · {fmtCount(venue.followers)} followers
             </div>
+            {venue.type && (
+              <div className="chip-row" style={{ marginTop: 6 }}>
+                {venue.type.split(',').map((t) => t.trim()).filter(Boolean).map((t) => (
+                  <span key={t} className="tag">{t}</span>
+                ))}
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button

@@ -233,7 +233,7 @@ export function AddVenue() {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [capacity, setCapacity] = useState('');
-  const [type, setType] = useState('Indoor');
+  const [type, setType] = useState('');
   const [vcity, setVcity] = useState('');
   const [contact, setContact] = useState('');
   const [rules, setRules] = useState('');
@@ -272,12 +272,7 @@ export function AddVenue() {
       <MapEmbed query={`${address}, ${vcity}`} />
       <div style={{ display: 'flex', gap: 8 }}>
         <input className="input" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="Capacity" inputMode="numeric" />
-        <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
-          <option>Indoor</option>
-          <option>Outdoor</option>
-          <option>Rooftop</option>
-          <option>Warehouse</option>
-        </select>
+        <input className="input" value={type} onChange={(e) => setType(e.target.value)} placeholder="e.g. Nightclub, Rooftop" />
         <input className="input" value={vcity} onChange={(e) => setVcity(e.target.value)} placeholder="City" />
       </div>
       <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Contact person + phone" />
@@ -311,7 +306,7 @@ export function EditVenue() {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [capacity, setCapacity] = useState('');
-  const [type, setType] = useState('Indoor');
+  const [type, setType] = useState('');
   const [contact, setContact] = useState('');
   const [rules, setRules] = useState('');
   const [about, setAbout] = useState('');
@@ -412,12 +407,7 @@ export function EditVenue() {
         </div>
         <div className="field" style={{ flex: 1 }}>
           <label>Type</label>
-          <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
-            <option>Indoor</option>
-            <option>Outdoor</option>
-            <option>Rooftop</option>
-            <option>Warehouse</option>
-          </select>
+          <input className="input" value={type} onChange={(e) => setType(e.target.value)} placeholder="e.g. Nightclub, Rooftop" />
         </div>
       </div>
       <div className="field">

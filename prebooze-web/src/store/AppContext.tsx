@@ -783,6 +783,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       referrals,
       wishlist,
       toggleWishlist: (eventId) => {
+        // Real login required — this used to update local state optimistically
+        // even for a logged-out visitor (isBackendEnabled()&&getToken() only
+        // gated the *real* API call), so the button looked like it worked but
+        // nothing ever persisted and the visitor got no explanation why.
+        if (!user) {
+          toast('Log in to save this to your wishlist');
+          return;
+        }
         const nowOn = !wishlist.includes(eventId);
         setWishlist((prev) => (prev.includes(eventId) ? prev.filter((e) => e !== eventId) : [eventId, ...prev]));
         if (isBackendEnabled() && getToken()) {
@@ -793,6 +801,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       favVenues,
       toggleFavVenue: (venueId) => {
+        if (!user) {
+          toast('Log in to save your favourite venues');
+          return;
+        }
         const nowOn = !favVenues.includes(venueId);
         setFavVenues((prev) => (prev.includes(venueId) ? prev.filter((v) => v !== venueId) : [venueId, ...prev]));
         if (isBackendEnabled() && getToken()) {
@@ -894,6 +906,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           )
         ),
       toggleFollow: (id) => {
+        if (!user) {
+          toast('Log in to follow');
+          return;
+        }
         const nowFollowing = !following.includes(id);
         setFollowing((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]));
         if (isBackendEnabled() && getToken()) {
@@ -913,6 +929,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       interested,
       toggleInterested: (eventId) => {
+        if (!user) {
+          toast('Log in to mark yourself interested');
+          return;
+        }
         const nowOn = !interested.includes(eventId);
         setInterested((prev) =>
           prev.includes(eventId) ? prev.filter((e) => e !== eventId) : [eventId, ...prev]

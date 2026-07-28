@@ -213,6 +213,12 @@ model Venue {
   // this is optional and empty until the venue owner uploads something.
   galleryUrls String[] @default([])
 
+  // Real logo upload (same POST /venue/upload) — distinct from galleryUrls
+  // (interior/event photos): this is the small brand mark shown next to the
+  // venue name in the directory and on the public profile, same role
+  // Organizer.logoUrl plays for organizers.
+  logoUrl String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

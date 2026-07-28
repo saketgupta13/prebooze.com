@@ -1,10 +1,12 @@
-import { BadRequestException, Body, Controller, Get, Patch, Post, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { VenueService } from './venue.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StorageService } from '../kyc/storage.service';
+import { InvoicesService } from '../invoices/invoices.service';
 
-type AuthedReq = { user: { sub: string } };
+type AuthedReq = { user: { sub: string; phone: string } };
 
 @Controller('venue')
 @UseGuards(JwtAuthGuard)
@@ -12,7 +14,27 @@ export class VenueController {
   constructor(
     private venue: VenueService,
     private storage: StorageService,
+    private invoices: InvoicesService,
   ) {}
+
+  /** Real Featured billing history — same Invoice rows admin sees, filtered
+   * to this venue partner's own phone number (see InvoicesService.mine),
+   * same pattern as OrganizerController's myInvoices/myInvoicePdf. */
+  @Get('invoices')
+  myInvoices(@Req() req: AuthedReq) {
+    return this.invoices.mine('venue', req.user.phone);
+  }
+
+  @Get('invoices/:id/pdf')
+  async myInvoicePdf(@Req() req: AuthedReq, @Param('id') id: string, @Res() res: Response) {
+    const { filename, buffer } = await this.invoices.pdfForOwner(id, 'venue', req.user.phone);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+    });
+    res.send(buffer);
+  }
 
   /** Onboarding's license/address-proof fields are plain string URLs, not
    * multipart uploads (see VenueService.onboard) — this is what produces

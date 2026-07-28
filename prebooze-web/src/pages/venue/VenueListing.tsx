@@ -3,13 +3,20 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import MapEmbed from '../../components/MapEmbed';
 import WysiwygEditor from '../../components/WysiwygEditor';
-import { RealGalleryUploadBox } from '../../components/RealUploadBox';
+import { RealGalleryUploadBox, RealUploadBox } from '../../components/RealUploadBox';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Venue } from '../../types';
 
 const VENUE_TYPES = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
 const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
+
+/** Venue.type is stored as a comma-joined string (same convention as
+ * Organizer.eventTypes) so multi-select needs no schema change — split for
+ * editing, join back on save. Tolerates a legacy single-value or an unknown
+ * custom type by keeping whatever's already there even if it's not in the
+ * fixed VENUE_TYPES list. */
+const splitTypes = (s: string) => s.split(',').map((t) => t.trim()).filter(Boolean);
 
 /** Edit the public venue listing — what guests and organizers see. Real
  * GET/PATCH /venue/listing, including a real photo gallery (POST
@@ -23,13 +30,14 @@ export default function VenueListing() {
   const [err, setErr] = useState('');
 
   const [name, setName] = useState('');
-  const [vtype, setVtype] = useState(VENUE_TYPES[0]);
+  const [vtypes, setVtypes] = useState<string[]>([VENUE_TYPES[0]]);
   const [address, setAddress] = useState('');
   const [capacity, setCapacity] = useState('');
   const [amenities, setAmenities] = useState<string[]>([]);
   const [about, setAbout] = useState('');
   const [timings, setTimings] = useState('');
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     venuePartner
@@ -37,13 +45,14 @@ export default function VenueListing() {
       .then((v) => {
         setVenue(v);
         setName(v.name);
-        setVtype(v.type);
+        setVtypes(splitTypes(v.type));
         setAddress(v.address);
         setCapacity(String(v.capacity));
         setAmenities(v.amenities);
         setAbout(v.about);
         setTimings(v.timings ?? '');
         setGalleryUrls(v.galleryUrls ?? []);
+        setLogoUrl(v.logoUrl ?? null);
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load your listing'))
       .finally(() => setLoading(false));
@@ -51,20 +60,22 @@ export default function VenueListing() {
 
   const toggleAmenity = (a: string) =>
     setAmenities((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
+  const toggleVtype = (t: string) =>
+    setVtypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !address.trim() || !(Number(capacity) > 0) || !about.trim()) {
-      toast('Name, address, capacity and about are required');
+    if (!name.trim() || !address.trim() || !(Number(capacity) > 0) || !about.trim() || vtypes.length === 0) {
+      toast('Name, venue type, address, capacity and about are required');
       return;
     }
     setErr('');
     setSaving(true);
     try {
       const updated = await venuePartner.updateListing({
-        name: name.trim(), type: vtype, address: address.trim(),
+        name: name.trim(), type: vtypes.join(', '), address: address.trim(),
         capacity: Number(capacity), amenities, about: about.trim(), timings: timings.trim() || undefined,
-        galleryUrls,
+        galleryUrls, logoUrl: logoUrl || undefined,
       });
       setVenue(updated);
       updateUser({ venueName: updated.name });
@@ -98,18 +109,23 @@ export default function VenueListing() {
 
       {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
       <form className="card" onSubmit={save}>
-        <div className="form-row">
-          <div className="field">
-            <span>Venue name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} />
+        <div className="field">
+          <span>Venue name</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="field">
+          <span>Venue type — pick all that apply</span>
+          <div className="chip-row">
+            {[...new Set([...VENUE_TYPES, ...vtypes])].map((t) => (
+              <button type="button" key={t} className={`chip ${vtypes.includes(t) ? 'on' : ''}`} onClick={() => toggleVtype(t)}>
+                {t}
+              </button>
+            ))}
           </div>
-          <div className="field">
-            <span>Venue type</span>
-            <select value={vtype} onChange={(e) => setVtype(e.target.value)}>
-              {VENUE_TYPES.map((t) => <option key={t}>{t}</option>)}
-              {!VENUE_TYPES.includes(vtype) && <option>{vtype}</option>}
-            </select>
-          </div>
+        </div>
+        <div className="field">
+          <span>Logo — shown next to your venue name in the directory</span>
+          <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={venuePartner.upload} label="⬆ upload logo" doneLabel="✓ Logo uploaded — click to replace" style={{ height: 100, width: 100 }} />
         </div>
         <div className="form-row">
           <div className="field">

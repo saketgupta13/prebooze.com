@@ -423,5 +423,17 @@ export const venuePartner = {
   myListing: () => apiFetch<Venue & { favourites: number }>('/venue/listing'),
   updateListing: (patch: Partial<Venue>) => apiFetch<Venue>('/venue/listing', { method: 'PATCH', body: patch }),
   events: () => apiFetch<Event[]>('/venue/events'),
+  invoices: () => apiFetch<Invoice[]>('/venue/invoices'),
+  downloadInvoicePdf: async (id: string, filename: string) => {
+    const res = await fetch(`${API_URL}/venue/invoices/${id}/pdf`, { headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {} });
+    if (!res.ok) throw new ApiError(res.status, 'ERROR', 'Failed to download PDF');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
   subscription: subscriptionApi('venue'),
 };
