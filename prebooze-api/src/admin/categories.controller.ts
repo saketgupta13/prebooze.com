@@ -25,7 +25,7 @@ export class AdminCategoriesController {
 
   @Patch(':name')
   @RequirePermission(MODULE, 'edit')
-  update(@Param('name') name: string, @Body() body: { icon?: string; imageUrl?: string; seo?: Record<string, string> }) {
+  update(@Param('name') name: string, @Body() body: { icon?: string; imageUrl?: string; seo?: Record<string, string>; subs?: string[]; sort?: number }) {
     return this.categories.update(decodeURIComponent(name), body);
   }
 

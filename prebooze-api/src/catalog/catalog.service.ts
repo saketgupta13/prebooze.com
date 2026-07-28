@@ -211,8 +211,13 @@ export class CatalogService {
   }
 
   // ---------- taxonomy & locations ----------
+  // EventCategory is the one real source of truth for the category+
+  // subcategory tree — guest browse, the header, and both event editors'
+  // pickers all read this same list now (the old legacy Category model +
+  // CATEGORY_TREE mock constant are retired).
   async categories() {
-    return this.prisma.category.findMany({ orderBy: { sort: 'asc' } });
+    const rows = await this.prisma.eventCategory.findMany({ orderBy: { sort: 'asc' }, select: { name: true, icon: true, subs: true } });
+    return rows;
   }
 
   async cities() {

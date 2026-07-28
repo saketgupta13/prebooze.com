@@ -375,13 +375,6 @@ model Person {
   updatedAt DateTime @updatedAt
 }
 
-model Category {
-  name String   @id
-  icon String
-  subs String[] @default([])
-  sort Int      @default(0)
-}
-
 model City {
   name    String  @id
   icon    String?
@@ -480,8 +473,9 @@ model Event {
   // Payments/payout-batch slice. posterUrl is the real image reference
   // behind EventEditor's poster-upload toggle (same "give it something
   // real to hold" move as Banner.imageUrl in the CMS slice) — the gallery
-  // photos / social banners / teaser reel toggles on the same page stayed
-  // fake, see BACKEND.md for why. payoutUtr is set once by a payout batch.
+  // photos / social banners / teaser reel toggles on the same page are real
+  // too now (galleryUrls/teaserVideoUrl/socialBanners above). payoutUtr is
+  // set once by a payout batch.
   posterUrl String?
   payoutUtr String?
 
@@ -856,10 +850,16 @@ model Coupon {
  * and BlogCategory before it.
  */
 model EventCategory {
-  name     String  @id
-  icon     String  @default("🏷")
+  name     String   @id
+  icon     String   @default("🏷")
   imageUrl String?
   seo      Json?
+  // Real sub-category list — previously only the legacy, disconnected
+  // `Category` model (now removed) had this; EventCategory is the one real
+  // source of truth for the whole category+subcategory tree now (admin
+  // CRUD, guest browse/filter, both event editors' pickers).
+  subs     String[] @default([])
+  sort     Int      @default(0)
 }
 
 model WalletTx {

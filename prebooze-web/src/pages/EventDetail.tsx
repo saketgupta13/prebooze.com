@@ -12,9 +12,9 @@ import {
   organizerById,
   venueById,
 } from '../data/mock';
-import { catalog, social } from '../api';
+import { catalog, social, bookings as bookingsApi } from '../api';
 import { isBackendEnabled } from '../api/client';
-import type { Event } from '../types';
+import type { Event, WaitlistEntry } from '../types';
 import type { GuestReview } from '../store/AppContext';
 import { friendsGoing, goingCount, myStatus } from '../lib/social';
 import { existingRole, roleLabel } from '../lib/roles';
@@ -32,8 +32,8 @@ import ShareButton from '../components/ShareButton';
  * live catalog API — this page used to read purely from the local mock
  * seed (EVENTS/eventBySlug), so a real event created in admin was always
  * "Event not found" here despite existing in the real database. Booking
- * itself (the "Book" button → /checkout) still hands off to Checkout.tsx,
- * which is a separate, still-mock-sourced page — not touched here. */
+ * itself (the "Book" button → /checkout) hands off to Checkout.tsx, which
+ * is fully real too (real hold→quote→Razorpay→confirm). */
 export default function EventDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -66,6 +66,20 @@ export default function EventDetail() {
   useSeo(event?.seo, event?.title);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [expanded, setExpanded] = useState(false);
+
+  // Real waitlist queue (GET /events/:id/waitlist — public, shown to
+  // logged-out guests too) — was purely local mock state before; refetched
+  // right after joining so the count/position the guest sees is real.
+  const [liveWaitlist, setLiveWaitlist] = useState<WaitlistEntry[] | null>(null);
+  const refetchWaitlist = () => {
+    if (!isBackendEnabled() || !event) return;
+    bookingsApi.waitlist(event.id).then(setLiveWaitlist).catch(() => {});
+  };
+  useEffect(() => {
+    if (!isBackendEnabled() || !event) return;
+    bookingsApi.waitlist(event.id).then(setLiveWaitlist).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.id]);
 
   // Credit a promoter for any purchase made through their shared link (?ref=slug).
   const ref = params.get('ref');
@@ -112,7 +126,7 @@ export default function EventDetail() {
   const going = goingCount(event);
   const friends = friendsGoing(event.id, following);
   const allSoldOut = event.tiers.every((t) => t.sold >= t.quantity);
-  const queue = waitlists[event.id] ?? [];
+  const queue = liveWaitlist ?? waitlists[event.id] ?? [];
   const myEntry = user ? queue.find((w) => w.phone === user.phone) : undefined;
   const myPosition = myEntry ? queue.filter((w) => w.status === 'waiting').findIndex((w) => w.phone === user?.phone) + 1 : 0;
   const status = myStatus(event.id, bookings, interested);
@@ -427,7 +441,13 @@ export default function EventDetail() {
                     <p className="tiny muted" style={{ marginBottom: 10 }}>
                       Join the waitlist — if a ticket frees up (cancellation), it's offered in queue order.
                     </p>
-                    <button className="btn btn-pri btn-block" onClick={() => joinWaitlist(event.id)}>
+                    <button
+                      className="btn btn-pri btn-block"
+                      onClick={() => {
+                        joinWaitlist(event.id);
+                        setTimeout(refetchWaitlist, 600); // let the real POST land, then pull the authoritative queue
+                      }}
+                    >
                       🎗 Join the waitlist ({queue.filter((w) => w.status === 'waiting').length} waiting)
                     </button>
                   </>

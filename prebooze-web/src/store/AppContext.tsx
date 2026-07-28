@@ -4,7 +4,7 @@ import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayM
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } from '../data/mock';
 import { notify } from '../lib/notify';
-import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTeamApi, type OrgTeamAccess } from '../api';
+import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTeamApi, bookings as bookingsApi, type OrgTeamAccess } from '../api';
 import { isBackendEnabled, setToken, clearToken, getToken } from '../api/client';
 
 export interface GuestReview {
@@ -834,7 +834,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       waitlists,
       joinWaitlist: (eventId) => {
-        if (!user) return;
+        if (!user) {
+          toast('Log in to join the waitlist');
+          return;
+        }
         setWaitlists((prev) => {
           const q = prev[eventId] ?? [];
           if (q.some((w) => w.phone === user.phone)) return prev;
@@ -843,6 +846,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
             [eventId]: [...q, { phone: user.phone, name: user.name || 'Guest', joinedAt: new Date().toISOString(), status: 'waiting' as const }],
           };
         });
+        // Real join — was local-state-only before (a real WaitlistEntry
+        // model + FIFO offer-on-refund logic existed in the backend the
+        // whole time, just never invoked). The local update above is an
+        // optimistic mirror for instant UI feedback; EventDetail.tsx
+        // re-fetches the real queue right after this resolves for the
+        // authoritative count/position.
+        if (isBackendEnabled() && getToken()) {
+          bookingsApi.waitlistJoin(eventId).catch(() => {});
+        }
         toast('You’re on the waitlist — we’ll ping you the moment a spot opens ✓');
       },
       reviews,

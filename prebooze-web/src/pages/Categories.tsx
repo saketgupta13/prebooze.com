@@ -8,21 +8,26 @@ import type { Event } from '../types';
 import { useSeo } from '../lib/useSeo';
 
 /** Browse-by-category directory — categories + sub-categories with live
- * counts. Category names/subs still come from the local CATEGORY_TREE
- * constant (the real public categories endpoint reads a legacy `Category`
- * table with no admin UI wired to it yet — a separate, disclosed mismatch,
- * not fixed here); the event counts themselves are real. */
+ * counts. Category/sub-category names now come from the real, admin-managed
+ * EventCategory table (GET /categories) — the local CATEGORY_TREE constant
+ * is only a fallback for offline/dev mode with no backend configured. */
 export default function Categories() {
   useSeo(null, 'Browse by category');
   const { city } = useApp();
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  const [liveCategories, setLiveCategories] = useState<{ name: string; icon: string; subs: string[] }[] | null>(null);
 
   useEffect(() => {
     if (!isBackendEnabled()) return;
     catalog.events({ city }).then(setLiveEvents).catch(() => setLiveEvents([]));
   }, [city]);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.categories().then(setLiveCategories).catch(() => setLiveCategories([]));
+  }, []);
 
   const cityEvents = liveEvents ?? EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
+  const categories = liveCategories ?? (isBackendEnabled() ? [] : CATEGORY_TREE);
   const catCount = (cat: string) => cityEvents.filter((e) => e.category === cat).length;
   const subCount = (cat: string, sub: string) => cityEvents.filter((e) => e.category === cat && e.subCategory === sub).length;
 
@@ -38,7 +43,7 @@ export default function Categories() {
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-          {CATEGORY_TREE.map((c) => {
+          {categories.map((c) => {
             const total = catCount(c.name);
             return (
               <div key={c.name} className="card" style={{ display: 'flex', flexDirection: 'column' }}>

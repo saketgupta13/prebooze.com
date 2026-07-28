@@ -9,11 +9,46 @@ import type { Seo } from '../types';
 const TITLE = 'Edit category';
 const ICONS = ['🎵', '😂', '🎪', '🏠', '🎤', '🎧', '🍷', '⚽', '🎭', '🏷'];
 
-/** Add / edit an event category — icon, cover image and SEO for its landing
- * page. Real EventCategory row; the name is the primary key so it can only
- * be set at creation, not renamed here (no real rename endpoint). The
- * mock's "sub-categories" list has no backing field on the real model,
- * dropped rather than faked. */
+/** Chip-based sub-category editor — same add/remove-tag pattern as the
+ * venue amenities editor. */
+function SubsEditor({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const [custom, setCustom] = useState('');
+  const add = () => {
+    const v = custom.trim();
+    if (v && !value.includes(v)) onChange([...value, v]);
+    setCustom('');
+  };
+  return (
+    <div className="field">
+      <label>Sub-categories</label>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+        {value.map((s) => (
+          <span key={s} className="chip on" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {s}
+            <button type="button" onClick={() => onChange(value.filter((x) => x !== s))} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 13 }}>✕</button>
+          </span>
+        ))}
+        {value.length === 0 && <span className="tiny muted">No sub-categories yet.</span>}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          className="input"
+          style={{ flex: 1 }}
+          value={custom}
+          onChange={(e) => setCustom(e.target.value)}
+          placeholder="add a sub-category…"
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+        />
+        <button type="button" className="btn btn-ghost btn-sm" onClick={add}>+ Add</button>
+      </div>
+    </div>
+  );
+}
+
+/** Add / edit an event category — icon, sub-categories, cover image and SEO
+ * for its landing page. Real EventCategory row; the name is the primary
+ * key so it can only be set at creation, not renamed here (no real rename
+ * endpoint). */
 export default function CategoryEdit() {
   const { name } = useParams();
   const isCreate = !name;
@@ -30,6 +65,7 @@ export default function CategoryEdit() {
   const [catName, setCatName] = useState('');
   const [icon, setIcon] = useState('🏷');
   const [imageUrl, setImageUrl] = useState('');
+  const [subs, setSubs] = useState<string[]>([]);
   const [seo, setSeo] = useState<Seo>(emptySeo());
 
   const load = () => {
@@ -45,6 +81,7 @@ export default function CategoryEdit() {
           setCatName(c.name);
           setIcon(c.icon);
           setImageUrl(c.imageUrl ?? '');
+          setSubs(c.subs ?? []);
           setSeo((c.seo as Seo | null) ?? emptySeo());
         }
       })
@@ -96,9 +133,9 @@ export default function CategoryEdit() {
     try {
       if (isCreate) {
         await liveCategories.add(catName.trim(), icon);
-        await liveCategories.update(catName.trim(), { imageUrl: imageUrl || undefined, seo });
+        await liveCategories.update(catName.trim(), { imageUrl: imageUrl || undefined, seo, subs });
       } else {
-        await liveCategories.update(existing!.name, { icon, imageUrl: imageUrl || undefined, seo });
+        await liveCategories.update(existing!.name, { icon, imageUrl: imageUrl || undefined, seo, subs });
       }
       navigate('/categories');
     } catch (e2) {
@@ -155,6 +192,11 @@ export default function CategoryEdit() {
           </button>
         )}
         <div className="tiny hint">category = browse filter chip + facet + SEO landing page at {slug}</div>
+      </div>
+
+      <div className="card">
+        <SubsEditor value={subs} onChange={setSubs} />
+        <div className="tiny hint">sub-categories show as filter chips under this category on the guest browse page + are pickable when organizers create an event</div>
       </div>
 
       <SeoFields seo={seo} onChange={setSeo} slug={slug} fallbackTitle={`${catName || 'Category'} events`} />

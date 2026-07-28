@@ -523,11 +523,11 @@ export const liveMenu = {
   update: (body: LiveMenu) => liveFetch<LiveMenu>('/admin/menu', { method: 'PATCH', body }),
 };
 
-export interface LiveCategory { name: string; icon: string; imageUrl: string | null; seo: Seo | null; }
+export interface LiveCategory { name: string; icon: string; imageUrl: string | null; seo: Seo | null; subs: string[]; sort: number; }
 export const liveCategories = {
   list: () => liveFetch<LiveCategory[]>('/admin/categories'),
   add: (name: string, icon?: string) => liveFetch<LiveCategory>('/admin/categories', { body: { name, icon } }),
-  update: (name: string, body: { icon?: string; imageUrl?: string; seo?: Seo }) =>
+  update: (name: string, body: { icon?: string; imageUrl?: string; seo?: Seo; subs?: string[]; sort?: number }) =>
     liveFetch<LiveCategory>(`/admin/categories/${encodeURIComponent(name)}`, { method: 'PATCH', body }),
   remove: (name: string) => liveFetch<{ ok: true }>(`/admin/categories/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 };

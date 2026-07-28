@@ -7,11 +7,11 @@ import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
 const TITLE = 'Categories';
 
-/** Event categories — real EventCategory rows (Event.category stays a plain
- * string, this is just the reference list + each category's own icon/cover/
- * SEO). "Sub-categories" from the mock have no real backing field, dropped
- * here (same reasoning as elsewhere: no fake features with nothing to
- * persist to). */
+/** Event categories — real EventCategory rows, the one source of truth for
+ * the whole category+sub-category tree (Event.category/subCategory stay
+ * plain strings; this is the reference list + each category's own icon/
+ * cover/SEO/sub-categories). Guest browse, the header, and both event
+ * editors' category pickers all read this same list now. */
 export default function Categories() {
   const session = useLiveSession();
   const { token } = session;
@@ -77,6 +77,7 @@ export default function Categories() {
               <span className="muted">⠿</span>
               <span style={{ flex: 1 }}>
                 {c.icon} <b>{c.name}</b> · {count} events
+                {c.subs.length > 0 && <span className="tiny muted"> · {c.subs.length} sub-categor{c.subs.length === 1 ? 'y' : 'ies'}</span>}
                 {c.imageUrl && <span className="tiny green"> · cover ✓</span>}
                 {c.seo?.title && <span className="tiny green"> · SEO ✓</span>}
               </span>

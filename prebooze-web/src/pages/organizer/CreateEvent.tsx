@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { CATEGORY_TREE, fmtDate, fmtTime, subsFor } from '../../data/mock';
+import { fmtDate, fmtTime } from '../../data/mock';
 import type { Event, LineupProfile, PromoterProfile, Venue } from '../../types';
 import Poster, { categoryEmoji } from '../../components/Poster';
 import Accordion from '../../components/Accordion';
@@ -58,7 +58,9 @@ export default function CreateEvent() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Concerts');
-  const [subCategory, setSubCategory] = useState(subsFor('Concerts')[0] ?? '');
+  const [subCategory, setSubCategory] = useState('');
+  const [categories, setCategories] = useState<{ name: string; icon: string; subs: string[] }[]>([]);
+  const subsFor = (cat: string) => categories.find((c) => c.name === cat)?.subs ?? [];
   const [ageLimit, setAgeLimit] = useState('18+');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('20:00');
@@ -102,18 +104,22 @@ export default function CreateEvent() {
       catalog.venues(),
       catalog.lineups(),
       catalog.promoters(),
+      catalog.categories(),
       editId ? organizer.events().then((evs) => evs.find((e) => e.id === editId)) : Promise.resolve(undefined),
     ])
-      .then(([vs, ls, ps, ev]) => {
+      .then(([vs, ls, ps, cats, ev]) => {
         setVenues(vs);
         setLineups(ls);
         setPromoters(ps);
+        setCategories(cats);
+        const subsForCat = (cat: string) => cats.find((c) => c.name === cat)?.subs ?? [];
+        if (!ev) setSubCategory(subsForCat(category)[0] ?? '');
         if (ev) {
           setEditing(ev);
           setTitle(ev.title);
           setDescription(ev.description);
           setCategory(ev.category);
-          setSubCategory(ev.subCategory ?? subsFor(ev.category)[0] ?? '');
+          setSubCategory(ev.subCategory ?? subsForCat(ev.category)[0] ?? '');
           setAgeLimit(ev.ageLimit);
           setDate(ev.date.slice(0, 10));
           const d = new Date(ev.date);
@@ -332,7 +338,7 @@ export default function CreateEvent() {
             <div className="field">
               <span>Category</span>
               <select value={category} onChange={(e) => { setCategory(e.target.value); setSubCategory(subsFor(e.target.value)[0] ?? ''); }}>
-                {CATEGORY_TREE.map((c) => (
+                {categories.map((c) => (
                   <option key={c.name}>{c.name}</option>
                 ))}
               </select>

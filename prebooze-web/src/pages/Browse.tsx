@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { CATEGORY_TREE, EVENTS, subsFor, venueById } from '../data/mock';
+import { CATEGORY_TREE, EVENTS, venueById } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Event } from '../types';
@@ -10,7 +10,6 @@ import EventCard from '../components/EventCard';
 import { useSeo } from '../lib/useSeo';
 
 const DATE_FILTERS = ['Any date', 'This weekend', 'This month'];
-const CATS = ['Category', ...CATEGORY_TREE.map((c) => c.name)];
 const PRICES = ['Price', 'Under ₹30', '₹30–₹80', '₹80+'];
 const SORTS = ['sorted by date', 'price low→high', 'price high→low'];
 const SORT_PARAM: Record<string, string | undefined> = { [SORTS[0]]: undefined, [SORTS[1]]: 'price_asc', [SORTS[2]]: 'price_desc' };
@@ -37,6 +36,15 @@ export default function Browse() {
       .then(setLiveEvents)
       .catch(() => setLiveEvents([]));
   }, [city, cat, sub, q, sort]);
+
+  const [liveCategories, setLiveCategories] = useState<{ name: string; icon: string; subs: string[] }[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.categories().then(setLiveCategories).catch(() => setLiveCategories([]));
+  }, []);
+  const categories = liveCategories ?? (isBackendEnabled() ? [] : CATEGORY_TREE);
+  const CATS = ['Category', ...categories.map((c) => c.name)];
+  const subsFor = (name: string) => categories.find((c) => c.name === name)?.subs ?? [];
 
   const events = useMemo(() => {
     let list: Event[];

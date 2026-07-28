@@ -195,6 +195,23 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     tokens: ['name', 'roleLabel', 'reasonBlock'],
   },
   {
+    id: 'event_approved', name: 'Event approved', category: 'Roles',
+    trigger: 'Admin approves an organizer-submitted event (AdminEventsController.approve)',
+    preheader: 'Your event is live',
+    defaultSubject: '"{{eventTitle}}" is approved and live ✓',
+    defaultBody: `<p>Hey {{name}},</p><p>Good news — <b>{{eventTitle}}</b> is approved and now live on Prebooze. Guests can find and book it right away.</p>`,
+    cta: { label: 'View your event →', urlTemplate: '{{webUrl}}/events/{{eventSlug}}' },
+    tokens: ['name', 'eventTitle', 'eventSlug'],
+  },
+  {
+    id: 'event_rejected', name: 'Event rejected', category: 'Roles',
+    trigger: 'Admin rejects an organizer-submitted event, with a reason',
+    preheader: 'Your event needs another look',
+    defaultSubject: 'Update on "{{eventTitle}}"',
+    defaultBody: `<p>Hey {{name}},</p><p><b>{{eventTitle}}</b> wasn't approved this time.</p>{{reasonBlock}}<p style="color:${MUTED};">Fix the above and resubmit any time from your organizer console.</p>`,
+    tokens: ['name', 'eventTitle', 'reasonBlock'],
+  },
+  {
     id: 'org_team_invite', name: 'Organizer team invite', category: 'Roles',
     trigger: 'An organizer invites a team member (OrgTeamService.addStaff)',
     preheader: "You've been added to a Prebooze team",

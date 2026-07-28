@@ -65,6 +65,7 @@ export default function EventEditorReal() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [subCategory, setSubCategory] = useState('');
   const [venueId, setVenueId] = useState('');
   const [organizerId, setOrganizerId] = useState('');
   const [dateTime, setDateTime] = useState('');
@@ -105,6 +106,7 @@ export default function EventEditorReal() {
               setTitle(found.title);
               setDescription(found.description ?? '');
               setCategory(found.category);
+              setSubCategory(found.subCategory ?? '');
               setVenueId(found.venueId);
               setOrganizerId(found.organizerId);
               setDateTime(found.date ? found.date.slice(0, 16) : '');
@@ -154,6 +156,7 @@ export default function EventEditorReal() {
     title: title.trim(),
     description,
     category,
+    subCategory: subCategory || undefined,
     ageLimit,
     date: dateTime ? new Date(dateTime).toISOString() : undefined,
     durationHrs: parseFloat(durationHrs) || undefined,
@@ -298,9 +301,20 @@ export default function EventEditorReal() {
           </div>
           <div className="field">
             <label>Category</label>
-            <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <select
+              className="input"
+              value={category}
+              onChange={(e) => { setCategory(e.target.value); setSubCategory(''); }}
+            >
               <option value="">Select…</option>
               {categories.map((c) => <option key={c.name} value={c.name}>{c.icon} {c.name}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>Sub-category</label>
+            <select className="input" value={subCategory} onChange={(e) => setSubCategory(e.target.value)} disabled={!category}>
+              <option value="">None</option>
+              {(categories.find((c) => c.name === category)?.subs ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div className="field">

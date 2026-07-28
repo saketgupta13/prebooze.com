@@ -87,13 +87,6 @@ const PEOPLE = [
   { id: 'p13', name: 'Diya Kulkarni', username: 'diyak', city: 'Nagpur', avatarHue: 25, bio: 'Orange city, golden hours.', followers: 150, follows: ['p11', 'p9'] },
 ];
 
-const CATEGORIES = [
-  { name: 'Concerts', icon: '🎸', subs: ['Indie', 'Live band', 'Techno', 'Bollywood', 'EDM', 'Hip-hop'], sort: 0 },
-  { name: 'Comedy', icon: '🎤', subs: ['Stand-up', 'Open mic', 'Improv'], sort: 1 },
-  { name: 'Festivals', icon: '🎪', subs: ['Music festival', 'Sundowner', 'Food & drink', 'Cultural'], sort: 2 },
-  { name: 'Club nights', icon: '🪩', subs: ['House', 'After-hours', 'Bollywood night', 'Ladies night'], sort: 3 },
-];
-
 const TOP_CITIES = [
   { name: 'Mumbai', icon: '🌉' }, { name: 'Delhi', icon: '🏛️' }, { name: 'Bengaluru', icon: '🌳' },
   { name: 'Hyderabad', icon: '🕌' }, { name: 'Chennai', icon: '🎬' }, { name: 'Pune', icon: '🎓' },
@@ -177,12 +170,17 @@ const CAREER_JOBS = [
 // Admin API careers slice — ported from prebooze-admin/src/store/data.ts.
 const SEED_CAREER_TEAMS = ['Engineering', 'Design', 'Growth', 'Operations', 'Support'];
 
-// Admin API categories slice — matches the categories EVENTS actually uses.
+// The one real category+subcategory tree — EventCategory is the single
+// source of truth guest browse, the header, and both event editors' pickers
+// all read from now (the old legacy `Category` model + CATEGORY_TREE mock
+// constant are retired). subs cover every subCategory value real EVENTS
+// below actually use, plus a few genuinely useful extras per category.
 const SEED_EVENT_CATEGORIES = [
-  { name: 'Concerts', icon: '🎵' },
-  { name: 'Festivals', icon: '🎪' },
-  { name: 'Comedy', icon: '😂' },
-  { name: 'This weekend', icon: '🏠' },
+  { name: 'Concerts', icon: '🎵', subs: ['Indie', 'Live band', 'Techno', 'Bollywood', 'EDM', 'Hip-hop'], sort: 0 },
+  { name: 'Festivals', icon: '🎪', subs: ['Music festival', 'Sundowner', 'Food & drink', 'Cultural'], sort: 1 },
+  { name: 'Comedy', icon: '😂', subs: ['Stand-up', 'Open mic', 'Improv'], sort: 2 },
+  { name: 'This weekend', icon: '🏠', subs: ['Sundowner', 'Pop-up', 'Happy hour'], sort: 3 },
+  { name: 'Club nights', icon: '🪩', subs: ['House', 'After-hours', 'Bollywood night', 'Ladies night'], sort: 4 },
 ];
 
 // Admin API sub-tiers slice — matches PLAN_QUOTA's ids exactly (free/starter/pro/elite).
@@ -427,7 +425,6 @@ async function main() {
   for (const p of PROMOTERS) await db.promoter.upsert({ where: { id: p.id }, create: p, update: p });
   for (const l of LINEUPS) await db.lineup.upsert({ where: { id: l.id }, create: l, update: l });
   for (const p of PEOPLE) await db.person.upsert({ where: { id: p.id }, create: p, update: p });
-  for (const c of CATEGORIES) await db.category.upsert({ where: { name: c.name }, create: c, update: c });
 
   let sort = 0;
   for (const c of TOP_CITIES) await db.city.upsert({ where: { name: c.name }, create: { ...c, top: true, sort: sort++ }, update: { ...c, top: true, sort: sort - 1 } });

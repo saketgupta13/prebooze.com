@@ -121,6 +121,16 @@ export default function Home() {
     catalog.events({}).then(setLiveEvents).catch(() => setLiveEvents([]));
   }, []);
 
+  // Real category list (EventCategory) — CATEGORY_TREE/CATEGORIES stay only
+  // as the offline/dev-mode fallback.
+  const [liveCategories, setLiveCategories] = useState<{ name: string; icon: string; subs: string[] }[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.categories().then(setLiveCategories).catch(() => setLiveCategories([]));
+  }, []);
+  const categoryTree = liveCategories ?? (isBackendEnabled() ? [] : CATEGORY_TREE);
+  const categoryChips = liveCategories ? ['All', ...liveCategories.map((c) => c.name)] : CATEGORIES;
+
   const published = liveEvents ?? EVENTS.filter((e) => e.status === 'approved');
   const cityOf = (e: Event) => e.venue?.city ?? venueById(e.venueId)?.city;
   const soldOf = (e: Event) => e.tiers.reduce((a, t) => a + t.sold, 0);
@@ -208,7 +218,7 @@ export default function Home() {
 
         {/* Category tiles — only categories with events; slider only when >8 */}
         {(() => {
-          const tiles = CATEGORY_TREE.map((c) => ({
+          const tiles = categoryTree.map((c) => ({
             ...c,
             n: published.filter((e) => e.category === c.name && cityOf(e) === city).length,
           })).filter((c) => c.n > 0);
@@ -253,7 +263,7 @@ export default function Home() {
           <Link to="/browse">See all →</Link>
         </div>
         <div className="chip-row" style={{ marginBottom: 18 }}>
-          {CATEGORIES.map((c) => (
+          {categoryChips.map((c) => (
             <button key={c} className={`chip ${cat === c ? 'on' : ''}`} onClick={() => setCat(c)}>{c}</button>
           ))}
         </div>

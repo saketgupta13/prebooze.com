@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, LINEUPS, ORGANIZERS, TRENDING_SEARCHES, VENUES } from '../data/mock';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
 import CityPicker from './CityPicker';
 import { existingRole } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
@@ -31,8 +33,25 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
-  // live suggestions across events, venues, artists and organizers
+  // live suggestions across events, venues, artists and organizers — real
+  // GET /search (debounced) when a backend is configured; the local mock
+  // arrays are only the offline/dev-mode fallback (previously this ran
+  // year-round against the mock arrays even in production, so anything
+  // created after the seed was invisible while typing — GET /search and
+  // GET /search/trending already existed and worked, just never called).
+  const [liveSuggestions, setLiveSuggestions] = useState<{ label: string; type: string; to: string }[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    const s = q.trim();
+    if (!s) { setLiveSuggestions(null); return; }
+    const t = setTimeout(() => {
+      catalog.search(s).then(setLiveSuggestions).catch(() => setLiveSuggestions([]));
+    }, 200);
+    return () => clearTimeout(t);
+  }, [q]);
+
   const suggestions = useMemo(() => {
+    if (isBackendEnabled()) return liveSuggestions ?? [];
     const s = q.trim().toLowerCase();
     if (!s) return [];
     const out: { label: string; type: string; to: string }[] = [];
@@ -49,7 +68,14 @@ export default function Header() {
       out.push({ label: o.brandName, type: 'Organizer', to: `/organizers/${o.id}` })
     );
     return out.slice(0, 7);
-  }, [q]);
+  }, [q, liveSuggestions]);
+
+  const [liveTrending, setLiveTrending] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.trending().then(setLiveTrending).catch(() => setLiveTrending([]));
+  }, []);
+  const trending = liveTrending ?? (isBackendEnabled() ? [] : TRENDING_SEARCHES);
 
   // first visit: open the city picker and try geo-detection once
   useEffect(() => {
@@ -85,7 +111,7 @@ export default function Header() {
               {q.trim() === '' ? (
                 <>
                   <div className="tiny muted-2" style={{ padding: '6px 10px 4px', fontWeight: 700, letterSpacing: 0.5 }}>🔥 TRENDING</div>
-                  {TRENDING_SEARCHES.map((t) => (
+                  {trending.map((t) => (
                     <button
                       type="button"
                       key={t}

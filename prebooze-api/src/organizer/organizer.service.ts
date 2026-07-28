@@ -567,16 +567,44 @@ export class OrganizerService {
     });
   }
 
+  /** Notifies the real event owner regardless of who actually clicked
+   * approve/reject at the org (a real team member with "Events & wizard"
+   * edit could be the one who submitted it) — same reasoning as
+   * OrganizerService.withdraw notifying org.userId, not the caller. */
+  private async notifyEventOwner(organizerId: string): Promise<{ email: string; name: string } | null> {
+    const org = await this.prisma.organizer.findUnique({ where: { id: organizerId } });
+    if (!org?.userId) return null;
+    const user = await this.prisma.user.findUnique({ where: { id: org.userId } });
+    return user?.email ? { email: user.email, name: user.name } : null;
+  }
+
   async adminApprove(eventId: string) {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    return this.prisma.event.update({ where: { id: eventId }, data: { status: 'approved', rejectionReason: null } });
+    const updated = await this.prisma.event.update({ where: { id: eventId }, data: { status: 'approved', rejectionReason: null } });
+    const owner = await this.notifyEventOwner(event.organizerId);
+    if (owner) {
+      await this.email.sendTemplate(owner.email, 'event_approved', {
+        name: owner.name, eventTitle: updated.title, eventSlug: updated.slug,
+      }).catch(() => {});
+    }
+    return updated;
   }
 
   async adminReject(eventId: string, reason: string) {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    return this.prisma.event.update({ where: { id: eventId }, data: { status: 'rejected', rejectionReason: reason ?? '' } });
+    const updated = await this.prisma.event.update({ where: { id: eventId }, data: { status: 'rejected', rejectionReason: reason ?? '' } });
+    const owner = await this.notifyEventOwner(event.organizerId);
+    if (owner) {
+      const reasonBlock = reason
+        ? `<p style="background:rgba(255,107,94,.08);border:1px solid rgba(255,107,94,.25);border-radius:8px;padding:10px 12px;">${reason}</p>`
+        : '';
+      await this.email.sendTemplate(owner.email, 'event_rejected', {
+        name: owner.name, eventTitle: updated.title, reasonBlock,
+      }).catch(() => {});
+    }
+    return updated;
   }
 
   // ---------- admin: per-event commission + payout flag (Reports slice) ----------
@@ -601,10 +629,10 @@ export class OrganizerService {
   }
 
   // ---------- admin: poster image (Payments/media-upload slice) ----------
-  // Narrow and deliberate — NOT full admin event CRUD (EventEditor.tsx's
-  // addEvent/updateEvent cover title/tiers/venue/lineup/rules/etc., a much
-  // bigger surface mirroring the whole organizer upsertEvent; see
-  // BACKEND.md for why that's flagged as a separate, undecided gap).
+  // A narrow one-field patch, kept even though full admin event CRUD exists
+  // too (adminUpsertEvent, above) — EventEditorReal.tsx's own poster upload
+  // step calls this directly rather than round-tripping the whole event
+  // payload just to change one image.
   async adminSetPoster(eventId: string, posterUrl: string | null) {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');

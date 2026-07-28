@@ -102,6 +102,20 @@ export class BookingsService {
         }
       }
       if (couponRow.used >= couponRow.usageLimit) throw new BadRequestException('This coupon has been fully redeemed');
+      // perUserLimit/firstTimeOnly were captured by both the organizer and
+      // admin coupon editors but never actually enforced here — any
+      // "1 per user" or "first-time only" code could be reused indefinitely
+      // by the same guest. Counts every booking regardless of status
+      // (including cancelled/refunded) so cancel-then-rebook can't be used
+      // to reset eligibility.
+      if (couponRow.firstTimeOnly) {
+        const priorBookings = await this.prisma.booking.count({ where: { userId } });
+        if (priorBookings > 0) throw new BadRequestException('This coupon is for first-time bookings only');
+      }
+      if (couponRow.perUserLimit > 0) {
+        const priorUses = await this.prisma.booking.count({ where: { userId, couponCode: couponRow.code } });
+        if (priorUses >= couponRow.perUserLimit) throw new BadRequestException('You\'ve already used this coupon the maximum number of times');
+      }
       const raw = couponRow.type === 'percent' ? (subtotal * couponRow.value) / 100 : couponRow.value;
       discount = Math.min(Math.round(raw), couponRow.maxDiscount ?? raw, subtotal);
     }
@@ -574,13 +588,20 @@ export class BookingsService {
   async joinWaitlist(userId: string, eventId: string) {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const existing = await this.prisma.waitlistEntry.findUnique({ where: { eventId_userId: { eventId, userId } } });
-    if (existing) return existing;
-    return this.prisma.waitlistEntry.create({ data: { eventId, userId } });
+    const row = existing ?? (await this.prisma.waitlistEntry.create({ data: { eventId, userId } }));
+    return { phone: user.phone, name: user.name || 'Guest', joinedAt: row.joinedAt.toISOString(), status: row.status };
   }
 
+  /** Public (see BookingsController — shown to logged-out guests too), so
+   * this projects into the same {phone, name, joinedAt, status} shape the
+   * frontend already used for its old local-only mock state, rather than
+   * the raw WaitlistEntry row (id/eventId/userId) — no reason to leak
+   * userId to an unauthenticated caller. */
   async waitlist(eventId: string) {
-    return this.prisma.waitlistEntry.findMany({ where: { eventId }, orderBy: { joinedAt: 'asc' } });
+    const rows = await this.prisma.waitlistEntry.findMany({ where: { eventId }, orderBy: { joinedAt: 'asc' }, include: { user: true } });
+    return rows.map((w) => ({ phone: w.user.phone, name: w.user.name || 'Guest', joinedAt: w.joinedAt.toISOString(), status: w.status }));
   }
 
   /** Automatic — called daily by CronService.reviewRequestTick. Prompts a
