@@ -60,6 +60,7 @@ export default function Organizers() {
                 to={`/organizers/${o.id}`}
                 hue={o.logoHue}
                 avatarText="🎧"
+                avatarImage={o.logoUrl}
                 name={o.brandName}
                 verified={o.verified}
                 meta={`${o.city} · ★ ${o.rating} · since ${o.since}`}

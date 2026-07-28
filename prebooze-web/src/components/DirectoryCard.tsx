@@ -5,11 +5,12 @@ import { stripHtml } from '../lib/richtext';
 /** Consistent directory card for people / promoters / organizers / line-ups.
  * Plain card background (no banners), avatar, bio + stats + action. */
 export default function DirectoryCard({
-  to, hue, avatarText, name, verified, meta, bio, stats, extra, action, featured,
+  to, hue, avatarText, avatarImage, name, verified, meta, bio, stats, extra, action, featured,
 }: {
   to: string;
   hue: number;
-  avatarText: string; // initial or emoji
+  avatarText: string; // initial or emoji, shown when avatarImage is unset
+  avatarImage?: string | null; // real uploaded logo — takes over from avatarText when present
   name: string;
   verified?: boolean;
   meta: string;
@@ -25,11 +26,19 @@ export default function DirectoryCard({
         <span className="badge badge-accent" style={{ position: 'absolute', top: 12, right: 12, fontSize: 10 }}>★ Featured</span>
       )}
       <Link to={to} style={{ width: 'fit-content' }}>
-        <span style={{
-          width: 46, height: 46, borderRadius: '50%', flexShrink: 0,
-          background: `hsl(${hue} 55% 45%)`, color: '#fff', display: 'inline-flex',
-          alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18,
-        }}>{avatarText}</span>
+        {avatarImage ? (
+          <img
+            src={avatarImage}
+            alt=""
+            style={{ width: 46, height: 46, borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
+          />
+        ) : (
+          <span style={{
+            width: 46, height: 46, borderRadius: '50%', flexShrink: 0,
+            background: `hsl(${hue} 55% 45%)`, color: '#fff', display: 'inline-flex',
+            alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18,
+          }}>{avatarText}</span>
+        )}
       </Link>
       <Link to={to} style={{ textDecoration: 'none', color: 'inherit', marginTop: 10 }}>
         <h3 style={{ fontSize: 15.5 }}>{name} {verified && <span className="verified">✓</span>}</h3>
