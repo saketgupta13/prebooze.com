@@ -398,3 +398,51 @@ export interface HelpTicket {
   status: 'open' | 'resolved';
   createdAt: string;
 }
+
+/** Real CMS content — GET /testimonials, /faqs, /blogs, /policies, /banners
+ * (admin's Content section). prebooze-web previously never called any of
+ * these; every guest-facing "content" page (Testimonials.tsx, static/Faqs,
+ * static/Blog(Post), static/Legal, Home.tsx's testimonial slider) read a
+ * hardcoded data/mock.ts array instead. */
+export interface CmsTestimonial {
+  id: string;
+  author: string;
+  location: string;
+  rating: number;
+  quote: string;
+  featured: boolean;
+  createdAt: string;
+}
+
+export interface CmsFaq {
+  id: string;
+  question: string;
+  answer: string;
+  audience: 'guests' | 'organizers';
+  sort: number;
+}
+
+export interface CmsBlogSummary {
+  id: string;
+  title: string;
+  meta: string;
+  category: string | null;
+  bannerUrl: string | null;
+  updatedAt: string;
+}
+
+export interface CmsBlog extends CmsBlogSummary {
+  content: string | null;
+  createdAt: string;
+}
+
+export interface CmsPolicySummary {
+  id: string;
+  title: string;
+  slug: string;
+  updatedAt: string;
+}
+
+export interface CmsPolicy extends CmsPolicySummary {
+  sections: { heading: string; body: string }[];
+}

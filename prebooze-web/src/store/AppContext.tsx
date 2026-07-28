@@ -713,10 +713,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return next;
         });
       },
+      // Real follow/interested/wishlist/favourite/followers state is
+      // per-account (bootstrapped from the real backend on login — see the
+      // mySocialState/social.followers() effects above), but this only ever
+      // cleared the auth token — the arrays themselves, and their
+      // localStorage cache, stayed exactly as they were. A logged-out
+      // visitor (or a second guest logging in on the same device) would
+      // still see "Following ✓" on everything the previous session followed,
+      // since nothing here or on next boot ever re-fetched to overwrite it.
       logout: () => {
         setUser(null);
         setOrgTeamAccess(null);
         setOrgTeamAccessLoaded(true);
+        setFollowing([]);
+        setFollowers([]);
+        setInterested([]);
+        setWishlist([]);
+        setFavVenues([]);
+        localStorage.removeItem('pb_following');
+        localStorage.removeItem('pb_interested');
+        localStorage.removeItem('pb_wishlist');
+        localStorage.removeItem('pb_fav_venues');
         clearToken();
       },
       // changing the cart always resets any active hold; checkout re-arms it on entry

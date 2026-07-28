@@ -3,8 +3,8 @@
  * feature swaps from localStorage to live data. */
 import { apiFetch, apiUpload, API_URL, getToken, ApiError } from './client';
 import type {
-  Booking, Coupon, Event, Featured, HelpTicket, Invoice, JobApplication, LineupProfile, Organizer, PayMethod, Person, PersonDetail,
-  PromoterProfile, User, Venue, WaitlistEntry,
+  Booking, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, HelpTicket,
+  Invoice, JobApplication, LineupProfile, Organizer, PayMethod, Person, PersonDetail, PromoterProfile, User, Venue, WaitlistEntry,
 } from '../types';
 import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, WalletTx } from '../store/AppContext';
 
@@ -71,6 +71,16 @@ export const catalog = {
   search: (q: string) => apiFetch<{ label: string; type: string; to: string }[]>('/search', { query: { q } }),
   trending: () => apiFetch<string[]>('/search/trending'),
   reels: () => apiFetch<{ id: string; title: string; hue: number; videoUrl: string | null }[]>('/reels'),
+};
+
+// ---------- CMS content (guest-facing reads of admin's Content section) ----------
+export const content = {
+  testimonials: (featuredOnly?: boolean) => apiFetch<CmsTestimonial[]>('/testimonials', { query: { featured: featuredOnly } }),
+  faqs: (audience?: 'guests' | 'organizers') => apiFetch<CmsFaq[]>('/faqs', { query: { audience } }),
+  policies: () => apiFetch<CmsPolicySummary[]>('/policies'),
+  policy: (slug: string) => apiFetch<CmsPolicy>(`/policies/${slug}`),
+  blogs: () => apiFetch<CmsBlogSummary[]>('/blogs'),
+  blog: (id: string) => apiFetch<CmsBlog>(`/blogs/${id}`),
 };
 
 // ---------- real organizer/venue reviews (guest-facing) ----------

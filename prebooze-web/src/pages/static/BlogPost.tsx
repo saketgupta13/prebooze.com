@@ -1,13 +1,40 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { BLOG_POSTS, blogBySlug, eventBySlug } from '../../data/mock';
+import { content } from '../../api';
+import { isBackendEnabled } from '../../api/client';
+import type { CmsBlog, CmsBlogSummary } from '../../types';
 import Poster from '../../components/Poster';
-import EventCard from '../../components/EventCard';
+import { PageLoader } from '../../components/Loader';
+import ShareButton from '../../components/ShareButton';
+import { stripHtml } from '../../lib/richtext';
 import { useSeo } from '../../lib/useSeo';
 
+const hueFromId = (id: string) => {
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+};
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const readMins = (html: string) => Math.max(1, Math.round(stripHtml(html).trim().split(/\s+/).filter(Boolean).length / 200));
+
+/** Real GET /blogs/:id — the route param is still named :slug (no route
+ * table change needed) but its value is a real Blog.id now, same pattern
+ * OrganizerProfile.tsx etc. already use (param name ≠ what it looks up by). */
 export default function BlogPost() {
   const { slug } = useParams();
-  const post = blogBySlug(slug ?? '');
+  const [post, setPost] = useState<CmsBlog | null>(null);
+  const [more, setMore] = useState<CmsBlogSummary[]>([]);
+  const [loading, setLoading] = useState(true);
   useSeo(null, post?.title);
+
+  useEffect(() => {
+    if (!isBackendEnabled() || !slug) return;
+    setLoading(true);
+    content.blog(slug).then(setPost).catch(() => setPost(null)).finally(() => setLoading(false));
+    content.blogs().then((all) => setMore(all.filter((p) => p.id !== slug).slice(0, 2))).catch(() => {});
+  }, [slug]);
+
+  if (loading) return <PageLoader />;
 
   if (!post) {
     return (
@@ -20,11 +47,6 @@ export default function BlogPost() {
     );
   }
 
-  const linkedEvents = post.linkedEventSlugs
-    .map((s) => eventBySlug(s))
-    .filter((e): e is NonNullable<typeof e> => Boolean(e) && e!.status === 'approved');
-  const more = BLOG_POSTS.filter((p) => p.slug !== post.slug).slice(0, 2);
-
   return (
     <main className="page">
       <div className="container" style={{ maxWidth: 760 }}>
@@ -32,63 +54,47 @@ export default function BlogPost() {
           <Link to="/blog">← The Prebooze Blog</Link>
         </div>
 
-        <span className="tag">{post.tag}</span>
+        {post.category && <span className="tag">{post.category}</span>}
         <h1 style={{ fontSize: 30, margin: '10px 0 8px', letterSpacing: '-0.4px' }}>{post.title}</h1>
         <div className="small muted" style={{ marginBottom: 18 }}>
-          {post.author} · {post.date} · {post.readMins} min read · {post.views} views
+          {fmtDate(post.updatedAt)} · {readMins(post.content ?? '')} min read
         </div>
 
-        <Poster hue={post.hue} emoji="📰" label="cover image 16:9" variant="landscape" />
+        <Poster hue={hueFromId(post.id)} emoji="📰" label="cover image 16:9" variant="landscape" imageUrl={post.bannerUrl} />
 
-        <article style={{ margin: '24px 0', display: 'grid', gap: 16 }}>
-          {post.body.map((para, i) => (
-            <p key={i} className="muted" style={{ fontSize: 15.5, lineHeight: 1.75, color: i === 0 ? 'var(--text)' : undefined }}>
-              {para}
-            </p>
-          ))}
-        </article>
-
-        {linkedEvents.length > 0 && (
-          <section className="section">
-            <div className="section-hd">
-              <h2>Events in this story</h2>
-            </div>
-            <div className="grid-3">
-              {linkedEvents.map((e) => (
-                <EventCard key={e.id} event={e} />
-              ))}
-            </div>
-          </section>
-        )}
+        <article
+          className="rich-text"
+          style={{ margin: '24px 0', fontSize: 15.5, lineHeight: 1.75 }}
+          dangerouslySetInnerHTML={{ __html: post.content ?? '' }}
+        />
 
         <div className="hr" />
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span className="small muted">Share:</span>
-          <span className="icon-round">ig</span>
-          <span className="icon-round">x</span>
-          <span className="icon-round">wa</span>
+          <ShareButton path={`/blog/${post.id}`} text={`${post.title} — on the Prebooze blog:`} />
           <span style={{ flex: 1 }} />
           <Link to="/blog" className="link small bold">← All posts</Link>
         </div>
 
-        <section className="section">
-          <div className="section-hd">
-            <h2>Keep reading</h2>
-          </div>
-          <div className="grid-2">
-            {more.map((p) => (
-              <Link key={p.slug} to={`/blog/${p.slug}`} className="card" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <div style={{ width: 84, flexShrink: 0 }}>
-                  <Poster hue={p.hue} emoji="📰" variant="landscape" />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <h3 style={{ fontSize: 14 }}>{p.title}</h3>
-                  <div className="meta">{p.author} · {p.readMins} min</div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+        {more.length > 0 && (
+          <section className="section">
+            <div className="section-hd">
+              <h2>Keep reading</h2>
+            </div>
+            <div className="grid-2">
+              {more.map((p) => (
+                <Link key={p.id} to={`/blog/${p.id}`} className="card" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ width: 84, flexShrink: 0 }}>
+                    <Poster hue={hueFromId(p.id)} emoji="📰" variant="landscape" imageUrl={p.bannerUrl} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <h3 style={{ fontSize: 14 }}>{p.title}</h3>
+                    <div className="meta">{fmtDate(p.updatedAt)}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );

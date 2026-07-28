@@ -1,50 +1,45 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { content } from '../../api';
+import { isBackendEnabled } from '../../api/client';
+import type { CmsPolicy, CmsPolicySummary } from '../../types';
+import { PageLoader } from '../../components/Loader';
 
-const PAGES: Record<string, { title: string; sections: string[] }> = {
-  terms: {
-    title: 'Terms & Conditions',
-    sections: [
-      'Introduction',
-      'Account & eligibility',
-      'Booking & payments',
-      'Cancellations',
-      'Conduct at events',
-      'Liability',
-    ],
-  },
-  privacy: {
-    title: 'Privacy Policy',
-    sections: ['Data we collect', 'How we use it', 'Sharing & WhatsApp', 'Government ID data', 'Your rights'],
-  },
-  'organizer-policy': {
-    title: 'Organizer Policy',
-    sections: ['Verification & KYC', 'Listing standards', 'Payouts & fees', 'Approval & rejection', 'Suspension'],
-  },
-  'guest-policy': {
-    title: 'Guest Policy',
-    sections: ['Entry requirements', 'Age & ID checks', 'Ticket transfers', 'Code of conduct', 'Bans & reporting'],
-  },
-  'refund-policy': {
-    title: 'Refund Policy',
-    sections: ['Cancellation window', 'Refund timelines', 'Event cancelled by organizer', 'Non-refundable cases'],
-  },
-  disclaimer: {
-    title: 'Disclaimer',
-    sections: ['Third-party events', 'No warranty', 'Assumption of risk'],
-  },
-  cookies: {
-    title: 'Cookie Policy',
-    sections: ['What cookies are', 'Essential cookies', 'Analytics cookies', 'Managing your preferences'],
-  },
-};
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-// Placeholder copy — real legal text must be drafted/reviewed by counsel before launch.
-const PLACEHOLDER =
-  'This section is placeholder copy from the design handoff. Final legal language will be drafted and reviewed by counsel before the platform ships. It will describe, in plain terms, the rights and responsibilities that apply to everyone using Prebooze.';
-
+/** Real GET /policies + GET /policies/:slug (admin's Content > Policies) —
+ * this used to be entirely hardcoded section headings with one literal
+ * "This section is placeholder copy from the design handoff" paragraph
+ * repeated under every one of them, on every legal page on the site. Real
+ * Policy.slug is stored as the full path ("/legal/terms"), not the bare
+ * :page param, so the lookup key is reconstructed to match. */
 export default function Legal() {
   const { page } = useParams();
-  const doc = PAGES[page ?? ''] ?? PAGES.terms;
+  const slug = `/legal/${page ?? 'terms'}`;
+
+  const [doc, setDoc] = useState<CmsPolicy | null>(null);
+  const [all, setAll] = useState<CmsPolicySummary[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    setLoading(true);
+    content.policy(encodeURIComponent(slug)).then(setDoc).catch(() => setDoc(null)).finally(() => setLoading(false));
+    content.policies().then(setAll).catch(() => {});
+  }, [slug]);
+
+  if (loading) return <PageLoader />;
+
+  if (!doc) {
+    return (
+      <main className="page">
+        <div className="container center" style={{ padding: '80px 0' }}>
+          <h1>Page not found</h1>
+          <Link to="/" className="btn btn-pri" style={{ marginTop: 18 }}>Home</Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="page">
@@ -54,13 +49,13 @@ export default function Legal() {
             On this page
           </h3>
           {doc.sections.map((s, i) => (
-            <a key={s} href={`#s${i + 1}`}>
-              {i + 1}. {s}
+            <a key={s.heading} href={`#s${i + 1}`}>
+              {i + 1}. {s.heading}
             </a>
           ))}
           <div className="hr" />
-          {Object.entries(PAGES).map(([slug, p]) => (
-            <Link key={slug} to={`/legal/${slug}`} className={p.title === doc.title ? 'accent' : ''}>
+          {all.map((p) => (
+            <Link key={p.slug} to={p.slug} className={p.slug === slug ? 'accent' : ''}>
               {p.title}
             </Link>
           ))}
@@ -69,14 +64,14 @@ export default function Legal() {
         <article>
           <h1 style={{ fontSize: 26 }}>{doc.title}</h1>
           <p className="muted-2 small" style={{ margin: '6px 0 26px' }}>
-            Last updated: 1 July 2026
+            Last updated: {fmtDate(doc.updatedAt)}
           </p>
           {doc.sections.map((s, i) => (
-            <section key={s} id={`s${i + 1}`} style={{ marginBottom: 26 }}>
+            <section key={s.heading} id={`s${i + 1}`} style={{ marginBottom: 26 }}>
               <h2 style={{ fontSize: 17, marginBottom: 8 }}>
-                {i + 1}. {s}
+                {i + 1}. {s.heading}
               </h2>
-              <p className="muted small">{PLACEHOLDER}</p>
+              <p className="muted small">{s.body}</p>
             </section>
           ))}
         </article>

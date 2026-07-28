@@ -5,9 +5,9 @@ import {
   CATEGORIES, CATEGORY_TREE, EVENTS, FAQS, LINEUPS, ORGANIZERS, PEOPLE, PROMOTERS, STATS, TESTIMONIALS, VENUES,
   eventsForPerson, venueById,
 } from '../data/mock';
-import { catalog } from '../api';
+import { catalog, content } from '../api';
 import { isBackendEnabled } from '../api/client';
-import type { Event, Organizer, PromoterProfile, LineupProfile, Venue } from '../types';
+import type { CmsTestimonial, Event, Organizer, PromoterProfile, LineupProfile, Venue } from '../types';
 import { friendsGoing, personFollowKey } from '../lib/social';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import EventCard from '../components/EventCard';
@@ -143,6 +143,12 @@ export default function Home() {
     if (!isBackendEnabled()) return;
     catalog.reels().then(setLiveReels).catch(() => setLiveReels([]));
   }, []);
+  const [liveTestimonials, setLiveTestimonials] = useState<CmsTestimonial[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    content.testimonials().then(setLiveTestimonials).catch(() => setLiveTestimonials([]));
+  }, []);
+  const testimonials = liveTestimonials ?? (isBackendEnabled() ? [] : TESTIMONIALS);
   const categoryTree = liveCategories ?? (isBackendEnabled() ? [] : CATEGORY_TREE);
   const categoryChips = liveCategories ? ['All', ...liveCategories.map((c) => c.name)] : CATEGORIES;
 
@@ -524,13 +530,14 @@ export default function Home() {
         </section>
 
         {/* Happy guests */}
+        {testimonials.length > 0 && (
         <section className="section">
           <div className="section-hd">
             <h2>Happy guests 💚</h2>
             <Link to="/testimonials">Read all reviews →</Link>
           </div>
           <Slider slideWidth={300}>
-            {TESTIMONIALS.map((t) => (
+            {testimonials.map((t) => (
               <div key={t.id} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
                 <Stars rating={t.rating} />
                 <p style={{ margin: '10px 0 12px', fontSize: 14, flex: 1 }}>"{t.quote}"</p>
@@ -539,6 +546,7 @@ export default function Home() {
             ))}
           </Slider>
         </section>
+        )}
 
         {/* Join us */}
         <section className="section">

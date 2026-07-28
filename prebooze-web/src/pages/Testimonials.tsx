@@ -1,14 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TESTIMONIALS } from '../data/mock';
+import { content } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { CmsTestimonial } from '../types';
 import Stars from '../components/Stars';
 
-/** All guest testimonials, filterable by city. */
+/** All guest testimonials, filterable by city — real GET /testimonials
+ * (admin's Content > Testimonials), not the hardcoded mock array. */
 export default function Testimonials() {
-  const cities = ['All', ...Array.from(new Set(TESTIMONIALS.map((t) => t.location)))];
+  const [live, setLive] = useState<CmsTestimonial[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    content.testimonials().then(setLive).catch(() => setLive([]));
+  }, []);
+  const all = live ?? (isBackendEnabled() ? [] : TESTIMONIALS);
+
+  const cities = ['All', ...Array.from(new Set(all.map((t) => t.location)))];
   const [cityF, setCityF] = useState('All');
-  const list = TESTIMONIALS.filter((t) => cityF === 'All' || t.location === cityF);
-  const avg = (TESTIMONIALS.reduce((a, t) => a + t.rating, 0) / TESTIMONIALS.length).toFixed(1);
+  const list = all.filter((t) => cityF === 'All' || t.location === cityF);
+  const avg = all.length ? (all.reduce((a, t) => a + t.rating, 0) / all.length).toFixed(1) : '—';
 
   return (
     <main className="page">
@@ -18,7 +29,7 @@ export default function Testimonials() {
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Happy guests 💚</h1>
         <p className="muted" style={{ marginBottom: 14 }}>
-          <b className="accent">{avg}★</b> average from {TESTIMONIALS.length}+ verified guests across the network.
+          <b className="accent">{avg}★</b> average from {all.length}+ verified guests across the network.
         </p>
         <div className="chip-row" style={{ marginBottom: 18 }}>
           {cities.map((c) => (

@@ -7,15 +7,14 @@ import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
 const TITLE = 'Customers';
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
-const SEGMENTS: { key: 'all' | LiveCustomer['segment']; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'guests', label: 'Guests' },
-  { key: 'organizers', label: 'Business accounts' },
-];
 
-/** Real customer directory — block/unblock actually flips User.blocked
- * (enforced at login/booking time server-side), and bookings/spend are real
- * aggregates, not mock numbers. */
+/** Real customer directory — guests only. Organizer/venue/lineup/promoter
+ * accounts already have their own dedicated admin sections (Organizers,
+ * Venues, Lineups, Promoters) with the role-specific fields this table
+ * never showed anyway (brand, verification, payouts, etc.) — listing them
+ * here too just mixed two different account types into one table with
+ * neither's real detail. Segment filtering narrowed to server-side
+ * 'guests' only, not a client-side tab choice. */
 export default function Customers() {
   const session = useLiveSession();
   const { token } = session;
@@ -25,13 +24,12 @@ export default function Customers() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [query, setQuery] = useState('');
-  const [segment, setSegment] = useState<'all' | LiveCustomer['segment']>('all');
 
   const load = () => {
     setLoading(true);
     setErr('');
     liveCustomers
-      .list()
+      .list('guests')
       .then(setCustomers)
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
@@ -44,13 +42,12 @@ export default function Customers() {
 
   const list = useMemo(() => {
     let l = customers;
-    if (segment !== 'all') l = l.filter((c) => c.segment === segment);
     if (query.trim()) {
       const q = query.toLowerCase();
       l = l.filter((c) => c.name.toLowerCase().includes(q) || c.phone.includes(q));
     }
     return l;
-  }, [customers, segment, query]);
+  }, [customers, query]);
 
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
@@ -66,16 +63,7 @@ export default function Customers() {
         <Link to="/customers/new" className="btn btn-pri btn-sm">+ Add customer</Link>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <SearchBox value={query} onChange={setQuery} placeholder="name / phone…" style={{ maxWidth: 340, flex: 1, minWidth: 180 }} />
-        <div className="tabs">
-          {SEGMENTS.map((s) => (
-            <button key={s.key} className={segment === s.key ? 'on' : ''} onClick={() => setSegment(s.key)}>
-              {s.label} ({s.key === 'all' ? customers.length : customers.filter((c) => c.segment === s.key).length})
-            </button>
-          ))}
-        </div>
-      </div>
+      <SearchBox value={query} onChange={setQuery} placeholder="name / phone…" style={{ maxWidth: 340 }} />
 
       <div className="tblwrap">
         <div className="thead" style={{ minWidth: 560 }}>

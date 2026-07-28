@@ -1,9 +1,17 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FAQS } from '../../data/mock';
+import { content } from '../../api';
+import { isBackendEnabled } from '../../api/client';
+import type { CmsFaq } from '../../types';
 import Accordion from '../../components/Accordion';
 import { useSeo } from '../../lib/useSeo';
 
-const ORGANIZER_FAQS = [
+// Offline/dev-mode fallback only — real copy comes from GET /faqs?audience=
+// organizers (Admin > Content > FAQs) below. Was a separate hardcoded array
+// with no admin equivalent at all before; the real FaqItem model already
+// supports both audiences (see admin's Faqs.tsx guests/organizers tabs).
+const ORGANIZER_FAQS_FALLBACK = [
   {
     q: 'How do I list an event?',
     a: 'Join as an organizer from “Host with us”, complete KYC, and publish through the create-event wizard. Events go live after a quick review, usually within a day.',
@@ -18,9 +26,19 @@ const ORGANIZER_FAQS = [
   },
 ];
 
-/** Standalone FAQ page — managed as a site page in the admin CMS, linked from the footer. */
+/** Standalone FAQ page — real GET /faqs?audience=guests|organizers (admin's
+ * Content > FAQs), not the hardcoded mock arrays. */
 export default function Faqs() {
   useSeo(null, 'FAQs');
+  const [liveGuest, setLiveGuest] = useState<CmsFaq[] | null>(null);
+  const [liveOrg, setLiveOrg] = useState<CmsFaq[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    content.faqs('guests').then(setLiveGuest).catch(() => setLiveGuest([]));
+    content.faqs('organizers').then(setLiveOrg).catch(() => setLiveOrg([]));
+  }, []);
+  const guestFaqs = liveGuest ?? (isBackendEnabled() ? [] : FAQS.map((f) => ({ id: f.q, question: f.q, answer: f.a })));
+  const orgFaqs = liveOrg ?? (isBackendEnabled() ? [] : ORGANIZER_FAQS_FALLBACK.map((f) => ({ id: f.q, question: f.q, answer: f.a })));
   return (
     <main className="page">
       <div className="container" style={{ maxWidth: 760 }}>
@@ -36,9 +54,9 @@ export default function Faqs() {
           <div className="section-hd">
             <h2>For guests</h2>
           </div>
-          {FAQS.map((f, i) => (
-            <Accordion key={f.q} title={f.q} defaultOpen={i === 0}>
-              {f.a}
+          {guestFaqs.map((f, i) => (
+            <Accordion key={f.id} title={f.question} defaultOpen={i === 0}>
+              {f.answer}
             </Accordion>
           ))}
         </section>
@@ -47,9 +65,9 @@ export default function Faqs() {
           <div className="section-hd">
             <h2>For organizers</h2>
           </div>
-          {ORGANIZER_FAQS.map((f) => (
-            <Accordion key={f.q} title={f.q}>
-              {f.a}
+          {orgFaqs.map((f) => (
+            <Accordion key={f.id} title={f.question}>
+              {f.answer}
             </Accordion>
           ))}
         </section>
