@@ -5,6 +5,7 @@ import { fmt } from '../store/data';
 import { CityFilterDropdown, EVENT_STATUS, GradientPhoto, Kpi, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import MapEmbed from '../components/MapEmbed';
+import RealImageUpload, { RealGalleryUpload } from '../components/RealImageUpload';
 import WysiwygEditor from '../components/WysiwygEditor';
 import { liveVenues, liveEvents, liveVenueTypes, LiveApiError, type LiveVenue, type LiveEvent, type LiveVenueType } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -167,7 +168,11 @@ export function Venues() {
             onClick={() => navigate(`/venues/${v.id}`)}
           >
             <span style={{ flex: 2, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <GradientPhoto seed={v.photoHue} style={{ width: 42, height: 28, borderRadius: 5, flex: 'none', padding: 0 }} />
+              {v.logoUrl ? (
+                <img src={v.logoUrl} alt="" style={{ width: 42, height: 28, borderRadius: 5, objectFit: 'cover', flexShrink: 0 }} />
+              ) : (
+                <GradientPhoto seed={v.photoHue} style={{ width: 42, height: 28, borderRadius: 5, flex: 'none', padding: 0 }} />
+              )}
               {v.name}
             </span>
             <span style={{ flex: 1 }} className="muted">{fmt(v.capacity)}</span>
@@ -232,6 +237,11 @@ export function VenueDetail() {
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Link to="/venues" style={{ fontSize: 13 }}>← Venues</Link>
+        {venue.logoUrl ? (
+          <img src={venue.logoUrl} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+        ) : (
+          <GradientPhoto seed={venue.photoHue} style={{ width: 32, height: 32, borderRadius: '50%', flex: 'none', padding: 0 }} />
+        )}
         <h1 className="display" style={{ fontSize: 18 }}>{venue.name}</h1>
         {venue.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Docs pending" cls="tag-red" />}
         <div style={{ flex: 1 }} />
@@ -239,7 +249,15 @@ export function VenueDetail() {
       </div>
       {venue.address && <div className="small muted">{venue.address} · map pin set 📍</div>}
 
-      <GradientPhoto seed={venue.photoHue} label={venue.name} style={{ height: 200 }} />
+      {venue.galleryUrls.length > 0 ? (
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
+          {venue.galleryUrls.map((url, i) => (
+            <img key={i} src={url} alt="" style={{ height: 200, borderRadius: 8, flexShrink: 0, objectFit: 'cover' }} />
+          ))}
+        </div>
+      ) : (
+        <GradientPhoto seed={venue.photoHue} label={venue.name} style={{ height: 200 }} />
+      )}
 
       <div className="kpi-grid">
         <Kpi label="Capacity" value={fmt(venue.capacity)} />
@@ -381,6 +399,8 @@ export function EditVenue() {
   const [amenities, setAmenities] = useState<string[]>([]);
   const [seo, setSeo] = useState<Seo>(emptySeo());
   const [venueCity, setVenueCity] = useState('');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
 
   const load = () => {
     setLoading(true);
@@ -406,6 +426,8 @@ export function EditVenue() {
           setAmenities(v.amenities);
           setSeo((v.seo as Seo | null) ?? emptySeo());
           setVenueCity(v.city);
+          setLogoUrl(v.logoUrl ?? null);
+          setGalleryUrls(v.galleryUrls ?? []);
         }
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
@@ -447,6 +469,8 @@ export function EditVenue() {
         timings: timings.trim() || undefined,
         amenities,
         seo,
+        logoUrl,
+        galleryUrls,
       });
       if (verified !== venue.verified) await liveVenues.setVerified(venue.id, verified);
       navigate(`/venues/${venue.id}`);
@@ -463,6 +487,14 @@ export function EditVenue() {
         {venue.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Docs pending" cls="tag-red" />}
       </div>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      <div className="field">
+        <label>Logo</label>
+        <RealImageUpload value={logoUrl} onChange={setLogoUrl} height={90} width={90} label="logo" />
+      </div>
+      <div className="field">
+        <label>Gallery photos</label>
+        <RealGalleryUpload value={galleryUrls} onChange={setGalleryUrls} />
+      </div>
       <div className="field">
         <label>Venue name</label>
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} />

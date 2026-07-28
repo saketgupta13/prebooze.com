@@ -97,9 +97,11 @@ export default function Profile() {
               {user.idVerified ? (
                 <span className="badge badge-ok">Verified ✓</span>
               ) : (
-                <Link to="/verify-id" className="link small bold">
-                  Verify now →
-                </Link>
+                // ID verification is paused platform-wide for now (no live
+                // KYC vendor key yet) — not linked to /verify-id so guests
+                // aren't prompted into a check that isn't really live.
+                // Booking was never gated on this either way.
+                <span className="badge badge-pending">Paused</span>
               )}
             </div>
             <div className="kv">

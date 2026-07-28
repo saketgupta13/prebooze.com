@@ -55,7 +55,12 @@ export default function ProfileCompletion() {
         interests, avatarUrl: photo || undefined,
       });
       updateUser(updated);
-      navigate('/verify-id', { state: { from } });
+      // ID verification is paused platform-wide for now (no live KYC vendor
+      // key yet — see BACKEND.md "Identity & KYC") — this used to force
+      // every new guest straight into that step; skip it and land wherever
+      // they were headed instead. Booking itself was never gated on
+      // idVerified, so this doesn't block ticket sales either way.
+      navigate(from ?? '/');
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : 'Failed to save profile');
     } finally {
@@ -167,9 +172,6 @@ export default function ProfileCompletion() {
           <button className="btn btn-pri btn-block btn-lg" style={{ marginTop: 8 }} disabled={saving}>
             {saving ? 'Saving…' : 'Save & continue →'}
           </button>
-          <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-            Next: ID verification
-          </div>
         </form>
       </div>
     </main>

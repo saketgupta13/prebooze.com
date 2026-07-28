@@ -278,6 +278,7 @@ export interface LiveVenue {
   photoHue: number; license: string | null; contact: string | null; rules: string | null; seo: Seo | null;
   contactPerson: string | null; contactPersonPhone: string | null;
   socialLinks: { instagram?: string; facebook?: string; other?: string[] } | null;
+  logoUrl: string | null; galleryUrls: string[];
 }
 
 export interface LiveOrgStaffMember {

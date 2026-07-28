@@ -65,3 +65,67 @@ export default function RealImageUpload({
     </div>
   );
 }
+
+/** Multiple real photos (venue gallery slider) — same upload plumbing as
+ * RealImageUpload, each file uploaded for real and the array storing
+ * persisted URLs, not base64. */
+export function RealGalleryUpload({ value, onChange, max = 8 }: {
+  value: string[];
+  onChange: (urls: string[]) => void;
+  max?: number;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const onFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []).slice(0, Math.max(0, max - value.length));
+    e.target.value = '';
+    if (!files.length) return;
+    setErr('');
+    setBusy(true);
+    try {
+      const uploaded = await Promise.all(files.map((f) => liveMedia.upload(f)));
+      onChange([...value, ...uploaded.map((u) => u.url)]);
+    } catch (e2) {
+      setErr(e2 instanceof LiveApiError ? e2.message : 'Some uploads failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {value.map((url, i) => (
+          <div key={i} style={{ position: 'relative', width: 72, height: 72, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--green)' }}>
+            <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <button
+              type="button"
+              onClick={() => remove(i)}
+              style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 10, cursor: 'pointer', lineHeight: '18px', padding: 0 }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        {value.length < max && (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            style={{
+              width: 72, height: 72, borderRadius: 8, cursor: 'pointer', fontSize: 10,
+              border: '1.5px dashed rgba(139,195,74,.4)', background: 'repeating-linear-gradient(45deg,#181b10 0 10px,#14160d 10px 20px)', color: 'inherit',
+            }}
+          >
+            {busy ? '…' : '+ add'}
+          </button>
+        )}
+        <input ref={inputRef} type="file" accept="image/*" multiple onChange={onFiles} style={{ display: 'none' }} />
+      </div>
+      {err && <div className="tiny" style={{ color: 'var(--red)', marginTop: 4 }}>{err}</div>}
+    </div>
+  );
+}

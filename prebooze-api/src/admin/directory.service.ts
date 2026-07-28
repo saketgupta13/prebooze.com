@@ -199,7 +199,7 @@ const PROMOTER_EDITABLE = ['name', 'city', 'bio', 'contact', 'links', 'planId', 
 const LINEUP_EDITABLE = ['name', 'category', 'city', 'state', 'country', 'pincode', 'bio', 'links', 'logoUrl', 'seo'];
 const VENUE_EDITABLE = [
   'name', 'type', 'locality', 'city', 'address', 'capacity', 'amenities', 'about', 'timings', 'license', 'contact', 'rules', 'seo',
-  'contactPerson', 'contactPersonPhone', 'socialLinks',
+  'contactPerson', 'contactPersonPhone', 'socialLinks', 'logoUrl', 'galleryUrls',
 ];
 
 function sanitizePatch(patch: Record<string, unknown>, allowed: string[]): Record<string, unknown> {
