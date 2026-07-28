@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { DirectoryService } from './directory.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
@@ -31,6 +31,18 @@ export class AdminOrganizersController {
   @RequirePermission('Organizers', 'approve')
   setVerified(@Param('id') id: string, @Body('verified') verified: boolean) {
     return this.directory.setOrganizerVerified(id, verified);
+  }
+
+  @Get(':id/team')
+  @RequirePermission('Organizers', 'view')
+  team(@Param('id') id: string) {
+    return this.directory.organizerTeam(id);
+  }
+
+  @Delete(':id/team/:staffId')
+  @RequirePermission('Organizers', 'edit')
+  removeTeamMember(@Param('id') id: string, @Param('staffId') staffId: string) {
+    return this.directory.removeOrganizerTeamMember(id, staffId);
   }
 }
 

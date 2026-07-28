@@ -57,6 +57,23 @@ export class DirectoryService {
     return this.prisma.organizer.update({ where: { id }, data: { verified } });
   }
 
+  /** Staff-facing visibility into an organizer's own team (OrgStaff — see
+   * OrgTeamService.addStaff for the real invite flow that creates these).
+   * Admin "god mode", same reasoning as the rest of this service: no
+   * permission-matrix resolution needed, staff can always see/remove a
+   * team member regardless of who invited them. */
+  async organizerTeam(organizerId: string) {
+    if (!(await this.prisma.organizer.findUnique({ where: { id: organizerId } }))) throw new NotFoundException('Organizer not found');
+    return this.prisma.orgStaff.findMany({ where: { organizerId }, orderBy: { createdAt: 'asc' } });
+  }
+
+  async removeOrganizerTeamMember(organizerId: string, staffId: string) {
+    const member = await this.prisma.orgStaff.findUnique({ where: { id: staffId } });
+    if (!member || member.organizerId !== organizerId) throw new NotFoundException('Team member not found');
+    await this.prisma.orgStaff.delete({ where: { id: staffId } });
+    return { ok: true };
+  }
+
   // ---------- promoters ----------
   async listPromoters() {
     return this.prisma.promoter.findMany({ orderBy: { createdAt: 'desc' } });

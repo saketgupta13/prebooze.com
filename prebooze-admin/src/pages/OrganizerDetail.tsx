@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { fmt } from '../store/data';
 import { Kpi, Tag } from '../components/ui';
-import { liveOrganizers, liveEvents, LiveApiError, type LiveOrganizer, type LiveEvent } from '../lib/liveApi';
+import { liveOrganizers, liveEvents, LiveApiError, type LiveOrganizer, type LiveEvent, type LiveOrgStaffMember } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
 
@@ -26,6 +26,7 @@ export default function OrganizerDetail() {
 
   const [organizers, setOrganizers] = useState<LiveOrganizer[]>([]);
   const [events, setEvents] = useState<LiveEvent[]>([]);
+  const [team, setTeam] = useState<LiveOrgStaffMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -38,6 +39,20 @@ export default function OrganizerDetail() {
       .finally(() => setLoading(false));
   };
   useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token]);
+  useEffect(() => {
+    if (!token || !id) return;
+    liveOrganizers.team(id).then(setTeam).catch(() => setTeam([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, id]);
+
+  const removeTeamMember = (staffId: string, name: string) => {
+    if (!id) return;
+    if (!window.confirm(`Remove ${name} from this organizer's team?`)) return;
+    liveOrganizers
+      .removeTeamMember(id, staffId)
+      .then(() => setTeam((prev) => prev.filter((m) => m.id !== staffId)))
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to remove team member'));
+  };
 
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
@@ -113,6 +128,31 @@ export default function OrganizerDetail() {
         {orgEvents.length === 0 && !loading && <div className="trow muted">No events yet for this organizer.</div>}
       </div>
       <div className="tiny hint">click an event row to open its editor</div>
+
+      <div className="tblwrap">
+        <div className="display" style={{ fontWeight: 700, padding: '10px 14px', borderBottom: '1px solid rgba(139,195,74,.15)' }}>
+          Team members
+        </div>
+        <div className="thead" style={{ minWidth: 480 }}>
+          <span style={{ flex: 2 }}>Name</span>
+          <span style={{ flex: 1.5 }}>Phone</span>
+          <span style={{ flex: 1 }}>Role</span>
+          <span style={{ flex: 0.6 }} />
+        </div>
+        {team.map((m) => (
+          <div key={m.id} className="trow" style={{ minWidth: 480 }}>
+            <span style={{ flex: 2, fontWeight: 700 }}>{m.name}</span>
+            <span style={{ flex: 1.5 }}>{m.phone || '—'}</span>
+            <span style={{ flex: 1 }}>{m.roleName}</span>
+            <span style={{ flex: 0.6, textAlign: 'right' }}>
+              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => removeTeamMember(m.id, m.name)}>
+                ✕ Remove
+              </button>
+            </span>
+          </div>
+        ))}
+        {team.length === 0 && <div className="trow muted">No team members invited yet.</div>}
+      </div>
     </div>
   );
 }

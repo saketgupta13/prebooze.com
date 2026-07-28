@@ -277,11 +277,16 @@ export interface LiveVenue {
   photoHue: number; license: string | null; contact: string | null; rules: string | null; seo: Seo | null;
 }
 
+export interface LiveOrgStaffMember {
+  id: string; name: string; phone: string | null; roleName: string; scan: boolean; userId: string | null; createdAt: string;
+}
 export const liveOrganizers = {
   list: () => liveFetch<LiveOrganizer[]>('/admin/organizers'),
   create: (body: { brandName: string; city?: string; contact?: string }) => liveFetch<LiveOrganizer>('/admin/organizers', { body }),
   update: (id: string, body: Partial<LiveOrganizer>) => liveFetch<LiveOrganizer>(`/admin/organizers/${id}`, { method: 'PATCH', body }),
   setVerified: (id: string, verified: boolean) => liveFetch<LiveOrganizer>(`/admin/organizers/${id}/verify`, { method: 'POST', body: { verified } }),
+  team: (id: string) => liveFetch<LiveOrgStaffMember[]>(`/admin/organizers/${id}/team`),
+  removeTeamMember: (id: string, staffId: string) => liveFetch<{ ok: true }>(`/admin/organizers/${id}/team/${staffId}`, { method: 'DELETE' }),
 };
 export const livePromoters = {
   list: () => liveFetch<LivePromoter[]>('/admin/promoters'),
