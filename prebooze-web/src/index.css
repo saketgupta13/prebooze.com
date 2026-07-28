@@ -1091,6 +1091,12 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
      classes when isMobile). */
   .ticket-box-bar, .ticket-box-sheet {
     position: fixed;
+    /* .ticket-box's base (desktop) rule sets top:82px unconditionally —
+       without resetting it here, a fixed element with BOTH top and bottom
+       set stretches to fill the space between them instead of sizing to
+       its content, which is what was blowing this up to nearly full-
+       screen height pinned near the top instead of a slim bottom bar. */
+    top: auto;
     left: 0; right: 0; bottom: 0;
     z-index: 60;
     margin: 0;
