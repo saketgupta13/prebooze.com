@@ -4,8 +4,13 @@ import { usePlatformInfo } from '../lib/usePlatformInfo';
 // Admin only ever types "instagram.com/prebooze"-style handles, not always
 // the full "https://…" — a bare domain in an <a href> is a relative URL
 // (resolves against prebooze.com itself, not the real destination), so this
-// normalizes it into a real, working external link either way.
-const withScheme = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
+// normalizes it into a real, working external link either way. Trimmed
+// first — a stray copy-pasted leading/trailing space fails the scheme
+// check silently and ends up baked into the URL itself.
+const withScheme = (url: string) => {
+  const trimmed = url.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
 
 export default function Footer() {
   const { socials, footerCopyright, logoUrl } = usePlatformInfo();
@@ -16,7 +21,7 @@ export default function Footer() {
     { label: 'YouTube', url: socials.youtube },
     { label: 'WhatsApp', url: socials.whatsapp },
   ]
-    .filter((s) => s.url)
+    .filter((s) => s.url?.trim())
     .map((s) => ({ ...s, url: withScheme(s.url) }));
 
   return (

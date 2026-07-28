@@ -59,6 +59,7 @@ export const catalog = {
   cities: () => apiFetch<{ name: string; icon?: string; top: boolean; events: number }[]>('/cities'),
   search: (q: string) => apiFetch<{ label: string; type: string; to: string }[]>('/search', { query: { q } }),
   trending: () => apiFetch<string[]>('/search/trending'),
+  reels: () => apiFetch<{ id: string; title: string; hue: number; videoUrl: string | null }[]>('/reels'),
 };
 
 // ---------- real organizer/venue reviews (guest-facing) ----------
@@ -380,6 +381,9 @@ export const featured = {
 export const support = {
   tickets: () => apiFetch<HelpTicket[]>('/support/tickets'),
   raise: (t: Omit<HelpTicket, 'id' | 'status' | 'createdAt'>) => apiFetch<HelpTicket>('/support/tickets', { body: t }),
+  // Public Contact-us form — no auth, unlike the ticket endpoints above.
+  contact: (body: { name: string; email: string; role: string; message: string }) =>
+    apiFetch<{ id: string }>('/support/contact', { body }),
 };
 
 export const careers = {

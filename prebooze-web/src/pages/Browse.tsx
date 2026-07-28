@@ -50,6 +50,11 @@ export default function Browse() {
     let list: Event[];
     if (liveEvents) {
       list = liveEvents;
+    } else if (isBackendEnabled()) {
+      // still loading — an empty grid for a moment beats a flash of
+      // mock events (wrong city/category/data) before the real GET
+      // /events response replaces it.
+      list = [];
     } else {
       list = EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
       if (q)
@@ -85,7 +90,7 @@ export default function Browse() {
   const subCounts = useMemo(() => {
     if (cat === 'Category') return new Map<string, number>();
     const m = new Map<string, number>();
-    const source = liveEvents ?? EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
+    const source = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city));
     source.filter((e) => e.category === cat).forEach((e) => e.subCategory && m.set(e.subCategory, (m.get(e.subCategory) ?? 0) + 1));
     return m;
   }, [cat, city, liveEvents]);

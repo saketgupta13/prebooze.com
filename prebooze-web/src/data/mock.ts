@@ -867,7 +867,6 @@ export const TOP_CITIES: { name: string; icon: string }[] = [
   { name: 'Kolkata', icon: '🌁' },
   { name: 'Goa', icon: '🏝️' },
   { name: 'Nagpur', icon: '🍊' },
-  { name: 'Austin', icon: '🎸' },
   { name: 'Jaipur', icon: '🏰' },
   { name: 'Ahmedabad', icon: '🪁' },
 ];

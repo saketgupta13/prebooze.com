@@ -1115,9 +1115,14 @@ model PromoterWithdrawal {
 // ============================================================================
 
 model HelpTicket {
-  id      String @id
-  userId  String
-  user    User   @relation(fields: [userId], references: [id])
+  id     String  @id
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+  // Public Contact-us submissions have no logged-in user at all — name/email
+  // are captured directly from the form in that case. For a real ticket
+  // (userId set), these stay null; the real name/email live on the User row.
+  name    String?
+  email   String?
   role    String // the caller's User.role at submission time (or "guest"), set server-side — not client input
   topic   String
   subject String

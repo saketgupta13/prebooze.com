@@ -26,6 +26,11 @@ const HERO = [
   { hue: 330, emoji: '🎧', badge: 'Line-ups', title: 'Catch your favourite acts live', text: 'Follow DJs, bands and comedians — never miss their next set.', cta: 'Browse line-ups →', to: '/lineups' },
 ];
 
+// Offline/dev-mode fallback only, when there's no real Reel data to fetch —
+// same "mock is never a loading placeholder in production" rule as every
+// other real-data section on this page.
+const REEL_HUES = [20, 150, 260, 330, 45, 95, 200, 285, 12, 340, 170, 60];
+
 const TRUST = [
   { icon: '✅', title: 'Verified organizers only', desc: 'Every host is KYC-checked. No fake listings, ever.' },
   { icon: '💬', title: 'WhatsApp OTP login', desc: 'No passwords. Your tickets land straight in your chats.' },
@@ -128,6 +133,16 @@ export default function Home() {
     if (!isBackendEnabled()) return;
     catalog.categories().then(setLiveCategories).catch(() => setLiveCategories([]));
   }, []);
+
+  // Real, admin-managed reels (Content > Reels) — the "Things happening at
+  // events" strip used to be 12 hardcoded hue placeholders with no data
+  // behind them at all, even though a real Reel model + admin CRUD + public
+  // GET /reels already existed and just had no frontend consumer.
+  const [liveReels, setLiveReels] = useState<{ id: string; title: string; hue: number; videoUrl: string | null }[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.reels().then(setLiveReels).catch(() => setLiveReels([]));
+  }, []);
   const categoryTree = liveCategories ?? (isBackendEnabled() ? [] : CATEGORY_TREE);
   const categoryChips = liveCategories ? ['All', ...liveCategories.map((c) => c.name)] : CATEGORIES;
 
@@ -148,7 +163,11 @@ export default function Home() {
     catalog.venues(city).then(setLiveVenues).catch(() => setLiveVenues([]));
   }, [city]);
 
-  const published = liveEvents ?? EVENTS.filter((e) => e.status === 'approved');
+  // Same isBackendEnabled() guard as everywhere else on this page — without
+  // it, the brief liveEvents===null window on first load fell through to
+  // mock EVENTS in production too, flashing wrong events before the real
+  // GET /events response replaced them a moment later.
+  const published = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved'));
   const cityOf = (e: Event) => e.venue?.city ?? venueById(e.venueId)?.city;
   const soldOf = (e: Event) => e.tiers.reduce((a, t) => a + t.sold, 0);
   const events = useMemo(
@@ -351,17 +370,34 @@ export default function Home() {
         )}
 
         {/* Reels */}
-        <section className="section">
-          <div className="section-hd">
-            <h2>Things happening at events 🎬</h2>
-            <span className="muted-2 small">‹ swipe ›</span>
-          </div>
-          <Slider slideWidth={150}>
-            {[20, 150, 260, 330, 45, 95, 200, 285, 12, 340, 170, 60].map((hue, i) => (
-              <Poster key={i} hue={hue} emoji="▶" label={`reel ${i + 1}`} variant="reel" />
-            ))}
-          </Slider>
-        </section>
+        {(liveReels ?? (isBackendEnabled() ? [] : REEL_HUES)).length > 0 && (
+          <section className="section">
+            <div className="section-hd">
+              <h2>Things happening at events 🎬</h2>
+              <span className="muted-2 small">‹ swipe ›</span>
+            </div>
+            <Slider slideWidth={150}>
+              {liveReels
+                ? liveReels.map((r) =>
+                    r.videoUrl ? (
+                      <video
+                        key={r.id}
+                        className="poster reel"
+                        src={r.videoUrl}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        title={r.title}
+                      />
+                    ) : (
+                      <Poster key={r.id} hue={r.hue} emoji="▶" label={r.title} variant="reel" />
+                    )
+                  )
+                : REEL_HUES.map((hue, i) => <Poster key={i} hue={hue} emoji="▶" label={`reel ${i + 1}`} variant="reel" />)}
+            </Slider>
+          </section>
+        )}
 
         {/* Top organizers */}
         {topOrganizers.length > 0 && (
@@ -372,7 +408,7 @@ export default function Home() {
           </div>
           <Slider slideWidth={244}>
             {topOrganizers.map((o) => {
-              const live = (liveEvents ?? EVENTS).filter((e) => (e.organizer?.id ?? e.organizerId) === o.id && e.status === 'approved').length;
+              const live = published.filter((e) => (e.organizer?.id ?? e.organizerId) === o.id).length;
               return (
                 <DirectoryCard key={o.id} to={`/organizers/${o.id}`} hue={o.logoHue} avatarText="🎧" avatarImage={o.logoUrl} name={o.brandName} verified={o.verified} meta={`${o.city} · ★ ${o.rating}`} bio={o.about} featured={orgFeat.has(o.id)}
                   stats={<><b>{o.eventsHosted}</b> events · <b>{live}</b> live · <b>{netFollowers(o.id, o.followers).toLocaleString('en-IN')}</b> followers</>}
@@ -426,7 +462,7 @@ export default function Home() {
           </div>
           <Slider slideWidth={260}>
             {topVenues.map((v) => {
-              const count = (liveEvents ?? EVENTS).filter((e) => (e.venue?.id ?? e.venueId) === v.id && e.status === 'approved').length;
+              const count = published.filter((e) => (e.venue?.id ?? e.venueId) === v.id).length;
               return (
                 <Link key={v.id} to={`/venues/${v.id}`} className="ecard" style={{ position: 'relative' }}>
                   <Poster hue={v.photoHue} emoji="🏛" label={v.galleryUrls?.[0] ? undefined : 'venue photo'} imageUrl={v.galleryUrls?.[0]} variant="landscape" />

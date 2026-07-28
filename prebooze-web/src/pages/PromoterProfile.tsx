@@ -22,15 +22,23 @@ export default function PromoterProfile() {
 
   const [livePromoters, setLivePromoters] = useState<PromoterProfileData[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
     if (!isBackendEnabled()) return;
-    catalog.promoters().then(setLivePromoters).catch(() => setLivePromoters([]));
-    catalog.events({}).then(setLiveEvents).catch(() => setLiveEvents([]));
+    setLoading(true);
+    Promise.all([catalog.promoters(), catalog.events({})])
+      .then(([ps, evs]) => { setLivePromoters(ps); setLiveEvents(evs); })
+      .catch(() => { setLivePromoters([]); setLiveEvents([]); })
+      .finally(() => setLoading(false));
   }, []);
 
-  const promoter = livePromoters ? livePromoters.find((p) => p.slug === slug) : promoterBySlug(slug ?? '');
+  const promoter = (livePromoters ?? (isBackendEnabled() ? [] : PROMOTERS)).find((p) => p.slug === slug) ?? (isBackendEnabled() ? undefined : promoterBySlug(slug ?? ''));
   const liveSeo = useEntitySeo('promoter', slug);
   useSeo(liveSeo, promoter?.name);
+
+  if (loading && !promoter) {
+    return <main className="page"><div className="container center" style={{ padding: '80px 0' }}><div className="muted">Loading…</div></div></main>;
+  }
 
   if (!promoter) {
     return (
@@ -46,12 +54,12 @@ export default function PromoterProfile() {
   const followKey = 'promoter:' + promoter.slug;
   const isFollowing = following.includes(followKey);
   const isOwnProfile = user?.isPromoter && user.promoterUsername?.toLowerCase() === promoter.slug.toLowerCase();
-  const eventPool = liveEvents ?? EVENTS;
+  const eventPool = liveEvents ?? (isBackendEnabled() ? [] : EVENTS);
   // Events this promoter is on the allow-list for; fall back to a sample of live events.
   const promoted = eventPool.filter((e) => e.promoterConfig?.allowedPromoters?.includes(promoter.slug));
   const promoting = promoted.length ? promoted : eventPool.filter((e) => e.status === 'approved').slice(0, 3);
   const friends = friendsAtEvents(promoting.map((e) => e.id), following);
-  const more = (livePromoters ?? PROMOTERS).filter((p) => p.slug !== promoter.slug).slice(0, 3);
+  const more = (livePromoters ?? (isBackendEnabled() ? [] : PROMOTERS)).filter((p) => p.slug !== promoter.slug).slice(0, 3);
 
   return (
     <main className="page">

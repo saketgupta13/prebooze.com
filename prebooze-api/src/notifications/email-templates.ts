@@ -170,6 +170,14 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     tokens: ['name', 'ticketId', 'ticketSubject'],
   },
   {
+    id: 'contact_form_received', name: 'Contact form received', category: 'Guest',
+    trigger: 'The public Contact-us page form is submitted (no login required)',
+    preheader: 'We got your message',
+    defaultSubject: "We've got your message — {{ticketId}}",
+    defaultBody: `<p>Hey {{name}},</p><p>Thanks for reaching out — your message has been logged as <b>{{ticketId}}</b>. Our team typically replies within a day.</p>`,
+    tokens: ['name', 'ticketId'],
+  },
+  {
     id: 'kyc_pending', name: 'Application received', category: 'Roles',
     trigger: 'Applicant submits an organizer / promoter / venue / line-up application',
     preheader: 'Your application is being reviewed',

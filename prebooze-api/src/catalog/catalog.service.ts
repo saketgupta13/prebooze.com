@@ -3,6 +3,15 @@ import { PrismaService } from '../prisma.service';
 
 type FeaturedType = 'event' | 'organizer' | 'promoter' | 'lineup' | 'venue';
 
+// Filtered out of auto-detected trending terms — common connector/filler
+// words that show up in almost every event title regardless of what's
+// actually trending (e.g. "Night Live" everywhere isn't a useful signal).
+const TRENDING_STOPWORDS = new Set([
+  'the', 'and', 'for', 'with', 'from', 'night', 'nights', 'live', 'presents', 'present',
+  'feat', 'featuring', 'vol', 'edition', 'season', 'part', 'special', 'ft', 'at', 'in',
+  'on', 'of', 'to', 'an', 'is', 'this', 'our', 'your', 'you', 'all', 'new',
+]);
+
 // Excludes the admin-only/private fields added for the Admin API
 // directory-CRUD slice (contactPerson, phone, gstin, pan, bankLast4) — every
 // one of these catalog reads is public and unauthenticated, those must never
@@ -259,8 +268,44 @@ export class CatalogService {
     ].slice(0, 7);
   }
 
+  /** Admin-pinned terms (real CRUD — see AdminTrendingController) always
+   * show first, in their chosen order; any remaining slots (up to 8 total)
+   * are auto-filled by tokenizing upcoming approved events' titles into
+   * words, filtering stopwords/short words, and ranking by how many
+   * distinct events each word appears in — a real, live "what's trending"
+   * signal instead of a permanently-static list admin has to keep hand-
+   * curated forever. */
   async trending() {
-    const rows = await this.prisma.trendingSearch.findMany({ orderBy: { sort: 'asc' } });
-    return rows.map((r) => r.term);
+    const pinned = await this.prisma.trendingSearch.findMany({ orderBy: { sort: 'asc' } });
+    const pinnedTerms = pinned.map((r) => r.term);
+    const need = 8 - pinnedTerms.length;
+    if (need <= 0) return pinnedTerms.slice(0, 8);
+
+    const soon = new Date(Date.now() + 45 * 24 * 3600 * 1000);
+    const events = await this.prisma.event.findMany({
+      where: { status: 'approved', date: { gte: new Date(), lte: soon } },
+      select: { title: true },
+    });
+
+    const pinnedLower = new Set(pinnedTerms.map((t) => t.toLowerCase()));
+    const counts = new Map<string, number>(); // lowercase word -> distinct-event count
+    const display = new Map<string, string>(); // lowercase word -> first-seen original casing
+    for (const e of events) {
+      const words = new Set(e.title.split(/[\s\-–—:,'"!?()]+/).map((w) => w.trim()).filter(Boolean));
+      for (const w of words) {
+        const lower = w.toLowerCase();
+        if (lower.length < 3 || TRENDING_STOPWORDS.has(lower) || pinnedLower.has(lower)) continue;
+        counts.set(lower, (counts.get(lower) ?? 0) + 1);
+        if (!display.has(lower)) display.set(lower, w);
+      }
+    }
+
+    const auto = [...counts.entries()]
+      .filter(([, count]) => count > 1) // a word only one event uses isn't "trending"
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, need)
+      .map(([lower]) => display.get(lower)!);
+
+    return [...pinnedTerms, ...auto];
   }
 }

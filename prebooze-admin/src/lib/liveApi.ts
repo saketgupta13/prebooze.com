@@ -532,6 +532,15 @@ export const liveCategories = {
   remove: (name: string) => liveFetch<{ ok: true }>(`/admin/categories/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 };
 
+export interface LiveTrendingTerm { term: string; sort: number; }
+export const liveTrending = {
+  list: () => liveFetch<LiveTrendingTerm[]>('/admin/trending'),
+  add: (term: string) => liveFetch<LiveTrendingTerm>('/admin/trending', { body: { term } }),
+  reorder: (term: string, sort: number) =>
+    liveFetch<LiveTrendingTerm>(`/admin/trending/${encodeURIComponent(term)}`, { method: 'PATCH', body: { sort } }),
+  remove: (term: string) => liveFetch<{ ok: true }>(`/admin/trending/${encodeURIComponent(term)}`, { method: 'DELETE' }),
+};
+
 export interface LivePromo {
   id: string;
   code: string;

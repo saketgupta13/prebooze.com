@@ -3,6 +3,7 @@ import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
+import { StaffAlertsService } from '../notifications/staff-alerts';
 
 @Injectable()
 export class SupportService {
@@ -10,6 +11,7 @@ export class SupportService {
     private prisma: PrismaService,
     private wa: WhatsappService,
     private email: EmailService,
+    private staffAlerts: StaffAlertsService,
   ) {}
 
   async tickets(userId: string) {
@@ -35,6 +37,35 @@ export class SupportService {
     await this.email.sendTemplate(user.email, 'help_ticket', {
       name: user.name, ticketId: id, ticketSubject: ticket.subject,
     }).catch(() => {});
+    return ticket;
+  }
+
+  /** Public Contact-us form (Contact.tsx) — the only support entry point
+   * that doesn't require a login, so it's the one place HelpTicket.userId
+   * is genuinely null and name/email are captured directly from the form
+   * instead of read off a User row. No dedicated admin queue UI exists yet
+   * for HelpTicket (see the `raise()` comment above — same real gap), so
+   * this leans on the same real staff-alert fan-out other real-time admin
+   * notifications already use, plus a real confirmation email back to the
+   * submitter, rather than leaving the message undelivered anywhere. */
+  async contact(body: { name?: string; email?: string; role?: string; message?: string }) {
+    const name = body.name?.trim();
+    const email = body.email?.trim();
+    if (!name || !email || !body.message?.trim()) throw new BadRequestException('Name, email and message are required');
+
+    const id = 'HT-' + randomInt(1000, 9999);
+    const ticket = await this.prisma.helpTicket.create({
+      data: {
+        id, name, email,
+        role: body.role?.trim() || 'guest',
+        topic: 'Contact form',
+        subject: `Contact form — ${name}`,
+        message: body.message.trim(),
+      },
+    });
+
+    await this.staffAlerts.alert(`New contact form message from ${name} (${email}): ${body.message.trim().slice(0, 140)}`);
+    await this.email.sendTemplate(email, 'contact_form_received', { name, ticketId: id }).catch(() => {});
     return ticket;
   }
 }

@@ -161,7 +161,7 @@ export default function EventDetail() {
         </div>
 
         <div className="detail-grid">
-          <div className="detail-top">
+          <div className="detail-head-area">
             {/* Head */}
             <div className="detail-head">
               <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} label="portrait banner 3:4" imageUrl={event.posterUrl} />
@@ -243,7 +243,9 @@ export default function EventDetail() {
                 </div>
               </div>
             </div>
+          </div>
 
+          <div className="detail-about">
             {/* About */}
             <section className="section" style={{ marginTop: 0 }}>
               <div className="section-hd">

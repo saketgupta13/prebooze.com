@@ -12,12 +12,16 @@ const FALLBACK: PlatformInfo = {
   maintenanceMode: false,
   comingSoonMode: false,
   salesPaused: false,
+  // Empty, not placeholder handles — a social icon that silently points to
+  // a nonexistent/wrong account is worse than no icon at all (Footer.tsx
+  // already hides any icon with no url). Real values only ever come from
+  // admin's real Settings page from here on.
   socials: {
-    instagram: 'https://instagram.com/prebooze',
-    facebook: 'https://facebook.com/prebooze',
-    x: 'https://x.com/prebooze',
-    youtube: 'https://youtube.com/@prebooze',
-    whatsapp: 'https://wa.me/919876543210',
+    instagram: '',
+    facebook: '',
+    x: '',
+    youtube: '',
+    whatsapp: '',
   },
   siteSeo: { title: '', description: '', keywords: '' },
   contact: {

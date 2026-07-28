@@ -41,6 +41,7 @@ const CONTENT_NAV = [
   { to: '/testimonials', icon: '💬', label: 'Testimonials' },
   { to: '/faqs', icon: '❓', label: 'FAQs' },
   { to: '/categories', icon: '🗂', label: 'Categories' },
+  { to: '/trending', icon: '🔥', label: 'Trending searches' },
   { to: '/blogs', icon: '✍', label: 'Blogs' },
   { to: '/pages', icon: '📄', label: 'Pages' },
   { to: '/policies', icon: '📜', label: 'Policies' },

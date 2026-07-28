@@ -53,7 +53,7 @@ export default function Organizers() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(258px, 1fr))', gap: 14 }}>
           {list.map((o) => {
             const isFollowing = following.includes(o.id);
-            const live = (liveEvents ?? EVENTS).filter((e) => (e.organizer?.id ?? e.organizerId) === o.id && e.status === 'approved').length;
+            const live = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter((e) => (e.organizer?.id ?? e.organizerId) === o.id && e.status === 'approved').length;
             return (
               <DirectoryCard
                 key={o.id}

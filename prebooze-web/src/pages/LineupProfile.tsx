@@ -20,15 +20,23 @@ export default function LineupProfile() {
 
   const [liveLineups, setLiveLineups] = useState<LineupProfileData[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
+  const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
     if (!isBackendEnabled()) return;
-    catalog.lineups().then(setLiveLineups).catch(() => setLiveLineups([]));
-    catalog.events({}).then(setLiveEvents).catch(() => setLiveEvents([]));
+    setLoading(true);
+    Promise.all([catalog.lineups(), catalog.events({})])
+      .then(([ls, evs]) => { setLiveLineups(ls); setLiveEvents(evs); })
+      .catch(() => { setLiveLineups([]); setLiveEvents([]); })
+      .finally(() => setLoading(false));
   }, []);
 
-  const lineup = liveLineups ? liveLineups.find((l) => l.slug === slug) : lineupBySlug(slug ?? '');
+  const lineup = (liveLineups ?? (isBackendEnabled() ? [] : LINEUPS)).find((l) => l.slug === slug) ?? (isBackendEnabled() ? undefined : lineupBySlug(slug ?? ''));
   const liveSeo = useEntitySeo('lineup', slug);
   useSeo(liveSeo, lineup?.name);
+
+  if (loading && !lineup) {
+    return <main className="page"><div className="container center" style={{ padding: '80px 0' }}><div className="muted">Loading…</div></div></main>;
+  }
 
   if (!lineup) {
     return (
@@ -44,10 +52,10 @@ export default function LineupProfile() {
   const followKey = 'lineup:' + lineup.slug;
   const isFollowing = following.includes(followKey);
   const isOwnProfile = user?.isLineup && user.lineupUsername?.toLowerCase() === lineup.slug.toLowerCase();
-  const upcoming = (liveEvents ?? EVENTS).filter(
+  const upcoming = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter(
     (e) => e.status === 'approved' && e.lineup.some((l) => l.name.toLowerCase() === lineup.name.toLowerCase())
   );
-  const more = (liveLineups ?? LINEUPS).filter((l) => l.slug !== lineup.slug && l.category === lineup.category).slice(0, 3);
+  const more = (liveLineups ?? (isBackendEnabled() ? [] : LINEUPS)).filter((l) => l.slug !== lineup.slug && l.category === lineup.category).slice(0, 3);
 
   return (
     <main className="page">

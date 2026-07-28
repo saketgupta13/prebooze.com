@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { EVENTS, TOP_CITIES, venueById } from '../data/mock';
-import { enabledLocationCities } from '../data/locations';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
+
+interface CityRow { name: string; icon?: string; top: boolean; events: number }
 
 /** BookMyShow-style city picker — top cities with icons, search, and geo-detect. */
 export default function CityPicker({ open, onClose, autoDetect = false }: { open: boolean; onClose: () => void; autoDetect?: boolean }) {
@@ -10,7 +13,20 @@ export default function CityPicker({ open, onClose, autoDetect = false }: { open
   const [detecting, setDetecting] = useState(false);
   const [geoMsg, setGeoMsg] = useState('');
 
-  const eventCounts = useMemo(() => {
+  // Real, admin-managed city list (Admin > Locations) — icon/top/enabled and
+  // a real per-city event count straight from GET /cities. Previously this
+  // picker computed "coming soon" vs "N events" from the local mock EVENTS
+  // array, which meant it could show a real-looking event count for a city
+  // with zero real events (or "coming soon" for one that actually had
+  // events) — and admin disabling a city here had zero effect on what
+  // guests could actually pick, since this never read that flag at all.
+  const [liveCities, setLiveCities] = useState<CityRow[] | null>(null);
+  useEffect(() => {
+    if (!open || !isBackendEnabled()) return;
+    catalog.cities().then(setLiveCities).catch(() => setLiveCities([]));
+  }, [open]);
+
+  const mockEventCounts = useMemo(() => {
     const m = new Map<string, number>();
     EVENTS.filter((e) => e.status === 'approved').forEach((e) => {
       const c = venueById(e.venueId)?.city;
@@ -18,12 +34,12 @@ export default function CityPicker({ open, onClose, autoDetect = false }: { open
     });
     return m;
   }, []);
+  const mockRows: CityRow[] = TOP_CITIES.map((t) => ({ name: t.name, icon: t.icon, top: true, events: mockEventCounts.get(t.name) ?? 0 }));
 
-  // full searchable list = event cities + top cities + every enabled admin location
-  const allCities = useMemo(
-    () => Array.from(new Set([...eventCounts.keys(), ...TOP_CITIES.map((t) => t.name), ...enabledLocationCities()])).sort(),
-    [eventCounts]
-  );
+  const cityRows = liveCities ?? (isBackendEnabled() ? [] : mockRows);
+  const topRows = cityRows.filter((c) => c.top);
+  const allCities = useMemo(() => cityRows.map((c) => c.name).sort(), [cityRows]);
+  const eventCounts = useMemo(() => new Map(cityRows.map((c) => [c.name, c.events])), [cityRows]);
   const filtered = allCities.filter((c) => c.toLowerCase().includes(q.toLowerCase()));
 
   const pick = useCallback(
@@ -108,11 +124,11 @@ export default function CityPicker({ open, onClose, autoDetect = false }: { open
           <>
             <div className="tiny muted-2" style={{ marginBottom: 8, fontWeight: 700, letterSpacing: 0.5 }}>TOP CITIES</div>
             <div className="citypick-grid">
-              {TOP_CITIES.map((t) => (
+              {topRows.map((t) => (
                 <button key={t.name} className={`citypick-cell ${t.name === city ? 'on' : ''}`} onClick={() => pick(t.name)}>
-                  <span className="ic">{t.icon}</span>
+                  <span className="ic">{t.icon ?? '📍'}</span>
                   <span className="nm">{t.name}</span>
-                  <span className="ct">{eventCounts.get(t.name) ? `${eventCounts.get(t.name)} events` : 'coming soon'}</span>
+                  <span className="ct">{t.events ? `${t.events} events` : 'coming soon'}</span>
                 </button>
               ))}
             </div>

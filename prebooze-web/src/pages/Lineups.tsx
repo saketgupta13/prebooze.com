@@ -19,7 +19,7 @@ export default function Lineups() {
     catalog.lineups(city).then(setLiveLineups).catch(() => setLiveLineups([]));
   }, [city]);
 
-  const pool = liveLineups ?? LINEUPS.filter((l) => l.city === city);
+  const pool = liveLineups ?? (isBackendEnabled() ? [] : LINEUPS.filter((l) => l.city === city));
   const cats = ['All', ...Array.from(new Set(pool.map((l) => l.category)))];
   const [catF, setCatF] = useState('All');
   const list = featuredFirst(

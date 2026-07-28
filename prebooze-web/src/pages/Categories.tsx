@@ -26,7 +26,12 @@ export default function Categories() {
     catalog.categories().then(setLiveCategories).catch(() => setLiveCategories([]));
   }, []);
 
-  const cityEvents = liveEvents ?? EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
+  // liveEvents starts null until the fetch resolves — without the
+  // isBackendEnabled() guard here (already present for `categories` below),
+  // this briefly fell through to the mock EVENTS array on every real page
+  // load, flashing wrong mock-derived counts before the real ones replaced
+  // them a moment later.
+  const cityEvents = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city));
   const categories = liveCategories ?? (isBackendEnabled() ? [] : CATEGORY_TREE);
   const catCount = (cat: string) => cityEvents.filter((e) => e.category === cat).length;
   const subCount = (cat: string, sub: string) => cityEvents.filter((e) => e.category === cat && e.subCategory === sub).length;
