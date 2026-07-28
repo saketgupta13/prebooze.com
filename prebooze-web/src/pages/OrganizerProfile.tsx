@@ -8,7 +8,6 @@ import type { Organizer, Event } from '../types';
 import { friendsAtEvents } from '../lib/social';
 import FriendsProof from '../components/FriendsProof';
 import ShareButton from '../components/ShareButton';
-import Poster from '../components/Poster';
 import SocialIcon, { guessPlatform } from '../components/SocialIcon';
 import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
@@ -17,7 +16,7 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 
 export default function OrganizerProfile() {
   const { id } = useParams();
-  const { user, following, toggleFollow } = useApp();
+  const { user, following, toggleFollow, netFollowers } = useApp();
 
   const [liveOrgs, setLiveOrgs] = useState<Organizer[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
@@ -68,7 +67,11 @@ export default function OrganizerProfile() {
     <main className="page">
       <div className="container">
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 22, flexWrap: 'wrap' }}>
-          <Poster hue={org.logoHue} emoji="🎧" variant="square" className="" imageUrl={org.logoUrl} />
+          {org.logoUrl ? (
+            <img src={org.logoUrl} alt="" className="avatar" style={{ width: 58, height: 58, objectFit: 'cover' }} />
+          ) : (
+            <span className="avatar" style={{ width: 58, height: 58, fontSize: 24 }}>🎧</span>
+          )}
           <div style={{ flex: 1, minWidth: 220 }}>
             <h1 style={{ fontSize: 24 }}>
               {org.brandName} {org.verified && <span className="verified">✓</span>}
@@ -113,7 +116,7 @@ export default function OrganizerProfile() {
           <div>
             <div className="stat3" style={{ marginBottom: 16 }}>
               <div className="s">
-                <div className="v">{fmtCount(org.followers)}</div>
+                <div className="v">{fmtCount(netFollowers(org.id, org.followers))}</div>
                 <div className="l">followers</div>
               </div>
               <div className="s">

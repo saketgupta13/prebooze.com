@@ -10,7 +10,7 @@ import DirectoryCard from '../components/DirectoryCard';
 
 /** Public directory of line-up artists — DJs, bands, comedians and more. */
 export default function Lineups() {
-  const { city, following, toggleFollow, featured } = useApp();
+  const { city, following, toggleFollow, featured, netFollowers } = useApp();
   const feat = featuredRefs(featured, 'lineup', city);
 
   const [liveLineups, setLiveLineups] = useState<LineupProfile[] | null>(null);
@@ -60,7 +60,7 @@ export default function Lineups() {
                 meta={`${l.category} · ${l.city}`}
                 bio={l.bio}
                 featured={feat.has(l.slug)}
-                stats={<><b>{l.followers.toLocaleString('en-IN')}</b> followers · <b>{l.eventsPlayed}</b> shows</>}
+                stats={<><b>{netFollowers(key, l.followers).toLocaleString('en-IN')}</b> followers · <b>{l.eventsPlayed}</b> shows</>}
                 action={
                   <button className={`btn btn-sm btn-block ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(key)}>
                     {isFollowing ? 'Following ✓' : '+ Follow'}

@@ -10,7 +10,7 @@ import DirectoryCard from '../components/DirectoryCard';
 
 /** Public directory of promoters in the selected city, ranked by show-up rate. */
 export default function Promoters() {
-  const { city, following, toggleFollow, featured } = useApp();
+  const { city, following, toggleFollow, featured, netFollowers } = useApp();
   const feat = featuredRefs(featured, 'promoter', city);
 
   const [livePromoters, setLivePromoters] = useState<PromoterProfile[] | null>(null);
@@ -50,7 +50,7 @@ export default function Promoters() {
                 avatarText="📣"
                 name={p.name}
                 verified={p.verified}
-                meta={`${p.city} · ${p.followers.toLocaleString('en-IN')} followers`}
+                meta={`${p.city} · ${netFollowers(key, p.followers).toLocaleString('en-IN')} followers`}
                 bio={p.bio}
                 featured={feat.has(p.slug)}
                 stats={

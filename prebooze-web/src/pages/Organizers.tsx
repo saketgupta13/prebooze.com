@@ -10,7 +10,7 @@ import DirectoryCard from '../components/DirectoryCard';
 
 /** Public directory of verified organizers in the selected city. */
 export default function Organizers() {
-  const { city, following, toggleFollow, featured } = useApp();
+  const { city, following, toggleFollow, featured, netFollowers } = useApp();
   const feat = featuredRefs(featured, 'organizer', city);
 
   const [liveOrgs, setLiveOrgs] = useState<Organizer[] | null>(null);
@@ -68,7 +68,7 @@ export default function Organizers() {
                 featured={feat.has(o.id)}
                 stats={
                   <>
-                    <b>{o.eventsHosted}</b> events · <b>{live}</b> live now · <b>{o.followers.toLocaleString('en-IN')}</b> followers
+                    <b>{o.eventsHosted}</b> events · <b>{live}</b> live now · <b>{netFollowers(o.id, o.followers).toLocaleString('en-IN')}</b> followers
                   </>
                 }
                 action={

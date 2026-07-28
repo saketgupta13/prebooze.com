@@ -232,6 +232,11 @@ interface AppState {
   removeCoupon: (id: string) => void;
   toggleCoupon: (id: string) => void;
   toggleFollow: (id: string) => void;
+  followerDeltas: Record<string, number>;
+  /** `base` is the server-fetched follower count for `id` at page-load
+   * time; this layers this session's own follow/unfollow clicks on top so
+   * the number moves immediately, without needing a refetch. */
+  netFollowers: (id: string, base: number) => number;
   interested: string[]; // event ids the user marked "Interested"
   toggleInterested: (eventId: string) => void;
   featured: Featured[];
@@ -338,6 +343,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [following, setFollowing] = useState<string[]>(() =>
     load('pb_following', ['livewire', 'nightowl', 'person:p1', 'person:p2', 'person:p3'])
   );
+  // Net change to a followee's follower *count* this session, keyed by the
+  // same followeeKey as `following` — the server-fetched count on each
+  // profile/directory page is a snapshot from page-load time, so without
+  // this, following/unfollowing updated the button state instantly but the
+  // number next to it stayed frozen until a hard reload. Deliberately not
+  // persisted to localStorage: it's a page-load-to-now nudge only, and a
+  // fresh fetch after reload already carries the real server count.
+  const [followerDeltas, setFollowerDeltas] = useState<Record<string, number>>({});
   const [interested, setInterested] = useState<string[]>(() => load('pb_interested', []));
   const [featured, setFeatured] = useState<Featured[]>(() => {
     const stored = load('pb_featured', SEED_FEATURED);
@@ -923,14 +936,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return;
         }
         const nowFollowing = !following.includes(id);
+        const delta = nowFollowing ? 1 : -1;
         setFollowing((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]));
+        setFollowerDeltas((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + delta }));
         if (isBackendEnabled() && getToken()) {
           (nowFollowing ? socialApi.follow(id) : socialApi.unfollow(id)).catch(() => {
-            // real call failed — revert the optimistic local update
+            // real call failed — revert both optimistic local updates
             setFollowing((prev) => (nowFollowing ? prev.filter((f) => f !== id) : [...prev, id]));
+            setFollowerDeltas((prev) => ({ ...prev, [id]: (prev[id] ?? 0) - delta }));
           });
         }
       },
+      followerDeltas,
+      netFollowers: (id, base) => base + (followerDeltas[id] ?? 0),
       featured,
       requestFeatured: (input) => {
         if (user) notify(user.phone, 'featured_submitted', { amount: String(input.amount), what: `${input.type} (${input.refId})` }, user.email || undefined);
@@ -1067,7 +1085,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       orgTeamAccess,
       orgTeamAccessLoaded,
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, waitlists, jobApps, reviews, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, waitlists, jobApps, reviews, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

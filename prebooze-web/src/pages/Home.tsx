@@ -7,7 +7,7 @@ import {
 } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
-import type { Event } from '../types';
+import type { Event, Organizer, PromoterProfile, LineupProfile, Venue } from '../types';
 import { friendsGoing, personFollowKey } from '../lib/social';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import EventCard from '../components/EventCard';
@@ -94,7 +94,7 @@ const JOIN = [
 
 export default function Home() {
   useSeo();
-  const { city, user, carts, setSelection, following, toggleFollow, featured } = useApp();
+  const { city, user, carts, setSelection, following, toggleFollow, featured, netFollowers } = useApp();
   const orgFeat = featuredRefs(featured, 'organizer', city);
   const promoFeat = featuredRefs(featured, 'promoter', city);
   const lineFeat = featuredRefs(featured, 'lineup', city);
@@ -131,6 +131,23 @@ export default function Home() {
   const categoryTree = liveCategories ?? (isBackendEnabled() ? [] : CATEGORY_TREE);
   const categoryChips = liveCategories ? ['All', ...liveCategories.map((c) => c.name)] : CATEGORIES;
 
+  // Real, city-scoped "top X" directories — mock ORGANIZERS/PROMOTERS/
+  // LINEUPS/VENUES stay only as the offline/dev-mode fallback. Each section
+  // below hides itself when the live list is empty (e.g. lineups/promoters
+  // have no real signups yet) instead of always showing 10 fabricated
+  // cards — "show what's available, hide what's not" per city.
+  const [liveOrganizers, setLiveOrganizers] = useState<Organizer[] | null>(null);
+  const [livePromoters, setLivePromoters] = useState<PromoterProfile[] | null>(null);
+  const [liveLineups, setLiveLineups] = useState<LineupProfile[] | null>(null);
+  const [liveVenues, setLiveVenues] = useState<Venue[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.organizers(city).then(setLiveOrganizers).catch(() => setLiveOrganizers([]));
+    catalog.promoters(city).then(setLivePromoters).catch(() => setLivePromoters([]));
+    catalog.lineups(city).then(setLiveLineups).catch(() => setLiveLineups([]));
+    catalog.venues(city).then(setLiveVenues).catch(() => setLiveVenues([]));
+  }, [city]);
+
   const published = liveEvents ?? EVENTS.filter((e) => e.status === 'approved');
   const cityOf = (e: Event) => e.venue?.city ?? venueById(e.venueId)?.city;
   const soldOf = (e: Event) => e.tiers.reduce((a, t) => a + t.sold, 0);
@@ -147,12 +164,18 @@ export default function Home() {
     [published, cat, city, eventFeat]
   );
 
-  // Strictly city-scoped top lists — empty sections are hidden.
+  // Strictly city-scoped top lists — empty sections are hidden. The
+  // organizer/promoter/lineup/venue lists are real (server already
+  // city-filters them); mock fallback only applies offline.
   const byCity = <T extends { city: string }>(arr: T[]) => arr.filter((x) => x.city === city);
-  const topOrganizers = featuredFirst([...byCity(ORGANIZERS)].sort((a, b) => b.eventsHosted - a.eventsHosted), (o) => o.id, orgFeat).slice(0, 10);
-  const topPromoters = featuredFirst([...byCity(PROMOTERS)].sort((a, b) => b.showRate - a.showRate), (p) => p.slug, promoFeat).slice(0, 10);
-  const topLineups = featuredFirst([...byCity(LINEUPS)].sort((a, b) => b.followers - a.followers), (l) => l.slug, lineFeat).slice(0, 10);
-  const topVenues = featuredFirst([...byCity(VENUES)].sort((a, b) => b.rating - a.rating), (v) => v.id, venueFeat).slice(0, 10);
+  const orgPool = liveOrganizers ?? (isBackendEnabled() ? [] : byCity(ORGANIZERS));
+  const promoterPool = livePromoters ?? (isBackendEnabled() ? [] : byCity(PROMOTERS));
+  const lineupPool = liveLineups ?? (isBackendEnabled() ? [] : byCity(LINEUPS));
+  const venuePool = liveVenues ?? (isBackendEnabled() ? [] : byCity(VENUES));
+  const topOrganizers = featuredFirst([...orgPool].sort((a, b) => b.eventsHosted - a.eventsHosted), (o) => o.id, orgFeat).slice(0, 10);
+  const topPromoters = featuredFirst([...promoterPool].sort((a, b) => b.showRate - a.showRate), (p) => p.slug, promoFeat).slice(0, 10);
+  const topLineups = featuredFirst([...lineupPool].sort((a, b) => b.followers - a.followers), (l) => l.slug, lineFeat).slice(0, 10);
+  const topVenues = featuredFirst([...venuePool].sort((a, b) => b.rating - a.rating), (v) => v.id, venueFeat).slice(0, 10);
   const cityPeople = [...byCity(PEOPLE)].sort((a, b) => b.followers - a.followers).slice(0, 10);
 
   const friendEvents = published
@@ -349,10 +372,10 @@ export default function Home() {
           </div>
           <Slider slideWidth={244}>
             {topOrganizers.map((o) => {
-              const live = EVENTS.filter((e) => e.organizerId === o.id && e.status === 'approved').length;
+              const live = (liveEvents ?? EVENTS).filter((e) => (e.organizer?.id ?? e.organizerId) === o.id && e.status === 'approved').length;
               return (
-                <DirectoryCard key={o.id} to={`/organizers/${o.id}`} hue={o.logoHue} avatarText="🎧" name={o.brandName} verified={o.verified} meta={`${o.city} · ★ ${o.rating}`} bio={o.about} featured={orgFeat.has(o.id)}
-                  stats={<><b>{o.eventsHosted}</b> events · <b>{live}</b> live · <b>{o.followers.toLocaleString('en-IN')}</b> followers</>}
+                <DirectoryCard key={o.id} to={`/organizers/${o.id}`} hue={o.logoHue} avatarText="🎧" avatarImage={o.logoUrl} name={o.brandName} verified={o.verified} meta={`${o.city} · ★ ${o.rating}`} bio={o.about} featured={orgFeat.has(o.id)}
+                  stats={<><b>{o.eventsHosted}</b> events · <b>{live}</b> live · <b>{netFollowers(o.id, o.followers).toLocaleString('en-IN')}</b> followers</>}
                   action={followBtn(o.id)} />
               );
             })}
@@ -369,7 +392,7 @@ export default function Home() {
           </div>
           <Slider slideWidth={244}>
             {topPromoters.map((p) => (
-              <DirectoryCard key={p.slug} to={`/promoter/${p.slug}`} hue={p.hue} avatarText="📣" name={p.name} verified={p.verified} meta={`${p.city} · ${p.followers.toLocaleString('en-IN')} followers`} bio={p.bio} featured={promoFeat.has(p.slug)}
+              <DirectoryCard key={p.slug} to={`/promoter/${p.slug}`} hue={p.hue} avatarText="📣" name={p.name} verified={p.verified} meta={`${p.city} · ${netFollowers('promoter:' + p.slug, p.followers).toLocaleString('en-IN')} followers`} bio={p.bio} featured={promoFeat.has(p.slug)}
                 stats={<><span className={p.showRate >= 70 ? 'accent bold' : 'bold'}>{p.showRate}%</span> show-rate · <b>{p.guestsBrought.toLocaleString('en-IN')}</b> brought</>}
                 action={followBtn('promoter:' + p.slug)} />
             ))}
@@ -387,7 +410,7 @@ export default function Home() {
           <Slider slideWidth={244}>
             {topLineups.map((l) => (
               <DirectoryCard key={l.slug} to={`/lineup/${l.slug}`} hue={l.hue} avatarText={l.emoji} name={l.name} verified={l.verified} meta={`${l.category} · ${l.city}`} bio={l.bio} featured={lineFeat.has(l.slug)}
-                stats={<><b>{l.followers.toLocaleString('en-IN')}</b> followers · <b>{l.eventsPlayed}</b> shows</>}
+                stats={<><b>{netFollowers('lineup:' + l.slug, l.followers).toLocaleString('en-IN')}</b> followers · <b>{l.eventsPlayed}</b> shows</>}
                 action={followBtn('lineup:' + l.slug)} />
             ))}
           </Slider>
@@ -403,7 +426,7 @@ export default function Home() {
           </div>
           <Slider slideWidth={260}>
             {topVenues.map((v) => {
-              const count = EVENTS.filter((e) => e.venueId === v.id && e.status === 'approved').length;
+              const count = (liveEvents ?? EVENTS).filter((e) => (e.venue?.id ?? e.venueId) === v.id && e.status === 'approved').length;
               return (
                 <Link key={v.id} to={`/venues/${v.id}`} className="ecard">
                   <Poster hue={v.photoHue} emoji="🏛" label="venue photo" variant="landscape" />
@@ -412,7 +435,7 @@ export default function Home() {
                       {v.name} {v.verified && <span className="verified">✓</span>}{' '}
                       {venueFeat.has(v.id) && <span className="badge badge-accent" style={{ fontSize: 10 }}>★ Featured</span>}
                     </h3>
-                    <div className="meta">★ {v.rating} · {count || v.followers % 20} events · {v.type}</div>
+                    <div className="meta">★ {v.rating} · {count} event{count === 1 ? '' : 's'} · {v.type}</div>
                   </div>
                 </Link>
               );

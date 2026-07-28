@@ -18,7 +18,7 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 /** Public promoter profile — followable, shows the events they're promoting. */
 export default function PromoterProfile() {
   const { slug } = useParams();
-  const { user, following, toggleFollow } = useApp();
+  const { user, following, toggleFollow, netFollowers } = useApp();
 
   const [livePromoters, setLivePromoters] = useState<PromoterProfileData[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
@@ -86,7 +86,7 @@ export default function PromoterProfile() {
           <div>
             <div className="stat3" style={{ marginBottom: 16 }}>
               <div className="s">
-                <div className="v">{fmtCount(promoter.followers)}</div>
+                <div className="v">{fmtCount(netFollowers(followKey, promoter.followers))}</div>
                 <div className="l">followers</div>
               </div>
               <div className="s">
@@ -139,7 +139,7 @@ export default function PromoterProfile() {
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <h3 style={{ fontSize: 14 }}>{p.name} {p.verified && <span className="verified">✓</span>}</h3>
-                      <div className="meta">{fmtCount(p.followers)} followers</div>
+                      <div className="meta">{fmtCount(netFollowers('promoter:' + p.slug, p.followers))} followers</div>
                     </div>
                   </Link>
                 ))}

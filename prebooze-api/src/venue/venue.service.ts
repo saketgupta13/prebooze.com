@@ -139,7 +139,7 @@ export class VenueService {
       },
     });
 
-    await this.prisma.user.update({ where: { id: userId }, data: { venueName: venue.name, venueId: id, roleStatus: 'pending' } });
+    await this.prisma.user.update({ where: { id: userId }, data: { venueName: venue.name, venueLogoUrl: venue.logoUrl, venueId: id, roleStatus: 'pending' } });
 
     return venue;
   }
@@ -154,13 +154,19 @@ export class VenueService {
     return { ...venue, favourites };
   }
 
-  /** City changes are admin-gated — everything else an owner can edit freely. */
+  /** City changes are admin-gated — everything else an owner can edit freely.
+   * name/logoUrl are also mirrored onto User.venueName/venueLogoUrl — same
+   * reasoning as OrganizerService.updateMe's orgBrand/orgLogoUrl sync: those
+   * are read straight off the JWT-fetched user for the global header, so a
+   * rename or logo change here used to go stale there until this synced it
+   * back (venueLogoUrl didn't even exist as a column before this fix, so the
+   * header never had a venue logo to show at all). */
   async updateListing(userId: string, patch: Partial<OnboardInput>) {
     const venue = await this.myVenue(userId);
     if (patch.city !== undefined && patch.city !== venue.city) {
       throw new BadRequestException('City changes require admin review — contact support');
     }
-    return this.prisma.venue.update({
+    const updated = await this.prisma.venue.update({
       where: { id: venue.id },
       data: {
         name: patch.name?.trim(),
@@ -174,6 +180,18 @@ export class VenueService {
         logoUrl: patch.logoUrl,
       },
     });
+
+    if (patch.name !== undefined || patch.logoUrl !== undefined) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          venueName: patch.name !== undefined ? updated.name : undefined,
+          venueLogoUrl: patch.logoUrl !== undefined ? updated.logoUrl : undefined,
+        },
+      });
+    }
+
+    return updated;
   }
 
   async events(userId: string) {

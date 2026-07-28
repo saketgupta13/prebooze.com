@@ -160,6 +160,8 @@ export default function Header() {
           <div className="hdr-user" role="button" tabIndex={0} onClick={() => setMenuOpen((o) => !o)}>
             {user.isOrganizer && user.orgLogoUrl ? (
               <img src={user.orgLogoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
+            ) : user.isVenue && user.venueLogoUrl ? (
+              <img src={user.venueLogoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
             ) : (
               <span className="avatar">👤</span>
             )}

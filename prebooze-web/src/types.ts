@@ -318,6 +318,7 @@ export interface User {
   isVenue?: boolean;
   venueName?: string;
   venueId?: string; // links to the Venue record created at onboarding
+  venueLogoUrl?: string; // real, uploaded logo — same role as orgLogoUrl
   // Elevated roles (organizer/promoter/lineup/venue) are always manually
   // reviewed by the team — the isOrganizer/isPromoter/isLineup/isVenue flags
   // above only flip true once approved. Guest ID verification (idVerified)

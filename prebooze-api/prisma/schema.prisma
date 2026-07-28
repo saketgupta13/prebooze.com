@@ -78,6 +78,10 @@ model User {
   promoterPlan     String?
   venueName        String?
   venueId          String?
+  // Denormalized from Venue.logoUrl (kept in sync in VenueService.onboard/
+  // updateListing) — same reasoning as orgLogoUrl above: lets the global
+  // header show it without a second fetch on every page.
+  venueLogoUrl     String?
 
   attendanceVisibility AttendanceVisibility @default(off)
   autoRenew            Boolean              @default(false)

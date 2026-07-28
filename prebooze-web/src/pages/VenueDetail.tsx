@@ -14,7 +14,7 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 
 export default function VenueDetail() {
   const { id } = useParams();
-  const { user, following, toggleFollow, favVenues, toggleFavVenue } = useApp();
+  const { user, following, toggleFollow, favVenues, toggleFavVenue, netFollowers } = useApp();
 
   const [liveVenues, setLiveVenues] = useState<Venue[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
@@ -73,7 +73,7 @@ export default function VenueDetail() {
               {venue.name} {venue.verified && <span className="verified">✓</span>}
             </h1>
             <div className="muted small">
-              {venue.locality} · followed by guests & hosts · {fmtCount(venue.followers)} followers
+              {venue.locality} · followed by guests & hosts · {fmtCount(netFollowers(followKey, venue.followers))} followers
             </div>
             {venue.type && (
               <div className="chip-row" style={{ marginTop: 6 }}>

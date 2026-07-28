@@ -56,6 +56,7 @@ export function toApiUser(u: User) {
     isVenue: u.role === 'venue' || undefined,
     venueName: u.venueName ?? undefined,
     venueId: u.venueId ?? undefined,
+    venueLogoUrl: u.venueLogoUrl ?? undefined,
     attendanceVisibility: u.attendanceVisibility,
     autoRenew: u.autoRenew,
     // null = never applied for a role; 'pending' | 'approved' | 'rejected' otherwise.

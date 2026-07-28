@@ -16,7 +16,7 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 /** Public line-up profile — artists, DJs, sponsors and promoters guests can follow. */
 export default function LineupProfile() {
   const { slug } = useParams();
-  const { user, following, toggleFollow } = useApp();
+  const { user, following, toggleFollow, netFollowers } = useApp();
 
   const [liveLineups, setLiveLineups] = useState<LineupProfileData[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
@@ -83,7 +83,7 @@ export default function LineupProfile() {
           <div>
             <div className="stat3" style={{ marginBottom: 16 }}>
               <div className="s">
-                <div className="v">{fmtCount(lineup.followers)}</div>
+                <div className="v">{fmtCount(netFollowers(followKey, lineup.followers))}</div>
                 <div className="l">followers</div>
               </div>
               <div className="s">
@@ -152,7 +152,7 @@ export default function LineupProfile() {
                         <h3 style={{ fontSize: 14 }}>
                           {l.name} {l.verified && <span className="verified">✓</span>}
                         </h3>
-                        <div className="meta">{fmtCount(l.followers)} followers</div>
+                        <div className="meta">{fmtCount(netFollowers('lineup:' + l.slug, l.followers))} followers</div>
                       </div>
                     </Link>
                   ))}
