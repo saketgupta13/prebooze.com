@@ -10,7 +10,7 @@ import DirectoryCard from '../components/DirectoryCard';
 
 /** Public directory of promoters in the selected city, ranked by show-up rate. */
 export default function Promoters() {
-  const { city, following, toggleFollow, featured, netFollowers } = useApp();
+  const { city, user, following, toggleFollow, featured, netFollowers } = useApp();
   const feat = featuredRefs(featured, 'promoter', city);
 
   const [livePromoters, setLivePromoters] = useState<PromoterProfile[] | null>(null);
@@ -42,6 +42,7 @@ export default function Promoters() {
           {list.map((p) => {
             const key = 'promoter:' + p.slug;
             const isFollowing = following.includes(key);
+            const isOwn = user?.isPromoter && user.promoterUsername?.toLowerCase() === p.slug.toLowerCase();
             return (
               <DirectoryCard
                 key={p.slug}
@@ -60,9 +61,11 @@ export default function Promoters() {
                   </>
                 }
                 action={
-                  <button className={`btn btn-sm btn-block ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(key)}>
-                    {isFollowing ? 'Following ✓' : '+ Follow'}
-                  </button>
+                  isOwn ? null : (
+                    <button className={`btn btn-sm btn-block ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(key)}>
+                      {isFollowing ? 'Following ✓' : '+ Follow'}
+                    </button>
+                  )
                 }
               />
             );

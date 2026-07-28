@@ -16,8 +16,8 @@ const DRAFT_ID = 'lineup';
 // RealUploadBox below), so it round-trips through the backend, not
 // localStorage, the same reasoning organizer/Onboarding.tsx's draft gives
 // for excluding logo/aadhaar/selfie.
-type Draft = { stageName: string; username: string; category: string; loc: LocationValue; bio: string; links: string };
-const emptyDraft: Draft = { stageName: '', username: '', category: 'DJ', loc: emptyLocation(), bio: '', links: '' };
+type Draft = { stageName: string; username: string; category: string; loc: LocationValue; bio: string; links: string[] };
+const emptyDraft: Draft = { stageName: '', username: '', category: 'DJ', loc: emptyLocation(), bio: '', links: [''] };
 
 /** Line-up onboarding — single-step submission straight to manual admin
  * review. No ID-doc/selfie step: unlike organizer/promoter/venue, line-ups
@@ -38,12 +38,16 @@ export default function LineupOnboarding() {
   const [category, setCategory] = useState(draft0.category);
   const [loc, setLoc] = useState(draft0.loc);
   const [bio, setBio] = useState(draft0.bio);
-  const [links, setLinks] = useState(draft0.links);
+  const [links, setLinks] = useState<string[]>(draft0.links.length ? draft0.links : ['']);
   const [done, setDone] = useState(false);
 
   useEffect(() => {
     saveDraft(DRAFT_ID, { stageName, username, category, loc, bio, links });
   }, [stageName, username, category, loc, bio, links]);
+
+  const setLink = (i: number, v: string) => setLinks((prev) => prev.map((l, idx) => (idx === i ? v : l)));
+  const addLink = () => setLinks((prev) => [...prev, '']);
+  const removeLink = (i: number) => setLinks((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : ['']));
 
   // Same WhatsApp OTP login as guests — then this instead of the guest profile
   if (!user) return <Navigate to="/login" state={{ from: '/lineup/onboarding' }} replace />;
@@ -66,7 +70,7 @@ export default function LineupOnboarding() {
     try {
       const payload = {
         name: stageName.trim(), category, username: username.trim(), city: loc.city,
-        bio, links, logoUrl: logoUrl || undefined,
+        bio, links: links.map((l) => l.trim()).filter(Boolean), logoUrl: logoUrl || undefined,
       };
       const res = await kyc.submitRole('lineup', payload, []);
       updateUser({ ...res.user, pendingRole: 'lineup' });
@@ -155,7 +159,20 @@ export default function LineupOnboarding() {
           <LocationPicker value={loc} onChange={setLoc} />
           <div className="field">
             <span>Links (socials / music)</span>
-            <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="instagram.com/you, open.spotify.com/artist/you" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {links.map((l, i) => (
+                <div key={i} style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    style={{ flex: 1 }}
+                    value={l}
+                    onChange={(e) => setLink(i, e.target.value)}
+                    placeholder={i === 0 ? 'instagram.com/you, spotify, soundcloud…' : 'Another link'}
+                  />
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeLink(i)} title="Remove">✕</button>
+                </div>
+              ))}
+              <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addLink}>+ Add another link</button>
+            </div>
           </div>
           <div className="field">
             <span>Bio — what do you play / do?</span>

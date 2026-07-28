@@ -377,10 +377,7 @@ export class KycService {
     for (const c of user.id) h = (h * 31 + c.charCodeAt(0)) % 360;
 
     const str = (k: string) => (typeof payload?.[k] === 'string' ? (payload[k] as string).trim() : '') || undefined;
-    const linksRaw = payload?.links;
-    const links = typeof linksRaw === 'string'
-      ? linksRaw.split(',').map((s) => s.trim()).filter(Boolean)
-      : Array.isArray(linksRaw) ? (linksRaw as string[]).filter(Boolean) : [];
+    const links = Array.isArray(payload?.links) ? (payload!.links as string[]).map((s) => s.trim()).filter(Boolean) : [];
 
     return {
       id: await uniqueId(),

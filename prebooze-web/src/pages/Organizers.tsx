@@ -10,7 +10,7 @@ import DirectoryCard from '../components/DirectoryCard';
 
 /** Public directory of verified organizers in the selected city. */
 export default function Organizers() {
-  const { city, following, toggleFollow, featured, netFollowers } = useApp();
+  const { city, user, following, toggleFollow, featured, netFollowers } = useApp();
   const feat = featuredRefs(featured, 'organizer', city);
 
   const [liveOrgs, setLiveOrgs] = useState<Organizer[] | null>(null);
@@ -53,6 +53,7 @@ export default function Organizers() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(258px, 1fr))', gap: 14 }}>
           {list.map((o) => {
             const isFollowing = following.includes(o.id);
+            const isOwn = user?.isOrganizer && user.orgUsername?.toLowerCase() === o.username.toLowerCase();
             const live = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter((e) => (e.organizer?.id ?? e.organizerId) === o.id && e.status === 'approved').length;
             return (
               <DirectoryCard
@@ -72,9 +73,11 @@ export default function Organizers() {
                   </>
                 }
                 action={
-                  <button className={`btn btn-sm btn-block ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(o.id)}>
-                    {isFollowing ? 'Following ✓' : '+ Follow'}
-                  </button>
+                  isOwn ? null : (
+                    <button className={`btn btn-sm btn-block ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(o.id)}>
+                      {isFollowing ? 'Following ✓' : '+ Follow'}
+                    </button>
+                  )
                 }
               />
             );

@@ -122,8 +122,12 @@ export default function CreateEvent() {
           setCategory(ev.category);
           setSubCategory(ev.subCategory ?? subsForCat(ev.category)[0] ?? '');
           setAgeLimit(ev.ageLimit);
-          setDate(ev.date.slice(0, 10));
+          // ev.date is a UTC ISO string — derive both fields from local Date
+          // getters (not a raw slice of the UTC string), so an event near
+          // midnight IST doesn't show the wrong calendar day, and the time
+          // field always matches what was actually entered.
           const d = new Date(ev.date);
+          setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
           setTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
           setDuration(String(ev.durationHrs));
           setVenueId(ev.venueId);

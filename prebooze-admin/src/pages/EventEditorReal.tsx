@@ -14,6 +14,18 @@ import RealVideoUpload from '../components/RealVideoUpload';
 
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
 
+/** `found.date` is a UTC ISO string ("...T10:30:00.000Z") — a plain
+ * `.slice(0, 16)` fed straight into a <input type="datetime-local"> shows
+ * that raw UTC clock time as if it were already local, which is why an
+ * event set for 4 PM IST reopened as 10 AM. datetime-local always means
+ * local wall-clock time, so this has to go through the local Date getters
+ * (not the UTC ones) to round-trip correctly. */
+const toLocalDateTimeInput = (iso: string) => {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 interface RuleDraft { title: string; body: string }
 const DEFAULT_RULES: RuleDraft[] = [
   { title: 'Dress code', body: 'Smart casual — no flip-flops or sleeveless shirts.' },
@@ -109,7 +121,7 @@ export default function EventEditorReal() {
               setSubCategory(found.subCategory ?? '');
               setVenueId(found.venueId);
               setOrganizerId(found.organizerId);
-              setDateTime(found.date ? found.date.slice(0, 16) : '');
+              setDateTime(found.date ? toLocalDateTimeInput(found.date) : '');
               setDurationHrs(String(found.durationHrs ?? 4));
               setAgeLimit(found.ageLimit ?? '18+');
               setTiers(

@@ -140,7 +140,7 @@ export class CatalogService {
       select: PUBLIC_VENUE_SELECT,
     });
     const counts = await this.realFollowerCounts(rows.map((v) => `venue:${v.id}`));
-    return rows.map((v) => ({ ...v, followers: counts.get(`venue:${v.id}`) ?? v.followers }));
+    return rows.map((v) => ({ ...v, followers: counts.get(`venue:${v.id}`) ?? 0 }));
   }
 
   /** Single-venue fetch — the detail page used to call venues() (every venue
@@ -155,7 +155,7 @@ export class CatalogService {
     });
     if (!venue) throw new NotFoundException('Venue not found');
     const counts = await this.realFollowerCounts([`venue:${venue.id}`]);
-    return { ...venue, followers: counts.get(`venue:${venue.id}`) ?? venue.followers };
+    return { ...venue, followers: counts.get(`venue:${venue.id}`) ?? 0 };
   }
 
   async organizers(city?: string) {
@@ -165,7 +165,7 @@ export class CatalogService {
       select: PUBLIC_ORGANIZER_SELECT,
     });
     const counts = await this.realFollowerCounts(rows.map((o) => o.id));
-    const withCounts = rows.map((o) => ({ ...o, followers: counts.get(o.id) ?? o.followers }));
+    const withCounts = rows.map((o) => ({ ...o, followers: counts.get(o.id) ?? 0 }));
     if (!city) return withCounts;
     const featured = await this.activeFeaturedRefs('organizer', city);
     return this.sortFeaturedFirst(withCounts, (o) => o.id, featured);
@@ -175,13 +175,13 @@ export class CatalogService {
     const org = await this.prisma.organizer.findUnique({ where: { id }, select: PUBLIC_ORGANIZER_SELECT });
     if (!org) throw new NotFoundException('Organizer not found');
     const counts = await this.realFollowerCounts([org.id]);
-    return { ...org, followers: counts.get(org.id) ?? org.followers };
+    return { ...org, followers: counts.get(org.id) ?? 0 };
   }
 
   async promoters(city?: string) {
     const rows = await this.prisma.promoter.findMany({ where: city ? { city } : {}, orderBy: { showRate: 'desc' } });
     const counts = await this.realFollowerCounts(rows.map((p) => `promoter:${p.slug}`));
-    const withCounts = rows.map((p) => ({ ...p, followers: counts.get(`promoter:${p.slug}`) ?? p.followers }));
+    const withCounts = rows.map((p) => ({ ...p, followers: counts.get(`promoter:${p.slug}`) ?? 0 }));
     if (!city) return withCounts;
     const featured = await this.activeFeaturedRefs('promoter', city);
     return this.sortFeaturedFirst(withCounts, (p) => p.slug, featured);
@@ -191,13 +191,13 @@ export class CatalogService {
     const promoter = await this.prisma.promoter.findUnique({ where: { slug } });
     if (!promoter) throw new NotFoundException('Promoter not found');
     const counts = await this.realFollowerCounts([`promoter:${slug}`]);
-    return { ...promoter, followers: counts.get(`promoter:${slug}`) ?? promoter.followers };
+    return { ...promoter, followers: counts.get(`promoter:${slug}`) ?? 0 };
   }
 
   async lineups(city?: string) {
     const rows = await this.prisma.lineup.findMany({ where: city ? { city } : {}, orderBy: { followers: 'desc' } });
     const counts = await this.realFollowerCounts(rows.map((l) => `lineup:${l.slug}`));
-    const withCounts = rows.map((l) => ({ ...l, followers: counts.get(`lineup:${l.slug}`) ?? l.followers }));
+    const withCounts = rows.map((l) => ({ ...l, followers: counts.get(`lineup:${l.slug}`) ?? 0 }));
     if (!city) return withCounts;
     const featured = await this.activeFeaturedRefs('lineup', city);
     return this.sortFeaturedFirst(withCounts, (l) => l.slug, featured);
@@ -207,7 +207,7 @@ export class CatalogService {
     const lineup = await this.prisma.lineup.findUnique({ where: { slug } });
     if (!lineup) throw new NotFoundException('Line-up not found');
     const counts = await this.realFollowerCounts([`lineup:${slug}`]);
-    return { ...lineup, followers: counts.get(`lineup:${slug}`) ?? lineup.followers };
+    return { ...lineup, followers: counts.get(`lineup:${slug}`) ?? 0 };
   }
 
   async people(city?: string) {

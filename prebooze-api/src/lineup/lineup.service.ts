@@ -32,12 +32,13 @@ export class LineupService {
 
   /** Mirrors PromoterService.updateMe/OrganizerService.updateMe — name/
    * category/username/logoUrl are mirrored onto User.lineup* for the global
-   * header + case-normalized self-follow check. LineupSettings.tsx's
-   * free-text "socials" field maps onto Lineup.links (a string[]) by
-   * splitting on commas/slashes — the only separator format the placeholder
-   * ever implied ("ig / spotify / soundcloud"). Username reuses the same
-   * slug-collision-safe scheme as KycService.newLineupRow. */
-  async updateMe(userId: string, patch: { name?: string; category?: string; city?: string; bio?: string; socials?: string; logoUrl?: string; username?: string }) {
+   * header + case-normalized self-follow check. `links` is a real add/remove
+   * list of distinct URLs now (LineupOnboarding.tsx/LineupSettings.tsx), not
+   * a single free-text field split on a delimiter — that used to make a full
+   * URL like "instagram.com/handle" ambiguous with the separator itself.
+   * Username reuses the same slug-collision-safe scheme as
+   * KycService.newLineupRow. */
+  async updateMe(userId: string, patch: { name?: string; category?: string; city?: string; bio?: string; links?: string[]; logoUrl?: string; username?: string }) {
     const lineup = await this.myLineup(userId);
 
     let slug = lineup.slug;
@@ -60,13 +61,7 @@ export class LineupService {
         bio: patch.bio,
         logoUrl: patch.logoUrl,
         slug: patch.username !== undefined ? slug : undefined,
-        // Comma-separated only — a single "/" separator would mangle full
-        // URLs like "instagram.com/handle" (and the seed data's own links,
-        // e.g. "ig/klang", already rely on "/" being meaningful within an
-        // entry, not a delimiter between entries).
-        links: patch.socials !== undefined
-          ? patch.socials.split(',').map((s) => s.trim()).filter(Boolean)
-          : undefined,
+        links: patch.links !== undefined ? patch.links.map((s) => s.trim()).filter(Boolean) : undefined,
       },
     });
 

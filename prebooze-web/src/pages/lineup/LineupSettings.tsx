@@ -21,14 +21,17 @@ export default function LineupSettings() {
     lineupCategory: user?.lineupCategory ?? 'DJ',
     username: user?.lineupUsername ?? '',
     bio: user?.bio ?? '',
-    socials: user?.socials ?? '',
   });
+  const [links, setLinks] = useState<string[]>(['']);
   const [loc, setLoc] = useState<LocationValue>(emptyLocation());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+  const setLink = (i: number, v: string) => setLinks((prev) => prev.map((l, idx) => (idx === i ? v : l)));
+  const addLink = () => setLinks((prev) => [...prev, '']);
+  const removeLink = (i: number) => setLinks((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : ['']));
 
   // The dashboard used to seed itself from the guest User fields (city/bio/
   // socials), which went stale the moment an artist actually saved a profile
@@ -37,7 +40,8 @@ export default function LineupSettings() {
     lineupApi.me()
       .then((l) => {
         setLogoUrl(l.logoUrl ?? '');
-        setForm({ lineupName: l.name, lineupCategory: l.category, username: l.slug, bio: l.bio, socials: l.links.join(', ') });
+        setForm({ lineupName: l.name, lineupCategory: l.category, username: l.slug, bio: l.bio });
+        setLinks(l.links.length ? l.links : ['']);
         setLoc((prev) => ({ ...prev, city: l.city }));
       })
       .catch(() => {})
@@ -55,11 +59,12 @@ export default function LineupSettings() {
         username: form.username.trim(),
         city: loc.city,
         bio: form.bio,
-        socials: form.socials,
+        links: links.map((l) => l.trim()).filter(Boolean),
         logoUrl: logoUrl || undefined,
       });
-      updateUser({ lineupName: updated.name, lineupCategory: updated.category, lineupUsername: updated.slug, lineupLogoUrl: updated.logoUrl ?? undefined, city: updated.city, bio: updated.bio, socials: form.socials });
+      updateUser({ lineupName: updated.name, lineupCategory: updated.category, lineupUsername: updated.slug, lineupLogoUrl: updated.logoUrl ?? undefined, city: updated.city, bio: updated.bio });
       setForm((f) => ({ ...f, username: updated.slug }));
+      setLinks(updated.links.length ? updated.links : ['']);
       toast('Artist profile saved ✓');
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : 'Failed to save profile');
@@ -105,7 +110,21 @@ export default function LineupSettings() {
         <LocationPicker value={loc} onChange={setLoc} />
         <div className="field">
           <span>Links (socials / music)</span>
-          <input value={form.socials} onChange={set('socials')} placeholder="instagram.com/you, open.spotify.com/artist/you" disabled={loading} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {links.map((l, i) => (
+              <div key={i} style={{ display: 'flex', gap: 6 }}>
+                <input
+                  style={{ flex: 1 }}
+                  value={l}
+                  onChange={(e) => setLink(i, e.target.value)}
+                  placeholder={i === 0 ? 'instagram.com/you, spotify, soundcloud…' : 'Another link'}
+                  disabled={loading}
+                />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeLink(i)} title="Remove" disabled={loading}>✕</button>
+              </div>
+            ))}
+            <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addLink} disabled={loading}>+ Add another link</button>
+          </div>
         </div>
         <div className="field">
           <span>Bio — what do you play / do?</span>

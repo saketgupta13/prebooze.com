@@ -211,11 +211,17 @@ export default function Home() {
     navigate('/checkout');
   };
 
-  const followBtn = (key: string) => (
-    <button className={`btn btn-sm btn-block ${following.includes(key) ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(key)}>
-      {following.includes(key) ? 'Following ✓' : '+ Follow'}
-    </button>
-  );
+  // isOwn hides the button entirely rather than disabling it — same
+  // treatment OrganizerProfile.tsx/VenueDetail.tsx/LineupProfile.tsx already
+  // give their own "isOwnProfile" case; this just closes the gap where the
+  // same organizer/promoter/line-up could still follow (and inflate) their
+  // own follower count from the home page slider cards.
+  const followBtn = (key: string, isOwn = false) =>
+    isOwn ? null : (
+      <button className={`btn btn-sm btn-block ${following.includes(key) ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(key)}>
+        {following.includes(key) ? 'Following ✓' : '+ Follow'}
+      </button>
+    );
 
   return (
     <main className="page">
@@ -412,7 +418,7 @@ export default function Home() {
               return (
                 <DirectoryCard key={o.id} to={`/organizers/${o.id}`} hue={o.logoHue} avatarText="🎧" avatarImage={o.logoUrl} name={o.brandName} verified={o.verified} meta={`${o.city} · ★ ${o.rating}`} bio={o.about} featured={orgFeat.has(o.id)}
                   stats={<><b>{o.eventsHosted}</b> events · <b>{live}</b> live · <b>{netFollowers(o.id, o.followers).toLocaleString('en-IN')}</b> followers</>}
-                  action={followBtn(o.id)} />
+                  action={followBtn(o.id, user?.isOrganizer && user.orgUsername?.toLowerCase() === o.username.toLowerCase())} />
               );
             })}
           </Slider>
@@ -430,7 +436,7 @@ export default function Home() {
             {topPromoters.map((p) => (
               <DirectoryCard key={p.slug} to={`/promoter/${p.slug}`} hue={p.hue} avatarText="📣" name={p.name} verified={p.verified} meta={`${p.city} · ${netFollowers('promoter:' + p.slug, p.followers).toLocaleString('en-IN')} followers`} bio={p.bio} featured={promoFeat.has(p.slug)}
                 stats={<><span className={p.showRate >= 70 ? 'accent bold' : 'bold'}>{p.showRate}%</span> show-rate · <b>{p.guestsBrought.toLocaleString('en-IN')}</b> brought</>}
-                action={followBtn('promoter:' + p.slug)} />
+                action={followBtn('promoter:' + p.slug, user?.isPromoter && user.promoterUsername?.toLowerCase() === p.slug.toLowerCase())} />
             ))}
           </Slider>
         </section>
@@ -447,7 +453,7 @@ export default function Home() {
             {topLineups.map((l) => (
               <DirectoryCard key={l.slug} to={`/lineup/${l.slug}`} hue={l.hue} avatarText={l.emoji} avatarImage={l.logoUrl} name={l.name} verified={l.verified} meta={`${l.category} · ${l.city}`} bio={l.bio} featured={lineFeat.has(l.slug)}
                 stats={<><b>{netFollowers('lineup:' + l.slug, l.followers).toLocaleString('en-IN')}</b> followers · <b>{l.eventsPlayed}</b> shows</>}
-                action={followBtn('lineup:' + l.slug)} />
+                action={followBtn('lineup:' + l.slug, user?.isLineup && user.lineupUsername?.toLowerCase() === l.slug.toLowerCase())} />
             ))}
           </Slider>
         </section>

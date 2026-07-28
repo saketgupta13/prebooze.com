@@ -136,6 +136,15 @@ export default function EventDetail() {
 
   const venue = event.venue ?? venueById(event.venueId);
   const organizer = event.organizer ?? organizerById(event.organizerId);
+  // A role account showing "Interested" in their own event (as its
+  // organizer/venue, or as a line-up tagged on it) isn't a real guest
+  // signal — same reasoning as hiding the Follow button on your own
+  // profile pages (OrganizerProfile.tsx/VenueDetail.tsx/LineupProfile.tsx).
+  const isOwnEvent = Boolean(
+    (user?.isOrganizer && user.orgUsername?.toLowerCase() === organizer?.username?.toLowerCase()) ||
+    (user?.isVenue && user.venueId === venue?.id) ||
+    (user?.isLineup && user.lineupName && event.lineup.some((l) => l.name.toLowerCase() === user.lineupName!.toLowerCase()))
+  );
   const ticketCount = Object.values(qty).reduce((a, b) => a + b, 0);
   const minPrice = Math.min(...event.tiers.map((t) => t.price));
   const recommended = liveEvent ? liveRecommended : EVENTS.filter((e) => e.status === 'approved' && e.id !== event.id).slice(0, 4);
@@ -197,19 +206,10 @@ export default function EventDetail() {
                     </span>
                   ))}
                   <ShareButton path={`/events/${event.slug}`} text={`${event.title} 🎟️ — book on Prebooze:`} />
-                  {(event.socialBanners?.postUrl || event.socialBanners?.storyUrl) && (
-                    <>
-                      {event.socialBanners.postUrl && (
-                        <a href={event.socialBanners.postUrl} download className="chip small" style={{ textDecoration: 'none' }}>
-                          ⬇ Post image
-                        </a>
-                      )}
-                      {event.socialBanners.storyUrl && (
-                        <a href={event.socialBanners.storyUrl} download className="chip small" style={{ textDecoration: 'none' }}>
-                          ⬇ Story image
-                        </a>
-                      )}
-                    </>
+                  {event.socialBanners?.storyUrl && (
+                    <a href={event.socialBanners.storyUrl} download className="chip small" style={{ textDecoration: 'none' }}>
+                      ⬇ Story image
+                    </a>
                   )}
                 </div>
 
@@ -221,15 +221,34 @@ export default function EventDetail() {
                     style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
                   >
                     {organizer.logoUrl ? (
-                      <img src={organizer.logoUrl} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                      <img src={organizer.logoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
                     ) : (
-                      <span style={{ width: 34, height: 34, borderRadius: '50%', background: `hsl(${organizer.logoHue} 55% 45%)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🎧</span>
+                      <span className="avatar">🎧</span>
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="tiny muted-2">Hosted by</div>
                       <div className="bold small">
                         {organizer.brandName} {organizer.verified && <span className="verified">✓</span>}{' '}
                         <span className="muted" style={{ fontWeight: 400 }}>· ★ {organizer.rating}</span>
+                      </div>
+                    </div>
+                    <span className="link small">View →</span>
+                  </Link>
+
+                  <Link
+                    to={`/venues/${venue.id}`}
+                    className="evrow"
+                    style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
+                  >
+                    {venue.logoUrl ? (
+                      <img src={venue.logoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
+                    ) : (
+                      <span className="avatar">🏛</span>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="tiny muted-2">Hosted at</div>
+                      <div className="bold small">
+                        {venue.name} {venue.verified && <span className="verified">✓</span>}
                       </div>
                     </div>
                     <span className="link small">View →</span>
@@ -252,11 +271,11 @@ export default function EventDetail() {
                     <div style={{ flex: 1 }} />
                     {status === 'going' ? (
                       <span className="badge badge-accent">You're going ✓</span>
-                    ) : (
+                    ) : !isOwnEvent ? (
                       <button className={`btn btn-sm ${status === 'interested' ? 'btn-pri' : 'btn-ghost'}`} onClick={() => toggleInterested(event.id)}>
                         {status === 'interested' ? '★ Interested' : '☆ Interested'}
                       </button>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -264,8 +283,14 @@ export default function EventDetail() {
           </div>
 
           <div className="detail-about">
-            {/* About */}
-            <section className="section" style={{ marginTop: 0 }}>
+            {/* About — marginBottom: 0 too, not just marginTop: 0: this
+                section and .detail-rest's first section are separate CSS
+                grid rows, so their margins don't collapse the way normal
+                block siblings would. Left as the class default, About's
+                bottom margin (34px) stacked with the grid's own row gap
+                (28px) plus the next section's top margin (34px) — visibly
+                too much space for two sections that read as adjacent. */}
+            <section className="section" style={{ marginTop: 0, marginBottom: 0 }}>
               <div className="section-hd">
                 <h2>About this event</h2>
               </div>
@@ -518,7 +543,7 @@ export default function EventDetail() {
                   : `Book ${ticketCount} ticket${ticketCount > 1 ? 's' : ''} →`}
               </button>
             )}
-            {status !== 'going' && (
+            {status !== 'going' && !isOwnEvent && (
               <button
                 className={`btn btn-block btn-sm ${status === 'interested' ? 'btn-pri' : 'btn-ghost'}`}
                 style={{ marginTop: 8 }}
@@ -536,17 +561,19 @@ export default function EventDetail() {
         </div>
 
         {/* Recommended */}
-        <section className="section">
-          <div className="section-hd">
-            <h2>Recommended events in {city}</h2>
-            <Link to="/browse">See all →</Link>
-          </div>
-          <div className="grid-4">
-            {recommended.map((e) => (
-              <EventCard key={e.id} event={e} />
-            ))}
-          </div>
-        </section>
+        {recommended.length > 0 && (
+          <section className="section">
+            <div className="section-hd">
+              <h2>Recommended events in {city}</h2>
+              <Link to="/browse">See all →</Link>
+            </div>
+            <div className="grid-4">
+              {recommended.map((e) => (
+                <EventCard key={e.id} event={e} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
