@@ -268,7 +268,8 @@ export interface LivePromoter {
   contact: string | null; seo: Seo | null;
 }
 export interface LiveLineup {
-  id: string; slug: string; name: string; category: string; verified: boolean; city: string; bio: string;
+  id: string; slug: string; name: string; category: string; verified: boolean; city: string;
+  state: string | null; country: string | null; pincode: string | null; bio: string; logoUrl: string | null;
   links: string[]; followers: number; eventsPlayed: number; hue: number; emoji: string; seo: Seo | null;
 }
 export interface LiveVenue {

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { Event } from '../types';
-import { fmtDate, minPrice, venueById } from '../data/mock';
+import { fmtDate, fmtTime, minPrice } from '../data/mock';
 import { useApp } from '../store/AppContext';
 import { friendsGoing, goingCount } from '../lib/social';
 import { isFeatured } from '../lib/featured';
@@ -8,7 +8,6 @@ import Poster, { categoryEmoji } from './Poster';
 
 export default function EventCard({ event }: { event: Event }) {
   const { following, featured, wishlist, toggleWishlist } = useApp();
-  const venue = venueById(event.venueId);
   const soldOut = event.tiers.every((t) => t.sold >= t.quantity);
   const going = goingCount(event);
   const friendCount = friendsGoing(event.id, following).length;
@@ -29,7 +28,7 @@ export default function EventCard({ event }: { event: Event }) {
       <div>
         <h3>{event.title}</h3>
         <div className="meta">
-          {fmtDate(event.date)} · {venue?.name ?? 'TBA'}
+          {fmtDate(event.date)}, {fmtTime(event.date)} · {event.durationHrs} hrs
         </div>
         {going > 0 && (
           <div className="tiny" style={{ margin: '2px 0 4px', color: friendCount ? 'var(--accent)' : 'var(--muted-2)' }}>

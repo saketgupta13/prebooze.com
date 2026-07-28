@@ -38,7 +38,7 @@ export class LineupService {
    * URL like "instagram.com/handle" ambiguous with the separator itself.
    * Username reuses the same slug-collision-safe scheme as
    * KycService.newLineupRow. */
-  async updateMe(userId: string, patch: { name?: string; category?: string; city?: string; bio?: string; links?: string[]; logoUrl?: string; username?: string }) {
+  async updateMe(userId: string, patch: { name?: string; category?: string; city?: string; state?: string; country?: string; pincode?: string; bio?: string; links?: string[]; logoUrl?: string; username?: string }) {
     const lineup = await this.myLineup(userId);
 
     let slug = lineup.slug;
@@ -58,6 +58,9 @@ export class LineupService {
         name: patch.name?.trim(),
         category: patch.category?.trim(),
         city: patch.city?.trim(),
+        state: patch.state?.trim(),
+        country: patch.country?.trim(),
+        pincode: patch.pincode?.trim(),
         bio: patch.bio,
         logoUrl: patch.logoUrl,
         slug: patch.username !== undefined ? slug : undefined,

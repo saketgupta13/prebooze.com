@@ -373,7 +373,7 @@ export const lineup = {
     form.append('file', file);
     return apiUpload<{ url: string }>('/lineup/upload', form);
   },
-  updateMe: (patch: { name?: string; category?: string; city?: string; bio?: string; links?: string[]; logoUrl?: string; username?: string }) =>
+  updateMe: (patch: { name?: string; category?: string; city?: string; state?: string; country?: string; pincode?: string; bio?: string; links?: string[]; logoUrl?: string; username?: string }) =>
     apiFetch<LineupProfile>('/lineup/me', { method: 'PATCH', body: patch }),
   events: () => apiFetch<(Event & { myRole?: string })[]>('/lineup/events'),
   invoices: () => apiFetch<Invoice[]>('/lineup/invoices'),

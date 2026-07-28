@@ -386,6 +386,9 @@ export class KycService {
       verified: true, // this row is only ever created at the moment KYC is approved
       category,
       city: str('city') || user.city || '',
+      state: str('state'),
+      country: str('country'),
+      pincode: str('pincode'),
       bio: str('bio') || user.bio || '',
       logoUrl: user.lineupLogoUrl ?? undefined,
       links,

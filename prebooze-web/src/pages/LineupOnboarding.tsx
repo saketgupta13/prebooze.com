@@ -69,7 +69,8 @@ export default function LineupOnboarding() {
     setSubmitting(true);
     try {
       const payload = {
-        name: stageName.trim(), category, username: username.trim(), city: loc.city,
+        name: stageName.trim(), category, username: username.trim(),
+        city: loc.city, state: loc.state, country: loc.country, pincode: loc.pincode,
         bio, links: links.map((l) => l.trim()).filter(Boolean), logoUrl: logoUrl || undefined,
       };
       const res = await kyc.submitRole('lineup', payload, []);

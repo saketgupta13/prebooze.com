@@ -51,16 +51,24 @@ export default function EventDetail() {
 
   useEffect(() => {
     if (!isBackendEnabled() || !slug) return;
+    // Guards against a stale response landing after a newer one (or after
+    // unmount) still flipping `loaded`/`liveEvent` — without this, React 18
+    // StrictMode's dev-only double-invoke of this effect fired the fetch
+    // twice, and the page visibly went loader → content → loader → content
+    // on every mount ("loading twice").
+    let cancelled = false;
     setLoaded(false);
     catalog
       .event(slug)
       .then((e) => {
+        if (cancelled) return;
         setLiveEvent(e);
-        if (e.organizerId) social.organizerReviews(e.organizerId).then(setLiveReviews).catch(() => {});
-        catalog.events({ city }).then((all) => setLiveRecommended(all.filter((x) => x.id !== e.id).slice(0, 4))).catch(() => {});
+        if (e.organizerId) social.organizerReviews(e.organizerId).then((r) => { if (!cancelled) setLiveReviews(r); }).catch(() => {});
+        catalog.events({ city }).then((all) => { if (!cancelled) setLiveRecommended(all.filter((x) => x.id !== e.id).slice(0, 4)); }).catch(() => {});
       })
-      .catch(() => setLiveEvent(null))
-      .finally(() => setLoaded(true));
+      .catch(() => { if (!cancelled) setLiveEvent(null); })
+      .finally(() => { if (!cancelled) setLoaded(true); });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
@@ -283,14 +291,10 @@ export default function EventDetail() {
           </div>
 
           <div className="detail-about">
-            {/* About — marginBottom: 0 too, not just marginTop: 0: this
-                section and .detail-rest's first section are separate CSS
-                grid rows, so their margins don't collapse the way normal
-                block siblings would. Left as the class default, About's
-                bottom margin (34px) stacked with the grid's own row gap
-                (28px) plus the next section's top margin (34px) — visibly
-                too much space for two sections that read as adjacent. */}
-            <section className="section" style={{ marginTop: 0, marginBottom: 0 }}>
+            {/* About — see .detail-about/.detail-rest rules in index.css for
+                why the gap to whatever comes next needed real CSS changes,
+                not just this inline marginTop reset. */}
+            <section className="section" style={{ marginTop: 0 }}>
               <div className="section-hd">
                 <h2>About this event</h2>
               </div>

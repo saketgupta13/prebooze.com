@@ -70,11 +70,9 @@ export default function VenueDetail() {
         })()}
 
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', margin: '22px 0', flexWrap: 'wrap' }}>
-          {venue.logoUrl ? (
-            <img src={venue.logoUrl} alt="" className="avatar" style={{ width: 58, height: 58, objectFit: 'cover' }} />
-          ) : (
-            <span className="avatar" style={{ width: 58, height: 58, fontSize: 24 }}>🏛</span>
-          )}
+          <div style={{ width: 96 }}>
+            <Poster hue={venue.photoHue} emoji="🏛" variant="square" imageUrl={venue.logoUrl} />
+          </div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <h1 style={{ fontSize: 24 }}>
               {venue.name} {venue.verified && <span className="verified">✓</span>}

@@ -155,6 +155,9 @@ export interface LineupProfile {
   category: string;
   verified: boolean;
   city: string;
+  state?: string | null;
+  country?: string | null;
+  pincode?: string | null;
   bio: string;
   logoUrl?: string | null;
   links: string[];

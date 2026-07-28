@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { fmt } from '../store/data';
 import { CityFilterDropdown, GradientPhoto, SearchBox, Tag } from '../components/ui';
 import WysiwygEditor from '../components/WysiwygEditor';
+import RealImageUpload from '../components/RealImageUpload';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import { liveLineups, LiveApiError, type LiveLineup } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -117,9 +118,14 @@ export function LineupEdit() {
   const [err, setErr] = useState('');
 
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [country, setCountry] = useState('');
+  const [pincode, setPincode] = useState('');
   const [links, setLinks] = useState('');
   const [verified, setVerified] = useState(false);
   const [seo, setSeo] = useState<Seo>(emptySeo());
@@ -135,9 +141,14 @@ export function LineupEdit() {
         setExisting(l ?? null);
         if (l) {
           setName(l.name);
+          setUsername(l.slug);
+          setLogoUrl(l.logoUrl ?? null);
           setCategory(l.category);
           setDescription(l.bio ?? '');
           setCity(l.city ?? '');
+          setState(l.state ?? '');
+          setCountry(l.country ?? '');
+          setPincode(l.pincode ?? '');
           setLinks((l.links ?? []).join(' · '));
           setVerified(l.verified);
           setSeo((l.seo as Seo | null) ?? emptySeo());
@@ -172,12 +183,16 @@ export function LineupEdit() {
     try {
       if (isCreate) {
         const created = await liveLineups.create({ name: name.trim(), category, city: city.trim() || undefined });
-        await liveLineups.update(created.id, { bio: description.trim(), links: linksArr, seo });
+        await liveLineups.update(created.id, {
+          bio: description.trim(), links: linksArr, seo, logoUrl,
+          slug: username.trim() || undefined, state: state.trim() || undefined, country: country.trim() || undefined, pincode: pincode.trim() || undefined,
+        });
         if (verified) await liveLineups.setVerified(created.id, true);
       } else {
         await liveLineups.update(existing!.id, {
           name: name.trim(), category, bio: description.trim(), city: city.trim() || undefined, links: linksArr,
-          emoji: EMOJI[category] ?? existing!.emoji, seo,
+          emoji: EMOJI[category] ?? existing!.emoji, seo, logoUrl,
+          slug: username.trim() || undefined, state: state.trim() || undefined, country: country.trim() || undefined, pincode: pincode.trim() || undefined,
         });
         if (verified !== existing!.verified) await liveLineups.setVerified(existing!.id, verified);
       }
@@ -197,11 +212,16 @@ export function LineupEdit() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-          <GradientPhoto seed={existing?.hue ?? (name.charCodeAt(0) * 5 || 1)} style={{ width: 76, height: 76, borderRadius: '50%', flex: 'none', padding: 0 }} />
+          <RealImageUpload value={logoUrl} onChange={setLogoUrl} height={76} width={76} label="logo" />
           <div className="field" style={{ flex: 1 }}>
             <label>Name / title</label>
             <input className="input" style={{ fontSize: 15, fontWeight: 700 }} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. DJ Nova" autoFocus={isCreate} />
           </div>
+        </div>
+
+        <div className="field">
+          <label>Username</label>
+          <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. dj-nova — their profile URL" />
         </div>
 
         <div className="field">
@@ -222,10 +242,22 @@ export function LineupEdit() {
             <label>City</label>
             <input className="input" value={city} onChange={(e) => setCity(e.target.value)} />
           </div>
-          <div className="field" style={{ flex: 1.4 }}>
-            <label>Social media links</label>
-            <input className="input" value={links} onChange={(e) => setLinks(e.target.value)} placeholder="ig/… · x/… · spotify/…" />
+          <div className="field" style={{ flex: 1 }}>
+            <label>State</label>
+            <input className="input" value={state} onChange={(e) => setState(e.target.value)} />
           </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Pincode</label>
+            <input className="input" value={pincode} onChange={(e) => setPincode(e.target.value)} />
+          </div>
+        </div>
+        <div className="field">
+          <label>Country</label>
+          <input className="input" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="India" />
+        </div>
+        <div className="field">
+          <label>Social media links</label>
+          <input className="input" value={links} onChange={(e) => setLinks(e.target.value)} placeholder="ig/… · x/… · spotify/…" />
         </div>
         <label className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input type="checkbox" checked={verified} onChange={() => setVerified((v) => !v)} style={{ accentColor: 'var(--green)' }} />

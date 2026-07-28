@@ -12,6 +12,7 @@ import ShareButton from '../components/ShareButton';
 import SocialIcon, { guessPlatform } from '../components/SocialIcon';
 import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
+import Poster from '../components/Poster';
 import { useSeo } from '../lib/useSeo';
 import { useEntitySeo } from '../lib/useEntitySeo';
 
@@ -75,11 +76,9 @@ export default function OrganizerProfile() {
     <main className="page">
       <div className="container">
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 22, flexWrap: 'wrap' }}>
-          {org.logoUrl ? (
-            <img src={org.logoUrl} alt="" className="avatar" style={{ width: 58, height: 58, objectFit: 'cover' }} />
-          ) : (
-            <span className="avatar" style={{ width: 58, height: 58, fontSize: 24 }}>🎧</span>
-          )}
+          <div style={{ width: 96 }}>
+            <Poster hue={org.logoHue} emoji="🎧" variant="square" imageUrl={org.logoUrl} />
+          </div>
           <div style={{ flex: 1, minWidth: 220 }}>
             <h1 style={{ fontSize: 24 }}>
               {org.brandName} {org.verified && <span className="verified">✓</span>}
@@ -87,7 +86,6 @@ export default function OrganizerProfile() {
             <div className="muted small">
               @{org.username} · {org.city} · since {org.since}
             </div>
-            <div className="muted small rich-text" style={{ marginTop: 6, maxWidth: 480 }} dangerouslySetInnerHTML={{ __html: org.about }} />
             {org.eventTypes && (
               <div className="chip-row" style={{ marginTop: 8 }}>
                 {org.eventTypes.split(',').map((t) => t.trim()).filter(Boolean).map((t) => (
@@ -138,14 +136,20 @@ export default function OrganizerProfile() {
             </div>
 
             <div className="card">
-              <h3 style={{ marginBottom: 8 }}>{org.verified ? 'Verified organizer' : 'Organizer status'}</h3>
+              <h3 style={{ marginBottom: 8 }}>About</h3>
+              <div className="muted small rich-text" dangerouslySetInnerHTML={{ __html: org.about }} />
+              <div className="hr" />
               <div className="kv">
-                <span className="k">Identity KYC</span>
-                <span className={org.verified ? 'verified' : 'muted'}>{org.verified ? '✓ verified' : 'pending'}</span>
+                <span className="k">Based in</span>
+                <span>{org.city}</span>
               </div>
               <div className="kv">
                 <span className="k">Joined</span>
                 <span>{org.createdAt ? new Date(org.createdAt).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : org.since}</span>
+              </div>
+              <div className="kv">
+                <span className="k">Verified</span>
+                <span className={org.verified ? 'verified' : 'muted'}>{org.verified ? '✓ by Prebooze' : 'pending'}</span>
               </div>
             </div>
           </div>

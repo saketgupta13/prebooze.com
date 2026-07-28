@@ -42,7 +42,7 @@ export default function LineupSettings() {
         setLogoUrl(l.logoUrl ?? '');
         setForm({ lineupName: l.name, lineupCategory: l.category, username: l.slug, bio: l.bio });
         setLinks(l.links.length ? l.links : ['']);
-        setLoc((prev) => ({ ...prev, city: l.city }));
+        setLoc({ city: l.city, state: l.state ?? '', country: l.country ?? 'India', pincode: l.pincode ?? '' });
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -57,7 +57,7 @@ export default function LineupSettings() {
         name: form.lineupName.trim(),
         category: form.lineupCategory,
         username: form.username.trim(),
-        city: loc.city,
+        city: loc.city, state: loc.state, country: loc.country, pincode: loc.pincode,
         bio: form.bio,
         links: links.map((l) => l.trim()).filter(Boolean),
         logoUrl: logoUrl || undefined,

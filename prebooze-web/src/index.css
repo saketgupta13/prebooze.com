@@ -642,12 +642,22 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   display: grid;
   grid-template-columns: 1fr 340px;
   grid-template-areas: "head ticket" "about ticket" "rest ticket";
-  gap: 28px;
+  column-gap: 28px;
+  /* Grid items don't margin-collapse the way normal block siblings do —
+     this row-gap used to stack on top of .detail-about's own bottom margin
+     AND .detail-rest's first section's top margin (both from the shared
+     .section{margin:34px 0} rule), adding up to ~90px between "About" and
+     whatever came right after it. Shrunk here, and the first .detail-rest
+     section's own top margin is zeroed below, so there's exactly one
+     reasonably-sized gap instead of three stacked ones. */
+  row-gap: 6px;
   align-items: start;
 }
 .detail-head-area { grid-area: head; }
 .detail-about { grid-area: about; }
+.detail-about .section { margin-bottom: 0; }
 .detail-rest { grid-area: rest; }
+.detail-rest > .section:first-child { margin-top: 0; }
 .detail-head { display: flex; gap: 24px; }
 .detail-head .poster { width: 300px; flex-shrink: 0; }
 .detail-title h1 { font-size: 28px; letter-spacing: -0.4px; margin-bottom: 10px; }

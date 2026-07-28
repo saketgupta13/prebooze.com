@@ -115,7 +115,20 @@ export class DirectoryService {
   }
 
   async updateLineup(id: string, patch: Record<string, unknown>) {
-    if (!(await this.prisma.lineup.findUnique({ where: { id } }))) throw new NotFoundException('Lineup not found');
+    const existing = await this.prisma.lineup.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Lineup not found');
+    // slug isn't in LINEUP_EDITABLE's blanket sanitizePatch below — it's
+    // @unique, so it needs the same collision check the self-serve
+    // LineupService.updateMe already does for an artist changing their own
+    // username, not a bare overwrite that could 500 on a duplicate.
+    if (typeof patch.slug === 'string' && patch.slug.trim()) {
+      const slug = patch.slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      if (slug && slug !== existing.slug) {
+        const clash = await this.prisma.lineup.findUnique({ where: { slug } });
+        if (clash) throw new BadRequestException(`Username "${slug}" is already taken`);
+        await this.prisma.lineup.update({ where: { id }, data: { slug } });
+      }
+    }
     return this.prisma.lineup.update({ where: { id }, data: sanitizePatch(patch, LINEUP_EDITABLE) as never });
   }
 
@@ -183,7 +196,7 @@ const ORGANIZER_EDITABLE = [
   'brandName', 'city', 'about', 'contact', 'contactPerson', 'phone', 'eventTypes', 'links', 'gstin', 'pan', 'bankLast4', 'seo',
 ];
 const PROMOTER_EDITABLE = ['name', 'city', 'bio', 'contact', 'links', 'planId', 'seo'];
-const LINEUP_EDITABLE = ['name', 'category', 'city', 'bio', 'links', 'seo'];
+const LINEUP_EDITABLE = ['name', 'category', 'city', 'state', 'country', 'pincode', 'bio', 'links', 'logoUrl', 'seo'];
 const VENUE_EDITABLE = [
   'name', 'type', 'locality', 'city', 'address', 'capacity', 'amenities', 'about', 'timings', 'license', 'contact', 'rules', 'seo',
   'contactPerson', 'contactPersonPhone', 'socialLinks',

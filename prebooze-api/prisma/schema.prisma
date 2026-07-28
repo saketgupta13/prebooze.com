@@ -358,6 +358,9 @@ model Lineup {
   category     String
   verified     Boolean  @default(false)
   city         String
+  state        String?
+  country      String?
+  pincode      String?
   bio          String
   logoUrl      String?
   links        String[] @default([])
