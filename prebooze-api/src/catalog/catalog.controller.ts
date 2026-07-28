@@ -1,9 +1,13 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { CatalogService } from './catalog.service';
 
 @Controller()
 export class CatalogController {
-  constructor(private catalog: CatalogService) {}
+  constructor(
+    private catalog: CatalogService,
+    private jwt: JwtService,
+  ) {}
 
   @Get('events')
   events(@Query() q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string }) {
@@ -78,6 +82,28 @@ export class CatalogController {
   @Get('people')
   people(@Query('city') city?: string) {
     return this.catalog.people(city);
+  }
+
+  /** Public, but personalized if a valid guest token happens to be present
+   * (JwtAuthGuard would reject the request outright for a logged-out
+   * visitor, which this route needs to support) — decoded manually so a
+   * missing/expired token just means "viewing as a stranger" instead of a
+   * 401. Only affects whether the "going"/"interested" section is visible
+   * per the target's attendanceVisibility; everything else is public either way. */
+  @Get('people/:username')
+  async person(@Param('username') username: string, @Req() req: { headers: { authorization?: string } }) {
+    const header = req.headers.authorization ?? '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+    let viewerId: string | undefined;
+    if (token) {
+      try {
+        const payload = await this.jwt.verifyAsync(token);
+        if (payload.sub && payload.phone) viewerId = payload.sub;
+      } catch {
+        // not logged in / expired — fine, just means no viewer-relative gating
+      }
+    }
+    return this.catalog.person(username, viewerId);
   }
 
   @Get('featured')

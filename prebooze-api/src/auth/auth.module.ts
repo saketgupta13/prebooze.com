@@ -7,6 +7,7 @@ import { redisProvider } from '../redis.provider';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { JwtAuthGuard } from './jwt.guard';
+import { StorageService } from '../kyc/storage.service';
 
 @Module({
   imports: [
@@ -17,6 +18,6 @@ import { JwtAuthGuard } from './jwt.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, redisProvider, WhatsappService, EmailService, JwtAuthGuard],
+  providers: [AuthService, PrismaService, redisProvider, WhatsappService, EmailService, JwtAuthGuard, StorageService],
 })
 export class AuthModule {}

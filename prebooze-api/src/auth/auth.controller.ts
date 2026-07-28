@@ -1,7 +1,9 @@
-import { Body, Controller, Get, HttpCode, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Patch, Post, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { IsNotEmpty, IsString } from 'class-validator';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt.guard';
+import { StorageService } from '../kyc/storage.service';
 
 class RequestOtpDto {
   @IsString() @IsNotEmpty() phone!: string;
@@ -13,7 +15,10 @@ class VerifyOtpDto {
 
 @Controller()
 export class AuthController {
-  constructor(private auth: AuthService) {}
+  constructor(
+    private auth: AuthService,
+    private storage: StorageService,
+  ) {}
 
   @Post('auth/otp')
   requestOtp(@Body() dto: RequestOtpDto) {
@@ -41,6 +46,17 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   updateMe(@Req() req: { user: { sub: string } }, @Body() patch: Record<string, unknown>) {
     return this.auth.updateMe(req.user.sub, patch);
+  }
+
+  /** Real guest avatar upload — same local-disk StorageService as every
+   * other role's logo upload (organizer/venue/lineup), just guest-scoped.
+   * Guests had no real photo upload at all before this. */
+  @Post('me/upload')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  upload(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) throw new BadRequestException('file is required (max 20MB)');
+    return { url: this.storage.save(file) };
   }
 
   @Post('me/phone/request-change')

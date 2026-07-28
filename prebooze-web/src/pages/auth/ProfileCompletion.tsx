@@ -4,8 +4,15 @@ import { useApp } from '../../store/AppContext';
 import { INTEREST_TAGS } from '../../data/mock';
 import LocationPicker, { emptyLocation } from '../../components/LocationPicker';
 import WysiwygEditor from '../../components/WysiwygEditor';
-import { FileDropBox } from '../../components/FileDropBox';
+import { RealUploadBox } from '../../components/RealUploadBox';
+import { auth } from '../../api';
+import { ApiError } from '../../api/client';
 
+/** First-touch guest profile step, right after signup. Used to only ever
+ * save to local AppContext state (updateUser) — none of it reached the real
+ * backend until a guest separately visited /profile/edit later. Now calls
+ * the same real PATCH /me EditProfile.tsx uses, with a real photo upload
+ * and the full location (not just city) actually persisted. */
 export default function ProfileCompletion() {
   const { user, updateUser } = useApp();
   const navigate = useNavigate();
@@ -18,15 +25,16 @@ export default function ProfileCompletion() {
     dob: user?.dob ?? '',
     gender: user?.gender ?? '',
     email: user?.email ?? '',
-    city: user?.city ?? 'Austin',
     profession: user?.profession ?? '',
     languages: user?.languages ?? '',
     bio: user?.bio ?? '',
     socials: user?.socials ?? '',
   });
   const [interests, setInterests] = useState<string[]>(user?.interests ?? []);
-  const [loc, setLoc] = useState(emptyLocation);
+  const [loc, setLoc] = useState({ ...emptyLocation(), city: user?.city ?? '' });
   const [photo, setPhoto] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
 
   const pct = useMemo(() => {
     const fields = Object.values(form).filter((v) => v.trim()).length;
@@ -36,10 +44,23 @@ export default function ProfileCompletion() {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser({ ...form, city: loc.city || form.city, interests, profilePct: pct });
-    navigate('/verify-id', { state: { from } });
+    setErr('');
+    setSaving(true);
+    try {
+      const updated = await auth.updateMe({
+        ...form,
+        city: loc.city, state: loc.state, country: loc.country, pincode: loc.pincode,
+        interests, avatarUrl: photo || undefined,
+      });
+      updateUser(updated);
+      navigate('/verify-id', { state: { from } });
+    } catch (e2) {
+      setErr(e2 instanceof ApiError ? e2.message : 'Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const skip = () => navigate(from ?? '/');
@@ -60,13 +81,16 @@ export default function ProfileCompletion() {
           <span className="small muted bold">{pct}% complete</span>
         </div>
 
+        {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+
         <form className="card" onSubmit={save}>
-          <FileDropBox
+          <RealUploadBox
             value={photo}
             onChange={setPhoto}
+            upload={auth.upload}
             label="📷 photo + — Add a profile picture — it appears on your tickets and reviews"
             doneLabel="✓ Photo added — click to replace"
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: 16, height: 120 }}
           />
 
           <div className="form-row">
@@ -140,8 +164,8 @@ export default function ProfileCompletion() {
             </div>
           </div>
 
-          <button className="btn btn-pri btn-block btn-lg" style={{ marginTop: 8 }}>
-            Save & continue →
+          <button className="btn btn-pri btn-block btn-lg" style={{ marginTop: 8 }} disabled={saving}>
+            {saving ? 'Saving…' : 'Save & continue →'}
           </button>
           <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
             Next: ID verification

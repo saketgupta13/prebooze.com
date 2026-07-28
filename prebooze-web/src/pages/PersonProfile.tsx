@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { personByUsername, eventsForPerson, eventById, fmtDate, fmtTime, venueById } from '../data/mock';
+import { fmtDate, fmtTime } from '../data/mock';
+import { catalog } from '../api';
+import { ApiError } from '../api/client';
 import { useApp } from '../store/AppContext';
-import {
-  personFollowKey, personFollowing, personFollowers, mutualFollows, followedByYourFollows,
-} from '../lib/social';
-import type { Event, Person } from '../types';
+import { PageLoader } from '../components/Loader';
+import type { Event, Person, PersonDetail } from '../types';
 
-function Avatar({ hue, name, size = 30 }: { hue: number; name: string; size?: number }) {
+function Avatar({ hue, name, imageUrl, size = 30 }: { hue: number; name: string; imageUrl?: string; size?: number }) {
+  if (imageUrl) {
+    return <img src={imageUrl} alt="" style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />;
+  }
   return (
     <span style={{
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
@@ -22,11 +25,9 @@ function AvatarStack({ people }: { people: Person[] }) {
   return (
     <div style={{ display: 'flex' }}>
       {people.slice(0, 5).map((p, i) => (
-        <span key={p.id} title={p.name} style={{
-          width: 26, height: 26, borderRadius: '50%', background: `hsl(${p.avatarHue} 55% 45%)`,
-          color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          fontWeight: 700, fontSize: 11, marginLeft: i ? -8 : 0, border: '2px solid var(--bg)',
-        }}>{p.name[0]}</span>
+        <span key={p.id} title={p.name} style={{ marginLeft: i ? -8 : 0, border: '2px solid var(--bg)', borderRadius: '50%' }}>
+          <Avatar hue={p.avatarHue} name={p.name} imageUrl={p.avatarUrl} size={26} />
+        </span>
       ))}
     </div>
   );
@@ -48,7 +49,7 @@ function PeopleCard({ title, people, empty, onClose, limit }: { title: string; p
         <>
           {shown.map((p) => (
             <Link key={p.id} to={`/u/${p.username}`} className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}>
-              <Avatar hue={p.avatarHue} name={p.name} />
+              <Avatar hue={p.avatarHue} name={p.name} imageUrl={p.avatarUrl} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="bold small">{p.name} {p.verified && <span className="verified">✓</span>}</div>
                 <div className="tiny muted-2">@{p.username} · {p.city}</div>
@@ -72,42 +73,59 @@ function PeopleCard({ title, people, empty, onClose, limit }: { title: string; p
   );
 }
 
-/** Public guest profile — followers, following, mutuals, and what they're going to. */
+/** Public guest profile — followers, following, mutuals, and what they're
+ * going to. Used to resolve entirely against the seeded, disconnected
+ * `Person` mock table (personByUsername) — a real guest's own profile
+ * 404'd for everyone since real accounts were never in that seed data.
+ * Now backed by GET /people/:username, a real User row. Mutual-follows and
+ * "followed by people you follow" are computed here by intersecting the
+ * real followers/following lists this endpoint returns with the viewer's
+ * own real `following` (already in AppContext) — no separate server-side
+ * viewer-relative computation needed for those two. */
 export default function PersonProfile() {
   const { username } = useParams();
   const { following, bookings, interested, toggleFollow } = useApp();
-  const person = personByUsername(username ?? '');
+  const [person, setPerson] = useState<PersonDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
   const [openList, setOpenList] = useState<'followers' | 'following' | null>(null);
+
+  useEffect(() => {
+    if (!username) return;
+    setLoading(true);
+    catalog.person(username)
+      .then(setPerson)
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Person not found'))
+      .finally(() => setLoading(false));
+  }, [username]);
+
+  if (loading) return <PageLoader />;
 
   if (!person) {
     return (
       <main className="page">
         <div className="container center" style={{ padding: '80px 0' }}>
           <h1>Person not found</h1>
+          {err && <p className="muted small" style={{ marginTop: 8 }}>{err}</p>}
           <Link to="/people" className="btn btn-pri" style={{ marginTop: 18 }}>Browse people</Link>
         </div>
       </main>
     );
   }
 
-  const key = personFollowKey(person.id);
+  const key = 'person:' + person.id;
   const isFollowing = following.includes(key);
-  const followingList = personFollowing(person);
-  const followerList = personFollowers(person.id);
-  const mutual = mutualFollows(person, following);
-  const proof = followedByYourFollows(person.id, following);
+  const viewerFollowingPersonIds = new Set(following.filter((k) => k.startsWith('person:')).map((k) => k.slice('person:'.length)));
+  const mutual = person.following.filter((p) => viewerFollowingPersonIds.has(p.id));
+  const proof = person.followers.filter((p) => viewerFollowingPersonIds.has(p.id));
 
   const myEventIds = new Set([...bookings.filter((b) => b.status !== 'cancelled').map((b) => b.eventId), ...interested]);
-  const attending = eventsForPerson(person.id)
-    .map((a) => ({ status: a.status, event: eventById(a.eventId) }))
-    .filter((x): x is { status: 'going' | 'interested'; event: Event } => !!x.event);
-  const going = attending.filter((x) => x.status === 'going');
-  const interestedIn = attending.filter((x) => x.status === 'interested');
+  const going = person.going;
+  const interestedIn = person.interested;
   const proofNames = proof.slice(0, 2).map((p) => p.name.split(' ')[0]).join(', ');
   const toggle = (which: 'followers' | 'following') => setOpenList((cur) => (cur === which ? null : which));
 
   const EventRow = ({ event }: { event: Event }) => {
-    const venue = venueById(event.venueId);
     const mine = myEventIds.has(event.id);
     return (
       <Link to={`/events/${event.slug}`} className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -115,7 +133,7 @@ export default function PersonProfile() {
           <div className="bold small">
             {event.title} {mine && <span className="badge badge-accent" style={{ fontSize: 10 }}>you too</span>}
           </div>
-          <div className="tiny muted-2">{fmtDate(event.date)} · {fmtTime(event.date)} · {venue?.name}</div>
+          <div className="tiny muted-2">{fmtDate(event.date)} · {fmtTime(event.date)} · {event.venue?.name}</div>
         </div>
         <span className="link small">View →</span>
       </Link>
@@ -143,11 +161,7 @@ export default function PersonProfile() {
         {/* Header */}
         <div className="card" style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <span style={{
-              width: 72, height: 72, borderRadius: '50%', background: `hsl(${person.avatarHue} 55% 45%)`,
-              color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 700, fontSize: 30,
-            }}>{person.name[0]}</span>
+            <Avatar hue={person.avatarHue} name={person.name} imageUrl={person.avatarUrl} size={72} />
             <div style={{ flex: 1, minWidth: 180 }}>
               <h1 style={{ fontSize: 24 }}>{person.name} {person.verified && <span className="verified">✓</span>}</h1>
               <div className="muted small">@{person.username} · {person.city}</div>
@@ -160,8 +174,8 @@ export default function PersonProfile() {
           {person.bio && <div className="small rich-text" style={{ margin: '12px 0 0', maxWidth: 560 }} dangerouslySetInnerHTML={{ __html: person.bio }} />}
 
           <div className="stat3" style={{ marginTop: 14, gridTemplateColumns: 'repeat(3, 1fr)' }}>
-            <StatBtn value={followerList.length} label="followers" which="followers" />
-            <StatBtn value={followingList.length} label="following" which="following" />
+            <StatBtn value={person.followers.length} label="followers" which="followers" />
+            <StatBtn value={person.following.length} label="following" which="following" />
             <StatBtn value={going.length} label="going" />
           </div>
 
@@ -178,12 +192,12 @@ export default function PersonProfile() {
         {/* Expandable followers / following (click a stat) */}
         {openList === 'followers' && (
           <div style={{ marginBottom: 16 }}>
-            <PeopleCard title="Followers" people={followerList} empty="No followers yet." onClose={() => setOpenList(null)} />
+            <PeopleCard title="Followers" people={person.followers} empty="No followers yet." onClose={() => setOpenList(null)} />
           </div>
         )}
         {openList === 'following' && (
           <div style={{ marginBottom: 16 }}>
-            <PeopleCard title="Following" people={followingList} empty="Not following anyone yet." onClose={() => setOpenList(null)} />
+            <PeopleCard title="Following" people={person.following} empty="Not following anyone yet." onClose={() => setOpenList(null)} />
           </div>
         )}
 
@@ -192,11 +206,11 @@ export default function PersonProfile() {
           <div style={{ display: 'grid', gap: 16 }}>
             <div className="card">
               <h3 style={{ marginBottom: 10 }}>Going <span className="badge badge-accent">{going.length}</span></h3>
-              {going.length === 0 ? <div className="muted small">Nothing booked yet.</div> : going.map((x) => <EventRow key={x.event.id} event={x.event} />)}
+              {going.length === 0 ? <div className="muted small">Nothing booked yet.</div> : going.map((e) => <EventRow key={e.id} event={e} />)}
             </div>
             <div className="card">
               <h3 style={{ marginBottom: 10 }}>Interested <span className="badge badge-pending">{interestedIn.length}</span></h3>
-              {interestedIn.length === 0 ? <div className="muted small">No saved events.</div> : interestedIn.map((x) => <EventRow key={x.event.id} event={x.event} />)}
+              {interestedIn.length === 0 ? <div className="muted small">No saved events.</div> : interestedIn.map((e) => <EventRow key={e.id} event={e} />)}
             </div>
           </div>
 

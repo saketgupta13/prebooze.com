@@ -3,7 +3,7 @@
  * feature swaps from localStorage to live data. */
 import { apiFetch, apiUpload, API_URL, getToken, ApiError } from './client';
 import type {
-  Booking, Coupon, Event, Featured, HelpTicket, Invoice, JobApplication, LineupProfile, Organizer, PayMethod, Person,
+  Booking, Coupon, Event, Featured, HelpTicket, Invoice, JobApplication, LineupProfile, Organizer, PayMethod, Person, PersonDetail,
   PromoterProfile, User, Venue, WaitlistEntry,
 } from '../types';
 import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, WalletTx } from '../store/AppContext';
@@ -14,6 +14,11 @@ export const auth = {
   verifyOtp: (requestId: string, code: string) => apiFetch<{ token: string; user: User; isNew: boolean }>('/auth/verify', { body: { requestId, code } }),
   me: () => apiFetch<User>('/me'),
   updateMe: (patch: Partial<User>) => apiFetch<User>('/me', { method: 'PATCH', body: patch }),
+  upload: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiUpload<{ url: string }>('/me/upload', form);
+  },
   logout: () => apiFetch<void>('/auth/logout', { method: 'POST' }),
   requestPhoneChange: (newPhone: string) => apiFetch<{ requestId: string; devCode?: string }>('/me/phone/request-change', { body: { newPhone } }),
   confirmPhoneChange: (requestId: string, code: string) => apiFetch<User>('/me/phone/confirm-change', { body: { requestId, code } }),
@@ -58,6 +63,7 @@ export const catalog = {
   lineup: (slug: string) => apiFetch<LineupProfile>(`/lineups/${slug}`),
   lineupSeo: (id: string) => apiFetch<{ title: string; description: string; keywords: string }>(`/lineups/${id}/seo`),
   people: (city?: string) => apiFetch<Person[]>('/people', { query: { city } }),
+  person: (username: string) => apiFetch<PersonDetail>(`/people/${username}`),
   featured: (city: string) => apiFetch<Featured[]>('/featured', { query: { city } }),
   categories: () => apiFetch<{ name: string; icon: string; subs: string[] }[]>('/categories'),
   cities: () => apiFetch<{ name: string; icon?: string; top: boolean; events: number }[]>('/cities'),
@@ -152,8 +158,6 @@ export const social = {
   unfollow: (key: string) => apiFetch<void>('/follows', { method: 'DELETE', body: { key } }),
   mySocialState: () => apiFetch<{ following: string[]; interested: string[]; wishlist: string[]; favouriteVenues: string[] }>('/me/social'),
   followers: () => apiFetch<Person[]>('/me/followers'),
-  followRequests: () => apiFetch<Person[]>('/me/follow-requests'),
-  respondRequest: (personId: string, accept: boolean) => apiFetch<void>(`/me/follow-requests/${personId}`, { body: { accept } }),
   setAttendanceVisibility: (v: 'off' | 'followers' | 'public') => apiFetch<void>('/me/attendance-visibility', { body: { v } }),
   interested: (eventId: string, on: boolean) => apiFetch<void>(`/events/${eventId}/interested`, { body: { on } }),
   wishlist: (eventId: string, on: boolean) => apiFetch<void>(`/events/${eventId}/wishlist`, { body: { on } }),

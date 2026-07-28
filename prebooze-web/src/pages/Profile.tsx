@@ -1,30 +1,56 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { ORGANIZERS, PAST_EVENTS, VENUES, eventById, personById } from '../data/mock';
 import { fmtDate } from '../data/mock';
+import { catalog, bookings as bookingsApi } from '../api';
+import type { Booking, Organizer, Venue } from '../types';
 import Poster from '../components/Poster';
 import ShareButton from '../components/ShareButton';
-import Stars from '../components/Stars';
 
 export default function Profile() {
-  const { user, bookings, following, toggleFollow, myEvents, updateUser, followers, followRequests, acceptFollowRequest, declineFollowRequest, removeFollower, favVenues, toggleFavVenue, wishlist } = useApp();
+  const { user, following, toggleFollow, updateUser, followers, followersLoading, favVenues, toggleFavVenue, wishlist } = useApp();
+
+  const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [followedOrgs, setFollowedOrgs] = useState<Organizer[]>([]);
+  const [favVenueDetails, setFavVenueDetails] = useState<Venue[]>([]);
+
+  useEffect(() => {
+    bookingsApi.list().then(setLiveBookings).catch(() => setLiveBookings([])).finally(() => setBookingsLoading(false));
+  }, []);
+
+  // organizer follow keys are bare ids (no "type:" prefix) — every other
+  // followable kind (venue/promoter/lineup/person) is prefixed. See
+  // OrganizerProfile.tsx's own toggleFollow(org.id) call for the same convention.
+  const organizerIds = following.filter((k) => !k.includes(':'));
+  useEffect(() => {
+    if (organizerIds.length === 0) { setFollowedOrgs([]); return; }
+    Promise.all(organizerIds.map((id) => catalog.organizer(id).catch(() => null)))
+      .then((rows) => setFollowedOrgs(rows.filter((o): o is Organizer => !!o)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizerIds.join(',')]);
+
+  useEffect(() => {
+    if (favVenues.length === 0) { setFavVenueDetails([]); return; }
+    Promise.all(favVenues.map((id) => catalog.venue(id).catch(() => null)))
+      .then((rows) => setFavVenueDetails(rows.filter((v): v is Venue => !!v)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [favVenues.join(',')]);
 
   if (!user) return null;
 
   const visibility = user.attendanceVisibility ?? 'off';
   const peopleFollowing = following.filter((f) => f.startsWith('person:')).length;
-  const followerPeople = followers.map((id) => personById(id)).filter((p): p is NonNullable<typeof p> => !!p);
   const VIS_OPTIONS: { v: 'off' | 'followers' | 'public'; label: string; desc: string }[] = [
     { v: 'off', label: 'Off', desc: 'Nobody sees you' },
     { v: 'followers', label: 'Followers', desc: 'People who follow you' },
     { v: 'public', label: 'Public', desc: 'Anyone on Prebooze' },
   ];
 
-  const upcoming = bookings.filter((b) => {
-    const ev = eventById(b.eventId) ?? myEvents.find((e) => e.id === b.eventId);
-    return ev && b.status === 'confirmed' && new Date(ev.date).getTime() > Date.now();
-  });
-  const followedOrgs = ORGANIZERS.filter((o) => following.includes(o.id));
+  const now = Date.now();
+  const confirmed = liveBookings.filter((b) => b.status === 'confirmed' && b.event);
+  const upcoming = confirmed.filter((b) => new Date(b.event!.date).getTime() > now);
+  const attended = confirmed.filter((b) => new Date(b.event!.date).getTime() <= now);
 
   return (
     <main className="page">
@@ -32,9 +58,13 @@ export default function Profile() {
         {/* Left column */}
         <div>
           <div className="card center" style={{ marginBottom: 16 }}>
-            <span className="avatar" style={{ width: 74, height: 74, fontSize: 32, margin: '0 auto 12px' }}>
-              👤
-            </span>
+            {user.avatarUrl ? (
+              <img src={user.avatarUrl} alt="" className="avatar" style={{ width: 74, height: 74, objectFit: 'cover', margin: '0 auto 12px' }} />
+            ) : (
+              <span className="avatar" style={{ width: 74, height: 74, fontSize: 32, margin: '0 auto 12px' }}>
+                👤
+              </span>
+            )}
             <h1 style={{ fontSize: 21 }}>
               {user.name || 'New guest'} {user.idVerified && <span className="verified">✓</span>}
             </h1>
@@ -55,36 +85,6 @@ export default function Profile() {
               <ShareButton path={user.username ? `/u/${user.username}` : '/people'} label="⇪ Share profile" />
             </div>
           </div>
-
-          {followRequests.length > 0 && (
-            <div className="card" style={{ marginBottom: 16 }}>
-              <h3 style={{ marginBottom: 8 }}>
-                Follow requests <span className="badge badge-pending">{followRequests.length}</span>
-              </h3>
-              {followRequests.map((id) => {
-                const p = personById(id);
-                if (!p) return null;
-                return (
-                  <div key={id} className="kv" style={{ alignItems: 'center' }}>
-                    <Link to={`/u/${p.username}`} className="k bold" style={{ color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ width: 28, height: 28, borderRadius: '50%', background: `hsl(${p.avatarHue} 55% 45%)`, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
-                        {p.name[0]}
-                      </span>
-                      {p.name} {p.verified && <span className="verified">✓</span>}
-                    </Link>
-                    <span style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-pri btn-sm" onClick={() => acceptFollowRequest(id)}>Accept</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => declineFollowRequest(id)}>Decline</button>
-                    </span>
-                  </div>
-                );
-              })}
-              <div className="tiny muted-2" style={{ marginTop: 8 }}>
-                once you accept, they can see the events you’re <b>going</b> to &amp; <b>interested</b> in
-                {visibility === 'off' ? ' — set visibility to Followers below to share' : ''}
-              </div>
-            </div>
-          )}
 
           <div className="card" style={{ marginBottom: 16 }}>
             <h3 style={{ marginBottom: 8 }}>Verification status</h3>
@@ -135,7 +135,7 @@ export default function Profile() {
 
           <div className="stat3" style={{ marginBottom: 16 }}>
             <div className="s">
-              <div className="v">{bookings.length}</div>
+              <div className="v">{attended.length}</div>
               <div className="l">attended</div>
             </div>
             <div className="s">
@@ -167,42 +167,43 @@ export default function Profile() {
 
           <div className="card" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <h3>Favourite venues ({favVenues.length})</h3>
+              <h3>Favourite venues ({favVenueDetails.length})</h3>
               <Link to="/wishlist" className="link tiny bold">❤️ Wishlist ({wishlist.length}) →</Link>
             </div>
-            {favVenues.length === 0 ? (
+            {favVenueDetails.length === 0 ? (
               <div className="muted small">Tap 🤍 on any <Link to="/venues" className="link">venue</Link> to save it here.</div>
             ) : (
-              favVenues.map((id) => {
-                const v = VENUES.find((x) => x.id === id);
-                if (!v) return null;
-                return (
-                  <div key={id} className="kv" style={{ alignItems: 'center' }}>
-                    <Link to={`/venues/${v.id}`} className="k bold" style={{ color: 'var(--text)' }}>
-                      🏛 {v.name} <span className="muted" style={{ fontWeight: 400 }}>· {v.city}</span>
-                    </Link>
-                    <button className="btn btn-ghost btn-sm" onClick={() => toggleFavVenue(id)}>❤️ Saved</button>
-                  </div>
-                );
-              })
+              favVenueDetails.map((v) => (
+                <div key={v.id} className="kv" style={{ alignItems: 'center' }}>
+                  <Link to={`/venues/${v.id}`} className="k bold" style={{ color: 'var(--text)' }}>
+                    🏛 {v.name} <span className="muted" style={{ fontWeight: 400 }}>· {v.city}</span>
+                  </Link>
+                  <button className="btn btn-ghost btn-sm" onClick={() => toggleFavVenue(v.id)}>❤️ Saved</button>
+                </div>
+              ))
             )}
           </div>
 
           <div className="card" style={{ marginTop: 16 }}>
             <h3 style={{ marginBottom: 8 }}>Followers ({followers.length})</h3>
-            {followerPeople.length === 0 ? (
-              <div className="muted small">No followers yet. Accept follow requests to grow your circle.</div>
+            {followersLoading ? (
+              <div className="muted small">Loading…</div>
+            ) : followers.length === 0 ? (
+              <div className="muted small">No followers yet.</div>
             ) : (
-              followerPeople.map((p) => (
-                <div key={p.id} className="kv" style={{ alignItems: 'center' }}>
-                  <Link to={`/u/${p.username}`} className="k bold" style={{ color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 28, height: 28, borderRadius: '50%', background: `hsl(${p.avatarHue} 55% 45%)`, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
-                      {p.name[0]}
-                    </span>
+              followers.map((p) => (
+                <Link key={p.id} to={`/u/${p.username}`} className="kv" style={{ alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+                  <span className="k bold" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {p.avatarUrl ? (
+                      <img src={p.avatarUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      <span style={{ width: 28, height: 28, borderRadius: '50%', background: `hsl(${p.avatarHue} 55% 45%)`, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
+                        {p.name[0]}
+                      </span>
+                    )}
                     {p.name} {p.verified && <span className="verified">✓</span>}
-                  </Link>
-                  <button className="btn btn-ghost btn-sm" onClick={() => removeFollower(p.id)}>Remove</button>
-                </div>
+                  </span>
+                </Link>
               ))
             )}
           </div>
@@ -214,7 +215,9 @@ export default function Profile() {
             <div className="section-hd">
               <h2>Upcoming events ({upcoming.length})</h2>
             </div>
-            {upcoming.length === 0 ? (
+            {bookingsLoading ? (
+              <div className="tiny muted">Loading…</div>
+            ) : upcoming.length === 0 ? (
               <div className="empty">
                 Nothing booked yet —{' '}
                 <Link to="/browse" className="link">
@@ -223,45 +226,42 @@ export default function Profile() {
               </div>
             ) : (
               <div className="grid-3">
-                {upcoming.map((b) => {
-                  const ev = eventById(b.eventId) ?? myEvents.find((e) => e.id === b.eventId);
-                  if (!ev) return null;
-                  return (
-                    <div key={b.id} className="ecard">
-                      <Poster hue={ev.posterHue} emoji="🎟" label="poster" />
-                      <div>
-                        <h3>{ev.title}</h3>
-                        <div className="meta">{fmtDate(ev.date)}</div>
-                        <Link to="/bookings" className="link small bold">
-                          View ticket →
-                        </Link>
-                      </div>
+                {upcoming.map((b) => (
+                  <div key={b.id} className="ecard">
+                    <Poster hue={b.event!.posterHue} emoji="🎟" label="poster" imageUrl={b.event!.posterUrl} />
+                    <div>
+                      <h3>{b.event!.title}</h3>
+                      <div className="meta">{fmtDate(b.event!.date)}</div>
+                      <Link to="/bookings" className="link small bold">
+                        View ticket →
+                      </Link>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </section>
 
           <section className="section">
             <div className="section-hd">
-              <h2>Events attended ({PAST_EVENTS.length})</h2>
-              <a href="#all">Show all past events →</a>
+              <h2>Events attended ({attended.length})</h2>
+              <Link to="/bookings">See all bookings →</Link>
             </div>
-            <div className="grid-3">
-              {PAST_EVENTS.slice(0, 6).map((p) => (
-                <div key={p.title} className="ecard">
-                  <Poster hue={p.hue} emoji="📸" label="poster" />
-                  <div>
-                    <h3>{p.title}</h3>
-                    <div className="meta">
-                      {p.date} ·{' '}
-                      {p.rating > 0 ? <Stars rating={p.rating} /> : <span className="link">rate ▾</span>}
+            {!bookingsLoading && attended.length === 0 ? (
+              <div className="empty">No past events yet.</div>
+            ) : (
+              <div className="grid-3">
+                {attended.slice(0, 6).map((b) => (
+                  <div key={b.id} className="ecard">
+                    <Poster hue={b.event!.posterHue} emoji="📸" label="poster" imageUrl={b.event!.posterUrl} />
+                    <div>
+                      <h3>{b.event!.title}</h3>
+                      <div className="meta">{fmtDate(b.event!.date)}</div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import type { Booking, Event, Person } from '../types';
-import { ATTENDANCE, PEOPLE, personById } from '../data/mock';
+import { ATTENDANCE, personById } from '../data/mock';
 
 export const PERSON_PREFIX = 'person:';
 export const personFollowKey = (id: string) => PERSON_PREFIX + id;
@@ -10,28 +10,6 @@ export function followedPersonIds(following: string[]): string[] {
 }
 
 const asPeople = (ids: string[]): Person[] => ids.map((id) => personById(id)).filter((p): p is Person => !!p);
-
-/** People this person follows. */
-export function personFollowing(person: Person): Person[] {
-  return asPeople(person.follows ?? []);
-}
-
-/** People who follow this person (derived from the seeded graph). */
-export function personFollowers(id: string): Person[] {
-  return PEOPLE.filter((p) => (p.follows ?? []).includes(id));
-}
-
-/** Mutual: people that both YOU and this person follow ("you both follow …"). */
-export function mutualFollows(person: Person, following: string[]): Person[] {
-  const mine = new Set(followedPersonIds(following));
-  return asPeople((person.follows ?? []).filter((id) => mine.has(id)));
-}
-
-/** Social proof: this person's followers whom YOU also follow ("followed by … you follow"). */
-export function followedByYourFollows(id: string, following: string[]): Person[] {
-  const mine = new Set(followedPersonIds(following));
-  return personFollowers(id).filter((p) => mine.has(p.id));
-}
 
 /** People you follow who are going to / interested in any of these events — social
  * proof for organizer / promoter profiles. */

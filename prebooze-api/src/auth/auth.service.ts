@@ -30,6 +30,10 @@ export function toApiUser(u: User) {
     username: u.username,
     email: u.email,
     city: u.city,
+    state: u.state ?? undefined,
+    country: u.country ?? undefined,
+    pincode: u.pincode ?? undefined,
+    avatarUrl: u.avatarUrl ?? undefined,
     dob: u.dob,
     gender: u.gender,
     profession: u.profession,
@@ -226,19 +230,31 @@ export class AuthService {
    * automatic guest KYC check (POST /kyc/guest); `role`/`roleStatus` are
    * granted exclusively by an admin approving a KycSubmission
    * (POST /admin/kyc/:id/approve) — see kyc/kyc.service.ts. Neither can be
-   * set here, by design: identity and role trust must not be self-declared. */
+   * set here, by design: identity and role trust must not be self-declared.
+   * `profilePct` isn't client-writable either, for the same reason — it's
+   * recomputed below from whatever actually got saved (mirrors the weighting
+   * ProfileCompletion.tsx's live progress bar has always used client-side,
+   * just now also the real, persisted number instead of whatever a caller
+   * felt like sending). */
   async updateMe(userId: string, patch: Record<string, unknown>) {
     const current = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!current) throw new UnauthorizedException();
 
     const data: Record<string, unknown> = {};
     const allowed = [
-      'name', 'username', 'email', 'city', 'dob', 'gender', 'profession', 'languages',
-      'bio', 'socials', 'interests', 'attendanceVisibility', 'autoRenew',
+      'name', 'username', 'email', 'city', 'state', 'country', 'pincode', 'dob', 'gender', 'profession', 'languages',
+      'bio', 'socials', 'interests', 'attendanceVisibility', 'autoRenew', 'avatarUrl',
     ];
     for (const k of allowed) if (k in patch) data[k] = patch[k];
 
-    const user = await this.prisma.user.update({ where: { id: userId }, data });
+    let user = await this.prisma.user.update({ where: { id: userId }, data });
+
+    const filledFields = ['name', 'username', 'email', 'city', 'dob', 'gender', 'profession', 'languages', 'bio', 'socials']
+      .filter((k) => (user[k as keyof typeof user] as string)?.trim()).length;
+    const profilePct = Math.min(100, 20 + filledFields * 7 + (user.interests.length ? 8 : 0) + (user.avatarUrl ? 8 : 0));
+    if (profilePct !== user.profilePct) {
+      user = await this.prisma.user.update({ where: { id: userId }, data: { profilePct } });
+    }
 
     // Guest signup is phone/OTP-first (see requestOtp/verifyOtp above) — a
     // brand-new user has no email at all, so "welcome on signup" has no

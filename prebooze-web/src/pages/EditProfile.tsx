@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { CITIES, INTEREST_TAGS } from '../data/mock';
+import { INTEREST_TAGS } from '../data/mock';
 import WysiwygEditor from '../components/WysiwygEditor';
+import { RealUploadBox } from '../components/RealUploadBox';
+import LocationPicker from '../components/LocationPicker';
 import ChangePhoneNumber from '../components/ChangePhoneNumber';
 import { auth } from '../api';
 import { ApiError } from '../api/client';
@@ -17,13 +19,16 @@ export default function EditProfile() {
     dob: user?.dob ?? '',
     gender: user?.gender ?? '',
     email: user?.email ?? '',
-    city: user?.city ?? 'Austin',
     profession: user?.profession ?? '',
     languages: user?.languages ?? '',
     bio: user?.bio ?? '',
     socials: user?.socials ?? '',
   });
   const [interests, setInterests] = useState<string[]>(user?.interests ?? []);
+  const [loc, setLoc] = useState({
+    country: user?.country ?? 'India', state: user?.state ?? '', city: user?.city ?? '', pincode: user?.pincode ?? '',
+  });
+  const [photo, setPhoto] = useState(user?.avatarUrl ?? '');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
@@ -37,7 +42,11 @@ export default function EditProfile() {
     setErr('');
     setSaving(true);
     try {
-      const updated = await auth.updateMe({ ...form, interests });
+      const updated = await auth.updateMe({
+        ...form,
+        city: loc.city, state: loc.state, country: loc.country, pincode: loc.pincode,
+        interests, avatarUrl: photo || undefined,
+      });
       updateUser(updated);
       navigate('/profile');
     } catch (e2) {
@@ -58,17 +67,14 @@ export default function EditProfile() {
         {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
 
         <form className="card" onSubmit={save}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-            <span className="avatar" style={{ width: 58, height: 58, fontSize: 26 }}>
-              👤
-            </span>
-            <button type="button" className="btn btn-ghost btn-sm">
-              Change photo
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm">
-              Remove
-            </button>
-          </div>
+          <RealUploadBox
+            value={photo}
+            onChange={setPhoto}
+            upload={auth.upload}
+            label="📷 photo + — Add a profile picture"
+            doneLabel="✓ Photo added — click to replace"
+            style={{ marginBottom: 18, height: 120 }}
+          />
 
           <div className="form-row">
             <div className="field">
@@ -96,20 +102,11 @@ export default function EditProfile() {
               </select>
             </div>
           </div>
-          <div className="form-row">
-            <div className="field">
-              <span>Email</span>
-              <input type="email" value={form.email} onChange={set('email')} />
-            </div>
-            <div className="field">
-              <span>City</span>
-              <select value={form.city} onChange={set('city')}>
-                {CITIES.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-            </div>
+          <div className="field">
+            <span>Email</span>
+            <input type="email" value={form.email} onChange={set('email')} />
           </div>
+          <LocationPicker value={loc} onChange={setLoc} />
           <div className="form-row">
             <div className="field">
               <span>Profession</span>

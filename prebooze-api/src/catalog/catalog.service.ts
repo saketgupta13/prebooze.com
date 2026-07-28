@@ -3,6 +3,14 @@ import { PrismaService } from '../prisma.service';
 
 type FeaturedType = 'event' | 'organizer' | 'promoter' | 'lineup' | 'venue';
 
+/** Deterministic cosmetic hue from an id — mirrors SocialService's own copy
+ * (person avatars need the same derived-not-authored hue there). */
+function hueFromId(id: string): number {
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+}
+
 // Filtered out of auto-detected trending terms — common connector/filler
 // words that show up in almost every event title regardless of what's
 // actually trending (e.g. "Night Live" everywhere isn't a useful signal).
@@ -212,6 +220,62 @@ export class CatalogService {
 
   async people(city?: string) {
     return this.prisma.person.findMany({ where: city ? { city } : {}, orderBy: { followers: 'desc' } });
+  }
+
+  /** Real public guest profile (GET /people/:username) — the "People"
+   * directory above still reads the seeded Person model (a separate,
+   * explicitly-mock table), but this is a real User row: PersonProfile.tsx
+   * used to resolve a username against that same seed data, so a real
+   * guest's own profile page 404'd for everyone but never actually existed.
+   * `viewerId` (from an optionally-decoded JWT, not a required guard — this
+   * route has to work logged out too) only gates the "going"/"interested"
+   * payload per the target's attendanceVisibility; followers/following
+   * lists are always real and public, same as any other directory profile. */
+  async person(username: string, viewerId?: string) {
+    const user = await this.prisma.user.findFirst({ where: { username } });
+    if (!user) throw new NotFoundException('Person not found');
+
+    const [followerRows, followingRows] = await Promise.all([
+      this.prisma.follow.findMany({ where: { followeeKey: `person:${user.id}` } }),
+      this.prisma.follow.findMany({ where: { followerId: user.id, followeeKey: { startsWith: 'person:' } } }),
+    ]);
+    const followerIds = followerRows.map((r) => r.followerId);
+    const followingIds = followingRows.map((r) => r.followeeKey.slice('person:'.length));
+    const [followerUsers, followingUsers] = await Promise.all([
+      this.prisma.user.findMany({ where: { id: { in: followerIds } } }),
+      this.prisma.user.findMany({ where: { id: { in: followingIds } } }),
+    ]);
+    const toPerson = (u: (typeof followerUsers)[number]) => ({
+      id: u.id, name: u.name || 'Guest', username: u.username || u.id, city: u.city,
+      avatarHue: hueFromId(u.id), avatarUrl: u.avatarUrl ?? undefined, bio: u.bio || undefined,
+      verified: u.idVerified, followers: 0, follows: [] as string[],
+    });
+    const followers = followerUsers.map(toPerson);
+    const following = followingUsers.map(toPerson);
+
+    const isFollowedByViewer = viewerId ? followerIds.includes(viewerId) : false;
+    const canSeeAttendance = user.attendanceVisibility === 'public' || (user.attendanceVisibility === 'followers' && isFollowedByViewer);
+
+    let going: unknown[] = [];
+    let interested: unknown[] = [];
+    if (canSeeAttendance) {
+      const [bookings, interests] = await Promise.all([
+        this.prisma.booking.findMany({ where: { userId: user.id, status: 'confirmed' }, include: { event: { select: PUBLIC_EVENT_SELECT } } }),
+        this.prisma.eventInterest.findMany({ where: { userId: user.id } }),
+      ]);
+      going = bookings.map((b) => b.event).filter((e) => !CatalogService.isEventOver(e as never));
+      const interestedEvents = await this.prisma.event.findMany({
+        where: { id: { in: interests.map((i) => i.eventId) }, status: 'approved' },
+        select: PUBLIC_EVENT_SELECT,
+      });
+      interested = interestedEvents.filter((e) => !CatalogService.isEventOver(e as never));
+    }
+
+    return {
+      id: user.id, name: user.name || 'Guest', username: user.username || user.id, city: user.city,
+      bio: user.bio || undefined, avatarUrl: user.avatarUrl ?? undefined, avatarHue: hueFromId(user.id),
+      verified: user.idVerified, followers, following, going, interested,
+    };
   }
 
   // ---------- per-entity SEO lookups ----------

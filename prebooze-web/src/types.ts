@@ -188,10 +188,31 @@ export interface Person {
   username: string; // handle for /u/:username
   city: string;
   avatarHue: number;
+  avatarUrl?: string;
   bio?: string;
   verified?: boolean;
   followers: number;    // aggregate follower count
   follows?: string[];   // person ids this person follows (social graph)
+}
+
+/** Real GET /people/:username response — a genuine User row (not the
+ * seeded Person directory table Home.tsx's slider still reads). followers/
+ * following are the real, full Person-shaped lists (not just a count) so
+ * PersonProfile.tsx can compute mutuals/social-proof client-side by
+ * intersecting with the viewer's own `following` from AppContext. */
+export interface PersonDetail {
+  id: string;
+  name: string;
+  username: string;
+  city: string;
+  bio?: string;
+  avatarUrl?: string;
+  avatarHue: number;
+  verified: boolean;
+  followers: Person[];
+  following: Person[];
+  going: Event[];
+  interested: Event[];
 }
 
 /** One person's relationship to one event. */
@@ -299,6 +320,10 @@ export interface User {
   username: string;
   email: string;
   city: string;
+  state?: string;
+  country?: string;
+  pincode?: string;
+  avatarUrl?: string;
   dob: string;
   gender: string;
   profession: string;

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayMethod, ReviewTargetType, User, Venue, WaitlistEntry } from '../types';
+import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayMethod, Person, ReviewTargetType, User, Venue, WaitlistEntry } from '../types';
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } from '../data/mock';
 import { notify } from '../lib/notify';
@@ -241,11 +241,8 @@ interface AppState {
   toggleInterested: (eventId: string) => void;
   featured: Featured[];
   requestFeatured: (input: Omit<Featured, 'id' | 'status' | 'createdAt'>) => void;
-  followers: string[]; // person ids who follow me (accepted)
-  followRequests: string[]; // person ids awaiting my approval
-  acceptFollowRequest: (personId: string) => void;
-  declineFollowRequest: (personId: string) => void;
-  removeFollower: (personId: string) => void;
+  followers: Person[]; // real GET /me/followers — who follows me, as full profiles
+  followersLoading: boolean;
   orgBalance: number;
   withdrawals: Withdrawal[];
   withdraw: (amount: number) => void;
@@ -385,8 +382,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     for (const [orgId, list] of Object.entries(old)) migrated[reviewKey('organizer', orgId)] = list;
     return migrated;
   });
-  const [followers, setFollowers] = useState<string[]>(() => load('pb_followers', ['p4', 'p5']));
-  const [followRequests, setFollowRequests] = useState<string[]>(() => load('pb_follow_requests', ['p6', 'p7']));
+  // Real GET /me/followers, not localStorage — the old fake default
+  // (['p4','p5'], two hardcoded seed people) meant every guest "had
+  // followers" that didn't actually follow them.
+  const [followers, setFollowers] = useState<Person[]>([]);
+  const [followersLoading, setFollowersLoading] = useState(isBackendEnabled());
   const [pendingPhone, setPendingPhone] = useState('');
   const [pendingRequestId, setPendingRequestId] = useState('');
   const [orgTeamAccess, setOrgTeamAccess] = useState<OrgTeamAccess | null>(null);
@@ -459,6 +459,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setFavVenues(s.favouriteVenues);
       })
       .catch(() => {});
+  }, []);
+  // Real GET /me/followers — who follows me, as full Person profiles
+  // (backed by GET /people/:username's User-based Follow lookup now that a
+  // real guest profile can actually be a follow target). There's no
+  // approval step for follows in this product (see SocialService.follow),
+  // so unlike `following` above there's no "requests" queue to bootstrap.
+  useEffect(() => {
+    if (!isBackendEnabled() || !getToken()) return;
+    socialApi
+      .followers()
+      .then(setFollowers)
+      .catch(() => {})
+      .finally(() => setFollowersLoading(false));
   }, []);
   // Real "am I on an organizer's team" bootstrap — an invited team member
   // isn't isOrganizer (that flag is reserved for the real KYC-approved
@@ -539,12 +552,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setRefCodes((prev) => (prev[c] === user.phone ? prev : { ...prev, [c]: user.phone }));
     }
   }, [user?.phone]);
-  useEffect(() => {
-    localStorage.setItem('pb_followers', JSON.stringify(followers));
-  }, [followers]);
-  useEffect(() => {
-    localStorage.setItem('pb_follow_requests', JSON.stringify(followRequests));
-  }, [followRequests]);
   useEffect(() => {
     localStorage.setItem('pb_org_balance', JSON.stringify(orgBalance));
   }, [orgBalance]);
@@ -974,13 +981,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       },
       followers,
-      followRequests,
-      acceptFollowRequest: (personId) => {
-        setFollowRequests((prev) => prev.filter((x) => x !== personId));
-        setFollowers((prev) => (prev.includes(personId) ? prev : [personId, ...prev]));
-      },
-      declineFollowRequest: (personId) => setFollowRequests((prev) => prev.filter((x) => x !== personId)),
-      removeFollower: (personId) => setFollowers((prev) => prev.filter((x) => x !== personId)),
+      followersLoading,
       orgBalance,
       withdrawals,
       withdraw: (amount) => {
@@ -1085,7 +1086,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       orgTeamAccess,
       orgTeamAccessLoaded,
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, waitlists, jobApps, reviews, followers, followRequests, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

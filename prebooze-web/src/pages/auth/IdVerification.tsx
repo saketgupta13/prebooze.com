@@ -2,11 +2,17 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { FileDropBox } from '../../components/FileDropBox';
+import { dataUrlToFile } from '../../lib/fileUtils';
+import { kyc } from '../../api';
+import { ApiError } from '../../api/client';
 
-/** Guest ID verification — the one part of KYC that's fully automatic.
- * Government ID + selfie are checked instantly (OCR + face-match via our KYC
- * vendor once wired to the backend — see BACKEND.md "Identity & KYC"); every
- * other role (organizer/promoter/lineup/venue) is manual-only by design. */
+/** Guest ID verification — the one part of KYC that's fully automatic. Used
+ * to just be a 1.2s setTimeout that unconditionally marked everyone
+ * verified regardless of what (if anything) was uploaded — POST /kyc/guest
+ * already existed and does a real OCR + face-match check via our KYC
+ * vendor (KycProviderService.checkGuest), it just wasn't called from here.
+ * Every other role (organizer/promoter/lineup/venue) is manual-only by
+ * design — see BACKEND.md "Identity & KYC". */
 export default function IdVerification() {
   const { updateUser } = useApp();
   const navigate = useNavigate();
@@ -16,17 +22,30 @@ export default function IdVerification() {
   const [idDoc, setIdDoc] = useState('');
   const [selfie, setSelfie] = useState('');
   const [checking, setChecking] = useState(false);
+  const [err, setErr] = useState('');
 
   const canSubmit = idDoc && selfie && !checking;
 
-  const submit = () => {
+  const submit = async () => {
+    setErr('');
     setChecking(true);
-    // Simulated automatic OCR + face-match round trip (instant vendor check
-    // once live — dev/offline mode approves well-formed submissions locally).
-    setTimeout(() => {
-      updateUser({ idVerified: true, profilePct: 100 });
-      navigate(from ?? '/profile');
-    }, 1200);
+    try {
+      const [idDocFile, selfieFile] = await Promise.all([
+        dataUrlToFile(idDoc, 'id-doc.jpg'),
+        dataUrlToFile(selfie, 'selfie.jpg'),
+      ]);
+      const result = await kyc.submitGuest(idDocFile, selfieFile);
+      if (result.status === 'approved') {
+        updateUser({ idVerified: true, profilePct: 100 });
+        navigate(from ?? '/profile');
+      } else {
+        setErr(result.reason || "Verification didn't pass — check the photos and try again");
+      }
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Verification failed — try again');
+    } finally {
+      setChecking(false);
+    }
   };
 
   return (
@@ -42,6 +61,8 @@ export default function IdVerification() {
           step 2 of 2 — verified automatically in seconds. Verified guests get the{' '}
           <span className="verified">✓</span> badge and faster entry at gates.
         </p>
+
+        {err && <div className="danger-text small" style={{ marginBottom: 16 }}>✕ {err}</div>}
 
         <div className="card" style={{ marginBottom: 16 }}>
           <h3 style={{ marginBottom: 12 }}>1 · Government ID</h3>
