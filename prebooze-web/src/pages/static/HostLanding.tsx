@@ -26,6 +26,11 @@ export default function HostLanding() {
       ? '/organizer'
       : '/organizer/onboarding'
     : '/login';
+  const venueJoinTarget = user
+    ? user.isVenue
+      ? '/venue'
+      : '/venue/onboarding'
+    : '/login';
 
   return (
     <main className="page">
@@ -45,7 +50,7 @@ export default function HostLanding() {
             <Link to={joinTarget} state={{ from: '/organizer/onboarding' }} className="btn btn-pri btn-lg">
               🎤 Join as Organizer
             </Link>
-            <Link to={joinTarget} state={{ from: '/organizer/onboarding' }} className="btn btn-ghost btn-lg">
+            <Link to={venueJoinTarget} state={{ from: '/venue/onboarding' }} className="btn btn-ghost btn-lg">
               🏛 Join as Venue
             </Link>
             <Link to="/lineup/onboarding" className="btn btn-ghost btn-lg">
@@ -115,7 +120,7 @@ export default function HostLanding() {
           <Link to={joinTarget} state={{ from: '/organizer/onboarding' }} className="btn btn-pri btn-lg">
             🎤 Join as Organizer →
           </Link>
-          <Link to={joinTarget} state={{ from: '/organizer/onboarding' }} className="btn btn-ghost btn-lg">
+          <Link to={venueJoinTarget} state={{ from: '/venue/onboarding' }} className="btn btn-ghost btn-lg">
             🏛 Join as Venue →
           </Link>
         </div>
