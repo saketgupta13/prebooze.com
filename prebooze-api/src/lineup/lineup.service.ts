@@ -85,6 +85,28 @@ export class LineupService {
     return updated;
   }
 
+  /** "Tagged in" events for the dashboard + (via the public catalog's own
+   * matching in CatalogService) profile page — Event.lineup is a free-form
+   * JSON array of {name, role}, not a real relation to the Lineup table (see
+   * CreateEvent.tsx, which lets organizers pick from the live directory but
+   * still just stores the name string), so this has to fetch approved events
+   * and match by name in application code rather than a SQL join. */
+  async events(userId: string) {
+    const lineup = await this.myLineup(userId);
+    const events = await this.prisma.event.findMany({
+      where: { status: 'approved' },
+      include: { venue: { select: { name: true, city: true } } },
+      orderBy: { date: 'asc' },
+    });
+    const name = lineup.name.toLowerCase();
+    return events
+      .filter((e) => (e.lineup as { name: string; role: string }[]).some((l) => l.name.toLowerCase() === name))
+      .map((e) => ({
+        ...e,
+        myRole: (e.lineup as { name: string; role: string }[]).find((l) => l.name.toLowerCase() === name)?.role,
+      }));
+  }
+
   async subscriptionTiers() {
     return this.subscriptions.tiers('lineup');
   }

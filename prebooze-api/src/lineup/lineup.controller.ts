@@ -1,10 +1,12 @@
-import { BadRequestException, Body, Controller, Get, Patch, Post, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { LineupService } from './lineup.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StorageService } from '../kyc/storage.service';
+import { InvoicesService } from '../invoices/invoices.service';
 
-type AuthedReq = { user: { sub: string } };
+type AuthedReq = { user: { sub: string; phone: string } };
 
 /** Same route shape as /organizer, /promoter, /venue's self-serve +
  * subscription endpoints — see LineupService for scope. */
@@ -14,11 +16,36 @@ export class LineupController {
   constructor(
     private lineup: LineupService,
     private storage: StorageService,
+    private invoices: InvoicesService,
   ) {}
 
   @Get('me')
   me(@Req() req: AuthedReq) {
     return this.lineup.me(req.user.sub);
+  }
+
+  @Get('events')
+  events(@Req() req: AuthedReq) {
+    return this.lineup.events(req.user.sub);
+  }
+
+  /** Real Featured billing history — same Invoice rows admin sees, filtered
+   * to this line-up's own phone number, same pattern as
+   * OrganizerController/VenueController's myInvoices/myInvoicePdf. */
+  @Get('invoices')
+  myInvoices(@Req() req: AuthedReq) {
+    return this.invoices.mine('lineup', req.user.phone);
+  }
+
+  @Get('invoices/:id/pdf')
+  async myInvoicePdf(@Req() req: AuthedReq, @Param('id') id: string, @Res() res: Response) {
+    const { filename, buffer } = await this.invoices.pdfForOwner(id, 'lineup', req.user.phone);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+    });
+    res.send(buffer);
   }
 
   /** Real press-shot/logo upload — no ownership check (mirrors venue's

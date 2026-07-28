@@ -375,6 +375,19 @@ export const lineup = {
   },
   updateMe: (patch: { name?: string; category?: string; city?: string; bio?: string; socials?: string; logoUrl?: string; username?: string }) =>
     apiFetch<LineupProfile>('/lineup/me', { method: 'PATCH', body: patch }),
+  events: () => apiFetch<(Event & { myRole?: string })[]>('/lineup/events'),
+  invoices: () => apiFetch<Invoice[]>('/lineup/invoices'),
+  downloadInvoicePdf: async (id: string, filename: string) => {
+    const res = await fetch(`${API_URL}/lineup/invoices/${id}/pdf`, { headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {} });
+    if (!res.ok) throw new ApiError(res.status, 'ERROR', 'Failed to download PDF');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
   subscription: subscriptionApi('lineup'),
 };
 

@@ -14,7 +14,7 @@ import {
 } from '../data/mock';
 import { catalog, social, bookings as bookingsApi } from '../api';
 import { isBackendEnabled } from '../api/client';
-import type { Event, WaitlistEntry } from '../types';
+import type { Event, LineupProfile, WaitlistEntry } from '../types';
 import type { GuestReview } from '../store/AppContext';
 import { friendsGoing, goingCount, myStatus } from '../lib/social';
 import { existingRole, roleLabel } from '../lib/roles';
@@ -63,6 +63,19 @@ export default function EventDetail() {
       .finally(() => setLoaded(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
+
+  // Event.lineup is a free-form {name, role}[] JSON blob, not a real
+  // relation — lineupByName (the mock lookup below) only ever matched the
+  // dummy seed data, so every real event's line-up/partner chips silently
+  // never linked anywhere. Fetch the live directory once and match by name.
+  const [liveLineups, setLiveLineups] = useState<LineupProfile[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.lineups().then(setLiveLineups).catch(() => setLiveLineups([]));
+  }, []);
+  const lineups = liveLineups ?? (isBackendEnabled() ? [] : undefined);
+  const findLineup = (name: string) =>
+    lineups ? lineups.find((l) => l.name.toLowerCase() === name.toLowerCase()) : lineupByName(name);
 
   const event = liveEvent ?? mockEvent;
   useSeo(event?.seo, event?.title);
@@ -343,10 +356,14 @@ export default function EventDetail() {
                 </div>
                 <div className="lineup">
                   {event.lineup.map((l) => {
-                    const profile = lineupByName(l.name);
+                    const profile = findLineup(l.name);
                     const inner = (
                       <>
-                        <span className="avatar">{profile?.emoji ?? (l.role.includes('DJ') || l.role.includes('artist') ? '🎤' : '🏷')}</span>
+                        {profile?.logoUrl ? (
+                          <img src={profile.logoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
+                        ) : (
+                          <span className="avatar">{profile?.emoji ?? (l.role.includes('DJ') || l.role.includes('artist') ? '🎤' : '🏷')}</span>
+                        )}
                         <span className="who">
                           <span className="n" style={{ display: 'block' }}>
                             {l.name} {profile?.verified && <span className="verified">✓</span>}

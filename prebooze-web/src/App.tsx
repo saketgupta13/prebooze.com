@@ -68,7 +68,7 @@ import LineupOnboarding from './pages/LineupOnboarding';
 import LineupLayout from './pages/lineup/LineupLayout';
 import LineupDashboard from './pages/lineup/LineupDashboard';
 import LineupSettings from './pages/lineup/LineupSettings';
-import LineupSubscription from './pages/lineup/LineupSubscription';
+import LineupBilling from './pages/lineup/LineupBilling';
 import PromoterProfile from './pages/PromoterProfile';
 import PromoterOnboarding from './pages/promoter/PromoterOnboarding';
 import PromoterLayout from './pages/promoter/PromoterLayout';
@@ -284,7 +284,7 @@ export default function App() {
         <Route path="/artist" element={<LineupLayout />}>
           <Route index element={<LineupDashboard />} />
           <Route path="profile" element={<LineupSettings />} />
-          <Route path="subscription" element={<LineupSubscription />} />
+          <Route path="billing" element={<LineupBilling />} />
         </Route>
 
         {/* Promoter console */}
