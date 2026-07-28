@@ -187,6 +187,8 @@ export default function Header() {
               <img src={user.orgLogoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
             ) : user.isVenue && user.venueLogoUrl ? (
               <img src={user.venueLogoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
+            ) : user.isLineup && user.lineupLogoUrl ? (
+              <img src={user.lineupLogoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
             ) : (
               <span className="avatar">👤</span>
             )}

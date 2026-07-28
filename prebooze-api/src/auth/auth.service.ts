@@ -49,6 +49,7 @@ export function toApiUser(u: User) {
     lineupName: u.lineupName ?? undefined,
     lineupCategory: u.lineupCategory ?? undefined,
     lineupUsername: u.lineupUsername ?? undefined,
+    lineupLogoUrl: u.lineupLogoUrl ?? undefined,
     isPromoter: u.role === 'promoter' || undefined,
     promoterBrand: u.promoterBrand ?? undefined,
     promoterUsername: u.promoterUsername ?? undefined,

@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Patch, Post, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { LineupService } from './lineup.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
+import { StorageService } from '../kyc/storage.service';
 
 type AuthedReq = { user: { sub: string } };
 
@@ -9,7 +11,25 @@ type AuthedReq = { user: { sub: string } };
 @Controller('lineup')
 @UseGuards(JwtAuthGuard)
 export class LineupController {
-  constructor(private lineup: LineupService) {}
+  constructor(
+    private lineup: LineupService,
+    private storage: StorageService,
+  ) {}
+
+  @Get('me')
+  me(@Req() req: AuthedReq) {
+    return this.lineup.me(req.user.sub);
+  }
+
+  /** Real press-shot/logo upload — no ownership check (mirrors venue's
+   * upload endpoint), since this is also used pre-approval during onboarding
+   * before a Lineup row exists yet. */
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  upload(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) throw new BadRequestException('file is required (max 20MB)');
+    return { url: this.storage.save(file) };
+  }
 
   @Patch('me')
   updateMe(@Req() req: AuthedReq, @Body() body: Parameters<LineupService['updateMe']>[1]) {

@@ -66,7 +66,11 @@ export default function LineupProfile() {
       <div className="container">
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 22, flexWrap: 'wrap' }}>
           <div style={{ width: 96 }}>
-            <Poster hue={lineup.hue} emoji={lineup.emoji} variant="square" />
+            {lineup.logoUrl ? (
+              <img src={lineup.logoUrl} alt="" style={{ width: 96, height: 96, borderRadius: 12, objectFit: 'cover' }} />
+            ) : (
+              <Poster hue={lineup.hue} emoji={lineup.emoji} variant="square" />
+            )}
           </div>
           <div style={{ flex: 1, minWidth: 220 }}>
             <span className="tag">{lineup.category}</span>
@@ -158,7 +162,11 @@ export default function LineupProfile() {
                   {more.map((l) => (
                     <Link key={l.slug} to={`/lineup/${l.slug}`} className="card" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                       <div style={{ width: 46, flexShrink: 0 }}>
-                        <Poster hue={l.hue} emoji={l.emoji} variant="square" />
+                        {l.logoUrl ? (
+                          <img src={l.logoUrl} alt="" style={{ width: 46, height: 46, borderRadius: 8, objectFit: 'cover' }} />
+                        ) : (
+                          <Poster hue={l.hue} emoji={l.emoji} variant="square" />
+                        )}
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <h3 style={{ fontSize: 14 }}>

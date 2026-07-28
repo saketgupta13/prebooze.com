@@ -156,6 +156,7 @@ export interface LineupProfile {
   verified: boolean;
   city: string;
   bio: string;
+  logoUrl?: string | null;
   links: string[];
   followers: number;
   eventsPlayed: number;
@@ -314,6 +315,7 @@ export interface User {
   lineupName?: string;
   lineupCategory?: string;
   lineupUsername?: string;
+  lineupLogoUrl?: string; // real, uploaded logo — same role as orgLogoUrl
   isPromoter?: boolean;
   promoterBrand?: string;
   promoterUsername?: string;

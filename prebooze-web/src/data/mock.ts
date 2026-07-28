@@ -711,6 +711,7 @@ export interface LineupProfileData {
   verified: boolean;
   city: string;
   bio: string;
+  logoUrl?: string | null;
   links: string[];
   followers: number;
   eventsPlayed: number;

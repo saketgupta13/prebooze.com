@@ -55,6 +55,7 @@ export default function Lineups() {
                 to={`/lineup/${l.slug}`}
                 hue={l.hue}
                 avatarText={l.emoji}
+                avatarImage={l.logoUrl}
                 name={l.name}
                 verified={l.verified}
                 meta={`${l.category} · ${l.city}`}

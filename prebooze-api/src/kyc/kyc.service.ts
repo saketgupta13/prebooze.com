@@ -76,7 +76,12 @@ export class KycService {
     if (user.roleStatus === 'pending') {
       throw new BadRequestException('Your application is already under review');
     }
-    if (!files.length) throw new BadRequestException('At least one document is required');
+    // Line-ups are a content/booking directory listing, not a payments
+    // counterparty (no bank/payout fields on the Lineup model at all,
+    // unlike organizer/promoter) — the guest-style ID-doc + selfie step
+    // doesn't apply to them, so they're the one kind allowed to submit with
+    // no documents.
+    if (!files.length && kind !== 'lineup') throw new BadRequestException('At least one document is required');
 
     const documents = files.map((f, i) => ({
       type: (payload.docLabels as string[] | undefined)?.[i] ?? `doc_${i + 1}`,
@@ -105,7 +110,7 @@ export class KycService {
     const profilePatch: Record<string, unknown> = { roleStatus: 'pending' };
     if (kind === 'organizer') Object.assign(profilePatch, { orgBrand: payload.brand, orgUsername: payload.username });
     if (kind === 'promoter') Object.assign(profilePatch, { promoterBrand: payload.brand, promoterUsername: payload.username });
-    if (kind === 'lineup') Object.assign(profilePatch, { lineupName: payload.name, lineupCategory: payload.category, lineupUsername: payload.username });
+    if (kind === 'lineup') Object.assign(profilePatch, { lineupName: payload.name, lineupCategory: payload.category, lineupUsername: payload.username, lineupLogoUrl: payload.logoUrl });
     // no venue case here — kind === 'venue' is rejected above, before this point
 
     const updated = await this.prisma.user.update({ where: { id: userId }, data: profilePatch });
@@ -204,7 +209,7 @@ export class KycService {
         this.prisma.lineup.findUnique({ where: { userId: sub.userId } }),
       ]);
       if (user && !existing) {
-        const row = await this.newLineupRow(user);
+        const row = await this.newLineupRow(user, sub.payload as Record<string, unknown> | null);
         ops.push(this.prisma.lineup.create({ data: row }));
         ops.push(this.prisma.user.update({ where: { id: sub.userId }, data: { lineupUsername: row.slug } }));
       }
@@ -324,18 +329,25 @@ export class KycService {
   }
 
   /** Same slug-collision-safe scheme again, keyed off lineupUsername/lineupName.
-   * bio/city are pulled from the plain User fields — LineupSettings.tsx saves
-   * artist-profile edits through the generic PATCH /me, not a dedicated
-   * endpoint, so those are the live source of truth even post-approval. */
-  private async newLineupRow(user: {
-    id: string;
-    lineupName: string | null;
-    lineupCategory: string | null;
-    lineupUsername: string | null;
-    name: string;
-    city: string;
-    bio: string;
-  }) {
+   * `payload` is the raw onboarding submission (LineupOnboarding.tsx) —
+   * without pulling from it, the city/bio/links the applicant actually
+   * entered landed nowhere, same gap newOrganizerRow closes for organizer.
+   * Falls back to the plain User fields (which submitRole already mirrors
+   * name/category/username/logoUrl onto) when a field is missing from an
+   * older-shaped payload. */
+  private async newLineupRow(
+    user: {
+      id: string;
+      lineupName: string | null;
+      lineupCategory: string | null;
+      lineupUsername: string | null;
+      lineupLogoUrl: string | null;
+      name: string;
+      city: string;
+      bio: string;
+    },
+    payload: Record<string, unknown> | null,
+  ) {
     const base = (user.lineupUsername || user.lineupName || user.name || 'lineup')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -364,14 +376,22 @@ export class KycService {
     let h = 0;
     for (const c of user.id) h = (h * 31 + c.charCodeAt(0)) % 360;
 
+    const str = (k: string) => (typeof payload?.[k] === 'string' ? (payload[k] as string).trim() : '') || undefined;
+    const linksRaw = payload?.links;
+    const links = typeof linksRaw === 'string'
+      ? linksRaw.split(',').map((s) => s.trim()).filter(Boolean)
+      : Array.isArray(linksRaw) ? (linksRaw as string[]).filter(Boolean) : [];
+
     return {
       id: await uniqueId(),
       slug: await uniqueSlug(),
       name: user.lineupName || user.name || 'Lineup',
       verified: true, // this row is only ever created at the moment KYC is approved
       category,
-      city: user.city || '',
-      bio: user.bio || '',
+      city: str('city') || user.city || '',
+      bio: str('bio') || user.bio || '',
+      logoUrl: user.lineupLogoUrl ?? undefined,
+      links,
       hue: h,
       emoji: emoji[category] ?? '🎤',
       userId: user.id,

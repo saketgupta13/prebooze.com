@@ -367,8 +367,14 @@ export const orgRoles = {
 
 // ---------- lineup (artist) ----------
 export const lineup = {
-  updateMe: (patch: { name?: string; category?: string; city?: string; bio?: string; socials?: string }) =>
-    apiFetch<{ id: string; name: string; category: string; city: string; bio: string; links: string[] }>('/lineup/me', { method: 'PATCH', body: patch }),
+  me: () => apiFetch<LineupProfile>('/lineup/me'),
+  upload: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiUpload<{ url: string }>('/lineup/upload', form);
+  },
+  updateMe: (patch: { name?: string; category?: string; city?: string; bio?: string; socials?: string; logoUrl?: string; username?: string }) =>
+    apiFetch<LineupProfile>('/lineup/me', { method: 'PATCH', body: patch }),
   subscription: subscriptionApi('lineup'),
 };
 

@@ -73,6 +73,9 @@ model User {
   lineupName       String?
   lineupCategory   String?
   lineupUsername   String?
+  // Denormalized from Lineup.logoUrl (kept in sync in LineupService.updateMe
+  // and at KYC approval) — same reasoning as orgLogoUrl/venueLogoUrl above.
+  lineupLogoUrl    String?
   promoterBrand    String?
   promoterUsername String?
   promoterPlan     String?
@@ -356,6 +359,7 @@ model Lineup {
   verified     Boolean  @default(false)
   city         String
   bio          String
+  logoUrl      String?
   links        String[] @default([])
   followers    Int      @default(0)
   eventsPlayed Int      @default(0)
