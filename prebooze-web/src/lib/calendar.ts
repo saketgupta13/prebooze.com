@@ -20,8 +20,15 @@ export function downloadIcs(event: Event, venue: Venue | undefined) {
     'END:VEVENT',
     'END:VCALENDAR',
   ].join('\r\n');
+  // Blob + object URL, not a raw data: URI — see the identical note in
+  // lib/ticket.ts; same cross-browser download reliability fix.
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+  a.href = url;
   a.download = `${event.slug}.ics`;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

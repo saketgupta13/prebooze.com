@@ -136,10 +136,23 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   ctx.fillText('prebooze.com', W / 2, H - 40);
   ctx.textAlign = 'left';
 
-  const a = document.createElement('a');
-  a.href = c.toDataURL('image/png');
-  a.download = `prebooze-ticket-${booking.id.replace(/[^\w-]/g, '')}.png`;
-  a.click();
+  // Blob + object URL, not a raw data: URI — Safari (desktop and iOS) is
+  // inconsistent about honoring `download` on a data: href, sometimes just
+  // navigating to/rendering the URI instead of saving it. An object URL is
+  // the reliable cross-browser way to trigger an actual file save, and the
+  // anchor needs to be in the document for `.click()` to fire the download
+  // dialog consistently rather than silently no-op.
+  c.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `prebooze-ticket-${booking.id.replace(/[^\w-]/g, '')}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 'image/png');
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
