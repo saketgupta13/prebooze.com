@@ -62,6 +62,7 @@ import { EmailService } from '../notifications/email';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { RazorpayService } from '../payments/razorpay.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { WalletService } from '../wallet/wallet.service';
 import { FeaturedService } from '../featured/featured.service';
 import { BookingsService } from '../bookings/bookings.service';
 import { HoldsService } from '../bookings/holds.service';
@@ -139,6 +140,7 @@ import { redisProvider } from '../redis.provider';
     SubscriptionsService,
     FeaturedService,
     BookingsService,
+    WalletService,
     HoldsService,
     CronService,
     StaffAuthGuard,

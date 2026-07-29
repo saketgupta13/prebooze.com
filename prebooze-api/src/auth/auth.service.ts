@@ -40,6 +40,7 @@ export function toApiUser(u: User) {
     languages: u.languages,
     bio: u.bio,
     socials: u.socials,
+    socialLinks: u.socialLinks as Record<string, string>,
     interests: u.interests,
     phoneVerified: u.phoneVerified,
     idVerified: u.idVerified,
@@ -243,14 +244,15 @@ export class AuthService {
     const data: Record<string, unknown> = {};
     const allowed = [
       'name', 'username', 'email', 'city', 'state', 'country', 'pincode', 'dob', 'gender', 'profession', 'languages',
-      'bio', 'socials', 'interests', 'attendanceVisibility', 'autoRenew', 'avatarUrl',
+      'bio', 'socials', 'socialLinks', 'interests', 'attendanceVisibility', 'autoRenew', 'avatarUrl',
     ];
     for (const k of allowed) if (k in patch) data[k] = patch[k];
 
     let user = await this.prisma.user.update({ where: { id: userId }, data });
 
-    const filledFields = ['name', 'username', 'email', 'city', 'dob', 'gender', 'profession', 'languages', 'bio', 'socials']
-      .filter((k) => (user[k as keyof typeof user] as string)?.trim()).length;
+    const filledFields = ['name', 'username', 'email', 'city', 'dob', 'gender', 'profession', 'languages', 'bio']
+      .filter((k) => (user[k as keyof typeof user] as string)?.trim()).length
+      + (Object.values(user.socialLinks as Record<string, string>).some((v) => v?.trim()) ? 1 : 0);
     const profilePct = Math.min(100, 20 + filledFields * 7 + (user.interests.length ? 8 : 0) + (user.avatarUrl ? 8 : 0));
     if (profilePct !== user.profilePct) {
       user = await this.prisma.user.update({ where: { id: userId }, data: { profilePct } });

@@ -248,8 +248,29 @@ export interface LiveCustomer {
   status: 'active' | 'unverified' | 'blocked';
   segment: 'guests' | 'organizers';
 }
+/** Full profile — admin-only detail view (GET /admin/customers/:id).
+ * Organizers never get this shape; they only ever see the basic
+ * name/gender/whatsapp Booking.guests already carries. */
+export interface LiveCustomerDetail extends LiveCustomer {
+  state?: string;
+  country?: string;
+  pincode?: string;
+  dob?: string;
+  profession?: string;
+  languages?: string;
+  bio?: string;
+  socialLinks: Record<string, string>;
+  interests: string[];
+  avatarUrl?: string;
+  phoneVerified: boolean;
+  idVerified: boolean;
+  profilePct: number;
+  joined: string;
+  blocked: boolean;
+}
 export const liveCustomers = {
   list: (segment?: 'guests' | 'organizers') => liveFetch<LiveCustomer[]>('/admin/customers' + (segment ? `?segment=${segment}` : '')),
+  get: (id: string) => liveFetch<LiveCustomerDetail>(`/admin/customers/${id}`),
   create: (body: { name: string; phone: string; email?: string; city?: string; gender?: string; verified?: boolean }) =>
     liveFetch<LiveCustomer>('/admin/customers', { body }),
   setBlocked: (id: string, blocked: boolean) => liveFetch<{ ok: true }>(`/admin/customers/${id}/block`, { method: 'PATCH', body: { blocked } }),

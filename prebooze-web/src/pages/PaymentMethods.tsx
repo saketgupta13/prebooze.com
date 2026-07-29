@@ -51,7 +51,10 @@ export default function PaymentMethods() {
                 <span style={{ fontSize: 20 }}>{m.type === 'upi' ? '🅿️' : '💳'}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="bold small">{m.label}</div>
-                  <div className="tiny muted-2">{m.type.toUpperCase()}{m.holder ? ` · ${m.holder}` : ''}{m.expiry ? ` · exp ${m.expiry}` : ''}</div>
+                  <div className="tiny muted-2">
+                    {m.type.toUpperCase()}{m.holder ? ` · ${m.holder}` : ''}{m.expiry ? ` · exp ${m.expiry}` : ''}
+                    {m.usedCount ? ` · used ${m.usedCount}× at checkout` : ''}
+                  </div>
                 </div>
                 {m.isDefault ? (
                   <span className="badge badge-accent">Default ✓</span>

@@ -65,6 +65,32 @@ export class RazorpayService {
     return `pay_dev_${randomBytes(8).toString('hex')}`;
   }
 
+  /** Fetch a completed payment's real method details — used right after a
+   * successful checkout to auto-save the payment method that was actually
+   * used, matching what Checkout's own "Pay with" list already showed
+   * (real Razorpay-issued last4/network, never anything typed/guessed
+   * client-side). Dev mode returns a stable fake card so the auto-save +
+   * dedupe path is still exercisable without a live gateway. */
+  async getPayment(paymentId: string): Promise<{
+    method: string;
+    card?: { last4: string; network: string; type: string };
+    vpa?: string;
+  }> {
+    if (!this.live || paymentId.startsWith('pay_dev_')) {
+      return { method: 'card', card: { last4: '4242', network: 'Visa', type: 'credit' } };
+    }
+    const res = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
+      headers: { Authorization: this.authHeader() },
+    });
+    if (!res.ok) throw new Error(`Razorpay payment fetch failed: ${res.status} ${await res.text()}`);
+    const data = await res.json();
+    return {
+      method: data.method,
+      card: data.card ? { last4: data.card.last4, network: data.card.network, type: data.card.type } : undefined,
+      vpa: data.vpa ?? undefined,
+    };
+  }
+
   // ---------- Subscriptions (organizer/promoter/venue plan billing) ----------
   // Same dev-stub pattern as everything above. Docs: razorpay.com/docs/api/payments/subscriptions/
 

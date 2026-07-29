@@ -47,6 +47,47 @@ export class CustomersService {
     });
   }
 
+  /** Full profile — admin-only (see AdminCustomersController guard). Every
+   * field a guest can fill in, not just the list view's summary row —
+   * organizers only ever see the basic name/gender/whatsapp Booking.guests
+   * already carries (OrganizerService.attendees), never a real User row. */
+  async get(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Customer not found');
+    const stats = await this.prisma.booking.aggregate({
+      where: { userId: id, status: { not: 'cancelled' } },
+      _count: { id: true },
+      _sum: { total: true },
+    });
+    return {
+      id: user.id,
+      name: user.name || 'Guest',
+      phone: user.phone,
+      email: user.email || undefined,
+      city: user.city,
+      state: user.state || undefined,
+      country: user.country || undefined,
+      pincode: user.pincode || undefined,
+      dob: user.dob || undefined,
+      gender: user.gender || undefined,
+      profession: user.profession || undefined,
+      languages: user.languages || undefined,
+      bio: user.bio || undefined,
+      socialLinks: user.socialLinks as Record<string, string>,
+      interests: user.interests,
+      avatarUrl: user.avatarUrl || undefined,
+      phoneVerified: user.phoneVerified,
+      idVerified: user.idVerified,
+      profilePct: user.profilePct,
+      joined: user.createdAt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      blocked: user.blocked,
+      bookings: stats._count.id,
+      spend: stats._sum.total ?? 0,
+      status: user.blocked ? 'blocked' : user.idVerified ? 'active' : 'unverified',
+      segment: user.role || user.roleStatus ? 'organizers' : 'guests',
+    };
+  }
+
   /** Manual onboarding — walk-ups, phone bookings, VIP guests added by
    * staff, no OTP round trip. Marks phoneVerified since staff is vouching
    * for the number directly (mirrors the mock's "becomes their WhatsApp

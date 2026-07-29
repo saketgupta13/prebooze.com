@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { CUSTOMER_STATUS, Kpi, Tag } from '../components/ui';
-import { liveCustomers, liveBookings, LiveApiError, type LiveCustomer, type LiveBooking } from '../lib/liveApi';
+import { liveCustomers, liveBookings, LiveApiError, type LiveCustomerDetail, type LiveBooking } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
+
+const SOCIAL_LABELS: Record<string, string> = {
+  instagram: 'Instagram', x: 'X (Twitter)', facebook: 'Facebook', youtube: 'YouTube',
+  linkedin: 'LinkedIn', snapchat: 'Snapchat', tiktok: 'TikTok',
+};
 
 const TITLE = 'Customer detail';
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
@@ -23,17 +28,18 @@ export default function CustomerDetail() {
   const session = useLiveSession();
   const { token } = session;
 
-  const [customers, setCustomers] = useState<LiveCustomer[]>([]);
+  const [customer, setCustomer] = useState<LiveCustomerDetail | null>(null);
   const [bookings, setBookings] = useState<LiveBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
   const load = () => {
+    if (!id) return;
     setLoading(true);
     setErr('');
-    Promise.all([liveCustomers.list(), liveBookings.list()])
+    Promise.all([liveCustomers.get(id), liveBookings.list()])
       .then(([c, b]) => {
-        setCustomers(c);
+        setCustomer(c);
         setBookings(b);
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
@@ -43,9 +49,8 @@ export default function CustomerDetail() {
   useEffect(() => {
     if (token) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, id]);
 
-  const customer = customers.find((c) => c.id === id);
   const history = useMemo(
     () => (customer ? bookings.filter((b) => b.userId === customer.id) : []),
     [bookings, customer],
@@ -111,6 +116,50 @@ export default function CustomerDetail() {
         <Kpi label="Total spend" value={`₹${fmt(customer.spend)}`} />
         <Kpi label="Paid on record" value={`₹${fmt(totalPaid)}`} />
         <Kpi label="Status" value={CUSTOMER_STATUS[customer.status].label} />
+      </div>
+
+      {/* Full profile — admin-only (see BACKEND.md: organizers only ever see
+          the basic name/gender/whatsapp a Booking's guest list carries). */}
+      <div className="card" style={{ display: 'grid', gap: 10 }}>
+        <div className="display" style={{ fontWeight: 700 }}>Full profile</div>
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10, fontSize: 13 }}>
+          <div><span className="muted tiny">Date of birth</span><div>{customer.dob || '—'}</div></div>
+          <div><span className="muted tiny">Profession</span><div>{customer.profession || '—'}</div></div>
+          <div><span className="muted tiny">Languages</span><div>{customer.languages || '—'}</div></div>
+          <div><span className="muted tiny">State</span><div>{customer.state || '—'}</div></div>
+          <div><span className="muted tiny">Country</span><div>{customer.country || '—'}</div></div>
+          <div><span className="muted tiny">Pincode</span><div>{customer.pincode || '—'}</div></div>
+          <div><span className="muted tiny">Phone verified</span><div>{customer.phoneVerified ? 'Yes' : 'No'}</div></div>
+          <div><span className="muted tiny">ID verified</span><div>{customer.idVerified ? 'Yes' : 'No'}</div></div>
+          <div><span className="muted tiny">Profile complete</span><div>{customer.profilePct}%</div></div>
+          <div><span className="muted tiny">Joined</span><div>{customer.joined}</div></div>
+        </div>
+        {customer.bio && (
+          <div>
+            <span className="muted tiny">Bio</span>
+            <div className="small" dangerouslySetInnerHTML={{ __html: customer.bio }} />
+          </div>
+        )}
+        {customer.interests.length > 0 && (
+          <div>
+            <span className="muted tiny">Interests</span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+              {customer.interests.map((i) => <Tag key={i} label={i} cls="tag-dim" />)}
+            </div>
+          </div>
+        )}
+        {Object.entries(customer.socialLinks).some(([, v]) => v) && (
+          <div>
+            <span className="muted tiny">Social links</span>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+              {Object.entries(customer.socialLinks).filter(([, v]) => v).map(([k, v]) => (
+                <a key={k} href={/^https?:\/\//.test(v) ? v : `https://${v}`} target="_blank" rel="noopener noreferrer" className="small">
+                  {SOCIAL_LABELS[k] ?? k}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="tblwrap">

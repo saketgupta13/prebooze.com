@@ -7,5 +7,6 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 @Module({
   controllers: [WalletController],
   providers: [WalletService, PrismaService, JwtAuthGuard],
+  exports: [WalletService],
 })
 export class WalletModule {}

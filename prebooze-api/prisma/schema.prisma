@@ -54,7 +54,11 @@ model User {
   profession String   @default("")
   languages  String   @default("")
   bio        String   @default("")
-  socials    String   @default("")
+  socials    String   @default("") // legacy free-text field, superseded by socialLinks below — kept for old rows, no longer written by the forms
+  // Per-platform links (instagram/x/facebook/youtube/linkedin/snapchat/tiktok)
+  // — replaces the single free-text `socials` blob so a guest can add more
+  // than one link without cramming them into one input.
+  socialLinks Json    @default("{}")
   interests  String[] @default([])
   avatarUrl  String?
 
@@ -933,8 +937,17 @@ model PayMethod {
   holder    String? // card-holder name
   expiry    String? // MM/YY — CVV is never accepted or stored, see PATCH note in wallet.service.ts
   isDefault Boolean @default(false)
+  // Dedup key for auto-saved methods only (manually-added ones via
+  // wallet.service.ts's addPayMethod leave this null) — "upi:<vpa>" or
+  // "card:<last4>:<network>", the same real Razorpay-returned identity a
+  // repeat checkout with the same method will hash to again. Real PANs are
+  // never stored, so last4+network is the most specific real match we have.
+  matchKey  String?
+  usedCount Int     @default(1)
 
   createdAt DateTime @default(now())
+
+  @@unique([userId, matchKey])
 }
 
 // ============================================================================

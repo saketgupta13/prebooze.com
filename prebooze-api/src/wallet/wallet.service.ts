@@ -15,6 +15,39 @@ export class WalletService {
     return this.prisma.payMethod.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } });
   }
 
+  /** Auto-saves the method a real Razorpay payment actually used — called
+   * right after any successful checkout (guest booking, role subscription
+   * charge, Featured payment), for every role, not just guests manually
+   * adding a card in Settings. Matched by matchKey (real last4+network for
+   * cards, the real VPA for UPI — never anything typed client-side): a
+   * repeat payment with the same method increments usedCount on the
+   * existing row via the real DB unique index instead of inserting a
+   * duplicate. netbanking/wallet have no stable, recognizable "saved
+   * method" identity, so those are left alone — matches what the
+   * "Pay with" list already only ever showed for card/UPI. */
+  async saveUsedMethod(userId: string, payment: { method: string; card?: { last4: string; network: string; type: string }; vpa?: string }) {
+    let type: string;
+    let label: string;
+    let matchKey: string;
+    if (payment.method === 'card' && payment.card) {
+      type = 'card';
+      label = `${payment.card.network} •••• ${payment.card.last4}`;
+      matchKey = `card:${payment.card.last4}:${payment.card.network}`;
+    } else if (payment.method === 'upi' && payment.vpa) {
+      type = 'upi';
+      label = payment.vpa;
+      matchKey = `upi:${payment.vpa}`;
+    } else {
+      return;
+    }
+    const existingCount = await this.prisma.payMethod.count({ where: { userId } });
+    await this.prisma.payMethod.upsert({
+      where: { userId_matchKey: { userId, matchKey } },
+      create: { userId, type, label, matchKey, isDefault: existingCount === 0 },
+      update: { usedCount: { increment: 1 } },
+    });
+  }
+
   /** Note: this deliberately has no `cvv`/`cvvToken` field anywhere in its
    * input type — CVV is verified client-side against the card network at
    * charge time and must never reach our server, let alone be stored. */

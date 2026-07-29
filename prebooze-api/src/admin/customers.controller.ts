@@ -15,6 +15,12 @@ export class AdminCustomersController {
     return this.customers.list(segment);
   }
 
+  @Get(':id')
+  @RequirePermission('Customers', 'view')
+  get(@Param('id') id: string) {
+    return this.customers.get(id);
+  }
+
   @Post()
   @RequirePermission('Customers', 'edit')
   create(@Body() body: Parameters<CustomersService['create']>[0]) {

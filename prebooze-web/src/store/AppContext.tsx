@@ -314,8 +314,11 @@ const load = <T,>(key: string, fallback: T): T => {
 function normalizeUser(u: User | null): User | null {
   if (!u) return u;
   const roles = [u.isOrganizer, u.isPromoter, u.isLineup, u.isVenue].filter(Boolean).length;
-  if (roles > 1) return { ...u, isOrganizer: false, isPromoter: false, isLineup: false, isVenue: false };
-  return u;
+  let next = u;
+  if (roles > 1) next = { ...next, isOrganizer: false, isPromoter: false, isLineup: false, isVenue: false };
+  // Cached pre-socialLinks users (localStorage from before this field existed) won't have it.
+  if (!next.socialLinks) next = { ...next, socialLinks: {} };
+  return next;
 }
 
 /** The real backend's toApiUser() never sends `pendingRole` (see
@@ -718,6 +721,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           languages: '',
           bio: '',
           socials: '',
+          socialLinks: {},
           interests: [],
           phoneVerified: true,
           idVerified: false,

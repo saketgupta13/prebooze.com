@@ -5,6 +5,7 @@ import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { InvoicesService } from '../invoices/invoices.service';
 import { RazorpayService } from '../payments/razorpay.service';
+import { WalletService } from '../wallet/wallet.service';
 
 /** Mirrors prebooze-web's FEATURED_PRICING (src/data/mock.ts), including
  * venueMonthly (the frontend contract, src/api/index.ts featured.rates(),
@@ -28,6 +29,7 @@ export class FeaturedService {
     private email: EmailService,
     private invoices: InvoicesService,
     private razorpay: RazorpayService,
+    private wallet: WalletService,
   ) {}
 
   /** Resolves ownership + the server-trusted city/expiry for a request —
@@ -133,6 +135,11 @@ export class FeaturedService {
     if (!valid) throw new BadRequestException('Payment verification failed');
 
     const updated = await this.prisma.featured.update({ where: { id }, data: { paid: true, paymentId: proof.paymentId } });
+
+    // Auto-save the method this real payment actually used — same
+    // WalletService.saveUsedMethod dedup-by-matchKey path a guest checkout
+    // uses; Featured payments already carry the caller's own real userId.
+    await this.razorpay.getPayment(proof.paymentId).then((p) => this.wallet.saveUsedMethod(userId, p)).catch(() => {});
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (user) {

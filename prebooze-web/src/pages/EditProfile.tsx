@@ -8,6 +8,7 @@ import LocationPicker from '../components/LocationPicker';
 import ChangePhoneNumber from '../components/ChangePhoneNumber';
 import { auth } from '../api';
 import { ApiError } from '../api/client';
+import { SOCIAL_PLATFORMS, type SocialLinks } from '../types';
 
 export default function EditProfile() {
   const { user, updateUser } = useApp();
@@ -22,8 +23,8 @@ export default function EditProfile() {
     profession: user?.profession ?? '',
     languages: user?.languages ?? '',
     bio: user?.bio ?? '',
-    socials: user?.socials ?? '',
   });
+  const [socialLinks, setSocialLinks] = useState<SocialLinks>(user?.socialLinks ?? {});
   const [interests, setInterests] = useState<string[]>(user?.interests ?? []);
   const [loc, setLoc] = useState({
     country: user?.country ?? 'India', state: user?.state ?? '', city: user?.city ?? '', pincode: user?.pincode ?? '',
@@ -45,7 +46,7 @@ export default function EditProfile() {
       const updated = await auth.updateMe({
         ...form,
         city: loc.city, state: loc.state, country: loc.country, pincode: loc.pincode,
-        interests, avatarUrl: photo || undefined,
+        interests, avatarUrl: photo || undefined, socialLinks,
       });
       updateUser(updated);
       navigate('/profile');
@@ -123,7 +124,20 @@ export default function EditProfile() {
           </div>
           <div className="field">
             <span>Social links</span>
-            <input value={form.socials} onChange={set('socials')} placeholder="ig/… · x/… · in/… +" />
+            {/* Grid, not .form-row — see the identical note in
+                ProfileCompletion.tsx's copy of this same field. */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+              {SOCIAL_PLATFORMS.map((p) => (
+                <div className="field" key={p.key}>
+                  <span className="tiny muted-2">{p.label}</span>
+                  <input
+                    value={socialLinks[p.key] ?? ''}
+                    onChange={(e) => setSocialLinks((s) => ({ ...s, [p.key]: e.target.value }))}
+                    placeholder={p.placeholder}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="field">

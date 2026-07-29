@@ -5,6 +5,7 @@ import { RazorpayService } from '../payments/razorpay.service';
 import { EmailService } from '../notifications/email';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { money } from '../notifications/email-templates';
+import { WalletService } from '../wallet/wallet.service';
 
 /** Real Razorpay Subscriptions billing for organizer/promoter/venue/lineup
  * plans (guest wallet top-ups are a separate, deliberately-not-this thing —
@@ -27,6 +28,7 @@ export class SubscriptionsService {
     private razorpay: RazorpayService,
     private email: EmailService,
     private staffAlerts: StaffAlertsService,
+    private wallet: WalletService,
   ) {}
 
   async tiers(role: SubTierRole) {
@@ -166,6 +168,16 @@ export class SubscriptionsService {
           }),
         ]);
         await this.applyTier(record.role, record.entityId, record.tierId);
+        // Auto-save the method this real charge actually used — same
+        // WalletService.saveUsedMethod dedup-by-matchKey path a guest
+        // checkout uses, just resolved through the entity's owning User
+        // instead of a userId the caller already has (see ownerEmail).
+        if (payment?.id && payment.status === 'captured') {
+          const owner = await this.ownerEmail(record.role, record.entityId);
+          if (owner) {
+            await this.razorpay.getPayment(payment.id).then((p) => this.wallet.saveUsedMethod(owner.userId, p)).catch(() => {});
+          }
+        }
         break;
       }
 
@@ -210,24 +222,24 @@ export class SubscriptionsService {
     if (free) await this.applyTier(role, entityId, free.id);
   }
 
-  private async ownerEmail(role: SubTierRole, entityId: string): Promise<{ email: string; name: string } | null> {
+  private async ownerEmail(role: SubTierRole, entityId: string): Promise<{ email: string; name: string; userId: string } | null> {
     if (role === 'organizer') {
       const o = await this.prisma.organizer.findUnique({ where: { id: entityId }, select: { userId: true, brandName: true } });
       if (!o?.userId) return null;
       const u = await this.prisma.user.findUnique({ where: { id: o.userId } });
-      return u?.email ? { email: u.email, name: o.brandName } : null;
+      return u?.email ? { email: u.email, name: o.brandName, userId: u.id } : null;
     }
     if (role === 'promoter') {
       const p = await this.prisma.promoter.findUnique({ where: { id: entityId }, select: { userId: true, name: true } });
       if (!p?.userId) return null;
       const u = await this.prisma.user.findUnique({ where: { id: p.userId } });
-      return u?.email ? { email: u.email, name: p.name } : null;
+      return u?.email ? { email: u.email, name: p.name, userId: u.id } : null;
     }
     if (role === 'lineup') {
       const l = await this.prisma.lineup.findUnique({ where: { id: entityId }, select: { userId: true, name: true } });
       if (!l?.userId) return null;
       const u = await this.prisma.user.findUnique({ where: { id: l.userId } });
-      return u?.email ? { email: u.email, name: l.name } : null;
+      return u?.email ? { email: u.email, name: l.name, userId: u.id } : null;
     }
     // venue: Venue.userId is only populated for venues onboarded after that
     // field was added — fall back to the reverse User.venueId scalar
@@ -238,7 +250,7 @@ export class SubscriptionsService {
       ? await this.prisma.user.findUnique({ where: { id: v.userId } })
       : await this.prisma.user.findFirst({ where: { venueId: entityId } });
     if (!u?.email) return null;
-    return { email: u.email, name: v?.name ?? u.name };
+    return { email: u.email, name: v?.name ?? u.name, userId: u.id };
   }
 
   private async notifyOwner(role: SubTierRole, entityId: string, templateId: 'subscription_activated' | 'subscription_payment_failed') {

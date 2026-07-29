@@ -8,6 +8,8 @@ import { RazorpayService } from '../payments/razorpay.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
+import { ticketPdfBuffer } from '../notifications/ticket-pdf';
+import { WalletService } from '../wallet/wallet.service';
 import { REFERRAL_REFERRER_REWARD, referralCodeFor } from '../referrals/referral.constants';
 import { NotificationsService } from '../admin/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
@@ -40,6 +42,7 @@ export class BookingsService {
     private notifications: NotificationsService,
     private invoices: InvoicesService,
     private staffAlerts: StaffAlertsService,
+    private wallet: WalletService,
   ) {}
 
   async createHold(userId: string, eventId: string, qty: Record<string, number>) {
@@ -191,6 +194,11 @@ export class BookingsService {
       } else {
         throw new BadRequestException('Payment is required to complete this booking');
       }
+      // Auto-save the method this real payment actually used (see
+      // WalletService.saveUsedMethod) — swallows its own errors, same as
+      // every other post-payment side effect here; a save failure must
+      // never fail a booking that already genuinely completed payment.
+      await this.razorpay.getPayment(paymentId).then((p) => this.wallet.saveUsedMethod(userId, p)).catch(() => {});
     }
 
     const id = '#TKT-' + randomInt(10000, 99999);
@@ -202,7 +210,7 @@ export class BookingsService {
     const qrToken = await this.jwt.signAsync({ bookingId: id }, { expiresIn: '30d' });
 
     // ---- atomic: guard against overselling, write booking + debit wallet + bump coupon use ----
-    await this.prisma.$transaction(async (tx) => {
+    const booking = await this.prisma.$transaction(async (tx) => {
       for (const l of lines) {
         const res = await tx.ticketTier.updateMany({
           where: { id: l.tier.id, sold: { lte: l.tier.quantity - l.qty } },
@@ -211,7 +219,7 @@ export class BookingsService {
         if (res.count === 0) throw new BadRequestException(`"${l.tier.name}" sold out while you were checking out`);
       }
 
-      await tx.booking.create({
+      const created = await tx.booking.create({
         data: {
           id,
           userId,
@@ -267,30 +275,34 @@ export class BookingsService {
           await tx.payMethod.update({ where: { id: input.payMethodId }, data: { isDefault: true } });
         }
       }
+      return created;
     });
 
     await this.holds.release(input.holdId);
 
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    // WhatsApp only ever carries the approved template's plain text (see
+    // WhatsappService/InvoicesService.resendWhatsapp for the same, already-
+    // documented AiSensy constraint — no arbitrary media/PDF attachment on a
+    // campaign template send). The real PDF ticket goes out on email below.
     await this.wa.send(input.whatsapp, 'booking_confirmed', [input.mainGuest.trim(), event.title, String(qty), id, String(total)]).catch(() => {});
+    const ticketVenue = await this.prisma.venue.findUnique({ where: { id: event.venueId } });
+    const ticketPdf = await ticketPdfBuffer(booking, event, ticketVenue).catch(() => null);
     await this.email.sendTemplate(user.email, 'booking_confirmed', {
       name: input.mainGuest.trim(), eventTitle: event.title, qty: String(qty), bookingId: id, total: money(total),
-    }).catch(() => {});
+    }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined).catch(() => {});
 
     // ---- invoice: GST only on the platform's own booking-fee revenue, same
     // convention Reports.ts/computeFin already uses — the organizer's ticket
     // price isn't Prebooze's revenue to tax here.
     if (subtotal > 0) {
-      const [settings, venue] = await Promise.all([
-        this.prisma.platformSettings.findUnique({ where: { id: 'main' } }),
-        this.prisma.venue.findUnique({ where: { id: event.venueId }, select: { city: true } }),
-      ]);
+      const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
       const gstPct = settings?.gstPct ?? 0;
       const gstAmount = Math.round((fee * gstPct) / 100);
       await this.invoices.create({
         type: 'booking', refId: id, role: 'guest',
         payerName: input.mainGuest.trim(), payerEmail: user.email, payerPhone: input.whatsapp,
-        city: venue?.city, description: `${qty}× ${event.title}`,
+        city: ticketVenue?.city, description: `${qty}× ${event.title}`,
         subtotal, gstPct, gstAmount, total,
       }).catch(() => {});
     }
@@ -370,14 +382,14 @@ export class BookingsService {
     ];
     const qrToken = await this.jwt.signAsync({ bookingId: id }, { expiresIn: '30d' });
 
-    await this.prisma.$transaction(async (tx) => {
+    const booking = await this.prisma.$transaction(async (tx) => {
       const res = await tx.ticketTier.updateMany({
         where: { id: tier.id, sold: { lte: tier.quantity - input.qty } },
         data: { sold: { increment: input.qty } },
       });
       if (res.count === 0) throw new BadRequestException(`"${tier.name}" sold out`);
 
-      await tx.booking.create({
+      const created = await tx.booking.create({
         data: {
           id,
           userId: buyer.id,
@@ -404,9 +416,17 @@ export class BookingsService {
       }
       await this.postEventLedger(tx, event.id, event.title, 'Ticket commission', 'income', commission);
       await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
+      return created;
     });
 
     await this.wa.send(phone, 'booking_confirmed', [input.guestName.trim(), event.title, String(input.qty), id, String(total)]).catch(() => {});
+    if (buyer.email) {
+      const venue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
+      const ticketPdf = await ticketPdfBuffer(booking, event, venue).catch(() => null);
+      await this.email.sendTemplate(buyer.email, 'booking_confirmed', {
+        name: input.guestName.trim(), eventTitle: event.title, qty: String(input.qty), bookingId: id, total: money(total),
+      }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined).catch(() => {});
+    }
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true } } } });
   }
 

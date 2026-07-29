@@ -8,9 +8,10 @@ import { EmailService } from '../notifications/email';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { RazorpayService } from '../payments/razorpay.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { WalletService } from '../wallet/wallet.service';
 
 @Module({
   controllers: [PromoterController, GuestCaptureController],
-  providers: [PromoterService, PrismaService, JwtAuthGuard, WhatsappService, EmailService, StaffAlertsService, RazorpayService, SubscriptionsService],
+  providers: [PromoterService, PrismaService, JwtAuthGuard, WhatsappService, EmailService, StaffAlertsService, RazorpayService, SubscriptionsService, WalletService],
 })
 export class PromoterModule {}

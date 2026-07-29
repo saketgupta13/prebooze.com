@@ -314,6 +314,26 @@ export interface Attendee {
   status: 'checked-in' | 'confirmed' | 'refunded';
 }
 
+/** Per-platform profile links — a guest can fill in as many as they like. */
+export interface SocialLinks {
+  instagram?: string;
+  x?: string;
+  facebook?: string;
+  youtube?: string;
+  linkedin?: string;
+  snapchat?: string;
+  tiktok?: string;
+}
+export const SOCIAL_PLATFORMS: { key: keyof SocialLinks; label: string; placeholder: string }[] = [
+  { key: 'instagram', label: 'Instagram', placeholder: 'instagram.com/username' },
+  { key: 'x', label: 'X (Twitter)', placeholder: 'x.com/username' },
+  { key: 'facebook', label: 'Facebook', placeholder: 'facebook.com/username' },
+  { key: 'youtube', label: 'YouTube', placeholder: 'youtube.com/@username' },
+  { key: 'linkedin', label: 'LinkedIn', placeholder: 'linkedin.com/in/username' },
+  { key: 'snapchat', label: 'Snapchat', placeholder: 'snapchat.com/add/username' },
+  { key: 'tiktok', label: 'TikTok', placeholder: 'tiktok.com/@username' },
+];
+
 export interface User {
   phone: string;
   name: string;
@@ -329,7 +349,8 @@ export interface User {
   profession: string;
   languages: string;
   bio: string;
-  socials: string;
+  socials: string; // legacy free-text field, superseded by socialLinks
+  socialLinks: SocialLinks;
   interests: string[];
   phoneVerified: boolean;
   idVerified: boolean;
@@ -370,6 +391,7 @@ export interface PayMethod {
   holder?: string; // card-holder name
   expiry?: string; // MM/YY — CVV is never stored
   isDefault: boolean;
+  usedCount?: number; // only set on auto-saved methods (see WalletService.saveUsedMethod) — a repeat checkout with the same method increments this instead of creating a duplicate row
 }
 
 export interface WaitlistEntry {
