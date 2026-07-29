@@ -800,7 +800,14 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
 }
 .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
 
-.bookings-grid { display: grid; grid-template-columns: 300px 1fr; gap: 22px; align-items: start; }
+/* Mobile-first, same reasoning as .checkout-grid above — the booking
+   list + ticket/QR detail panel is core guest functionality, so it gets
+   the same unconditional-default guarantee instead of depending on a
+   max-width query matching. */
+.bookings-grid { display: grid; grid-template-columns: 1fr; gap: 22px; }
+@media (min-width: 961px) {
+  .bookings-grid { grid-template-columns: 300px 1fr; align-items: start; }
+}
 .blist { display: flex; flex-direction: column; gap: 10px; }
 .blist-item {
   text-align: left;
@@ -993,7 +1000,11 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
 .kv:last-child { border-bottom: none; }
 .kv .k { color: var(--muted); }
 
-.profile-grid { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
+/* Mobile-first, same reasoning as .checkout-grid above. */
+.profile-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+@media (min-width: 961px) {
+  .profile-grid { grid-template-columns: 320px 1fr; align-items: start; }
+}
 
 /* legal */
 .legal-grid { display: grid; grid-template-columns: 230px 1fr; gap: 30px; align-items: start; }
@@ -1070,13 +1081,13 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   .grid-3 { grid-template-columns: repeat(2, 1fr); }
   .trust-list { grid-template-columns: repeat(2, 1fr); }
   .steps { grid-template-columns: repeat(2, 1fr); }
-  .auth-wrap, .bookings-grid, .profile-grid, .legal-grid {
+  .auth-wrap, .legal-grid {
     grid-template-columns: 1fr;
   }
-  /* .checkout-grid itself is mobile-first now (see the "checkout" section
-     above) — single column + static ticket-box is its unconditional
-     default, only opted out of above 960px, so it doesn't need resetting
-     here the way the other grids on this list do. */
+  /* .checkout-grid, .bookings-grid and .profile-grid are all mobile-first
+     now (single column is their unconditional default, opted out of only
+     above 960px — see each one's own rule), so they've dropped off this
+     reset list; only .auth-wrap/.legal-grid still need resetting here. */
   /* .toc stays position:sticky at every width, but .legal-grid collapsing
      to one column turns it from a narrow 230px sidebar into a full-width
      block — once it's sticky AND full-width, scrolling makes it pin over
