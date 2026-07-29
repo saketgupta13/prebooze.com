@@ -105,6 +105,30 @@ function ScrollToTop() {
   return null;
 }
 
+const SITE_ORIGIN = 'https://prebooze.com';
+
+/** Keeps <link rel="canonical"> in sync with the real route on every
+ * navigation — index.html's copy was a single static tag (the homepage
+ * URL) that silently applied to every page, telling search engines every
+ * route's canonical page was the homepage. This is a router-level effect
+ * (not a per-page useSeo call) specifically so every route gets a correct
+ * canonical automatically, including pages that don't call useSeo today
+ * and any added later — no per-page wiring to remember. */
+function CanonicalUrl() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const href = SITE_ORIGIN + (pathname === '/' ? '' : pathname);
+    let tag = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!tag) {
+      tag = document.createElement('link');
+      tag.setAttribute('rel', 'canonical');
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute('href', href);
+  }, [pathname]);
+  return null;
+}
+
 /** Real gate for Settings → Danger zone → "Maintenance mode" — the
  * platform-wide toggle already blocks booking creation server-side
  * (BookingsService.priceHold), this is the other half the setting's own
@@ -129,6 +153,7 @@ export default function App() {
   return (
     <ComingSoonGate>
       <ScrollToTop />
+      <CanonicalUrl />
       <Header />
       <SalesPausedBanner />
       <MaintenanceGate>
