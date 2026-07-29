@@ -80,7 +80,16 @@ export class LiveMonitorService {
     if (booking) {
       if (booking.status !== 'confirmed') throw new BadRequestException(`Ticket is ${booking.status}, not valid for entry`);
       if (booking.checkedIn) throw new BadRequestException('Already checked in — ' + booking.checkedInAt?.toISOString());
-      await this.prisma.booking.update({ where: { id: booking.id }, data: { checkedIn: true, checkedInAt: new Date() } });
+      // Same conditional-update race guard as BookingsService.checkIn — a
+      // manual lookup here can race a real camera scan of the same booking.
+      const result = await this.prisma.booking.updateMany({
+        where: { id: booking.id, checkedIn: false },
+        data: { checkedIn: true, checkedInAt: new Date() },
+      });
+      if (result.count === 0) {
+        const latest = await this.prisma.booking.findUnique({ where: { id: booking.id } });
+        throw new BadRequestException('Already checked in — ' + latest?.checkedInAt?.toISOString());
+      }
       return this.prisma.checkInLog.create({
         data: { eventId, bookingId: booking.id, ok: true, reason: 'manual check-in', guestName: booking.mainGuest, tierName: booking.tierName, headcount: booking.qty },
       });

@@ -604,10 +604,22 @@ export class BookingsService {
       throw new BadRequestException('Already checked in — ' + booking.checkedInAt?.toISOString());
     }
 
-    const updated = await this.prisma.booking.update({
-      where: { id: booking.id },
+    // Conditional on checkedIn:false (not a plain update) so two near-
+    // simultaneous scans of the same QR — a screenshotted ticket at two
+    // gates, a camera scan racing a manual-entry confirm — can't both pass
+    // the read-then-write gap above and both admit. Only one write can ever
+    // match this where clause; the loser sees count 0 and is rejected below,
+    // same as the fast-path check above but race-safe.
+    const result = await this.prisma.booking.updateMany({
+      where: { id: booking.id, checkedIn: false },
       data: { checkedIn: true, checkedInAt: new Date() },
     });
+    if (result.count === 0) {
+      const latest = await this.prisma.booking.findUnique({ where: { id: booking.id } });
+      await this.logCheckIn({ ok: false, reason: `duplicate QR — already scanned ${latest?.checkedInAt?.toISOString()}`, eventId: booking.eventId, bookingId: booking.id, guestName: booking.mainGuest, tierName: booking.tierName });
+      throw new BadRequestException('Already checked in — ' + latest?.checkedInAt?.toISOString());
+    }
+    const updated = await this.prisma.booking.findUniqueOrThrow({ where: { id: booking.id } });
     await this.logCheckIn({ ok: true, reason: 'checked in', eventId: booking.eventId, bookingId: booking.id, guestName: booking.mainGuest, tierName: booking.tierName, headcount: booking.qty });
     return updated;
   }

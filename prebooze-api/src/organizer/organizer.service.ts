@@ -379,6 +379,12 @@ export class OrganizerService {
 
     const bookings = await this.prisma.booking.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
     return bookings.flatMap((b) => {
+      // Check-in happens once per booking (one QR, scanned at the gate for
+      // the whole party) — the real BookingsService.checkIn only ever flips
+      // Booking.checkedIn, never the per-guest `g.checkedIn` in this JSON
+      // (that field is initialized false at creation and never written to
+      // again). Reading b.checkedIn here means every guest in the party
+      // reflects the real scan instead of always showing "not checked in".
       const guests = b.guests as { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
       return guests.map((g) => ({
         bookingId: b.id,
@@ -387,7 +393,7 @@ export class OrganizerService {
         name: g.name,
         gender: g.gender,
         whatsapp: g.whatsapp ?? b.whatsapp,
-        checkedIn: g.checkedIn,
+        checkedIn: b.checkedIn,
       }));
     });
   }
