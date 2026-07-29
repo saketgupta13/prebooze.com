@@ -337,8 +337,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [carts, setCarts] = useState<CartRecord[]>(() => load('pb_carts', []));
   const [myEvents, setMyEvents] = useState<Event[]>(() => load('pb_my_events', []));
   const [coupons, setCoupons] = useState<Coupon[]>(() => load('pb_coupons', COUPONS));
+  // Real-backend + no token (logged out) never trusts whatever's cached in
+  // localStorage for these four, even before logout()'s own reset runs —
+  // a second layer against stale follow/wishlist/favourite state surviving
+  // into a logged-out view (e.g. a tab that was already open across a
+  // logout that happened some other way, or any future code path that
+  // clears the session without going through the shared logout()).
+  const loggedOutOnBoot = isBackendEnabled() && !getToken();
   const [following, setFollowing] = useState<string[]>(() =>
-    load('pb_following', ['livewire', 'nightowl', 'person:p1', 'person:p2', 'person:p3'])
+    loggedOutOnBoot ? [] : load('pb_following', ['livewire', 'nightowl', 'person:p1', 'person:p2', 'person:p3'])
   );
   // Net change to a followee's follower *count* this session, keyed by the
   // same followeeKey as `following` — the server-fetched count on each
@@ -348,7 +355,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // persisted to localStorage: it's a page-load-to-now nudge only, and a
   // fresh fetch after reload already carries the real server count.
   const [followerDeltas, setFollowerDeltas] = useState<Record<string, number>>({});
-  const [interested, setInterested] = useState<string[]>(() => load('pb_interested', []));
+  const [interested, setInterested] = useState<string[]>(() => (loggedOutOnBoot ? [] : load('pb_interested', [])));
   const [featured, setFeatured] = useState<Featured[]>(() => {
     const stored = load('pb_featured', SEED_FEATURED);
     // backfill newly seeded placements (e.g. featured venues) into old localStorage
@@ -362,8 +369,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [wallets, setWallets] = useState<Record<string, WalletTx[]>>(() => load('pb_wallets', {}));
   const [referrals, setReferrals] = useState<Referral[]>(() => load('pb_referrals', []));
   const [refCodes, setRefCodes] = useState<Record<string, string>>(() => load('pb_ref_codes', {}));
-  const [wishlist, setWishlist] = useState<string[]>(() => load('pb_wishlist', []));
-  const [favVenues, setFavVenues] = useState<string[]>(() => load('pb_fav_venues', []));
+  const [wishlist, setWishlist] = useState<string[]>(() => (loggedOutOnBoot ? [] : load('pb_wishlist', [])));
+  const [favVenues, setFavVenues] = useState<string[]>(() => (loggedOutOnBoot ? [] : load('pb_fav_venues', [])));
   const [payMethodsMap, setPayMethodsMap] = useState<Record<string, PayMethod[]>>(() => load('pb_paymethods', {}));
   const [ticketsMap, setTicketsMap] = useState<Record<string, HelpTicket[]>>(() => load('pb_help_tickets', {}));
   const [waitlists, setWaitlists] = useState<Record<string, WaitlistEntry[]>>(() => load('pb_waitlists', {}));
@@ -727,6 +734,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setOrgTeamAccessLoaded(true);
         setFollowing([]);
         setFollowers([]);
+        setFollowerDeltas({});
         setInterested([]);
         setWishlist([]);
         setFavVenues([]);

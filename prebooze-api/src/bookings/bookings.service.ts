@@ -46,6 +46,35 @@ export class BookingsService {
     return this.holds.create(userId, eventId, qty);
   }
 
+  /** Event.commission (admin's "Event commission (per event)" setting) —
+   * null/unset by default, so this is 0 for every event nobody's explicitly
+   * opted into a platform cut on. */
+  private commissionFor(subtotal: number, commissionPct: number | null): number {
+    return commissionPct ? Math.round((subtotal * commissionPct) / 100) : 0;
+  }
+
+  /** One running total per (event, category) instead of a fresh row per
+   * ticket sold — the finance ledger used to get a new "Booking fees" line
+   * for every single booking, which buried real activity in noise instead
+   * of showing what an event actually earned the platform. eventId+category
+   * has a real unique index (see LedgerEntry in schema.prisma) so this is a
+   * genuine upsert-and-increment, not read-then-write. */
+  private async postEventLedger(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    eventTitle: string,
+    category: string,
+    kind: 'income' | 'expense',
+    amount: number,
+  ) {
+    if (amount <= 0) return;
+    await tx.ledgerEntry.upsert({
+      where: { eventId_category: { eventId, category } },
+      create: { kind, category, amount, note: eventTitle, eventId, auto: true },
+      update: { amount: { increment: amount } },
+    });
+  }
+
   /** Shared by quote() and create() — never trust a client-supplied amount,
    * always re-derive pricing server-side from the hold + live coupon/wallet state. */
   private async priceHold(userId: string, holdId: string, couponCode?: string, requestedWalletCredit?: number) {
@@ -217,21 +246,18 @@ export class BookingsService {
       // abandoned-cart recovery: this hold converted, so it's no longer a cart to nudge
       await tx.cart.updateMany({ where: { holdId: input.holdId }, data: { status: 'completed' } });
 
-      // organizer earnings ledger — credited the ticket subtotal, not the
-      // booking fee (that's platform revenue); no commission/take-rate
-      // modeled yet, see OrganizerLedgerTx in schema.prisma
+      // organizer earnings ledger — credited the ticket subtotal minus
+      // whatever commission % admin set on this event (0 for the vast
+      // majority of events, which have no commission configured)
+      const commission = this.commissionFor(subtotal, event.commission);
       await tx.organizerLedgerTx.create({
-        data: { organizerId: event.organizerId, type: 'sale', amount: subtotal, eventId: event.id, eventTitle: event.title, note: `Booking ${id}` },
+        data: { organizerId: event.organizerId, type: 'sale', amount: subtotal - commission, eventId: event.id, eventTitle: event.title, note: `Booking ${id}` },
       });
 
-      // platform's own finance ledger (Admin API finance ledger slice) —
-      // the booking fee IS the platform's revenue, auto-posted so finance
-      // staff see real numbers instead of an empty manual scratchpad
-      if (fee > 0) {
-        await tx.ledgerEntry.create({
-          data: { kind: 'income', category: 'Booking fees', amount: fee, note: `Booking ${id}`, auto: true },
-        });
-      }
+      // platform's own finance ledger (Admin API finance ledger slice) — one
+      // running total per event per category, not one row per booking
+      await this.postEventLedger(tx, event.id, event.title, 'Ticket commission', 'income', commission);
+      await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
 
       // paying with a saved method sets it default
       if (input.payMethodId) {
@@ -370,16 +396,14 @@ export class BookingsService {
         },
       });
 
+      const commission = this.commissionFor(subtotal, event.commission);
       if (subtotal > 0) {
         await tx.organizerLedgerTx.create({
-          data: { organizerId: event.organizerId, type: 'sale', amount: subtotal, eventId: event.id, eventTitle: event.title, note: `Booking ${id} (manual)` },
+          data: { organizerId: event.organizerId, type: 'sale', amount: subtotal - commission, eventId: event.id, eventTitle: event.title, note: `Booking ${id} (manual)` },
         });
       }
-      if (fee > 0) {
-        await tx.ledgerEntry.create({
-          data: { kind: 'income', category: 'Booking fees', amount: fee, note: `Booking ${id} (manual)`, auto: true },
-        });
-      }
+      await this.postEventLedger(tx, event.id, event.title, 'Ticket commission', 'income', commission);
+      await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
     });
 
     await this.wa.send(phone, 'booking_confirmed', [input.guestName.trim(), event.title, String(input.qty), id, String(total)]).catch(() => {});
@@ -460,20 +484,23 @@ export class BookingsService {
         });
       }
 
-      // reverse the organizer's earnings credit from the original sale
-      const event = await tx.event.findUnique({ where: { id: booking.eventId }, select: { organizerId: true, title: true } });
+      // reverse the organizer's earnings credit from the original sale —
+      // same subtotal-minus-commission the original booking credited them
+      const event = await tx.event.findUnique({ where: { id: booking.eventId }, select: { organizerId: true, title: true, commission: true } });
+      const commission = event ? this.commissionFor(booking.subtotal, event.commission) : 0;
       if (event) {
         await tx.organizerLedgerTx.create({
-          data: { organizerId: event.organizerId, type: 'refund', amount: -booking.subtotal, eventId: booking.eventId, eventTitle: event.title, note: `Refund — booking ${id}` },
+          data: { organizerId: event.organizerId, type: 'refund', amount: -(booking.subtotal - commission), eventId: booking.eventId, eventTitle: event.title, note: `Refund — booking ${id}` },
         });
       }
 
-      // reverse the platform's own "Booking fees" income the same way —
-      // the refund gives back booking.total in full, fee included
-      if (booking.fee > 0) {
-        await tx.ledgerEntry.create({
-          data: { kind: 'expense', category: 'Refund losses', amount: booking.fee, note: `Refund — booking ${id}`, auto: true },
-        });
+      // reverse the platform's own income the same way — the refund gives
+      // back booking.total in full, fee + commission included. Recorded as
+      // a separate "Refund losses" expense (aggregated per event, same as
+      // the income side) rather than netted directly against the income
+      // categories, so gross income and gross refunds both stay visible.
+      if (event) {
+        await this.postEventLedger(tx, booking.eventId, event.title, 'Refund losses', 'expense', booking.fee + commission);
       }
     });
 

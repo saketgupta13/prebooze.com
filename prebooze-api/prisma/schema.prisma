@@ -1367,8 +1367,17 @@ model LedgerEntry {
   amount   Int
   note     String?
   auto     Boolean @default(false) // auto-posted from real activity — never client-editable or deletable
+  // Set only on auto-posted, per-event entries (Ticket commission/Booking
+  // fees/Refund losses) — lets booking creation upsert-and-increment one
+  // running total per (event, category) instead of inserting a fresh row
+  // per ticket sold. Null (and unconstrained) on manual entries — the
+  // unique index below only applies where eventId is non-null, since
+  // Postgres never treats two NULLs as equal in a unique index.
+  eventId String?
 
   createdAt DateTime @default(now())
+
+  @@unique([eventId, category])
 }
 
 model LedgerCategory {

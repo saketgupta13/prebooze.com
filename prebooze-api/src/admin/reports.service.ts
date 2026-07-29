@@ -84,7 +84,15 @@ export class ReportsService {
 
     const commissionIncome = Math.round(selling.reduce((a, e) => a + (e.revenue * (e.commission as number)) / 100, 0));
     const feeIncome = revenueByEvent.reduce((a, r) => a + (r._sum.fee ?? 0), 0);
-    const otherIncomeAgg = await this.prisma.ledgerEntry.aggregate({ where: { kind: 'income' }, _sum: { amount: true } });
+    // "Ticket commission" and "Booking fees" are excluded here — they're
+    // the exact same real activity as commissionIncome/feeIncome above,
+    // just also mirrored into the ledger table (BookingsService.
+    // postEventLedger) so Finance.tsx has real auto-posted rows to show.
+    // Summing them again here would double-count every real sale.
+    const otherIncomeAgg = await this.prisma.ledgerEntry.aggregate({
+      where: { kind: 'income', category: { notIn: ['Ticket commission', 'Booking fees'] } },
+      _sum: { amount: true },
+    });
     const otherIncome = otherIncomeAgg._sum.amount ?? 0;
 
     const expenseRows = await this.prisma.ledgerEntry.findMany({ where: { kind: 'expense' } });
