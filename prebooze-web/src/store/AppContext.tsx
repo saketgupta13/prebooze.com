@@ -4,7 +4,7 @@ import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayM
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } from '../data/mock';
 import { notify } from '../lib/notify';
-import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTeamApi, bookings as bookingsApi, type OrgTeamAccess } from '../api';
+import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTeamApi, bookings as bookingsApi, wallet as walletApi, support as supportApi, careers as careersApi, type OrgTeamAccess } from '../api';
 import { isBackendEnabled, setToken, clearToken, getToken } from '../api/client';
 
 export interface GuestReview {
@@ -205,6 +205,10 @@ interface AppState {
   walletTxs: WalletTx[];
   walletBalance: number;
   spendWallet: (amount: number, note: string) => void;
+  /** Re-fetches the real GET /wallet — call after any action that changes a
+   * real guest's balance server-side (a live purchase, a live refund) so
+   * the Wallet page doesn't need a full reload to catch up. No-op offline. */
+  refreshWallet: () => void;
   myReferralCode: string;
   referrals: Referral[];
   wishlist: string[]; // event ids
@@ -220,7 +224,7 @@ interface AppState {
   waitlists: Record<string, WaitlistEntry[]>; // eventId -> queue (FIFO)
   joinWaitlist: (eventId: string) => void;
   jobApps: JobApplication[];
-  applyJob: (a: Omit<JobApplication, 'id' | 'appliedAt'>) => void;
+  applyJob: (a: Omit<JobApplication, 'id' | 'appliedAt' | 'cv'>, cv?: File) => void;
   /** keyed by `reviewKey(targetType, targetId)` — covers organizer/promoter/venue/lineup, never guests. */
   reviews: Record<string, GuestReview[]>;
   addReview: (targetType: ReviewTargetType, targetId: string, rating: number, text: string, eventTitle?: string) => void;
@@ -394,6 +398,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // followers" that didn't actually follow them.
   const [followers, setFollowers] = useState<Person[]>([]);
   const [followersLoading, setFollowersLoading] = useState(isBackendEnabled());
+  // Real GET /wallet + GET /pay-methods — a real WalletTx/PayMethod backend
+  // has existed the whole time, but the Wallet and Payment methods pages
+  // only ever read/wrote the local pb_wallets/pb_paymethods maps, so a real
+  // guest's balance there never matched what Checkout actually applies (it
+  // fetches wallet.balance() itself). null = not fetched yet.
+  const [liveWallet, setLiveWallet] = useState<{ balance: number; txs: WalletTx[] } | null>(null);
+  const [livePayMethods, setLivePayMethods] = useState<PayMethod[] | null>(null);
+  // Real GET /referrals — the local `myReferralCode` below (a client-side
+  // recomputation of the same deterministic phone hash the backend also
+  // uses at signup) happens to match today, but "your referrals" — who
+  // actually joined/qualified via your link — was always empty for a real
+  // guest since nothing ever fetched it. Sourcing both from the one real
+  // call removes the duplicated hash logic as a footgun too.
+  const [liveReferrals, setLiveReferrals] = useState<{ code: string; referrals: Referral[] } | null>(null);
+  // Real GET /support/tickets — HelpCenter used to only ever write to the
+  // local pb_help_tickets map, so a guest's raised ticket never reached
+  // admin and "Your tickets" always showed the same fake local echo.
+  const [liveHelpTickets, setLiveHelpTickets] = useState<HelpTicket[] | null>(null);
   const [pendingPhone, setPendingPhone] = useState('');
   const [pendingRequestId, setPendingRequestId] = useState('');
   const [orgTeamAccess, setOrgTeamAccess] = useState<OrgTeamAccess | null>(null);
@@ -480,6 +502,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .catch(() => {})
       .finally(() => setFollowersLoading(false));
   }, []);
+  const refreshWallet = useCallback(() => {
+    if (!isBackendEnabled() || !getToken()) return;
+    walletApi
+      .balance()
+      // the API returns Prisma's `createdAt`, not this type's `date` — apiFetch
+      // doesn't transform responses, it's just a cast, so this normalizes it.
+      .then((w) => setLiveWallet({ balance: w.balance, txs: w.txs.map((t) => ({ ...t, date: (t as unknown as { createdAt: string }).createdAt })) }))
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    refreshWallet();
+    if (!isBackendEnabled() || !getToken()) return;
+    walletApi.payMethods().then(setLivePayMethods).catch(() => {});
+    referralsApi.mine().then(setLiveReferrals).catch(() => {});
+    supportApi.tickets().then(setLiveHelpTickets).catch(() => {});
+  }, [refreshWallet]);
   // Real "am I on an organizer's team" bootstrap — an invited team member
   // isn't isOrganizer (that flag is reserved for the real KYC-approved
   // owner), so OrganizerLayout needs this separately to decide whether to
@@ -606,8 +644,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const walletTxs = user ? (wallets[user.phone] ?? []) : [];
-  const walletBalance = walletTxs.reduce((a, t) => a + t.amount, 0);
+  const walletTxs = isBackendEnabled() ? (liveWallet?.txs ?? []) : user ? (wallets[user.phone] ?? []) : [];
+  const walletBalance = isBackendEnabled() ? (liveWallet?.balance ?? 0) : walletTxs.reduce((a, t) => a + t.amount, 0);
 
   const value = useMemo<AppState>(
     () => ({
@@ -821,11 +859,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       walletTxs,
       walletBalance,
+      refreshWallet,
       spendWallet: (amount, note) => {
         if (user && amount > 0) creditWallet(user.phone, { type: 'spend', amount: -amount, note });
       },
-      myReferralCode: user ? referralCodeFor(user.phone) : '',
-      referrals,
+      myReferralCode: isBackendEnabled() ? (liveReferrals?.code ?? '') : user ? referralCodeFor(user.phone) : '',
+      referrals: isBackendEnabled() ? (liveReferrals?.referrals ?? []) : referrals,
       wishlist,
       toggleWishlist: (eventId) => {
         // Real login required — this used to update local state optimistically
@@ -858,9 +897,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
         }
       },
-      payMethods: user ? (payMethodsMap[user.phone] ?? []) : [],
+      payMethods: isBackendEnabled() ? (livePayMethods ?? []) : user ? (payMethodsMap[user.phone] ?? []) : [],
       addPayMethod: (m) => {
         if (!user) return;
+        if (isBackendEnabled()) {
+          walletApi
+            .addPayMethod(m)
+            .then((created) => setLivePayMethods((prev) => [...(prev ?? []), created]))
+            .catch(() => toast('Could not save that payment method — try again'));
+          return;
+        }
         setPayMethodsMap((prev) => {
           const cur = prev[user.phone] ?? [];
           return { ...prev, [user.phone]: [...cur, { ...m, id: 'pm' + Date.now(), isDefault: cur.length === 0 }] };
@@ -868,10 +914,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       removePayMethod: (id) => {
         if (!user) return;
+        if (isBackendEnabled()) {
+          setLivePayMethods((prev) => (prev ?? []).filter((m) => m.id !== id));
+          walletApi.removePayMethod(id).catch(() => walletApi.payMethods().then(setLivePayMethods).catch(() => {}));
+          return;
+        }
         setPayMethodsMap((prev) => ({ ...prev, [user.phone]: (prev[user.phone] ?? []).filter((m) => m.id !== id) }));
       },
       setDefaultPayMethod: (id) => {
         if (!user) return;
+        if (isBackendEnabled()) {
+          setLivePayMethods((prev) => (prev ?? []).map((m) => ({ ...m, isDefault: m.id === id })));
+          walletApi.setDefault(id).catch(() => walletApi.payMethods().then(setLivePayMethods).catch(() => {}));
+          return;
+        }
         setPayMethodsMap((prev) => ({
           ...prev,
           [user.phone]: (prev[user.phone] ?? []).map((m) => ({ ...m, isDefault: m.id === id })),
@@ -916,16 +972,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toast('Review posted ✓');
       },
       jobApps,
-      applyJob: (a) => {
+      applyJob: (a, cv) => {
+        if (isBackendEnabled()) {
+          careersApi
+            .apply(a, cv)
+            .then((created) => {
+              setJobApps((prev) => [created, ...prev]);
+              toast('Application sent — the team will reach out on email ✓');
+            })
+            .catch((e) => toast((e as Error).message ?? 'Could not submit — try again'));
+          return;
+        }
         setJobApps((prev) => [
-          { ...a, id: 'app' + Date.now(), appliedAt: new Date().toISOString() },
+          { ...a, id: 'app' + Date.now(), cv: cv?.name, appliedAt: new Date().toISOString() },
           ...prev,
         ]);
         toast('Application sent — the team will reach out on email ✓');
       },
-      helpTickets: user ? (ticketsMap[user.phone] ?? []) : [],
+      helpTickets: isBackendEnabled() ? (liveHelpTickets ?? []) : user ? (ticketsMap[user.phone] ?? []) : [],
       addHelpTicket: (t) => {
         if (!user) return;
+        if (isBackendEnabled()) {
+          supportApi
+            .raise(t)
+            .then((created) => setLiveHelpTickets((prev) => [created, ...(prev ?? [])]))
+            .catch(() => toast('Could not submit your ticket — try again'));
+          return;
+        }
         const tid = 'HT-' + Math.floor(1000 + Math.random() * 8999);
         setTicketsMap((prev) => ({
           ...prev,
@@ -1111,7 +1184,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       orgTeamAccess,
       orgTeamAccessLoaded,
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, refCodes, walletTxs, walletBalance, creditWallet, wishlist, favVenues, payMethodsMap, ticketsMap, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -38,7 +38,7 @@ export default function Checkout() {
   const {
     user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, setHold, clearHold,
     captureCart, setCartStatus, pendingPromoterRef, setPendingPromoterRef, walletBalance, spendWallet, payMethods,
-    setDefaultPayMethod,
+    setDefaultPayMethod, refreshWallet,
   } = useApp();
   const navigate = useNavigate();
   const { feeLabel, absorbedBy, bookingFee } = usePlatformInfo();
@@ -323,6 +323,7 @@ export default function Checkout() {
     setSelection(null);
     clearHold();
     setPendingPromoterRef(null);
+    refreshWallet(); // a live purchase may have just spent real wallet credit
     navigate('/confirmation/' + encodeURIComponent(id));
   };
 

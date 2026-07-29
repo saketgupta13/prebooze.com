@@ -16,10 +16,11 @@ const REFUND_BADGE: Record<string, { cls: string; label: string }> = {
 };
 
 export default function MyBookings() {
-  const { bookings, refundBooking, myEvents } = useApp();
+  const { bookings, refundBooking, myEvents, refreshWallet, toast } = useApp();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refundingId, setRefundingId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const [liveBookings, setLiveBookings] = useState<Booking[] | null>(null);
   const refetchLive = () => {
@@ -53,6 +54,7 @@ export default function MyBookings() {
       try {
         await bookingsApi.cancel(id, refundTo);
         refetchLive();
+        if (refundTo === 'wallet') refreshWallet(); // instant wallet credit, unlike a source refund which needs admin approval first
       } catch {
         // surfaced nowhere specific — the booking simply won't show as refunded; safe to retry
       }
@@ -60,6 +62,17 @@ export default function MyBookings() {
       refundBooking(id, refundTo);
     }
     setRefundingId(null);
+  };
+
+  const doResend = async (id: string) => {
+    setResendingId(id);
+    try {
+      await bookingsApi.resend(id);
+      toast('Ticket resent to your WhatsApp ✓');
+    } catch {
+      toast('Could not resend — try again in a moment');
+    }
+    setResendingId(null);
   };
 
   return (
@@ -129,7 +142,11 @@ export default function MyBookings() {
                     Guests: {selected.guests.map((g) => g.name).join(' · ')}
                   </div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    {selected.status === 'confirmed' && <button className="btn btn-ghost btn-sm">Resend to WhatsApp</button>}
+                    {selected.status === 'confirmed' && liveBookings && (
+                      <button className="btn btn-ghost btn-sm" disabled={resendingId === selected.id} onClick={() => doResend(selected.id)}>
+                        {resendingId === selected.id ? 'Resending…' : 'Resend to WhatsApp'}
+                      </button>
+                    )}
                     {selected.status === 'confirmed' && refundingId !== selected.id && (
                       <button className="btn btn-danger btn-sm" onClick={() => setRefundingId(selected.id)}>
                         Cancel booking

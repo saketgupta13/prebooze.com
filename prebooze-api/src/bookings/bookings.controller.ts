@@ -44,6 +44,12 @@ export class BookingsController {
     return this.bookings.cancel(req.user.sub, decodeURIComponent(id), refundTo);
   }
 
+  @Post('bookings/:id/resend')
+  @UseGuards(JwtAuthGuard)
+  resend(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.bookings.resend(req.user.sub, decodeURIComponent(id));
+  }
+
   @Post('bookings/check-in')
   @UseGuards(JwtAuthGuard)
   checkIn(@Req() req: AuthedReq, @Body('token') token: string) {

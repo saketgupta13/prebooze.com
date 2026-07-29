@@ -418,6 +418,17 @@ export class BookingsService {
     });
   }
 
+  /** My Bookings' "Resend to WhatsApp" — re-sends the exact same template
+   * create() already sends at purchase time, off the booking's own stored
+   * data (not a live re-price), for a guest who missed/deleted the original. */
+  async resend(userId: string, id: string) {
+    const booking = await this.prisma.booking.findUnique({ where: { id }, include: { event: true } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.userId !== userId) throw new ForbiddenException();
+    await this.wa.send(booking.whatsapp, 'booking_confirmed', [booking.mainGuest, booking.event.title, String(booking.qty), booking.id, String(booking.total)]);
+    return { ok: true };
+  }
+
   /** Wallet refunds stay instant (low-risk, reversible, in-house money) —
    * unchanged from the original design. Refunds to the original payment
    * source now require admin sign-off first (BACKEND.md "Admin API" —

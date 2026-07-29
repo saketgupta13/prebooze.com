@@ -386,8 +386,20 @@ export interface JobApplication {
   email: string;
   phone: string;
   note: string;
-  cv?: string; // uploaded CV file name
+  cv?: string; // uploaded CV file URL
   appliedAt: string;
+}
+
+export interface CareerJob {
+  id: string;
+  title: string;
+  team: string;
+  loc: string;
+  type: string;
+  status: 'open' | 'closed';
+  about: string;
+  responsibilities: string[];
+  requirements: string[];
 }
 
 export interface HelpTicket {

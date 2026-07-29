@@ -3,7 +3,7 @@
  * feature swaps from localStorage to live data. */
 import { apiFetch, apiUpload, API_URL, getToken, ApiError } from './client';
 import type {
-  Booking, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, HelpTicket,
+  Booking, CareerJob, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, HelpTicket,
   Invoice, JobApplication, LineupProfile, Organizer, PayMethod, Person, PersonDetail, PromoterProfile, User, Venue, WaitlistEntry,
 } from '../types';
 import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, WalletTx } from '../store/AppContext';
@@ -138,6 +138,7 @@ export const bookings = {
   // parser treats as a fragment separator if left unencoded — silently
   // truncating the path. Must percent-encode; server-side decodes it back.
   cancel: (id: string, refundTo: 'wallet' | 'source') => apiFetch<Booking>(`/bookings/${encodeURIComponent(id)}/cancel`, { body: { refundTo } }),
+  resend: (id: string) => apiFetch<{ ok: true }>(`/bookings/${encodeURIComponent(id)}/resend`, { method: 'POST' }),
   // real route is /bookings/check-in with the QR's signed token in the body
   // — not /bookings/:id/check-in like this used to declare (that endpoint
   // never existed; nothing called this wrapper before now).
@@ -425,8 +426,17 @@ export const support = {
 };
 
 export const careers = {
-  jobs: () => apiFetch<unknown[]>('/careers/jobs'),
-  apply: (a: Omit<JobApplication, 'id' | 'appliedAt'>) => apiFetch<JobApplication>('/careers/apply', { body: a }),
+  jobs: () => apiFetch<CareerJob[]>('/careers/jobs'),
+  // multipart, not JSON — the optional cv file rides in the same request as
+  // the application itself rather than through a separate freestanding
+  // public upload endpoint (this app has no anonymous/unauthenticated
+  // upload route anywhere else; bundling it here keeps that true).
+  apply: (a: Omit<JobApplication, 'id' | 'appliedAt' | 'cv'>, cv?: File) => {
+    const form = new FormData();
+    Object.entries(a).forEach(([k, v]) => form.append(k, v));
+    if (cv) form.append('cv', cv);
+    return apiUpload<JobApplication>('/careers/apply', form);
+  },
 };
 
 export const notifications = {

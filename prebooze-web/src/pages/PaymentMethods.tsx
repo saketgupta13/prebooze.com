@@ -96,7 +96,7 @@ export default function PaymentMethods() {
             </div>
           )}
           <button className="btn btn-pri">Save method ✓</button>
-          <span className="tiny muted-2" style={{ marginLeft: 10 }}>🔒 tokenized via Razorpay when the backend lands</span>
+          <span className="tiny muted-2" style={{ marginLeft: 10 }}>🔒 CVV is verified at charge time, never stored</span>
         </form>
 
         {role && (

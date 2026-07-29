@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { CAREER_JOBS } from '../data/mock';
+import { careers as careersApi } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { CareerJob } from '../types';
 import { useSeo } from '../lib/useSeo';
 
 /** Careers — open roles + apply (jobs are admin-managed). */
@@ -13,6 +16,13 @@ export default function Careers() {
   const [email, setEmail] = useState(user?.email ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [note, setNote] = useState('');
+
+  const [liveJobs, setLiveJobs] = useState<CareerJob[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    careersApi.jobs().then(setLiveJobs).catch(() => setLiveJobs([]));
+  }, []);
+  const jobs = isBackendEnabled() ? (liveJobs ?? []) : CAREER_JOBS;
 
   const submit = (e: React.FormEvent, jobId: string) => {
     e.preventDefault();
@@ -35,10 +45,10 @@ export default function Careers() {
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Work with us 🚀</h1>
         <p className="muted" style={{ marginBottom: 22 }}>
-          We're building India's nightlife layer — {CAREER_JOBS.filter((j) => j.status === 'open').length} roles open right now.
+          We're building India's nightlife layer — {jobs.filter((j) => j.status === 'open').length} roles open right now.
         </p>
 
-        {CAREER_JOBS.filter((j) => j.status === 'open').map((j) => (
+        {jobs.filter((j) => j.status === 'open').map((j) => (
           <div key={j.id} className="card" style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <div>

@@ -115,7 +115,17 @@ export default function EventDetail() {
   useEffect(() => {
     if (ref) setPendingPromoterRef(ref);
   }, [ref, setPendingPromoterRef]);
-  const refPromoter = PROMOTERS.find((p) => p.slug === (ref ?? pendingPromoterRef));
+  const refSlug = ref ?? pendingPromoterRef;
+  const mockRefPromoter = PROMOTERS.find((p) => p.slug === refSlug);
+  // Real lookup — the mock PROMOTERS array never contains a real promoter's
+  // slug, so this banner silently never showed for a real ?ref= link even
+  // though the actual server-side crediting on checkout already works.
+  const [liveRefPromoter, setLiveRefPromoter] = useState<{ name: string } | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled() || !refSlug) return;
+    catalog.promoter(refSlug).then(setLiveRefPromoter).catch(() => {});
+  }, [refSlug]);
+  const refPromoter = isBackendEnabled() ? liveRefPromoter : mockRefPromoter;
 
   const total = useMemo(() => {
     if (!event) return 0;

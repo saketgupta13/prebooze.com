@@ -1,19 +1,33 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { CAREER_JOBS } from '../data/mock';
+import { careers as careersApi } from '../api';
+import { isBackendEnabled } from '../api/client';
+import type { CareerJob } from '../types';
+import { PageLoader } from '../components/Loader';
 
 /** Full job description with an apply form. */
 export default function JobDetail() {
   const { jobId } = useParams();
   const { user, jobApps, applyJob, toast } = useApp();
-  const job = CAREER_JOBS.find((j) => j.id === jobId);
+
+  const [liveJobs, setLiveJobs] = useState<CareerJob[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    careersApi.jobs().then(setLiveJobs).catch(() => setLiveJobs([]));
+  }, []);
+  const jobs = isBackendEnabled() ? (liveJobs ?? []) : CAREER_JOBS;
+  const job = jobs.find((j) => j.id === jobId);
+
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [note, setNote] = useState('');
-  const [cv, setCv] = useState('');
+  const [cv, setCv] = useState<File | null>(null);
   const [open, setOpen] = useState(false);
+
+  if (isBackendEnabled() && liveJobs === null) return <PageLoader />;
 
   if (!job || job.status !== 'open') {
     return (
@@ -38,7 +52,7 @@ export default function JobDetail() {
       toast('Please attach your CV / resume');
       return;
     }
-    applyJob({ jobId: job.id, name: name.trim(), email: email.trim(), phone: phone.trim(), note: note.trim(), cv });
+    applyJob({ jobId: job.id, name: name.trim(), email: email.trim(), phone: phone.trim(), note: note.trim() }, cv);
     setOpen(false);
   };
 
@@ -101,12 +115,19 @@ export default function JobDetail() {
             </div>
             <div className="field">
               <span>CV / resume (PDF or DOC, max 5 MB)</span>
-              <div
-                className={`upload-box ${cv ? 'done' : ''}`}
-                onClick={() => setCv(cv ? '' : `${(name.trim() || 'candidate').toLowerCase().replace(/\s+/g, '-')}-cv.pdf`)}
-              >
-                {cv ? `✓ ${cv} attached · click to remove` : '⬆ upload your CV / resume'}
-              </div>
+              <label className={`upload-box ${cv ? 'done' : ''}`} style={{ cursor: 'pointer', display: 'block' }}>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f && f.size > 5 * 1024 * 1024) { toast('CV must be under 5 MB'); e.target.value = ''; return; }
+                    setCv(f ?? null);
+                  }}
+                />
+                {cv ? `✓ ${cv.name} attached · click to replace` : '⬆ upload your CV / resume'}
+              </label>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn btn-pri">Submit application →</button>
