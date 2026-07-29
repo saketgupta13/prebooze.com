@@ -1001,8 +1001,18 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
 .toc a { display: block; font-size: 13.5px; color: var(--muted); padding: 5px 0; }
 .toc a:hover { color: var(--accent); }
 
-/* checkout */
-.checkout-grid { display: grid; grid-template-columns: 1fr 360px; gap: 26px; align-items: start; }
+/* checkout — mobile-first: single column + static ticket-box is the
+   unconditional default (no media query involved), so there's no
+   "did the max-width breakpoint actually match on this device" question
+   for the highest-traffic page on the site. The two-column sticky-sidebar
+   desktop look is opted INTO above 960px instead of opted out of below it
+   — see the min-width override further down. */
+.checkout-grid { display: grid; grid-template-columns: 1fr; gap: 26px; }
+.checkout-grid .ticket-box { position: static; }
+@media (min-width: 961px) {
+  .checkout-grid { grid-template-columns: 1fr 360px; align-items: start; }
+  .checkout-grid .ticket-box { position: sticky; top: 82px; }
+}
 .payopt {
   display: flex;
   align-items: center;
@@ -1060,22 +1070,18 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   .grid-3 { grid-template-columns: repeat(2, 1fr); }
   .trust-list { grid-template-columns: repeat(2, 1fr); }
   .steps { grid-template-columns: repeat(2, 1fr); }
-  .checkout-grid, .auth-wrap, .bookings-grid, .profile-grid, .legal-grid {
+  .auth-wrap, .bookings-grid, .profile-grid, .legal-grid {
     grid-template-columns: 1fr;
   }
+  /* .checkout-grid itself is mobile-first now (see the "checkout" section
+     above) — single column + static ticket-box is its unconditional
+     default, only opted out of above 960px, so it doesn't need resetting
+     here the way the other grids on this list do. */
   /* .toc stays position:sticky at every width, but .legal-grid collapsing
      to one column turns it from a narrow 230px sidebar into a full-width
      block — once it's sticky AND full-width, scrolling makes it pin over
      the article text underneath instead of sitting beside it. */
   .toc { position: static; }
-  /* Checkout.tsx's order-summary <aside> reuses EventDetail's .ticket-box
-     class (for the desktop sticky-sidebar look) but never gets the
-     .ticket-box-bar/.ticket-box-sheet treatment that resets EventDetail's
-     own copy to position:fixed on mobile — same "sticky + full-width"
-     pin-over-content bug as .toc above, just on the checkout page instead
-     of legal pages. Reset it here too; EventDetail's mobile bar/sheet rule
-     (declared later below) still correctly overrides this for that page. */
-  .checkout-grid .ticket-box { position: static; }
   /* Single column, but keep named areas so ticket-box (mapped to "ticket")
      lands right after "head" and before "about" — matches the same DOM/
      desktop-layout, just a different visual order. */
