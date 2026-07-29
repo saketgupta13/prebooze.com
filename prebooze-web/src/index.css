@@ -1017,9 +1017,18 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
    "did the max-width breakpoint actually match on this device" question
    for the highest-traffic page on the site. The two-column sticky-sidebar
    desktop look is opted INTO above 960px instead of opted out of below it
-   — see the min-width override further down. */
+   — see the min-width override further down.
+   Found via real browser inspection (getComputedStyle), not just reading
+   the CSS source: the base .ticket-box rule (further down, shared with
+   EventDetail.tsx) also sets grid-area:ticket, which this file never
+   reset — only `position` was ever overridden in earlier attempts at this
+   fix. .checkout-grid has no grid-template-areas, so that stray
+   grid-area:ticket makes the browser synthesize extra implicit grid
+   columns to satisfy the named-line reference, which is what was actually
+   pushing the card off to the side — `position` was never the real bug.
+   Resetting grid-area here too is the actual fix. */
 .checkout-grid { display: grid; grid-template-columns: 1fr; gap: 26px; }
-.checkout-grid .ticket-box { position: static; }
+.checkout-grid .ticket-box { position: static; grid-area: auto; }
 @media (min-width: 961px) {
   .checkout-grid { grid-template-columns: 1fr 360px; align-items: start; }
   .checkout-grid .ticket-box { position: sticky; top: 82px; }
