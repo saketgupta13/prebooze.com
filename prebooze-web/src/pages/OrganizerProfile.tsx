@@ -39,7 +39,7 @@ export default function OrganizerProfile() {
 
   const org = liveOrg ?? (isBackendEnabled() ? undefined : ORGANIZERS.find((o) => o.id === id));
   const liveSeo = useEntitySeo('organizer', id);
-  useSeo(liveSeo, org?.brandName);
+  useSeo(liveSeo, org?.brandName, org?.logoUrl);
 
   if (loading && !org) {
     return <PageLoader />;

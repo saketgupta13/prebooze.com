@@ -86,7 +86,7 @@ export default function EventDetail() {
     lineups ? lineups.find((l) => l.name.toLowerCase() === name.toLowerCase()) : lineupByName(name);
 
   const event = liveEvent ?? mockEvent;
-  useSeo(event?.seo, event?.title);
+  useSeo(event?.seo, event?.title, event?.posterUrl);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [expanded, setExpanded] = useState(false);
   const [ticketBoxOpen, setTicketBoxOpen] = useState(false);

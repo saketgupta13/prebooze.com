@@ -36,7 +36,7 @@ export default function LineupProfile() {
 
   const lineup = liveLineup ?? (isBackendEnabled() ? undefined : lineupBySlug(slug ?? ''));
   const liveSeo = useEntitySeo('lineup', slug);
-  useSeo(liveSeo, lineup?.name);
+  useSeo(liveSeo, lineup?.name, lineup?.logoUrl);
 
   if (loading && !lineup) {
     return <PageLoader />;

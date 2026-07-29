@@ -35,7 +35,7 @@ export default function VenueDetail() {
 
   const venue = liveVenue ?? (isBackendEnabled() ? undefined : VENUES.find((v) => v.id === id));
   const liveSeo = useEntitySeo('venue', id);
-  useSeo(liveSeo, venue?.name);
+  useSeo(liveSeo, venue?.name, venue?.logoUrl);
 
   if (loading && !venue) {
     return <PageLoader />;

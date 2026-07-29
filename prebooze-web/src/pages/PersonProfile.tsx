@@ -6,6 +6,8 @@ import { catalog } from '../api';
 import { ApiError } from '../api/client';
 import { useApp } from '../store/AppContext';
 import { PageLoader } from '../components/Loader';
+import { useSeo } from '../lib/useSeo';
+import { stripHtml } from '../lib/richtext';
 import type { Event, Person, PersonDetail } from '../types';
 
 function Avatar({ hue, name, imageUrl, size = 30 }: { hue: number; name: string; imageUrl?: string; size?: number }) {
@@ -98,6 +100,8 @@ export default function PersonProfile() {
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Person not found'))
       .finally(() => setLoading(false));
   }, [username]);
+
+  useSeo(person?.bio ? { description: stripHtml(person.bio) } : null, person?.name, person?.avatarUrl);
 
   if (loading) return <PageLoader />;
 

@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { KycModule } from './kyc/kyc.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { ShareModule } from './share/share.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { WalletModule } from './wallet/wallet.module';
 import { ReferralsModule } from './referrals/referrals.module';
@@ -27,6 +28,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     AuthModule,
     KycModule,
     CatalogModule,
+    ShareModule,
     BookingsModule,
     WalletModule,
     ReferralsModule,
