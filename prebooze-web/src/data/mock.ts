@@ -12,7 +12,7 @@ import type {
   Venue,
 } from '../types';
 
-export const CITIES = ['Austin', 'Mumbai', 'Delhi', 'Bengaluru', 'Goa'];
+export const CITIES = ['Hyderabad', 'Mumbai', 'Delhi', 'Bengaluru', 'Goa'];
 
 export const CATEGORIES = ['All', 'Concerts', 'Comedy', 'Festivals', 'This weekend'];
 

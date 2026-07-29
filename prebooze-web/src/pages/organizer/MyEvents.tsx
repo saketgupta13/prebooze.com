@@ -48,7 +48,7 @@ export default function MyEvents() {
     requestFeatured({
       type: 'event',
       refId: e.id,
-      city: venueById(e.venueId)?.city ?? 'Austin',
+      city: venueById(e.venueId)?.city ?? 'Hyderabad',
       billing: 'per_event',
       amount: FEATURED_PRICING.perEvent,
       expiresAt: e.date,

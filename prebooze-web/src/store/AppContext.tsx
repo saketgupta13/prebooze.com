@@ -334,7 +334,17 @@ function inferPendingRole(u: User): User['pendingRole'] {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => normalizeUser(load('pb_user', null)));
-  const [city, setCity] = useState<string>(() => load('pb_city', 'Austin'));
+  // 'Austin' was the original mock-data default, from before this app
+  // localized to the Indian market — anyone who visited before this fix has
+  // it permanently cached in pb_city (nothing ever prompted a re-pick).
+  // 'Austin' was never a real, selectable option in TOP_CITIES either, so
+  // no real visitor could have deliberately chosen it — safe to treat it as
+  // "never set" and self-heal to the real default on their next load,
+  // without touching any other city a guest actually did pick.
+  const [city, setCity] = useState<string>(() => {
+    const cached = load<string>('pb_city', 'Hyderabad');
+    return cached === 'Austin' ? 'Hyderabad' : cached;
+  });
   const [bookings, setBookings] = useState<Booking[]>(() => load('pb_bookings', []));
   const [selection, setSelectionState] = useState<Selection | null>(() => load('pb_selection', null));
   const [holdExpiry, setHoldExpiry] = useState<number | null>(() => load('pb_hold_expiry', null));

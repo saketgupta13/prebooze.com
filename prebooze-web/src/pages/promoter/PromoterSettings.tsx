@@ -10,7 +10,7 @@ export default function PromoterSettings() {
   const { user, updateUser, toast } = useApp();
   const [brand, setBrand] = useState(user?.promoterBrand ?? '');
   const [username, setUsername] = useState(user?.promoterUsername ?? '');
-  const [city, setCity] = useState(user?.city ?? 'Austin');
+  const [city, setCity] = useState(user?.city ?? 'Hyderabad');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 

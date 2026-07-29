@@ -63,7 +63,7 @@ export default function PromoterDashboard() {
       )}
 
       {mySlug && (
-        <PromoteCard type="promoter" refId={mySlug} city={promoterBySlug(mySlug)?.city ?? user?.city ?? 'Austin'} label="your PR profile" />
+        <PromoteCard type="promoter" refId={mySlug} city={promoterBySlug(mySlug)?.city ?? user?.city ?? 'Hyderabad'} label="your PR profile" />
       )}
 
       <div className="card" style={{ marginBottom: 18 }}>
