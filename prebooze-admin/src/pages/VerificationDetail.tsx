@@ -107,12 +107,25 @@ export default function VerificationDetail() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="display" style={{ fontWeight: 700 }}>Application details</div>
-        {Object.entries(app.payload).map(([k, v]) => (
-          <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
-            <span className="muted">{k}</span>
-            <span>{String(v)}</span>
-          </div>
-        ))}
+        {Object.entries(app.payload).map(([k, v]) =>
+          // "about"/"bio" are the applicant's WysiwygEditor field on every
+          // onboarding form (organizer/venue call it "about", promoter/
+          // lineup call it "bio") — real HTML, not plain text. Rendering it
+          // through the same {String(v)} path as every other plain payload
+          // field (name, city, links…) showed the raw <p>/<strong> tags
+          // literally to the reviewer instead of the formatted write-up.
+          k === 'about' || k === 'bio' ? (
+            <div key={k} style={{ borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
+              <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>{k}</div>
+              <div className="small wysiwyg-body" dangerouslySetInnerHTML={{ __html: String(v) }} />
+            </div>
+          ) : (
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
+              <span className="muted">{k}</span>
+              <span>{String(v)}</span>
+            </div>
+          )
+        )}
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

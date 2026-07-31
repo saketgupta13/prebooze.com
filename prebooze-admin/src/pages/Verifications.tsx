@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Tag } from '../components/ui';
+import { stripHtml } from '../store/data';
 import { liveKyc, resolveDocUrl, LiveApiError, type LiveKycApplication } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -149,11 +150,21 @@ export default function Verifications() {
               </div>
 
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
-                {Object.entries(app.payload).map(([k, v]) => (
-                  <span key={k} className="muted">
-                    <b style={{ color: 'var(--text, inherit)' }}>{k}:</b> {String(v)}
-                  </span>
-                ))}
+                {Object.entries(app.payload).map(([k, v]) => {
+                  // "about"/"bio" is real WysiwygEditor HTML, not plain text
+                  // (see VerificationDetail.tsx) — this is a compact, one-line
+                  // summary row, so strip tags and truncate rather than
+                  // showing either literal markup or a full multi-paragraph
+                  // write-up inline next to every other field.
+                  const isRichText = k === 'about' || k === 'bio';
+                  const text = isRichText ? stripHtml(String(v)) : String(v);
+                  const display = isRichText && text.length > 80 ? `${text.slice(0, 80)}…` : text;
+                  return (
+                    <span key={k} className="muted">
+                      <b style={{ color: 'var(--text, inherit)' }}>{k}:</b> {display}
+                    </span>
+                  );
+                })}
               </div>
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

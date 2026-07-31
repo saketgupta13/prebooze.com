@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react';
 import { enabledCountries, statesFor, citiesFor } from '../data/locations';
+import { catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
 import SearchableSelect from './SearchableSelect';
 
 export interface LocationValue {
@@ -10,10 +13,28 @@ export interface LocationValue {
 
 export const emptyLocation = (): LocationValue => ({ country: 'India', state: '', city: '', pincode: '' });
 
-/** Country → State → City cascading searchable pickers + pincode. */
+/** Country → State → City cascading searchable pickers + pincode.
+ *
+ * City is a special case: it isn't just free-form address data — it's also
+ * what the guest site later filters organizers/venues/promoters/lineups by
+ * (Home.tsx's `x.city === city` city-scoping). Picking a city here from the
+ * old hardcoded ~60-city list meant an applicant could pick a city that
+ * doesn't match anything in admin's real, enabled-cities Locations module —
+ * they'd onboard successfully but never actually appear on the guest site
+ * for anyone, since no visitor's city picker (also real, GET /cities) could
+ * ever select a city not in that same enabled list. So City sources from the
+ * real GET /cities here too — same call the guest header's city picker
+ * already makes — independent of the State cascade below, which stays
+ * address-only. Falls back to the old hardcoded state→city list only
+ * offline (no backend configured). */
 export default function LocationPicker({ value, onChange }: { value: LocationValue; onChange: (v: LocationValue) => void }) {
   const states = statesFor(value.country);
-  const cities = citiesFor(value.state);
+  const [liveCities, setLiveCities] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.cities().then((rows) => setLiveCities(rows.map((r) => r.name).sort())).catch(() => setLiveCities([]));
+  }, []);
+  const cities = liveCities ?? (isBackendEnabled() ? [] : citiesFor(value.state));
 
   return (
     <>
@@ -49,8 +70,7 @@ export default function LocationPicker({ value, onChange }: { value: LocationVal
             <SearchableSelect
               value={value.city}
               options={cities}
-              placeholder={value.state ? 'Search city…' : 'Pick a state first'}
-              disabled={!value.state}
+              placeholder="Search city…"
               onChange={(city) => onChange({ ...value, city })}
             />
           ) : (
