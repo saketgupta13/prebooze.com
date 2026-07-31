@@ -59,6 +59,16 @@ export class AuthController {
     return { url: this.storage.save(file) };
   }
 
+  /** Awards the one-time 10%-off coupon for finishing the soft-required
+   * "complete your profile" step — see AuthService.claimProfileCompletionReward
+   * for the real field-completeness check and idempotency (a second call
+   * after the first successful claim just returns the same code again). */
+  @Post('me/complete-profile-reward')
+  @UseGuards(JwtAuthGuard)
+  claimProfileCompletionReward(@Req() req: { user: { sub: string } }) {
+    return this.auth.claimProfileCompletionReward(req.user.sub);
+  }
+
   @Post('me/phone/request-change')
   @UseGuards(JwtAuthGuard)
   requestPhoneChange(@Req() req: { user: { sub: string } }, @Body('newPhone') newPhone: string) {

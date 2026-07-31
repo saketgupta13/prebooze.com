@@ -162,6 +162,15 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     tokens: ['name', 'amount', 'friendName'],
   },
   {
+    id: 'profile_reward', name: 'Profile completion reward', category: 'Guest',
+    trigger: 'Guest finishes the "complete your profile" step',
+    preheader: 'Your 10% off code is ready',
+    defaultSubject: '🎉 10% off your next booking — code inside',
+    defaultBody: `<p>Hey {{name}},</p><p>Thanks for finishing your profile! Here's <b>10% off (up to ₹100)</b> your next booking on Prebooze:</p><p style="font-size:20px;font-weight:800;letter-spacing:1px;margin:16px 0;">{{code}}</p><p>Valid until <b>{{validTill}}</b> — one-time use.</p>`,
+    cta: { label: 'Browse events →', urlTemplate: '{{webUrl}}/browse' },
+    tokens: ['name', 'code', 'validTill'],
+  },
+  {
     id: 'help_ticket', name: 'Support ticket received', category: 'Guest',
     trigger: 'A guest, organizer or promoter raises a help ticket',
     preheader: 'Support ticket received',

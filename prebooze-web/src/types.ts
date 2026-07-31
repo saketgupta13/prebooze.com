@@ -389,6 +389,11 @@ export interface User {
   roleRejectionReason?: string;
   attendanceVisibility?: 'off' | 'followers' | 'public'; // who can see events I'm attending (default off)
   autoRenew?: boolean; // auto-renew subscriptions / featured placements
+  // Set once the soft-required "finish your profile" step is completed —
+  // see FinishProfile.tsx / POST /me/complete-profile-reward. Presence of
+  // profileRewardClaimedAt is what hides the post-booking nudge going forward.
+  profileRewardClaimedAt?: string;
+  profileRewardCode?: string;
 }
 
 export interface PayMethod {

@@ -102,6 +102,15 @@ model User {
   // straight to its owner without scanning every user
   referralCode String? @unique
 
+  // Set once, the first time a guest finishes the full (soft-required)
+  // profile — see AuthService.claimProfileCompletionReward. profileRewardCode
+  // is stored here (not just on the Coupon row) so the frontend can always
+  // re-show "you already claimed X" without a separate lookup, and so a
+  // second call to the claim endpoint is a safe no-op instead of minting a
+  // second coupon.
+  profileRewardClaimedAt DateTime?
+  profileRewardCode      String?
+
   kycSubmissions      KycSubmission[]
   bookings            Booking[]
   walletTxs           WalletTx[]

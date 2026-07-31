@@ -22,6 +22,9 @@ export const auth = {
   logout: () => apiFetch<void>('/auth/logout', { method: 'POST' }),
   requestPhoneChange: (newPhone: string) => apiFetch<{ requestId: string; devCode?: string }>('/me/phone/request-change', { body: { newPhone } }),
   confirmPhoneChange: (requestId: string, code: string) => apiFetch<User>('/me/phone/confirm-change', { body: { requestId, code } }),
+  /** Awards (or, if already claimed, just re-returns) the one-time 10%-off
+   * coupon for finishing the soft-required "complete your profile" step. */
+  claimProfileReward: () => apiFetch<{ code: string; maxDiscount: number; validTill: string; alreadyClaimed: boolean }>('/me/complete-profile-reward', { method: 'POST' }),
 };
 
 // ---------- identity & role verification ----------

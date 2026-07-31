@@ -18,6 +18,7 @@ import Confirmation from './pages/Confirmation';
 import MyBookings from './pages/MyBookings';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
+import FinishProfile from './pages/FinishProfile';
 import Venues from './pages/Venues';
 import VenueDetail from './pages/VenueDetail';
 import OrganizerProfile from './pages/OrganizerProfile';
@@ -223,6 +224,14 @@ export default function App() {
           element={
             <RequireAuth>
               <ProfileCompletion />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/finish-profile"
+          element={
+            <RequireAuth>
+              <FinishProfile />
             </RequireAuth>
           }
         />

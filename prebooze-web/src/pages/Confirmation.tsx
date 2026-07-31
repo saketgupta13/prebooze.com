@@ -118,6 +118,16 @@ export default function Confirmation() {
           )}
         </div>
 
+        {!user?.profileRewardClaimedAt && (liveBookings ?? bookings).length === 1 && (
+          <div className="card card-shadow" style={{ textAlign: 'left', marginTop: 16, borderColor: 'var(--accent)' }}>
+            <h3 style={{ marginBottom: 2 }}>🎁 Get 10% off your next booking</h3>
+            <p className="small muted" style={{ marginBottom: 10 }}>
+              Finish a few more details on your profile — photo, bio, interests — and we'll send you a one-time 10% off code (up to ₹100), valid for 15 days.
+            </p>
+            <Link to="/finish-profile" className="btn btn-pri btn-sm">Complete your profile →</Link>
+          </div>
+        )}
+
         <Link to="/browse" className="link bold small" style={{ display: 'inline-block', marginTop: 18 }}>
           Browse more events →
         </Link>

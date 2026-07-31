@@ -114,6 +114,16 @@ export default function Profile() {
             </div>
           </div>
 
+          {!user.profileRewardClaimedAt && (
+            <div className="card" style={{ marginBottom: 16, borderColor: 'var(--accent)' }}>
+              <h3 style={{ marginBottom: 4 }}>🎁 Get 10% off your next booking</h3>
+              <p className="tiny muted-2" style={{ marginBottom: 10 }}>
+                Finish your profile — photo, bio, interests — and get a one-time 10% off code (up to ₹100).
+              </p>
+              <Link to="/finish-profile" className="btn btn-pri btn-sm">Complete your profile →</Link>
+            </div>
+          )}
+
           <div className="card" style={{ marginBottom: 16 }}>
             <h3 style={{ marginBottom: 4 }}>Who's going — privacy</h3>
             <p className="tiny muted-2" style={{ marginBottom: 10 }}>Choose who can see the events you're attending. Off by default.</p>

@@ -70,6 +70,8 @@ export function toApiUser(u: User) {
     // submit) to know *which* role is pending — the elevated role flags above
     // only flip true once an admin approves.
     roleStatus: u.roleStatus ?? undefined,
+    profileRewardClaimedAt: u.profileRewardClaimedAt?.toISOString() ?? undefined,
+    profileRewardCode: u.profileRewardCode ?? undefined,
   };
 }
 
@@ -82,6 +84,26 @@ export class AuthService {
     private email: EmailService,
     @Inject(REDIS) private redis: Redis,
   ) {}
+
+  /** Every guest now needs a username the moment their account exists — the
+   * "finish your profile" step (where a username used to be collected) is
+   * soft-required and can be deferred, but /u/:username, referral links, and
+   * anywhere else a guest's profile is linked to can't sit on a blank value
+   * in the meantime. Deterministic-ish base from the phone number (same
+   * spirit as referralCodeFor), collision-checked with a numeric suffix —
+   * same pattern KycService.newOrganizerRow already uses for organizer
+   * usernames, just against User instead. Guests can still rename it for
+   * real in the finish-profile step; this is only ever a starting point. */
+  private async uniqueUsername(phone: string): Promise<string> {
+    const digits = phone.replace(/\D/g, '').slice(-8) || '0';
+    const base = `guest${digits}`;
+    let candidate = base;
+    let n = 1;
+    while (await this.prisma.user.findFirst({ where: { username: candidate } })) {
+      candidate = `${base}-${++n}`;
+    }
+    return candidate;
+  }
 
   async requestOtp(rawPhone: string) {
     const phone = normalizePhone(rawPhone);
@@ -133,7 +155,10 @@ export class AuthService {
 
     const existing = await this.prisma.user.findUnique({ where: { phone: rec.phone } });
     const user =
-      existing ?? (await this.prisma.user.create({ data: { phone: rec.phone, referralCode: referralCodeFor(rec.phone) } }));
+      existing ??
+      (await this.prisma.user.create({
+        data: { phone: rec.phone, referralCode: referralCodeFor(rec.phone), username: await this.uniqueUsername(rec.phone) },
+      }));
 
     // Lazily link any organizer team invites sent to this phone before this
     // login — invites are created by phone (OrgTeamService.addStaff), often
@@ -248,6 +273,16 @@ export class AuthService {
     ];
     for (const k of allowed) if (k in patch) data[k] = patch[k];
 
+    // Every guest now has a username from the moment they sign up (see
+    // uniqueUsername in verifyOtp) — it's used for /u/:username, so two
+    // people ending up with the same one would make one of them's public
+    // profile unreachable/ambiguous. Only check on an actual change, not
+    // every save (most saves don't touch username at all).
+    if (typeof data.username === 'string' && data.username.trim() && data.username.trim() !== current.username) {
+      const taken = await this.prisma.user.findFirst({ where: { username: data.username.trim(), id: { not: userId } } });
+      if (taken) throw new BadRequestException('That username is already taken');
+    }
+
     let user = await this.prisma.user.update({ where: { id: userId }, data });
 
     const filledFields = ['name', 'username', 'email', 'city', 'dob', 'gender', 'profession', 'languages', 'bio']
@@ -267,5 +302,76 @@ export class AuthService {
     }
 
     return toApiUser(user);
+  }
+
+  /** Awards a one-time 10%-off-next-booking coupon for finishing the soft-
+   * required "complete your profile" step (see FinishProfile.tsx). Re-checks
+   * completeness server-side rather than trusting the frontend's own
+   * required-field validation — the same "never trust the client for
+   * anything that grants real value" instinct as every other reward path in
+   * this codebase (referral credit, wallet spend). Idempotent: a user who
+   * already claimed just gets their existing code back, never a second one. */
+  async claimProfileCompletionReward(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    if (user.profileRewardClaimedAt) {
+      const existing = await this.prisma.coupon.findUnique({ where: { code: user.profileRewardCode ?? '' } });
+      return { code: user.profileRewardCode, maxDiscount: existing?.maxDiscount ?? 100, validTill: existing?.validTill ?? null, alreadyClaimed: true };
+    }
+
+    const missing: string[] = [];
+    if (!user.avatarUrl) missing.push('profile photo');
+    if (!user.username.trim()) missing.push('username');
+    if (!user.city.trim()) missing.push('city');
+    if (!user.state?.trim()) missing.push('state');
+    if (!user.country?.trim()) missing.push('country');
+    if (!user.profession.trim()) missing.push('profession');
+    if (!user.languages.trim()) missing.push('languages');
+    if (!user.bio.trim()) missing.push('bio');
+    if (!Object.values(user.socialLinks as Record<string, string>).some((v) => v?.trim())) missing.push('a social link');
+    if (user.interests.length === 0) missing.push('an interest');
+    if (missing.length) throw new BadRequestException(`Finish these first: ${missing.join(', ')}`);
+
+    const code = await this.uniqueCouponCode();
+    const validTill = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // 15 days
+    await this.prisma.coupon.create({
+      data: {
+        code,
+        type: 'percent',
+        value: 10,
+        maxDiscount: 100,
+        usageLimit: 1,
+        perUserLimit: 1,
+        eventScope: 'all',
+        validTill,
+        firstTimeOnly: false,
+        status: 'active',
+        organizerId: null, // platform-wide — same as any other admin-issued promo, funded out of the booking fee, not the organizer's payout
+      },
+    });
+    await this.prisma.user.update({ where: { id: userId }, data: { profileRewardClaimedAt: new Date(), profileRewardCode: code } });
+
+    const validTillLabel = validTill.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    await this.wa.send(user.phone, 'profile_reward', [user.name || 'there', code, validTillLabel]).catch(() => {});
+    if (user.email) {
+      await this.email.sendTemplate(user.email, 'profile_reward', { name: user.name, code, validTill: validTillLabel }).catch(() => {});
+    }
+
+    return { code, maxDiscount: 100, validTill, alreadyClaimed: false };
+  }
+
+  /** Coupon.code is @unique — same collision-retry shape as every other
+   * "pick a free identifier" helper in this codebase (uniqueUsername above,
+   * KycService.newOrganizerRow's username/id). */
+  private async uniqueCouponCode(): Promise<string> {
+    for (let i = 0; i < 5; i++) {
+      const suffix = randomBytes(4).toString('hex').toUpperCase();
+      const candidate = `PROFILE10-${suffix}`;
+      if (!(await this.prisma.coupon.findUnique({ where: { code: candidate } }))) return candidate;
+    }
+    // Astronomically unlikely to ever reach this, but fall back to a longer,
+    // still-unique suffix rather than looping forever.
+    return `PROFILE10-${randomBytes(8).toString('hex').toUpperCase()}`;
   }
 }
