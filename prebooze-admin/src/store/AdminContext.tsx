@@ -57,7 +57,6 @@ import {
   SEED_LEDGER,
   SEED_LEDGER_CATEGORIES,
   SEED_LINEUPS,
-  SEED_NOTIFICATIONS,
   SEED_FAQS,
   SEED_MENUS,
   SEED_POLICIES,
@@ -84,6 +83,19 @@ import {
   EMAIL_TEMPLATE_DEFS,
   SEED_INVOICES,
 } from './data';
+import { liveApiEnabled, liveNotifications } from '../lib/liveApi';
+
+/** Matches AbandonedCarts.tsx's own local timeAgo — not shared, same
+ * scoped-inline-helper convention already used there. */
+function timeAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(ms / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
+}
 
 interface Session {
   role: Role;
@@ -410,16 +422,23 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     }
     return merged;
   });
-  const [notifications, setNotifications] = usePersisted<Notification[]>('pba_notifications', SEED_NOTIFICATIONS, (list) =>
-    list.map((n) => {
-      const base = SEED_NOTIFICATIONS.find((x) => x.id === n.id);
-      // one seeded notification's text cited a booking id that's since been
-      // replaced (see the bookings migration above) — refresh just that one
-      // stored record from the seed rather than leaving it pointing at an
-      // id that no longer exists anywhere in the app.
-      return base && n.text.includes('#8412') ? { ...n, text: base.text } : n;
-    })
-  );
+  // Real /admin/notifications feed (KYC submissions, event approvals, refund
+  // requests, payout batches, venue city changes — see NotificationsService
+  // on the API side) — replaces the old localStorage-seeded mock array.
+  // Polled every 60s so a new approval/refund shows up without a full reload.
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const refreshNotifications = useCallback(() => {
+    if (!liveApiEnabled()) return;
+    liveNotifications
+      .list()
+      .then((rows) => setNotifications(rows.map((n) => ({ id: n.id, icon: n.icon, text: n.text, time: timeAgo(n.createdAt), read: n.read, to: n.to ?? undefined }))))
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    refreshNotifications();
+    const id = setInterval(refreshNotifications, 60000);
+    return () => clearInterval(id);
+  }, [refreshNotifications]);
   const [settings, setSettings] = usePersisted('pba_settings', SEED_SETTINGS, (v) => ({
     ...SEED_SETTINGS,
     ...v,
@@ -670,32 +689,20 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setEvents((prev) =>
           prev.map((e) => (eventIds.includes(e.id) ? { ...e, paidOut: true, payoutUtr: utr() } : e))
         );
-        setNotifications((prev) => [
-          {
-            id: 'n' + Date.now(),
-            icon: '💸',
-            text: `Payout batch processed — ${eventIds.length} transfer${eventIds.length === 1 ? '' : 's'} initiated`,
-            time: 'just now',
-            read: false,
-            to: '/payments',
-          },
-          ...prev,
-        ]);
         toast(`Payout batch of ${eventIds.length} processed ✓`);
       },
       notifications,
-      markNotificationRead: (id) =>
-        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n))),
+      markNotificationRead: (id) => {
+        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+        liveNotifications.markRead(id).catch(() => {});
+      },
       markAllNotificationsRead: () => {
         setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        liveNotifications.markAllRead().catch(() => {});
         toast('All notifications marked read ✓');
       },
       addCustomer: (c) => {
         setCustomers((prev) => [c, ...prev]);
-        setNotifications((prev) => [
-          { id: 'n' + Date.now(), icon: '👥', text: `${c.name} onboarded manually by admin`, time: 'just now', read: true, to: '/customers' },
-          ...prev,
-        ]);
         toast(`${c.name} onboarded ✓`);
       },
       updateSession: (patch) => {

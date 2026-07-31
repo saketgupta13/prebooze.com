@@ -440,6 +440,13 @@ textarea { resize: vertical; min-height: 84px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
 
+/* Venue detail's map + about/amenities cards used to sit side by side
+   (.grid-2) at every width — stacked instead, About/amenities first (the
+   more useful read) then the map below it, on desktop too, not just mobile. */
+.venue-info-grid { grid-template-columns: 1fr; }
+.venue-about-card { order: 1; }
+.venue-map-card { order: 2; }
+
 .poster {
   aspect-ratio: 3 / 4;
   border-radius: var(--radius-m);
@@ -556,13 +563,6 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
      heading/button. Dots still work as manual nav on mobile, same as
      every other slider on the site hiding .slider-btn under 680px. */
   .hero-arrow { display: none; }
-  /* Venue detail's map + about/amenities cards sit side by side on desktop
-     (.grid-2) — cramming a Google Maps iframe into half a phone's width is
-     unusable, so stack them, About first (the more useful read on a small
-     screen) then the map. */
-  .venue-info-grid { grid-template-columns: 1fr; }
-  .venue-about-card { order: 1; }
-  .venue-map-card { order: 2; }
 }
 
 /* banner CTA */

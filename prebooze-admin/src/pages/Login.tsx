@@ -1,16 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { ToastHost } from '../components/AdminLayout';
 import { GUEST_SITE_URL } from '../store/data';
 import type { Role } from '../types';
 import { useBranding } from '../lib/useBranding';
-
-// Single hard-coded owner account — this panel isn't backed by a real auth
-// service yet, so lock the admin tab to these exact credentials rather than
-// accepting any non-empty email/password (that let anyone in).
-const ADMIN_EMAIL = 'admin@prebooze.com';
-const ADMIN_PASSWORD = 'Krusa@1323@';
+import { useLiveSession } from '../lib/useLiveSession';
+import { liveApiEnabled } from '../lib/liveApi';
 
 const COPY: Record<Role, { heading: string; sub: string; placeholder: string; button: string; footnote: string }> = {
   admin: {
@@ -33,29 +29,24 @@ export default function Login() {
   const { session, login } = useAdmin();
   const navigate = useNavigate();
   const [role, setRole] = useState<Role>('admin');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const live = useLiveSession();
   const { logoUrl } = useBranding();
+
+  // Bridges a real staff login into the app's own session — most pages
+  // still read role/email off this for display, while liveApiEnabled()
+  // slices (notifications, subscriptions, etc.) now work because a real
+  // pba_live_staff_token exists too, set by useLiveSession's submitLogin.
+  useEffect(() => {
+    if (live.token) {
+      login(role, live.staffName || live.email);
+      navigate('/');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live.token]);
 
   if (session) return <Navigate to="/" replace />;
 
   const copy = COPY[role];
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !password.trim()) {
-      setError('Enter both email and password.');
-      return;
-    }
-    if (role === 'admin' && (email.trim().toLowerCase() !== ADMIN_EMAIL || password !== ADMIN_PASSWORD)) {
-      setError('Invalid email or password.');
-      return;
-    }
-    login(role, email.trim());
-    navigate('/');
-  };
 
   return (
     <div className="login-wrap fade">
@@ -68,70 +59,64 @@ export default function Login() {
         </div>
 
         <div className="login-tabs">
-          <button
-            className={role === 'admin' ? 'on' : ''}
-            onClick={() => {
-              setRole('admin');
-              setError(null);
-            }}
-          >
+          <button className={role === 'admin' ? 'on' : ''} onClick={() => setRole('admin')}>
             Admin login
           </button>
-          <button
-            className={role === 'staff' ? 'on' : ''}
-            onClick={() => {
-              setRole('staff');
-              setError(null);
-            }}
-          >
+          <button className={role === 'staff' ? 'on' : ''} onClick={() => setRole('staff')}>
             Staff login
           </button>
         </div>
 
-        <form className="login-box" onSubmit={submit}>
-          <div className="display" style={{ fontSize: 18 }}>{copy.heading}</div>
-          <div className="small muted" style={{ marginTop: -8 }}>{copy.sub}</div>
-          <div className="field">
-            <label>Email</label>
-            <input
-              className="input"
-              style={error && !email.trim() ? { borderColor: 'var(--red)' } : undefined}
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setError(null);
-              }}
-              placeholder={copy.placeholder}
-              autoFocus
-            />
+        {!liveApiEnabled() ? (
+          <div className="login-box">
+            <div className="small red">
+              Live API not configured — set <code>VITE_API_URL</code> in <code>.env.local</code> to sign in.
+            </div>
           </div>
-          <div className="field">
-            <label>Password</label>
-            <input
-              className="input"
-              style={error && !password.trim() ? { borderColor: 'var(--red)' } : undefined}
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setError(null);
-              }}
-              placeholder="••••••••"
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11.5 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--muted)' }}>
-              <input type="checkbox" checked={remember} onChange={() => setRemember((r) => !r)} />
-              Remember me
-            </label>
-            <a>Forgot password?</a>
-          </div>
-          {error && <div className="small red">{error}</div>}
-          <button type="submit" className="btn btn-pri" style={{ padding: 11, fontSize: 13.5 }}>
-            {copy.button}
-          </button>
-          <div className="tiny hint" style={{ textAlign: 'center' }}>{copy.footnote}</div>
-        </form>
+        ) : !live.staffId ? (
+          <form className="login-box" onSubmit={live.submitLogin}>
+            <div className="display" style={{ fontSize: 18 }}>{copy.heading}</div>
+            <div className="small muted" style={{ marginTop: -8 }}>{copy.sub}</div>
+            <div className="field">
+              <label>Email</label>
+              <input
+                className="input"
+                value={live.email}
+                onChange={(e) => live.setEmail(e.target.value)}
+                placeholder={copy.placeholder}
+                autoFocus
+              />
+            </div>
+            <div className="field">
+              <label>Password</label>
+              <input
+                className="input"
+                type="password"
+                value={live.password}
+                onChange={(e) => live.setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+            {live.loginErr && <div className="small red">{live.loginErr}</div>}
+            <button type="submit" className="btn btn-pri" style={{ padding: 11, fontSize: 13.5 }}>
+              {copy.button}
+            </button>
+            <div className="tiny hint" style={{ textAlign: 'center' }}>{copy.footnote}</div>
+          </form>
+        ) : (
+          <form className="login-box" onSubmit={live.submit2fa}>
+            <div className="display" style={{ fontSize: 18 }}>Verification code</div>
+            <div className="small muted" style={{ marginTop: -8 }}>Enter the 6-digit code emailed to you.</div>
+            <div className="field">
+              <label>Code</label>
+              <input className="input" value={live.code} onChange={(e) => live.setCode(e.target.value)} autoFocus />
+            </div>
+            {live.loginErr && <div className="small red">{live.loginErr}</div>}
+            <button type="submit" className="btn btn-pri" style={{ padding: 11, fontSize: 13.5 }}>
+              Verify
+            </button>
+          </form>
+        )}
 
         <div style={{ textAlign: 'center', fontSize: 12.5 }}>
           <a href={GUEST_SITE_URL}>Not staff? Browse events as a guest →</a>

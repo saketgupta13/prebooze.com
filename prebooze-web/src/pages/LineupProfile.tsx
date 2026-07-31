@@ -85,7 +85,7 @@ export default function LineupProfile() {
             ))}
             {!isOwnProfile && (
               <button
-                className={`btn ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
+                className={`btn btn-sm ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
                 onClick={() => toggleFollow(followKey)}
               >
                 {isFollowing ? 'Following ✓' : '+ Follow'}

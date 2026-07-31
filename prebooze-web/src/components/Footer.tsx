@@ -34,6 +34,7 @@ export default function Footer() {
             <Link to="/categories">Browse by category</Link>
             <Link to="/venues">Venues</Link>
             <Link to="/organizers">Organizers</Link>
+            <Link to="/lineups">Line-ups</Link>
             <Link to="/blog">Blog</Link>
           </div>
           <div>

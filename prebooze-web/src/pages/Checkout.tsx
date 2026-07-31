@@ -104,7 +104,6 @@ export default function Checkout() {
   const [gender, setGender] = useState(user?.gender ?? '');
   const [whatsapp, setWhatsapp] = useState(user?.phone ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
-  const [allGuests, setAllGuests] = useState(false);
   const [guestNames, setGuestNames] = useState<string[]>([]);
   const [guestGenders, setGuestGenders] = useState<string[]>([]);
   const [guestPhones, setGuestPhones] = useState<string[]>([]);
@@ -338,11 +337,11 @@ export default function Checkout() {
         await auth.updateMe({ email: email.trim() }).catch(() => {});
       }
       const q = quote ?? (await bookings.quote(holdId, appliedCode ?? undefined, useCredit ? effectiveWalletBalance : 0));
-      const guestsPayload = allGuests
+      const guestsPayload = ticketCount > 1
         ? Array.from({ length: ticketCount - 1 }, (_, i) => ({
-            name: (guestNames[i]?.trim()) || `Guest ${i + 2}`,
+            name: (guestNames[i] ?? '').trim(),
             gender: guestGenders[i] || undefined,
-            whatsapp: guestPhones[i]?.trim() || undefined,
+            whatsapp: (guestPhones[i] ?? '').trim(),
           }))
         : undefined;
 
@@ -405,10 +404,10 @@ export default function Checkout() {
       const guests = [
         { name: name.trim(), checkedIn: false, gender: gender || undefined, whatsapp: whatsapp.trim() },
         ...Array.from({ length: ticketCount - 1 }, (_, i) => ({
-          name: (allGuests && guestNames[i]?.trim()) || `Guest ${i + 2}`,
+          name: (guestNames[i] ?? '').trim(),
           checkedIn: false,
-          gender: (allGuests && guestGenders[i]) || undefined,
-          whatsapp: (allGuests && guestPhones[i]?.trim()) || undefined,
+          gender: guestGenders[i] || undefined,
+          whatsapp: (guestPhones[i] ?? '').trim(),
         })),
       ];
       const booking: Booking = {
@@ -440,6 +439,17 @@ export default function Checkout() {
     if (!name.trim() || !whatsapp.trim()) {
       setCouponMsg({ ok: false, text: 'Main attendee name and WhatsApp number are required' });
       return;
+    }
+    // Every extra ticket in this booking is a real entry, not just a seat —
+    // the door scans each guest's own QR, so each one needs their own name
+    // and number, not a "Guest 2" placeholder nobody can check in against.
+    if (ticketCount > 1) {
+      for (let i = 0; i < ticketCount - 1; i++) {
+        if (!guestNames[i]?.trim() || !guestPhones[i]?.trim()) {
+          setCouponMsg({ ok: false, text: `Name and WhatsApp number are required for all ${ticketCount} attendees` });
+          return;
+        }
+      }
     }
     if (!EMAIL_RE.test(email.trim())) {
       setCouponMsg({ ok: false, text: 'Enter a valid email — your ticket confirmation is sent there too' });
@@ -517,68 +527,66 @@ export default function Checkout() {
                 </div>
               </div>
               {ticketCount > 1 && (
-                <label className="checkbox-row" style={{ marginBottom: 12 }}>
-                  <input
-                    type="checkbox"
-                    checked={allGuests}
-                    onChange={(e) => setAllGuests(e.target.checked)}
-                  />
-                  Add name & number for all {ticketCount} attendees
-                </label>
-              )}
-              {allGuests &&
-                Array.from({ length: ticketCount - 1 }, (_, i) => (
-                  <div key={i} className="form-row" style={{ alignItems: 'flex-end' }}>
-                    <div className="field">
-                      <span>Guest {i + 2} name</span>
-                      <input
-                        value={guestNames[i] ?? ''}
-                        onChange={(e) =>
-                          setGuestNames((g) => {
-                            const next = [...g];
-                            next[i] = e.target.value;
-                            return next;
-                          })
-                        }
-                        placeholder={`Guest ${i + 2}`}
-                      />
-                    </div>
-                    <div className="field">
-                      <span>Gender</span>
-                      <select
-                        value={guestGenders[i] ?? ''}
-                        onChange={(e) =>
-                          setGuestGenders((g) => {
-                            const next = [...g];
-                            next[i] = e.target.value;
-                            return next;
-                          })
-                        }
-                      >
-                        <option value="">Select…</option>
-                        <option>Female</option>
-                        <option>Male</option>
-                        <option>Non-binary</option>
-                        <option>Prefer not to say</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <span>WhatsApp number</span>
-                      <input
-                        value={guestPhones[i] ?? ''}
-                        inputMode="numeric"
-                        onChange={(e) =>
-                          setGuestPhones((g) => {
-                            const next = [...g];
-                            next[i] = e.target.value.replace(/[^\d+ ]/g, '').slice(0, 14);
-                            return next;
-                          })
-                        }
-                        placeholder="+91"
-                      />
-                    </div>
+                <>
+                  <div className="small muted" style={{ marginBottom: 12 }}>
+                    Name and WhatsApp number are required for all {ticketCount} attendees — each ticket is scanned separately at the door.
                   </div>
-                ))}
+                  {Array.from({ length: ticketCount - 1 }, (_, i) => (
+                    <div key={i} className="form-row">
+                      <div className="field">
+                        <span>Guest {i + 2} name</span>
+                        <input
+                          required
+                          value={guestNames[i] ?? ''}
+                          onChange={(e) =>
+                            setGuestNames((g) => {
+                              const next = [...g];
+                              next[i] = e.target.value;
+                              return next;
+                            })
+                          }
+                          placeholder={`Guest ${i + 2} full name`}
+                        />
+                      </div>
+                      <div className="field">
+                        <span>Gender</span>
+                        <select
+                          value={guestGenders[i] ?? ''}
+                          onChange={(e) =>
+                            setGuestGenders((g) => {
+                              const next = [...g];
+                              next[i] = e.target.value;
+                              return next;
+                            })
+                          }
+                        >
+                          <option value="">Select…</option>
+                          <option>Female</option>
+                          <option>Male</option>
+                          <option>Non-binary</option>
+                          <option>Prefer not to say</option>
+                        </select>
+                      </div>
+                      <div className="field">
+                        <span>WhatsApp number</span>
+                        <input
+                          required
+                          value={guestPhones[i] ?? ''}
+                          inputMode="numeric"
+                          onChange={(e) =>
+                            setGuestPhones((g) => {
+                              const next = [...g];
+                              next[i] = e.target.value.replace(/[^\d+ ]/g, '').slice(0, 14);
+                              return next;
+                            })
+                          }
+                          placeholder="+91"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
               <div className="field">
                 <span>Email</span>
                 <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@mail.com" />

@@ -3,6 +3,7 @@ import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { GUEST_SITE_URL } from '../store/data';
 import NotificationsPanel from './NotificationsPanel';
+import { Drawer } from './ui';
 import { useBranding } from '../lib/useBranding';
 
 interface SearchResult {
@@ -49,12 +50,16 @@ const CONTENT_NAV = [
   { to: '/menus', icon: '🧭', label: 'Menus' },
 ];
 
+// The bottom tab bar only has room for a handful of icons — these four plus
+// a "More" button that opens every other section in a drawer (see MoreMenu
+// below). "More" used to be a dead-end NavLink straight to /promos, which
+// looked like tapping it did nothing since it never revealed the rest of
+// the admin's ~30 sections the sidebar shows on desktop.
 const MOBILE_NAV = [
   { to: '/', icon: '▦', label: 'Home', end: true },
   { to: '/events', icon: '🎪', label: 'Events' },
   { to: '/bookings', icon: '🎟', label: 'Bookings' },
   { to: '/payments', icon: '💰', label: 'Money' },
-  { to: '/promos', icon: '⋯', label: 'More' },
 ];
 
 // A few sections that live outside MAIN_NAV/CONTENT_NAV (no sidebar chip of
@@ -75,6 +80,7 @@ export default function AdminLayout() {
   const { logoUrl } = useBranding();
   const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const searchWrapRef = useRef<HTMLDivElement>(null);
@@ -236,11 +242,84 @@ export default function AdminLayout() {
             {n.label}
           </NavLink>
         ))}
+        <button
+          onClick={() => setMoreOpen(true)}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+            fontSize: 10,
+            fontWeight: 500,
+            color: 'var(--muted)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <span className="ico" style={{ fontSize: 15 }}>⋯</span>
+          More
+        </button>
       </nav>
 
+      {moreOpen && <MoreMenu onClose={() => setMoreOpen(false)} />}
       {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
       <ToastHost />
     </>
+  );
+}
+
+const MOBILE_TAB_PATHS = new Set(['/', '/events', '/bookings', '/payments']);
+
+/** Everything the sidebar shows on desktop but the 4-icon bottom tab bar has
+ * no room for — MAIN_NAV/CONTENT_NAV/EXTRA_NAV minus whatever's already a
+ * tab, grouped the same way the sidebar groups them. */
+function MoreMenu({ onClose }: { onClose: () => void }) {
+  const mainRest = MAIN_NAV.filter((n) => !MOBILE_TAB_PATHS.has(n.to));
+  return (
+    <Drawer onClose={onClose}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <b className="display" style={{ fontSize: 15 }}>More</b>
+        <span onClick={onClose} style={{ cursor: 'pointer', color: 'var(--muted)' }}>✕</span>
+      </div>
+      <div className="stack" style={{ gap: 2 }}>
+        {mainRest.map((n) => (
+          <NavLink
+            key={n.to}
+            to={n.to}
+            onClick={onClose}
+            className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}
+          >
+            <span>{n.icon}</span>
+            <span>{n.label}</span>
+          </NavLink>
+        ))}
+        <div className="group">Content</div>
+        {CONTENT_NAV.map((n) => (
+          <NavLink
+            key={n.to}
+            to={n.to}
+            onClick={onClose}
+            className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}
+          >
+            <span>{n.icon}</span>
+            <span>{n.label}</span>
+          </NavLink>
+        ))}
+        <div className="group">Account</div>
+        {EXTRA_NAV.map((n) => (
+          <NavLink
+            key={n.to}
+            to={n.to}
+            onClick={onClose}
+            className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}
+          >
+            <span>{n.icon}</span>
+            <span>{n.label}</span>
+          </NavLink>
+        ))}
+      </div>
+    </Drawer>
   );
 }
 

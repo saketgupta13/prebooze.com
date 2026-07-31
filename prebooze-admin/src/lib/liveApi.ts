@@ -796,4 +796,18 @@ export const liveManualBooking = {
   }) => liveFetch<LiveBooking>('/admin/bookings', { body }),
 };
 
+export interface LiveNotification {
+  id: string;
+  icon: string;
+  text: string;
+  to: string | null;
+  read: boolean;
+  createdAt: string;
+}
+export const liveNotifications = {
+  list: () => liveFetch<LiveNotification[]>('/admin/notifications'),
+  markRead: (id: string) => liveFetch<LiveNotification>(`/admin/notifications/${id}/read`, { method: 'POST' }),
+  markAllRead: () => liveFetch<{ ok: true }>('/admin/notifications/mark-all-read', { method: 'POST' }),
+};
+
 export { LiveApiError };
