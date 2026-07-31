@@ -192,6 +192,17 @@ model Venue {
   type        String
   locality    String   @default("")
   city        String
+  // Same shape as Organizer/Lineup's country/state/pincode — added later
+  // than those two, so existing venues simply have these unset until the
+  // owner (or admin) fills them in. Unlike city, these carry no directory-
+  // matching consequence, so they're freely self-editable with no gate.
+  state       String?
+  country     String?
+  pincode     String?
+  // City changes are gated (see VenueService.updateListing) — a self-serve
+  // city edit lands here instead of overwriting `city` directly, and an
+  // admin must approve it before it takes effect. null = no pending request.
+  pendingCity String?
   address     String
   capacity    Int
   rating      Float    @default(0)

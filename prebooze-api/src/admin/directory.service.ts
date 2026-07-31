@@ -28,7 +28,7 @@ export class DirectoryService {
     return this.prisma.organizer.findMany({ orderBy: { createdAt: 'desc' } });
   }
 
-  async createOrganizer(body: { brandName?: string; city?: string; contact?: string }) {
+  async createOrganizer(body: { brandName?: string; city?: string; state?: string; country?: string; pincode?: string; contact?: string }) {
     if (!body.brandName?.trim()) throw new BadRequestException('brandName is required');
     const base = slugify(body.brandName);
     const id = await this.uniqueId('organizer', base);
@@ -39,6 +39,9 @@ export class DirectoryService {
         brandName: body.brandName.trim(),
         username,
         city: body.city ?? '',
+        state: body.state?.trim() || undefined,
+        country: body.country?.trim() || undefined,
+        pincode: body.pincode?.trim() || undefined,
         contact: body.contact ?? '',
         since: String(new Date().getFullYear()),
         about: '',
@@ -104,13 +107,17 @@ export class DirectoryService {
     return this.prisma.lineup.findMany({ orderBy: { createdAt: 'desc' } });
   }
 
-  async createLineup(body: { name?: string; category?: string; city?: string }) {
+  async createLineup(body: { name?: string; category?: string; city?: string; state?: string; country?: string; pincode?: string }) {
     if (!body.name?.trim()) throw new BadRequestException('name is required');
     const base = slugify(body.name);
     const id = await this.uniqueId('lineup', 'lu-' + base);
     const slug = await this.uniqueField('lineup', 'slug', base);
     return this.prisma.lineup.create({
-      data: { id, slug, name: body.name.trim(), category: body.category ?? 'Artist', city: body.city ?? '', bio: '', hue: hueFromId(id), emoji: '🎤' },
+      data: {
+        id, slug, name: body.name.trim(), category: body.category ?? 'Artist', city: body.city ?? '',
+        state: body.state?.trim() || undefined, country: body.country?.trim() || undefined, pincode: body.pincode?.trim() || undefined,
+        bio: '', hue: hueFromId(id), emoji: '🎤',
+      },
     });
   }
 
@@ -142,7 +149,7 @@ export class DirectoryService {
     return this.prisma.venue.findMany({ orderBy: { createdAt: 'desc' } });
   }
 
-  async createVenue(body: { name?: string; city?: string; address?: string; capacity?: number; type?: string }) {
+  async createVenue(body: { name?: string; city?: string; state?: string; country?: string; pincode?: string; address?: string; capacity?: number; type?: string }) {
     if (!body.name?.trim() || !body.city?.trim()) throw new BadRequestException('name and city are required');
     const id = await this.uniqueId('venue', slugify(body.name));
     return this.prisma.venue.create({
@@ -150,6 +157,9 @@ export class DirectoryService {
         id,
         name: body.name.trim(),
         city: body.city.trim(),
+        state: body.state?.trim() || undefined,
+        country: body.country?.trim() || undefined,
+        pincode: body.pincode?.trim() || undefined,
         address: body.address ?? '',
         capacity: body.capacity ?? 0,
         type: body.type ?? '',
@@ -167,6 +177,25 @@ export class DirectoryService {
   async setVenueVerified(id: string, verified: boolean) {
     if (!(await this.prisma.venue.findUnique({ where: { id } }))) throw new NotFoundException('Venue not found');
     return this.prisma.venue.update({ where: { id }, data: { verified } });
+  }
+
+  /** A venue's own self-serve city edit (VenueService.updateListing) never
+   * writes `city` directly — it lands in `pendingCity` instead, since a
+   * guest's city filter and every directory listing depend on `city`
+   * matching admin's real enabled-cities list. Approving here is the only
+   * path that actually moves it into `city`. */
+  async approveVenueCityChange(id: string) {
+    const venue = await this.prisma.venue.findUnique({ where: { id } });
+    if (!venue) throw new NotFoundException('Venue not found');
+    if (!venue.pendingCity) throw new BadRequestException('No pending city change for this venue');
+    return this.prisma.venue.update({ where: { id }, data: { city: venue.pendingCity, pendingCity: null } });
+  }
+
+  async rejectVenueCityChange(id: string) {
+    const venue = await this.prisma.venue.findUnique({ where: { id } });
+    if (!venue) throw new NotFoundException('Venue not found');
+    if (!venue.pendingCity) throw new BadRequestException('No pending city change for this venue');
+    return this.prisma.venue.update({ where: { id }, data: { pendingCity: null } });
   }
 
   // ---------- id/slug helpers ----------
@@ -193,12 +222,12 @@ export class DirectoryService {
 // computed/relational fields (events, followers, ledger, etc.) stay out of
 // client control.
 const ORGANIZER_EDITABLE = [
-  'brandName', 'city', 'about', 'contact', 'contactPerson', 'phone', 'eventTypes', 'links', 'gstin', 'pan', 'bankLast4', 'seo',
+  'brandName', 'city', 'state', 'country', 'pincode', 'about', 'contact', 'contactPerson', 'phone', 'eventTypes', 'links', 'gstin', 'pan', 'bankLast4', 'seo',
 ];
 const PROMOTER_EDITABLE = ['name', 'city', 'bio', 'contact', 'links', 'planId', 'seo'];
 const LINEUP_EDITABLE = ['name', 'category', 'city', 'state', 'country', 'pincode', 'bio', 'links', 'logoUrl', 'seo'];
 const VENUE_EDITABLE = [
-  'name', 'type', 'locality', 'city', 'address', 'capacity', 'amenities', 'about', 'timings', 'license', 'contact', 'rules', 'seo',
+  'name', 'type', 'locality', 'city', 'state', 'country', 'pincode', 'address', 'capacity', 'amenities', 'about', 'timings', 'license', 'contact', 'rules', 'seo',
   'contactPerson', 'contactPersonPhone', 'socialLinks', 'logoUrl', 'galleryUrls',
 ];
 

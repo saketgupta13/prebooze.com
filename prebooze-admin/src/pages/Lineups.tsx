@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { fmt } from '../store/data';
-import { CityFilterDropdown, GradientPhoto, SearchBox, Tag } from '../components/ui';
+import { CityFilterDropdown, GradientPhoto, LiveLocationPicker, SearchBox, Tag } from '../components/ui';
 import WysiwygEditor from '../components/WysiwygEditor';
 import RealImageUpload from '../components/RealImageUpload';
 import SeoFields, { emptySeo } from '../components/SeoFields';
@@ -122,9 +122,7 @@ export function LineupEdit() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [description, setDescription] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [country, setCountry] = useState('');
+  const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
   const [pincode, setPincode] = useState('');
   const [links, setLinks] = useState('');
   const [verified, setVerified] = useState(false);
@@ -145,9 +143,7 @@ export function LineupEdit() {
           setLogoUrl(l.logoUrl ?? null);
           setCategory(l.category);
           setDescription(l.bio ?? '');
-          setCity(l.city ?? '');
-          setState(l.state ?? '');
-          setCountry(l.country ?? '');
+          setLoc({ country: l.country ?? 'India', state: l.state ?? '', city: l.city ?? '' });
           setPincode(l.pincode ?? '');
           setLinks((l.links ?? []).join(' · '));
           setVerified(l.verified);
@@ -182,17 +178,17 @@ export function LineupEdit() {
     const linksArr = links.split('·').map((s) => s.trim()).filter(Boolean);
     try {
       if (isCreate) {
-        const created = await liveLineups.create({ name: name.trim(), category, city: city.trim() || undefined });
+        const created = await liveLineups.create({ name: name.trim(), category, city: loc.city || undefined, state: loc.state || undefined, country: loc.country || undefined, pincode: pincode.trim() || undefined });
         await liveLineups.update(created.id, {
           bio: description.trim(), links: linksArr, seo, logoUrl,
-          slug: username.trim() || undefined, state: state.trim() || undefined, country: country.trim() || undefined, pincode: pincode.trim() || undefined,
+          slug: username.trim() || undefined,
         });
         if (verified) await liveLineups.setVerified(created.id, true);
       } else {
         await liveLineups.update(existing!.id, {
-          name: name.trim(), category, bio: description.trim(), city: city.trim() || undefined, links: linksArr,
+          name: name.trim(), category, bio: description.trim(), city: loc.city || undefined, links: linksArr,
           emoji: EMOJI[category] ?? existing!.emoji, seo, logoUrl,
-          slug: username.trim() || undefined, state: state.trim() || undefined, country: country.trim() || undefined, pincode: pincode.trim() || undefined,
+          slug: username.trim() || undefined, state: loc.state || undefined, country: loc.country || undefined, pincode: pincode.trim() || undefined,
         });
         if (verified !== existing!.verified) await liveLineups.setVerified(existing!.id, verified);
       }
@@ -237,23 +233,10 @@ export function LineupEdit() {
           <label>Description — shows on their public profile</label>
           <WysiwygEditor value={description} onChange={setDescription} minHeight={72} />
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div className="field" style={{ flex: 1 }}>
-            <label>City</label>
-            <input className="input" value={city} onChange={(e) => setCity(e.target.value)} />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>State</label>
-            <input className="input" value={state} onChange={(e) => setState(e.target.value)} />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Pincode</label>
-            <input className="input" value={pincode} onChange={(e) => setPincode(e.target.value)} />
-          </div>
-        </div>
+        <LiveLocationPicker value={loc} onChange={setLoc} />
         <div className="field">
-          <label>Country</label>
-          <input className="input" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="India" />
+          <label>Pincode</label>
+          <input className="input" value={pincode} onChange={(e) => setPincode(e.target.value)} />
         </div>
         <div className="field">
           <label>Social media links</label>

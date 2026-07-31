@@ -2,11 +2,16 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { NotificationsService } from '../admin/notifications.service';
+import { StaffAlertsService } from '../notifications/staff-alerts';
 
 interface OnboardInput {
   name?: string;
   type?: string;
   city?: string;
+  state?: string;
+  country?: string;
+  pincode?: string;
   address?: string;
   capacity?: number;
   amenities?: string[];
@@ -26,6 +31,8 @@ export class VenueService {
   constructor(
     private prisma: PrismaService,
     private subscriptions: SubscriptionsService,
+    private notifications: NotificationsService,
+    private staffAlerts: StaffAlertsService,
   ) {}
 
   // ---------- subscription (Razorpay-billed venue plans) ----------
@@ -161,22 +168,32 @@ export class VenueService {
   }
 
   /** City changes are admin-gated — everything else an owner can edit freely.
-   * name/logoUrl are also mirrored onto User.venueName/venueLogoUrl — same
-   * reasoning as OrganizerService.updateMe's orgBrand/orgLogoUrl sync: those
-   * are read straight off the JWT-fetched user for the global header, so a
-   * rename or logo change here used to go stale there until this synced it
-   * back (venueLogoUrl didn't even exist as a column before this fix, so the
+   * A city patch never touches `city` directly; it lands in `pendingCity`
+   * for an admin to approve/reject (DirectoryService.approveVenueCityChange/
+   * rejectVenueCityChange) — a guest's city filter and every directory
+   * listing depend on `city` matching admin's real enabled-cities list, so
+   * a typo or an unlisted city here would make the venue invisible to
+   * everyone until someone noticed. State/country/pincode carry no such
+   * consequence and stay freely self-editable. name/logoUrl are also
+   * mirrored onto User.venueName/venueLogoUrl — same reasoning as
+   * OrganizerService.updateMe's orgBrand/orgLogoUrl sync: those are read
+   * straight off the JWT-fetched user for the global header, so a rename or
+   * logo change here used to go stale there until this synced it back
+   * (venueLogoUrl didn't even exist as a column before this fix, so the
    * header never had a venue logo to show at all). */
   async updateListing(userId: string, patch: Partial<OnboardInput>) {
     const venue = await this.myVenue(userId);
-    if (patch.city !== undefined && patch.city !== venue.city) {
-      throw new BadRequestException('City changes require admin review — contact support');
-    }
+    const cityChangeRequested = patch.city !== undefined && patch.city.trim() !== venue.city;
+
     const updated = await this.prisma.venue.update({
       where: { id: venue.id },
       data: {
         name: patch.name?.trim(),
         type: patch.type,
+        state: patch.state?.trim(),
+        country: patch.country?.trim(),
+        pincode: patch.pincode?.trim(),
+        pendingCity: cityChangeRequested ? patch.city!.trim() : undefined,
         address: patch.address?.trim(),
         capacity: patch.capacity !== undefined ? Number(patch.capacity) : undefined,
         amenities: patch.amenities,
@@ -189,6 +206,11 @@ export class VenueService {
         socialLinks: patch.socialLinks as Prisma.InputJsonValue,
       },
     });
+
+    if (cityChangeRequested) {
+      await this.notifications.notify('🏙', `City change requested — ${venue.name} wants to move from ${venue.city} to ${patch.city!.trim()}`, '/admin/venues');
+      await this.staffAlerts.alert(`🏙 City change requested — ${venue.name}: ${venue.city} → ${patch.city!.trim()}`).catch(() => {});
+    }
 
     if (patch.name !== undefined || patch.logoUrl !== undefined) {
       await this.prisma.user.update({

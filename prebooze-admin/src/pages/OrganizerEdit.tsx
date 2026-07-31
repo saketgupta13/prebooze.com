@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Tag } from '../components/ui';
+import { LiveLocationPicker, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import WysiwygEditor from '../components/WysiwygEditor';
 import { liveOrganizers, LiveApiError, type LiveOrganizer } from '../lib/liveApi';
@@ -25,8 +25,9 @@ export default function OrganizerEdit() {
   const [err, setErr] = useState('');
 
   const [form, setForm] = useState({
-    brandName: '', contactPerson: '', contact: '', phone: '', city: '', eventTypes: '', about: '', links: '', gstin: '', pan: '',
+    brandName: '', contactPerson: '', contact: '', phone: '', eventTypes: '', about: '', links: '', gstin: '', pan: '', pincode: '',
   });
+  const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
   const [seo, setSeo] = useState<Seo>(emptySeo());
   const [bank, setBank] = useState('');
 
@@ -41,8 +42,9 @@ export default function OrganizerEdit() {
         if (o) {
           setForm({
             brandName: o.brandName, contactPerson: o.contactPerson ?? '', contact: o.contact ?? '', phone: o.phone ?? '',
-            city: o.city, eventTypes: o.eventTypes ?? '', about: o.about ?? '', links: o.links ?? '', gstin: o.gstin ?? '', pan: o.pan ?? '',
+            eventTypes: o.eventTypes ?? '', about: o.about ?? '', links: o.links ?? '', gstin: o.gstin ?? '', pan: o.pan ?? '', pincode: o.pincode ?? '',
           });
+          setLoc({ country: o.country ?? 'India', state: o.state ?? '', city: o.city });
           setSeo((o.seo as Seo | null) ?? emptySeo());
         }
       })
@@ -73,10 +75,12 @@ export default function OrganizerEdit() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.brandName.trim()) { setErr('Organizer name is required'); return; }
+    if (!loc.city.trim()) { setErr('Pick a city'); return; }
     try {
       await liveOrganizers.update(org.id, {
         ...form,
         brandName: form.brandName.trim(),
+        city: loc.city, state: loc.state || undefined, country: loc.country || undefined,
         bankLast4: bank ? bank.slice(-4) : org.bankLast4 ?? undefined,
         seo,
       });
@@ -117,10 +121,11 @@ export default function OrganizerEdit() {
             <input className="input" value={form.phone} onChange={set('phone')} />
           </div>
         </div>
+        <LiveLocationPicker value={loc} onChange={setLoc} />
         <div style={{ display: 'flex', gap: 8 }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>City</label>
-            <input className="input" value={form.city} onChange={set('city')} />
+            <label>Pincode</label>
+            <input className="input" value={form.pincode} onChange={set('pincode')} />
           </div>
           <div className="field" style={{ flex: 1 }}>
             <label>Event types hosted</label>

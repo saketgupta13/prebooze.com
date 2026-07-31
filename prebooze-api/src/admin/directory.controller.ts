@@ -134,4 +134,16 @@ export class AdminVenuesController {
   setVerified(@Param('id') id: string, @Body('verified') verified: boolean) {
     return this.directory.setVenueVerified(id, verified);
   }
+
+  @Post(':id/city-change/approve')
+  @RequirePermission('Venues', 'approve')
+  approveCityChange(@Param('id') id: string) {
+    return this.directory.approveVenueCityChange(id);
+  }
+
+  @Post(':id/city-change/reject')
+  @RequirePermission('Venues', 'approve')
+  rejectCityChange(@Param('id') id: string) {
+    return this.directory.rejectVenueCityChange(id);
+  }
 }

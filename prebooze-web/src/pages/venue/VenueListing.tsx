@@ -5,6 +5,7 @@ import MapEmbed from '../../components/MapEmbed';
 import WysiwygEditor from '../../components/WysiwygEditor';
 import { RealGalleryUploadBox, RealUploadBox } from '../../components/RealUploadBox';
 import Loader from '../../components/Loader';
+import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import { venuePartner, catalog } from '../../api';
 import { ApiError, isBackendEnabled } from '../../api/client';
 import type { Venue } from '../../types';
@@ -33,6 +34,8 @@ export default function VenueListing() {
 
   const [name, setName] = useState('');
   const [vtypes, setVtypes] = useState<string[]>([VENUE_TYPES_FALLBACK[0]]);
+  const [loc, setLoc] = useState<LocationValue>(emptyLocation());
+  const [pendingCity, setPendingCity] = useState<string | null>(null);
   const [address, setAddress] = useState('');
   const [capacity, setCapacity] = useState('');
   const [amenities, setAmenities] = useState<string[]>([]);
@@ -59,6 +62,8 @@ export default function VenueListing() {
         setVenue(v);
         setName(v.name);
         setVtypes(splitTypes(v.type));
+        setLoc({ country: v.country ?? 'India', state: v.state ?? '', city: v.city, pincode: v.pincode ?? '' });
+        setPendingCity(v.pendingCity ?? null);
         setAddress(v.address);
         setCapacity(String(v.capacity));
         setAmenities(v.amenities);
@@ -89,8 +94,13 @@ export default function VenueListing() {
     setErr('');
     setSaving(true);
     try {
+      // City is sent like every other field, but the backend never applies
+      // it directly — a changed city lands in `pendingCity` for admin to
+      // approve (VenueService.updateListing), so `updated.city` may still
+      // equal the old value here even on a fully successful save.
       const updated = await venuePartner.updateListing({
         name: name.trim(), type: vtypes.join(', '), address: address.trim(),
+        city: loc.city, state: loc.state || undefined, country: loc.country || undefined, pincode: loc.pincode || undefined,
         capacity: Number(capacity), amenities, about: about.trim(), timings: timings.trim() || undefined,
         galleryUrls, logoUrl: logoUrl || undefined,
         contactPerson: contactPerson.trim() || undefined,
@@ -98,8 +108,13 @@ export default function VenueListing() {
         socialLinks: (instagram.trim() || facebook.trim()) ? { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined } : undefined,
       });
       setVenue(updated);
+      setPendingCity(updated.pendingCity ?? null);
       updateUser({ venueName: updated.name });
-      toast('Listing updated ✓ changes are live');
+      toast(
+        updated.pendingCity
+          ? `Listing updated ✓ — city change to ${updated.pendingCity} is pending admin approval`
+          : 'Listing updated ✓ changes are live'
+      );
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : 'Failed to save listing');
     } finally {
@@ -147,6 +162,12 @@ export default function VenueListing() {
           <span>Logo — shown next to your venue name in the directory</span>
           <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={venuePartner.upload} label="⬆ upload logo" doneLabel="✓ Logo uploaded — click to replace" style={{ height: 100, width: 100 }} />
         </div>
+        {pendingCity && (
+          <div className="dashed-box" style={{ border: '1.5px dashed var(--accent)', borderRadius: 10, padding: '8px 10px', fontSize: 12.5, marginBottom: 12 }}>
+            🏙 City change requested: <b>{venue.city} → {pendingCity}</b> — awaiting admin approval. Your listing still shows <b>{venue.city}</b> until it's approved.
+          </div>
+        )}
+        <LocationPicker value={loc} onChange={setLoc} />
         <div className="form-row">
           <div className="field">
             <span>Full address</span>
@@ -198,7 +219,7 @@ export default function VenueListing() {
           <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={venuePartner.upload} />
         </div>
         <button className="btn btn-pri btn-lg" disabled={saving}>{saving ? 'Saving…' : 'Save listing ✓'}</button>
-        <span className="tiny muted-2" style={{ marginLeft: 10 }}>city changes go through support — keeps the directory clean</span>
+        <span className="tiny muted-2" style={{ marginLeft: 10 }}>changing city needs admin approval — everything else here is live immediately</span>
       </form>
     </div>
   );

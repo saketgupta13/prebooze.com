@@ -11,9 +11,10 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { StorageService } from '../kyc/storage.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { WalletService } from '../wallet/wallet.service';
+import { NotificationsService } from '../admin/notifications.service';
 
 @Module({
   controllers: [VenueController],
-  providers: [VenueService, PrismaService, JwtAuthGuard, EmailService, WhatsappService, StaffAlertsService, RazorpayService, SubscriptionsService, StorageService, InvoicesService, WalletService],
+  providers: [VenueService, PrismaService, JwtAuthGuard, EmailService, WhatsappService, StaffAlertsService, RazorpayService, SubscriptionsService, StorageService, InvoicesService, WalletService, NotificationsService],
 })
 export class VenueModule {}

@@ -277,7 +277,8 @@ export const liveCustomers = {
 };
 
 export interface LiveOrganizer {
-  id: string; brandName: string; username: string; verified: boolean; city: string; since: string;
+  id: string; brandName: string; username: string; verified: boolean; city: string;
+  state: string | null; country: string | null; pincode: string | null; since: string;
   rating: number; reviewCount: number; eventsHosted: number; followers: number; following: number;
   about: string; logoHue: number; contact: string; contactPerson: string | null; phone: string | null;
   eventTypes: string | null; links: string | null; gstin: string | null; pan: string | null;
@@ -294,7 +295,9 @@ export interface LiveLineup {
   links: string[]; followers: number; eventsPlayed: number; hue: number; emoji: string; seo: Seo | null;
 }
 export interface LiveVenue {
-  id: string; name: string; verified: boolean; type: string; locality: string; city: string; address: string;
+  id: string; name: string; verified: boolean; type: string; locality: string; city: string;
+  state: string | null; country: string | null; pincode: string | null; pendingCity: string | null;
+  address: string;
   capacity: number; rating: number; followers: number; amenities: string[]; about: string; timings: string | null;
   photoHue: number; license: string | null; contact: string | null; rules: string | null; seo: Seo | null;
   contactPerson: string | null; contactPersonPhone: string | null;
@@ -307,7 +310,7 @@ export interface LiveOrgStaffMember {
 }
 export const liveOrganizers = {
   list: () => liveFetch<LiveOrganizer[]>('/admin/organizers'),
-  create: (body: { brandName: string; city?: string; contact?: string }) => liveFetch<LiveOrganizer>('/admin/organizers', { body }),
+  create: (body: { brandName: string; city?: string; state?: string; country?: string; pincode?: string; contact?: string }) => liveFetch<LiveOrganizer>('/admin/organizers', { body }),
   update: (id: string, body: Partial<LiveOrganizer>) => liveFetch<LiveOrganizer>(`/admin/organizers/${id}`, { method: 'PATCH', body }),
   setVerified: (id: string, verified: boolean) => liveFetch<LiveOrganizer>(`/admin/organizers/${id}/verify`, { method: 'POST', body: { verified } }),
   team: (id: string) => liveFetch<LiveOrgStaffMember[]>(`/admin/organizers/${id}/team`),
@@ -321,13 +324,15 @@ export const livePromoters = {
 };
 export const liveVenues = {
   list: () => liveFetch<LiveVenue[]>('/admin/venues'),
-  create: (body: { name: string; city: string; address?: string; capacity?: number; type?: string }) => liveFetch<LiveVenue>('/admin/venues', { body }),
+  create: (body: { name: string; city: string; state?: string; country?: string; pincode?: string; address?: string; capacity?: number; type?: string }) => liveFetch<LiveVenue>('/admin/venues', { body }),
   update: (id: string, body: Partial<LiveVenue>) => liveFetch<LiveVenue>(`/admin/venues/${id}`, { method: 'PATCH', body }),
   setVerified: (id: string, verified: boolean) => liveFetch<LiveVenue>(`/admin/venues/${id}/verify`, { method: 'POST', body: { verified } }),
+  approveCityChange: (id: string) => liveFetch<LiveVenue>(`/admin/venues/${id}/city-change/approve`, { method: 'POST' }),
+  rejectCityChange: (id: string) => liveFetch<LiveVenue>(`/admin/venues/${id}/city-change/reject`, { method: 'POST' }),
 };
 export const liveLineups = {
   list: () => liveFetch<LiveLineup[]>('/admin/lineups'),
-  create: (body: { name: string; category?: string; city?: string }) => liveFetch<LiveLineup>('/admin/lineups', { body }),
+  create: (body: { name: string; category?: string; city?: string; state?: string; country?: string; pincode?: string }) => liveFetch<LiveLineup>('/admin/lineups', { body }),
   update: (id: string, body: Partial<LiveLineup>) => liveFetch<LiveLineup>(`/admin/lineups/${id}`, { method: 'PATCH', body }),
   setVerified: (id: string, verified: boolean) => liveFetch<LiveLineup>(`/admin/lineups/${id}/verify`, { method: 'POST', body: { verified } }),
 };

@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { AMENITY_PRESETS } from '../store/data';
 import { fmt } from '../store/data';
-import { CityFilterDropdown, EVENT_STATUS, GradientPhoto, Kpi, Tag } from '../components/ui';
+import { CityFilterDropdown, EVENT_STATUS, GradientPhoto, Kpi, LiveLocationPicker, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import MapEmbed from '../components/MapEmbed';
 import RealImageUpload, { RealGalleryUpload } from '../components/RealImageUpload';
@@ -176,11 +176,12 @@ export function Venues() {
               {v.name}
             </span>
             <span style={{ flex: 1 }} className="muted">{fmt(v.capacity)}</span>
-            <span style={{ flex: 0.9 }} className="muted">{v.city}</span>
+            <span style={{ flex: 0.9 }} className="muted">{v.city}{v.pendingCity ? ` → ${v.pendingCity}?` : ''}</span>
             <span style={{ flex: 1 }}>{eventCount(v.id)}</span>
             <span style={{ flex: 1.2 }} className={v.verified ? 'muted' : 'red'}>{v.license || '—'}</span>
-            <span style={{ flex: 1 }}>
+            <span style={{ flex: 1, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {v.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Docs pending" cls="tag-red" />}
+              {v.pendingCity && <Tag label="🏙 City change" cls="tag-amber" />}
             </span>
           </div>
         ))}
@@ -244,6 +245,7 @@ export function VenueDetail() {
         )}
         <h1 className="display" style={{ fontSize: 18 }}>{venue.name}</h1>
         {venue.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Docs pending" cls="tag-red" />}
+        {venue.pendingCity && <Tag label={`🏙 City change → ${venue.pendingCity}`} cls="tag-amber" />}
         <div style={{ flex: 1 }} />
         <Link to={`/venues/${venue.id}/edit`} className="btn btn-pri btn-sm">✎ Edit venue</Link>
       </div>
@@ -301,7 +303,8 @@ export function AddVenue() {
   const [address, setAddress] = useState('');
   const [capacity, setCapacity] = useState('');
   const [type, setType] = useState('');
-  const [vcity, setVcity] = useState('');
+  const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
+  const [pincode, setPincode] = useState('');
   const [contact, setContact] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [contactPersonPhone, setContactPersonPhone] = useState('');
@@ -317,11 +320,14 @@ export function AddVenue() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) { setErr('Enter a venue name'); return; }
-    if (!vcity.trim()) { setErr('Enter a city'); return; }
+    if (!loc.city.trim()) { setErr('Pick a city'); return; }
     setSaving(true);
     setErr('');
     try {
-      const created = await liveVenues.create({ name: name.trim(), city: vcity.trim(), address: address.trim() || undefined, capacity: capacity ? parseInt(capacity, 10) : undefined, type });
+      const created = await liveVenues.create({
+        name: name.trim(), city: loc.city.trim(), state: loc.state || undefined, country: loc.country || undefined, pincode: pincode.trim() || undefined,
+        address: address.trim() || undefined, capacity: capacity ? parseInt(capacity, 10) : undefined, type,
+      });
       await liveVenues.update(created.id, {
         contact: contact.trim() || undefined, rules: rules.trim() || undefined, about: about.trim() || undefined, timings: timings.trim() || undefined, amenities,
         contactPerson: contactPerson.trim() || undefined, contactPersonPhone: contactPersonPhone.trim() || undefined, socialLinks: socialLinks ?? undefined,
@@ -342,10 +348,11 @@ export function AddVenue() {
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Venue name" autoFocus />
       <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address / map pin 📍" />
-      <MapEmbed query={`${address}, ${vcity}`} />
+      <MapEmbed query={`${address}, ${loc.city}`} />
+      <LiveLocationPicker value={loc} onChange={setLoc} />
       <div style={{ display: 'flex', gap: 8 }}>
         <input className="input" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="Capacity" inputMode="numeric" />
-        <input className="input" value={vcity} onChange={(e) => setVcity(e.target.value)} placeholder="City" />
+        <input className="input" value={pincode} onChange={(e) => setPincode(e.target.value)} placeholder="PIN / ZIP code" />
       </div>
       <VenueTypeEditor value={type} onChange={setType} />
       <div style={{ display: 'flex', gap: 8 }}>
@@ -398,9 +405,11 @@ export function EditVenue() {
   const [verified, setVerified] = useState(false);
   const [amenities, setAmenities] = useState<string[]>([]);
   const [seo, setSeo] = useState<Seo>(emptySeo());
-  const [venueCity, setVenueCity] = useState('');
+  const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
+  const [pincode, setPincode] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [cityBusy, setCityBusy] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -425,7 +434,8 @@ export function EditVenue() {
           setVerified(v.verified);
           setAmenities(v.amenities);
           setSeo((v.seo as Seo | null) ?? emptySeo());
-          setVenueCity(v.city);
+          setLoc({ country: v.country ?? 'India', state: v.state ?? '', city: v.city });
+          setPincode(v.pincode ?? '');
           setLogoUrl(v.logoUrl ?? null);
           setGalleryUrls(v.galleryUrls ?? []);
         }
@@ -454,12 +464,17 @@ export function EditVenue() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) { setErr('Venue name is required'); return; }
+    if (!loc.city.trim()) { setErr('Pick a city'); return; }
     try {
       await liveVenues.update(venue.id, {
         name: name.trim(),
         address: address.trim(),
         capacity: parseInt(capacity, 10) || venue.capacity,
         type,
+        city: loc.city.trim(),
+        state: loc.state || undefined,
+        country: loc.country || undefined,
+        pincode: pincode.trim() || undefined,
         contact: contact.trim() || undefined,
         contactPerson: contactPerson.trim() || undefined,
         contactPersonPhone: contactPersonPhone.trim() || undefined,
@@ -487,6 +502,49 @@ export function EditVenue() {
         {venue.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Docs pending" cls="tag-red" />}
       </div>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {venue.pendingCity && (
+        <div className="card" style={{ borderColor: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span>🏙 Owner requested a city change: <b>{venue.city} → {venue.pendingCity}</b></span>
+          <div style={{ flex: 1 }} />
+          <button
+            type="button"
+            className="btn btn-pri btn-sm"
+            disabled={cityBusy}
+            onClick={async () => {
+              setCityBusy(true);
+              try {
+                const updated = await liveVenues.approveCityChange(venue.id);
+                setLoc((l) => ({ ...l, city: updated.city }));
+                load();
+              } catch (e2) {
+                setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to approve city change');
+              } finally {
+                setCityBusy(false);
+              }
+            }}
+          >
+            ✓ Approve
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={cityBusy}
+            onClick={async () => {
+              setCityBusy(true);
+              try {
+                await liveVenues.rejectCityChange(venue.id);
+                load();
+              } catch (e2) {
+                setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to reject city change');
+              } finally {
+                setCityBusy(false);
+              }
+            }}
+          >
+            ✕ Reject
+          </button>
+        </div>
+      )}
       <div className="field">
         <label>Logo</label>
         <RealImageUpload value={logoUrl} onChange={setLogoUrl} height={90} width={90} label="logo" />
@@ -503,11 +561,16 @@ export function EditVenue() {
         <label>Address / map pin 📍</label>
         <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} />
       </div>
-      <MapEmbed query={`${address}, ${venueCity}`} />
+      <MapEmbed query={`${address}, ${loc.city}`} />
+      <LiveLocationPicker value={loc} onChange={setLoc} />
       <div style={{ display: 'flex', gap: 8 }}>
         <div className="field" style={{ flex: 1 }}>
           <label>Capacity</label>
           <input className="input" value={capacity} onChange={(e) => setCapacity(e.target.value)} inputMode="numeric" />
+        </div>
+        <div className="field" style={{ flex: 1 }}>
+          <label>PIN / ZIP code</label>
+          <input className="input" value={pincode} onChange={(e) => setPincode(e.target.value)} />
         </div>
       </div>
       <VenueTypeEditor value={type} onChange={setType} />

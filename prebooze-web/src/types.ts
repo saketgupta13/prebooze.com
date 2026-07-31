@@ -82,6 +82,13 @@ export interface Venue {
   type: string;
   locality: string;
   city: string;
+  state?: string | null;
+  country?: string | null;
+  pincode?: string | null;
+  /** Set when the owner has requested a city change still awaiting admin
+   * approval (VenueService.updateListing gates city edits) — city itself
+   * stays unchanged until an admin approves it. */
+  pendingCity?: string | null;
   address: string;
   capacity: number;
   rating: number;

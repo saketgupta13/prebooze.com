@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { BookingStatus, CustomerStatus, EventStatus, OrganizerStatus } from '../types';
+import { liveLocations, type LiveCountry } from '../lib/liveApi';
 
 /** Pill toggle switch — used in place of a plain checkbox everywhere in the
  * admin panel's settings-style forms. */
@@ -429,6 +430,70 @@ export function CityFilterDropdown({ value, onChange, cities, style }: {
         <option key={c} value={c}>{c}</option>
       ))}
     </select>
+  );
+}
+
+/** Real Country → State → City cascading pickers for create/edit forms —
+ * sourced from the same real, admin-managed Locations tree (GET
+ * /admin/locations) the Locations page itself edits, enabled entries only.
+ * Distinct from CityFilterDropdown above (a read-only *filter* fed whatever
+ * cities already exist in a page's own data) — this is for *writing* a
+ * city onto a record, where picking one admin hasn't enabled would make
+ * that record invisible to every guest-side city filter. State is kept as
+ * free text passthrough on the value (not sourced from the tree) since only
+ * City has that directory-matching consequence. */
+export function LiveLocationPicker({ value, onChange }: {
+  value: { country: string; state: string; city: string };
+  onChange: (v: { country: string; state: string; city: string }) => void;
+}) {
+  const [tree, setTree] = useState<LiveCountry[] | null>(null);
+  useEffect(() => {
+    liveLocations.tree().then(setTree).catch(() => setTree([]));
+  }, []);
+  const countries = (tree ?? []).filter((c) => c.enabled);
+  const country = countries.find((c) => c.name === value.country);
+  const states = (country?.states ?? []).filter((s) => s.enabled);
+  const state = states.find((s) => s.name === value.state);
+  const cities = (state?.cities ?? []).filter((c) => c.enabled);
+
+  return (
+    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <div style={{ minWidth: 140, flex: 1 }}>
+        <label className="tiny muted" style={{ display: 'block', marginBottom: 3 }}>Country</label>
+        <select
+          className="input"
+          value={value.country}
+          onChange={(e) => onChange({ country: e.target.value, state: '', city: '' })}
+        >
+          <option value="">Select country</option>
+          {countries.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+        </select>
+      </div>
+      <div style={{ minWidth: 140, flex: 1 }}>
+        <label className="tiny muted" style={{ display: 'block', marginBottom: 3 }}>State</label>
+        <select
+          className="input"
+          value={value.state}
+          disabled={!value.country}
+          onChange={(e) => onChange({ ...value, state: e.target.value, city: '' })}
+        >
+          <option value="">{value.country ? 'Select state' : 'Pick a country first'}</option>
+          {states.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+        </select>
+      </div>
+      <div style={{ minWidth: 140, flex: 1 }}>
+        <label className="tiny muted" style={{ display: 'block', marginBottom: 3 }}>City</label>
+        <select
+          className="input"
+          value={value.city}
+          disabled={!value.state}
+          onChange={(e) => onChange({ ...value, city: e.target.value })}
+        >
+          <option value="">{value.state ? 'Select city' : 'Pick a state first'}</option>
+          {cities.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+        </select>
+      </div>
+    </div>
   );
 }
 

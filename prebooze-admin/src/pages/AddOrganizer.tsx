@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import WysiwygEditor from '../components/WysiwygEditor';
+import { LiveLocationPicker } from '../components/ui';
 import { liveOrganizers, LiveApiError } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
@@ -20,7 +21,8 @@ export default function AddOrganizer() {
   const [contactPerson, setContactPerson] = useState('');
   const [contact, setContact] = useState('');
   const [phone, setPhone] = useState('');
-  const [city, setCity] = useState('');
+  const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
+  const [pincode, setPincode] = useState('');
   const [eventTypes, setEventTypes] = useState('Concerts');
   const [about, setAbout] = useState('');
   const [links, setLinks] = useState('');
@@ -33,10 +35,14 @@ export default function AddOrganizer() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !contact.trim()) { setErr('Brand name and contact email are required'); return; }
+    if (!loc.city.trim()) { setErr('Pick a city'); return; }
     setSaving(true);
     setErr('');
     try {
-      const created = await liveOrganizers.create({ brandName: name.trim(), city: city.trim() || undefined, contact: contact.trim() });
+      const created = await liveOrganizers.create({
+        brandName: name.trim(), city: loc.city, state: loc.state || undefined, country: loc.country || undefined, pincode: pincode.trim() || undefined,
+        contact: contact.trim(),
+      });
       await liveOrganizers.update(created.id, {
         contactPerson: contactPerson.trim() || undefined,
         phone: phone.trim() || undefined,
@@ -82,10 +88,11 @@ export default function AddOrganizer() {
             <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
         </div>
+        <LiveLocationPicker value={loc} onChange={setLoc} />
         <div style={{ display: 'flex', gap: 8 }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>City</label>
-            <input className="input" value={city} onChange={(e) => setCity(e.target.value)} />
+            <label>Pincode</label>
+            <input className="input" value={pincode} onChange={(e) => setPincode(e.target.value)} />
           </div>
           <div className="field" style={{ flex: 1 }}>
             <label>Event types hosted</label>
