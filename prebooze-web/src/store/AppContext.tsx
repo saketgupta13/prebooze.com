@@ -39,79 +39,6 @@ export interface Referral {
 export const referralCodeFor = (phone: string) =>
   'PB' + (parseInt(phone.replace(/\D/g, '').slice(-8) || '0', 10).toString(36).toUpperCase());
 
-export interface GuestListEntry {
-  id: string;
-  eventId: string;
-  name: string;
-  phone?: string;
-  plusOnes: number;
-  companions?: { name: string; phone?: string }[];
-  addedBy?: string;
-  arrived?: boolean;
-}
-
-export interface OrgPermSet {
-  view: boolean;
-  edit: boolean;
-}
-
-/** role name -> module -> permissions (organizer team) */
-export type OrgRoleMatrix = Record<string, Record<string, OrgPermSet>>;
-
-export const ORG_PERM_MODULES = [
-  'Events & wizard',
-  'Attendees & check-in',
-  'Guest list',
-  'Coupons',
-  'Payouts & withdrawals',
-  'Reviews',
-  'Settings & team',
-];
-
-const orgPerms = (view: boolean, edit: boolean) => ({ view, edit });
-const ORG_ROLE_SEED: OrgRoleMatrix = {
-  Owner: Object.fromEntries(ORG_PERM_MODULES.map((m) => [m, orgPerms(true, true)])),
-  Manager: {
-    'Events & wizard': orgPerms(true, true),
-    'Attendees & check-in': orgPerms(true, true),
-    'Guest list': orgPerms(true, true),
-    Coupons: orgPerms(true, true),
-    'Payouts & withdrawals': orgPerms(true, false),
-    Reviews: orgPerms(true, false),
-    'Settings & team': orgPerms(true, false),
-  },
-  'Door staff': {
-    'Events & wizard': orgPerms(false, false),
-    'Attendees & check-in': orgPerms(true, true),
-    'Guest list': orgPerms(true, true),
-    Coupons: orgPerms(false, false),
-    'Payouts & withdrawals': orgPerms(false, false),
-    Reviews: orgPerms(false, false),
-    'Settings & team': orgPerms(false, false),
-  },
-  Promoter: {
-    'Events & wizard': orgPerms(true, false),
-    'Attendees & check-in': orgPerms(true, false),
-    'Guest list': orgPerms(true, true),
-    Coupons: orgPerms(true, false),
-    'Payouts & withdrawals': orgPerms(false, false),
-    Reviews: orgPerms(true, false),
-    'Settings & team': orgPerms(false, false),
-  },
-};
-
-export interface TeamMember {
-  name: string;
-  role: string;
-  scan: boolean;
-}
-
-export interface OrgPrefs {
-  whatsapp: boolean;
-  emailDigest: boolean;
-  refundWindow: string;
-}
-
 export interface Withdrawal {
   id: string;
   amount: number;
@@ -247,20 +174,6 @@ interface AppState {
   requestFeatured: (input: Omit<Featured, 'id' | 'status' | 'createdAt'>) => void;
   followers: Person[]; // real GET /me/followers — who follows me, as full profiles
   followersLoading: boolean;
-  orgBalance: number;
-  withdrawals: Withdrawal[];
-  withdraw: (amount: number) => void;
-  team: TeamMember[];
-  addTeamMember: (m: TeamMember) => void;
-  removeTeamMember: (name: string) => void;
-  orgPrefs: OrgPrefs;
-  updateOrgPrefs: (patch: Partial<OrgPrefs>) => void;
-  glist: GuestListEntry[];
-  addGlist: (g: GuestListEntry) => void;
-  removeGlist: (id: string) => void;
-  toggleGlistArrived: (id: string) => void;
-  customLineups: { name: string; role: string }[];
-  addCustomLineup: (l: { name: string; role: string }) => void;
   myVenues: Venue[];
   addMyVenue: (v: Venue) => void;
   updateMyVenue: (id: string, patch: Partial<Venue>) => void;
@@ -278,11 +191,6 @@ interface AppState {
   removeSubPromoter: (handle: string) => void;
   toastMsg: string | null;
   toast: (msg: string) => void;
-  updateTeamRole: (name: string, role: string) => void;
-  orgRoles: OrgRoleMatrix;
-  setOrgRolePerm: (role: string, module: string, key: keyof OrgPermSet, value: boolean) => void;
-  addOrgRole: (name: string) => void;
-  removeOrgRole: (name: string) => boolean;
   /** Real "am I on someone's team" access — set only for an invited
    * organizer team member (not the real owner, who uses the normal
    * isOrganizer path). null while logged out or if the logged-in user
@@ -433,28 +341,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [pendingRequestId, setPendingRequestId] = useState('');
   const [orgTeamAccess, setOrgTeamAccess] = useState<OrgTeamAccess | null>(null);
   const [orgTeamAccessLoaded, setOrgTeamAccessLoaded] = useState(() => !isBackendEnabled() || !getToken());
-  const [orgBalance, setOrgBalance] = useState<number>(() => load('pb_org_balance', 84320));
-  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(() => load('pb_withdrawals', []));
-  const [team, setTeam] = useState<TeamMember[]>(() =>
-    load('pb_team', [
-      { name: 'You (owner)', role: 'Owner', scan: true },
-      { name: 'Meera J.', role: 'Manager', scan: true },
-      { name: 'Ravi D.', role: 'Door staff', scan: true },
-    ])
-  );
-  const [orgPrefs, setOrgPrefs] = useState<OrgPrefs>(() =>
-    load('pb_orgprefs', { whatsapp: true, emailDigest: true, refundWindow: '48h' })
-  );
-  const [glist, setGlist] = useState<GuestListEntry[]>(() => load('pb_glist', []));
-  const [customLineups, setCustomLineups] = useState<{ name: string; role: string }[]>(() =>
-    load('pb_customlineups', [])
-  );
   const [myVenues, setMyVenues] = useState<Venue[]>(() => {
     const v = load<Venue[]>('pb_myvenues', []);
     v.forEach(registerVenue);
     return v;
   });
-  const [orgRoles, setOrgRoles] = useState<OrgRoleMatrix>(() => load('pb_orgroles', ORG_ROLE_SEED));
   const [promoterGuests, setPromoterGuests] = useState<PromoterGuest[]>(() => load('pb_promoter_guests', []));
   const [promoterPlans, setPromoterPlans] = useState<Record<string, string>>(() => load('pb_promoter_plans', {}));
   const [promoterWithdrawals, setPromoterWithdrawals] = useState<Withdrawal[]>(() => load('pb_promoter_withdrawals', []));
@@ -611,29 +502,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [user?.phone]);
   useEffect(() => {
-    localStorage.setItem('pb_org_balance', JSON.stringify(orgBalance));
-  }, [orgBalance]);
-  useEffect(() => {
-    localStorage.setItem('pb_withdrawals', JSON.stringify(withdrawals));
-  }, [withdrawals]);
-  useEffect(() => {
-    localStorage.setItem('pb_team', JSON.stringify(team));
-  }, [team]);
-  useEffect(() => {
-    localStorage.setItem('pb_orgprefs', JSON.stringify(orgPrefs));
-  }, [orgPrefs]);
-  useEffect(() => {
-    localStorage.setItem('pb_glist', JSON.stringify(glist));
-  }, [glist]);
-  useEffect(() => {
-    localStorage.setItem('pb_customlineups', JSON.stringify(customLineups));
-  }, [customLineups]);
-  useEffect(() => {
     localStorage.setItem('pb_myvenues', JSON.stringify(myVenues));
   }, [myVenues]);
-  useEffect(() => {
-    localStorage.setItem('pb_orgroles', JSON.stringify(orgRoles));
-  }, [orgRoles]);
   useEffect(() => {
     localStorage.setItem('pb_promoter_guests', JSON.stringify(promoterGuests));
   }, [promoterGuests]);
@@ -1094,33 +964,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       followers,
       followersLoading,
-      orgBalance,
-      withdrawals,
-      withdraw: (amount) => {
-        if (user) notify(user.phone, 'organizer_payout', { amount: String(amount) }, user.email || undefined);
-        setOrgBalance((b) => Math.max(0, b - amount));
-        setWithdrawals((prev) => [
-          {
-            id: 'w' + Date.now(),
-            amount,
-            date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            status: 'processing' as const,
-          },
-          ...prev,
-        ]);
-      },
-      team,
-      addTeamMember: (m) => setTeam((prev) => [...prev, m]),
-      removeTeamMember: (name) => setTeam((prev) => prev.filter((m) => m.name !== name)),
-      orgPrefs,
-      updateOrgPrefs: (patch) => setOrgPrefs((prev) => ({ ...prev, ...patch })),
-      glist,
-      addGlist: (g) => setGlist((prev) => [g, ...prev]),
-      removeGlist: (id) => setGlist((prev) => prev.filter((g) => g.id !== id)),
-      toggleGlistArrived: (id) =>
-        setGlist((prev) => prev.map((g) => (g.id === id ? { ...g, arrived: !g.arrived } : g))),
-      customLineups,
-      addCustomLineup: (l) => setCustomLineups((prev) => [...prev, l]),
       myVenues,
       addMyVenue: (v) => {
         registerVenue(v);
@@ -1157,48 +1000,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       removeSubPromoter: (handle) => setPromoterTeam((prev) => prev.filter((m) => m.handle !== handle)),
       toastMsg,
       toast,
-      updateTeamRole: (name, role) => {
-        setTeam((prev) => prev.map((m) => (m.name === name ? { ...m, role } : m)));
-        toast(`${name} is now ${role} ✓`);
-      },
-      orgRoles,
-      setOrgRolePerm: (role, module, key, value) =>
-        setOrgRoles((prev) => ({
-          ...prev,
-          [role]: { ...prev[role], [module]: { ...prev[role][module], [key]: value } },
-        })),
-      addOrgRole: (name) => {
-        setOrgRoles((prev) =>
-          prev[name]
-            ? prev
-            : {
-                ...prev,
-                [name]: Object.fromEntries(ORG_PERM_MODULES.map((m) => [m, { view: true, edit: false }])),
-              }
-        );
-        toast(`Role "${name}" created ✓`);
-      },
-      removeOrgRole: (name) => {
-        if (name === 'Owner') {
-          toast("The Owner role can't be removed");
-          return false;
-        }
-        if (team.some((m) => m.role === name)) {
-          toast(`Reassign members using "${name}" first`);
-          return false;
-        }
-        setOrgRoles((prev) => {
-          const next = { ...prev };
-          delete next[name];
-          return next;
-        });
-        toast(`Role "${name}" removed`);
-        return true;
-      },
       orgTeamAccess,
       orgTeamAccessLoaded,
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, orgBalance, withdrawals, team, orgPrefs, glist, customLineups, myVenues, orgRoles, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, myVenues, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
