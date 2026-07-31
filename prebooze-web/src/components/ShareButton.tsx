@@ -28,17 +28,23 @@ export default function ShareButton({ path, label = '⇪ Share', text = 'Check t
       </button>
       {open && (
         <div className="menu share-menu" style={{ right: 0, minWidth: 220 }}>
-          <button onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`, '_blank'); setOpen(false); }}>
-            💬 WhatsApp
-          </button>
-          <button onClick={() => { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank'); setOpen(false); }}>
-            📘 Facebook
-          </button>
-          <button onClick={copy} title="Instagram has no web share — link is copied for your story / DM">
-            📸 Instagram — copy for story
-          </button>
-          <div className="sep" />
-          <button onClick={copy}>🔗 Copy link</button>
+          {copied ? (
+            <div className="share-menu-copied">✓ Link copied</div>
+          ) : (
+            <>
+              <button onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`, '_blank'); setOpen(false); }}>
+                💬 WhatsApp
+              </button>
+              <button onClick={() => { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank'); setOpen(false); }}>
+                📘 Facebook
+              </button>
+              <button onClick={copy} title="Instagram has no web share — link is copied for your story / DM">
+                📸 Instagram — copy for story
+              </button>
+              <div className="sep" />
+              <button onClick={copy}>🔗 Copy link</button>
+            </>
+          )}
         </div>
       )}
     </div>
