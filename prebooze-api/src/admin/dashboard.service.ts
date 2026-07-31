@@ -39,7 +39,11 @@ export class DashboardService {
       this.prisma.event.count({ where: { status: 'pending' } }),
       this.prisma.booking.count({ where: { status: 'refund_requested' } }),
       this.prisma.kycSubmission.count({ where: { status: 'pending' } }),
-      this.prisma.user.count(),
+      // Every role (organizer/promoter/lineup/venue) shares the same User
+      // table as guests — counting all Users here silently folded business
+      // accounts into "customers". Same "guest" definition CustomersService
+      // already uses for its "guests" segment: role and roleStatus both null.
+      this.prisma.user.count({ where: { role: null, roleStatus: null } }),
       this.prisma.organizer.count(),
       this.prisma.organizer.count({ where: { verified: true } }),
       this.prisma.event.count(),

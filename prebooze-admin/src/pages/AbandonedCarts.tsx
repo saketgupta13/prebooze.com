@@ -66,26 +66,42 @@ export default function AbandonedCarts() {
 
   const unremindedIds = filtered.filter((c) => !c.reminded).map((c) => c.id);
 
-  // Same guest can abandon several carts (retries, different events) — group
-  // by phone so repeats sit together and the name/phone block is only shown
-  // once per guest (with a "×N" count) instead of repeating it on every row.
-  const { rows: groupedRows, countByPhone } = useMemo(() => {
-    const countByPhone = new Map<string, number>();
-    filtered.forEach((c) => countByPhone.set(c.phone, (countByPhone.get(c.phone) ?? 0) + 1));
-    const seen = new Set<string>();
-    const byPhone = new Map<string, LiveCart[]>();
+  // Same guest can abandon several carts (retries, different events) — one
+  // row per guest (phone), not one row per cart: the event/value/status
+  // columns roll up across all of that guest's open carts instead of
+  // repeating their name/phone down a stack of near-identical rows.
+  interface GroupedRow {
+    phone: string;
+    guest: string;
+    cartIds: string[];
+    eventTitles: string[];
+    totalValue: number;
+    latestCreatedAt: string;
+    allReminded: boolean;
+  }
+  const groupedRows = useMemo(() => {
+    const byPhone = new Map<string, GroupedRow>();
     filtered.forEach((c) => {
-      const arr = byPhone.get(c.phone) ?? [];
-      arr.push(c);
-      byPhone.set(c.phone, arr);
+      const row = byPhone.get(c.phone);
+      if (!row) {
+        byPhone.set(c.phone, {
+          phone: c.phone,
+          guest: c.guest,
+          cartIds: [c.id],
+          eventTitles: [c.eventTitle],
+          totalValue: c.amount,
+          latestCreatedAt: c.createdAt,
+          allReminded: c.reminded,
+        });
+        return;
+      }
+      row.cartIds.push(c.id);
+      if (!row.eventTitles.includes(c.eventTitle)) row.eventTitles.push(c.eventTitle);
+      row.totalValue += c.amount;
+      if (c.createdAt > row.latestCreatedAt) row.latestCreatedAt = c.createdAt;
+      row.allReminded = row.allReminded && c.reminded;
     });
-    const rows: { cart: LiveCart; showGuest: boolean }[] = [];
-    filtered.forEach((c) => {
-      if (seen.has(c.phone)) return;
-      seen.add(c.phone);
-      byPhone.get(c.phone)!.forEach((cart, i) => rows.push({ cart, showGuest: i === 0 }));
-    });
-    return { rows, countByPhone };
+    return [...byPhone.values()];
   }, [filtered]);
 
   const byEvent = useMemo(() => {
@@ -101,17 +117,6 @@ export default function AbandonedCarts() {
 
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
-
-  const remind = async (id: string) => {
-    setErr('');
-    try {
-      await liveCarts.remind(id);
-      setMsg('Reminder sent ✓');
-      load();
-    } catch (e) {
-      setErr(e instanceof LiveApiError ? e.message : 'Failed to send reminder');
-    }
-  };
 
   const bulkRemind = async (ids: string[]) => {
     if (!ids.length) return;
@@ -201,33 +206,30 @@ export default function AbandonedCarts() {
           <span style={{ flex: 1 }}>Status</span>
           <span style={{ flex: 1.2 }} />
         </div>
-        {groupedRows.map(({ cart: c, showGuest }) => {
-          const count = countByPhone.get(c.phone) ?? 1;
+        {groupedRows.map((r) => {
+          const count = r.cartIds.length;
+          const eventLabel = r.eventTitles.length > 2
+            ? `${r.eventTitles.slice(0, 2).join(', ')} +${r.eventTitles.length - 2} more`
+            : r.eventTitles.join(', ');
           return (
-          <div key={c.id} className="trow" style={{ minWidth: 720 }}>
+          <div key={r.phone} className="trow" style={{ minWidth: 720 }}>
             <span style={{ flex: 1.4 }}>
-              {showGuest ? (
-                <>
-                  <b>{count > 1 ? `${count}× ` : ''}{c.guest}</b>
-                  <span className="tiny muted" style={{ display: 'block' }}>{c.phone}</span>
-                </>
-              ) : (
-                <span className="tiny muted">↳ same guest</span>
-              )}
+              <b>{count > 1 ? `${count}× ` : ''}{r.guest}</b>
+              <span className="tiny muted" style={{ display: 'block' }}>{r.phone}</span>
             </span>
-            <span style={{ flex: 1.6 }}>{c.eventTitle}</span>
-            <span style={{ flex: 0.8, fontWeight: 700 }}>₹{fmt(c.amount)}</span>
-            <span style={{ flex: 0.7 }} className="muted tiny">{timeAgo(c.createdAt)}</span>
+            <span style={{ flex: 1.6 }}>{eventLabel}</span>
+            <span style={{ flex: 0.8, fontWeight: 700 }}>₹{fmt(r.totalValue)}</span>
+            <span style={{ flex: 0.7 }} className="muted tiny">{timeAgo(r.latestCreatedAt)}</span>
             <span style={{ flex: 1 }}>
-              {c.reminded ? (
+              {r.allReminded ? (
                 <span className="tag" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>reminded</span>
               ) : (
                 <span className="tag" style={{ borderColor: 'var(--border)' }}>abandoned</span>
               )}
             </span>
             <span style={{ flex: 1.2, display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => remind(c.id)}>
-                {c.reminded ? '↻ Remind again' : '💬 Send reminder'}
+              <button className="btn btn-ghost btn-sm" onClick={() => bulkRemind(r.cartIds)}>
+                {r.allReminded ? '↻ Remind again' : `💬 Send reminder${count > 1 ? ` (${count})` : ''}`}
               </button>
             </span>
           </div>
