@@ -71,7 +71,7 @@ export default function Legal() {
               <h2 style={{ fontSize: 17, marginBottom: 8 }}>
                 {i + 1}. {s.heading}
               </h2>
-              <p className="muted small">{s.body}</p>
+              <div className="muted small rich-text" dangerouslySetInnerHTML={{ __html: s.body }} />
             </section>
           ))}
         </article>

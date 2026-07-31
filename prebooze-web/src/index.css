@@ -1175,4 +1175,21 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
      it just leaves dead space on both sides instead of a real full-width
      banner. */
   .detail-head .poster { max-width: none; }
+  /* ShareButton's dropdown is `position: absolute; right: 0` relative to
+     wherever its own trigger button happens to sit on the page — on a
+     narrow phone, if that button isn't near the right edge of the screen
+     (most of them aren't; the button sits inline with page content, not
+     pinned to a header), a 220px-wide menu expanding leftward from it
+     runs off the left edge of the viewport. Pinning it to the viewport
+     itself instead of the button guarantees it can never overflow,
+     regardless of where the trigger is on any given page. */
+  .share-menu {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: 12px;
+    min-width: 0;
+    width: auto;
+  }
 }

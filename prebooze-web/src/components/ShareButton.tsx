@@ -27,7 +27,7 @@ export default function ShareButton({ path, label = '⇪ Share', text = 'Check t
         {copied ? 'Link copied ✓' : label}
       </button>
       {open && (
-        <div className="menu" style={{ right: 0, minWidth: 220 }}>
+        <div className="menu share-menu" style={{ right: 0, minWidth: 220 }}>
           <button onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`, '_blank'); setOpen(false); }}>
             💬 WhatsApp
           </button>
