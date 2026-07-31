@@ -1190,12 +1190,13 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
     top: auto;
     /* Event detail's fixed "Book ticket" bar (.ticket-box-bar) also sits at
        bottom:0 with z-index 60 — anchoring both at the same edge put the
-       share menu underneath it in paint order. Clearing its ~76px reserved
-       height (see .event-detail-page-mobile padding-bottom) plus the usual
-       12px gap keeps the menu above the bar instead of hidden behind it;
-       on pages without that bar this just leaves a slightly bigger gap
-       from the bottom edge, which is harmless. */
-    bottom: 88px;
+       share menu underneath it in paint order. The bar's actual rendered
+       height runs closer to ~90px (padding + button + safe-area, more
+       than the 76px reserved via .event-detail-page-mobile's padding),
+       so clear that plus a real gap to fully separate the two; on pages
+       without that bar this just leaves a slightly bigger gap from the
+       bottom edge, which is harmless. */
+    bottom: 104px;
     min-width: 0;
     width: auto;
     z-index: 70;
