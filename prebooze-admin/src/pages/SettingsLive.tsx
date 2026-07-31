@@ -145,6 +145,10 @@ export default function SettingsLive() {
             </select>
           </div>
         </div>
+        <div className="tiny hint">
+          Leave GST at 0% unless Prebooze is actually GST-registered — invoices print as a plain "Invoice" at 0% and a
+          "Tax Invoice" with a GST line above that, and a non-zero rate also gets withheld from organizer payouts.
+        </div>
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -155,7 +159,11 @@ export default function SettingsLive() {
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Toggle on={settings.autoPayout} onChange={() => set('autoPayout', !settings.autoPayout)} />
-          <span style={{ fontSize: 13 }}>Auto-run payout batch on payout day</span>
+          <span style={{ fontSize: 13 }}>Alert staff with payouts due on payout day</span>
+        </div>
+        <div className="tiny hint" style={{ marginTop: -6 }}>
+          Never processes anything automatically — just a reminder ping. Payouts are always marked paid manually,
+          with the real transfer reference, in Payments.
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Toggle on={settings.weeklyEmail} onChange={() => set('weeklyEmail', !settings.weeklyEmail)} />

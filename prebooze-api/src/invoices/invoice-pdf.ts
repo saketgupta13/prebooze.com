@@ -18,7 +18,11 @@ export function invoicePdfBuffer(inv: Invoice): Promise<Buffer> {
     doc.on('error', reject);
 
     doc.fillColor(GREEN).fontSize(20).font('Helvetica-Bold').text('PREBOOZE', 50, 50);
-    doc.fillColor('#000').fontSize(9).font('Helvetica').text('Tax Invoice', 50, 74);
+    // "Tax Invoice" is reserved for a GST-registered issuer — Prebooze isn't
+    // (no GSTIN of its own), so this only earns that label on the rare
+    // invoice actually carrying a GST line; everything else is a plain
+    // Invoice, same document otherwise.
+    doc.fillColor('#000').fontSize(9).font('Helvetica').text(inv.gstAmount > 0 ? 'Tax Invoice' : 'Invoice', 50, 74);
 
     doc.fontSize(10).fillColor('#000');
     doc.text(`Invoice No.: ${inv.number}`, 350, 50, { align: 'right', width: 195 });
