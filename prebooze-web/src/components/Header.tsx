@@ -10,6 +10,18 @@ import { usePlatformInfo } from '../lib/usePlatformInfo';
 
 type Suggestion = { label: string; type: string; to: string };
 
+/** The ▾ unicode triangle has inconsistent vertical metrics across fonts/
+ * OSes — it renders floating well above the text baseline instead of
+ * sitting inline with it. An inline SVG chevron gives pixel-consistent
+ * alignment everywhere instead. */
+function Caret() {
+  return (
+    <svg className="hdr-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
 /** Self-contained search input + suggestions dropdown — rendered twice by
  * Header (desktop, inline in the header row; mobile, in its own row below
  * the header), each with independent open/close state so opening one never
@@ -168,7 +180,7 @@ export default function Header() {
         <SearchBox className="hdr-search" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} />
 
         <button className="hdr-city" onClick={() => { setAutoDetect(false); setCityOpen(true); }}>
-          📍 {city} ▾
+          📍 {city} <Caret />
         </button>
         <CityPicker open={cityOpen} onClose={() => setCityOpen(false)} autoDetect={autoDetect} />
 
@@ -194,7 +206,7 @@ export default function Header() {
             ) : (
               <span className="avatar">👤</span>
             )}
-            {displayName.split(' ')[0]} ▾
+            {displayName.split(' ')[0]} <Caret />
             {menuOpen && (
               <div className="menu" onClick={(e) => e.stopPropagation()}>
                 {/* Any elevated role (organizer/promoter/lineup/venue) is a

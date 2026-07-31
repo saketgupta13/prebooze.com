@@ -66,6 +66,28 @@ export default function AbandonedCarts() {
 
   const unremindedIds = filtered.filter((c) => !c.reminded).map((c) => c.id);
 
+  // Same guest can abandon several carts (retries, different events) — group
+  // by phone so repeats sit together and the name/phone block is only shown
+  // once per guest (with a "×N" count) instead of repeating it on every row.
+  const { rows: groupedRows, countByPhone } = useMemo(() => {
+    const countByPhone = new Map<string, number>();
+    filtered.forEach((c) => countByPhone.set(c.phone, (countByPhone.get(c.phone) ?? 0) + 1));
+    const seen = new Set<string>();
+    const byPhone = new Map<string, LiveCart[]>();
+    filtered.forEach((c) => {
+      const arr = byPhone.get(c.phone) ?? [];
+      arr.push(c);
+      byPhone.set(c.phone, arr);
+    });
+    const rows: { cart: LiveCart; showGuest: boolean }[] = [];
+    filtered.forEach((c) => {
+      if (seen.has(c.phone)) return;
+      seen.add(c.phone);
+      byPhone.get(c.phone)!.forEach((cart, i) => rows.push({ cart, showGuest: i === 0 }));
+    });
+    return { rows, countByPhone };
+  }, [filtered]);
+
   const byEvent = useMemo(() => {
     const m = new Map<string, { count: number; value: number }>();
     carts.forEach((c) => {
@@ -179,11 +201,19 @@ export default function AbandonedCarts() {
           <span style={{ flex: 1 }}>Status</span>
           <span style={{ flex: 1.2 }} />
         </div>
-        {filtered.map((c) => (
+        {groupedRows.map(({ cart: c, showGuest }) => {
+          const count = countByPhone.get(c.phone) ?? 1;
+          return (
           <div key={c.id} className="trow" style={{ minWidth: 720 }}>
             <span style={{ flex: 1.4 }}>
-              <b>{c.guest}</b>
-              <span className="tiny muted" style={{ display: 'block' }}>{c.phone}</span>
+              {showGuest ? (
+                <>
+                  <b>{count > 1 ? `${count}× ` : ''}{c.guest}</b>
+                  <span className="tiny muted" style={{ display: 'block' }}>{c.phone}</span>
+                </>
+              ) : (
+                <span className="tiny muted">↳ same guest</span>
+              )}
             </span>
             <span style={{ flex: 1.6 }}>{c.eventTitle}</span>
             <span style={{ flex: 0.8, fontWeight: 700 }}>₹{fmt(c.amount)}</span>
@@ -201,7 +231,8 @@ export default function AbandonedCarts() {
               </button>
             </span>
           </div>
-        ))}
+          );
+        })}
         {filtered.length === 0 && !loading && <div className="trow muted">No abandoned carts match.</div>}
       </div>
       <div className="tiny hint">
