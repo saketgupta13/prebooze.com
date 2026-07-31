@@ -61,6 +61,24 @@ export const liveAuth = {
   verify2fa: (staffId: string, code: string) => liveFetch<{ token: string; staff: { name: string; roleName: string } }>('/admin/auth/verify-2fa', { body: { staffId, code } }),
 };
 
+export interface LiveStaffMe {
+  id: string;
+  name: string;
+  email: string;
+  roleName: string;
+  permissions: Record<string, Record<string, boolean>>;
+  city?: string;
+  lastActiveAt?: string;
+}
+/** The signed-in staffer's own account — distinct from AdminStaffController
+ * (Owner-only management of everyone else's Staff rows). */
+export const liveMe = {
+  get: () => liveFetch<LiveStaffMe>('/admin/auth/me'),
+  update: (body: { name?: string; email?: string }) => liveFetch<LiveStaffMe>('/admin/auth/me', { method: 'PATCH', body }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    liveFetch<{ ok: true }>('/admin/auth/me/password', { body: { currentPassword, newPassword } }),
+};
+
 export interface LiveSubTier {
   id: string;
   role: 'organizer' | 'promoter' | 'venue' | 'lineup';
@@ -403,7 +421,9 @@ export interface LivePayoutRow {
 }
 export const livePayments = {
   due: () => liveFetch<{ rows: LivePayoutRow[]; collected: number; commissionKept: number; gstCollected: number; dueTotal: number }>('/admin/payments/due'),
-  runBatch: (eventIds: string[]) => liveFetch<{ ok: true; count: number }>('/admin/payments/run-batch', { body: { eventIds } }),
+  /** Records a real transfer you already made yourself — there's no bank
+   * integration behind this, so it never moves money or invents a UTR. */
+  markPaid: (eventId: string, utr: string) => liveFetch<{ id: string; paidOut: boolean; payoutUtr: string | null }>('/admin/payments/mark-paid', { body: { eventId, utr } }),
 };
 
 export interface LiveLedgerEntry {

@@ -17,9 +17,9 @@ export class AdminPaymentsController {
     return this.payments.payoutsDue();
   }
 
-  @Post('run-batch')
+  @Post('mark-paid')
   @RequirePermission(MODULE, 'edit')
-  runBatch(@Body('eventIds') eventIds: string[]) {
-    return this.payments.runBatch(eventIds);
+  markPaid(@Body('eventId') eventId: string, @Body('utr') utr: string) {
+    return this.payments.markPaid(eventId, utr);
   }
 }

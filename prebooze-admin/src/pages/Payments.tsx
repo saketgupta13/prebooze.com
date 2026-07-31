@@ -8,10 +8,12 @@ const TITLE = 'Payments & payouts';
 const TABS = ['Payouts due', 'Transactions', 'Refunds', 'Disputes'];
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
 
-/** Real per-event payout batch (PaymentsService.due/runBatch) — genuinely
- * flips paidOut + records a real payout UTR, not a mock toast. "Payouts
- * due" is the only tab with a real backend; the rest stay the same
- * placeholder they always were. */
+/** Real per-event payout register (PaymentsService.due/markPaid) — "due"
+ * only ever lists events that have actually finished, and marking one paid
+ * requires the real UTR from a transfer you already made yourself; nothing
+ * here moves money or invents a reference number. "Payouts due" is the only
+ * tab with a real backend; the rest stay the same placeholder they always
+ * were. */
 export default function Payments() {
   const session = useLiveSession();
   const { token } = session;
@@ -22,6 +24,7 @@ export default function Payments() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [utrDraft, setUtrDraft] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -44,16 +47,24 @@ export default function Payments() {
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
 
-  const pay = async (id: string) => {
+  const startPay = (id: string) => {
     setPayingId(id);
+    setUtrDraft('');
+    setErr('');
+  };
+
+  const confirmPay = async (id: string) => {
+    if (!utrDraft.trim()) {
+      setErr('Enter the UTR / reference number from the transfer you made');
+      return;
+    }
     setErr('');
     try {
-      await livePayments.runBatch([id]);
+      await livePayments.markPaid(id, utrDraft.trim());
+      setPayingId(null);
       load();
     } catch (e) {
-      setErr(e instanceof LiveApiError ? e.message : 'Failed to run payout');
-    } finally {
-      setPayingId(null);
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to record payout');
     }
   };
 
@@ -90,9 +101,9 @@ export default function Payments() {
             <span style={{ flex: 1 }}>Net payout</span>
             <span style={{ flex: 0.9 }} />
           </div>
-          {rows.length === 0 && !loading && <div className="trow muted">No payouts due.</div>}
+          {rows.length === 0 && !loading && <div className="trow muted">No payouts due — events only show up here once they've actually happened.</div>}
           {rows.map((r) => (
-            <div key={r.id} className="trow" style={{ minWidth: 640 }}>
+            <div key={r.id} className="trow" style={{ minWidth: 640, flexWrap: payingId === r.id ? 'wrap' : undefined }}>
               <span style={{ flex: 1.6, fontWeight: 700 }}>{r.organizer}</span>
               <span style={{ flex: 1.6 }} className="muted">{r.title}</span>
               <span style={{ flex: 1 }}>₹{fmt(r.revenue)}</span>
@@ -106,12 +117,26 @@ export default function Payments() {
               <span style={{ flex: 0.9, display: 'flex', justifyContent: 'flex-end' }}>
                 {r.paidOut ? (
                   <span className="tag tag-green" title={r.payoutUtr ?? undefined}>Paid ✓</span>
-                ) : (
-                  <button className="btn btn-ghost btn-sm" disabled={payingId === r.id} onClick={() => pay(r.id)}>
-                    {payingId === r.id ? 'Paying…' : 'Pay ⏸'}
+                ) : payingId === r.id ? null : (
+                  <button className="btn btn-ghost btn-sm" onClick={() => startPay(r.id)}>
+                    Mark paid…
                   </button>
                 )}
               </span>
+              {!r.paidOut && payingId === r.id && (
+                <div style={{ flex: '1 0 100%', display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                  <input
+                    className="input"
+                    style={{ flex: 1 }}
+                    placeholder="Real UTR / transaction reference from the transfer you made"
+                    value={utrDraft}
+                    onChange={(e) => setUtrDraft(e.target.value)}
+                    autoFocus
+                  />
+                  <button className="btn btn-pri btn-sm" onClick={() => confirmPay(r.id)}>Confirm</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setPayingId(null)}>Cancel</button>
+                </div>
+              )}
             </div>
           ))}
         </div>

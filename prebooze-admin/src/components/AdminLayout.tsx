@@ -5,6 +5,7 @@ import { GUEST_SITE_URL } from '../store/data';
 import NotificationsPanel from './NotificationsPanel';
 import { Drawer } from './ui';
 import { useBranding } from '../lib/useBranding';
+import { clearLiveToken } from '../lib/liveApi';
 
 interface SearchResult {
   type: string;
@@ -177,6 +178,7 @@ export default function AdminLayout() {
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => {
+            clearLiveToken();
             logout();
             navigate('/login');
           }}

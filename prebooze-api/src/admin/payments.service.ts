@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import type { BookingStatus, Event } from '@prisma/client';
-import { randomInt } from 'crypto';
+import type { BookingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { NotificationsService } from './notifications.service';
 
@@ -21,10 +20,15 @@ export class PaymentsService {
 
   async payoutsDue() {
     const settings = await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
+    // A payout is only ever due once the event has actually happened — an
+    // organizer can't be paid out on ticket sales for a show that hasn't
+    // run yet (see BACKEND.md — this used to include every non-draft event
+    // regardless of date, which let the auto-payout cron mark events as
+    // "paid" days before they even took place).
     const events = await this.prisma.event.findMany({
       where: { status: { not: 'draft' }, commission: { not: null } },
-      select: { id: true, title: true, commission: true, paidOut: true, payoutUtr: true, organizer: { select: { brandName: true } } },
-    });
+      select: { id: true, title: true, date: true, durationHrs: true, commission: true, paidOut: true, payoutUtr: true, organizer: { select: { brandName: true } } },
+    }).then((rows) => rows.filter((e) => new Date(e.date).getTime() + e.durationHrs * 3600_000 <= Date.now()));
     const revenueByEvent = await this.prisma.booking.groupBy({
       by: ['eventId'],
       where: { status: { in: LIVE_BOOKING_STATUSES } },
@@ -59,20 +63,23 @@ export class PaymentsService {
     return { rows, collected, commissionKept, gstCollected, dueTotal };
   }
 
-  async runBatch(eventIds: string[]) {
-    if (!eventIds?.length) throw new BadRequestException('Select at least one event to pay out');
-    const utr = () => 'UTR' + randomInt(100000000, 999999999);
-
-    const updated: Event[] = [];
-    for (const id of eventIds) {
-      const event = await this.prisma.event.findUnique({ where: { id } });
-      if (!event || event.paidOut) continue;
-      updated.push(await this.prisma.event.update({ where: { id }, data: { paidOut: true, payoutUtr: utr() } }));
+  /** Manual only, one real transfer at a time — there's no real bank/IMPS
+   * integration behind this (see BACKEND.md), so this used to auto-generate
+   * a fake "UTR" and flip paidOut the instant someone clicked a button,
+   * including for events that hadn't even happened yet via the auto-payout
+   * cron. Now it just records the UTR the admin got from actually sending
+   * the money themselves, after the fact — this is bookkeeping, not a
+   * payment rail. */
+  async markPaid(eventId: string, utr: string) {
+    if (!utr?.trim()) throw new BadRequestException('Enter the real UTR / transaction reference for this transfer');
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new BadRequestException('Event not found');
+    if (event.paidOut) throw new BadRequestException('This event is already marked paid');
+    if (new Date(event.date).getTime() + event.durationHrs * 3600_000 > Date.now()) {
+      throw new BadRequestException("This event hasn't happened yet — payouts can only be marked paid after the event completes");
     }
-
-    if (updated.length) {
-      await this.notifications.notify('💸', `Payout batch processed — ${updated.length} transfer${updated.length === 1 ? '' : 's'} initiated`, '/admin/payments');
-    }
-    return { ok: true, count: updated.length, events: updated };
+    const updated = await this.prisma.event.update({ where: { id: eventId }, data: { paidOut: true, payoutUtr: utr.trim() } });
+    await this.notifications.notify('💸', `Payout marked paid — "${event.title}" · ${utr.trim()}`, '/admin/payments');
+    return updated;
   }
 }

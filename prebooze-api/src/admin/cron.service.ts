@@ -27,9 +27,13 @@ export class CronService {
     private bookings: BookingsService,
   ) {}
 
-  /** Runs the same batch-payout logic as the manual "Run batch" button in
-   * /admin/payments, but only when today matches the configured payout day
-   * and autoPayout is switched on. */
+  /** Payouts are never marked paid automatically — there's no real bank
+   * integration behind PaymentsService.markPaid, so auto-processing used to
+   * mean flipping paidOut and fabricating a UTR on a schedule, including for
+   * events that hadn't happened yet. On the configured payout day this now
+   * only pings staff with what's actually due (post-completion, per
+   * PaymentsService.payoutsDue's own date gate) so a human pays it for real
+   * and records the real UTR themselves via the admin panel. */
   @Cron('0 8 * * *')
   async autoPayoutTick() {
     const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
@@ -38,13 +42,13 @@ export class CronService {
 
     try {
       const due = await this.payments.payoutsDue();
-      const ids = due.rows.filter((r) => !r.paidOut).map((r) => r.id);
-      if (!ids.length) return;
-      await this.payments.runBatch(ids);
-      this.log.log(`Auto payout: processed ${ids.length} event(s)`);
+      const outstanding = due.rows.filter((r) => !r.paidOut);
+      if (!outstanding.length) return;
+      await this.staffAlerts.alert(
+        `💸 ${outstanding.length} payout${outstanding.length === 1 ? '' : 's'} due today — ₹${Math.round(due.dueTotal).toLocaleString('en-IN')} total. Review and pay in /admin/payments.`,
+      ).catch(() => {});
     } catch (err) {
-      this.log.error(`Auto payout run failed: ${(err as Error).message}`);
-      await this.staffAlerts.alert(`⚠️ Automatic payout run failed: ${(err as Error).message}`).catch(() => {});
+      this.log.error(`Payout reminder failed: ${(err as Error).message}`);
     }
   }
 
