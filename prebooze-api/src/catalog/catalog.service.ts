@@ -134,12 +134,19 @@ export class CatalogService {
     return sorted;
   }
 
+  /** Deliberately doesn't gate on isEventOver — a past event's own detail
+   * page has to be reachable (from Organizer/Venue/Lineup "Past events",
+   * a guest's own booking history, a shared link after the fact) even
+   * though nobody can book it anymore; the booking UI itself is what
+   * disables purchasing for a finished event, not a 404 here. Draft/
+   * pending/rejected events still 404 for anyone who isn't meant to see
+   * them at all, regardless of date. */
   async event(slug: string) {
     const event = await this.prisma.event.findUnique({
       where: { slug },
       select: PUBLIC_EVENT_SELECT,
     });
-    if (!event || event.status !== 'approved' || CatalogService.isEventOver(event)) {
+    if (!event || event.status !== 'approved') {
       throw new NotFoundException('Event not found');
     }
     return event;

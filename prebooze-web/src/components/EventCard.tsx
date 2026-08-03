@@ -8,7 +8,12 @@ import Poster, { categoryEmoji } from './Poster';
 
 export default function EventCard({ event }: { event: Event }) {
   const { following, featured, wishlist, toggleWishlist } = useApp();
-  const soldOut = event.tiers.every((t) => t.sold >= t.quantity);
+  // An event that's already happened can't be booked regardless of how
+  // much inventory technically remains — reuses the same "sold out" pill
+  // rather than a separate label, since both mean the same thing to a
+  // guest: no button here will get you a ticket.
+  const eventOver = new Date(event.date).getTime() < Date.now();
+  const soldOut = eventOver || event.tiers.every((t) => t.sold >= t.quantity);
   const going = goingCount(event);
   const friendCount = friendsGoing(event.id, following).length;
   const feat = isFeatured(featured, 'event', event.id);

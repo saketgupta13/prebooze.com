@@ -171,6 +171,10 @@ export default function EventDetail() {
   const going = goingCount(event);
   const friends = friendsGoing(event.id, following);
   const allSoldOut = event.tiers.every((t) => t.sold >= t.quantity);
+  // Distinct from allSoldOut — this event has already happened, so no
+  // cancellation is ever going to free up a spot. The waitlist flow below
+  // (allSoldOut branch) only makes sense for a still-upcoming event.
+  const eventOver = new Date(event.date).getTime() < Date.now();
   const queue = liveWaitlist ?? waitlists[event.id] ?? [];
   const myEntry = user ? queue.find((w) => w.phone === user.phone) : undefined;
   const myPosition = myEntry ? queue.filter((w) => w.status === 'waiting').findIndex((w) => w.phone === user?.phone) + 1 : 0;
@@ -467,7 +471,7 @@ export default function EventDetail() {
             )}
             {!showFullTicketBox ? (
               <button className="btn btn-pri btn-block btn-lg" onClick={() => setTicketBoxOpen(true)}>
-                {allSoldOut ? '😔 Sold out — join the waitlist' : `🎟 Book ticket — from ₹${minPrice} →`}
+                {eventOver ? '😔 Sold out' : allSoldOut ? '😔 Sold out — join the waitlist' : `🎟 Book ticket — from ₹${minPrice} →`}
               </button>
             ) : (
               <>
@@ -479,7 +483,7 @@ export default function EventDetail() {
                 </div>
             {event.tiers.map((t) => {
               const left = t.quantity - t.sold;
-              const soldOut = left <= 0;
+              const soldOut = left <= 0 || eventOver;
               return (
                 <div key={t.id} className="tier-row">
                   <div className="tier-info">
@@ -510,7 +514,12 @@ export default function EventDetail() {
               <span>Total</span>
               <span>₹{total}</span>
             </div>
-            {allSoldOut ? (
+            {eventOver ? (
+              <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
+                <div className="bold" style={{ marginBottom: 4 }}>Sold out 😔</div>
+                <div className="tiny muted-2">This event has already happened.</div>
+              </div>
+            ) : allSoldOut ? (
               <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
                 <div className="bold" style={{ marginBottom: 4 }}>Sold out 😔</div>
                 {myEntry?.status === 'offered' ? (
