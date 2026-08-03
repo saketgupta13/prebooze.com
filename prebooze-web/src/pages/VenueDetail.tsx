@@ -55,8 +55,13 @@ export default function VenueDetail() {
   }
 
   // liveEvents is already server-scoped to this venue — only the mock
-  // fallback still needs the client-side filter.
+  // fallback still needs the client-side filter. Includes past events too
+  // (CatalogService.events returns full history when venueId is set), so
+  // split here the same way OrganizerProfile.tsx does.
   const events = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.venueId === venue.id && e.status === 'approved'));
+  const now = Date.now();
+  const upcoming = events.filter((e) => new Date(e.date).getTime() >= now);
+  const past = events.filter((e) => new Date(e.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date));
   const followKey = 'venue:' + venue.id;
   const isFollowing = following.includes(followKey);
   const isOwnProfile = user?.isVenue && user.venueId === venue.id;
@@ -121,7 +126,7 @@ export default function VenueDetail() {
 
         <div className="stat3" style={{ maxWidth: 520, marginBottom: 24 }}>
           <div className="s">
-            <div className="v">{events.length}</div>
+            <div className="v">{upcoming.length}</div>
             <div className="l">upcoming</div>
           </div>
           <div className="s">
@@ -176,18 +181,33 @@ export default function VenueDetail() {
         <section className="section">
           <div className="section-hd">
             <h2>
-              Events happening at {venue.name} ({events.length})
+              Upcoming at {venue.name} ({upcoming.length})
             </h2>
             <Link to="/browse">See all events →</Link>
           </div>
-          {events.length ? (
+          {upcoming.length ? (
             <div className="grid-4">
-              {events.map((e) => (
+              {upcoming.map((e) => (
                 <EventCard key={e.id} event={e} />
               ))}
             </div>
           ) : (
             <div className="empty">No published events here right now.</div>
+          )}
+        </section>
+
+        <section className="section">
+          <div className="section-hd">
+            <h2>Past events ({past.length})</h2>
+          </div>
+          {past.length ? (
+            <div className="grid-4">
+              {past.slice(0, 8).map((e) => (
+                <EventCard key={e.id} event={e} />
+              ))}
+            </div>
+          ) : (
+            <div className="empty">No past events yet.</div>
           )}
         </section>
 

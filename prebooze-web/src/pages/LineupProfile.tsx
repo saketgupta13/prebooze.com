@@ -28,7 +28,7 @@ export default function LineupProfile() {
   useEffect(() => {
     if (!isBackendEnabled() || !slug) return;
     setLoading(true);
-    Promise.all([catalog.lineup(slug), catalog.lineups(), catalog.events({})])
+    Promise.all([catalog.lineup(slug), catalog.lineups(), catalog.events({ includePast: true })])
       .then(([l, ls, evs]) => { setLiveLineup(l); setLiveLineups(ls); setLiveEvents(evs); })
       .catch(() => setLiveLineup(null))
       .finally(() => setLoading(false));
@@ -56,9 +56,12 @@ export default function LineupProfile() {
   const followKey = 'lineup:' + lineup.slug;
   const isFollowing = following.includes(followKey);
   const isOwnProfile = user?.isLineup && user.lineupUsername?.toLowerCase() === lineup.slug.toLowerCase();
-  const upcoming = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter(
+  const lineupEvents = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter(
     (e) => e.status === 'approved' && e.lineup.some((l) => l.name.toLowerCase() === lineup.name.toLowerCase())
   );
+  const now = Date.now();
+  const upcoming = lineupEvents.filter((e) => new Date(e.date).getTime() >= now);
+  const past = lineupEvents.filter((e) => new Date(e.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date));
   const more = (liveLineups ?? (isBackendEnabled() ? [] : LINEUPS)).filter((l) => l.slug !== lineup.slug && l.category === lineup.category).slice(0, 3);
 
   return (
@@ -150,6 +153,21 @@ export default function LineupProfile() {
                 </div>
               ) : (
                 <div className="empty">No upcoming events announced — follow to hear first.</div>
+              )}
+            </section>
+
+            <section className="section">
+              <div className="section-hd">
+                <h2>Past events ({past.length})</h2>
+              </div>
+              {past.length ? (
+                <div className="grid-3">
+                  {past.slice(0, 6).map((e) => (
+                    <EventCard key={e.id} event={e} />
+                  ))}
+                </div>
+              ) : (
+                <div className="empty">No past events yet.</div>
               )}
             </section>
 

@@ -51,7 +51,7 @@ export const kyc = {
 
 // ---------- discovery ----------
 export const catalog = {
-  events: (q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string }) => apiFetch<Event[]>('/events', { query: q }),
+  events: (q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string; includePast?: boolean }) => apiFetch<Event[]>('/events', { query: q }),
   event: (slug: string) => apiFetch<Event>(`/events/${slug}`),
   venues: (city?: string) => apiFetch<Venue[]>('/venues', { query: { city } }),
   venue: (id: string) => apiFetch<Venue>(`/venues/${id}`),

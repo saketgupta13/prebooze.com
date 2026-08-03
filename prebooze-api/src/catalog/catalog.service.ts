@@ -93,7 +93,7 @@ export class CatalogService {
   }
 
   // ---------- events ----------
-  async events(q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string }) {
+  async events(q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string; includePast?: boolean }) {
     const events = await this.prisma.event.findMany({
       where: {
         status: 'approved',
@@ -108,9 +108,16 @@ export class CatalogService {
       orderBy: { date: 'asc' },
     });
 
-    const upcoming = events.filter((e) => !CatalogService.isEventOver(e));
+    // General browsing (Home, Categories, search, Wishlist, "recommended")
+    // should never surface an event nobody can book anymore — but an
+    // organizer's or venue's own profile page shows their full track
+    // record, past included, same for anything that explicitly asks for it
+    // (LineupProfile.tsx, which has to match by name client-side since
+    // Event.lineup isn't a real relation).
+    const showPast = Boolean(q.organizerId || q.venueId || q.includePast);
+    const visible = showPast ? events : events.filter((e) => !CatalogService.isEventOver(e));
 
-    const withPrice = upcoming.map((e) => ({
+    const withPrice = visible.map((e) => ({
       ...e,
       minPrice: e.tiers.length ? Math.min(...e.tiers.map((t) => t.price)) : 0,
     }));

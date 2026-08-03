@@ -10,8 +10,8 @@ export class CatalogController {
   ) {}
 
   @Get('events')
-  events(@Query() q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string }) {
-    return this.catalog.events(q);
+  events(@Query() q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string; includePast?: string }) {
+    return this.catalog.events({ ...q, includePast: q.includePast === 'true' });
   }
 
   @Get('events/:slug')
