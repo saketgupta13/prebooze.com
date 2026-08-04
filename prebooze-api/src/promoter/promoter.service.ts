@@ -51,6 +51,13 @@ export class PromoterService {
     return promoter;
   }
 
+  /** Full "my profile" read — mirrors LineupService.me/myLineup. Console
+   * pages (dashboard, settings) read this instead of stitching together
+   * User.promoter* mirror fields + separate usage()/subscription calls. */
+  async me(userId: string) {
+    return this.myPromoter(userId);
+  }
+
   /** Self-serve profile edit — same pattern as OrganizerService.updateMe:
    * username changes are collision-checked and rejected (not auto-suffixed),
    * and brandName/username are mirrored onto User.promoterBrand/promoterUsername
@@ -249,6 +256,50 @@ export class PromoterService {
     return { ok: true };
   }
 
+  /** Simple real payout log — PromoterWithdrawal has no status field (see
+   * schema comment: "no pending/paid states, unlike the mock's Withdrawal.
+   * status"), so this lists real requested amounts/dates, nothing fabricated. */
+  async withdrawals(userId: string) {
+    const promoter = await this.myPromoter(userId);
+    return this.prisma.promoterWithdrawal.findMany({ where: { promoterId: promoter.id }, orderBy: { createdAt: 'desc' } });
+  }
+
+  // ---------- leaderboard ----------
+  /** Reputation ranking — live show-rate (arrived / decided) per promoter,
+   * same "decided" definition as the mock's liveShowRate: a guest counts
+   * once they've arrived, or once their event's free-entry cutoff has
+   * passed without them showing. Computed live off PromoterGuest, not the
+   * stored Promoter.showRate column (nothing updates that column today, so
+   * trusting it would mean trusting a number that's permanently 0). */
+  async leaderboard() {
+    const [promoters, guests] = await Promise.all([
+      this.prisma.promoter.findMany({ where: { verified: true } }),
+      this.prisma.promoterGuest.findMany({ include: { event: true } }),
+    ]);
+    const now = Date.now();
+    return promoters
+      .map((p) => {
+        const mine = guests.filter((g) => g.promoterSlug === p.slug);
+        const decided = mine.filter((g) => {
+          if (g.arrived) return true;
+          const c = cutoffDate(g.event);
+          return c ? now >= c.getTime() : false;
+        });
+        const rate = decided.length ? Math.round((decided.filter((g) => g.arrived).length / decided.length) * 100) : null;
+        return { id: p.id, slug: p.slug, name: p.name, verified: p.verified, followers: p.followers, brought: mine.length, rate };
+      })
+      .sort((a, b) => (b.rate ?? -1) - (a.rate ?? -1));
+  }
+
+  // ---------- public pass lookup (no auth — guest's own QR page) ----------
+  async getPass(id: string) {
+    // tiers included so the post-cutoff "get a ticket" CTA (minPrice()) has
+    // real pricing to show, not just the guest/venue fields the QR itself needs.
+    const guest = await this.prisma.promoterGuest.findUnique({ where: { id }, include: { event: { include: { venue: true, tiers: true } } } });
+    if (!guest) throw new NotFoundException('Pass not found');
+    return guest;
+  }
+
   // ---------- team ----------
   async team(userId: string) {
     const promoter = await this.myPromoter(userId);
@@ -267,6 +318,14 @@ export class PromoterService {
     return this.prisma.promoterTeamMember.create({
       data: { promoterId: promoter.id, handle: m.handle.trim(), name: m.name?.trim() || m.handle.trim(), hue: m.hue ?? 0 },
     });
+  }
+
+  async removeTeamMember(userId: string, memberId: string) {
+    const promoter = await this.myPromoter(userId);
+    const member = await this.prisma.promoterTeamMember.findUnique({ where: { id: memberId } });
+    if (!member || member.promoterId !== promoter.id) throw new NotFoundException('Team member not found');
+    await this.prisma.promoterTeamMember.delete({ where: { id: memberId } });
+    return { ok: true };
   }
 
   /** DB-first, PLAN_QUOTA as fallback only if the SubTier row is somehow

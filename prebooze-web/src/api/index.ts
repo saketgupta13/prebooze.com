@@ -228,18 +228,56 @@ function subscriptionApi(prefix: 'organizer' | 'promoter' | 'venue' | 'lineup') 
 }
 
 // ---------- promoter ----------
+export interface PromoterMe {
+  id: string;
+  slug: string;
+  name: string;
+  city: string;
+  bio: string;
+  links: string[];
+  verified: boolean;
+  followers: number;
+  eventsPromoted: number;
+  guestsBrought: number;
+  planId: string;
+}
+export interface PromoterTeamMember extends SubPromoter {
+  id: string;
+}
+export interface PromoterWithdrawal {
+  id: string;
+  amount: number;
+  createdAt: string;
+}
+export interface LeaderboardRow {
+  id: string;
+  slug: string;
+  name: string;
+  verified: boolean;
+  followers: number;
+  brought: number;
+  rate: number | null;
+}
+export interface PromoterPass extends PromoterGuest {
+  event: Event;
+}
 export const promoter = {
+  me: () => apiFetch<PromoterMe>('/promoter/me'),
   updateMe: (patch: { brandName?: string; username?: string; city?: string }) =>
     apiFetch<{ id: string; name: string; slug: string; city: string }>('/promoter/me', { method: 'PATCH', body: patch }),
   promotions: () => apiFetch<Event[]>('/promoter/promotions'),
   guests: (eventId: string) => apiFetch<PromoterGuest[]>(`/promoter/events/${eventId}/guests`),
   captureGuest: (eventSlug: string, promoterSlug: string, guest: Omit<PromoterGuest, 'id' | 'createdAt' | 'arrived'>) =>
     apiFetch<PromoterGuest>(`/p/${eventSlug}/${promoterSlug}`, { body: guest }),
+  pass: (id: string) => apiFetch<PromoterPass>(`/p/pass/${id}`),
   checkInGuest: (id: string) => apiFetch<void>(`/promoter/guests/${id}/check-in`, { method: 'POST' }),
   earnings: () => apiFetch<{ perHead: number; commission: number; withdrawn: number }>('/promoter/earnings'),
   withdraw: (amount: number) => apiFetch<void>('/promoter/withdraw', { body: { amount } }),
-  team: () => apiFetch<SubPromoter[]>('/promoter/team'),
-  addTeamMember: (m: SubPromoter) => apiFetch<SubPromoter>('/promoter/team', { body: m }),
+  withdrawals: () => apiFetch<PromoterWithdrawal[]>('/promoter/withdrawals'),
+  team: () => apiFetch<PromoterTeamMember[]>('/promoter/team'),
+  addTeamMember: (m: SubPromoter) => apiFetch<PromoterTeamMember>('/promoter/team', { body: m }),
+  removeTeamMember: (id: string) => apiFetch<{ ok: true }>(`/promoter/team/${id}`, { method: 'DELETE' }),
+  leaderboard: () => apiFetch<LeaderboardRow[]>('/promoter/leaderboard'),
   usage: () => apiFetch<{ used: number; quota: number }>('/promoter/usage'),
   subscription: subscriptionApi('promoter'),
 };

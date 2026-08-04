@@ -7,23 +7,31 @@ import { existingRole } from '../../lib/roles';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
 import WysiwygEditor from '../../components/WysiwygEditor';
 import { FileDropBox } from '../../components/FileDropBox';
+import { dataUrlToFile } from '../../lib/fileUtils';
+import { kyc } from '../../api';
+import { isBackendEnabled, ApiError } from '../../api/client';
 
 const DRAFT_ID = 'promoter';
 type Draft = {
   logo: string; brand: string; username: string; loc: LocationValue; bio: string; links: string;
-  audience: string; idDoc: string; selfie: string;
+  audience: string;
 };
 const emptyDraft: Draft = {
   logo: '', brand: '', username: '', loc: emptyLocation(), bio: '', links: '', audience: '',
-  idDoc: '', selfie: '',
 };
 
-/** Promoter onboarding — same 2-step pattern as organizers: PR profile → identity KYC,
- * then Pending admin review. */
+/** Promoter onboarding — same 2-step pattern as organizer/venue/lineup: PR
+ * profile → identity KYC → real POST /kyc/role (kind: 'promoter'), which
+ * stays pending until an admin approves it (KycService.approve provisions
+ * the real Promoter row, see kyc.service.ts's newPromoterRow). Deliberately
+ * excludes idDoc/selfie from the localStorage draft — same reasoning as
+ * organizer's Onboarding.tsx (multi-MB data URLs risk the storage quota). */
 export default function PromoterOnboarding() {
-  const { user, submitRoleApplication } = useApp();
+  const { user, submitRoleApplication, updateUser } = useApp();
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState('');
 
   const draft0 = loadDraft(DRAFT_ID, emptyDraft);
   const [logo, setLogo] = useState(draft0.logo);
@@ -34,51 +42,53 @@ export default function PromoterOnboarding() {
   const [links, setLinks] = useState(draft0.links);
   const [audience, setAudience] = useState(draft0.audience);
 
-  const [idDoc, setIdDoc] = useState(draft0.idDoc);
-  const [selfie, setSelfie] = useState(draft0.selfie);
-  const [done, setDone] = useState(false);
+  const [idDoc, setIdDoc] = useState('');
+  const [selfie, setSelfie] = useState('');
 
   useEffect(() => {
-    saveDraft(DRAFT_ID, { logo, brand, username, loc, bio, links, audience, idDoc, selfie });
-  }, [logo, brand, username, loc, bio, links, audience, idDoc, selfie]);
+    try {
+      saveDraft(DRAFT_ID, { logo, brand, username, loc, bio, links, audience });
+    } catch {
+      // best-effort — a full localStorage quota shouldn't block onboarding itself
+    }
+  }, [logo, brand, username, loc, bio, links, audience]);
 
   if (!user) return <Navigate to="/login" state={{ from: '/promoter/onboarding' }} replace />;
   const otherRole = existingRole(user);
   if (otherRole && otherRole !== 'promoter') return <RoleTaken has={otherRole} />;
 
   const step1Valid = brand.trim() && username.trim() && bio.trim();
-  const pct = done ? 100 : step === 1 ? 50 : 90;
+  const step2Valid = idDoc && selfie;
+  const pct = step === 1 ? 50 : 90;
 
-  const submit = () => {
-    submitRoleApplication('promoter', { promoterBrand: brand.trim(), promoterUsername: username.trim(), promoterPlan: 'free' });
-    clearDraft(DRAFT_ID);
-    setDone(true);
+  const submit = async () => {
+    if (!isBackendEnabled()) {
+      submitRoleApplication('promoter', { promoterBrand: brand.trim(), promoterUsername: username.trim(), promoterPlan: 'free' });
+      clearDraft(DRAFT_ID);
+      navigate('/promoter');
+      return;
+    }
+    setErr('');
+    setSubmitting(true);
+    try {
+      const [idDocFile, selfieFile] = await Promise.all([
+        dataUrlToFile(idDoc, 'id.jpg'),
+        dataUrlToFile(selfie, 'selfie.jpg'),
+      ]);
+      const payload = {
+        brand: brand.trim(), brandName: brand.trim(), username: username.trim(),
+        city: loc.city, bio, links, audience: audience.trim() || undefined,
+      };
+      const res = await kyc.submitRole('promoter', payload, [idDocFile, selfieFile]);
+      updateUser({ ...res.user, pendingRole: 'promoter' });
+      clearDraft(DRAFT_ID);
+      navigate('/promoter'); // console redirects to a "pending review" screen until the team approves
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Failed to submit — try again');
+    } finally {
+      setSubmitting(false);
+    }
   };
-
-  if (done) {
-    return (
-      <main className="page">
-        <div className="container confirm-hero">
-          <div className="confirm-tick">✓</div>
-          <h1 style={{ fontSize: 26 }}>You're a Prebooze promoter! 📣</h1>
-          <p className="muted" style={{ margin: '8px 0 22px' }}>
-            <b style={{ color: 'var(--text)' }}>{brand}</b> is submitted for review. Once approved, organizers
-            can invite you to promote their events, you'll get affiliate links and free-entry guest lists, and
-            guests can follow you.
-          </p>
-          <div className="card" style={{ textAlign: 'left', marginBottom: 18 }}>
-            <div className="kv"><span className="k">Profile</span><span>{brand} · {loc.city}</span></div>
-            <div className="kv"><span className="k">Plan</span><span>Free · 25 guests / month</span></div>
-            <div className="kv"><span className="k">Status</span><span className="badge badge-pending">Pending review ◌ · ~24h</span></div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/promoter" className="btn btn-pri">Go to my dashboard →</Link>
-            <Link to="/promoter/nova-nights" className="btn btn-ghost">See an example profile</Link>
-          </div>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="page">
@@ -161,10 +171,11 @@ export default function PromoterOnboarding() {
                 style={{ padding: selfie ? undefined : 30 }}
               />
             </div>
+            {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>
-              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!idDoc || !selfie} onClick={submit}>
-                Submit for review 📣
+              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!step2Valid || submitting} onClick={submit}>
+                {submitting ? 'Submitting…' : 'Submit for review 📣'}
               </button>
             </div>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>

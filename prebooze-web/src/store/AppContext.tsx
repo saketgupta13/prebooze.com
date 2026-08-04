@@ -39,13 +39,6 @@ export interface Referral {
 export const referralCodeFor = (phone: string) =>
   'PB' + (parseInt(phone.replace(/\D/g, '').slice(-8) || '0', 10).toString(36).toUpperCase());
 
-export interface Withdrawal {
-  id: string;
-  amount: number;
-  date: string;
-  status: 'processing' | 'paid';
-}
-
 /** A checkout cart, tracked for hold + abandoned-cart recovery. */
 export interface CartRecord {
   id: string; // `${phone}::${eventId}`
@@ -177,18 +170,8 @@ interface AppState {
   myVenues: Venue[];
   addMyVenue: (v: Venue) => void;
   updateMyVenue: (id: string, patch: Partial<Venue>) => void;
-  promoterGuests: PromoterGuest[];
-  addPromoterGuest: (g: PromoterGuest) => void;
-  checkInPromoterGuest: (id: string) => void;
-  promoterPlans: Record<string, string>; // promoter slug -> plan id (for public quota lookup)
-  setPromoterPlan: (slug: string, planId: string) => void;
   pendingPromoterRef: string | null; // promoter slug to credit for an in-progress paid booking
   setPendingPromoterRef: (slug: string | null) => void;
-  promoterWithdrawals: Withdrawal[];
-  promoterWithdraw: (amount: number) => void;
-  promoterTeam: SubPromoter[];
-  addSubPromoter: (s: SubPromoter) => void;
-  removeSubPromoter: (handle: string) => void;
   toastMsg: string | null;
   toast: (msg: string) => void;
   /** Real "am I on someone's team" access — set only for an invited
@@ -346,10 +329,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     v.forEach(registerVenue);
     return v;
   });
-  const [promoterGuests, setPromoterGuests] = useState<PromoterGuest[]>(() => load('pb_promoter_guests', []));
-  const [promoterPlans, setPromoterPlans] = useState<Record<string, string>>(() => load('pb_promoter_plans', {}));
-  const [promoterWithdrawals, setPromoterWithdrawals] = useState<Withdrawal[]>(() => load('pb_promoter_withdrawals', []));
-  const [promoterTeam, setPromoterTeam] = useState<SubPromoter[]>(() => load('pb_promoter_team', []));
   const [pendingPromoterRef, setPendingPromoterRef] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -504,19 +483,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_myvenues', JSON.stringify(myVenues));
   }, [myVenues]);
-  useEffect(() => {
-    localStorage.setItem('pb_promoter_guests', JSON.stringify(promoterGuests));
-  }, [promoterGuests]);
-  useEffect(() => {
-    localStorage.setItem('pb_promoter_plans', JSON.stringify(promoterPlans));
-  }, [promoterPlans]);
-  useEffect(() => {
-    localStorage.setItem('pb_promoter_withdrawals', JSON.stringify(promoterWithdrawals));
-  }, [promoterWithdrawals]);
-  useEffect(() => {
-    localStorage.setItem('pb_promoter_team', JSON.stringify(promoterTeam));
-  }, [promoterTeam]);
-
   const creditWallet = useCallback((phone: string, tx: Omit<WalletTx, 'id' | 'date'>) => {
     setWallets((prev) => ({
       ...prev,
@@ -974,36 +940,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const live = VENUES.find((v) => v.id === id); // keep public pages in sync mid-session
         if (live) Object.assign(live, patch);
       },
-      promoterGuests,
-      addPromoterGuest: (g) => setPromoterGuests((prev) => [g, ...prev]),
-      checkInPromoterGuest: (id) =>
-        setPromoterGuests((prev) => prev.map((g) => (g.id === id ? { ...g, arrived: !g.arrived } : g))),
-      promoterPlans,
-      setPromoterPlan: (slug, planId) =>
-        setPromoterPlans((prev) => ({ ...prev, [slug]: planId })),
       pendingPromoterRef,
       setPendingPromoterRef,
-      promoterWithdrawals,
-      promoterWithdraw: (amount) =>
-        setPromoterWithdrawals((prev) => [
-          {
-            id: 'pw' + Date.now(),
-            amount,
-            date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            status: 'processing' as const,
-          },
-          ...prev,
-        ]),
-      promoterTeam,
-      addSubPromoter: (s) =>
-        setPromoterTeam((prev) => (prev.some((m) => m.handle === s.handle) ? prev : [...prev, s])),
-      removeSubPromoter: (handle) => setPromoterTeam((prev) => prev.filter((m) => m.handle !== handle)),
       toastMsg,
       toast,
       orgTeamAccess,
       orgTeamAccessLoaded,
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, myVenues, promoterGuests, promoterPlans, pendingPromoterRef, promoterWithdrawals, promoterTeam, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, myVenues, pendingPromoterRef, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

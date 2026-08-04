@@ -1,41 +1,48 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useApp } from '../../store/AppContext';
-import { EVENTS, GENDER_OPTIONS, PROMOTERS, fmtDate, fmtTime, venueById } from '../../data/mock';
+import { GENDER_OPTIONS, fmtDate, fmtTime } from '../../data/mock';
+import { catalog, promoter as promoterApi } from '../../api';
+import { ApiError } from '../../api/client';
 import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
-import { quotaReached } from '../../lib/promoterEarnings';
-import { existingPassId, phoneBlocked } from '../../lib/promoterFraud';
 import Poster, { categoryEmoji } from '../../components/Poster';
+import Loader from '../../components/Loader';
+import type { Event, PromoterProfile } from '../../types';
 
 /** Public guest-capture landing reached via a promoter's affiliate link.
- * No login — name / phone / age / gender → a time-based QR pass. */
+ * No login — name / phone / age / gender → a time-based QR pass. All fraud/
+ * quota/cap/cutoff checks happen server-side in POST /p/:eventSlug/:promoterSlug
+ * (PromoterService.captureGuest) — this page just submits and shows whatever
+ * real error comes back, rather than duplicating that logic client-side
+ * against a local guess at the current list/quota state. */
 export default function GuestLanding() {
   const { eventSlug, promoterSlug } = useParams();
   const [params] = useSearchParams();
   const via = params.get('via') ?? undefined; // sub-promoter handle (team link)
   const navigate = useNavigate();
-  const { myEvents, promoterGuests, promoterPlans, addPromoterGuest } = useApp();
 
-  const allEvents = useMemo(() => [...myEvents, ...EVENTS], [myEvents]);
-  const event = useMemo(
-    () => allEvents.find((e) => e.slug === eventSlug),
-    [allEvents, eventSlug]
-  );
-  const promoter = PROMOTERS.find((p) => p.slug === promoterSlug);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [promoter, setPromoter] = useState<PromoterProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!eventSlug || !promoterSlug) return;
+    Promise.all([catalog.event(eventSlug), catalog.promoter(promoterSlug).catch(() => null)])
+      .then(([e, p]) => { setEvent(e); setPromoter(p); })
+      .catch(() => setEvent(null))
+      .finally(() => setLoading(false));
+  }, [eventSlug, promoterSlug]);
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('');
   const [err, setErr] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  if (loading) return <Loader />;
 
   const cfg = event?.promoterConfig;
-  const active = !!cfg?.enabled && cfg.allowedPromoters.includes(promoterSlug ?? '');
-  const listCount = promoterGuests.filter((g) => g.eventId === event?.id).length;
-  const capFull = cfg ? listCount >= cfg.cap : false;
-  const cutoff = event ? cutoffDate(event) : null;
-  const quotaFull = quotaReached(promoterGuests, promoterSlug ?? '', promoterPlans[promoterSlug ?? '']);
-  const blocked = capFull || quotaFull;
+  const active = !!cfg?.enabled && !!promoterSlug && (cfg.allowedPromoters?.includes(promoterSlug) ?? false);
 
   if (!event || !active) {
     return (
@@ -51,51 +58,28 @@ export default function GuestLanding() {
     );
   }
 
-  const venue = venueById(event.venueId);
+  const venue = event.venue;
+  const cutoff = cutoffDate(event);
   const minAge = event.ageLimit.includes('21') ? 21 : event.ageLimit.includes('18') ? 18 : 0;
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim() || !age.trim() || !gender) {
       setErr('All fields are required — the gate checks these against your ID.');
       return;
     }
-    if (minAge && (parseInt(age, 10) || 0) < minAge) {
-      setErr(`This is a ${event.ageLimit} event — you must be ${minAge}+ to join the list.`);
-      return;
+    setErr('');
+    setSubmitting(true);
+    try {
+      const guest = await promoterApi.captureGuest(eventSlug!, promoterSlug!, {
+        name: name.trim(), phone: phone.trim(), age: age.trim(), gender, subPromoter: via,
+      });
+      navigate(`/pass/${guest.id}`);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Something went wrong — try again');
+    } finally {
+      setSubmitting(false);
     }
-    if (capFull) {
-      setErr('Sorry — this free-entry list is full.');
-      return;
-    }
-    if (quotaFull) {
-      setErr(`Sorry — ${promoter?.name ?? 'this promoter'} has reached their guest limit for this month.`);
-      return;
-    }
-    // Fraud: one pass per phone per event — send them back to the pass they already have.
-    const dupe = existingPassId(promoterGuests, event.id, phone);
-    if (dupe) {
-      navigate(`/pass/${dupe}`);
-      return;
-    }
-    // Fraud: block phones with repeat no-shows from taking a free spot.
-    if (phoneBlocked(promoterGuests, phone, allEvents)) {
-      setErr('This number has missed too many free-entry lists. Grab a ticket to come in.');
-      return;
-    }
-    const id = 'pass-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    addPromoterGuest({
-      id,
-      eventId: event.id,
-      promoterSlug: promoterSlug!,
-      name: name.trim(),
-      phone: phone.trim(),
-      age: age.trim(),
-      gender,
-      createdAt: new Date().toISOString(),
-      subPromoter: via,
-    });
-    navigate(`/pass/${id}`);
   };
 
   return (
@@ -104,7 +88,7 @@ export default function GuestLanding() {
         <div className="card card-shadow">
           <div style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
             <div style={{ width: 76, flexShrink: 0 }}>
-              <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} />
+              <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} imageUrl={event.posterUrl} />
             </div>
             <div style={{ minWidth: 0 }}>
               <span className="badge badge-accent">Free entry 🎟️</span>
@@ -122,9 +106,6 @@ export default function GuestLanding() {
                 closes in <b className="accent">{countdownLabel(cutoff)}</b>.
               </>
             )}
-            <div className="tiny muted-2" style={{ marginTop: 4 }}>
-              {listCount} / {cfg!.cap} on the list
-            </div>
           </div>
 
           <form onSubmit={submit}>
@@ -152,8 +133,8 @@ export default function GuestLanding() {
               </div>
             </div>
             {err && <div className="alert alert-error" style={{ marginBottom: 12 }}>{err}</div>}
-            <button className="btn btn-pri btn-block btn-lg" disabled={blocked}>
-              {capFull ? 'List is full' : quotaFull ? 'Promoter limit reached' : 'Get my free-entry QR →'}
+            <button className="btn btn-pri btn-block btn-lg" disabled={submitting}>
+              {submitting ? 'Joining…' : 'Get my free-entry QR →'}
             </button>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
               🔒 your QR is sent to WhatsApp &amp; email · valid only before the cutoff · carry ID matching your name

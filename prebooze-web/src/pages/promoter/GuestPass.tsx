@@ -1,17 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useApp } from '../../store/AppContext';
-import { EVENTS, fmtDate, fmtTime, minPrice, venueById } from '../../data/mock';
+import { fmtDate, fmtTime, minPrice } from '../../data/mock';
+import { promoter as promoterApi, type PromoterPass } from '../../api';
 import { cutoffDate, countdownLabel, isPassValid } from '../../lib/promoterPass';
 import QRCode from '../../components/QRCode';
+import Loader from '../../components/Loader';
 
 /** The guest's free-entry pass — a QR that rotates every few seconds (screenshot-proof)
- * and is only valid before the cutoff. After the cutoff it flips to a paid-ticket CTA. */
+ * and is only valid before the cutoff. After the cutoff it flips to a paid-ticket CTA.
+ * Fetched fresh from the real GET /p/pass/:id (public, no auth) instead of a local
+ * mock array, so this survives a page refresh — the guest scans a QR at the gate,
+ * not something living only in this browser tab's memory. */
 export default function GuestPass() {
   const { id } = useParams();
-  const { promoterGuests, myEvents } = useApp();
-  const guest = promoterGuests.find((g) => g.id === id);
-  const event = guest ? [...myEvents, ...EVENTS].find((e) => e.id === guest.eventId) : undefined;
+  const [pass, setPass] = useState<PromoterPass | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    promoterApi.pass(id).then(setPass).catch(() => setPass(null)).finally(() => setLoading(false));
+  }, [id]);
 
   // tick every second for the countdown + rotate the QR seed every 5s
   const [now, setNow] = useState(Date.now());
@@ -20,7 +28,9 @@ export default function GuestPass() {
     return () => clearInterval(t);
   }, []);
 
-  if (!guest || !event) {
+  if (loading) return <Loader />;
+
+  if (!pass) {
     return (
       <main className="page">
         <div className="container center" style={{ padding: '80px 0' }}>
@@ -31,7 +41,8 @@ export default function GuestPass() {
     );
   }
 
-  const venue = venueById(event.venueId);
+  const { event } = pass;
+  const venue = event.venue;
   const cutoff = cutoffDate(event);
   const valid = isPassValid(event);
   const rotation = Math.floor(now / 5000); // changes every 5s
@@ -44,7 +55,7 @@ export default function GuestPass() {
             <div className="confirm-tick">✓</div>
             <h1 style={{ fontSize: 24 }}>You're on the list! 🎟️</h1>
             <p className="muted" style={{ margin: '8px 0 20px' }}>
-              Sent to WhatsApp {guest.phone} · show this QR at the gate before it closes.
+              Sent to WhatsApp {pass.phone} · show this QR at the gate before it closes.
             </p>
 
             <div className="card card-shadow" style={{ textAlign: 'center' }}>
@@ -53,10 +64,10 @@ export default function GuestPass() {
                 {fmtDate(event.date)} · {fmtTime(event.date)} · {venue?.name}
               </div>
               <div className="small" style={{ marginBottom: 14 }}>
-                {guest.name} · <span className="badge badge-accent">Free entry</span>
+                {pass.name} · <span className="badge badge-accent">Free entry</span>
               </div>
 
-              <QRCode value={`${guest.id}-${rotation}`} caption="rotates every 5s · screenshot-proof" />
+              <QRCode value={`${pass.id}-${rotation}`} caption="rotates every 5s · screenshot-proof" />
 
               {cutoff && (
                 <div
@@ -80,7 +91,7 @@ export default function GuestPass() {
             </div>
 
             <div className="tiny muted-2" style={{ marginTop: 16 }}>
-              Arrive before the cutoff — after that this pass expires and you'll need a ticket. Carry ID matching “{guest.name}”.
+              Arrive before the cutoff — after that this pass expires and you'll need a ticket. Carry ID matching “{pass.name}”.
             </div>
           </>
         ) : (
@@ -92,7 +103,7 @@ export default function GuestPass() {
               {cutoff && ` at ${cutoff.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`}. You can
               still grab a ticket and come in.
             </p>
-            <Link to={`/events/${event.slug}?ref=${guest.promoterSlug}`} className="btn btn-pri btn-lg">
+            <Link to={`/events/${event.slug}?ref=${pass.promoterSlug}`} className="btn btn-pri btn-lg">
               Get a ticket — from ₹{minPrice(event)} →
             </Link>
           </div>

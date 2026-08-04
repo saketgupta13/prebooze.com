@@ -1,16 +1,35 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useApp } from '../../store/AppContext';
-import { EVENTS, fmtDate, venueById } from '../../data/mock';
+import { fmtDate } from '../../data/mock';
+import { promoter as promoterApi, type PromoterTeamMember } from '../../api';
+import { ApiError } from '../../api/client';
 import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
+import Loader from '../../components/Loader';
+import type { Event, PromoterGuest } from '../../types';
 
 /** A promoter's real-time monitor for one event — arrivals, no-shows, show-rate,
  * live countdown, and self check-in at their own door table. */
 export default function PromoterGuestList() {
   const { eventId } = useParams();
-  const { user, myEvents, promoterGuests, promoterTeam, checkInPromoterGuest, toast } = useApp();
-  const mySlug = user?.promoterUsername ?? '';
-  const event = [...myEvents, ...EVENTS].find((e) => e.id === eventId);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [guests, setGuests] = useState<PromoterGuest[]>([]);
+  const [team, setTeam] = useState<PromoterTeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+
+  const load = () => {
+    if (!eventId) return;
+    setLoading(true);
+    Promise.all([promoterApi.promotions(), promoterApi.guests(eventId), promoterApi.team()])
+      .then(([promotions, g, t]) => {
+        setEvent(promotions.find((e) => e.id === eventId) ?? null);
+        setGuests(g);
+        setTeam(t);
+      })
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, [eventId]);
 
   // tick so the countdown + no-show status stay current
   const [, setNow] = useState(Date.now());
@@ -19,19 +38,30 @@ export default function PromoterGuestList() {
     return () => clearInterval(t);
   }, []);
 
+  const checkIn = async (id: string) => {
+    try {
+      await promoterApi.checkInGuest(id);
+      load();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Failed to check in');
+    }
+  };
+
+  if (loading) return <Loader />;
+
   if (!event || !event.promoterConfig?.enabled) {
     return (
       <div>
         <h1 style={{ fontSize: 24 }}>Event not found</h1>
+        {err && <div className="tiny danger-text" style={{ marginTop: 8 }}>{err}</div>}
         <Link to="/promoter/promotions" className="btn btn-ghost" style={{ marginTop: 12 }}>← My promotions</Link>
       </div>
     );
   }
 
-  const mine = promoterGuests.filter((g) => g.eventId === event.id && g.promoterSlug === mySlug);
-  const totalOnEvent = promoterGuests.filter((g) => g.eventId === event.id).length;
+  const mine = guests;
   const cap = event.promoterConfig.cap;
-  const venue = venueById(event.venueId);
+  const venue = event.venue;
   const cutoff = cutoffDate(event);
   const closed = cutoff ? Date.now() >= cutoff.getTime() : false;
 
@@ -69,16 +99,15 @@ export default function PromoterGuestList() {
         {perHead > 0 && (
           <div className="kpi"><div className="l">Earned (₹{perHead}/arrival)</div><div className="v accent">₹{(arrived * perHead).toLocaleString('en-IN')}</div></div>
         )}
-        <div className="kpi"><div className="l">Event total</div><div className="v">{totalOnEvent}<span className="muted small"> across all PRs</span></div></div>
       </div>
 
-      {event.promoterConfig.allowTeams && (promoterTeam.length > 0 || mine.some((g) => g.subPromoter)) && (
+      {event.promoterConfig.allowTeams && (team.length > 0 || mine.some((g) => g.subPromoter)) && (
         <div className="card" style={{ marginBottom: 12 }}>
           <h3 style={{ marginBottom: 8 }}>By team member <span className="badge badge-accent">teams on</span></h3>
           {(() => {
             const groups = new Map<string, { name: string; brought: number; arrived: number }>();
             const label = (h?: string) =>
-              h ? (promoterTeam.find((m) => m.handle === h)?.name ?? '@' + h) : 'You (direct)';
+              h ? (team.find((m) => m.handle === h)?.name ?? '@' + h) : 'You (direct)';
             mine.forEach((g) => {
               const key = g.subPromoter ?? '';
               const cur = groups.get(key) ?? { name: label(g.subPromoter), brought: 0, arrived: 0 };
@@ -104,10 +133,8 @@ export default function PromoterGuestList() {
       )}
 
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <h3>Your guests</h3>
-          <button className="btn btn-ghost btn-sm" onClick={() => toast('Guest list exported ✓')}>⬇ Export</button>
-        </div>
+        <h3 style={{ marginBottom: 8 }}>Your guests</h3>
+        {err && <div className="tiny danger-text" style={{ marginBottom: 8 }}>{err}</div>}
         {mine.length === 0 ? (
           <div className="muted small">Nobody yet — share your affiliate link and guests appear here the moment they join.</div>
         ) : (
@@ -123,7 +150,7 @@ export default function PromoterGuestList() {
               <div key={g.id} className="evrow">
                 <span style={{ flex: 1.6 }} className="bold small">
                   {g.name}
-                  {g.subPromoter && <span className="tiny muted-2" style={{ fontWeight: 400 }}> · via {promoterTeam.find((m) => m.handle === g.subPromoter)?.name ?? g.subPromoter}</span>}
+                  {g.subPromoter && <span className="tiny muted-2" style={{ fontWeight: 400 }}> · via {team.find((m) => m.handle === g.subPromoter)?.name ?? g.subPromoter}</span>}
                 </span>
                 <span style={{ flex: 1 }} className="muted small">{g.phone}</span>
                 <span style={{ flex: 0.5 }} className="small">{g.age}</span>
@@ -132,7 +159,8 @@ export default function PromoterGuestList() {
                   <button
                     className={`chip ${g.arrived ? 'on' : ''}`}
                     style={{ fontSize: 10.5, padding: '3px 10px' }}
-                    onClick={() => checkInPromoterGuest(g.id)}
+                    disabled={g.arrived}
+                    onClick={() => checkIn(g.id)}
                   >
                     {g.arrived ? 'Arrived ✓' : closed ? 'No-show' : 'Check in'}
                   </button>

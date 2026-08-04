@@ -1,20 +1,44 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useApp } from '../../store/AppContext';
-import { EVENTS, fmtDate, fmtTime, venueById } from '../../data/mock';
+import { fmtDate, fmtTime } from '../../data/mock';
+import { promoter as promoterApi, type PromoterMe, type PromoterTeamMember } from '../../api';
+import { ApiError } from '../../api/client';
+import Loader from '../../components/Loader';
+import type { Event, PromoterGuest } from '../../types';
 
 /** Events this promoter is approved to promote — organizer-enabled events whose
  * allow-list includes this promoter. */
 export default function PromoterPromotions() {
-  const { user, myEvents, promoterGuests, promoterTeam, toast } = useApp();
-  const mySlug = user?.promoterUsername ?? '';
-  const allEvents = [...myEvents, ...EVENTS.filter((e) => !myEvents.some((m) => m.id === e.id))];
+  const [me, setMe] = useState<PromoterMe | null>(null);
+  const [promotions, setPromotions] = useState<Event[]>([]);
+  const [guestsByEvent, setGuestsByEvent] = useState<Record<string, PromoterGuest[]>>({});
+  const [team, setTeam] = useState<PromoterTeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+  const [copied, setCopied] = useState('');
 
-  const promotions = allEvents.filter(
-    (e) =>
-      e.status === 'approved' &&
-      e.promoterConfig?.enabled &&
-      e.promoterConfig.allowedPromoters.includes(mySlug)
-  );
+  useEffect(() => {
+    Promise.all([promoterApi.me(), promoterApi.promotions(), promoterApi.team()])
+      .then(async ([m, promos, t]) => {
+        setMe(m);
+        setPromotions(promos);
+        setTeam(t);
+        const entries = await Promise.all(promos.map(async (e) => [e.id, await promoterApi.guests(e.id).catch(() => [])] as const));
+        setGuestsByEvent(Object.fromEntries(entries));
+      })
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <Loader />;
+  if (err && !me) return <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>{err}</div>;
+
+  const mySlug = me?.slug ?? '';
+  const copy = (link: string, key: string) => {
+    navigator.clipboard?.writeText(link).catch(() => {});
+    setCopied(key);
+    setTimeout(() => setCopied(''), 1500);
+  };
 
   if (promotions.length === 0) {
     return (
@@ -40,15 +64,16 @@ export default function PromoterPromotions() {
       <h1 style={{ fontSize: 24, marginBottom: 6 }}>My promotions</h1>
       <p className="muted small" style={{ marginBottom: 18 }}>
         Events you're approved to promote. Share your link, fill the free-entry list before the cutoff, and watch
-        arrivals live. <span className="muted-2">(affiliate links + live monitoring arrive in the next update)</span>
+        arrivals live.
       </p>
+      {err && <div className="alert alert-error" style={{ marginBottom: 12 }}>{err}</div>}
 
       <div className="stack" style={{ display: 'grid', gap: 12 }}>
         {promotions.map((e) => {
-          const venue = venueById(e.venueId);
+          const venue = e.venue;
           const cfg = e.promoterConfig!;
           const link = `${window.location.origin}/p/${e.slug}/${mySlug}`;
-          const mine = promoterGuests.filter((g) => g.eventId === e.id && g.promoterSlug === mySlug);
+          const mine = guestsByEvent[e.id] ?? [];
           const myGuests = mine.length;
           const arrived = mine.filter((g) => g.arrived).length;
           const earned = cfg.perHeadPayout ? arrived * cfg.perHeadAmount : 0;
@@ -95,14 +120,8 @@ export default function PromoterPromotions() {
                 {earned > 0 && <> · earned <b className="accent">₹{earned}</b></>}
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <button
-                  className="btn btn-pri btn-sm"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(link).catch(() => {});
-                    toast('Affiliate link copied ✓');
-                  }}
-                >
-                  🔗 Copy affiliate link
+                <button className="btn btn-pri btn-sm" onClick={() => copy(link, e.id)}>
+                  {copied === e.id ? 'Copied ✓' : '🔗 Copy affiliate link'}
                 </button>
                 <Link to={`/promoter/guests/${e.id}`} className="btn btn-ghost btn-sm">📋 Guest list</Link>
                 <a href={link} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">Preview link ↗</a>
@@ -110,26 +129,24 @@ export default function PromoterPromotions() {
               </div>
               <div className="tiny muted-2" style={{ marginTop: 6, wordBreak: 'break-all' }}>{link}</div>
 
-              {cfg.allowTeams && promoterTeam.length > 0 && (
+              {cfg.allowTeams && team.length > 0 && (
                 <div style={{ marginTop: 12, borderTop: '1px dashed var(--border-dash)', paddingTop: 10 }}>
                   <div className="tiny muted-2" style={{ marginBottom: 6 }}>👥 Team links — each tagged to a member:</div>
                   <div style={{ display: 'grid', gap: 6 }}>
-                    {promoterTeam.map((m) => {
+                    {team.map((m) => {
                       const sub = `${link}?via=${m.handle}`;
-                      const g = promoterGuests.filter((x) => x.eventId === e.id && x.promoterSlug === mySlug && x.subPromoter === m.handle);
+                      const g = mine.filter((x) => x.subPromoter === m.handle);
+                      const key = `${e.id}-${m.handle}`;
                       return (
-                        <div key={m.handle} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           <span className="small bold" style={{ flex: '0 0 auto' }}>{m.name}</span>
                           <span className="tiny muted-2">{g.length} brought · {g.filter((x) => x.arrived).length} in</span>
                           <button
                             className="btn btn-ghost btn-sm"
                             style={{ marginLeft: 'auto' }}
-                            onClick={() => {
-                              navigator.clipboard?.writeText(sub).catch(() => {});
-                              toast(`${m.name}'s link copied ✓`);
-                            }}
+                            onClick={() => copy(sub, key)}
                           >
-                            🔗 Copy
+                            {copied === key ? 'Copied ✓' : '🔗 Copy'}
                           </button>
                         </div>
                       );

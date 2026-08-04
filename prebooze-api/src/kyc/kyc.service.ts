@@ -180,7 +180,7 @@ export class KycService {
         this.prisma.promoter.findUnique({ where: { userId: sub.userId } }),
       ]);
       if (user && !existing) {
-        const row = await this.newPromoterRow(user);
+        const row = await this.newPromoterRow(user, sub.payload as Record<string, unknown> | null);
         ops.push(this.prisma.promoter.create({ data: row }));
         ops.push(this.prisma.user.update({ where: { id: sub.userId }, data: { promoterUsername: row.slug } }));
       }
@@ -293,8 +293,16 @@ export class KycService {
   /** Same slug-collision-safe scheme as newOrganizerRow, but keyed off
    * promoterUsername/promoterBrand — Promoter.id and .slug are both
    * slug-style but distinct fields (seeded promoters use short ids like
-   * "pr1" with a separate human slug), so both need picking. */
-  private async newPromoterRow(user: { id: string; promoterBrand: string | null; promoterUsername: string | null; name: string; city: string }) {
+   * "pr1" with a separate human slug), so both need picking. `payload` is
+   * the raw onboarding submission (PromoterOnboarding.tsx) — without pulling
+   * from it, bio/links/city the applicant actually entered landed nowhere,
+   * same gap newOrganizerRow/newLineupRow close for their roles. Promoter
+   * has no country/state/pincode columns (unlike Organizer/Lineup), so only
+   * city is pulled from location fields. */
+  private async newPromoterRow(
+    user: { id: string; promoterBrand: string | null; promoterUsername: string | null; name: string; city: string },
+    payload: Record<string, unknown> | null,
+  ) {
     const base = (user.promoterUsername || user.promoterBrand || user.name || 'promoter')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -317,13 +325,19 @@ export class KycService {
       return candidate;
     };
 
+    const str = (k: string) => (typeof payload?.[k] === 'string' ? (payload[k] as string).trim() : '') || undefined;
+    const links = (typeof payload?.links === 'string' ? (payload.links as string).split(',') : Array.isArray(payload?.links) ? (payload!.links as string[]) : [])
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     return {
       id: await uniqueId(),
       slug: await uniqueSlug(),
       name: user.promoterBrand || user.name || 'Promoter',
       verified: true, // this row is only ever created at the moment KYC is approved
-      city: user.city || '',
-      bio: '',
+      city: str('city') || user.city || '',
+      bio: str('bio') || '',
+      links,
       userId: user.id,
     };
   }

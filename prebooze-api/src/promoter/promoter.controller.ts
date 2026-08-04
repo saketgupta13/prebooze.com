@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, Req } from '@nestjs/common';
 import { PromoterService } from './promoter.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 
@@ -8,6 +8,11 @@ type AuthedReq = { user: { sub: string } };
 @UseGuards(JwtAuthGuard)
 export class PromoterController {
   constructor(private promoter: PromoterService) {}
+
+  @Get('me')
+  me(@Req() req: AuthedReq) {
+    return this.promoter.me(req.user.sub);
+  }
 
   @Patch('me')
   updateMe(@Req() req: AuthedReq, @Body() body: Parameters<PromoterService['updateMe']>[1]) {
@@ -39,6 +44,11 @@ export class PromoterController {
     return this.promoter.withdraw(req.user.sub, amount);
   }
 
+  @Get('withdrawals')
+  withdrawals(@Req() req: AuthedReq) {
+    return this.promoter.withdrawals(req.user.sub);
+  }
+
   @Get('team')
   team(@Req() req: AuthedReq) {
     return this.promoter.team(req.user.sub);
@@ -47,6 +57,16 @@ export class PromoterController {
   @Post('team')
   addTeamMember(@Req() req: AuthedReq, @Body() body: { handle?: string; name?: string; hue?: number }) {
     return this.promoter.addTeamMember(req.user.sub, body);
+  }
+
+  @Delete('team/:id')
+  removeTeamMember(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.promoter.removeTeamMember(req.user.sub, id);
+  }
+
+  @Get('leaderboard')
+  leaderboard() {
+    return this.promoter.leaderboard();
   }
 
   @Get('subscription/tiers')
@@ -80,6 +100,16 @@ export class PromoterController {
 @Controller('p')
 export class GuestCaptureController {
   constructor(private promoter: PromoterService) {}
+
+  // Registered before the ':eventSlug/:promoterSlug' capture route below
+  // would otherwise be ambiguous with — Nest matches static segments first
+  // regardless of declaration order, but keeping this above documents the
+  // intent: 'pass' can never collide with a real event slug since event
+  // slugs are organizer-chosen human strings, not reserved.
+  @Get('pass/:id')
+  getPass(@Param('id') id: string) {
+    return this.promoter.getPass(id);
+  }
 
   @Post(':eventSlug/:promoterSlug')
   capture(
