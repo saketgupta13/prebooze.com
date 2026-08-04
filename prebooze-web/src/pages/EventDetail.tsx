@@ -14,7 +14,7 @@ import {
 } from '../data/mock';
 import { catalog, social, bookings as bookingsApi } from '../api';
 import { isBackendEnabled } from '../api/client';
-import type { Event, LineupProfile, WaitlistEntry } from '../types';
+import type { Event, LineupProfile, PromoterProfile, WaitlistEntry } from '../types';
 import type { GuestReview } from '../store/AppContext';
 import { friendsGoing, goingCount, myStatus } from '../lib/social';
 import { existingRole, roleLabel } from '../lib/roles';
@@ -87,6 +87,19 @@ export default function EventDetail() {
 
   const event = liveEvent ?? mockEvent;
   useSeo(event?.seo, event?.title, event?.posterUrl);
+
+  // Promoters this event's organizer has allow-listed for free-entry guest
+  // lists (Event.promoterConfig.allowedPromoters, a slug array) — matched
+  // against the real directory the same way lineup names are, so guests can
+  // see (and follow) exactly who's actually running lists for this event.
+  const [livePromotersForEvent, setLivePromotersForEvent] = useState<PromoterProfile[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.promoters().then(setLivePromotersForEvent).catch(() => setLivePromotersForEvent([]));
+  }, []);
+  const promoterPool = livePromotersForEvent ?? (isBackendEnabled() ? [] : PROMOTERS);
+  const allowedPromoterSlugs = event?.promoterConfig?.enabled ? (event.promoterConfig.allowedPromoters ?? []) : [];
+  const taggedPromoters = promoterPool.filter((p) => allowedPromoterSlugs.includes(p.slug));
   const [qty, setQty] = useState<Record<string, number>>({});
   const [expanded, setExpanded] = useState(false);
   const [ticketBoxOpen, setTicketBoxOpen] = useState(false);
@@ -423,6 +436,28 @@ export default function EventDetail() {
                       <div key={l.name} className="lineup-item">{inner}</div>
                     );
                   })}
+                </div>
+              </section>
+            )}
+
+            {/* Promoters running guest lists for this event */}
+            {taggedPromoters.length > 0 && (
+              <section className="section">
+                <div className="section-hd">
+                  <h2>Promoted by</h2>
+                </div>
+                <div className="lineup">
+                  {taggedPromoters.map((p) => (
+                    <Link key={p.slug} to={`/promoter/${p.slug}`} className="lineup-item" style={{ borderColor: 'var(--border-3)' }}>
+                      <span className="avatar">📣</span>
+                      <span className="who">
+                        <span className="n" style={{ display: 'block' }}>
+                          {p.name} {p.verified && <span className="verified">✓</span>}
+                        </span>
+                        <span className="r">Free-entry guest list · view profile →</span>
+                      </span>
+                    </Link>
+                  ))}
                 </div>
               </section>
             )}

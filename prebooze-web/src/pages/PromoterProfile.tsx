@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { EVENTS, PROMOTERS, promoterBySlug, fmtCount } from '../data/mock';
+import { EVENTS, promoterBySlug, fmtCount } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { PromoterProfile as PromoterProfileData, Event } from '../types';
@@ -21,18 +21,17 @@ export default function PromoterProfile() {
   const { slug } = useParams();
   const { user, following, toggleFollow, netFollowers } = useApp();
 
-  // Single-entity fetch for the profile itself (GET /promoters/:slug) — the
-  // list fetch is now only for the "more promoters" section below, which
-  // genuinely needs the list.
+  // Single-entity fetch for the profile itself (GET /promoters/:slug) —
+  // events fetched with includePast so "promoted in the past" has real data,
+  // not just whatever's currently upcoming.
   const [livePromoter, setLivePromoter] = useState<PromoterProfileData | null>(null);
-  const [livePromoters, setLivePromoters] = useState<PromoterProfileData[] | null>(null);
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
   const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
     if (!isBackendEnabled() || !slug) return;
     setLoading(true);
-    Promise.all([catalog.promoter(slug), catalog.promoters(), catalog.events({})])
-      .then(([p, ps, evs]) => { setLivePromoter(p); setLivePromoters(ps); setLiveEvents(evs); })
+    Promise.all([catalog.promoter(slug), catalog.events({ includePast: true })])
+      .then(([p, evs]) => { setLivePromoter(p); setLiveEvents(evs); })
       .catch(() => setLivePromoter(null))
       .finally(() => setLoading(false));
   }, [slug]);
@@ -60,11 +59,14 @@ export default function PromoterProfile() {
   const isFollowing = following.includes(followKey);
   const isOwnProfile = user?.isPromoter && user.promoterUsername?.toLowerCase() === promoter.slug.toLowerCase();
   const eventPool = liveEvents ?? (isBackendEnabled() ? [] : EVENTS);
-  // Events this promoter is on the allow-list for; fall back to a sample of live events.
+  // Events this promoter is actually on the allow-list for — no fallback to
+  // unrelated events; an empty list here means this promoter genuinely isn't
+  // tagged on anything yet.
   const promoted = eventPool.filter((e) => e.promoterConfig?.allowedPromoters?.includes(promoter.slug));
-  const promoting = promoted.length ? promoted : eventPool.filter((e) => e.status === 'approved').slice(0, 3);
+  const now = Date.now();
+  const promoting = promoted.filter((e) => new Date(e.date).getTime() >= now);
+  const promotedPast = promoted.filter((e) => new Date(e.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date));
   const friends = friendsAtEvents(promoting.map((e) => e.id), following);
-  const more = (livePromoters ?? (isBackendEnabled() ? [] : PROMOTERS)).filter((p) => p.slug !== promoter.slug).slice(0, 3);
 
   return (
     <main className="page">
@@ -133,30 +135,30 @@ export default function PromoterProfile() {
               <div className="section-hd">
                 <h2>Promoting now ({promoting.length})</h2>
               </div>
-              <div className="grid-3">
-                {promoting.map((e) => (
-                  <EventCard key={e.id} event={e} />
-                ))}
-              </div>
+              {promoting.length ? (
+                <div className="grid-3">
+                  {promoting.map((e) => (
+                    <EventCard key={e.id} event={e} />
+                  ))}
+                </div>
+              ) : (
+                <div className="empty">Not currently on any events' allow-list.</div>
+              )}
             </section>
 
             <section className="section">
               <div className="section-hd">
-                <h2>Other promoters to follow</h2>
+                <h2>Promoted in the past ({promotedPast.length})</h2>
               </div>
-              <div className="grid-3">
-                {more.map((p) => (
-                  <Link key={p.slug} to={`/promoter/${p.slug}`} className="card" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <div style={{ width: 46, flexShrink: 0 }}>
-                      <Poster hue={p.hue} emoji="📣" variant="square" />
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <h3 style={{ fontSize: 14 }}>{p.name} {p.verified && <span className="verified">✓</span>}</h3>
-                      <div className="meta">{fmtCount(netFollowers('promoter:' + p.slug, p.followers))} followers</div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+              {promotedPast.length ? (
+                <div className="grid-3">
+                  {promotedPast.slice(0, 6).map((e) => (
+                    <EventCard key={e.id} event={e} />
+                  ))}
+                </div>
+              ) : (
+                <div className="empty">No past events yet.</div>
+              )}
             </section>
 
             <ReviewsSection targetType="promoter" targetId={promoter.slug} prompt="How was this promoter's guest list?" />
