@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { EmailService } from '../notifications/email';
+import { WhatsappService } from '../notifications/whatsapp';
 
 export const LEAD_SOURCES = ['Instagram', 'WhatsApp', 'Phone call', 'Referral / walk-in', 'Website inquiry', 'Other social', 'Other'] as const;
 export const LEAD_STAGES = ['New', 'Contacted', 'Interested', 'Negotiating', 'Signed up', 'Declined'] as const;
@@ -8,6 +10,10 @@ interface CreateLeadBody {
   name: string;
   source: string;
   contact?: string;
+  email?: string;
+  contactPerson?: string;
+  country?: string;
+  state?: string;
   city?: string;
   eventType?: string;
   assignedToId?: string;
@@ -18,6 +24,10 @@ interface UpdateLeadBody {
   name?: string;
   source?: string;
   contact?: string;
+  email?: string;
+  contactPerson?: string;
+  country?: string;
+  state?: string;
   city?: string;
   eventType?: string;
   stage?: string;
@@ -27,7 +37,11 @@ interface UpdateLeadBody {
 
 @Injectable()
 export class LeadsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private email: EmailService,
+    private wa: WhatsappService,
+  ) {}
 
   list() {
     return this.prisma.lead.findMany({
@@ -53,6 +67,10 @@ export class LeadsService {
         name: body.name.trim(),
         source: body.source,
         contact: body.contact?.trim() || null,
+        email: body.email?.trim() || null,
+        contactPerson: body.contactPerson?.trim() || null,
+        country: body.country?.trim() || null,
+        state: body.state?.trim() || null,
         city: body.city?.trim() || null,
         eventType: body.eventType?.trim() || null,
         assignedToId: body.assignedToId || null,
@@ -72,6 +90,10 @@ export class LeadsService {
         ...(body.name !== undefined ? { name: body.name.trim() } : {}),
         ...(body.source !== undefined ? { source: body.source } : {}),
         ...(body.contact !== undefined ? { contact: body.contact?.trim() || null } : {}),
+        ...(body.email !== undefined ? { email: body.email?.trim() || null } : {}),
+        ...(body.contactPerson !== undefined ? { contactPerson: body.contactPerson?.trim() || null } : {}),
+        ...(body.country !== undefined ? { country: body.country?.trim() || null } : {}),
+        ...(body.state !== undefined ? { state: body.state?.trim() || null } : {}),
         ...(body.city !== undefined ? { city: body.city?.trim() || null } : {}),
         ...(body.eventType !== undefined ? { eventType: body.eventType?.trim() || null } : {}),
         ...(body.stage !== undefined ? { stage: body.stage } : {}),
@@ -119,6 +141,37 @@ export class LeadsService {
       data: { organizerId, stage: 'Signed up' },
       include: { assignedTo: { select: { id: true, name: true } }, organizer: { select: { id: true, brandName: true, username: true } } },
     });
+  }
+
+  /** Sends the real organizer onboarding link — the send itself is the
+   * primary action here (not a side effect tacked onto something else), so
+   * unlike most other notification call sites in this codebase, an email
+   * failure is NOT silently caught: Resend is the guaranteed-delivered
+   * channel, so a real failure (bad address, etc.) should surface to staff.
+   * WhatsApp stays best-effort (`.catch(() => {})`) since 'lead_onboarding_
+   * invite' is a brand-new campaign that needs AiSensy/Meta approval first,
+   * same as every other new campaign in this codebase. */
+  async sendOnboardingLink(id: string, channels: { email?: boolean; whatsapp?: boolean }) {
+    const lead = await this.prisma.lead.findUnique({ where: { id } });
+    if (!lead) throw new NotFoundException('Lead not found');
+    if (!channels.email && !channels.whatsapp) throw new BadRequestException('Pick at least one channel');
+
+    const name = lead.contactPerson?.trim() || lead.name;
+    const sent: string[] = [];
+
+    if (channels.email) {
+      if (!lead.email?.trim()) throw new BadRequestException('This lead has no email on file');
+      await this.email.sendTemplate(lead.email, 'lead_onboarding_invite', { name, brand: lead.name });
+      sent.push('Email');
+    }
+    if (channels.whatsapp) {
+      if (!lead.contact?.trim()) throw new BadRequestException('This lead has no phone/contact on file');
+      await this.wa.sendLeadOnboardingInvite(lead.contact, name, lead.name).catch(() => {});
+      sent.push('WhatsApp');
+    }
+
+    await this.prisma.leadActivity.create({ data: { leadId: id, text: `Onboarding link sent via ${sent.join(' and ')}` } });
+    return { ok: true, sent };
   }
 
   /** Follow-ups due today or overdue, still in an active (non-terminal) stage. */

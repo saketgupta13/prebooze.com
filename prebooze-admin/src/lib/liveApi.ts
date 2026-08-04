@@ -442,6 +442,10 @@ export interface Lead {
   name: string;
   source: string;
   contact: string | null;
+  email: string | null;
+  contactPerson: string | null;
+  country: string | null;
+  state: string | null;
   city: string | null;
   eventType: string | null;
   stage: string;
@@ -466,17 +470,36 @@ export interface LeadOrganizerHit {
  * reliable way to auto-match a scribbled phone number or IG handle to the
  * account someone actually signs up with), which is what makes it possible
  * to later ask "which source actually converts organizers." */
+interface LeadWriteFields {
+  name: string;
+  source: string;
+  contact?: string;
+  email?: string;
+  contactPerson?: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  eventType?: string;
+  assignedToId?: string;
+  followUpAt?: string;
+}
 export const liveLeads = {
   list: () => liveFetch<Lead[]>('/admin/leads'),
   get: (id: string) => liveFetch<Lead>(`/admin/leads/${id}`),
-  create: (body: { name: string; source: string; contact?: string; city?: string; eventType?: string; assignedToId?: string; followUpAt?: string }) =>
-    liveFetch<Lead>('/admin/leads', { body }),
-  update: (id: string, body: Partial<{ name: string; source: string; contact: string; city: string; eventType: string; stage: string; assignedToId: string | null; followUpAt: string | null }>) =>
-    liveFetch<Lead>(`/admin/leads/${id}`, { method: 'PATCH', body }),
+  create: (body: LeadWriteFields) => liveFetch<Lead>('/admin/leads', { body }),
+  update: (
+    id: string,
+    body: Partial<Omit<LeadWriteFields, 'assignedToId' | 'followUpAt'>> & { stage?: string; assignedToId?: string | null; followUpAt?: string | null },
+  ) => liveFetch<Lead>(`/admin/leads/${id}`, { method: 'PATCH', body }),
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/leads/${id}`, { method: 'DELETE' }),
   addActivity: (id: string, text: string) => liveFetch<LeadActivity>(`/admin/leads/${id}/activity`, { body: { text } }),
   searchOrganizers: (q: string) => liveFetch<LeadOrganizerHit[]>(`/admin/leads/organizer-search?q=${encodeURIComponent(q)}`),
   linkOrganizer: (id: string, organizerId: string) => liveFetch<Lead>(`/admin/leads/${id}/link-organizer`, { body: { organizerId } }),
+  /** Real onboarding-link send (email is guaranteed-delivered; WhatsApp is
+   * best-effort until the new 'lead_onboarding_invite' AiSensy campaign is
+   * approved — see LeadsService.sendOnboardingLink). */
+  sendOnboarding: (id: string, channels: { email?: boolean; whatsapp?: boolean }) =>
+    liveFetch<{ ok: true; sent: string[] }>(`/admin/leads/${id}/send-onboarding`, { body: channels }),
 };
 
 export interface LiveLedgerEntry {

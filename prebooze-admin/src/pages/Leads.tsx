@@ -11,7 +11,7 @@ import {
 } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
-import { Kpi, Drawer } from '../components/ui';
+import { Kpi, Drawer, LiveLocationPicker } from '../components/ui';
 
 const TITLE = 'Leads';
 
@@ -29,7 +29,10 @@ function isOverdue(lead: Lead) {
   return Boolean(lead.followUpAt) && new Date(lead.followUpAt as string).getTime() < Date.now() && !['Signed up', 'Declined'].includes(lead.stage);
 }
 
-const emptyForm = { name: '', source: LEAD_SOURCES[0] as string, contact: '', city: '', eventType: '', assignedToId: '', followUpAt: '' };
+const emptyForm = {
+  name: '', source: LEAD_SOURCES[0] as string, contact: '', email: '', contactPerson: '',
+  country: '', state: '', city: '', eventType: '', assignedToId: '', followUpAt: '',
+};
 
 /** Organizer sales pipeline across every outreach channel (see
  * liveLeads/LeadsService) — a Kanban board so the day-to-day view is "what
@@ -51,6 +54,8 @@ export default function Leads() {
   const [orgQuery, setOrgQuery] = useState('');
   const [orgHits, setOrgHits] = useState<LeadOrganizerHit[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [sendBusy, setSendBusy] = useState<'email' | 'whatsapp' | null>(null);
+  const [sendMsg, setSendMsg] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -83,6 +88,10 @@ export default function Leads() {
       name: lead.name,
       source: lead.source,
       contact: lead.contact ?? '',
+      email: lead.email ?? '',
+      contactPerson: lead.contactPerson ?? '',
+      country: lead.country ?? '',
+      state: lead.state ?? '',
       city: lead.city ?? '',
       eventType: lead.eventType ?? '',
       assignedToId: lead.assignedToId ?? '',
@@ -91,6 +100,7 @@ export default function Leads() {
     setActivityText('');
     setOrgQuery('');
     setOrgHits([]);
+    setSendMsg('');
     setDrawer(lead.id);
   };
   const close = () => setDrawer(null);
@@ -103,6 +113,10 @@ export default function Leads() {
         name: form.name,
         source: form.source,
         contact: form.contact || undefined,
+        email: form.email || undefined,
+        contactPerson: form.contactPerson || undefined,
+        country: form.country || undefined,
+        state: form.state || undefined,
         city: form.city || undefined,
         eventType: form.eventType || undefined,
         assignedToId: form.assignedToId || undefined,
@@ -123,6 +137,10 @@ export default function Leads() {
         name: form.name,
         source: form.source,
         contact: form.contact,
+        email: form.email,
+        contactPerson: form.contactPerson,
+        country: form.country,
+        state: form.state,
         city: form.city,
         eventType: form.eventType,
         assignedToId: form.assignedToId || null,
@@ -172,6 +190,22 @@ export default function Leads() {
     setOrgQuery(q);
     if (!q.trim()) return setOrgHits([]);
     liveLeads.searchOrganizers(q).then(setOrgHits).catch(() => setOrgHits([]));
+  };
+
+  const sendOnboarding = async (channel: 'email' | 'whatsapp') => {
+    if (!selected) return;
+    setSendBusy(channel);
+    setSendMsg('');
+    setErr('');
+    try {
+      await liveLeads.sendOnboarding(selected.id, { [channel]: true });
+      setSendMsg(channel === 'email' ? 'Onboarding email sent ✓' : 'Sent via WhatsApp ✓');
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to send');
+    } finally {
+      setSendBusy(null);
+    }
   };
 
   const linkOrganizer = async (organizerId: string) => {
@@ -283,18 +317,29 @@ export default function Leads() {
             <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus placeholder="Brand or account name" />
           </div>
           <div className="field">
+            <label>Contact person</label>
+            <input className="input" value={form.contactPerson} onChange={(e) => setForm({ ...form, contactPerson: e.target.value })} placeholder="e.g. Priya (owner)" />
+          </div>
+          <div className="field">
             <label>Source</label>
             <select className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
               {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div className="field">
-            <label>Contact (phone / handle / email)</label>
-            <input className="input" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+            <label>Phone / handle</label>
+            <input className="input" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} placeholder="For WhatsApp / calls" />
           </div>
           <div className="field">
-            <label>City</label>
-            <input className="input" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+            <label>Email</label>
+            <input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <div className="field">
+            <label>Location</label>
+            <LiveLocationPicker
+              value={{ country: form.country, state: form.state, city: form.city }}
+              onChange={(v) => setForm({ ...form, ...v })}
+            />
           </div>
           <div className="field">
             <label>What they run</label>
@@ -324,6 +369,31 @@ export default function Leads() {
                   </select>
                 </div>
                 <button className="btn btn-pri" onClick={saveEdit}>Save changes</button>
+
+                <hr />
+
+                <div className="field">
+                  <label>Send onboarding link</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      disabled={!selected.email || sendBusy !== null}
+                      onClick={() => sendOnboarding('email')}
+                      title={!selected.email ? 'Add an email above first' : undefined}
+                    >
+                      {sendBusy === 'email' ? 'Sending…' : '✉️ Email'}
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      disabled={!selected.contact || sendBusy !== null}
+                      onClick={() => sendOnboarding('whatsapp')}
+                      title={!selected.contact ? 'Add a phone number above first' : undefined}
+                    >
+                      {sendBusy === 'whatsapp' ? 'Sending…' : '💬 WhatsApp'}
+                    </button>
+                  </div>
+                  {sendMsg && <div className="tiny green">{sendMsg}</div>}
+                </div>
 
                 <hr />
 

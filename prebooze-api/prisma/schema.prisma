@@ -40,27 +40,27 @@ enum KycStatus {
 }
 
 model User {
-  id         String   @id @default(cuid())
-  phone      String   @unique // "+91 9990001111" (normalized)
-  name       String   @default("")
-  username   String   @default("")
-  email      String   @default("")
-  city       String   @default("")
-  state      String?
-  country    String?
-  pincode    String?
-  dob        String   @default("")
-  gender     String   @default("")
-  profession String   @default("")
-  languages  String   @default("")
-  bio        String   @default("")
-  socials    String   @default("") // legacy free-text field, superseded by socialLinks below — kept for old rows, no longer written by the forms
+  id          String   @id @default(cuid())
+  phone       String   @unique // "+91 9990001111" (normalized)
+  name        String   @default("")
+  username    String   @default("")
+  email       String   @default("")
+  city        String   @default("")
+  state       String?
+  country     String?
+  pincode     String?
+  dob         String   @default("")
+  gender      String   @default("")
+  profession  String   @default("")
+  languages   String   @default("")
+  bio         String   @default("")
+  socials     String   @default("") // legacy free-text field, superseded by socialLinks below — kept for old rows, no longer written by the forms
   // Per-platform links (instagram/x/facebook/youtube/linkedin/snapchat/tiktok)
   // — replaces the single free-text `socials` blob so a guest can add more
   // than one link without cramming them into one input.
-  socialLinks Json    @default("{}")
-  interests  String[] @default([])
-  avatarUrl  String?
+  socialLinks Json     @default("{}")
+  interests   String[] @default([])
+  avatarUrl   String?
 
   phoneVerified Boolean @default(true)
   idVerified    Boolean @default(false)
@@ -358,19 +358,23 @@ model Organizer {
 // scribbled phone number isn't guaranteed to match what they sign up with),
 // which is what makes "which source actually converts" answerable later.
 model Lead {
-  id           String    @id @default(cuid())
-  name         String
-  source       String // 'Instagram' | 'WhatsApp' | 'Phone call' | 'Referral / walk-in' | 'Website inquiry' | 'Other social' | 'Other'
-  contact      String?
-  city         String?
-  eventType    String?
-  stage        String    @default("New") // New | Contacted | Interested | Negotiating | Signed up | Declined
-  followUpAt   DateTime?
-  followUpDone Boolean   @default(false)
+  id            String    @id @default(cuid())
+  name          String
+  source        String // 'Instagram' | 'WhatsApp' | 'Phone call' | 'Referral / walk-in' | 'Website inquiry' | 'Other social' | 'Other'
+  contact       String?
+  email         String?
+  contactPerson String?
+  country       String?
+  state         String?
+  city          String?
+  eventType     String?
+  stage         String    @default("New") // New | Contacted | Interested | Negotiating | Signed up | Declined
+  followUpAt    DateTime?
+  followUpDone  Boolean   @default(false)
 
   assignedToId String?
-  assignedTo   Staff?  @relation(fields: [assignedToId], references: [id])
-  organizerId  String? @unique
+  assignedTo   Staff?     @relation(fields: [assignedToId], references: [id])
+  organizerId  String?    @unique
   organizer    Organizer? @relation(fields: [organizerId], references: [id])
 
   activities LeadActivity[]
@@ -508,9 +512,9 @@ model TrendingSearch {
 // from, replacing the free-text venue-type input with a real multi-select
 // and giving each tag a real "N events at this type of venue" count.
 model VenueType {
-  name String @id
+  name String  @id
   icon String?
-  sort Int    @default(0)
+  sort Int     @default(0)
 }
 
 model Event {
@@ -1218,9 +1222,9 @@ model PromoterWithdrawal {
 // ============================================================================
 
 model HelpTicket {
-  id     String  @id
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id])
+  id      String  @id
+  userId  String?
+  user    User?   @relation(fields: [userId], references: [id])
   // Public Contact-us submissions have no logged-in user at all — name/email
   // are captured directly from the form in that case. For a real ticket
   // (userId set), these stay null; the real name/email live on the User row.
@@ -1230,7 +1234,7 @@ model HelpTicket {
   topic   String
   subject String
   message String
-  status  String @default("open") // open | resolved
+  status  String  @default("open") // open | resolved
 
   createdAt DateTime @default(now())
 }
@@ -1445,7 +1449,7 @@ model LedgerEntry {
   // per ticket sold. Null (and unconstrained) on manual entries — the
   // unique index below only applies where eventId is non-null, since
   // Postgres never treats two NULLs as equal in a unique index.
-  eventId String?
+  eventId  String?
 
   createdAt DateTime @default(now())
 

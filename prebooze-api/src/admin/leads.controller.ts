@@ -58,4 +58,10 @@ export class AdminLeadsController {
   linkOrganizer(@Param('id') id: string, @Body('organizerId') organizerId: string) {
     return this.leads.linkOrganizer(id, organizerId);
   }
+
+  @Post(':id/send-onboarding')
+  @RequirePermission(MODULE, 'edit')
+  sendOnboarding(@Param('id') id: string, @Body() body: { email?: boolean; whatsapp?: boolean }) {
+    return this.leads.sendOnboardingLink(id, body);
+  }
 }
