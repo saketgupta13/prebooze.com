@@ -16,7 +16,7 @@ import { catalog, social, bookings as bookingsApi } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Event, LineupProfile, PromoterProfile, WaitlistEntry } from '../types';
 import type { GuestReview } from '../store/AppContext';
-import { friendsGoing, goingCount, myStatus } from '../lib/social';
+import { goingCount, myStatus } from '../lib/social';
 import { existingRole, roleLabel } from '../lib/roles';
 import { stripHtml } from '../lib/richtext';
 import { useSeo } from '../lib/useSeo';
@@ -41,7 +41,7 @@ export default function EventDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { user, city, setSelection, myEvents, following, bookings, interested, toggleInterested, pendingPromoterRef, setPendingPromoterRef, waitlists, joinWaitlist } = useApp();
+  const { user, city, setSelection, myEvents, bookings, interested, toggleInterested, pendingPromoterRef, setPendingPromoterRef, waitlists, joinWaitlist } = useApp();
   const { salesPaused } = usePlatformInfo();
 
   const mockEvent = eventBySlug(slug ?? '') ?? myEvents.find((e) => e.slug === slug);
@@ -188,7 +188,6 @@ export default function EventDetail() {
   const reviews = liveEvent ? liveReviews : REVIEWS;
 
   const going = goingCount(event);
-  const friends = friendsGoing(event.id, following);
   const allSoldOut = event.tiers.every((t) => t.sold >= t.quantity);
   // Distinct from allSoldOut — this event has already happened, so no
   // cancellation is ever going to free up a spot. The waitlist flow below
@@ -198,18 +197,6 @@ export default function EventDetail() {
   const myEntry = user ? queue.find((w) => w.phone === user.phone) : undefined;
   const myPosition = myEntry ? queue.filter((w) => w.status === 'waiting').findIndex((w) => w.phone === user?.phone) + 1 : 0;
   const status = myStatus(event.id, bookings, interested);
-  const friendLabel = (() => {
-    if (friends.length === 0) return '';
-    const names = friends.map((f) => f.person.name.split(' ')[0]);
-    const head = names.slice(0, 2).join(', ');
-    const extra = friends.length > 2 ? ` +${friends.length - 2}` : '';
-    const verb = friends.every((f) => f.status === 'going')
-      ? 'going'
-      : friends.every((f) => f.status === 'interested')
-        ? 'interested'
-        : 'in';
-    return `${head}${extra} you follow ${friends.length === 1 ? 'is' : 'are'} ${verb}`;
-  })();
 
   const book = () => {
     if (existingRole(user)) return; // business/elevated-role account — checkout also blocks this
@@ -240,6 +227,7 @@ export default function EventDetail() {
                   <span>📅 {fmtDate(event.date)}, {fmtTime(event.date)}</span>
                   <span>📍 <Link to={`/venues/${venue.id}`} className="link">{venue.name}</Link>, {venue.city}</span>
                   <span>⏱ {event.durationHrs} hrs</span>
+                  {going > 0 && <span style={{ color: 'var(--accent)', fontWeight: 600 }}>🔥 {going.toLocaleString('en-IN')} going</span>}
                 </div>
                 <div className="chip-row" style={{ alignItems: 'center' }}>
                   {event.tags.map((t) => (
@@ -297,18 +285,8 @@ export default function EventDetail() {
                   </Link>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
-                    {friends.length > 0 && (
-                      <div style={{ display: 'flex' }}>
-                        {friends.slice(0, 4).map((fr, i) => (
-                          <Link key={fr.person.id} to={`/u/${fr.person.username}`} title={fr.person.name} style={{ width: 28, height: 28, borderRadius: '50%', background: `hsl(${fr.person.avatarHue} 55% 45%)`, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, marginLeft: i ? -8 : 0, border: '2px solid var(--bg)', textDecoration: 'none' }}>
-                            {fr.person.name[0]}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
                     <div style={{ minWidth: 0 }}>
-                      <div className="bold small">{going.toLocaleString('en-IN')} going</div>
-                      <div className="tiny muted-2">{friends.length > 0 ? friendLabel : 'Be the first of your friends to go 👀'}</div>
+                      <div className="bold small">{going > 0 ? `${going.toLocaleString('en-IN')} going` : 'Be the first to go 👀'}</div>
                     </div>
                     <div style={{ flex: 1 }} />
                     {status === 'going' ? (

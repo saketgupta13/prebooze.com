@@ -5,8 +5,6 @@ import { EVENTS, ORGANIZERS, fmtCount } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Organizer, Event } from '../types';
-import { friendsAtEvents } from '../lib/social';
-import FriendsProof from '../components/FriendsProof';
 import { PageLoader } from '../components/Loader';
 import ShareButton from '../components/ShareButton';
 import SocialIcon, { guessPlatform } from '../components/SocialIcon';
@@ -66,7 +64,6 @@ export default function OrganizerProfile() {
   const past = orgEvents.filter((e) => new Date(e.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date));
   const isFollowing = following.includes(org.id);
   const isOwnProfile = user?.isOrganizer && user.orgUsername?.toLowerCase() === org.username.toLowerCase();
-  const friends = friendsAtEvents(upcoming.map((e) => e.id), following);
 
   const linkHref = (l: string) => (l.startsWith('http') ? l : `https://${l}`);
   const social = org.socialLinks;
@@ -115,8 +112,6 @@ export default function OrganizerProfile() {
             <ShareButton path={`/organizers/${org.id}`} />
           </div>
         </div>
-
-        <FriendsProof people={friends} suffix="going to their events" style={{ marginBottom: 16 }} />
 
         <div className="profile-grid">
           <div>

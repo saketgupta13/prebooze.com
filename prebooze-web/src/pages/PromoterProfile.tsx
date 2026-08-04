@@ -5,8 +5,6 @@ import { EVENTS, promoterBySlug, fmtCount } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { PromoterProfile as PromoterProfileData, Event } from '../types';
-import { friendsAtEvents } from '../lib/social';
-import FriendsProof from '../components/FriendsProof';
 import ShareButton from '../components/ShareButton';
 import Poster from '../components/Poster';
 import { PageLoader } from '../components/Loader';
@@ -66,7 +64,6 @@ export default function PromoterProfile() {
   const now = Date.now();
   const promoting = promoted.filter((e) => new Date(e.date).getTime() >= now);
   const promotedPast = promoted.filter((e) => new Date(e.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date));
-  const friends = friendsAtEvents(promoting.map((e) => e.id), following);
 
   return (
     <main className="page">
@@ -94,8 +91,6 @@ export default function PromoterProfile() {
             <ShareButton path={`/promoter/${promoter.slug}`} />
           </div>
         </div>
-
-        <FriendsProof people={friends} suffix="going to events they promote" style={{ marginBottom: 16 }} />
 
         <div className="profile-grid">
           <div>

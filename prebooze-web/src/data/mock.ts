@@ -944,7 +944,5 @@ export const FEATURED_PRICING = { perEvent: 2000, organizerMonthly: 4999, promot
 /** Refer & earn — flat, admin-editable amounts (₹ wallet credits). */
 export const REFERRAL_CONFIG = { referrer: 100, referee: 100 };
 
-export const personById = (id: string) => PEOPLE.find((p) => p.id === id);
 export const personByUsername = (u: string) => PEOPLE.find((p) => p.username === u);
-export const attendanceForEvent = (eventId: string) => ATTENDANCE.filter((a) => a.eventId === eventId);
 export const eventsForPerson = (personId: string) => ATTENDANCE.filter((a) => a.personId === personId);

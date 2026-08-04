@@ -8,7 +8,7 @@ import {
 import { catalog, content } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { CmsTestimonial, Event, Organizer, PromoterProfile, LineupProfile, Venue } from '../types';
-import { friendsGoing, personFollowKey } from '../lib/social';
+import { personFollowKey } from '../lib/social';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import EventCard from '../components/EventCard';
 import DirectoryCard from '../components/DirectoryCard';
@@ -203,11 +203,6 @@ export default function Home() {
   const topVenues = featuredFirst([...venuePool].sort((a, b) => b.rating - a.rating), (v) => v.id, venueFeat).slice(0, 10);
   const cityPeople = [...byCity(PEOPLE)].sort((a, b) => b.followers - a.followers).slice(0, 10);
 
-  const friendEvents = published
-    .map((e) => ({ event: e, friends: friendsGoing(e.id, following) }))
-    .filter((x) => x.friends.length > 0)
-    .sort((a, b) => b.friends.length - a.friends.length);
-
   const resumeCart = user
     ? [...carts].filter((c) => c.userPhone === user.phone && c.status !== 'completed').sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
     : undefined;
@@ -334,19 +329,6 @@ export default function Home() {
           <div style={{ textAlign: 'center', marginTop: 16 }}>
             <Link to="/browse" className="btn btn-ghost">Browse all events →</Link>
           </div>
-        )}
-
-        {/* Friends going feed */}
-        {friendEvents.length > 0 && (
-          <section className="section">
-            <div className="section-hd">
-              <h2>Your friends are going 👀</h2>
-              <Link to="/people">Find people →</Link>
-            </div>
-            <div className="grid-4">
-              {friendEvents.slice(0, 4).map((x) => <EventCard key={x.event.id} event={x.event} />)}
-            </div>
-          </section>
         )}
 
         {/* People going out in the city */}
