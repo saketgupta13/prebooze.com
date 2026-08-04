@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import WysiwygEditor from '../components/WysiwygEditor';
 import { LiveLocationPicker } from '../components/ui';
+import { SocialLinksEditor } from './OrganizerEdit';
 import { liveOrganizers, LiveApiError } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
@@ -25,7 +26,7 @@ export default function AddOrganizer() {
   const [pincode, setPincode] = useState('');
   const [eventTypes, setEventTypes] = useState('Concerts');
   const [about, setAbout] = useState('');
-  const [links, setLinks] = useState('');
+  const [socialLinks, setSocialLinks] = useState<{ instagram?: string; facebook?: string; other?: string[] } | null>(null);
   const [gstin, setGstin] = useState('');
   const [pan, setPan] = useState('');
 
@@ -48,7 +49,7 @@ export default function AddOrganizer() {
         phone: phone.trim() || undefined,
         eventTypes,
         about: about.trim() || undefined,
-        links: links.trim() || undefined,
+        socialLinks: socialLinks ?? undefined,
         gstin: gstin.trim() || undefined,
         pan: pan.trim() || undefined,
       });
@@ -110,8 +111,8 @@ export default function AddOrganizer() {
           <WysiwygEditor value={about} onChange={setAbout} minHeight={56} />
         </div>
         <div className="field">
-          <label>Website & social links</label>
-          <input className="input" value={links} onChange={(e) => setLinks(e.target.value)} placeholder="site / ig / X" />
+          <label>Social links</label>
+          <SocialLinksEditor value={socialLinks} onChange={setSocialLinks} />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <div className="field" style={{ flex: 1 }}>

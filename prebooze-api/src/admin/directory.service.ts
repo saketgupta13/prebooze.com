@@ -222,7 +222,7 @@ export class DirectoryService {
 // computed/relational fields (events, followers, ledger, etc.) stay out of
 // client control.
 const ORGANIZER_EDITABLE = [
-  'brandName', 'city', 'state', 'country', 'pincode', 'about', 'contact', 'contactPerson', 'phone', 'eventTypes', 'links', 'gstin', 'pan', 'bankLast4', 'seo',
+  'brandName', 'city', 'state', 'country', 'pincode', 'about', 'contact', 'contactPerson', 'phone', 'eventTypes', 'socialLinks', 'gstin', 'pan', 'bankLast4', 'seo',
 ];
 const PROMOTER_EDITABLE = ['name', 'city', 'bio', 'contact', 'links', 'planId', 'seo'];
 const LINEUP_EDITABLE = ['name', 'category', 'city', 'state', 'country', 'pincode', 'bio', 'links', 'logoUrl', 'seo'];

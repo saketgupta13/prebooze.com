@@ -10,6 +10,15 @@ import type { Seo } from '../types';
 
 const TITLE = 'Edit organizer';
 
+export function SocialLinksEditor({ value, onChange }: { value: { instagram?: string; facebook?: string; other?: string[] } | null; onChange: (v: { instagram?: string; facebook?: string; other?: string[] }) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <input className="input" value={value?.instagram ?? ''} onChange={(e) => onChange({ ...value, instagram: e.target.value })} placeholder="instagram.com/…" />
+      <input className="input" value={value?.facebook ?? ''} onChange={(e) => onChange({ ...value, facebook: e.target.value })} placeholder="facebook.com/…" />
+    </div>
+  );
+}
+
 /** Edit organizer — real Organizer row (business profile + compliance
  * fields). Bank/KYC docs upload stays a mock toggle here (no real bank
  * verification/penny-drop backend exists yet); the account number itself,
@@ -25,8 +34,9 @@ export default function OrganizerEdit() {
   const [err, setErr] = useState('');
 
   const [form, setForm] = useState({
-    brandName: '', contactPerson: '', contact: '', phone: '', eventTypes: '', about: '', links: '', gstin: '', pan: '', pincode: '',
+    brandName: '', contactPerson: '', contact: '', phone: '', eventTypes: '', about: '', gstin: '', pan: '', pincode: '',
   });
+  const [socialLinks, setSocialLinks] = useState<{ instagram?: string; facebook?: string; other?: string[] } | null>(null);
   const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
   const [seo, setSeo] = useState<Seo>(emptySeo());
   const [bank, setBank] = useState('');
@@ -42,8 +52,9 @@ export default function OrganizerEdit() {
         if (o) {
           setForm({
             brandName: o.brandName, contactPerson: o.contactPerson ?? '', contact: o.contact ?? '', phone: o.phone ?? '',
-            eventTypes: o.eventTypes ?? '', about: o.about ?? '', links: o.links ?? '', gstin: o.gstin ?? '', pan: o.pan ?? '', pincode: o.pincode ?? '',
+            eventTypes: o.eventTypes ?? '', about: o.about ?? '', gstin: o.gstin ?? '', pan: o.pan ?? '', pincode: o.pincode ?? '',
           });
+          setSocialLinks(o.socialLinks ?? null);
           setLoc({ country: o.country ?? 'India', state: o.state ?? '', city: o.city });
           setSeo((o.seo as Seo | null) ?? emptySeo());
         }
@@ -82,6 +93,7 @@ export default function OrganizerEdit() {
         brandName: form.brandName.trim(),
         city: loc.city, state: loc.state || undefined, country: loc.country || undefined,
         bankLast4: bank ? bank.slice(-4) : org.bankLast4 ?? undefined,
+        socialLinks: socialLinks ?? undefined,
         seo,
       });
       navigate(`/organizers/${org.id}`);
@@ -137,8 +149,8 @@ export default function OrganizerEdit() {
           <WysiwygEditor value={form.about} onChange={(html) => setForm((f) => ({ ...f, about: html }))} minHeight={60} />
         </div>
         <div className="field">
-          <label>Website & social links</label>
-          <input className="input" value={form.links} onChange={set('links')} placeholder="site / ig / X" />
+          <label>Social links</label>
+          <SocialLinksEditor value={socialLinks} onChange={setSocialLinks} />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <div className="field" style={{ flex: 1 }}>
