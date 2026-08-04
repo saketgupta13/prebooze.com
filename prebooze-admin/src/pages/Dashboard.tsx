@@ -39,7 +39,7 @@ export default function Dashboard() {
     Promise.all([liveDashboard.overview(days, topCity === 'All' ? undefined : topCity), liveEvents.list()])
       .then(([d, evs]) => {
         setData(d);
-        setCities([...new Set(evs.map((e) => e.venue.city))]);
+        setCities([...new Set(evs.map((e) => e.venue?.city ?? e.privateCity).filter((c): c is string => !!c))]);
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));

@@ -8,6 +8,7 @@ import { isBackendEnabled } from '../api/client';
 import { existingRole, roleHome, roleLabel } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { track } from '../lib/track';
+import { eventLocation } from '../lib/venue';
 
 const ABSORBED_NOTE: Record<string, string> = {
   Organizer: 'absorbed by the organizer',
@@ -298,7 +299,7 @@ export default function Checkout() {
     );
   }
 
-  const venue = event.venue ?? venueById(event.venueId);
+  const venue = event.venue ?? (event.venueId ? venueById(event.venueId) : undefined);
 
   const applyCoupon = () => {
     const code = couponInput.trim().toUpperCase();
@@ -648,7 +649,7 @@ export default function Checkout() {
           <aside className="card card-shadow ticket-box">
             <h3>{event.title}</h3>
             <div className="small muted" style={{ marginBottom: 10 }}>
-              {fmtDate(event.date)} · {fmtTime(event.date)} · {venue.name}
+              {fmtDate(event.date)} · {fmtTime(event.date)} · {eventLocation(event, venue)}
             </div>
             {lines.map((l) => (
               <div key={l.tier.id} className="kv">

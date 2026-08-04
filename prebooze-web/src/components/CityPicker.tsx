@@ -29,7 +29,7 @@ export default function CityPicker({ open, onClose, autoDetect = false }: { open
   const mockEventCounts = useMemo(() => {
     const m = new Map<string, number>();
     EVENTS.filter((e) => e.status === 'approved').forEach((e) => {
-      const c = venueById(e.venueId)?.city;
+      const c = (e.venueId ? venueById(e.venueId)?.city : e.privateCity) ?? undefined;
       if (c) m.set(c, (m.get(c) ?? 0) + 1);
     });
     return m;

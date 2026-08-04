@@ -150,9 +150,13 @@ export interface LiveEvent {
   commission: number | null;
   paidOut: boolean;
   salesPaused: boolean;
-  venueId: string;
+  // Optional — a private-address event has no venueId at all; privateCity/
+  // privateLocality are set instead, and that's all guests ever see.
+  venueId: string | null;
+  privateCity: string | null;
+  privateLocality: string | null;
   organizerId: string;
-  venue: { id: string; name: string; city: string };
+  venue: { id: string; name: string; city: string } | null;
   organizer: { id: string; brandName: string };
   tiers: LiveTicketTier[];
 }
@@ -166,7 +170,9 @@ export interface LiveEventInput {
   ageLimit?: string;
   date?: string;
   durationHrs?: number;
-  venueId: string;
+  venueId?: string;
+  privateCity?: string;
+  privateLocality?: string;
   status?: 'draft' | 'pending';
   conditions?: string[];
   rules?: LivePartyRule[];

@@ -17,6 +17,7 @@ import { isBackendEnabled } from '../api/client';
 import type { Event, LineupProfile, PromoterProfile, WaitlistEntry } from '../types';
 import type { GuestReview } from '../store/AppContext';
 import { goingCount, myStatus } from '../lib/social';
+import { eventLocation } from '../lib/venue';
 import { existingRole, roleLabel } from '../lib/roles';
 import { stripHtml } from '../lib/richtext';
 import { useSeo } from '../lib/useSeo';
@@ -171,7 +172,7 @@ export default function EventDetail() {
     );
   }
 
-  const venue = event.venue ?? venueById(event.venueId);
+  const venue = event.venue ?? (event.venueId ? venueById(event.venueId) : undefined);
   const organizer = event.organizer ?? organizerById(event.organizerId);
   // A role account showing "Interested" in their own event (as its
   // organizer/venue, or as a line-up tagged on it) isn't a real guest
@@ -225,7 +226,13 @@ export default function EventDetail() {
                 <h1>{event.title}</h1>
                 <div className="detail-meta">
                   <span>📅 {fmtDate(event.date)}, {fmtTime(event.date)}</span>
-                  <span>📍 <Link to={`/venues/${venue.id}`} className="link">{venue.name}</Link>, {venue.city}</span>
+                  <span>
+                    📍 {venue ? (
+                      <><Link to={`/venues/${venue.id}`} className="link">{venue.name}</Link>, {venue.city}</>
+                    ) : (
+                      eventLocation(event)
+                    )}
+                  </span>
                   <span>⏱ {event.durationHrs} hrs</span>
                   {going > 0 && (
                     <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
@@ -270,24 +277,35 @@ export default function EventDetail() {
                     <span className="link small">View →</span>
                   </Link>
 
-                  <Link
-                    to={`/venues/${venue.id}`}
-                    className="evrow"
-                    style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
-                  >
-                    {venue.logoUrl ? (
-                      <img src={venue.logoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
-                    ) : (
-                      <span className="avatar">🏛</span>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="tiny muted-2">Hosted at</div>
-                      <div className="bold small">
-                        {venue.name} {venue.verified && <span className="verified">✓</span>}
+                  {venue ? (
+                    <Link
+                      to={`/venues/${venue.id}`}
+                      className="evrow"
+                      style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
+                    >
+                      {venue.logoUrl ? (
+                        <img src={venue.logoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
+                      ) : (
+                        <span className="avatar">🏛</span>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="tiny muted-2">Hosted at</div>
+                        <div className="bold small">
+                          {venue.name} {venue.verified && <span className="verified">✓</span>}
+                        </div>
                       </div>
+                      <span className="link small">View →</span>
+                    </Link>
+                  ) : (
+                    <div className="evrow" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
+                      <span className="avatar">📍</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="tiny muted-2">Location</div>
+                        <div className="bold small">{eventLocation(event)}</div>
+                      </div>
+                      <span className="tiny muted-2">Exact address shared by the organizer</span>
                     </div>
-                    <span className="link small">View →</span>
-                  </Link>
+                  )}
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
                     <div style={{ minWidth: 0 }}>

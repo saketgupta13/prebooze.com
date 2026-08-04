@@ -286,7 +286,7 @@ export class BookingsService {
     // documented AiSensy constraint — no arbitrary media/PDF attachment on a
     // campaign template send). The real PDF ticket goes out on email below.
     await this.wa.send(input.whatsapp, 'booking_confirmed', [input.mainGuest.trim(), event.title, String(qty), id, String(total)]).catch(() => {});
-    const ticketVenue = await this.prisma.venue.findUnique({ where: { id: event.venueId } });
+    const ticketVenue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
     const ticketPdf = await ticketPdfBuffer(booking, event, ticketVenue).catch(() => null);
     await this.email.sendTemplate(user.email, 'booking_confirmed', {
       name: input.mainGuest.trim(), eventTitle: event.title, qty: String(qty), bookingId: id, total: money(total),

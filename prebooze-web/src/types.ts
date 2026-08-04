@@ -31,7 +31,13 @@ export interface Event {
   tags: string[];
   date: string; // ISO
   durationHrs: number;
-  venueId: string;
+  // Optional — a private-address event (organizer keeps the exact venue
+  // off the platform, tells booked guests themselves) has no venueId at
+  // all; privateCity/privateLocality are set instead and that's all guests
+  // ever see. Exactly one of the two modes is set, never both.
+  venueId?: string | null;
+  privateCity?: string | null;
+  privateLocality?: string | null;
   organizerId: string;
   status: EventStatus;
   rejectionReason?: string;

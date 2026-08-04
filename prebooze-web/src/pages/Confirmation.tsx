@@ -8,6 +8,7 @@ import type { Booking } from '../types';
 import QRCode from '../components/QRCode';
 import { downloadTicket } from '../lib/ticket';
 import { downloadIcs } from '../lib/calendar';
+import { eventLocation } from '../lib/venue';
 
 export default function Confirmation() {
   const { id } = useParams();
@@ -49,7 +50,7 @@ export default function Confirmation() {
     );
   }
 
-  const venue = event.venue ?? venueById(event.venueId);
+  const venue = event.venue ?? (event.venueId ? venueById(event.venueId) : undefined);
   const shareUrl = `${window.location.origin}/events/${event.slug}`;
   const visibility = user?.attendanceVisibility ?? 'off';
   const copy = () => {
@@ -72,7 +73,7 @@ export default function Confirmation() {
         <div className="card card-shadow" style={{ textAlign: 'center' }}>
           <h2 style={{ fontSize: 20 }}>{event.title}</h2>
           <div className="muted small" style={{ margin: '6px 0 4px' }}>
-            {fmtDate(event.date)} · {fmtTime(event.date)} · {venue.name}, {venue.city}
+            {fmtDate(event.date)} · {fmtTime(event.date)} · {eventLocation(event, venue)}
           </div>
           <div className="small" style={{ marginBottom: 14 }}>
             {booking.tierName} · Booking {booking.id}{' '}

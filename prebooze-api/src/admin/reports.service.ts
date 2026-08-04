@@ -69,7 +69,7 @@ export class ReportsService {
 
     const events = await this.prisma.event.findMany({
       where: { status: { not: 'draft' } },
-      select: { id: true, title: true, commission: true, paidOut: true, venue: { select: { city: true } } },
+      select: { id: true, title: true, commission: true, paidOut: true, privateCity: true, venue: { select: { city: true } } },
     });
 
     const revenueByEvent = await this.prisma.booking.groupBy({
@@ -111,7 +111,7 @@ export class ReportsService {
     const refundsPendingAgg = await this.prisma.booking.aggregate({ where: { status: 'refund_requested' }, _sum: { total: true } });
     const refundsPending = refundsPendingAgg._sum.total ?? 0;
 
-    const topPool = city ? enriched.filter((e) => e.venue.city === city) : enriched;
+    const topPool = city ? enriched.filter((e) => (e.venue?.city ?? e.privateCity) === city) : enriched;
     const topEvents = [...topPool]
       .filter((e) => e.revenue > 0)
       .sort((a, b) => b.revenue - a.revenue)

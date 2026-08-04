@@ -41,7 +41,9 @@ export class FeaturedService {
         const org = await this.prisma.organizer.findUnique({ where: { userId } });
         const event = await this.prisma.event.findUnique({ where: { id: refId }, include: { venue: true } });
         if (!org || !event || event.organizerId !== org.id) throw new ForbiddenException();
-        return { city: event.venue.city, expiresAt: event.date };
+        const city = event.venue?.city ?? event.privateCity;
+        if (!city) throw new ForbiddenException();
+        return { city, expiresAt: event.date };
       }
       case 'organizer': {
         const org = await this.prisma.organizer.findUnique({ where: { userId } });

@@ -6,7 +6,7 @@ import {
 } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
-import { MultiSelectSearch, SingleSelectSearch } from '../components/ui';
+import { LiveLocationPicker, MultiSelectSearch, SingleSelectSearch } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import WysiwygEditor from '../components/WysiwygEditor';
 import RealImageUpload from '../components/RealImageUpload';
@@ -79,6 +79,12 @@ export default function EventEditorReal() {
   const [category, setCategory] = useState('');
   const [subCategory, setSubCategory] = useState('');
   const [venueId, setVenueId] = useState('');
+  // Private-address mode — no registered Venue at all, just a city/locality.
+  // Guests only ever see "{locality}, {city}"; the organizer is responsible
+  // for telling booked guests the real address themselves.
+  const [privateAddress, setPrivateAddress] = useState(false);
+  const [privateLoc, setPrivateLoc] = useState({ country: 'India', state: '', city: '' });
+  const [privateLocality, setPrivateLocality] = useState('');
   const [organizerId, setOrganizerId] = useState('');
   const [dateTime, setDateTime] = useState('');
   const [durationHrs, setDurationHrs] = useState('4');
@@ -119,7 +125,13 @@ export default function EventEditorReal() {
               setDescription(found.description ?? '');
               setCategory(found.category);
               setSubCategory(found.subCategory ?? '');
-              setVenueId(found.venueId);
+              if (found.venueId) {
+                setVenueId(found.venueId);
+              } else {
+                setPrivateAddress(true);
+                setPrivateLoc({ country: 'India', state: '', city: found.privateCity ?? '' });
+                setPrivateLocality(found.privateLocality ?? '');
+              }
               setOrganizerId(found.organizerId);
               setDateTime(found.date ? toLocalDateTimeInput(found.date) : '');
               setDurationHrs(String(found.durationHrs ?? 4));
@@ -161,7 +173,7 @@ export default function EventEditorReal() {
   const gate = useLiveGate(isCreate ? 'Create event (live)' : `Edit event (live)`, session);
   if (gate) return gate;
 
-  const canSave = title.trim() && venueId && organizerId && (isCreate ? dateTime.trim() : true);
+  const canSave = title.trim() && (privateAddress ? privateLoc.city && privateLocality.trim() : venueId) && organizerId && (isCreate ? dateTime.trim() : true);
 
   const buildInput = (): Omit<LiveEventInput, 'id'> => ({
     organizerId,
@@ -172,7 +184,7 @@ export default function EventEditorReal() {
     ageLimit,
     date: dateTime ? new Date(dateTime).toISOString() : undefined,
     durationHrs: parseFloat(durationHrs) || undefined,
-    venueId,
+    ...(privateAddress ? { privateCity: privateLoc.city, privateLocality: privateLocality.trim() } : { venueId }),
     conditions: conditions.split('\n').map((s) => s.trim()).filter(Boolean),
     rules: rules.filter((r) => r.title.trim() || r.body.trim()),
     lineup: lineupItems,
@@ -201,7 +213,7 @@ export default function EventEditorReal() {
 
   const save = async () => {
     if (!canSave) {
-      setErr('Title, venue, organizer (and date, for a new event) are required');
+      setErr('Title, a venue (or city + locality for a private event), organizer (and date, for a new event) are required');
       setTab('basics');
       return;
     }
@@ -338,14 +350,37 @@ export default function EventEditorReal() {
             </select>
           </div>
           <div className="field">
-            <label>Venue</label>
-            <SingleSelectSearch
-              items={venues.map((v) => ({ id: v.id, label: v.name, sub: v.city }))}
-              selectedId={venueId}
-              onChange={setVenueId}
-              placeholder="🔍 search venues…"
-            />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
+              <input type="checkbox" checked={privateAddress} onChange={(e) => setPrivateAddress(e.target.checked)} />
+              Keep exact address private — organizer will share it with guests themselves
+            </label>
           </div>
+          {privateAddress ? (
+            <div className="field">
+              <label>City &amp; locality</label>
+              <LiveLocationPicker value={privateLoc} onChange={setPrivateLoc} />
+              <input
+                className="input"
+                style={{ marginTop: 8 }}
+                value={privateLocality}
+                onChange={(e) => setPrivateLocality(e.target.value)}
+                placeholder="Locality, e.g. Banjara Hills"
+              />
+              <div className="tiny muted" style={{ marginTop: 6 }}>
+                Guests will only ever see "{privateLocality || 'locality'}, {privateLoc.city || 'city'}" — no venue name, no address, no map.
+              </div>
+            </div>
+          ) : (
+            <div className="field">
+              <label>Venue</label>
+              <SingleSelectSearch
+                items={venues.map((v) => ({ id: v.id, label: v.name, sub: v.city }))}
+                selectedId={venueId}
+                onChange={setVenueId}
+                placeholder="🔍 search venues…"
+              />
+            </div>
+          )}
           <div className="field">
             <label>Organizer</label>
             <SingleSelectSearch

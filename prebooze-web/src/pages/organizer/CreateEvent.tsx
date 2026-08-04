@@ -67,6 +67,14 @@ export default function CreateEvent() {
   const [time, setTime] = useState('20:00');
   const [duration, setDuration] = useState('3');
   const [venueId, setVenueId] = useState('');
+  // Private-address mode — no registered Venue at all, just a city (from the
+  // same real GET /cities list guests filter by) + free-text locality.
+  // Guests only ever see "{locality}, {city}"; the organizer is responsible
+  // for telling booked guests the real address themselves.
+  const [privateAddress, setPrivateAddress] = useState(false);
+  const [liveCities, setLiveCities] = useState<string[]>([]);
+  const [privateCity, setPrivateCity] = useState('');
+  const [privateLocality, setPrivateLocality] = useState('');
 
   // Step 0 — media (real uploads, POST /organizer/upload)
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
@@ -106,13 +114,15 @@ export default function CreateEvent() {
       catalog.lineups(),
       catalog.promoters(),
       catalog.categories(),
+      catalog.cities(),
       editId ? organizer.events().then((evs) => evs.find((e) => e.id === editId)) : Promise.resolve(undefined),
     ])
-      .then(([vs, ls, ps, cats, ev]) => {
+      .then(([vs, ls, ps, cats, cities, ev]) => {
         setVenues(vs);
         setLineups(ls);
         setPromoters(ps);
         setCategories(cats);
+        setLiveCities(cities.map((c) => c.name).sort());
         const subsForCat = (cat: string) => cats.find((c) => c.name === cat)?.subs ?? [];
         if (!ev) setSubCategory(subsForCat(category)[0] ?? '');
         if (ev) {
@@ -130,7 +140,13 @@ export default function CreateEvent() {
           setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
           setTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
           setDuration(String(ev.durationHrs));
-          setVenueId(ev.venueId);
+          if (ev.venueId) {
+            setVenueId(ev.venueId);
+          } else {
+            setPrivateAddress(true);
+            setPrivateCity(ev.privateCity ?? '');
+            setPrivateLocality(ev.privateLocality ?? '');
+          }
           setPosterUrl(ev.posterUrl ?? null);
           setGalleryUrls(ev.galleryUrls ?? []);
           setTeaserVideoUrl(ev.teaserVideoUrl ?? null);
@@ -179,7 +195,7 @@ export default function CreateEvent() {
     [seoSlug, title]
   );
 
-  const step1Valid = title.trim() && date && venueId;
+  const step1Valid = title.trim() && date && (privateAddress ? privateCity.trim() && privateLocality.trim() : venueId);
   const tiersValid = tiers.length > 0 && tiers.every((t) => t.name.trim() && +t.price >= 0 && +t.quantity > 0);
 
   const buildPayload = (status: 'draft' | 'pending') => ({
@@ -192,7 +208,9 @@ export default function CreateEvent() {
     tags: [category === 'Concerts' ? 'Concert' : category, ageLimit],
     date: new Date(`${date}T${time}`).toISOString(),
     durationHrs: +duration,
-    venueId,
+    ...(privateAddress
+      ? { privateCity: privateCity.trim(), privateLocality: privateLocality.trim() }
+      : { venueId }),
     status,
     conditions: conditions.split('\n').filter(Boolean),
     rules: rules.filter((r) => r.title.trim() || r.body.trim()),
@@ -239,6 +257,7 @@ export default function CreateEvent() {
   };
 
   const venue = venues.find((v) => v.id === venueId);
+  const cityForSeo = venue?.city ?? (privateAddress ? privateCity : '');
   const setTier = (i: number, patch: Partial<TierDraft>) =>
     setTiers((prev) => prev.map((t, x) => (x === i ? { ...t, ...patch } : t)));
 
@@ -268,7 +287,7 @@ export default function CreateEvent() {
               <h1 style={{ fontSize: 24 }}>{ev.title}</h1>
               <div className="detail-meta">
                 <span>📅 {fmtDate(ev.date)}, {fmtTime(ev.date)}</span>
-                <span>📍 {venue?.name}, {venue?.city}</span>
+                <span>📍 {venue ? `${venue.name}, ${venue.city}` : privateAddress ? `${privateLocality}, ${privateCity}` : ''}</span>
                 <span>⏱ {ev.durationHrs} hrs</span>
               </div>
               <div className="chip-row">
@@ -385,20 +404,50 @@ export default function CreateEvent() {
             </div>
           </div>
           <div className="field">
-            <span>Venue</span>
-            <SearchableSelect
-              value={venue ? venueLabel(venue) : ''}
-              onChange={(label) => {
-                const v = venues.find((vv) => venueLabel(vv) === label);
-                if (v) setVenueId(v.id);
-              }}
-              options={venues.map(venueLabel)}
-              placeholder="🔍 search venues…"
-            />
-            <div className="tiny muted-2" style={{ marginTop: 6 }}>
-              Venue not listed? They need to register as a Prebooze venue partner first.
-            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
+              <input type="checkbox" checked={privateAddress} onChange={(e) => setPrivateAddress(e.target.checked)} />
+              Keep exact address private — I'll share it with guests myself
+            </label>
           </div>
+          {privateAddress ? (
+            <div className="field">
+              <span>City & locality</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <SearchableSelect
+                  value={privateCity}
+                  onChange={setPrivateCity}
+                  options={liveCities}
+                  placeholder="🔍 search cities…"
+                />
+                <input
+                  value={privateLocality}
+                  onChange={(e) => setPrivateLocality(e.target.value)}
+                  placeholder="Locality, e.g. Banjara Hills"
+                  style={{ flex: 1 }}
+                />
+              </div>
+              <div className="tiny muted-2" style={{ marginTop: 6 }}>
+                Guests will only ever see "{privateLocality || 'locality'}, {privateCity || 'city'}" — no venue name, no address, no map. You're
+                responsible for sending the real address to everyone who books (export the attendee list from Attendees once tickets sell).
+              </div>
+            </div>
+          ) : (
+            <div className="field">
+              <span>Venue</span>
+              <SearchableSelect
+                value={venue ? venueLabel(venue) : ''}
+                onChange={(label) => {
+                  const v = venues.find((vv) => venueLabel(vv) === label);
+                  if (v) setVenueId(v.id);
+                }}
+                options={venues.map(venueLabel)}
+                placeholder="🔍 search venues…"
+              />
+              <div className="tiny muted-2" style={{ marginTop: 6 }}>
+                Venue not listed? They need to register as a Prebooze venue partner first.
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button className="btn btn-ghost" disabled={saving} onClick={() => save('draft')}>
               {saving ? 'Saving…' : 'Save draft'}
@@ -702,7 +751,7 @@ export default function CreateEvent() {
             <input
               value={seoTitle}
               onChange={(e) => setSeoTitle(e.target.value)}
-              placeholder={`${title || 'Event'} | ${venue?.city ?? ''} tickets`}
+              placeholder={`${title || 'Event'} | ${cityForSeo} tickets`}
             />
           </div>
           <div className="field">
@@ -723,7 +772,7 @@ export default function CreateEvent() {
               Search preview:
             </div>
             <div style={{ color: '#8ab4f8', fontSize: 16, fontWeight: 600 }}>
-              {seoTitle || `${title || 'Your event'} | ${venue?.city ?? ''} tickets`}
+              {seoTitle || `${title || 'Your event'} | ${cityForSeo} tickets`}
             </div>
             <div style={{ color: '#4fd394', fontSize: 12 }}>prebooze.com/events/{slug || 'your-event'}</div>
             <div className="muted small">{seoDesc || description.slice(0, 140) || 'Meta description preview…'}</div>

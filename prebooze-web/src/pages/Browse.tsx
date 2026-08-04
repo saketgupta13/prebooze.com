@@ -56,12 +56,12 @@ export default function Browse() {
       // /events response replaces it.
       list = [];
     } else {
-      list = EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city);
+      list = EVENTS.filter((e) => e.status === 'approved' && (e.venueId ? venueById(e.venueId).city : e.privateCity) === city);
       if (q)
         list = list.filter(
           (e) =>
             e.title.toLowerCase().includes(q) ||
-            venueById(e.venueId).name.toLowerCase().includes(q) ||
+            (e.venueId ? venueById(e.venueId).name : e.privateLocality ?? '').toLowerCase().includes(q) ||
             e.lineup.some((l) => l.name.toLowerCase().includes(q))
         );
       if (cat !== 'Category') list = list.filter((e) => e.category === cat);
@@ -90,7 +90,7 @@ export default function Browse() {
   const subCounts = useMemo(() => {
     if (cat === 'Category') return new Map<string, number>();
     const m = new Map<string, number>();
-    const source = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city));
+    const source = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved' && (e.venueId ? venueById(e.venueId).city : e.privateCity) === city));
     source.filter((e) => e.category === cat).forEach((e) => e.subCategory && m.set(e.subCategory, (m.get(e.subCategory) ?? 0) + 1));
     return m;
   }, [cat, city, liveEvents]);

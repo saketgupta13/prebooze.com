@@ -31,7 +31,7 @@ export default function Categories() {
   // this briefly fell through to the mock EVENTS array on every real page
   // load, flashing wrong mock-derived counts before the real ones replaced
   // them a moment later.
-  const cityEvents = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved' && venueById(e.venueId).city === city));
+  const cityEvents = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved' && (e.venueId ? venueById(e.venueId).city : e.privateCity) === city));
   const categories = liveCategories ?? (isBackendEnabled() ? [] : CATEGORY_TREE);
   const catCount = (cat: string) => cityEvents.filter((e) => e.category === cat).length;
   const subCount = (cat: string, sub: string) => cityEvents.filter((e) => e.category === cat && e.subCategory === sub).length;

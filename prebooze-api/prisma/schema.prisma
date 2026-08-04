@@ -528,8 +528,17 @@ model Event {
   tags             String[]         @default([])
   date             DateTime
   durationHrs      Float
-  venueId          String
-  venue            Venue            @relation(fields: [venueId], references: [id])
+  // Optional — an organizer running a secret/guest-list-only event can skip
+  // registering a real Venue partner entirely and instead set privateCity/
+  // privateLocality below. Guests then only ever see "{locality}, {city}",
+  // never a linked venue profile or street address; the organizer is
+  // responsible for telling booked guests the real address themselves
+  // (see Attendees.tsx export). Exactly one of venueId or
+  // privateCity+privateLocality is set — enforced in OrganizerService.saveEvent.
+  venueId          String?
+  venue            Venue?           @relation(fields: [venueId], references: [id])
+  privateCity      String?
+  privateLocality  String?
   organizerId      String
   organizer        Organizer        @relation(fields: [organizerId], references: [id])
   status           EventStatus      @default(pending)

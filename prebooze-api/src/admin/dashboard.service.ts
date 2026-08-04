@@ -56,13 +56,14 @@ export class DashboardService {
     // ---- top selling events (by tickets sold), optionally city-filtered ----
     const events = await this.prisma.event.findMany({
       where: { status: { not: 'draft' } },
-      select: { id: true, title: true, venue: { select: { city: true } } },
+      select: { id: true, title: true, privateCity: true, venue: { select: { city: true } } },
     });
+    const eventCity = (e: (typeof events)[number]) => e.venue?.city ?? e.privateCity ?? '';
     const soldByEvent = await this.prisma.booking.groupBy({ by: ['eventId'], where: { status: { in: LIVE_BOOKING_STATUSES } }, _sum: { qty: true } });
     const soldMap = new Map(soldByEvent.map((r) => [r.eventId, r._sum.qty ?? 0]));
-    const pool = city ? events.filter((e) => e.venue.city === city) : events;
+    const pool = city ? events.filter((e) => eventCity(e) === city) : events;
     const topSellingEvents = pool
-      .map((e) => ({ id: e.id, title: e.title, city: e.venue.city, sold: soldMap.get(e.id) ?? 0 }))
+      .map((e) => ({ id: e.id, title: e.title, city: eventCity(e), sold: soldMap.get(e.id) ?? 0 }))
       .filter((e) => e.sold > 0)
       .sort((a, b) => b.sold - a.sold)
       .slice(0, 5);

@@ -8,6 +8,7 @@ import type { Booking } from '../types';
 import QRCode from '../components/QRCode';
 import { downloadTicket } from '../lib/ticket';
 import { downloadIcs } from '../lib/calendar';
+import { eventLocation } from '../lib/venue';
 
 const REFUND_BADGE: Record<string, { cls: string; label: string }> = {
   refunded: { cls: 'badge-accent', label: 'Refunded ↩' },
@@ -47,7 +48,7 @@ export default function MyBookings() {
 
   const selected = list.find((b) => b.id === selectedId) ?? list[0];
   const event = selected ? resolveEvent(selected) : undefined;
-  const venue = event ? (event.venue ?? venueById(event.venueId)) : undefined;
+  const venue = event ? (event.venue ?? (event.venueId ? venueById(event.venueId) : undefined)) : undefined;
 
   const doRefund = async (id: string, refundTo: 'wallet' | 'source') => {
     if (liveBookings) {
@@ -121,13 +122,13 @@ export default function MyBookings() {
               })}
             </div>
 
-            {selected && event && venue && (
+            {selected && event && (
               <div className="card card-shadow" style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 240 }}>
                   <h2 style={{ fontSize: 20 }}>{event.title}</h2>
                   <div style={{ display: 'grid', gap: 7, margin: '12px 0', fontSize: 14 }} className="muted">
                     <span>📅 {fmtDate(event.date)}, {fmtTime(event.date)}</span>
-                    <span>📍 {venue.name}, {venue.city}</span>
+                    <span>📍 {eventLocation(event, venue)}</span>
                     <span>🎟 {selected.tierName} · {selected.id}</span>
                     <span>
                       💳 Paid ₹{selected.total} ·{' '}

@@ -39,7 +39,7 @@ export async function ticketPdfBuffer(booking: TicketBooking, event: Event, venu
     doc.fillColor(MUTED).fontSize(9).font('Helvetica');
     doc.text(`${event.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · ${event.date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`, 24, y, { width: 272 });
     y += 14;
-    doc.text(venue ? `${venue.name}, ${venue.city}` : 'Venue TBA', 24, y, { width: 272 });
+    doc.text(venue ? `${venue.name}, ${venue.city}` : event.privateLocality && event.privateCity ? `${event.privateLocality}, ${event.privateCity}` : 'Venue TBA', 24, y, { width: 272 });
     y += 14;
     doc.text(booking.tierName, 24, y, { width: 272 });
     y += 14;

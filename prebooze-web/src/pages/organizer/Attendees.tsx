@@ -32,7 +32,7 @@ export default function Attendees() {
         setEvents(evs);
         const perEvent = await Promise.all(
           evs.map((e) =>
-            organizer.attendees(e.id).then((list) => list.map((a) => ({ ...a, eventId: e.id, eventTitle: e.title, city: e.venue?.city ?? '' })))
+            organizer.attendees(e.id).then((list) => list.map((a) => ({ ...a, eventId: e.id, eventTitle: e.title, city: e.venue?.city ?? e.privateCity ?? '' })))
           )
         );
         setRows(perEvent.flat());
@@ -41,7 +41,7 @@ export default function Attendees() {
       .finally(() => setLoading(false));
   }, []);
 
-  const cities = useMemo(() => ['All', ...new Set(events.map((e) => e.venue?.city).filter(Boolean) as string[])], [events]);
+  const cities = useMemo(() => ['All', ...new Set(events.map((e) => e.venue?.city ?? e.privateCity).filter(Boolean) as string[])], [events]);
 
   const rowStatus = (r: Row) => (r.checkedIn ? 'checked-in' : r.bookingStatus === 'cancelled' || r.bookingStatus === 'refunded' ? 'refunded' : 'confirmed');
 
@@ -59,10 +59,14 @@ export default function Attendees() {
   const total = rows.length;
   const checkedIn = rows.filter((r) => r.checkedIn).length;
 
+  // Exports whatever's currently filtered, not every attendee ever — an
+  // organizer picking a single event (e.g. to manually message a
+  // private-address event's guests the real venue) needs just that list,
+  // not their entire booking history mixed in.
   const exportCsv = () => {
     const csv = [
       'name,booking,phone,tier,event,status',
-      ...rows.map((r) => `"${r.name}",${r.bookingId},${r.whatsapp},"${r.tierName}","${r.eventTitle}",${rowStatus(r)}`),
+      ...filtered.map((r) => `"${r.name}",${r.bookingId},${r.whatsapp},"${r.tierName}","${r.eventTitle}",${rowStatus(r)}`),
     ].join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));

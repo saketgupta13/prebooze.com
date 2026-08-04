@@ -32,7 +32,13 @@ export interface EventInput {
   tags?: string[];
   date?: string;
   durationHrs?: number;
-  venueId: string;
+  // Exactly one of venueId or privateCity+privateLocality should be sent —
+  // whichever is present (checked via `!== undefined`, so the other mode's
+  // fields must be entirely omitted, not sent as ''/null) decides the mode.
+  // Omitting both on an edit leaves the event's existing mode untouched.
+  venueId?: string;
+  privateCity?: string;
+  privateLocality?: string;
   status?: 'draft' | 'pending' | 'approved' | 'rejected';
   conditions?: string[];
   rules?: unknown;
@@ -252,11 +258,6 @@ export class OrganizerService {
    * way, just a different source of truth for organizerId/ownership. */
   private async saveEvent(organizerId: string, organizerBrandName: string, input: EventInput) {
     if (!input.title?.trim()) throw new BadRequestException('title is required');
-    if (!input.venueId) throw new BadRequestException('venueId is required');
-    const venue = await this.prisma.venue.findUnique({ where: { id: input.venueId } });
-    if (!venue) throw new BadRequestException('Unknown venue');
-
-    const status = input.status === 'draft' ? 'draft' : 'pending';
 
     let eventId = input.id;
     let slug: string | undefined;
@@ -268,6 +269,34 @@ export class OrganizerService {
     } else {
       eventId = 'ev-' + randomBytes(6).toString('hex');
       slug = await this.uniqueSlug(slugifyBase(input.title));
+    }
+
+    const status = input.status === 'draft' ? 'draft' : 'pending';
+
+    // Mode is decided by which the client actually sent, not by truthiness —
+    // omitting both keys entirely (e.g. a status-only resubmit) leaves
+    // whichever mode the event already had. A private-address event has no
+    // real Venue row at all; guests only ever see privateLocality/privateCity.
+    let venueId: string | null;
+    let privateCity: string | null;
+    let privateLocality: string | null;
+    if (input.venueId !== undefined) {
+      const venue = input.venueId ? await this.prisma.venue.findUnique({ where: { id: input.venueId } }) : null;
+      if (!venue) throw new BadRequestException('Unknown venue');
+      venueId = venue.id;
+      privateCity = null;
+      privateLocality = null;
+    } else if (input.privateCity !== undefined || input.privateLocality !== undefined) {
+      privateCity = input.privateCity?.trim() || null;
+      privateLocality = input.privateLocality?.trim() || null;
+      if (!privateCity || !privateLocality) throw new BadRequestException('Both city and locality are required for a private-address event');
+      venueId = null;
+    } else if (existing) {
+      venueId = existing.venueId;
+      privateCity = existing.privateCity;
+      privateLocality = existing.privateLocality;
+    } else {
+      throw new BadRequestException('Pick a venue, or set both a city and locality for a private-address event');
     }
 
     // An edit is a merge onto the existing row, not a wholesale replace —
@@ -282,7 +311,9 @@ export class OrganizerService {
       tags: input.tags ?? existing?.tags ?? [],
       date: input.date ? new Date(input.date) : (existing?.date ?? new Date()),
       durationHrs: input.durationHrs ?? existing?.durationHrs ?? 0,
-      venueId: input.venueId,
+      venueId,
+      privateCity,
+      privateLocality,
       organizerId,
       status: status as never,
       conditions: input.conditions ?? existing?.conditions ?? [],

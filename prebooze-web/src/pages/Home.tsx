@@ -174,7 +174,7 @@ export default function Home() {
   // mock EVENTS in production too, flashing wrong events before the real
   // GET /events response replaced them a moment later.
   const published = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved'));
-  const cityOf = (e: Event) => e.venue?.city ?? venueById(e.venueId)?.city;
+  const cityOf = (e: Event) => e.venue?.city ?? e.privateCity ?? (e.venueId ? venueById(e.venueId)?.city : undefined);
   const soldOf = (e: Event) => e.tiers.reduce((a, t) => a + t.sold, 0);
   const events = useMemo(
     () =>

@@ -50,6 +50,7 @@ const PUBLIC_VENUE_SELECT = {
 const PUBLIC_EVENT_SELECT = {
   id: true, slug: true, title: true, description: true, category: true, subCategory: true,
   ageLimit: true, tags: true, date: true, durationHrs: true, venueId: true, status: true,
+  privateCity: true, privateLocality: true,
   conditions: true, rules: true, lineup: true, posterHue: true, seo: true, promoterConfig: true,
   socialBanners: true, salesPaused: true, posterUrl: true, galleryUrls: true, teaserVideoUrl: true,
   createdAt: true, updatedAt: true,
@@ -97,7 +98,7 @@ export class CatalogService {
     const events = await this.prisma.event.findMany({
       where: {
         status: 'approved',
-        ...(q.city ? { venue: { city: q.city } } : {}),
+        ...(q.city ? { OR: [{ venue: { city: q.city } }, { privateCity: q.city }] } : {}),
         ...(q.cat ? { category: q.cat } : {}),
         ...(q.sub ? { subCategory: q.sub } : {}),
         ...(q.search ? { title: { contains: q.search, mode: 'insensitive' } } : {}),
@@ -375,19 +376,24 @@ export class CatalogService {
     // `enabled` (Admin API locations slice) — a disabled city drops out of
     // the public picker entirely, matching the mock's cascading toggle.
     const cities = await this.prisma.city.findMany({ where: { enabled: true }, orderBy: { sort: 'asc' } });
-    const counts = await this.prisma.event.groupBy({
-      by: ['venueId'],
-      where: { status: 'approved' },
-      _count: true,
-    });
+    // Two counts, not one — a private-address event has no venueId to group
+    // by, so it'd silently vanish from every city's tally without this.
+    const [venueCounts, privateCounts] = await Promise.all([
+      this.prisma.event.groupBy({ by: ['venueId'], where: { status: 'approved', venueId: { not: null } }, _count: true }),
+      this.prisma.event.groupBy({ by: ['privateCity'], where: { status: 'approved', privateCity: { not: null } }, _count: true }),
+    ]);
     // map venueId -> city, then aggregate counts per city
     const venues = await this.prisma.venue.findMany({ select: { id: true, city: true } });
     const venueCity = new Map(venues.map((v) => [v.id, v.city]));
     const eventsByCity = new Map<string, number>();
-    for (const c of counts) {
-      const city = venueCity.get(c.venueId);
+    for (const c of venueCounts) {
+      const city = venueCity.get(c.venueId!);
       if (!city) continue;
       eventsByCity.set(city, (eventsByCity.get(city) ?? 0) + c._count);
+    }
+    for (const c of privateCounts) {
+      if (!c.privateCity) continue;
+      eventsByCity.set(c.privateCity, (eventsByCity.get(c.privateCity) ?? 0) + c._count);
     }
     return cities.map((c) => ({ name: c.name, icon: c.icon ?? undefined, top: c.top, events: eventsByCity.get(c.name) ?? 0 }));
   }
