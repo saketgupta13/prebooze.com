@@ -7,6 +7,7 @@ import { auth, bookings, catalog, wallet, type BookingQuote } from '../api';
 import { isBackendEnabled } from '../api/client';
 import { existingRole, roleHome, roleLabel } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
+import { track } from '../lib/track';
 
 const ABSORBED_NOTE: Record<string, string> = {
   Organizer: 'absorbed by the organizer',
@@ -64,6 +65,7 @@ export default function Checkout() {
       .then((h) => {
         setHoldId(h.holdId);
         setHold(new Date(h.expiresAt).getTime());
+        track('checkout_viewed', { eventId: liveEvent.id });
       })
       .catch((e) => setHoldErr(e.message ?? 'Could not hold your tickets — they may have sold out'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -318,6 +320,7 @@ export default function Checkout() {
   };
 
   const afterBookingSuccess = (id: string) => {
+    track('booking_completed', { eventId: event?.id });
     if (cartId) setCartStatus(cartId, 'completed');
     setSelection(null);
     clearHold();
@@ -373,6 +376,7 @@ export default function Checkout() {
           prefill: { name: name.trim(), contact: whatsapp.trim(), email: email.trim() || undefined },
           theme: { color: '#9be13d' },
           handler: async (resp: unknown) => {
+            track('payment_submitted', { eventId: event.id });
             const r = resp as { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
             try {
               const booking = await finishCreate({ orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature });
@@ -388,6 +392,7 @@ export default function Checkout() {
           setPaying(false);
           setCouponMsg({ ok: false, text: 'Payment failed or was cancelled' });
         });
+        track('payment_widget_opened', { eventId: event.id });
         rzp.open();
       } else {
         const booking = await finishCreate(undefined);

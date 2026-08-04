@@ -407,6 +407,35 @@ export const liveFinance = {
   get: (city?: string) => liveFetch<LiveFinance>('/admin/reports/finance' + (city ? `?city=${city}` : '')),
 };
 
+export const FUNNEL_STAGES = [
+  { type: 'event_viewed', label: 'Viewed an event' },
+  { type: 'book_clicked', label: 'Clicked "Book"' },
+  { type: 'otp_requested', label: 'Requested OTP' },
+  { type: 'otp_verified', label: 'Logged in' },
+  { type: 'checkout_viewed', label: 'Reached checkout' },
+  { type: 'payment_widget_opened', label: 'Opened payment' },
+  { type: 'payment_submitted', label: 'Submitted payment' },
+  { type: 'booking_completed', label: 'Booking completed' },
+] as const;
+export interface FunnelStageCount {
+  type: string;
+  sessions: number;
+}
+export interface LiveFunnel {
+  stages: FunnelStageCount[];
+  totalEvents: number;
+}
+export const liveFunnel = {
+  get: (params: { from?: string; to?: string; eventId?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    if (params.eventId) q.set('eventId', params.eventId);
+    const qs = q.toString();
+    return liveFetch<LiveFunnel>('/admin/funnel' + (qs ? `?${qs}` : ''));
+  },
+};
+
 export interface LivePayoutRow {
   id: string;
   title: string;

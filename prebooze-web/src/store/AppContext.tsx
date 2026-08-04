@@ -6,6 +6,7 @@ import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } fr
 import { notify } from '../lib/notify';
 import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTeamApi, bookings as bookingsApi, wallet as walletApi, support as supportApi, careers as careersApi, type OrgTeamAccess } from '../api';
 import { isBackendEnabled, setToken, clearToken, getToken } from '../api/client';
+import { track } from '../lib/track';
 
 export interface GuestReview {
   id: string;
@@ -513,10 +514,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!isBackendEnabled()) return;
         const res = await auth.requestOtp(phone);
         setPendingRequestId(res.requestId);
+        track('otp_requested');
       },
       loginWithOtp: async (code) => {
         if (isBackendEnabled()) {
           const { token, user: apiUser, isNew } = await auth.verifyOtp(pendingRequestId, code);
+          track('otp_verified');
           setToken(token);
           setUser(normalizeUser({ ...apiUser, pendingRole: inferPendingRole(apiUser) }));
           // Bootstrap effects above only run once on mount (before a token

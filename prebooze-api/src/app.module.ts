@@ -20,6 +20,7 @@ import { CareersModule } from './careers/careers.module';
 import { AdminModule } from './admin/admin.module';
 import { ContentModule } from './content/content.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     AdminModule,
     ContentModule,
     SubscriptionsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
 })

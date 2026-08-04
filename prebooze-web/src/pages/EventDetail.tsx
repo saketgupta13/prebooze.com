@@ -20,6 +20,7 @@ import { friendsGoing, goingCount, myStatus } from '../lib/social';
 import { existingRole, roleLabel } from '../lib/roles';
 import { stripHtml } from '../lib/richtext';
 import { useSeo } from '../lib/useSeo';
+import { track } from '../lib/track';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { useIsMobile } from '../lib/useIsMobile';
 import Poster, { categoryEmoji } from '../components/Poster';
@@ -140,6 +141,11 @@ export default function EventDetail() {
   }, [refSlug]);
   const refPromoter = isBackendEnabled() ? liveRefPromoter : mockRefPromoter;
 
+  useEffect(() => {
+    if (event) track('event_viewed', { eventId: event.id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.id]);
+
   const total = useMemo(() => {
     if (!event) return 0;
     return event.tiers.reduce((sum, t) => sum + (qty[t.id] ?? 0) * t.price, 0);
@@ -207,6 +213,7 @@ export default function EventDetail() {
 
   const book = () => {
     if (existingRole(user)) return; // business/elevated-role account — checkout also blocks this
+    track('book_clicked', { eventId: event.id });
     setSelection({ eventId: event.id, eventSlug: liveEvent ? event.slug : undefined, qty });
     if (!user) {
       navigate('/login', { state: { from: '/checkout' } });

@@ -1533,3 +1533,24 @@ model Invoice {
   @@index([city])
   @@index([issuedAt])
 }
+
+// Booking-funnel visibility — before this, the only way to see where real
+// guests were dropping off (viewed → clicked book → logged in → reached
+// checkout → opened the payment widget → paid) was to hand-query Cart/
+// Booking rows over SSH, which is how the Alok/Chinky investigation
+// happened. One row per real step, written by a public, fire-and-forget
+// POST /track — never allowed to block or fail the actual user action it's
+// observing (see TrackService.record).
+model FunnelEvent {
+  id        String   @id @default(cuid())
+  sessionId String // stable per-browser id (localStorage), set before login so pre-auth drop-off is visible too
+  userId    String?
+  type      String // event_viewed | book_clicked | otp_requested | otp_verified | checkout_viewed | payment_widget_opened | payment_submitted | booking_completed
+  eventId   String? // Event.id, when this step is about a specific event
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([eventId])
+  @@index([sessionId])
+}
