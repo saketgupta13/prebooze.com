@@ -227,7 +227,12 @@ export default function EventDetail() {
                   <span>📅 {fmtDate(event.date)}, {fmtTime(event.date)}</span>
                   <span>📍 <Link to={`/venues/${venue.id}`} className="link">{venue.name}</Link>, {venue.city}</span>
                   <span>⏱ {event.durationHrs} hrs</span>
-                  {going > 0 && <span style={{ color: 'var(--accent)', fontWeight: 600 }}>🔥 {going.toLocaleString('en-IN')} going</span>}
+                  {going > 0 && (
+                    <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                      🔥 {going.toLocaleString('en-IN')} going
+                      {event.recentActivity && ` · ${event.recentActivity.count} booked ${event.recentActivity.window === 'today' ? 'today' : 'this week'}`}
+                    </span>
+                  )}
                 </div>
                 <div className="chip-row" style={{ alignItems: 'center' }}>
                   {event.tags.map((t) => (

@@ -63,6 +63,10 @@ export interface Event {
   // admin (see PATCH /organizer/:id/commission), read-only everywhere else
   // including here. null/undefined = not set yet.
   commission?: number | null;
+  // Real recency signal from GET /events/:slug only (not the list endpoint)
+  // — "3 booked today", falling back to "this week" when today is empty,
+  // null/undefined when there's been no real activity in either window.
+  recentActivity?: { count: number; window: 'today' | 'week' } | null;
 }
 
 export interface PromoterConfig {

@@ -149,7 +149,28 @@ export class CatalogService {
     if (!event || event.status !== 'approved') {
       throw new NotFoundException('Event not found');
     }
-    return event;
+    const recentActivity = await this.recentBookingActivity(event.id);
+    return { ...event, recentActivity };
+  }
+
+  /** Real recency signal for the event page ("3 booked today") — tries a
+   * 24h window first and only falls back to 7 days if that's empty, so the
+   * copy never claims a longer window than it needs to. Both windows come
+   * from one query since a week always contains the day. Returns null
+   * (hidden entirely) rather than ever showing a manufactured 0. */
+  private async recentBookingActivity(eventId: string): Promise<{ count: number; window: 'today' | 'week' } | null> {
+    const now = Date.now();
+    const dayAgo = new Date(now - 24 * 3600000);
+    const weekAgo = new Date(now - 7 * 24 * 3600000);
+    const rows = await this.prisma.booking.findMany({
+      where: { eventId, status: 'confirmed', createdAt: { gte: weekAgo } },
+      select: { qty: true, createdAt: true },
+    });
+    const today = rows.filter((r) => r.createdAt >= dayAgo).reduce((a, r) => a + r.qty, 0);
+    if (today > 0) return { count: today, window: 'today' };
+    const week = rows.reduce((a, r) => a + r.qty, 0);
+    if (week > 0) return { count: week, window: 'week' };
+    return null;
   }
 
   // ---------- directories ----------
