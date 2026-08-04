@@ -337,12 +337,14 @@ export default function Checkout() {
         await auth.updateMe({ email: email.trim() }).catch(() => {});
       }
       const q = quote ?? (await bookings.quote(holdId, appliedCode ?? undefined, useCredit ? effectiveWalletBalance : 0));
+      // Skipped guest slots (name left blank) aren't sent at all, rather than
+      // padding the booking's guest list with empty placeholder entries.
       const guestsPayload = ticketCount > 1
         ? Array.from({ length: ticketCount - 1 }, (_, i) => ({
             name: (guestNames[i] ?? '').trim(),
             gender: guestGenders[i] || undefined,
             whatsapp: (guestPhones[i] ?? '').trim(),
-          }))
+          })).filter((g) => g.name)
         : undefined;
 
       const finishCreate = (razorpay?: { orderId: string; paymentId: string; signature: string }) =>
@@ -408,7 +410,7 @@ export default function Checkout() {
           checkedIn: false,
           gender: guestGenders[i] || undefined,
           whatsapp: (guestPhones[i] ?? '').trim(),
-        })),
+        })).filter((g) => g.name),
       ];
       const booking: Booking = {
         id,
@@ -440,17 +442,12 @@ export default function Checkout() {
       setCouponMsg({ ok: false, text: 'Main attendee name and WhatsApp number are required' });
       return;
     }
-    // Every extra ticket in this booking is a real entry, not just a seat —
-    // the door scans each guest's own QR, so each one needs their own name
-    // and number, not a "Guest 2" placeholder nobody can check in against.
-    if (ticketCount > 1) {
-      for (let i = 0; i < ticketCount - 1; i++) {
-        if (!guestNames[i]?.trim() || !guestPhones[i]?.trim()) {
-          setCouponMsg({ ok: false, text: `Name and WhatsApp number are required for all ${ticketCount} attendees` });
-          return;
-        }
-      }
-    }
+    // Guest names/numbers are optional — check-in scans one QR for the whole
+    // booking (BookingsService.checkIn toggles a single Booking.checkedIn
+    // flag, not per-guest), and the backend already accepts a partial or
+    // empty guest list, so blocking payment on this info was pure friction
+    // with no corresponding security benefit. Whatever's filled in still
+    // gets saved for the organizer's guest list.
     if (!EMAIL_RE.test(email.trim())) {
       setCouponMsg({ ok: false, text: 'Enter a valid email — your ticket confirmation is sent there too' });
       return;
@@ -529,14 +526,13 @@ export default function Checkout() {
               {ticketCount > 1 && (
                 <>
                   <div className="small muted" style={{ marginBottom: 12 }}>
-                    Name and WhatsApp number are required for all {ticketCount} attendees — each ticket is scanned separately at the door.
+                    Optional — add your friends' names now if you have them handy, or skip and bring them along. You'll show one QR for the whole group at the door.
                   </div>
                   {Array.from({ length: ticketCount - 1 }, (_, i) => (
                     <div key={i} className="form-row">
                       <div className="field">
                         <span>Guest {i + 2} name</span>
                         <input
-                          required
                           value={guestNames[i] ?? ''}
                           onChange={(e) =>
                             setGuestNames((g) => {
@@ -570,7 +566,6 @@ export default function Checkout() {
                       <div className="field">
                         <span>WhatsApp number</span>
                         <input
-                          required
                           value={guestPhones[i] ?? ''}
                           inputMode="numeric"
                           onChange={(e) =>
