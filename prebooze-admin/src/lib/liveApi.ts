@@ -426,6 +426,59 @@ export const livePayments = {
   markPaid: (eventId: string, utr: string) => liveFetch<{ id: string; paidOut: boolean; payoutUtr: string | null }>('/admin/payments/mark-paid', { body: { eventId, utr } }),
 };
 
+export const LEAD_SOURCES = ['Instagram', 'WhatsApp', 'Phone call', 'Referral / walk-in', 'Website inquiry', 'Other social', 'Other'] as const;
+export type LeadSource = (typeof LEAD_SOURCES)[number];
+export const LEAD_STAGES = ['New', 'Contacted', 'Interested', 'Negotiating', 'Signed up', 'Declined'] as const;
+export type LeadStage = (typeof LEAD_STAGES)[number];
+
+export interface LeadActivity {
+  id: string;
+  leadId: string;
+  text: string;
+  createdAt: string;
+}
+export interface Lead {
+  id: string;
+  name: string;
+  source: string;
+  contact: string | null;
+  city: string | null;
+  eventType: string | null;
+  stage: string;
+  followUpAt: string | null;
+  followUpDone: boolean;
+  assignedToId: string | null;
+  assignedTo: { id: string; name: string } | null;
+  organizerId: string | null;
+  organizer: { id: string; brandName: string; username: string } | null;
+  activities: LeadActivity[];
+  createdAt: string;
+  updatedAt: string;
+}
+export interface LeadOrganizerHit {
+  id: string;
+  brandName: string;
+  username: string;
+  city: string;
+}
+/** Organizer sales pipeline — pre-signup leads across every outreach channel,
+ * not just Instagram. `link-organizer` is a manual, staff-picked match (no
+ * reliable way to auto-match a scribbled phone number or IG handle to the
+ * account someone actually signs up with), which is what makes it possible
+ * to later ask "which source actually converts organizers." */
+export const liveLeads = {
+  list: () => liveFetch<Lead[]>('/admin/leads'),
+  get: (id: string) => liveFetch<Lead>(`/admin/leads/${id}`),
+  create: (body: { name: string; source: string; contact?: string; city?: string; eventType?: string; assignedToId?: string; followUpAt?: string }) =>
+    liveFetch<Lead>('/admin/leads', { body }),
+  update: (id: string, body: Partial<{ name: string; source: string; contact: string; city: string; eventType: string; stage: string; assignedToId: string | null; followUpAt: string | null }>) =>
+    liveFetch<Lead>(`/admin/leads/${id}`, { method: 'PATCH', body }),
+  remove: (id: string) => liveFetch<{ ok: true }>(`/admin/leads/${id}`, { method: 'DELETE' }),
+  addActivity: (id: string, text: string) => liveFetch<LeadActivity>(`/admin/leads/${id}/activity`, { body: { text } }),
+  searchOrganizers: (q: string) => liveFetch<LeadOrganizerHit[]>(`/admin/leads/organizer-search?q=${encodeURIComponent(q)}`),
+  linkOrganizer: (id: string, organizerId: string) => liveFetch<Lead>(`/admin/leads/${id}/link-organizer`, { body: { organizerId } }),
+};
+
 export interface LiveLedgerEntry {
   id: string;
   kind: 'income' | 'expense';
@@ -447,7 +500,7 @@ export const PERM_MODULES = [
   'Dashboard', 'Events & approvals', 'Event commission (per event)', 'Bookings', 'Refunds',
   'Payments & payouts', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
   'Verifications (KYC)', 'Reviews', 'Locations', 'Abandoned carts', 'Featured', 'Content',
-  'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Reports',
+  'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Reports', 'Leads',
 ] as const;
 export type PermKey = 'view' | 'edit' | 'approve';
 export type Perms = Record<string, Record<PermKey, boolean>>;

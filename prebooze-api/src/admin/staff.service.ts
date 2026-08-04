@@ -27,6 +27,7 @@ const PERM_MODULES = [
   'Promo codes',
   'Gate check-in',
   'Reports',
+  'Leads',
 ];
 
 @Injectable()

@@ -21,6 +21,7 @@ const MAIN_NAV = [
   { to: '/abandoned', icon: '🛒', label: 'Abandoned carts' },
   { to: '/customers', icon: '👥', label: 'Customers' },
   { to: '/verifications', icon: '🛂', label: 'Verifications' },
+  { to: '/leads', icon: '📇', label: 'Leads' },
   { to: '/organizers', icon: '🧑‍💼', label: 'Organizers' },
   { to: '/promoters', icon: '📣', label: 'Promoters' },
   { to: '/featured', icon: '⭐', label: 'Featured' },

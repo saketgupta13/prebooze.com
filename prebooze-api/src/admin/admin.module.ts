@@ -26,6 +26,7 @@ import { AdminSubTiersController } from './sub-tiers.controller';
 import { AdminEmailTemplatesController } from './email-templates-admin.controller';
 import { AdminInvoicesController } from '../invoices/invoices-admin.controller';
 import { AdminSubscriptionsController } from './admin-subscriptions.controller';
+import { AdminLeadsController } from './leads.controller';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffService } from './staff.service';
 import { CustomersService } from './customers.service';
@@ -52,6 +53,7 @@ import { CronService } from './cron.service';
 import { SubTiersService } from './sub-tiers.service';
 import { EmailTemplatesAdminService } from './email-templates-admin.service';
 import { InvoicesService } from '../invoices/invoices.service';
+import { LeadsService } from './leads.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { OwnerOnlyGuard } from './owner-only.guard';
 import { PermissionGuard } from './permission.guard';
@@ -105,6 +107,7 @@ import { redisProvider } from '../redis.provider';
     AdminEmailTemplatesController,
     AdminInvoicesController,
     AdminSubscriptionsController,
+    AdminLeadsController,
   ],
   providers: [
     StaffAuthService,
@@ -132,6 +135,7 @@ import { redisProvider } from '../redis.provider';
     SubTiersService,
     EmailTemplatesAdminService,
     InvoicesService,
+    LeadsService,
     StorageService,
     WhatsappService,
     EmailService,

@@ -344,9 +344,47 @@ model Organizer {
   accountHolderName String?
   ifsc              String?
   seo               Json?
+  lead              Lead?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Organizer sales pipeline — every account Prebooze staff has reached out to
+// pre-signup, regardless of channel (Instagram, WhatsApp, a phone call, a
+// referral, a walk-in at their own event, the website inquiry form, ...).
+// `organizerId` is filled in manually by staff once the lead actually signs
+// up and completes KYC (no reliable automatic match — a lead's IG handle or
+// scribbled phone number isn't guaranteed to match what they sign up with),
+// which is what makes "which source actually converts" answerable later.
+model Lead {
+  id           String    @id @default(cuid())
+  name         String
+  source       String // 'Instagram' | 'WhatsApp' | 'Phone call' | 'Referral / walk-in' | 'Website inquiry' | 'Other social' | 'Other'
+  contact      String?
+  city         String?
+  eventType    String?
+  stage        String    @default("New") // New | Contacted | Interested | Negotiating | Signed up | Declined
+  followUpAt   DateTime?
+  followUpDone Boolean   @default(false)
+
+  assignedToId String?
+  assignedTo   Staff?  @relation(fields: [assignedToId], references: [id])
+  organizerId  String? @unique
+  organizer    Organizer? @relation(fields: [organizerId], references: [id])
+
+  activities LeadActivity[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LeadActivity {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now())
 }
 
 model Promoter {
@@ -1256,6 +1294,7 @@ model Staff {
   city         String?
   phone        String? // WhatsApp number for staff alerts (refund requests, KYC submissions, payout failures) — see Settings.whatsappAlerts
   lastActiveAt DateTime?
+  leads        Lead[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

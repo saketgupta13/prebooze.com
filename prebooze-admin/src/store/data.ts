@@ -250,6 +250,7 @@ export const PERM_MODULES = [
   'Promo codes',
   'Gate check-in',
   'Reports',
+  'Leads',
 ];
 
 const perms = (view: boolean, edit: boolean, approve: boolean) => ({ view, edit, approve });

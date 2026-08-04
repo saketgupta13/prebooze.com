@@ -7,6 +7,8 @@ import { money } from '../notifications/email-templates';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { FeaturedService } from '../featured/featured.service';
 import { BookingsService } from '../bookings/bookings.service';
+import { LeadsService } from './leads.service';
+import { NotificationsService } from './notifications.service';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -25,6 +27,8 @@ export class CronService {
     private staffAlerts: StaffAlertsService,
     private featured: FeaturedService,
     private bookings: BookingsService,
+    private leads: LeadsService,
+    private notifications: NotificationsService,
   ) {}
 
   /** Payouts are never marked paid automatically — there's no real bank
@@ -120,5 +124,19 @@ export class CronService {
   async reviewRequestTick() {
     const { remindedCount } = await this.bookings.remindForReview();
     if (remindedCount) this.log.log(`Review request: reminded ${remindedCount} guest(s)`);
+  }
+
+  /** Daily nudge for organizer leads (see Lead/LeadActivity) whose follow-up
+   * date has arrived and haven't moved to a terminal stage — one bell
+   * notification per lead, then `followUpDone` so it doesn't repeat every
+   * day until the date is changed or the stage moves on. */
+  @Cron('0 9 * * *')
+  async leadFollowUpTick() {
+    const due = await this.leads.dueFollowUps();
+    for (const lead of due) {
+      await this.notifications.notify('📇', `Follow up with lead "${lead.name}" (${lead.source})`, '/admin/leads').catch(() => {});
+      await this.prisma.lead.update({ where: { id: lead.id }, data: { followUpDone: true } }).catch(() => {});
+    }
+    if (due.length) this.log.log(`Lead follow-ups: notified for ${due.length} lead(s)`);
   }
 }
