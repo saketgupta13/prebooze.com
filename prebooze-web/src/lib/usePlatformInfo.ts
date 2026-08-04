@@ -30,7 +30,7 @@ const FALLBACK: PlatformInfo = {
     address: '4th Floor, Cowork Hub, Koramangala, Bengaluru',
     organizerEmail: 'organizers@prebooze.com',
   },
-  footerCopyright: `© ${new Date().getFullYear()} Prebooze Inc. · All rights reserved`,
+  footerCopyright: `© ${new Date().getFullYear()} Prebooze · All rights reserved`,
   feeLabel: 'Booking fee',
   absorbedBy: 'Guest',
   bookingFee: 1.5,

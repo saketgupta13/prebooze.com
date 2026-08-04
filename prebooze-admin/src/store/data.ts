@@ -393,7 +393,7 @@ export const SEED_SETTINGS: Settings = {
     address: '4th Floor, Cowork Hub, Koramangala, Bengaluru',
     organizerEmail: 'organizers@prebooze.com',
   },
-  footerCopyright: '© 2026 Prebooze Inc. · All rights reserved',
+  footerCopyright: '© 2026 Prebooze · All rights reserved',
 };
 
 export const AMENITY_PRESETS = [

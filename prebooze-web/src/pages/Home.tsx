@@ -35,7 +35,7 @@ const TRUST = [
   { icon: '✅', title: 'Verified organizers only', desc: 'Every host is KYC-checked. No fake listings, ever.' },
   { icon: '💬', title: 'WhatsApp OTP login', desc: 'No passwords. Your tickets land straight in your chats.' },
   { icon: '🔒', title: 'Secure QR entry', desc: 'Screenshot-proof, time-rotating codes — impossible to fake.' },
-  { icon: '↩️', title: 'Instant refunds', desc: 'Plans change? Money back to source in minutes, up to 48h.' },
+  { icon: '↩️', title: 'Easy cancellations', desc: 'Plans change? Cancel any time before the event. Instant wallet credit, or back to your card/UPI in a few days.' },
   { icon: '👀', title: 'See who’s going', desc: 'Follow friends and spot the crowd before you book.' },
   { icon: '⚡', title: 'Book in 20 seconds', desc: 'Pick, pay with UPI, walk in. That’s the whole flow.' },
   { icon: '🎟️', title: 'Fair, transparent fees', desc: 'What you see is what you pay — no surprise charges at checkout.' },

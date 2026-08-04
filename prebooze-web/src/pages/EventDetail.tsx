@@ -601,7 +601,7 @@ export default function EventDetail() {
               </button>
             )}
                 <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-                  🔒 secure checkout · free cancellation up to 48h
+                  🔒 secure checkout · <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link>
                 </div>
               </>
             )}

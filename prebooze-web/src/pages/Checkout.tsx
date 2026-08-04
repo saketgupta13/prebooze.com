@@ -42,7 +42,7 @@ export default function Checkout() {
     setDefaultPayMethod, refreshWallet,
   } = useApp();
   const navigate = useNavigate();
-  const { feeLabel, absorbedBy, bookingFee } = usePlatformInfo();
+  const { feeLabel, absorbedBy, bookingFee, socials } = usePlatformInfo();
 
   const wantsLive = Boolean(selection?.eventSlug) && isBackendEnabled();
 
@@ -688,8 +688,13 @@ export default function Checkout() {
               {paying ? 'Processing…' : `Pay ₹${finalTotal}`}
             </button>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-              🔒 secured by Razorpay · free cancellation up to 48h
+              🔒 secured by Razorpay · <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link>
             </div>
+            {socials.whatsapp && (
+              <div className="tiny muted-2 center" style={{ marginTop: 4 }}>
+                Need help? <a href={/^https?:\/\//i.test(socials.whatsapp.trim()) ? socials.whatsapp.trim() : `https://${socials.whatsapp.trim()}`} target="_blank" rel="noopener noreferrer" className="link">WhatsApp us</a>
+              </div>
+            )}
           </aside>
         </div>
       </div>

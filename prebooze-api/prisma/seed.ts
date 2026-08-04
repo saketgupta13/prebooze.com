@@ -253,7 +253,7 @@ const SEED_PLATFORM_SETTINGS = {
   socials: { instagram: 'instagram.com/prebooze', x: 'x.com/prebooze', youtube: 'youtube.com/@prebooze', whatsapp: 'wa.me/919876543210', facebook: '' },
   siteSeo: { title: "Prebooze — Your city's events, one tap away", description: 'Book tickets to concerts, comedy, festivals and parties from verified organizers. WhatsApp tickets, QR entry.', keywords: 'events, tickets, concerts, nightlife, austin' },
   contact: { email: 'help@prebooze.com', phone: '+91 98765 43210', address: '4th Floor, Cowork Hub, Koramangala, Bengaluru', organizerEmail: 'organizers@prebooze.com' },
-  footerCopyright: '© 2026 Prebooze Inc. · All rights reserved',
+  footerCopyright: '© 2026 Prebooze · All rights reserved',
 };
 
 // Guest list slice (Admin API 10) — ported from prebooze-admin's SEED_GUEST_LIST,
@@ -377,7 +377,7 @@ const SEED_TESTIMONIALS = [
 
 const SEED_FAQS = [
   { id: 'f1', question: 'How do I get my ticket?', answer: 'Sent instantly to your WhatsApp — also downloadable as a QR from My Bookings.', audience: 'guests', sort: 0 },
-  { id: 'f2', question: 'Can I cancel a booking?', answer: 'Yes — free cancellation up to 48 hours before the event. Refunds land back on your payment method instantly.', audience: 'guests', sort: 1 },
+  { id: 'f2', question: 'Can I cancel a booking?', answer: 'Yes — any time before you check in at the venue or the event ends, whichever is first. Cancel from My Bookings and choose instant Prebooze wallet credit, or a refund to your original payment method, which is reviewed first and then takes 5–7 business days to reflect.', audience: 'guests', sort: 1 },
   { id: 'f3', question: 'Do I need an account to book?', answer: 'You log in with your WhatsApp number and an OTP — no passwords. Your number is your account.', audience: 'guests', sort: 2 },
   { id: 'f4', question: 'How do organizers get verified?', answer: 'Every organizer completes identity KYC (Aadhaar + selfie) and bank verification before their events go live.', audience: 'organizers', sort: 3 },
   { id: 'f5', question: 'When do organizers get paid?', answer: 'Automatic weekly payouts every Monday, with per-event settlement after the event completes.', audience: 'organizers', sort: 4 },
