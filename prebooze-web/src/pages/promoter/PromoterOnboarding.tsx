@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import RoleTaken from '../../components/RoleTaken';

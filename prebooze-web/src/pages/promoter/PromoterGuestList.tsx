@@ -5,7 +5,8 @@ import { promoter as promoterApi, type PromoterTeamMember } from '../../api';
 import { ApiError } from '../../api/client';
 import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
 import Loader from '../../components/Loader';
-import type { Event, PromoterGuest } from '../../types';
+import type { Event } from '../../types';
+import type { PromoterGuest } from '../../store/AppContext';
 
 /** A promoter's real-time monitor for one event — arrivals, no-shows, show-rate,
  * live countdown, and self check-in at their own door table. */

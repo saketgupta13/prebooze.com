@@ -4,7 +4,8 @@ import { fmtDate, fmtTime } from '../../data/mock';
 import { promoter as promoterApi, type PromoterMe, type PromoterTeamMember } from '../../api';
 import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
-import type { Event, PromoterGuest } from '../../types';
+import type { Event } from '../../types';
+import type { PromoterGuest } from '../../store/AppContext';
 
 /** Events this promoter is approved to promote — organizer-enabled events whose
  * allow-list includes this promoter. */

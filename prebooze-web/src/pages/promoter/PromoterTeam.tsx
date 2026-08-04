@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { promoter as promoterApi, type PromoterMe, type PromoterTeamMember } from '../../api';
 import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
-import type { Event, PromoterGuest } from '../../types';
+import type { Event } from '../../types';
+import type { PromoterGuest } from '../../store/AppContext';
 
 /** Promoter teams — the lead promoter adds sub-promoters who each get their own
  * tagged affiliate link (?via=handle). Their guests roll up to the team but stay

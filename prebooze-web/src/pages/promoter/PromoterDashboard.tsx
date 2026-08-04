@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fmtMoney } from '../../data/mock';
-import { promoter as promoterApi, type PromoterMe } from '../../api';
+import { promoter as promoterApi, type PromoterMe, type RoleSubscription, type SubTier } from '../../api';
 import { ApiError } from '../../api/client';
-import type { Event, RoleSubscription, SubTier } from '../../types';
+import type { Event } from '../../types';
 import Loader from '../../components/Loader';
 import PromoteCard from '../../components/PromoteCard';
 

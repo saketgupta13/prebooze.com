@@ -72,6 +72,7 @@ export default function GuestLanding() {
     setSubmitting(true);
     try {
       const guest = await promoterApi.captureGuest(eventSlug!, promoterSlug!, {
+        eventId: event.id, promoterSlug: promoterSlug!,
         name: name.trim(), phone: phone.trim(), age: age.trim(), gender, subPromoter: via,
       });
       navigate(`/pass/${guest.id}`);
