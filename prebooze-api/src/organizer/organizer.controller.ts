@@ -39,7 +39,7 @@ export class OrganizerController {
   async upload(@Req() req: AuthedReq, @UploadedFile() file?: Express.Multer.File) {
     await this.orgAccess.require(req.user.sub, 'Events & wizard', 'edit');
     if (!file) throw new BadRequestException('file is required (max 80MB)');
-    return { url: this.storage.save(file) };
+    return { url: await this.storage.save(file) };
   }
 
   @Patch('me')

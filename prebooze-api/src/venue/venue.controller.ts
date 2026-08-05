@@ -41,9 +41,9 @@ export class VenueController {
    * those URLs, same local-disk StorageService as KYC docs / admin media. */
   @Post('upload')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
-  upload(@UploadedFile() file?: Express.Multer.File) {
+  async upload(@UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('file is required (max 20MB)');
-    return { url: this.storage.save(file) };
+    return { url: await this.storage.save(file) };
   }
 
   @Post('onboard')

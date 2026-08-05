@@ -29,8 +29,8 @@ export class KycService {
 
     const result = await this.provider.checkGuest(idDoc, selfie);
     const documents = [
-      { type: 'id_doc', path: this.storage.save(idDoc) },
-      { type: 'selfie', path: this.storage.save(selfie) },
+      { type: 'id_doc', path: await this.storage.save(idDoc) },
+      { type: 'selfie', path: await this.storage.save(selfie) },
     ];
 
     const submission = await this.prisma.kycSubmission.create({
@@ -83,10 +83,10 @@ export class KycService {
     // no documents.
     if (!files.length && kind !== 'lineup') throw new BadRequestException('At least one document is required');
 
-    const documents = files.map((f, i) => ({
+    const documents = await Promise.all(files.map(async (f, i) => ({
       type: (payload.docLabels as string[] | undefined)?.[i] ?? `doc_${i + 1}`,
-      path: this.storage.save(f),
-    }));
+      path: await this.storage.save(f),
+    })));
 
     await this.prisma.kycSubmission.create({
       data: {

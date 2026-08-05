@@ -32,7 +32,7 @@ export class CareersService {
         email: body.email.trim(),
         phone: body.phone.trim(),
         note: body.note?.trim() ?? '',
-        cv: cv ? this.storage.save(cv) : undefined,
+        cv: cv ? await this.storage.save(cv) : undefined,
       },
     });
 

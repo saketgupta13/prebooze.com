@@ -21,8 +21,8 @@ export class MediaController {
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
-  upload(@UploadedFile() file?: Express.Multer.File) {
+  async upload(@UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('file is required (max 80MB)');
-    return { url: this.storage.save(file) };
+    return { url: await this.storage.save(file) };
   }
 }
