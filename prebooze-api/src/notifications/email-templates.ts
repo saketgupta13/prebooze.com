@@ -255,6 +255,15 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     tokens: ['name', 'amount', 'role'],
   },
   {
+    id: 'promoter_payout_reminder', name: 'Promoter payout reminder', category: 'Roles',
+    trigger: 'A promoter reminds an organizer they\'re still owed money for an event (PromoterService.remindOrganizerToPay)',
+    preheader: 'A promoter is waiting on payment',
+    defaultSubject: '{{promoterName}} is waiting on payment for "{{eventTitle}}"',
+    defaultBody: `<p>Hey,</p><p><b>{{promoterName}}</b> says they haven't been paid yet for their share of <b>{{eventTitle}}</b>. This is settled directly between you and the promoter — Prebooze doesn't hold or move this money — but wanted to flag it so it doesn't fall through the cracks.</p>`,
+    cta: { label: 'Review promoter payouts →', urlTemplate: '{{webUrl}}/organizer/payouts' },
+    tokens: ['promoterName', 'eventTitle', 'orgBrand'],
+  },
+  {
     id: 'subscription_activated', name: 'Subscription activated', category: 'Roles',
     trigger: 'A Razorpay subscription is authorized and the paid plan takes effect',
     preheader: 'Your plan is now active',

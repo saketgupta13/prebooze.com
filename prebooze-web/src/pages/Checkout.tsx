@@ -39,7 +39,7 @@ function loadRazorpayScript(): Promise<void> {
 export default function Checkout() {
   const {
     user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, setHold, clearHold,
-    captureCart, setCartStatus, pendingPromoterRef, setPendingPromoterRef, walletBalance, spendWallet, payMethods,
+    captureCart, setCartStatus, promoterRefByEvent, clearPromoterRefForEvent, walletBalance, spendWallet, payMethods,
     setDefaultPayMethod, refreshWallet,
   } = useApp();
   const navigate = useNavigate();
@@ -325,7 +325,7 @@ export default function Checkout() {
     if (cartId) setCartStatus(cartId, 'completed');
     setSelection(null);
     clearHold();
-    setPendingPromoterRef(null);
+    if (event?.id) clearPromoterRefForEvent(event.id);
     refreshWallet(); // a live purchase may have just spent real wallet credit
     navigate('/confirmation/' + encodeURIComponent(id));
   };
@@ -359,7 +359,7 @@ export default function Checkout() {
           guests: guestsPayload,
           couponCode: appliedCode ?? undefined,
           walletCredit: useCredit ? effectiveWalletBalance : 0,
-          promoterRef: pendingPromoterRef ?? undefined,
+          promoterRef: event?.id ? promoterRefByEvent[event.id] : undefined,
           payMethodId: (livePayMethods ?? []).some((m) => m.id === payMethod) ? payMethod : undefined,
           razorpay,
         });
@@ -434,7 +434,7 @@ export default function Checkout() {
         mainGuest: name.trim(),
         whatsapp: whatsapp.trim(),
         createdAt: new Date().toISOString(),
-        promoterRef: pendingPromoterRef ?? undefined,
+        promoterRef: event?.id ? promoterRefByEvent[event.id] : undefined,
       };
       addBooking(booking);
       if (payMethods.some((m) => m.id === payMethod)) setDefaultPayMethod(payMethod);

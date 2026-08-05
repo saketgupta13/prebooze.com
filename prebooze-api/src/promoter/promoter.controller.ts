@@ -39,6 +39,21 @@ export class PromoterController {
     return this.promoter.earnings(req.user.sub);
   }
 
+  @Get('events/earnings')
+  perEventEarnings(@Req() req: AuthedReq) {
+    return this.promoter.perEventEarnings(req.user.sub);
+  }
+
+  @Post('events/:eventId/mark-received')
+  markEventReceived(@Req() req: AuthedReq, @Param('eventId') eventId: string) {
+    return this.promoter.markEventReceived(req.user.sub, eventId);
+  }
+
+  @Post('events/:eventId/remind-payout')
+  remindOrganizerToPay(@Req() req: AuthedReq, @Param('eventId') eventId: string) {
+    return this.promoter.remindOrganizerToPay(req.user.sub, eventId);
+  }
+
   @Post('withdraw')
   withdraw(@Req() req: AuthedReq, @Body('amount') amount: number) {
     return this.promoter.withdraw(req.user.sub, amount);

@@ -413,6 +413,7 @@ model Promoter {
 
   team        PromoterTeamMember[]
   withdrawals PromoterWithdrawal[]
+  settlements PromoterEventSettlement[]
 
   contact String? // business contact email — public, added for the directory CRUD slice
   seo     Json? // {title, description, keywords} — same shape/editor (SeoFields) as every other directory entity; was missing here despite Venue/Organizer having it
@@ -562,6 +563,7 @@ model Event {
   promoterGuests   PromoterGuest[]
   guestListEntries GuestListEntry[]
   checkInLogs      CheckInLog[]
+  promoterSettlements PromoterEventSettlement[]
 
   // Reports slice (Admin API 9). Finally backs the "Event commission (per
   // event)" permission module that's existed since the staff-auth slice with
@@ -889,6 +891,13 @@ model Booking {
   whatsapp   String
 
   promoterRef      String? // promoter slug credited with this sale (affiliate commission)
+  // Locked in at booking creation using whatever % was negotiated for this
+  // promoter on this event at that moment (Event.promoterConfig.revenueShare)
+  // — computed once and stored, not recomputed live, so a later edit to the
+  // organizer's negotiated rate never silently changes what a promoter
+  // already earned on a past sale. 0 when promoterRef is unset/not a
+  // recognised revenue-share promoter for this event.
+  promoterCommission Int           @default(0)
   walletCreditUsed Int           @default(0)
   paymentId        String? // Razorpay payment id (or dev-stub id — see RazorpayService)
   refundedTo       RefundMethod?
@@ -1221,6 +1230,31 @@ model PromoterWithdrawal {
   promoter   Promoter @relation(fields: [promoterId], references: [id])
   amount     Int
   createdAt  DateTime @default(now())
+}
+
+// Tracks whether a promoter has actually been paid by the organizer for one
+// event — a real bank transfer between organizer and promoter happens
+// entirely outside Prebooze (no split-payment rail exists, see
+// bookings.service.ts/RazorpayService — everything lands in Prebooze's own
+// account first), so this is a self-attested confirmation flow, not a
+// payment record: the promoter marks 'received' once money actually reaches
+// them, or 'reminder_sent' to nudge the organizer via a real WhatsApp/email
+// notification. One row per (promoter, event) — matches how organizer's own
+// payouts are already settled per-event (Event.paidOut/payoutUtr), not
+// per-booking.
+model PromoterEventSettlement {
+  id             String    @id @default(cuid())
+  promoterId     String
+  promoter       Promoter  @relation(fields: [promoterId], references: [id])
+  eventId        String
+  event          Event     @relation(fields: [eventId], references: [id])
+  status         String    @default("pending") // pending | reminder_sent | received
+  reminderSentAt DateTime?
+  receivedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([promoterId, eventId])
 }
 
 // ============================================================================

@@ -56,6 +56,22 @@ export class BookingsService {
     return commissionPct ? Math.round((subtotal * commissionPct) / 100) : 0;
   }
 
+  /** Computed once at booking creation, never recomputed — a promoter's cut
+   * of a specific sale must not silently change if the organizer edits the
+   * event's negotiated rate afterward. Gated on both allowedPromoters (the
+   * same list that gates free-list eligibility) and revenueShare having a
+   * real entry for this slug — an unrecognised/stale ?ref= earns nothing,
+   * it just doesn't get validated hard enough to block the booking either. */
+  private promoterCommissionFor(subtotal: number, organizerCommission: number, promoterRef: string | undefined, promoterConfig: unknown): number {
+    if (!promoterRef) return 0;
+    const cfg = promoterConfig as { enabled?: boolean; allowedPromoters?: string[]; revenueShare?: Record<string, number> } | null;
+    if (!cfg?.enabled || !cfg.allowedPromoters?.includes(promoterRef)) return 0;
+    const pct = cfg.revenueShare?.[promoterRef];
+    if (!pct) return 0;
+    const organizerNet = subtotal - organizerCommission;
+    return Math.round((organizerNet * pct) / 100);
+  }
+
   /** One running total per (event, category) instead of a fresh row per
    * ticket sold — the finance ledger used to get a new "Booking fees" line
    * for every single booking, which buried real activity in noise instead
@@ -219,6 +235,12 @@ export class BookingsService {
         if (res.count === 0) throw new BadRequestException(`"${l.tier.name}" sold out while you were checking out`);
       }
 
+      // organizer earnings ledger — credited the ticket subtotal minus
+      // whatever commission % admin set on this event (0 for the vast
+      // majority of events, which have no commission configured)
+      const commission = this.commissionFor(subtotal, event.commission);
+      const promoterCommission = this.promoterCommissionFor(subtotal, commission, input.promoterRef, event.promoterConfig);
+
       const created = await tx.booking.create({
         data: {
           id,
@@ -236,6 +258,7 @@ export class BookingsService {
           mainGuest: input.mainGuest.trim(),
           whatsapp: input.whatsapp.trim(),
           promoterRef: input.promoterRef,
+          promoterCommission,
           walletCreditUsed,
           paymentId: paymentId ?? undefined,
           qrToken,
@@ -254,10 +277,6 @@ export class BookingsService {
       // abandoned-cart recovery: this hold converted, so it's no longer a cart to nudge
       await tx.cart.updateMany({ where: { holdId: input.holdId }, data: { status: 'completed' } });
 
-      // organizer earnings ledger — credited the ticket subtotal minus
-      // whatever commission % admin set on this event (0 for the vast
-      // majority of events, which have no commission configured)
-      const commission = this.commissionFor(subtotal, event.commission);
       await tx.organizerLedgerTx.create({
         data: { organizerId: event.organizerId, type: 'sale', amount: subtotal - commission, eventId: event.id, eventTitle: event.title, note: `Booking ${id}` },
       });

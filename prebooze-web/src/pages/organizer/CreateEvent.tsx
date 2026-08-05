@@ -99,6 +99,11 @@ export default function CreateEvent() {
   const [perHead, setPerHead] = useState(false);
   const [perHeadAmt, setPerHeadAmt] = useState('100');
   const [allowTeams, setAllowTeams] = useState(false);
+  // Negotiated individually per promoter, not one rate for the whole event
+  // — slug -> % (0-100) of (subtotal - Prebooze's own commission) on any
+  // paid booking that promoter refers. Blank/0 = free-list only, no revenue
+  // share offered to that promoter.
+  const [revenueShare, setRevenueShare] = useState<Record<string, string>>({});
   const togglePromoter = (slug: string) =>
     setAllowedPromoters((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]));
 
@@ -165,6 +170,7 @@ export default function CreateEvent() {
             setPerHead(pc.perHeadPayout);
             setPerHeadAmt(String(pc.perHeadAmount));
             setAllowTeams(pc.allowTeams);
+            setRevenueShare(Object.fromEntries(Object.entries(pc.revenueShare ?? {}).map(([slug, pct]) => [slug, String(pct)])));
           }
           setSeoTitle(ev.seo?.title ?? '');
           setSeoDesc(ev.seo?.description ?? '');
@@ -241,6 +247,11 @@ export default function CreateEvent() {
       perHeadPayout: perHead,
       perHeadAmount: +perHeadAmt || 0,
       allowTeams,
+      revenueShare: Object.fromEntries(
+        allowedPromoters
+          .map((slug) => [slug, +revenueShare[slug] || 0] as const)
+          .filter(([, pct]) => pct > 0)
+      ),
     },
   });
 
@@ -706,6 +717,38 @@ export default function CreateEvent() {
                   </div>
                 )}
               </div>
+
+              {allowedPromoters.length > 0 && (
+                <div className="field">
+                  <span>Revenue share on paid bookings (optional, negotiated per promoter)</span>
+                  <div className="tiny muted-2" style={{ marginBottom: 8 }}>
+                    % of your net revenue (after Prebooze's own commission) for any ticket sale that
+                    comes through a promoter's own link. Leave blank if a promoter is free-list only.
+                  </div>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {allowedPromoters.map((slug) => {
+                      const p = promoters.find((pp) => pp.slug === slug);
+                      return (
+                        <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span className="small" style={{ flex: 1, minWidth: 0 }}>{p?.name ?? slug}</span>
+                          <input
+                            className="input"
+                            style={{ width: 90 }}
+                            value={revenueShare[slug] ?? ''}
+                            onChange={(e) => {
+                              const v = e.target.value.replace(/\D/g, '').slice(0, 3);
+                              setRevenueShare((prev) => ({ ...prev, [slug]: v }));
+                            }}
+                            inputMode="numeric"
+                            placeholder="0"
+                          />
+                          <span className="small muted-2">%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="hr" />
 

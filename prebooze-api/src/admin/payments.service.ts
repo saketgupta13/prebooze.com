@@ -82,4 +82,63 @@ export class PaymentsService {
     await this.notifications.notify('💸', `Payout marked paid — "${event.title}" · ${utr.trim()}`, '/admin/payments');
     return updated;
   }
+
+  /** Platform-wide view of the organizer→promoter revenue-share/per-head
+   * money (real bank transfers happen entirely outside Prebooze — see
+   * PromoterEventSettlement), across every event, not just one organizer's
+   * — same computation OrganizerService.promoterPayouts does for its own
+   * scoped view, just without the organizerId filter and with the
+   * organizer's own brand name attached so admin can see who owes whom. */
+  async promoterPayoutsAll() {
+    const events = await this.prisma.event.findMany({
+      select: { id: true, title: true, date: true, promoterConfig: true, organizer: { select: { brandName: true } } },
+    });
+    const eventIds = events.map((e) => e.id);
+    const eventById = new Map(events.map((e) => [e.id, e]));
+    if (!eventIds.length) return [];
+
+    const [arrivedGuests, bookings] = await Promise.all([
+      this.prisma.promoterGuest.findMany({ where: { eventId: { in: eventIds }, arrived: true }, select: { eventId: true, promoterSlug: true } }),
+      this.prisma.booking.findMany({ where: { eventId: { in: eventIds }, status: 'confirmed', promoterCommission: { gt: 0 } }, select: { eventId: true, promoterRef: true, promoterCommission: true } }),
+    ]);
+
+    const slugs = new Set<string>([...arrivedGuests.map((g) => g.promoterSlug), ...bookings.map((b) => b.promoterRef).filter((s): s is string => !!s)]);
+    const promoters = await this.prisma.promoter.findMany({ where: { slug: { in: [...slugs] } }, select: { id: true, slug: true, name: true } });
+    const promoterBySlug = new Map(promoters.map((p) => [p.slug, p]));
+
+    const settlements = await this.prisma.promoterEventSettlement.findMany({
+      where: { eventId: { in: eventIds }, promoterId: { in: promoters.map((p) => p.id) } },
+    });
+    const settlementByKey = new Map(settlements.map((s) => [`${s.eventId}::${s.promoterId}`, s]));
+
+    const rows = new Map<string, { eventId: string; eventTitle: string; eventDate: Date; organizerBrand: string; promoterId: string; promoterName: string; perHead: number; commission: number }>();
+    const ensure = (eventId: string, slug: string) => {
+      const promoter = promoterBySlug.get(slug);
+      if (!promoter) return null;
+      const key = `${eventId}::${promoter.id}`;
+      let row = rows.get(key);
+      if (!row) {
+        const event = eventById.get(eventId)!;
+        row = { eventId, eventTitle: event.title, eventDate: event.date, organizerBrand: event.organizer.brandName, promoterId: promoter.id, promoterName: promoter.name, perHead: 0, commission: 0 };
+        rows.set(key, row);
+      }
+      return row;
+    };
+
+    for (const g of arrivedGuests) {
+      const cfg = eventById.get(g.eventId)?.promoterConfig as unknown as { enabled?: boolean; perHeadPayout?: boolean; perHeadAmount?: number } | null;
+      if (!cfg?.enabled || !cfg.perHeadPayout) continue;
+      const row = ensure(g.eventId, g.promoterSlug);
+      if (row) row.perHead += cfg.perHeadAmount ?? 0;
+    }
+    for (const b of bookings) {
+      if (!b.promoterRef) continue;
+      const row = ensure(b.eventId, b.promoterRef);
+      if (row) row.commission += b.promoterCommission;
+    }
+
+    return [...rows.values()]
+      .map((r) => ({ ...r, total: r.perHead + r.commission, status: settlementByKey.get(`${r.eventId}::${r.promoterId}`)?.status ?? 'pending' }))
+      .sort((a, b) => b.eventDate.getTime() - a.eventDate.getTime());
+  }
 }

@@ -5,12 +5,12 @@ import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { NotificationsService } from '../admin/notifications.service';
 
 /** Mirrors prebooze-web's SUB_TIERS (src/data/mock.ts) — -1 = unlimited. */
 const PLAN_QUOTA: Record<string, number> = { free: 100, starter: 150, pro: 500, elite: -1 };
 const MIN_WITHDRAW = 500; // ₹, matches prebooze-web's PromoterEarnings.tsx
 const NO_SHOW_BLOCK_THRESHOLD = 3; // matches promoterFraud.ts
-export const PROMOTER_COMMISSION_RATE = 0.08; // matches promoterEarnings.ts
 
 interface PromoterConfig {
   enabled: boolean;
@@ -20,6 +20,7 @@ interface PromoterConfig {
   perHeadPayout: boolean;
   perHeadAmount: number;
   allowTeams: boolean;
+  revenueShare?: Record<string, number>; // slug -> % of (subtotal - platform commission), negotiated per promoter
 }
 
 const norm = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
@@ -43,6 +44,7 @@ export class PromoterService {
     private wa: WhatsappService,
     private email: EmailService,
     private subscriptions: SubscriptionsService,
+    private notifications: NotificationsService,
   ) {}
 
   private async myPromoter(userId: string) {
@@ -214,8 +216,12 @@ export class PromoterService {
   }
 
   // ---------- earnings & withdraw ----------
-  // Computed live from PromoterGuest/Booking, not a stored ledger — there's
-  // nothing here that isn't already reconstructible from those two tables.
+  // perHead is computed live from PromoterGuest (check-ins keep happening
+  // for the life of the event, so there's no single moment to "lock" it).
+  // commission sums Booking.promoterCommission, which — unlike perHead — IS
+  // locked in at sale time (see BookingsService.promoterCommissionFor), so
+  // summing it live here never re-derives a number that could drift from
+  // what was actually promised at the moment of that specific sale.
   async earnings(userId: string) {
     const promoter = await this.myPromoter(userId);
 
@@ -229,12 +235,104 @@ export class PromoterService {
       return sum + cfg.perHeadAmount;
     }, 0);
 
-    const bookings = await this.prisma.booking.findMany({ where: { promoterRef: promoter.slug, status: { not: 'cancelled' } } });
-    const commission = bookings.reduce((a, b) => a + Math.round(b.subtotal * PROMOTER_COMMISSION_RATE), 0);
+    const bookings = await this.prisma.booking.findMany({ where: { promoterRef: promoter.slug, status: 'confirmed' } });
+    const commission = bookings.reduce((a, b) => a + b.promoterCommission, 0);
 
     const withdrawnAgg = await this.prisma.promoterWithdrawal.aggregate({ where: { promoterId: promoter.id }, _sum: { amount: true } });
 
     return { perHead, commission, withdrawn: withdrawnAgg._sum.amount ?? 0 };
+  }
+
+  /** Per-event breakdown — the granularity PromoterEarnings.tsx's totals
+   * card can't show (it only has flat all-time sums). One row per event
+   * this promoter has EITHER a paid-booking commission OR an arrived
+   * free-list guest on, combined with that event's payment-confirmation
+   * status (see PromoterEventSettlement — organizer pays outside Prebooze,
+   * this is the promoter's own attestation of whether that happened). */
+  async perEventEarnings(userId: string) {
+    const promoter = await this.myPromoter(userId);
+
+    const [arrivedGuests, bookings, settlements] = await Promise.all([
+      this.prisma.promoterGuest.findMany({
+        where: { promoterSlug: promoter.slug, arrived: true },
+        select: { event: { select: { id: true, title: true, date: true, promoterConfig: true } } },
+      }),
+      this.prisma.booking.findMany({
+        where: { promoterRef: promoter.slug, status: 'confirmed', promoterCommission: { gt: 0 } },
+        select: { eventId: true, promoterCommission: true, event: { select: { id: true, title: true, date: true } } },
+      }),
+      this.prisma.promoterEventSettlement.findMany({ where: { promoterId: promoter.id } }),
+    ]);
+
+    const settlementByEvent = new Map(settlements.map((s) => [s.eventId, s]));
+    const byEvent = new Map<string, { eventId: string; title: string; date: Date; perHead: number; commission: number }>();
+    const ensure = (id: string, title: string, date: Date) => {
+      let row = byEvent.get(id);
+      if (!row) {
+        row = { eventId: id, title, date, perHead: 0, commission: 0 };
+        byEvent.set(id, row);
+      }
+      return row;
+    };
+
+    for (const g of arrivedGuests) {
+      const cfg = g.event.promoterConfig as unknown as PromoterConfig | null;
+      if (!cfg?.enabled || !cfg.perHeadPayout) continue;
+      ensure(g.event.id, g.event.title, g.event.date).perHead += cfg.perHeadAmount;
+    }
+    for (const b of bookings) {
+      ensure(b.event.id, b.event.title, b.event.date).commission += b.promoterCommission;
+    }
+
+    return [...byEvent.values()]
+      .map((e) => ({
+        ...e,
+        total: e.perHead + e.commission,
+        status: settlementByEvent.get(e.eventId)?.status ?? 'pending',
+      }))
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  }
+
+  /** Promoter's own attestation that the organizer actually paid them for
+   * this event — there's no payment rail behind this (see schema comment
+   * on PromoterEventSettlement), it's bookkeeping, same honesty-based
+   * pattern as the self-serve withdraw() below. */
+  async markEventReceived(userId: string, eventId: string) {
+    const promoter = await this.myPromoter(userId);
+    await this.prisma.promoterEventSettlement.upsert({
+      where: { promoterId_eventId: { promoterId: promoter.id, eventId } },
+      create: { promoterId: promoter.id, eventId, status: 'received', receivedAt: new Date() },
+      update: { status: 'received', receivedAt: new Date() },
+    });
+    return { ok: true };
+  }
+
+  /** Nudges the organizer via a real WhatsApp/email — recipient is the
+   * organizer's own account (Organizer.userId), same lookup pattern
+   * BookingsService uses for guest notifications. WhatsApp send is
+   * best-effort (new template needs its own AiSensy approval before it
+   * actually delivers — see org-team.service.ts's addStaff for the same
+   * documented constraint); email has no such gate and works immediately. */
+  async remindOrganizerToPay(userId: string, eventId: string) {
+    const promoter = await this.myPromoter(userId);
+    const event = await this.prisma.event.findUnique({ where: { id: eventId }, include: { organizer: { include: { user: true } } } });
+    if (!event) throw new NotFoundException('Event not found');
+
+    await this.prisma.promoterEventSettlement.upsert({
+      where: { promoterId_eventId: { promoterId: promoter.id, eventId } },
+      create: { promoterId: promoter.id, eventId, status: 'reminder_sent', reminderSentAt: new Date() },
+      update: { status: 'reminder_sent', reminderSentAt: new Date() },
+    });
+
+    const orgUser = event.organizer.user;
+    if (orgUser) {
+      await this.wa.send(orgUser.phone, 'promoter_payout_reminder', [promoter.name, event.title]).catch(() => {});
+      await this.email
+        .sendTemplate(orgUser.email, 'promoter_payout_reminder', { promoterName: promoter.name, eventTitle: event.title, orgBrand: event.organizer.brandName })
+        .catch(() => {});
+    }
+    await this.notifications.notify('💸', `${promoter.name} says you still owe them for "${event.title}"`, `/promoter-payouts`);
+    return { ok: true };
   }
 
   async withdraw(userId: string, amount: number) {

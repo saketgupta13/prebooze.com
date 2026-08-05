@@ -272,6 +272,12 @@ export const promoter = {
   pass: (id: string) => apiFetch<PromoterPass>(`/p/pass/${id}`),
   checkInGuest: (id: string) => apiFetch<void>(`/promoter/guests/${id}/check-in`, { method: 'POST' }),
   earnings: () => apiFetch<{ perHead: number; commission: number; withdrawn: number }>('/promoter/earnings'),
+  eventEarnings: () =>
+    apiFetch<{ eventId: string; title: string; date: string; perHead: number; commission: number; total: number; status: 'pending' | 'reminder_sent' | 'received' }[]>(
+      '/promoter/events/earnings'
+    ),
+  markEventReceived: (eventId: string) => apiFetch<{ ok: true }>(`/promoter/events/${eventId}/mark-received`, { method: 'POST' }),
+  remindOrganizerToPay: (eventId: string) => apiFetch<{ ok: true }>(`/promoter/events/${eventId}/remind-payout`, { method: 'POST' }),
   withdraw: (amount: number) => apiFetch<void>('/promoter/withdraw', { body: { amount } }),
   withdrawals: () => apiFetch<PromoterWithdrawal[]>('/promoter/withdrawals'),
   team: () => apiFetch<PromoterTeamMember[]>('/promoter/team'),
@@ -334,6 +340,10 @@ export const organizer = {
   coupons: () => apiFetch<Coupon[]>('/organizer/coupons'),
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/organizer/coupons', { body: c }),
   payouts: () => apiFetch<{ balance: number; ledger: OrgLedgerTx[] }>('/organizer/payouts'),
+  promoterPayouts: () =>
+    apiFetch<{ eventId: string; eventTitle: string; eventDate: string; promoterId: string; promoterName: string; perHead: number; commission: number; total: number; status: 'pending' | 'reminder_sent' | 'received' }[]>(
+      '/organizer/promoter-payouts'
+    ),
   withdraw: (amount: number) => apiFetch<void>('/organizer/withdraw', { body: { amount } }),
   abandonedCarts: () => apiFetch<CartRecord[]>('/organizer/carts'),
   remindCart: (id: string) => apiFetch<void>(`/organizer/carts/${id}/remind`, { method: 'POST' }),

@@ -101,6 +101,8 @@ export default function EventEditorReal() {
   const [perHead, setPerHead] = useState(false);
   const [perHeadAmt, setPerHeadAmt] = useState('100');
   const [allowTeams, setAllowTeams] = useState(false);
+  // Negotiated per promoter, not one flat rate for the event — slug -> %.
+  const [revenueShare, setRevenueShare] = useState<Record<string, string>>({});
   const [seo, setSeo] = useState(emptySeo());
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [teaserVideoUrl, setTeaserVideoUrl] = useState('');
@@ -152,6 +154,7 @@ export default function EventEditorReal() {
               setPerHead(found.promoterConfig?.perHeadPayout ?? false);
               setPerHeadAmt(String(found.promoterConfig?.perHeadAmount ?? 100));
               setAllowTeams(found.promoterConfig?.allowTeams ?? false);
+              setRevenueShare(Object.fromEntries(Object.entries(found.promoterConfig?.revenueShare ?? {}).map(([slug, pct]) => [slug, String(pct)])));
               setSeo(found.seo ? { ...found.seo, keywords: Array.isArray(found.seo.keywords) ? found.seo.keywords.join(', ') : found.seo.keywords } : emptySeo());
               setGalleryUrls(found.galleryUrls ?? []);
               setTeaserVideoUrl(found.teaserVideoUrl ?? '');
@@ -197,6 +200,9 @@ export default function EventEditorReal() {
       perHeadPayout: perHead,
       perHeadAmount: parseInt(perHeadAmt, 10) || 0,
       allowTeams,
+      revenueShare: Object.fromEntries(
+        allowedPromoters.map((slug) => [slug, parseInt(revenueShare[slug], 10) || 0] as const).filter(([, pct]) => pct > 0)
+      ),
     },
     galleryUrls,
     teaserVideoUrl: teaserVideoUrl || null,
@@ -597,6 +603,37 @@ export default function EventEditorReal() {
                   onChange={setAllowedPromoters}
                 />
               </div>
+              {allowedPromoters.length > 0 && (
+                <div className="field">
+                  <label>Revenue share on paid bookings (optional, negotiated per promoter)</label>
+                  <div className="tiny muted" style={{ marginBottom: 8 }}>
+                    % of organizer's net revenue (after Prebooze's own commission) for a paid booking
+                    through that promoter's link. Blank = free-list only for that promoter.
+                  </div>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {allowedPromoters.map((slug) => {
+                      const p = promoters.find((pp) => pp.slug === slug);
+                      return (
+                        <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span className="small" style={{ flex: 1, minWidth: 0 }}>{p?.name ?? slug}</span>
+                          <input
+                            className="input"
+                            style={{ width: 90 }}
+                            inputMode="numeric"
+                            value={revenueShare[slug] ?? ''}
+                            onChange={(e) => {
+                              const v = e.target.value.replace(/\D/g, '').slice(0, 3);
+                              setRevenueShare((prev) => ({ ...prev, [slug]: v }));
+                            }}
+                            placeholder="0"
+                          />
+                          <span className="small muted">%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input type="checkbox" checked={perHead} onChange={(e) => setPerHead(e.target.checked)} />
                 <span>Pay promoters per verified arrival</span>

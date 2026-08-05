@@ -171,8 +171,13 @@ interface AppState {
   myVenues: Venue[];
   addMyVenue: (v: Venue) => void;
   updateMyVenue: (id: string, patch: Partial<Venue>) => void;
-  pendingPromoterRef: string | null; // promoter slug to credit for an in-progress paid booking
-  setPendingPromoterRef: (slug: string | null) => void;
+  // Keyed per event, not one flat value — opening promoter A's link for
+  // event X and, days later, promoter B's link for event Y must not cost
+  // promoter A their credit on event X when it's finally booked. Persisted
+  // (see the pb_promoter_refs effect below) so a reload never loses it either.
+  promoterRefByEvent: Record<string, string>;
+  setPromoterRefForEvent: (eventId: string, slug: string) => void;
+  clearPromoterRefForEvent: (eventId: string) => void;
   toastMsg: string | null;
   toast: (msg: string) => void;
   /** Real "am I on someone's team" access — set only for an invited
@@ -330,7 +335,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     v.forEach(registerVenue);
     return v;
   });
-  const [pendingPromoterRef, setPendingPromoterRef] = useState<string | null>(null);
+  const [promoterRefByEvent, setPromoterRefByEvent] = useState<Record<string, string>>(() => load('pb_promoter_refs', {}));
+  const setPromoterRefForEvent = (eventId: string, slug: string) =>
+    setPromoterRefByEvent((prev) => (prev[eventId] === slug ? prev : { ...prev, [eventId]: slug }));
+  const clearPromoterRefForEvent = (eventId: string) =>
+    setPromoterRefByEvent((prev) => {
+      if (!(eventId in prev)) return prev;
+      const next = { ...prev };
+      delete next[eventId];
+      return next;
+    });
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const toast = useCallback((msg: string) => {
@@ -474,6 +488,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_reviews', JSON.stringify(reviews));
   }, [reviews]);
+  useEffect(() => {
+    localStorage.setItem('pb_promoter_refs', JSON.stringify(promoterRefByEvent));
+  }, [promoterRefByEvent]);
   // register the logged-in user's referral code so /r/:code can resolve it
   useEffect(() => {
     if (user?.phone) {
@@ -943,14 +960,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const live = VENUES.find((v) => v.id === id); // keep public pages in sync mid-session
         if (live) Object.assign(live, patch);
       },
-      pendingPromoterRef,
-      setPendingPromoterRef,
+      promoterRefByEvent,
+      setPromoterRefForEvent,
+      clearPromoterRefForEvent,
       toastMsg,
       toast,
       orgTeamAccess,
       orgTeamAccessLoaded,
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, pendingRequestId, myVenues, pendingPromoterRef, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, pendingRequestId, myVenues, promoterRefByEvent, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

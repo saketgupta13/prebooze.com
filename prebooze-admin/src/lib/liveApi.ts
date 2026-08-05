@@ -123,7 +123,7 @@ export interface LiveTicketTier {
 export interface LiveSeo { title: string; description: string; keywords: string; }
 export interface LiveLineupItem { name: string; role: string; }
 export interface LivePartyRule { title: string; body: string; }
-export interface LivePromoterConfig { enabled: boolean; cap: number; cutoff: string; allowedPromoters: string[]; perHeadPayout: boolean; perHeadAmount: number; allowTeams: boolean; }
+export interface LivePromoterConfig { enabled: boolean; cap: number; cutoff: string; allowedPromoters: string[]; perHeadPayout: boolean; perHeadAmount: number; allowTeams: boolean; revenueShare?: Record<string, number>; }
 export interface LiveEvent {
   id: string;
   slug: string;
@@ -454,11 +454,20 @@ export interface LivePayoutRow {
   paidOut: boolean;
   payoutUtr: string | null;
 }
+export interface LivePromoterPayoutRow {
+  eventId: string; eventTitle: string; eventDate: string; organizerBrand: string;
+  promoterId: string; promoterName: string; perHead: number; commission: number; total: number;
+  status: 'pending' | 'reminder_sent' | 'received';
+}
 export const livePayments = {
   due: () => liveFetch<{ rows: LivePayoutRow[]; collected: number; commissionKept: number; gstCollected: number; dueTotal: number }>('/admin/payments/due'),
   /** Records a real transfer you already made yourself — there's no bank
    * integration behind this, so it never moves money or invents a UTR. */
   markPaid: (eventId: string, utr: string) => liveFetch<{ id: string; paidOut: boolean; payoutUtr: string | null }>('/admin/payments/mark-paid', { body: { eventId, utr } }),
+  /** Organizer -> promoter money, platform-wide — same real transfer-happens-
+   * outside-Prebooze caveat as everything else here; status is whatever the
+   * promoter has self-attested (PromoterEventSettlement), admin can't mark it. */
+  promoterPayouts: () => liveFetch<LivePromoterPayoutRow[]>('/admin/payments/promoter-payouts'),
 };
 
 export const LEAD_SOURCES = ['Instagram', 'WhatsApp', 'Phone call', 'Referral / walk-in', 'Website inquiry', 'Other social', 'Other'] as const;

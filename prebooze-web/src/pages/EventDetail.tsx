@@ -42,7 +42,7 @@ export default function EventDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { user, city, setSelection, myEvents, bookings, interested, toggleInterested, pendingPromoterRef, setPendingPromoterRef, waitlists, joinWaitlist } = useApp();
+  const { user, city, setSelection, myEvents, bookings, interested, toggleInterested, promoterRefByEvent, setPromoterRefForEvent, waitlists, joinWaitlist } = useApp();
   const { salesPaused } = usePlatformInfo();
 
   const mockEvent = eventBySlug(slug ?? '') ?? myEvents.find((e) => e.slug === slug);
@@ -125,12 +125,14 @@ export default function EventDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event?.id]);
 
-  // Credit a promoter for any purchase made through their shared link (?ref=slug).
+  // Credit a promoter for any purchase made through their shared link
+  // (?ref=slug) — keyed to this event specifically so it survives a reload
+  // and can't be clobbered by a different promoter's link on a different event.
   const ref = params.get('ref');
   useEffect(() => {
-    if (ref) setPendingPromoterRef(ref);
-  }, [ref, setPendingPromoterRef]);
-  const refSlug = ref ?? pendingPromoterRef;
+    if (ref && event?.id) setPromoterRefForEvent(event.id, ref);
+  }, [ref, event?.id, setPromoterRefForEvent]);
+  const refSlug = ref ?? (event ? promoterRefByEvent[event.id] : undefined);
   const mockRefPromoter = PROMOTERS.find((p) => p.slug === refSlug);
   // Real lookup — the mock PROMOTERS array never contains a real promoter's
   // slug, so this banner silently never showed for a real ?ref= link even

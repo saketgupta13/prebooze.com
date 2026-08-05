@@ -83,6 +83,12 @@ export interface PromoterConfig {
   perHeadPayout: boolean;
   perHeadAmount: number;  // ₹ paid to promoter per verified arrival
   allowTeams: boolean;
+  // Individually negotiated with each promoter — not one flat rate for the
+  // whole event. slug -> % (0-100) of (subtotal - Prebooze's own commission)
+  // for any paid booking attributed to that promoter's ref. A promoter can
+  // be in allowedPromoters (free-list only) without an entry here, or have
+  // both — the two payout mechanisms are independent.
+  revenueShare?: Record<string, number>;
 }
 
 export interface Venue {

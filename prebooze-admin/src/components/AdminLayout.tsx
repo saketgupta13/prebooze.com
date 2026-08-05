@@ -30,6 +30,7 @@ const MAIN_NAV = [
   { to: '/locations', icon: '🌍', label: 'Locations' },
   { to: '/lineups', icon: '🎤', label: 'Line-ups' },
   { to: '/payments', icon: '💰', label: 'Payments' },
+  { to: '/promoter-payouts', icon: '💸', label: 'Promoter payouts' },
   { to: '/invoices', icon: '🧾', label: 'Invoices' },
   { to: '/finance', icon: '💵', label: 'Income & expenses' },
   { to: '/promos', icon: '🏷', label: 'Promo codes' },

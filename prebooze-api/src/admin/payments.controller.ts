@@ -22,4 +22,10 @@ export class AdminPaymentsController {
   markPaid(@Body('eventId') eventId: string, @Body('utr') utr: string) {
     return this.payments.markPaid(eventId, utr);
   }
+
+  @Get('promoter-payouts')
+  @RequirePermission(MODULE, 'view')
+  promoterPayoutsAll() {
+    return this.payments.promoterPayoutsAll();
+  }
 }

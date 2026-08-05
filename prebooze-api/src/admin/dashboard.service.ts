@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import type { BookingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { ReportsService } from './reports.service';
-import { PROMOTER_COMMISSION_RATE } from '../promoter/promoter.service';
 
 const LIVE_BOOKING_STATUSES: BookingStatus[] = ['confirmed', 'refund_requested'];
 
@@ -83,8 +82,8 @@ export class DashboardService {
       if (!cfg?.enabled || !cfg.perHeadPayout) continue;
       perHeadBySlug.set(g.promoterSlug, (perHeadBySlug.get(g.promoterSlug) ?? 0) + cfg.perHeadAmount);
     }
-    const commissionByRef = await this.prisma.booking.groupBy({ by: ['promoterRef'], where: { promoterRef: { not: null }, status: { not: 'cancelled' } }, _sum: { subtotal: true } });
-    const commissionBySlug = new Map(commissionByRef.map((r) => [r.promoterRef as string, Math.round((r._sum.subtotal ?? 0) * PROMOTER_COMMISSION_RATE)]));
+    const commissionByRef = await this.prisma.booking.groupBy({ by: ['promoterRef'], where: { promoterRef: { not: null }, status: { not: 'cancelled' } }, _sum: { promoterCommission: true } });
+    const commissionBySlug = new Map(commissionByRef.map((r) => [r.promoterRef as string, r._sum.promoterCommission ?? 0]));
     const topPromoters = promoters
       .map((p) => ({ id: p.id, name: p.name, showRate: p.showRate, earned: (perHeadBySlug.get(p.slug) ?? 0) + (commissionBySlug.get(p.slug) ?? 0) }))
       .filter((p) => p.earned > 0)
