@@ -95,6 +95,17 @@ export default function EventEditorReal() {
   const [commission, setCommissionState] = useState('10');
   const [lineupItems, setLineupItems] = useState<{ name: string; role: string }[]>([]);
   const [allowedPromoters, setAllowedPromoters] = useState<string[]>([]);
+  // Two independent modes, picked per promoter: Guest list (free entry) and
+  // Paid commission (revenue share % on ticket sales). Either, both, or
+  // (rare) neither once a promoter is added to allowedPromoters.
+  const [guestListPromoters, setGuestListPromoters] = useState<string[]>([]);
+  const [commissionPromoters, setCommissionPromoters] = useState<string[]>([]);
+  const handleAllowedPromotersChange = (next: string[]) => {
+    const added = next.filter((s) => !allowedPromoters.includes(s));
+    setGuestListPromoters((g) => [...g.filter((s) => next.includes(s)), ...added]);
+    setCommissionPromoters((c) => c.filter((s) => next.includes(s)));
+    setAllowedPromoters(next);
+  };
   const [promoEnabled, setPromoEnabled] = useState(false);
   const [promoCap, setPromoCap] = useState('50');
   const [promoCutoff, setPromoCutoff] = useState('23:00');
@@ -102,6 +113,7 @@ export default function EventEditorReal() {
   const [perHeadAmt, setPerHeadAmt] = useState('100');
   const [allowTeams, setAllowTeams] = useState(false);
   // Negotiated per promoter, not one flat rate for the event — slug -> %.
+  // Only applies for promoters with Paid commission on (commissionPromoters).
   const [revenueShare, setRevenueShare] = useState<Record<string, string>>({});
   const [seo, setSeo] = useState(emptySeo());
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
@@ -148,6 +160,11 @@ export default function EventEditorReal() {
               setCommissionState(found.commission == null ? '' : String(found.commission));
               setLineupItems(found.lineup ?? []);
               setAllowedPromoters(found.promoterConfig?.allowedPromoters ?? []);
+              // missing guestListPromoters (events saved before this field
+              // existed) defaults to every allowed promoter — preserves what
+              // was actually live rather than silently un-checking promoters
+              // who are still earning per-head payouts today
+              setGuestListPromoters(found.promoterConfig?.guestListPromoters ?? found.promoterConfig?.allowedPromoters ?? []);
               setPromoEnabled(found.promoterConfig?.enabled ?? false);
               setPromoCap(String(found.promoterConfig?.cap ?? 50));
               setPromoCutoff(found.promoterConfig?.cutoff ?? '23:00');
@@ -155,6 +172,7 @@ export default function EventEditorReal() {
               setPerHeadAmt(String(found.promoterConfig?.perHeadAmount ?? 100));
               setAllowTeams(found.promoterConfig?.allowTeams ?? false);
               setRevenueShare(Object.fromEntries(Object.entries(found.promoterConfig?.revenueShare ?? {}).map(([slug, pct]) => [slug, String(pct)])));
+              setCommissionPromoters(Object.entries(found.promoterConfig?.revenueShare ?? {}).filter(([, pct]) => pct > 0).map(([slug]) => slug));
               setSeo(found.seo ? { ...found.seo, keywords: Array.isArray(found.seo.keywords) ? found.seo.keywords.join(', ') : found.seo.keywords } : emptySeo());
               setGalleryUrls(found.galleryUrls ?? []);
               setTeaserVideoUrl(found.teaserVideoUrl ?? '');
@@ -197,11 +215,15 @@ export default function EventEditorReal() {
       cap: parseInt(promoCap, 10) || 0,
       cutoff: promoCutoff,
       allowedPromoters,
+      guestListPromoters,
       perHeadPayout: perHead,
       perHeadAmount: parseInt(perHeadAmt, 10) || 0,
       allowTeams,
       revenueShare: Object.fromEntries(
-        allowedPromoters.map((slug) => [slug, parseInt(revenueShare[slug], 10) || 0] as const).filter(([, pct]) => pct > 0)
+        allowedPromoters
+          .filter((slug) => commissionPromoters.includes(slug))
+          .map((slug) => [slug, parseInt(revenueShare[slug], 10) || 0] as const)
+          .filter(([, pct]) => pct > 0)
       ),
     },
     galleryUrls,
@@ -577,9 +599,9 @@ export default function EventEditorReal() {
           <div className="hr" style={{ margin: '4px 0' }} />
           <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input type="checkbox" checked={promoEnabled} onChange={(e) => setPromoEnabled(e.target.checked)} />
-            <b style={{ fontSize: 13 }}>Enable promoter guest lists for this event</b>
+            <b style={{ fontSize: 13 }}>Enable promoters for this event</b>
           </label>
-          {!promoEnabled && <div className="tiny muted" style={{ marginLeft: 24 }}>Check this to pick which promoters can run guest lists, free-entry cap, cutoff time and payout.</div>}
+          {!promoEnabled && <div className="tiny muted" style={{ marginLeft: 24 }}>Check this to pick which promoters can run guest lists, earn paid commission, or both.</div>}
           {promoEnabled && (
             <>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -593,42 +615,66 @@ export default function EventEditorReal() {
                 </div>
               </div>
               <div className="field">
-                <label>Promoters allowed to run guest lists for this event</label>
+                <label>Promoters allowed on this event</label>
                 <MultiSelectSearch
                   chipIcon="📣"
                   placeholder="Search registered promoters by name…"
                   emptyHint="No promoters registered yet."
                   items={promoters.map((p) => ({ id: p.slug, label: p.name, sub: p.city, disabled: !p.verified, disabledLabel: '(unverified)' }))}
                   selectedIds={allowedPromoters}
-                  onChange={setAllowedPromoters}
+                  onChange={handleAllowedPromotersChange}
                 />
               </div>
               {allowedPromoters.length > 0 && (
                 <div className="field">
-                  <label>Revenue share on paid bookings (optional, negotiated per promoter)</label>
+                  <label>How each promoter promotes this event</label>
                   <div className="tiny muted" style={{ marginBottom: 8 }}>
-                    % the promoter earns on a paid booking through their link — added on top of the ticket price
-                    (guest-funded, same as Prebooze's own commission on that sale), so it never cuts into the
-                    organizer's revenue. Blank = free-list only for that promoter.
+                    🎟️ Guest list = free entry, no ticket sold. 💰 Paid commission = a % of the ticket price on any
+                    sale through their link, added on top (guest-funded, same as Prebooze's own commission on that
+                    sale) so it never cuts into the organizer's revenue. Pick either, both, or neither.
                   </div>
                   <div style={{ display: 'grid', gap: 8 }}>
                     {allowedPromoters.map((slug) => {
                       const p = promoters.find((pp) => pp.slug === slug);
+                      const hasGuestList = guestListPromoters.includes(slug);
+                      const hasCommission = commissionPromoters.includes(slug);
                       return (
-                        <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span className="small" style={{ flex: 1, minWidth: 0 }}>{p?.name ?? slug}</span>
-                          <input
-                            className="input"
-                            style={{ width: 90 }}
-                            inputMode="numeric"
-                            value={revenueShare[slug] ?? ''}
-                            onChange={(e) => {
-                              const v = e.target.value.replace(/\D/g, '').slice(0, 3);
-                              setRevenueShare((prev) => ({ ...prev, [slug]: v }));
-                            }}
-                            placeholder="0"
-                          />
-                          <span className="small muted">%</span>
+                        <div key={slug} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px' }}>
+                          <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>{p?.name ?? slug}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <input
+                                type="checkbox"
+                                checked={hasGuestList}
+                                onChange={() => setGuestListPromoters((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]))}
+                              />
+                              <span className="small">🎟️ Guest list</span>
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <input
+                                type="checkbox"
+                                checked={hasCommission}
+                                onChange={() => setCommissionPromoters((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]))}
+                              />
+                              <span className="small">💰 Paid commission</span>
+                            </label>
+                            {hasCommission && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <input
+                                  className="input"
+                                  style={{ width: 70 }}
+                                  inputMode="numeric"
+                                  value={revenueShare[slug] ?? ''}
+                                  onChange={(e) => {
+                                    const v = e.target.value.replace(/\D/g, '').slice(0, 3);
+                                    setRevenueShare((prev) => ({ ...prev, [slug]: v }));
+                                  }}
+                                  placeholder="0"
+                                />
+                                <span className="small muted">%</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -637,7 +683,7 @@ export default function EventEditorReal() {
               )}
               <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input type="checkbox" checked={perHead} onChange={(e) => setPerHead(e.target.checked)} />
-                <span>Pay promoters per verified arrival</span>
+                <span>Pay promoters per verified arrival <span className="muted">(applies to promoters with Guest list checked above)</span></span>
               </label>
               {perHead && (
                 <div className="field" style={{ maxWidth: 200, marginLeft: 24 }}>

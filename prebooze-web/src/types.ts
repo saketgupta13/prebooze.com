@@ -79,15 +79,20 @@ export interface PromoterConfig {
   enabled: boolean;
   cap: number;            // total free-entry passes across all promoters
   cutoff: string;         // free entry valid before this time, e.g. "01:00"
-  allowedPromoters: string[]; // promoter slugs the organizer allows
+  allowedPromoters: string[]; // promoter slugs the organizer allows on this event at all
+  // Subset of allowedPromoters with Guest list (free-entry) mode on.
+  // Missing (events saved before this field existed) defaults to every
+  // allowedPromoters entry — see CreateEvent.tsx / BookingsService.
+  guestListPromoters?: string[];
   perHeadPayout: boolean;
-  perHeadAmount: number;  // ₹ paid to promoter per verified arrival
+  perHeadAmount: number;  // ₹ paid to promoter per verified arrival — only for guestListPromoters
   allowTeams: boolean;
   // Individually negotiated with each promoter — not one flat rate for the
-  // whole event. slug -> % (0-100) of (subtotal - Prebooze's own commission)
-  // for any paid booking attributed to that promoter's ref. A promoter can
-  // be in allowedPromoters (free-list only) without an entry here, or have
-  // both — the two payout mechanisms are independent.
+  // whole event. slug -> % (0-100) of the base ticket price, added on top
+  // as a guest-funded markup for any paid booking attributed to that
+  // promoter's ref (see BookingsService.priceHold). A promoter can be in
+  // guestListPromoters (free-list only) without an entry here, or have
+  // both — the two modes are independent, picked per promoter.
   revenueShare?: Record<string, number>;
 }
 

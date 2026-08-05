@@ -123,7 +123,7 @@ export interface LiveTicketTier {
 export interface LiveSeo { title: string; description: string; keywords: string; }
 export interface LiveLineupItem { name: string; role: string; }
 export interface LivePartyRule { title: string; body: string; }
-export interface LivePromoterConfig { enabled: boolean; cap: number; cutoff: string; allowedPromoters: string[]; perHeadPayout: boolean; perHeadAmount: number; allowTeams: boolean; revenueShare?: Record<string, number>; }
+export interface LivePromoterConfig { enabled: boolean; cap: number; cutoff: string; allowedPromoters: string[]; guestListPromoters?: string[]; perHeadPayout: boolean; perHeadAmount: number; allowTeams: boolean; revenueShare?: Record<string, number>; }
 export interface LiveEvent {
   id: string;
   slug: string;

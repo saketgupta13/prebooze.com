@@ -7,6 +7,8 @@ import Loader from '../../components/Loader';
 import type { Event } from '../../types';
 import type { PromoterGuest } from '../../store/AppContext';
 
+type Mode = 'guestlist' | 'commission';
+
 /** Events this promoter is approved to promote — organizer-enabled events whose
  * allow-list includes this promoter. */
 export default function PromoterPromotions() {
@@ -17,6 +19,9 @@ export default function PromoterPromotions() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [copied, setCopied] = useState('');
+  // Which of the two modes is showing, per event — only relevant when an
+  // event has both Guest list and Paid commission active for this promoter.
+  const [activeTab, setActiveTab] = useState<Record<string, Mode>>({});
 
   useEffect(() => {
     Promise.all([promoterApi.me(), promoterApi.promotions(), promoterApi.team()])
@@ -81,10 +86,15 @@ export default function PromoterPromotions() {
           // ?ref= capture + BookingsService.priceHold). The free-entry link
           // never touches a real ticket purchase, so it can't earn this.
           const ticketLink = `${window.location.origin}/events/${e.slug}?ref=${mySlug}`;
+          const guestListOn = (cfg.guestListPromoters ?? cfg.allowedPromoters ?? []).includes(mySlug);
+          const commissionOn = revSharePct > 0;
           const mine = guestsByEvent[e.id] ?? [];
           const myGuests = mine.length;
           const arrived = mine.filter((g) => g.arrived).length;
-          const earned = cfg.perHeadPayout ? arrived * cfg.perHeadAmount : 0;
+          const earned = cfg.perHeadPayout && guestListOn ? arrived * cfg.perHeadAmount : 0;
+          const modes: Mode[] = [...(guestListOn ? (['guestlist'] as const) : []), ...(commissionOn ? (['commission'] as const) : [])];
+          const tab: Mode | undefined = modes.length > 1 ? (activeTab[e.id] ?? modes[0]) : modes[0];
+
           return (
             <div key={e.id} className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -99,53 +109,109 @@ export default function PromoterPromotions() {
 
               <div className="hr" />
 
-              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                <div>
-                  <div className="tiny muted-2">Free-entry cap</div>
-                  <div className="bold">{cfg.cap} passes</div>
+              {modes.length === 0 && (
+                <div className="tiny muted-2">
+                  Not active for you on this event yet — ask the organizer to enable Guest list or Paid commission
+                  for you.
                 </div>
-                <div>
-                  <div className="tiny muted-2">Free before</div>
-                  <div className="bold">{cfg.cutoff}</div>
+              )}
+
+              {modes.length > 1 && (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${tab === 'guestlist' ? 'btn-pri' : 'btn-ghost'}`}
+                    onClick={() => setActiveTab((prev) => ({ ...prev, [e.id]: 'guestlist' }))}
+                  >
+                    🎟️ Guest list
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${tab === 'commission' ? 'btn-pri' : 'btn-ghost'}`}
+                    onClick={() => setActiveTab((prev) => ({ ...prev, [e.id]: 'commission' }))}
+                  >
+                    💰 Paid commission
+                  </button>
                 </div>
-                {cfg.perHeadPayout && (
-                  <div>
-                    <div className="tiny muted-2">You earn / arrival</div>
-                    <div className="bold accent">₹{cfg.perHeadAmount}</div>
-                  </div>
-                )}
-                {revSharePct > 0 && (
-                  <div>
-                    <div className="tiny muted-2">Revenue share</div>
-                    <div className="bold accent">{revSharePct}% on paid tickets</div>
-                  </div>
-                )}
-                {cfg.allowTeams && (
-                  <div>
-                    <div className="tiny muted-2">Teams</div>
-                    <div className="bold">Allowed</div>
-                  </div>
-                )}
-              </div>
+              )}
 
-              <div className="tiny muted-2" style={{ marginTop: 12 }}>
-                You've brought <b className="accent">{myGuests}</b> guest{myGuests === 1 ? '' : 's'} to this event
-                {arrived > 0 && <> · <b className="accent">{arrived}</b> arrived</>}
-                {earned > 0 && <> · earned <b className="accent">₹{earned}</b></>}
-              </div>
-              <div className="tiny muted-2" style={{ marginTop: 12 }}>🎟️ Free-entry link — guest skips the ticket, no purchase, no revenue-share earning</div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                <button className="btn btn-pri btn-sm" onClick={() => copy(link, e.id)}>
-                  {copied === e.id ? 'Copied ✓' : '🔗 Copy free-entry link'}
-                </button>
-                <Link to={`/promoter/guests/${e.id}`} className="btn btn-ghost btn-sm">📋 Guest list</Link>
-                <a href={link} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">Preview link ↗</a>
-              </div>
-              <div className="tiny muted-2" style={{ marginTop: 6, wordBreak: 'break-all' }}>{link}</div>
-
-              {revSharePct > 0 && (
+              {tab === 'guestlist' && (
                 <>
-                  <div className="tiny muted-2" style={{ marginTop: 14 }}>
+                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                    <div>
+                      <div className="tiny muted-2">Free-entry cap</div>
+                      <div className="bold">{cfg.cap} passes</div>
+                    </div>
+                    <div>
+                      <div className="tiny muted-2">Free before</div>
+                      <div className="bold">{cfg.cutoff}</div>
+                    </div>
+                    {cfg.perHeadPayout && (
+                      <div>
+                        <div className="tiny muted-2">You earn / arrival</div>
+                        <div className="bold accent">₹{cfg.perHeadAmount}</div>
+                      </div>
+                    )}
+                    {cfg.allowTeams && (
+                      <div>
+                        <div className="tiny muted-2">Teams</div>
+                        <div className="bold">Allowed</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="tiny muted-2" style={{ marginTop: 12 }}>
+                    You've brought <b className="accent">{myGuests}</b> guest{myGuests === 1 ? '' : 's'} to this event
+                    {arrived > 0 && <> · <b className="accent">{arrived}</b> arrived</>}
+                    {earned > 0 && <> · earned <b className="accent">₹{earned}</b></>}
+                  </div>
+                  <div className="tiny muted-2" style={{ marginTop: 12 }}>🎟️ Free-entry link — guest skips the ticket, no purchase, no revenue-share earning</div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button className="btn btn-pri btn-sm" onClick={() => copy(link, e.id)}>
+                      {copied === e.id ? 'Copied ✓' : '🔗 Copy free-entry link'}
+                    </button>
+                    <Link to={`/promoter/guests/${e.id}`} className="btn btn-ghost btn-sm">📋 Guest list</Link>
+                    <a href={link} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">Preview link ↗</a>
+                  </div>
+                  <div className="tiny muted-2" style={{ marginTop: 6, wordBreak: 'break-all' }}>{link}</div>
+
+                  {cfg.allowTeams && team.length > 0 && (
+                    <div style={{ marginTop: 12, borderTop: '1px dashed var(--border-dash)', paddingTop: 10 }}>
+                      <div className="tiny muted-2" style={{ marginBottom: 6 }}>👥 Team links — each tagged to a member:</div>
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        {team.map((m) => {
+                          const sub = `${link}?via=${m.handle}`;
+                          const g = mine.filter((x) => x.subPromoter === m.handle);
+                          const key = `${e.id}-${m.handle}`;
+                          return (
+                            <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <span className="small bold" style={{ flex: '0 0 auto' }}>{m.name}</span>
+                              <span className="tiny muted-2">{g.length} brought · {g.filter((x) => x.arrived).length} in</span>
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                style={{ marginLeft: 'auto' }}
+                                onClick={() => copy(sub, key)}
+                              >
+                                {copied === key ? 'Copied ✓' : '🔗 Copy'}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {tab === 'commission' && (
+                <>
+                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                    <div>
+                      <div className="tiny muted-2">Revenue share</div>
+                      <div className="bold accent">{revSharePct}% on paid tickets</div>
+                    </div>
+                  </div>
+                  <div className="tiny muted-2" style={{ marginTop: 12 }}>
                     💰 Ticket link — send this for a paid sale, you earn {revSharePct}% of the ticket price on it
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -157,33 +223,8 @@ export default function PromoterPromotions() {
                   <div className="tiny muted-2" style={{ marginTop: 6, wordBreak: 'break-all' }}>{ticketLink}</div>
                 </>
               )}
-              <Link to={`/events/${e.slug}`} className="btn btn-ghost btn-sm" style={{ marginTop: 10, display: 'inline-block' }}>View event →</Link>
 
-              {cfg.allowTeams && team.length > 0 && (
-                <div style={{ marginTop: 12, borderTop: '1px dashed var(--border-dash)', paddingTop: 10 }}>
-                  <div className="tiny muted-2" style={{ marginBottom: 6 }}>👥 Team links — each tagged to a member:</div>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    {team.map((m) => {
-                      const sub = `${link}?via=${m.handle}`;
-                      const g = mine.filter((x) => x.subPromoter === m.handle);
-                      const key = `${e.id}-${m.handle}`;
-                      return (
-                        <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span className="small bold" style={{ flex: '0 0 auto' }}>{m.name}</span>
-                          <span className="tiny muted-2">{g.length} brought · {g.filter((x) => x.arrived).length} in</span>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            style={{ marginLeft: 'auto' }}
-                            onClick={() => copy(sub, key)}
-                          >
-                            {copied === key ? 'Copied ✓' : '🔗 Copy'}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              <Link to={`/events/${e.slug}`} className="btn btn-ghost btn-sm" style={{ marginTop: 10, display: 'inline-block' }}>View event →</Link>
             </div>
           );
         })}

@@ -17,10 +17,23 @@ interface PromoterConfig {
   cap: number;
   cutoff: string; // "HH:MM"
   allowedPromoters: string[];
+  // Subset of allowedPromoters with Guest list mode on. Missing (events
+  // saved before this field existed) defaults to every allowedPromoters
+  // entry, so already-live events keep earning exactly as they did before.
+  guestListPromoters?: string[];
   perHeadPayout: boolean;
   perHeadAmount: number;
   allowTeams: boolean;
   revenueShare?: Record<string, number>; // slug -> % of base ticket price, added on top as guest-funded markup (see BookingsService.priceHold)
+}
+
+/** Whether `slug` has Guest list mode on for this event's config — the gate
+ * for both joining the free-entry list (captureGuest) and earning a
+ * per-head payout on arrivals (earnings/perEventEarnings). */
+function guestListEnabled(cfg: PromoterConfig | null | undefined, slug: string): boolean {
+  if (!cfg?.enabled) return false;
+  const glp = cfg.guestListPromoters ?? cfg.allowedPromoters ?? [];
+  return glp.includes(slug);
 }
 
 const norm = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
@@ -124,7 +137,7 @@ export class PromoterService {
     if (!event || event.status !== 'approved') throw new NotFoundException("This guest-list link isn't active");
 
     const cfg = event.promoterConfig as unknown as PromoterConfig | null;
-    if (!cfg?.enabled || !cfg.allowedPromoters?.includes(promoterSlug)) {
+    if (!cfg || !guestListEnabled(cfg, promoterSlug)) {
       throw new BadRequestException("This guest-list link isn't active");
     }
     if (!body.name?.trim() || !body.phone?.trim() || !body.age?.trim() || !body.gender) {
@@ -231,7 +244,7 @@ export class PromoterService {
     });
     const perHead = arrivedGuests.reduce((sum, g) => {
       const cfg = g.event.promoterConfig as unknown as PromoterConfig | null;
-      if (!cfg?.enabled || !cfg.perHeadPayout) return sum;
+      if (!cfg?.perHeadPayout || !guestListEnabled(cfg, promoter.slug)) return sum;
       return sum + cfg.perHeadAmount;
     }, 0);
 
@@ -277,7 +290,7 @@ export class PromoterService {
 
     for (const g of arrivedGuests) {
       const cfg = g.event.promoterConfig as unknown as PromoterConfig | null;
-      if (!cfg?.enabled || !cfg.perHeadPayout) continue;
+      if (!cfg?.perHeadPayout || !guestListEnabled(cfg, promoter.slug)) continue;
       ensure(g.event.id, g.event.title, g.event.date).perHead += cfg.perHeadAmount;
     }
     for (const b of bookings) {

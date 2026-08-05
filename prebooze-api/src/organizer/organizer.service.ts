@@ -559,8 +559,10 @@ export class OrganizerService {
     };
 
     for (const g of arrivedGuests) {
-      const cfg = eventById.get(g.eventId)?.promoterConfig as unknown as { enabled?: boolean; perHeadPayout?: boolean; perHeadAmount?: number } | null;
-      if (!cfg?.enabled || !cfg.perHeadPayout) continue;
+      const cfg = eventById.get(g.eventId)?.promoterConfig as unknown as
+        { enabled?: boolean; perHeadPayout?: boolean; perHeadAmount?: number; allowedPromoters?: string[]; guestListPromoters?: string[] } | null;
+      const glp = cfg?.guestListPromoters ?? cfg?.allowedPromoters ?? [];
+      if (!cfg?.enabled || !cfg.perHeadPayout || !glp.includes(g.promoterSlug)) continue;
       const row = ensure(g.eventId, g.promoterSlug);
       if (row) row.perHead += cfg.perHeadAmount ?? 0;
     }

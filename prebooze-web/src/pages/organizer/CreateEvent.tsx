@@ -96,16 +96,38 @@ export default function CreateEvent() {
   const [promoCap, setPromoCap] = useState('200');
   const [promoCutoff, setPromoCutoff] = useState('01:00');
   const [allowedPromoters, setAllowedPromoters] = useState<string[]>([]);
+  // Two independent modes, picked per promoter (not one setting for the
+  // whole event): Guest list (free entry, no ticket sold, optionally paid
+  // per arrival via perHead/perHeadAmt below) and Paid commission (revenue
+  // share % on ticket sales through their link). A promoter can have
+  // either, both, or (rare) neither once added.
+  const [guestListPromoters, setGuestListPromoters] = useState<string[]>([]);
+  const [commissionPromoters, setCommissionPromoters] = useState<string[]>([]);
   const [perHead, setPerHead] = useState(false);
   const [perHeadAmt, setPerHeadAmt] = useState('100');
   const [allowTeams, setAllowTeams] = useState(false);
   // Negotiated individually per promoter, not one rate for the whole event
-  // — slug -> % (0-100) of (subtotal - Prebooze's own commission) on any
-  // paid booking that promoter refers. Blank/0 = free-list only, no revenue
-  // share offered to that promoter.
+  // — slug -> % (0-100) of the base ticket price, added on top as a
+  // guest-funded markup (see BookingsService.priceHold). Only applies for
+  // promoters with the Paid commission checkbox on (commissionPromoters).
   const [revenueShare, setRevenueShare] = useState<Record<string, string>>({});
-  const togglePromoter = (slug: string) =>
-    setAllowedPromoters((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]));
+  const togglePromoter = (slug: string) => {
+    setAllowedPromoters((prev) => {
+      if (prev.includes(slug)) {
+        setGuestListPromoters((g) => g.filter((x) => x !== slug));
+        setCommissionPromoters((c) => c.filter((x) => x !== slug));
+        return prev.filter((x) => x !== slug);
+      }
+      // newly added — default to Guest list mode on, matching the
+      // long-standing behavior before Paid commission existed as a choice
+      setGuestListPromoters((g) => (g.includes(slug) ? g : [...g, slug]));
+      return [...prev, slug];
+    });
+  };
+  const toggleGuestList = (slug: string) =>
+    setGuestListPromoters((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]));
+  const toggleCommission = (slug: string) =>
+    setCommissionPromoters((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]));
 
   // Step 5 — SEO
   const [seoTitle, setSeoTitle] = useState('');
@@ -167,10 +189,16 @@ export default function CreateEvent() {
             setPromoCap(String(pc.cap));
             setPromoCutoff(pc.cutoff);
             setAllowedPromoters(pc.allowedPromoters);
+            // missing guestListPromoters (events saved before this field
+            // existed) defaults to every allowed promoter — preserves what
+            // was actually live before, rather than silently un-checking
+            // promoters who are still earning per-head payouts today
+            setGuestListPromoters(pc.guestListPromoters ?? pc.allowedPromoters);
             setPerHead(pc.perHeadPayout);
             setPerHeadAmt(String(pc.perHeadAmount));
             setAllowTeams(pc.allowTeams);
             setRevenueShare(Object.fromEntries(Object.entries(pc.revenueShare ?? {}).map(([slug, pct]) => [slug, String(pct)])));
+            setCommissionPromoters(Object.entries(pc.revenueShare ?? {}).filter(([, pct]) => pct > 0).map(([slug]) => slug));
           }
           setSeoTitle(ev.seo?.title ?? '');
           setSeoDesc(ev.seo?.description ?? '');
@@ -244,11 +272,13 @@ export default function CreateEvent() {
       cap: +promoCap || 0,
       cutoff: promoCutoff,
       allowedPromoters,
+      guestListPromoters,
       perHeadPayout: perHead,
       perHeadAmount: +perHeadAmt || 0,
       allowTeams,
       revenueShare: Object.fromEntries(
         allowedPromoters
+          .filter((slug) => commissionPromoters.includes(slug))
           .map((slug) => [slug, +revenueShare[slug] || 0] as const)
           .filter(([, pct]) => pct > 0)
       ),
@@ -669,10 +699,10 @@ export default function CreateEvent() {
 
       {step === 4 && (
         <div className="card">
-          <h3 style={{ marginBottom: 4 }}>Promoter guest lists</h3>
+          <h3 style={{ marginBottom: 4 }}>Promoters</h3>
           <p className="muted small" style={{ marginBottom: 14 }}>
-            Let approved promoters bring free-entry guests to this event, up to a cap and before a cutoff time.
-            You choose exactly who's allowed.
+            Let approved promoters bring free-entry guests, earn a commission on ticket sales through their link,
+            or both — you choose per promoter.
           </p>
 
           <label
@@ -680,7 +710,7 @@ export default function CreateEvent() {
             style={{ marginBottom: promoEnabled ? 16 : 0, padding: '12px 14px', border: '1.5px solid var(--border-3)', borderRadius: 10 }}
           >
             <input type="checkbox" checked={promoEnabled} onChange={(e) => setPromoEnabled(e.target.checked)} />
-            <span style={{ fontWeight: 700, color: 'var(--text)' }}>Enable promoter guest lists for this event</span>
+            <span style={{ fontWeight: 700, color: 'var(--text)' }}>Enable promoters for this event</span>
           </label>
 
           {promoEnabled && (
@@ -697,65 +727,68 @@ export default function CreateEvent() {
               </div>
 
               <div className="field">
-                <span>Allowed promoters — only these can promote your event</span>
-                <div className="chip-row">
-                  {promoters.map((p) => (
-                    <button
-                      key={p.slug}
-                      type="button"
-                      className={`chip ${allowedPromoters.includes(p.slug) ? 'on' : ''}`}
-                      onClick={() => togglePromoter(p.slug)}
-                    >
-                      {p.name} {p.verified ? '✓' : ''}
-                      {allowedPromoters.includes(p.slug) ? ' ·✓' : ''}
-                    </button>
-                  ))}
+                <span>Allowed promoters — pick who, and how each one promotes your event</span>
+                <div className="tiny muted-2" style={{ marginBottom: 8 }}>
+                  🎟️ Guest list = free entry, no ticket sold. 💰 Paid commission = a % of the ticket price on any
+                  sale through their link, added on top so it doesn't cut into your revenue (the guest pays the
+                  extra, same as Prebooze's own commission on that sale). Pick either, both, or leave a promoter
+                  unchecked on both to add them without activating anything yet.
+                </div>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {promoters.map((p) => {
+                    const isAllowed = allowedPromoters.includes(p.slug);
+                    const hasGuestList = guestListPromoters.includes(p.slug);
+                    const hasCommission = commissionPromoters.includes(p.slug);
+                    return (
+                      <div key={p.slug} style={{ border: '1.5px solid var(--border-3)', borderRadius: 10, padding: '10px 12px' }}>
+                        <label className="checkbox-row">
+                          <input type="checkbox" checked={isAllowed} onChange={() => togglePromoter(p.slug)} />
+                          <span style={{ fontWeight: 700, color: 'var(--text)' }}>{p.name} {p.verified ? '✓' : ''}</span>
+                        </label>
+                        {isAllowed && (
+                          <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center', marginTop: 8, marginLeft: 26 }}>
+                            <label className="checkbox-row" style={{ marginBottom: 0 }}>
+                              <input type="checkbox" checked={hasGuestList} onChange={() => toggleGuestList(p.slug)} />
+                              <span className="small">🎟️ Guest list</span>
+                            </label>
+                            <label className="checkbox-row" style={{ marginBottom: 0 }}>
+                              <input type="checkbox" checked={hasCommission} onChange={() => toggleCommission(p.slug)} />
+                              <span className="small">💰 Paid commission</span>
+                            </label>
+                            {hasCommission && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <input
+                                  className="input"
+                                  style={{ width: 70 }}
+                                  value={revenueShare[p.slug] ?? ''}
+                                  onChange={(e) => {
+                                    const v = e.target.value.replace(/\D/g, '').slice(0, 3);
+                                    setRevenueShare((prev) => ({ ...prev, [p.slug]: v }));
+                                  }}
+                                  inputMode="numeric"
+                                  placeholder="0"
+                                />
+                                <span className="small muted-2">%</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 {allowedPromoters.length === 0 && (
                   <div className="tiny danger-text" style={{ marginTop: 6 }}>
-                    Pick at least one promoter, or nobody can bring guests.
+                    Pick at least one promoter, or nobody can promote your event.
                   </div>
                 )}
               </div>
-
-              {allowedPromoters.length > 0 && (
-                <div className="field">
-                  <span>Revenue share on paid bookings (optional, negotiated per promoter)</span>
-                  <div className="tiny muted-2" style={{ marginBottom: 8 }}>
-                    % the promoter earns on any ticket sale that comes through their own link — added on top
-                    of your ticket price so it doesn't cut into your revenue (the guest pays the extra, same as
-                    Prebooze's own commission on that sale). Leave blank if a promoter is free-list only.
-                  </div>
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    {allowedPromoters.map((slug) => {
-                      const p = promoters.find((pp) => pp.slug === slug);
-                      return (
-                        <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span className="small" style={{ flex: 1, minWidth: 0 }}>{p?.name ?? slug}</span>
-                          <input
-                            className="input"
-                            style={{ width: 90 }}
-                            value={revenueShare[slug] ?? ''}
-                            onChange={(e) => {
-                              const v = e.target.value.replace(/\D/g, '').slice(0, 3);
-                              setRevenueShare((prev) => ({ ...prev, [slug]: v }));
-                            }}
-                            inputMode="numeric"
-                            placeholder="0"
-                          />
-                          <span className="small muted-2">%</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
               <div className="hr" />
 
               <label className="checkbox-row" style={{ marginBottom: 8 }}>
                 <input type="checkbox" checked={perHead} onChange={(e) => setPerHead(e.target.checked)} />
-                <span>Pay promoters per verified arrival</span>
+                <span>Pay promoters per verified arrival <span className="muted-2">(applies to promoters with Guest list checked above)</span></span>
               </label>
               {perHead && (
                 <div className="field" style={{ maxWidth: 220, marginLeft: 26 }}>

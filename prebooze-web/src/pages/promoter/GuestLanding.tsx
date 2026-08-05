@@ -42,7 +42,8 @@ export default function GuestLanding() {
   if (loading) return <Loader />;
 
   const cfg = event?.promoterConfig;
-  const active = !!cfg?.enabled && !!promoterSlug && (cfg.allowedPromoters?.includes(promoterSlug) ?? false);
+  const guestListPromoters = cfg?.guestListPromoters ?? cfg?.allowedPromoters ?? [];
+  const active = !!cfg?.enabled && !!promoterSlug && guestListPromoters.includes(promoterSlug);
 
   if (!event || !active) {
     return (
