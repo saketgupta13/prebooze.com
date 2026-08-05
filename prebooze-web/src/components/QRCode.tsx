@@ -13,7 +13,11 @@ export default function QRCode({ value, size = 148, caption }: { value: string; 
     QRCodeLib.toDataURL(value, {
       errorCorrectionLevel: 'H',
       margin: 1,
-      width: size * 3, // render at higher pixel density than displayed size, sharper on retina
+      // `scale` (px per module) instead of `width` — forcing an exact pixel
+      // `width` makes the library pad any leftover fractional-module space
+      // onto the right/bottom edge in the background color, visible as an
+      // uneven dead black bar. Scale always tiles exactly, no padding.
+      scale: 14,
       color: { dark: '#9be13d', light: '#000000' },
     })
       .then((url) => { if (!cancelled) setDataUrl(url); })
@@ -23,7 +27,13 @@ export default function QRCode({ value, size = 148, caption }: { value: string; 
 
   const logo = Math.round(size * 0.26);
   return (
-    <div className="qr-wrap" style={{ position: 'relative', display: 'inline-block' }}>
+    // NOTE: no `display` here — the .qr-wrap CSS class already sets
+    // `display: inline-flex` (column, centered), which is what actually
+    // keeps the image and the absolutely-positioned logo centered on the
+    // same box. An inline `display` here previously silently overrode it,
+    // widening the box to the caption text's width and dragging the logo
+    // off-center along with it.
+    <div className="qr-wrap" style={{ position: 'relative' }}>
       {dataUrl ? (
         <img src={dataUrl} alt="Entry QR code" width={size} height={size} style={{ borderRadius: 8, display: 'block' }} />
       ) : (
