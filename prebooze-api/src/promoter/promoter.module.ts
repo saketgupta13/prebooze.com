@@ -10,9 +10,11 @@ import { RazorpayService } from '../payments/razorpay.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { WalletService } from '../wallet/wallet.service';
 import { NotificationsService } from '../admin/notifications.service';
+import { StorageService } from '../kyc/storage.service';
+import { InvoicesService } from '../invoices/invoices.service';
 
 @Module({
   controllers: [PromoterController, GuestCaptureController],
-  providers: [PromoterService, PrismaService, JwtAuthGuard, WhatsappService, EmailService, StaffAlertsService, RazorpayService, SubscriptionsService, WalletService, NotificationsService],
+  providers: [PromoterService, PrismaService, JwtAuthGuard, WhatsappService, EmailService, StaffAlertsService, RazorpayService, SubscriptionsService, WalletService, NotificationsService, StorageService, InvoicesService],
 })
 export class PromoterModule {}

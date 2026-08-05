@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import WysiwygEditor from '../components/WysiwygEditor';
+import RealImageUpload from '../components/RealImageUpload';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import { livePromoters, LiveApiError, type LivePromoter } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -24,6 +25,7 @@ export default function PromoterEdit() {
   const [contact, setContact] = useState('');
   const [city, setCity] = useState('');
   const [bio, setBio] = useState('');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [seo, setSeo] = useState<Seo>(emptySeo());
 
   const load = () => {
@@ -39,6 +41,7 @@ export default function PromoterEdit() {
           setContact(found.contact ?? '');
           setCity(found.city);
           setBio(found.bio ?? '');
+          setLogoUrl(found.logoUrl ?? null);
           setSeo((found.seo as Seo | null) ?? emptySeo());
         }
       })
@@ -67,7 +70,7 @@ export default function PromoterEdit() {
     e.preventDefault();
     if (!name.trim()) { setErr('Name is required'); return; }
     try {
-      await livePromoters.update(p.id, { name: name.trim(), contact: contact.trim(), city: city.trim() || '—', bio: bio.trim(), seo });
+      await livePromoters.update(p.id, { name: name.trim(), contact: contact.trim(), city: city.trim() || '—', bio: bio.trim(), logoUrl: logoUrl ?? undefined, seo });
       navigate(`/promoters/${p.id}`);
     } catch (e2) {
       setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to save');
@@ -83,6 +86,7 @@ export default function PromoterEdit() {
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
 
       <form className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }} onSubmit={save}>
+        <RealImageUpload value={logoUrl} onChange={setLogoUrl} height={90} width={90} label="photo" />
         <div style={{ display: 'flex', gap: 8 }}>
           <div className="field" style={{ flex: 1 }}>
             <label>Promoter / PR name</label>

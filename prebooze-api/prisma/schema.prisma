@@ -87,6 +87,9 @@ model User {
   promoterBrand    String?
   promoterUsername String?
   promoterPlan     String?
+  // Denormalized from Promoter.logoUrl (kept in sync in PromoterService.
+  // updateMe) — same reasoning as orgLogoUrl/venueLogoUrl/lineupLogoUrl above.
+  promoterLogoUrl  String?
   venueName        String?
   venueId          String?
   // Denormalized from Venue.logoUrl (kept in sync in VenueService.onboard/
@@ -398,6 +401,10 @@ model Promoter {
   verified       Boolean  @default(false)
   city           String
   bio            String
+  // Real, uploaded logo (POST /promoter/upload) — optional, falls back to
+  // the hue placeholder when unset, same real-upload-over-hue-placeholder
+  // move as Organizer.logoUrl/Venue.galleryUrls.
+  logoUrl        String?
   links          String[] @default([])
   followers      Int      @default(0)
   eventsPromoted Int      @default(0)

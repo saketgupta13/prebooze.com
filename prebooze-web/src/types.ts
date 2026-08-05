@@ -174,6 +174,7 @@ export interface PromoterProfile {
   guestsBrought: number;
   showRate: number;
   hue: number;
+  logoUrl?: string | null;
 }
 
 export interface LineupProfile {
@@ -397,6 +398,7 @@ export interface User {
   promoterBrand?: string;
   promoterUsername?: string;
   promoterPlan?: string;
+  promoterLogoUrl?: string; // real, uploaded logo — same role as orgLogoUrl
   isVenue?: boolean;
   venueName?: string;
   venueId?: string; // links to the Venue record created at onboarding

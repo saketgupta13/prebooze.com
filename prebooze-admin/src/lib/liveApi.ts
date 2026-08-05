@@ -311,7 +311,7 @@ export interface LiveOrganizer {
 export interface LivePromoter {
   id: string; slug: string; name: string; verified: boolean; city: string; bio: string; links: string[];
   followers: number; eventsPromoted: number; guestsBrought: number; showRate: number; planId: string;
-  contact: string | null; seo: Seo | null;
+  contact: string | null; seo: Seo | null; logoUrl: string | null;
 }
 export interface LiveLineup {
   id: string; slug: string; name: string; category: string; verified: boolean; city: string;

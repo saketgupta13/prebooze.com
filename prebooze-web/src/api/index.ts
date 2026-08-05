@@ -251,6 +251,7 @@ export interface PromoterMe {
   bankLast4: string | null;
   accountHolderName: string | null;
   ifsc: string | null;
+  logoUrl: string | null;
   createdAt: string;
 }
 export interface PromoterTeamMember extends SubPromoter {
@@ -277,8 +278,25 @@ export const promoter = {
   me: () => apiFetch<PromoterMe>('/promoter/me'),
   updateMe: (patch: {
     brandName?: string; username?: string; city?: string; bio?: string; links?: string[]; audienceReach?: string;
-    bankName?: string; bankAccount?: string; accountHolderName?: string; ifsc?: string;
+    bankName?: string; bankAccount?: string; accountHolderName?: string; ifsc?: string; logoUrl?: string;
   }) => apiFetch<PromoterMe>('/promoter/me', { method: 'PATCH', body: patch }),
+  upload: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiUpload<{ url: string }>('/promoter/upload', form);
+  },
+  invoices: () => apiFetch<Invoice[]>('/promoter/invoices'),
+  downloadInvoicePdf: async (id: string, filename: string) => {
+    const res = await fetch(`${API_URL}/promoter/invoices/${id}/pdf`, { headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {} });
+    if (!res.ok) throw new ApiError(res.status, 'ERROR', 'Failed to download PDF');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
   promotions: () => apiFetch<Event[]>('/promoter/promotions'),
   guests: (eventId: string) => apiFetch<PromoterGuest[]>(`/promoter/events/${eventId}/guests`),
   paidGuests: (eventId: string) =>

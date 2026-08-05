@@ -5,6 +5,7 @@ import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
 import type { Event } from '../../types';
 import type { PromoterGuest } from '../../store/AppContext';
+import { copyToClipboard } from '../../lib/clipboard';
 
 const fmtMoney = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -131,10 +132,14 @@ export default function PromoterTeam() {
     }
   };
 
-  const copy = (link: string, key: string) => {
-    navigator.clipboard?.writeText(link).catch(() => {});
-    setCopied(key);
-    setTimeout(() => setCopied(''), 1500);
+  const copy = async (link: string, key: string) => {
+    const ok = await copyToClipboard(link);
+    if (ok) {
+      setCopied(key);
+      setTimeout(() => setCopied(''), 1500);
+    } else {
+      setErr('Could not copy — long-press or select the link below to copy it manually');
+    }
   };
   const freeEntryLink = (h: string) => {
     const e = teamEvents[0];

@@ -85,7 +85,7 @@ export class PromoterService {
     userId: string,
     patch: {
       brandName?: string; username?: string; city?: string; bio?: string; links?: string[]; audienceReach?: string;
-      bankName?: string; bankAccount?: string; accountHolderName?: string; ifsc?: string;
+      bankName?: string; bankAccount?: string; accountHolderName?: string; ifsc?: string; logoUrl?: string;
     },
   ) {
     const promoter = await this.myPromoter(userId);
@@ -111,15 +111,17 @@ export class PromoterService {
         bankLast4: patch.bankAccount ? patch.bankAccount.trim().slice(-4) : undefined,
         accountHolderName: patch.accountHolderName?.trim(),
         ifsc: patch.ifsc?.trim().toUpperCase(),
+        logoUrl: patch.logoUrl,
       },
     });
 
-    if (promoter.userId && (patch.brandName !== undefined || slug)) {
+    if (promoter.userId && (patch.brandName !== undefined || slug || patch.logoUrl !== undefined)) {
       await this.prisma.user.update({
         where: { id: promoter.userId },
         data: {
           promoterBrand: patch.brandName !== undefined ? updated.name : undefined,
           promoterUsername: slug ? updated.slug : undefined,
+          promoterLogoUrl: patch.logoUrl !== undefined ? updated.logoUrl : undefined,
         },
       });
     }

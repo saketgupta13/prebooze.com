@@ -112,7 +112,11 @@ export function Promoters() {
         {list.map((p) => (
           <div key={p.id} className="trow clickable" style={{ minWidth: 760 }} onClick={() => navigate(`/promoters/${p.id}`)}>
             <span style={{ flex: 1.6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <GradientPhoto seed={p.name.charCodeAt(0) * 6} style={{ width: 28, height: 28, borderRadius: '50%', flex: 'none', padding: 0 }} />
+              {p.logoUrl ? (
+                <img src={p.logoUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', flex: 'none', objectFit: 'cover' }} />
+              ) : (
+                <GradientPhoto seed={p.name.charCodeAt(0) * 6} style={{ width: 28, height: 28, borderRadius: '50%', flex: 'none', padding: 0 }} />
+              )}
               {p.name}
             </span>
             <span style={{ flex: 1 }} className="muted">{p.city}</span>
@@ -184,7 +188,11 @@ export function PromoterDetail() {
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Link to="/promoters" style={{ fontSize: 13 }}>← Promoters</Link>
-        <GradientPhoto seed={p.name.charCodeAt(0) * 6} style={{ width: 40, height: 40, borderRadius: '50%', flex: 'none', padding: 0 }} />
+        {p.logoUrl ? (
+          <img src={p.logoUrl} alt="" style={{ width: 40, height: 40, borderRadius: '50%', flex: 'none', objectFit: 'cover' }} />
+        ) : (
+          <GradientPhoto seed={p.name.charCodeAt(0) * 6} style={{ width: 40, height: 40, borderRadius: '50%', flex: 'none', padding: 0 }} />
+        )}
         <h1 className="display" style={{ fontSize: 18 }}>{p.name}</h1>
         {p.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Unverified" cls="" />}
         <div style={{ flex: 1 }} />

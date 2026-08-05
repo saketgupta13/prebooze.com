@@ -7,6 +7,7 @@ import { ApiError } from '../../api/client';
 import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 import WysiwygEditor from '../../components/WysiwygEditor';
 import Loader from '../../components/Loader';
+import { RealUploadBox } from '../../components/RealUploadBox';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -24,6 +25,7 @@ export default function PromoterSettings() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<string | null>(null);
 
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [brand, setBrand] = useState('');
   const [username, setUsername] = useState('');
   const [city, setCity] = useState('Hyderabad');
@@ -42,6 +44,7 @@ export default function PromoterSettings() {
       .me()
       .then((m) => {
         setMe(m);
+        setLogoUrl(m.logoUrl ?? null);
         setBrand(m.name);
         setUsername(m.slug);
         setCity(user?.city ?? 'Hyderabad');
@@ -67,9 +70,14 @@ export default function PromoterSettings() {
         brandName: brand.trim(), username: username.trim(), city, bio,
         links: links.split(',').map((s) => s.trim()).filter(Boolean),
         audienceReach: audienceReach.trim(),
+        logoUrl: logoUrl ?? undefined,
       });
       setMe(updated);
-      updateUser({ promoterBrand: updated.name, promoterUsername: updated.slug, city });
+      // Header reads user.promoterLogoUrl (a copy kept in sync by
+      // PromoterService.updateMe) — without this, a logo change here would
+      // show correctly on this page but the header would keep showing the
+      // old value until a full page reload remounted AppContext's /me fetch.
+      updateUser({ promoterBrand: updated.name, promoterUsername: updated.slug, city, promoterLogoUrl: updated.logoUrl ?? undefined });
       toast('Profile saved ✓');
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Failed to save profile');
@@ -112,6 +120,13 @@ export default function PromoterSettings() {
         </div>
         {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
         <div className="tiny muted-2" style={{ marginBottom: 12 }}>Promoting since {fmtDate(me.createdAt)}</div>
+        <RealUploadBox
+          value={logoUrl}
+          onChange={setLogoUrl}
+          upload={promoterApi.upload}
+          label="⬆ upload photo"
+          style={{ height: 100, width: 100, marginBottom: 14 }}
+        />
         <div className="form-row">
           <div className="field">
             <span>Brand name</span>

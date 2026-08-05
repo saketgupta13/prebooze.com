@@ -1,13 +1,21 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Res, UploadedFile, UseGuards, UseInterceptors, Req } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { PromoterService } from './promoter.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
+import { StorageService } from '../kyc/storage.service';
+import { InvoicesService } from '../invoices/invoices.service';
 
-type AuthedReq = { user: { sub: string } };
+type AuthedReq = { user: { sub: string; phone: string } };
 
 @Controller('promoter')
 @UseGuards(JwtAuthGuard)
 export class PromoterController {
-  constructor(private promoter: PromoterService) {}
+  constructor(
+    private promoter: PromoterService,
+    private storage: StorageService,
+    private invoices: InvoicesService,
+  ) {}
 
   @Get('me')
   me(@Req() req: AuthedReq) {
@@ -17,6 +25,38 @@ export class PromoterController {
   @Patch('me')
   updateMe(@Req() req: AuthedReq, @Body() body: Parameters<PromoterService['updateMe']>[1]) {
     return this.promoter.updateMe(req.user.sub, body);
+  }
+
+  /** Real file upload for the promoter's own profile logo — same local-disk
+   * StorageService as organizer/venue/lineup uploads, just promoter-scoped.
+   * me() throwing ForbiddenException for a non-promoter is what keeps this
+   * from being free anonymous file storage for any authenticated user, same
+   * guard organizer.controller.ts's own upload endpoint documents needing. */
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 80 * 1024 * 1024 } }))
+  async upload(@Req() req: AuthedReq, @UploadedFile() file?: Express.Multer.File) {
+    await this.promoter.me(req.user.sub);
+    if (!file) throw new BadRequestException('file is required (max 80MB)');
+    return { url: await this.storage.save(file) };
+  }
+
+  /** Real Featured billing history — same Invoice rows admin sees, filtered
+   * to this promoter's own phone, same pattern as organizer/venue/lineup's
+   * myInvoices/myInvoicePdf. */
+  @Get('invoices')
+  myInvoices(@Req() req: AuthedReq) {
+    return this.invoices.mine('promoter', req.user.phone);
+  }
+
+  @Get('invoices/:id/pdf')
+  async myInvoicePdf(@Req() req: AuthedReq, @Param('id') id: string, @Res() res: Response) {
+    const { filename, buffer } = await this.invoices.pdfForOwner(id, 'promoter', req.user.phone);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+    });
+    res.send(buffer);
   }
 
   @Get('promotions')

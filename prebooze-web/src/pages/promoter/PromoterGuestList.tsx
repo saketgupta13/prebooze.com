@@ -43,6 +43,7 @@ export default function PromoterGuestList() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [tab, setTab] = useState<Mode | null>(null);
+  const [subFilter, setSubFilter] = useState('all'); // 'all' | 'direct' | a team member's handle
 
   const load = () => {
     if (!eventId) return;
@@ -102,6 +103,9 @@ export default function PromoterGuestList() {
   const activeTab: Mode | undefined = modes.length > 1 ? (tab ?? modes[0]) : modes[0];
 
   const mine = guests;
+  const withTag = mine.filter((g) => g.subPromoter).length;
+  const filteredGuests =
+    subFilter === 'all' ? mine : subFilter === 'direct' ? mine.filter((g) => !g.subPromoter) : mine.filter((g) => g.subPromoter === subFilter);
   const cap = cfg.cap;
   const venue = event.venue;
   const cutoff = cutoffDate(event);
@@ -119,10 +123,10 @@ export default function PromoterGuestList() {
   const exportFreeEntry = () =>
     downloadCsv(
       `${event.title} - free entry list.csv`,
-      'Name,Phone,Age,Gender,Companions,Party size,Arrived',
-      mine.map(
+      'Name,Phone,Age,Gender,Companions,Party size,Arrived,Brought by',
+      filteredGuests.map(
         (g) =>
-          `"${g.name}","${g.phone}","${g.age}","${g.gender}","${(g.companions ?? []).map((c) => c.name).join('; ')}",${1 + (g.companions?.length ?? 0)},${g.arrived ? 'yes' : 'no'}`,
+          `"${g.name}","${g.phone}","${g.age}","${g.gender}","${(g.companions ?? []).map((c) => c.name).join('; ')}",${1 + (g.companions?.length ?? 0)},${g.arrived ? 'yes' : 'no'},"${g.subPromoter ? team.find((m) => m.handle === g.subPromoter)?.name ?? g.subPromoter : 'Direct'}"`,
       ),
     );
   const exportPaid = () =>
@@ -211,11 +215,24 @@ export default function PromoterGuestList() {
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
               <h3>Your guests</h3>
-              <button className="btn btn-ghost btn-sm" onClick={exportFreeEntry} disabled={!mine.length}>⬇ Export CSV</button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {(team.length > 0 || withTag > 0) && (
+                  <select className="chip" value={subFilter} onChange={(e) => setSubFilter(e.target.value)}>
+                    <option value="all">All guests</option>
+                    <option value="direct">Brought directly (you)</option>
+                    {team.map((m) => (
+                      <option key={m.handle} value={m.handle}>{m.name}</option>
+                    ))}
+                  </select>
+                )}
+                <button className="btn btn-ghost btn-sm" onClick={exportFreeEntry} disabled={!filteredGuests.length}>⬇ Export CSV</button>
+              </div>
             </div>
             {err && <div className="tiny danger-text" style={{ marginBottom: 8 }}>{err}</div>}
             {mine.length === 0 ? (
               <div className="muted small">Nobody yet — share your affiliate link and guests appear here the moment they join.</div>
+            ) : filteredGuests.length === 0 ? (
+              <div className="muted small">No guests match this filter.</div>
             ) : (
               <>
                 <div className="evrow" style={{ fontWeight: 700, fontSize: 12, color: 'var(--muted)' }}>
@@ -225,7 +242,7 @@ export default function PromoterGuestList() {
                   <span style={{ flex: 1 }}>Gender</span>
                   <span style={{ flex: 1 }}>Gate</span>
                 </div>
-                {mine.map((g) => (
+                {filteredGuests.map((g) => (
                   <div key={g.id} className="evrow">
                     <span style={{ flex: 1.6 }} className="bold small">
                       {g.name}

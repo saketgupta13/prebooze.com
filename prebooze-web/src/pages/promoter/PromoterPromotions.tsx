@@ -6,6 +6,7 @@ import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
 import type { Event } from '../../types';
 import type { PromoterGuest } from '../../store/AppContext';
+import { copyToClipboard } from '../../lib/clipboard';
 
 type Mode = 'guestlist' | 'commission';
 
@@ -42,10 +43,14 @@ export default function PromoterPromotions() {
   if (err && !me) return <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>{err}</div>;
 
   const mySlug = me?.slug ?? '';
-  const copy = (link: string, key: string) => {
-    navigator.clipboard?.writeText(link).catch(() => {});
-    setCopied(key);
-    setTimeout(() => setCopied(''), 1500);
+  const copy = async (link: string, key: string) => {
+    const ok = await copyToClipboard(link);
+    if (ok) {
+      setCopied(key);
+      setTimeout(() => setCopied(''), 1500);
+    } else {
+      setErr('Could not copy — long-press or select the link below to copy it manually');
+    }
   };
 
   if (promotions.length === 0) {

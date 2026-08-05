@@ -807,6 +807,7 @@ export interface PromoterProfileData {
   guestsBrought: number;
   showRate: number; // % of guests who actually arrived
   hue: number;
+  logoUrl?: string | null;
 }
 
 export const PROMOTERS: PromoterProfileData[] = [

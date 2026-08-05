@@ -422,7 +422,7 @@ export default function Home() {
           </div>
           <Slider slideWidth={244}>
             {topPromoters.map((p) => (
-              <DirectoryCard key={p.slug} to={`/promoter/${p.slug}`} hue={p.hue} avatarText="📣" name={p.name} verified={p.verified} meta={`${p.city} · ${netFollowers('promoter:' + p.slug, p.followers).toLocaleString('en-IN')} followers`} bio={p.bio} featured={promoFeat.has(p.slug)}
+              <DirectoryCard key={p.slug} to={`/promoter/${p.slug}`} hue={p.hue} avatarText="📣" avatarImage={p.logoUrl} name={p.name} verified={p.verified} meta={`${p.city} · ${netFollowers('promoter:' + p.slug, p.followers).toLocaleString('en-IN')} followers`} bio={p.bio} featured={promoFeat.has(p.slug)}
                 stats={<><span className={p.showRate >= 70 ? 'accent bold' : 'bold'}>{p.showRate}%</span> show-rate · <b>{p.guestsBrought.toLocaleString('en-IN')}</b> brought</>}
                 action={followBtn('promoter:' + p.slug, user?.isPromoter && user.promoterUsername?.toLowerCase() === p.slug.toLowerCase())} />
             ))}

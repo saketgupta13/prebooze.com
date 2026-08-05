@@ -49,6 +49,7 @@ export default function Promoters() {
                 to={`/promoter/${p.slug}`}
                 hue={p.hue}
                 avatarText="📣"
+                avatarImage={p.logoUrl}
                 name={p.name}
                 verified={p.verified}
                 meta={`${p.city} · ${netFollowers(key, p.followers).toLocaleString('en-IN')} followers`}

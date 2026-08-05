@@ -70,7 +70,7 @@ export default function PromoterProfile() {
       <div className="container">
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 22, flexWrap: 'wrap' }}>
           <div style={{ width: 90 }}>
-            <Poster hue={promoter.hue} emoji="📣" variant="square" />
+            <Poster hue={promoter.hue} emoji="📣" variant="square" imageUrl={promoter.logoUrl} />
           </div>
           <div style={{ flex: 1, minWidth: 220 }}>
             <span className="tag">Promoter</span>
