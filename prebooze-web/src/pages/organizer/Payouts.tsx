@@ -88,7 +88,10 @@ export default function Payouts() {
 
       {promoterPayouts.length > 0 && (
         <div className="card" style={{ marginBottom: 18 }}>
-          <h3 style={{ marginBottom: 4 }}>What you owe promoters</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+            <h3 style={{ marginBottom: 4 }}>What you owe promoters</h3>
+            <Link to="/organizer/promoters" className="link tiny">Promoter profiles + bank details →</Link>
+          </div>
           <p className="tiny muted-2" style={{ marginBottom: 12 }}>
             Per-head payouts and revenue-share you set per event, per promoter. This is settled directly between you
             and each promoter — Prebooze doesn't move this money — the status is whatever the promoter has confirmed.

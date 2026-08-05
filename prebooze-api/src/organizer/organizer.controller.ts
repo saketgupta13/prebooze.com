@@ -105,6 +105,11 @@ export class OrganizerController {
     return this.organizer.promoterPayouts(req.user.sub);
   }
 
+  @Get('promoters')
+  promoters(@Req() req: AuthedReq) {
+    return this.organizer.promoters(req.user.sub);
+  }
+
   @Post('withdraw')
   withdraw(@Req() req: AuthedReq, @Body('amount') amount: number) {
     return this.organizer.withdraw(req.user.sub, amount);

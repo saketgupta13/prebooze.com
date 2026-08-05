@@ -365,6 +365,14 @@ export const organizer = {
     apiFetch<{ eventId: string; eventTitle: string; eventDate: string; promoterId: string; promoterName: string; perHead: number; commission: number; total: number; status: 'pending' | 'reminder_sent' | 'received' }[]>(
       '/organizer/promoter-payouts'
     ),
+  promoters: () =>
+    apiFetch<
+      {
+        promoterId: string; promoterSlug: string; promoterName: string; city: string; bio: string; contact: string | null; verified: boolean;
+        bankName: string | null; bankAccountNumber: string | null; bankLast4: string | null; accountHolderName: string | null; ifsc: string | null;
+        eventCount: number; totalOwed: number; pendingEvents: number;
+      }[]
+    >('/organizer/promoters'),
   withdraw: (amount: number) => apiFetch<void>('/organizer/withdraw', { body: { amount } }),
   abandonedCarts: () => apiFetch<CartRecord[]>('/organizer/carts'),
   remindCart: (id: string) => apiFetch<void>(`/organizer/carts/${id}/remind`, { method: 'POST' }),

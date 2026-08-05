@@ -577,6 +577,92 @@ export class OrganizerService {
       .sort((a, b) => b.eventDate.getTime() - a.eventDate.getTime());
   }
 
+  /** Promoter-centric roster for the organizer's own "Promoters" page — same
+   * numbers promoterPayouts() computes per event, rolled up per promoter
+   * with their profile + FULL bank details attached (bankAccountNumber, not
+   * just bankLast4 — the organizer is the one who actually has to wire this
+   * money, same "give whoever executes the payout the real number"
+   * precedent as admin/organizer's own bank details). Includes promoters
+   * allowed on an event with zero earnings yet too, since the organizer
+   * still wants their contact on file the moment they're added. */
+  async promoters(userId: string) {
+    const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'view');
+    const events = await this.prisma.event.findMany({
+      where: { organizerId: org.id },
+      select: { id: true, title: true, date: true, promoterConfig: true },
+    });
+    const eventIds = events.map((e) => e.id);
+    const eventById = new Map(events.map((e) => [e.id, e]));
+    if (!eventIds.length) return [];
+
+    const allowedSlugs = new Set<string>();
+    for (const e of events) {
+      const cfg = e.promoterConfig as unknown as { allowedPromoters?: string[] } | null;
+      (cfg?.allowedPromoters ?? []).forEach((s) => allowedSlugs.add(s));
+    }
+    if (!allowedSlugs.size) return [];
+
+    const [arrivedGuests, bookings, promoters] = await Promise.all([
+      this.prisma.promoterGuest.findMany({ where: { eventId: { in: eventIds }, arrived: true }, select: { eventId: true, promoterSlug: true } }),
+      this.prisma.booking.findMany({ where: { eventId: { in: eventIds }, status: 'confirmed', promoterCommission: { gt: 0 } }, select: { eventId: true, promoterRef: true, promoterCommission: true } }),
+      this.prisma.promoter.findMany({
+        where: { slug: { in: [...allowedSlugs] } },
+        select: {
+          id: true, slug: true, name: true, city: true, bio: true, contact: true, verified: true,
+          bankName: true, bankAccountNumber: true, bankLast4: true, accountHolderName: true, ifsc: true,
+        },
+      }),
+    ]);
+    const promoterBySlug = new Map(promoters.map((p) => [p.slug, p]));
+
+    const settlements = await this.prisma.promoterEventSettlement.findMany({
+      where: { eventId: { in: eventIds }, promoterId: { in: promoters.map((p) => p.id) } },
+    });
+
+    const perPromoter = new Map<string, { perHead: number; commission: number; events: Set<string> }>();
+    const ensure = (promoterId: string) => {
+      let row = perPromoter.get(promoterId);
+      if (!row) {
+        row = { perHead: 0, commission: 0, events: new Set() };
+        perPromoter.set(promoterId, row);
+      }
+      return row;
+    };
+
+    for (const g of arrivedGuests) {
+      const cfg = eventById.get(g.eventId)?.promoterConfig as unknown as
+        { enabled?: boolean; perHeadPayout?: boolean; perHeadAmount?: number; allowedPromoters?: string[]; guestListPromoters?: string[] } | null;
+      const glp = cfg?.guestListPromoters ?? cfg?.allowedPromoters ?? [];
+      if (!cfg?.enabled || !cfg.perHeadPayout || !glp.includes(g.promoterSlug)) continue;
+      const promoter = promoterBySlug.get(g.promoterSlug);
+      if (!promoter) continue;
+      const row = ensure(promoter.id);
+      row.perHead += cfg.perHeadAmount ?? 0;
+      row.events.add(g.eventId);
+    }
+    for (const b of bookings) {
+      if (!b.promoterRef) continue;
+      const promoter = promoterBySlug.get(b.promoterRef);
+      if (!promoter) continue;
+      const row = ensure(promoter.id);
+      row.commission += b.promoterCommission;
+      row.events.add(b.eventId);
+    }
+
+    return promoters
+      .map((p) => {
+        const agg = perPromoter.get(p.id) ?? { perHead: 0, commission: 0, events: new Set<string>() };
+        const receivedEventIds = new Set(settlements.filter((s) => s.promoterId === p.id && s.status === 'received').map((s) => s.eventId));
+        const pendingEvents = [...agg.events].filter((id) => !receivedEventIds.has(id)).length;
+        return {
+          promoterId: p.id, promoterSlug: p.slug, promoterName: p.name, city: p.city, bio: p.bio, contact: p.contact, verified: p.verified,
+          bankName: p.bankName, bankAccountNumber: p.bankAccountNumber, bankLast4: p.bankLast4, accountHolderName: p.accountHolderName, ifsc: p.ifsc,
+          eventCount: agg.events.size, totalOwed: agg.perHead + agg.commission, pendingEvents,
+        };
+      })
+      .sort((a, b) => b.totalOwed - a.totalOwed);
+  }
+
   async withdraw(userId: string, amount: number) {
     const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'edit');
     if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Enter a valid amount');

@@ -48,6 +48,7 @@ import Attendees from './pages/organizer/Attendees';
 import Scanner from './pages/organizer/Scanner';
 import Coupons from './pages/organizer/Coupons';
 import Payouts from './pages/organizer/Payouts';
+import OrganizerPromoters from './pages/organizer/OrganizerPromoters';
 import Settings from './pages/organizer/Settings';
 import Withdraw from './pages/organizer/Withdraw';
 import OrgGuestList from './pages/organizer/OrgGuestList';
@@ -306,6 +307,7 @@ export default function App() {
           <Route path="carts" element={<OrgAbandonedCarts />} />
           <Route path="payouts" element={<Payouts />} />
           <Route path="payouts/withdraw" element={<Withdraw />} />
+          <Route path="promoters" element={<OrganizerPromoters />} />
           <Route path="guestlist" element={<OrgGuestList />} />
           <Route path="live" element={<OrgLiveMonitor />} />
           <Route path="reviews" element={<OrgReviews />} />

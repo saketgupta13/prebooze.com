@@ -20,6 +20,7 @@ const NAV: { to: string; label: string; end?: boolean; module?: string | 'owner'
   { to: '/organizer/coupons', label: '🏷 Promo codes', module: 'Coupons' },
   { to: '/organizer/carts', label: '🛒 Abandoned carts', module: 'Events & wizard' },
   { to: '/organizer/payouts', label: '💰 Payouts', module: 'Payouts & withdrawals' },
+  { to: '/organizer/promoters', label: '📣 Promoters', module: 'Payouts & withdrawals' },
   { to: '/organizer/team', label: '🛡 Team & roles', module: 'Settings & team' },
   { to: '/organizer/billing', label: '⭐ Featured & billing', module: 'owner' },
   { to: '/organizer/settings', label: '⚙ Settings', module: 'Settings & team' },
