@@ -54,15 +54,22 @@ export default function Otp() {
     try {
       const result = await loginWithOtp(digits.join(''));
       const from = (location.state as { from?: string } | null)?.from;
-      // Someone signing up specifically to become an organizer/venue partner
-      // shouldn't be funneled through guest profile completion + guest ID
-      // verification first — that's a different identity flow (their own
-      // onboarding form *is* the KYC submission) and shows a "Skip for now"
-      // escape hatch that has no business being in a required flow. Same
-      // for an invited organizer team member logging in for the first
-      // time — there's no onboarding form for them at all (see
-      // OrganizerLayout's TeamConsole), just this normal phone/OTP login.
-      const skipsGuestFunnel = from === '/organizer/onboarding' || from === '/venue/onboarding' || result.isTeamMember;
+      // Someone signing up specifically to become an organizer/venue/lineup/
+      // promoter partner shouldn't be funneled through guest profile
+      // completion + guest ID verification first — that's a different
+      // identity flow (their own onboarding form *is* the KYC submission,
+      // and each collects its own brand/stage name independently of
+      // User.name/dob) and shows a "Skip for now" escape hatch that has no
+      // business being in a required flow. Same for an invited organizer
+      // team member logging in for the first time — there's no onboarding
+      // form for them at all (see OrganizerLayout's TeamConsole), just this
+      // normal phone/OTP login.
+      const skipsGuestFunnel =
+        from === '/organizer/onboarding' ||
+        from === '/venue/onboarding' ||
+        from === '/lineup/onboarding' ||
+        from === '/promoter/onboarding' ||
+        result.isTeamMember;
       if (result.status === 'new' && !skipsGuestFunnel) {
         navigate('/complete-profile', { state: { from } });
       } else {
