@@ -58,6 +58,9 @@ export class StorageService {
       const out = hasRealAlpha
         ? await resized.png({ compressionLevel: 9 }).toBuffer()
         : await resized.jpeg({ quality: JPEG_QUALITY, mozjpeg: true }).toBuffer();
+      // Pathological input (e.g. incompressible noise) can occasionally
+      // re-encode larger than the source — never make the upload worse.
+      if (out.length >= buffer.length) return { buffer, ext };
       return { buffer: out, ext: hasRealAlpha ? 'png' : 'jpg' };
     } catch (err) {
       this.log.warn(`Image processing skipped, saving original: ${(err as Error).message}`);
