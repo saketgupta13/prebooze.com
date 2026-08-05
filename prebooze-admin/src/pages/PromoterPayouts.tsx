@@ -103,8 +103,12 @@ export default function PromoterPayouts() {
             <span style={{ flex: 1.2 }} className="small muted">{r.organizerBrand}</span>
             <span style={{ flex: 1 }} className="small">
               ₹{fmt(r.total)}
-              {r.perHead > 0 && r.commission > 0 && (
-                <div className="tiny muted-2">₹{fmt(r.perHead)} per-head + ₹{fmt(r.commission)} share</div>
+              {(r.perHead > 0 || r.commission > 0) && (
+                <div className="tiny muted-2">
+                  {r.perHead > 0 && <>₹{fmt(r.perHead)} guest list</>}
+                  {r.perHead > 0 && r.commission > 0 && ' + '}
+                  {r.commission > 0 && <>₹{fmt(r.commission)} revenue share</>}
+                </div>
               )}
             </span>
             <span style={{ flex: 1.2 }}>

@@ -10,6 +10,10 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day
 
 interface PromoterPayoutRow {
   eventId: string; eventTitle: string; eventDate: string; promoterId: string; promoterName: string;
+  // perHead: guest-list headcount payout (event's perHeadPayout toggle).
+  // commission: revenue-share % on paid ticket sales through their link
+  // (event's per-promoter revenueShare %). Independent settings — either,
+  // both, or neither can be nonzero for a given promoter on a given event.
   perHead: number; commission: number; total: number; status: 'pending' | 'reminder_sent' | 'received';
 }
 const STATUS_LABEL: Record<PromoterPayoutRow['status'], string> = {
@@ -95,6 +99,11 @@ export default function Payouts() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="small bold">{r.promoterName}</div>
                   <div className="tiny muted-2">{r.eventTitle} · {fmtDate(r.eventDate)}</div>
+                  <div className="tiny muted-2" style={{ marginTop: 4 }}>
+                    {r.perHead > 0 && <span>Guest list {fmtMoney(r.perHead)}</span>}
+                    {r.perHead > 0 && r.commission > 0 && ' · '}
+                    {r.commission > 0 && <span>Revenue share {fmtMoney(r.commission)}</span>}
+                  </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div className="small bold">{fmtMoney(r.total)}</div>

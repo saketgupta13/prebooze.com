@@ -20,7 +20,7 @@ interface PromoterConfig {
   perHeadPayout: boolean;
   perHeadAmount: number;
   allowTeams: boolean;
-  revenueShare?: Record<string, number>; // slug -> % of (subtotal - platform commission), negotiated per promoter
+  revenueShare?: Record<string, number>; // slug -> % of base ticket price, added on top as guest-funded markup (see BookingsService.priceHold)
 }
 
 const norm = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
@@ -219,9 +219,9 @@ export class PromoterService {
   // perHead is computed live from PromoterGuest (check-ins keep happening
   // for the life of the event, so there's no single moment to "lock" it).
   // commission sums Booking.promoterCommission, which — unlike perHead — IS
-  // locked in at sale time (see BookingsService.promoterCommissionFor), so
-  // summing it live here never re-derives a number that could drift from
-  // what was actually promised at the moment of that specific sale.
+  // locked in at sale time (see BookingsService.priceHold), so summing it
+  // live here never re-derives a number that could drift from what was
+  // actually promised at the moment of that specific sale.
   async earnings(userId: string) {
     const promoter = await this.myPromoter(userId);
 
