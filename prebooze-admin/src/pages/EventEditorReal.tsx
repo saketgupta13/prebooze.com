@@ -607,8 +607,9 @@ export default function EventEditorReal() {
                 <div className="field">
                   <label>Revenue share on paid bookings (optional, negotiated per promoter)</label>
                   <div className="tiny muted" style={{ marginBottom: 8 }}>
-                    % of organizer's net revenue (after Prebooze's own commission) for a paid booking
-                    through that promoter's link. Blank = free-list only for that promoter.
+                    % the promoter earns on a paid booking through their link — added on top of the ticket price
+                    (guest-funded, same as Prebooze's own commission on that sale), so it never cuts into the
+                    organizer's revenue. Blank = free-list only for that promoter.
                   </div>
                   <div style={{ display: 'grid', gap: 8 }}>
                     {allowedPromoters.map((slug) => {

@@ -149,7 +149,7 @@ export default function Checkout() {
     let cancelled = false;
     setQuoting(true);
     bookings
-      .quote(holdId, appliedCode ?? undefined, useCredit ? effectiveWalletBalance : 0)
+      .quote(holdId, appliedCode ?? undefined, useCredit ? effectiveWalletBalance : 0, event?.id ? promoterRefByEvent[event.id] : undefined)
       .then((q) => {
         if (cancelled) return;
         setQuote(q);
@@ -169,13 +169,16 @@ export default function Checkout() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [holdId, appliedCode, useCredit, effectiveWalletBalance]);
+  }, [holdId, appliedCode, useCredit, effectiveWalletBalance, event?.id, promoterRefByEvent]);
 
   const finalSubtotal = quote?.subtotal ?? subtotal;
   const finalFee = quote?.fee ?? fee;
   const finalDiscount = quote?.discount ?? discount;
   const finalCredit = quote?.walletCreditUsed ?? creditApplied;
   const finalTotal = quote?.total ?? total;
+  const promoterMarkupApplies = quote?.promoterMarkupApplies ?? false;
+  const promoterShare = quote?.promoterShare ?? 0;
+  const platformShare = quote?.platformShare ?? 0;
 
   const cartId = user && selection ? `${user.phone}::${selection.eventId}` : null;
 
@@ -659,6 +662,18 @@ export default function Checkout() {
                 <span>₹{l.qty * l.tier.price}</span>
               </div>
             ))}
+            {promoterMarkupApplies && (
+              <>
+                <div className="kv">
+                  <span className="k">Promoter referral</span>
+                  <span>₹{promoterShare}</span>
+                </div>
+                <div className="kv">
+                  <span className="k">Prebooze commission</span>
+                  <span>₹{platformShare}</span>
+                </div>
+              </>
+            )}
             <div className="kv">
               <span className="k">{feeLabel} <span className="muted" style={{ fontSize: 11 }}>({ABSORBED_NOTE[absorbedBy] ?? ABSORBED_NOTE.Guest})</span></span>
               <span>₹{finalFee}</span>

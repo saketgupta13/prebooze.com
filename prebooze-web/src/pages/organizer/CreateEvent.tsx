@@ -722,8 +722,9 @@ export default function CreateEvent() {
                 <div className="field">
                   <span>Revenue share on paid bookings (optional, negotiated per promoter)</span>
                   <div className="tiny muted-2" style={{ marginBottom: 8 }}>
-                    % of your net revenue (after Prebooze's own commission) for any ticket sale that
-                    comes through a promoter's own link. Leave blank if a promoter is free-list only.
+                    % the promoter earns on any ticket sale that comes through their own link — added on top
+                    of your ticket price so it doesn't cut into your revenue (the guest pays the extra, same as
+                    Prebooze's own commission on that sale). Leave blank if a promoter is free-list only.
                   </div>
                   <div style={{ display: 'grid', gap: 8 }}>
                     {allowedPromoters.map((slug) => {

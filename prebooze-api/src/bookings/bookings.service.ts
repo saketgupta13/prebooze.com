@@ -56,20 +56,19 @@ export class BookingsService {
     return commissionPct ? Math.round((subtotal * commissionPct) / 100) : 0;
   }
 
-  /** Computed once at booking creation, never recomputed — a promoter's cut
-   * of a specific sale must not silently change if the organizer edits the
-   * event's negotiated rate afterward. Gated on both allowedPromoters (the
-   * same list that gates free-list eligibility) and revenueShare having a
-   * real entry for this slug — an unrecognised/stale ?ref= earns nothing,
-   * it just doesn't get validated hard enough to block the booking either. */
-  private promoterCommissionFor(subtotal: number, organizerCommission: number, promoterRef: string | undefined, promoterConfig: unknown): number {
+  /** The organizer-configured revenue-share % for this promoter on this
+   * event, or 0 if there's no valid attribution. Gated on both
+   * allowedPromoters (the same list that gates free-list eligibility) and
+   * revenueShare having a real entry for this slug — an unrecognised/stale
+   * ?ref= earns nothing, it just doesn't get validated hard enough to block
+   * the booking either. Locked into Booking.promoterCommission once at
+   * creation (never recomputed), so a later organizer edit to the rate
+   * never retroactively changes what a promoter already earned on a past sale. */
+  private promoterRevSharePct(promoterRef: string | undefined, promoterConfig: unknown): number {
     if (!promoterRef) return 0;
     const cfg = promoterConfig as { enabled?: boolean; allowedPromoters?: string[]; revenueShare?: Record<string, number> } | null;
     if (!cfg?.enabled || !cfg.allowedPromoters?.includes(promoterRef)) return 0;
-    const pct = cfg.revenueShare?.[promoterRef];
-    if (!pct) return 0;
-    const organizerNet = subtotal - organizerCommission;
-    return Math.round((organizerNet * pct) / 100);
+    return cfg.revenueShare?.[promoterRef] || 0;
   }
 
   /** One running total per (event, category) instead of a fresh row per
@@ -96,7 +95,7 @@ export class BookingsService {
 
   /** Shared by quote() and create() — never trust a client-supplied amount,
    * always re-derive pricing server-side from the hold + live coupon/wallet state. */
-  private async priceHold(userId: string, holdId: string, couponCode?: string, requestedWalletCredit?: number) {
+  private async priceHold(userId: string, holdId: string, couponCode?: string, requestedWalletCredit?: number, promoterRef?: string) {
     const hold = await this.holds.get(holdId);
     if (hold.userId !== userId) throw new ForbiddenException('This hold belongs to a different session');
 
@@ -124,8 +123,23 @@ export class BookingsService {
     if (!lines.length) throw new BadRequestException('No tickets selected');
 
     const qty = lines.reduce((a, l) => a + l.qty, 0);
-    const subtotal = lines.reduce((a, l) => a + l.qty * l.tier.price, 0);
+    const baseSubtotal = lines.reduce((a, l) => a + l.qty * l.tier.price, 0);
     const fee = Math.round(qty * (settings?.bookingFee ?? FALLBACK_FEE_PER_TICKET));
+
+    // ---- promoter revenue-share markup — only when this hold carries a
+    // ?ref= attributed to an allowed promoter who has a nonzero rate set for
+    // this event. When it doesn't apply, `subtotal` is just `baseSubtotal`
+    // and every line below behaves exactly as it always has. When it does,
+    // the guest is charged the promoter's % *and* Prebooze's own event
+    // commission % on top of the base price (each computed independently
+    // off baseSubtotal, not compounded) — the organizer still nets exactly
+    // baseSubtotal either way, and Prebooze's cut is guest-funded here
+    // instead of carved out of the organizer's revenue. */
+    const promoterPct = this.promoterRevSharePct(promoterRef, event.promoterConfig);
+    const commission = this.commissionFor(baseSubtotal, event.commission);
+    const promoterCommission = this.commissionFor(baseSubtotal, promoterPct);
+    const promoterMarkupApplies = promoterCommission > 0;
+    const subtotal = promoterMarkupApplies ? baseSubtotal + promoterCommission + commission : baseSubtotal;
 
     // ---- coupon ----
     let discount = 0;
@@ -174,17 +188,23 @@ export class BookingsService {
     const walletCreditUsed = Math.min(requestedCredit, balance, Math.max(0, subtotal + fee - discount));
 
     const total = subtotal + fee - discount - walletCreditUsed;
-    return { hold, event, lines, qty, subtotal, fee, discount, couponRow, walletCreditUsed, total };
+    return {
+      hold, event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies,
+      fee, discount, couponRow, walletCreditUsed, total,
+    };
   }
 
   /** Called before showing the Razorpay checkout widget — creates the order
    * with the *final* (post-coupon, post-wallet-credit) amount, since Razorpay
    * requires the order amount to match what's actually charged. */
-  async quote(userId: string, holdId: string, couponCode?: string, walletCredit?: number) {
-    const p = await this.priceHold(userId, holdId, couponCode, walletCredit);
+  async quote(userId: string, holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string) {
+    const p = await this.priceHold(userId, holdId, couponCode, walletCredit, promoterRef);
     const order = p.total > 0 ? await this.razorpay.createOrder(p.total * 100, holdId) : null;
     return {
       subtotal: p.subtotal, fee: p.fee, discount: p.discount, walletCreditUsed: p.walletCreditUsed, total: p.total,
+      promoterMarkupApplies: p.promoterMarkupApplies,
+      promoterShare: p.promoterMarkupApplies ? p.promoterCommission : 0,
+      platformShare: p.promoterMarkupApplies ? p.commission : 0,
       razorpayOrderId: order?.orderId,
       razorpayKeyId: process.env.RAZORPAY_KEY_ID || undefined,
     };
@@ -194,8 +214,8 @@ export class BookingsService {
     const buyer = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (buyer.blocked) throw new ForbiddenException('This account is blocked from booking — contact support');
 
-    const { event, lines, qty, subtotal, fee, discount, couponRow, walletCreditUsed, total } =
-      await this.priceHold(userId, input.holdId, input.couponCode, input.walletCredit);
+    const { event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies, fee, discount, couponRow, walletCreditUsed, total } =
+      await this.priceHold(userId, input.holdId, input.couponCode, input.walletCredit, input.promoterRef);
 
     // ---- payment ----
     let paymentId: string | null = null;
@@ -235,12 +255,6 @@ export class BookingsService {
         if (res.count === 0) throw new BadRequestException(`"${l.tier.name}" sold out while you were checking out`);
       }
 
-      // organizer earnings ledger — credited the ticket subtotal minus
-      // whatever commission % admin set on this event (0 for the vast
-      // majority of events, which have no commission configured)
-      const commission = this.commissionFor(subtotal, event.commission);
-      const promoterCommission = this.promoterCommissionFor(subtotal, commission, input.promoterRef, event.promoterConfig);
-
       const created = await tx.booking.create({
         data: {
           id,
@@ -277,8 +291,13 @@ export class BookingsService {
       // abandoned-cart recovery: this hold converted, so it's no longer a cart to nudge
       await tx.cart.updateMany({ where: { holdId: input.holdId }, data: { status: 'completed' } });
 
+      // With no promoter markup, the organizer nets subtotal minus Prebooze's
+      // carved-out commission — unchanged from before. With a markup active,
+      // both the promoter's and Prebooze's cuts were funded by the guest on
+      // top of baseSubtotal, so the organizer nets baseSubtotal in full.
+      const organizerCredit = promoterMarkupApplies ? baseSubtotal : subtotal - commission;
       await tx.organizerLedgerTx.create({
-        data: { organizerId: event.organizerId, type: 'sale', amount: subtotal - commission, eventId: event.id, eventTitle: event.title, note: `Booking ${id}` },
+        data: { organizerId: event.organizerId, type: 'sale', amount: organizerCredit, eventId: event.id, eventTitle: event.title, note: `Booking ${id}` },
       });
 
       // platform's own finance ledger (Admin API finance ledger slice) — one

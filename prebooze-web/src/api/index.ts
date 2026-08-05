@@ -117,6 +117,11 @@ export interface BookingQuote {
   discount: number;
   walletCreditUsed: number;
   total: number;
+  // present only when this hold is attributed to a promoter with a
+  // nonzero revenue-share % set for this event — see BookingsService.priceHold
+  promoterMarkupApplies?: boolean;
+  promoterShare?: number;
+  platformShare?: number;
   razorpayOrderId?: string;
   razorpayKeyId?: string;
 }
@@ -133,8 +138,8 @@ export interface CreateBookingInput {
 }
 export const bookings = {
   hold: (eventId: string, qty: Record<string, number>) => apiFetch<{ holdId: string; expiresAt: string }>('/bookings/hold', { body: { eventId, qty } }),
-  quote: (holdId: string, couponCode?: string, walletCredit?: number) =>
-    apiFetch<BookingQuote>('/bookings/quote', { body: { holdId, couponCode, walletCredit } }),
+  quote: (holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string) =>
+    apiFetch<BookingQuote>('/bookings/quote', { body: { holdId, couponCode, walletCredit, promoterRef } }),
   create: (input: CreateBookingInput) => apiFetch<Booking>('/bookings', { body: input }),
   list: () => apiFetch<Booking[]>('/bookings'),
   // booking ids contain a literal "#" (e.g. "#TKT-12345"), which the URL
