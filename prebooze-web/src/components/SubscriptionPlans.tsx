@@ -108,7 +108,17 @@ export default function SubscriptionPlans({
 
   if (loading) return <div className="muted small">Loading plans…</div>;
 
-  const activeTierId = current && current.status !== 'cancelled' && current.status !== 'expired' ? current.tierId : null;
+  // Only 'active'/'pending' mean this tier is genuinely applied — subscribe()
+  // overwrites RoleSubscription.tierId to the NEW tier the instant you click
+  // Upgrade, status: 'created', well before any payment. If you back out
+  // without paying, that row is stuck in 'created'/'authenticated' forever
+  // (Razorpay never fires another webhook for an abandoned authorization),
+  // so trusting any non-cancelled/non-expired status here showed the unpaid
+  // tier as "Current". Every other non-active status (created, authenticated,
+  // halted, cancelled, expired) means you're really back on the free tier —
+  // matches what SubscriptionsService.demoteToFree already does for real.
+  const activeTierId =
+    current?.status === 'active' || current?.status === 'pending' ? current.tierId : tiers.find((t) => t.price === 0)?.id ?? null;
 
   return (
     <div>
