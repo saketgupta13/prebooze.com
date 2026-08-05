@@ -64,8 +64,8 @@ export default function PromoterPromotions() {
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 6 }}>My promotions</h1>
       <p className="muted small" style={{ marginBottom: 18 }}>
-        Events you're approved to promote. Share your link, fill the free-entry list before the cutoff, and watch
-        arrivals live.
+        Events you're approved to promote. Each event can give you a free-entry link (guest skips the ticket), a
+        ticket link that earns you a revenue-share cut on paid sales, or both — sent separately below, per event.
       </p>
       {err && <div className="alert alert-error" style={{ marginBottom: 12 }}>{err}</div>}
 
@@ -74,6 +74,13 @@ export default function PromoterPromotions() {
           const venue = e.venue;
           const cfg = e.promoterConfig!;
           const link = `${window.location.origin}/p/${e.slug}/${mySlug}`;
+          const revSharePct = cfg.revenueShare?.[mySlug] ?? 0;
+          // Separate from the free-entry link above — this is the normal
+          // event/ticket page with ?ref= attached, the only URL shape that
+          // actually feeds the revenue-share markup (see EventDetail.tsx's
+          // ?ref= capture + BookingsService.priceHold). The free-entry link
+          // never touches a real ticket purchase, so it can't earn this.
+          const ticketLink = `${window.location.origin}/events/${e.slug}?ref=${mySlug}`;
           const mine = guestsByEvent[e.id] ?? [];
           const myGuests = mine.length;
           const arrived = mine.filter((g) => g.arrived).length;
@@ -107,6 +114,12 @@ export default function PromoterPromotions() {
                     <div className="bold accent">₹{cfg.perHeadAmount}</div>
                   </div>
                 )}
+                {revSharePct > 0 && (
+                  <div>
+                    <div className="tiny muted-2">Revenue share</div>
+                    <div className="bold accent">{revSharePct}% on paid tickets</div>
+                  </div>
+                )}
                 {cfg.allowTeams && (
                   <div>
                     <div className="tiny muted-2">Teams</div>
@@ -120,15 +133,31 @@ export default function PromoterPromotions() {
                 {arrived > 0 && <> · <b className="accent">{arrived}</b> arrived</>}
                 {earned > 0 && <> · earned <b className="accent">₹{earned}</b></>}
               </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="tiny muted-2" style={{ marginTop: 12 }}>🎟️ Free-entry link — guest skips the ticket, no purchase, no revenue-share earning</div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 <button className="btn btn-pri btn-sm" onClick={() => copy(link, e.id)}>
-                  {copied === e.id ? 'Copied ✓' : '🔗 Copy affiliate link'}
+                  {copied === e.id ? 'Copied ✓' : '🔗 Copy free-entry link'}
                 </button>
                 <Link to={`/promoter/guests/${e.id}`} className="btn btn-ghost btn-sm">📋 Guest list</Link>
                 <a href={link} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">Preview link ↗</a>
-                <Link to={`/events/${e.slug}`} className="btn btn-ghost btn-sm">View event →</Link>
               </div>
               <div className="tiny muted-2" style={{ marginTop: 6, wordBreak: 'break-all' }}>{link}</div>
+
+              {revSharePct > 0 && (
+                <>
+                  <div className="tiny muted-2" style={{ marginTop: 14 }}>
+                    💰 Ticket link — send this for a paid sale, you earn {revSharePct}% of the ticket price on it
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button className="btn btn-pri btn-sm" onClick={() => copy(ticketLink, `${e.id}-ticket`)}>
+                      {copied === `${e.id}-ticket` ? 'Copied ✓' : '🔗 Copy ticket link'}
+                    </button>
+                    <a href={ticketLink} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">Preview link ↗</a>
+                  </div>
+                  <div className="tiny muted-2" style={{ marginTop: 6, wordBreak: 'break-all' }}>{ticketLink}</div>
+                </>
+              )}
+              <Link to={`/events/${e.slug}`} className="btn btn-ghost btn-sm" style={{ marginTop: 10, display: 'inline-block' }}>View event →</Link>
 
               {cfg.allowTeams && team.length > 0 && (
                 <div style={{ marginTop: 12, borderTop: '1px dashed var(--border-dash)', paddingTop: 10 }}>
