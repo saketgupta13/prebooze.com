@@ -36,6 +36,9 @@ export default function GuestLanding() {
   const [phone, setPhone] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('');
+  // Companions beyond the main signer — one combined QR covers the whole
+  // party, the gate scans once and everyone checks in together.
+  const [companions, setCompanions] = useState<string[]>([]);
   const [err, setErr] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -75,6 +78,7 @@ export default function GuestLanding() {
       const guest = await promoterApi.captureGuest(eventSlug!, promoterSlug!, {
         eventId: event.id, promoterSlug: promoterSlug!,
         name: name.trim(), phone: phone.trim(), age: age.trim(), gender, subPromoter: via,
+        companions: companions.map((c) => c.trim()).filter(Boolean).map((c) => ({ name: c })),
       });
       navigate(`/pass/${guest.id}`);
     } catch (e) {
@@ -134,9 +138,39 @@ export default function GuestLanding() {
                 </select>
               </div>
             </div>
+
+            <div className="field">
+              <span>Bringing anyone else? (optional)</span>
+              <div className="tiny muted-2" style={{ marginBottom: 8 }}>
+                One combined QR covers your whole group — the gate scans it once for everyone.
+              </div>
+              {companions.map((c, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <input
+                    value={c}
+                    onChange={(e) => setCompanions((prev) => prev.map((x, idx) => (idx === i ? e.target.value : x)))}
+                    placeholder="Guest's full name"
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setCompanions((prev) => prev.filter((_, idx) => idx !== i))}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              {companions.length < 9 && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCompanions((prev) => [...prev, ''])}>
+                  + Add another guest
+                </button>
+              )}
+            </div>
+
             {err && <div className="alert alert-error" style={{ marginBottom: 12 }}>{err}</div>}
             <button className="btn btn-pri btn-block btn-lg" disabled={submitting}>
-              {submitting ? 'Joining…' : 'Get my free-entry QR →'}
+              {submitting ? 'Joining…' : companions.filter((c) => c.trim()).length > 0 ? `Get our free-entry QR (${1 + companions.filter((c) => c.trim()).length}) →` : 'Get my free-entry QR →'}
             </button>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
               🔒 your QR is sent to WhatsApp &amp; email · valid only before the cutoff · carry ID matching your name

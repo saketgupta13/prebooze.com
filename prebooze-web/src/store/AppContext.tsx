@@ -69,6 +69,10 @@ export interface PromoterGuest {
   createdAt: string;
   arrived?: boolean;
   subPromoter?: string; // sub-promoter handle credited within the promoter's team
+  // Party members beyond the main signer — one combined QR (this row's id)
+  // covers everyone; the gate scans once and the whole party checks in
+  // together (see PromoterGuest.companions on the backend).
+  companions?: { name: string }[];
 }
 
 export interface SubPromoter {

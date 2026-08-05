@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
@@ -141,11 +142,37 @@ export class PromoterService {
     return this.prisma.promoterGuest.findMany({ where: { eventId, promoterSlug: promoter.slug }, orderBy: { createdAt: 'desc' } });
   }
 
+  /** Paid-commission side of the same event's guest list — who actually
+   * bought a ticket through this promoter's ?ref= link. A different data
+   * source (Booking, not PromoterGuest) and deliberately a narrower shape:
+   * no phone number here — the free-entry list's phone is something the
+   * guest handed the promoter directly for gate operations, but a paid
+   * booking's contact details were given to Prebooze at checkout, not to
+   * the promoter, so this only surfaces what's needed to reconcile earnings
+   * (who, how many tickets, how much they were worth, what was earned). */
+  async paidGuests(userId: string, eventId: string) {
+    const promoter = await this.myPromoter(userId);
+    return this.prisma.booking.findMany({
+      where: { eventId, promoterRef: promoter.slug, status: 'confirmed' },
+      select: { id: true, mainGuest: true, qty: true, subtotal: true, promoterCommission: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /** cap/quota both mean total headcount ("Free-entry cap (total passes)",
+   * "N guests / month") — a party's companions count toward both the same
+   * as the main signer, otherwise a promoter could blow past either limit
+   * for free by always attaching companions to one submission instead of
+   * separate ones. */
+  private partySize(rows: { companions: unknown }[]): number {
+    return rows.reduce((sum, r) => sum + 1 + (Array.isArray(r.companions) ? r.companions.length : 0), 0);
+  }
+
   // ---------- public guest capture (no auth — reached via affiliate link) ----------
   async captureGuest(
     eventSlug: string,
     promoterSlug: string,
-    body: { name?: string; phone?: string; age?: string; gender?: string; subPromoter?: string },
+    body: { name?: string; phone?: string; age?: string; gender?: string; subPromoter?: string; companions?: { name?: string }[] },
   ) {
     const event = await this.prisma.event.findUnique({ where: { slug: eventSlug } });
     if (!event || event.status !== 'approved') throw new NotFoundException("This guest-list link isn't active");
@@ -161,9 +188,16 @@ export class PromoterService {
     if (minAge && (parseInt(body.age, 10) || 0) < minAge) {
       throw new BadRequestException(`This is a ${event.ageLimit} event — you must be ${minAge}+ to join the list`);
     }
+    // one combined QR per party — a sane cap on how many companions a single
+    // signer can bundle in, not meant for a busload under one name
+    const companions = (body.companions ?? [])
+      .map((c) => ({ name: (c?.name || '').trim() }))
+      .filter((c) => c.name)
+      .slice(0, 9);
+    const partySize = 1 + companions.length;
 
-    const listCount = await this.prisma.promoterGuest.count({ where: { eventId: event.id } });
-    if (listCount >= cfg.cap) throw new BadRequestException('Sorry — this free-entry list is full');
+    const listRows = await this.prisma.promoterGuest.findMany({ where: { eventId: event.id }, select: { companions: true } });
+    if (this.partySize(listRows) + partySize > cfg.cap) throw new BadRequestException('Sorry — this free-entry list is full');
 
     const promoter = await this.prisma.promoter.findUnique({ where: { slug: promoterSlug } });
     const quota = await this.planQuota(promoter?.planId ?? 'free');
@@ -171,10 +205,11 @@ export class PromoterService {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      const monthCount = await this.prisma.promoterGuest.count({
+      const monthRows = await this.prisma.promoterGuest.findMany({
         where: { promoterSlug, createdAt: { gte: monthStart, lt: nextMonth } },
+        select: { companions: true },
       });
-      if (monthCount >= quota) throw new BadRequestException(`Sorry — ${promoter?.name ?? 'this promoter'} has reached their guest limit for this month`);
+      if (this.partySize(monthRows) + partySize > quota) throw new BadRequestException(`Sorry — ${promoter?.name ?? 'this promoter'} has reached their guest limit for this month`);
     }
 
     // fraud checks need every past guest row for this phone, across all events
@@ -213,6 +248,7 @@ export class PromoterService {
         age: body.age.trim(),
         gender: body.gender,
         subPromoter: body.subPromoter,
+        companions: companions as Prisma.InputJsonValue,
       },
     });
 

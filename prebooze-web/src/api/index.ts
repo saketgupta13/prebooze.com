@@ -280,6 +280,10 @@ export const promoter = {
   }) => apiFetch<PromoterMe>('/promoter/me', { method: 'PATCH', body: patch }),
   promotions: () => apiFetch<Event[]>('/promoter/promotions'),
   guests: (eventId: string) => apiFetch<PromoterGuest[]>(`/promoter/events/${eventId}/guests`),
+  paidGuests: (eventId: string) =>
+    apiFetch<{ id: string; mainGuest: string; qty: number; subtotal: number; promoterCommission: number; createdAt: string }[]>(
+      `/promoter/events/${eventId}/paid-guests`
+    ),
   captureGuest: (eventSlug: string, promoterSlug: string, guest: Omit<PromoterGuest, 'id' | 'createdAt' | 'arrived'>) =>
     apiFetch<PromoterGuest>(`/p/${eventSlug}/${promoterSlug}`, { body: guest }),
   pass: (id: string) => apiFetch<PromoterPass>(`/p/pass/${id}`),

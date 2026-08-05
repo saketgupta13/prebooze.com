@@ -29,6 +29,11 @@ export class PromoterController {
     return this.promoter.guests(req.user.sub, id);
   }
 
+  @Get('events/:id/paid-guests')
+  paidGuests(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.promoter.paidGuests(req.user.sub, id);
+  }
+
   @Post('guests/:id/check-in')
   checkIn(@Req() req: AuthedReq, @Param('id') id: string) {
     return this.promoter.checkIn(req.user.sub, id);
@@ -130,7 +135,7 @@ export class GuestCaptureController {
   capture(
     @Param('eventSlug') eventSlug: string,
     @Param('promoterSlug') promoterSlug: string,
-    @Body() body: { name?: string; phone?: string; age?: string; gender?: string; subPromoter?: string },
+    @Body() body: { name?: string; phone?: string; age?: string; gender?: string; subPromoter?: string; companions?: { name?: string }[] },
   ) {
     return this.promoter.captureGuest(eventSlug, promoterSlug, body);
   }

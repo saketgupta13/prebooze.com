@@ -64,10 +64,17 @@ export default function GuestPass() {
                 {fmtDate(event.date)} · {fmtTime(event.date)} · {venue?.name}
               </div>
               <div className="small" style={{ marginBottom: 14 }}>
-                {pass.name} · <span className="badge badge-accent">Free entry</span>
+                {pass.name}
+                {(pass.companions?.length ?? 0) > 0 && <> + {pass.companions!.length} more</>}
+                {' · '}<span className="badge badge-accent">Free entry</span>
               </div>
+              {(pass.companions?.length ?? 0) > 0 && (
+                <div className="tiny muted-2" style={{ marginBottom: 14, marginTop: -8 }}>
+                  {[pass.name, ...pass.companions!.map((c) => c.name)].join(' · ')}
+                </div>
+              )}
 
-              <QRCode value={`${pass.id}-${rotation}`} caption="rotates every 5s · screenshot-proof" />
+              <QRCode value={`${pass.id}-${rotation}`} caption="one QR for the whole group · rotates every 5s · screenshot-proof" />
 
               {cutoff && (
                 <div
@@ -91,7 +98,10 @@ export default function GuestPass() {
             </div>
 
             <div className="tiny muted-2" style={{ marginTop: 16 }}>
-              Arrive before the cutoff — after that this pass expires and you'll need a ticket. Carry ID matching “{pass.name}”.
+              Arrive before the cutoff — after that this pass expires and you'll need a ticket.{' '}
+              {(pass.companions?.length ?? 0) > 0
+                ? 'Everyone in the group should carry ID matching the names above — arrive together, the gate scans once.'
+                : `Carry ID matching "${pass.name}".`}
             </div>
           </>
         ) : (
