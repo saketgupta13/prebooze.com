@@ -222,10 +222,47 @@ export class CatalogService {
     return { ...org, followers: counts.get(org.id) ?? 0 };
   }
 
+  /** Live show-rate — same "decided" definition (arrived, or the event's
+   * free-entry cutoff passed without them showing) as PromoterService.
+   * leaderboard(). Promoter.showRate is never written by anything, so
+   * trusting the stored column here would mean showing every promoter
+   * permanently at 0% — computed fresh instead, same reasoning as the
+   * leaderboard's own comment on this. */
+  private async liveShowRates(slugs: string[]): Promise<Map<string, number>> {
+    if (!slugs.length) return new Map();
+    const guests = await this.prisma.promoterGuest.findMany({ where: { promoterSlug: { in: slugs } }, include: { event: true } });
+    const now = Date.now();
+    const cutoffOf = (event: { date: Date; promoterConfig: unknown }) => {
+      const cfg = event.promoterConfig as { enabled?: boolean; cutoff?: string } | null;
+      if (!cfg?.enabled || !cfg.cutoff) return null;
+      const [h, m] = cfg.cutoff.split(':').map(Number);
+      const c = new Date(event.date);
+      c.setHours(h, m, 0, 0);
+      if (c.getTime() < event.date.getTime()) c.setDate(c.getDate() + 1);
+      return c;
+    };
+    const bySlug = new Map<string, number>();
+    for (const slug of slugs) {
+      const mine = guests.filter((g) => g.promoterSlug === slug);
+      const decided = mine.filter((g) => {
+        if (g.arrived) return true;
+        const c = cutoffOf(g.event);
+        return c ? now >= c.getTime() : false;
+      });
+      bySlug.set(slug, decided.length ? Math.round((decided.filter((g) => g.arrived).length / decided.length) * 100) : 0);
+    }
+    return bySlug;
+  }
+
   async promoters(city?: string) {
-    const rows = await this.prisma.promoter.findMany({ where: city ? { city } : {}, orderBy: { showRate: 'desc' } });
-    const counts = await this.realFollowerCounts(rows.map((p) => `promoter:${p.slug}`));
-    const withCounts = rows.map((p) => ({ ...p, followers: counts.get(`promoter:${p.slug}`) ?? 0 }));
+    const rows = await this.prisma.promoter.findMany({ where: city ? { city } : {} });
+    const [rates, counts] = await Promise.all([
+      this.liveShowRates(rows.map((p) => p.slug)),
+      this.realFollowerCounts(rows.map((p) => `promoter:${p.slug}`)),
+    ]);
+    const withCounts = rows
+      .map((p) => ({ ...p, showRate: rates.get(p.slug) ?? 0, followers: counts.get(`promoter:${p.slug}`) ?? 0 }))
+      .sort((a, b) => b.showRate - a.showRate);
     if (!city) return withCounts;
     const featured = await this.activeFeaturedRefs('promoter', city);
     return this.sortFeaturedFirst(withCounts, (p) => p.slug, featured);
@@ -234,8 +271,8 @@ export class CatalogService {
   async promoter(slug: string) {
     const promoter = await this.prisma.promoter.findUnique({ where: { slug } });
     if (!promoter) throw new NotFoundException('Promoter not found');
-    const counts = await this.realFollowerCounts([`promoter:${slug}`]);
-    return { ...promoter, followers: counts.get(`promoter:${slug}`) ?? 0 };
+    const [rates, counts] = await Promise.all([this.liveShowRates([slug]), this.realFollowerCounts([`promoter:${slug}`])]);
+    return { ...promoter, showRate: rates.get(slug) ?? 0, followers: counts.get(`promoter:${slug}`) ?? 0 };
   }
 
   async lineups(city?: string) {

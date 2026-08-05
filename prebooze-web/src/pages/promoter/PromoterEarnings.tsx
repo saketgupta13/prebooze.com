@@ -14,7 +14,11 @@ interface EventEarning {
   eventId: string;
   title: string;
   date: string;
+  organizerId: string;
+  organizerName: string;
   perHead: number;
+  perHeadRate: number;
+  perHeadCount: number;
   commission: number;
   total: number;
   status: 'pending' | 'reminder_sent' | 'received';
@@ -45,6 +49,8 @@ export default function PromoterEarnings() {
   const [requesting, setRequesting] = useState(false);
   const [msg, setMsg] = useState('');
   const [actingOn, setActingOn] = useState<string | null>(null);
+  const [orgFilter, setOrgFilter] = useState('all');
+  const [eventFilter, setEventFilter] = useState('all');
 
   const load = () => {
     setLoading(true);
@@ -86,6 +92,15 @@ export default function PromoterEarnings() {
 
   const grossEarned = earnings.perHead + earnings.commission;
   const available = Math.max(0, grossEarned - earnings.withdrawn);
+
+  const organizerOptions = Array.from(new Map(byEvent.map((e) => [e.organizerId, e.organizerName])).entries());
+  const eventOptions = byEvent.filter((e) => orgFilter === 'all' || e.organizerId === orgFilter);
+  const filtered = byEvent.filter(
+    (e) => (orgFilter === 'all' || e.organizerId === orgFilter) && (eventFilter === 'all' || e.eventId === eventFilter),
+  );
+  const filteredTotalsByOrg = Array.from(
+    filtered.reduce((m, e) => m.set(e.organizerName, (m.get(e.organizerName) ?? 0) + e.total), new Map<string, number>()),
+  );
 
   const requestPayout = async () => {
     if (available < MIN_WITHDRAW) {
@@ -147,19 +162,54 @@ export default function PromoterEarnings() {
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
-        <h3 style={{ marginBottom: 10 }}>Per-event breakdown</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+          <h3>Per-event breakdown</h3>
+          {byEvent.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <select
+                className="chip"
+                value={orgFilter}
+                onChange={(e) => { setOrgFilter(e.target.value); setEventFilter('all'); }}
+              >
+                <option value="all">All organizers</option>
+                {organizerOptions.map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+              <select className="chip" value={eventFilter} onChange={(e) => setEventFilter(e.target.value)}>
+                <option value="all">All events</option>
+                {eventOptions.map((e) => (
+                  <option key={e.eventId} value={e.eventId}>{e.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
         {byEvent.length === 0 ? (
           <div className="muted small">No earnings on any event yet.</div>
+        ) : filtered.length === 0 ? (
+          <div className="muted small">No earnings match this filter.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {byEvent.map((e) => (
+            {orgFilter === 'all' && filteredTotalsByOrg.length > 1 && (
+              <div className="tiny muted-2">
+                {filteredTotalsByOrg.map(([name, total], i) => (
+                  <span key={name}>
+                    {i > 0 && ' · '}{name}: <b className="accent">{fmtMoney(total)}</b>
+                  </span>
+                ))}
+              </div>
+            )}
+            {filtered.map((e) => (
               <div key={e.eventId} className="card" style={{ padding: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
                   <div>
                     <div className="bold small">{e.title}</div>
-                    <div className="tiny muted-2">{fmtDate(e.date)}</div>
+                    <div className="tiny muted-2">{fmtDate(e.date)} · {e.organizerName}</div>
                     <div className="tiny muted-2" style={{ marginTop: 4 }}>
-                      {e.perHead > 0 && <span>Per-head {fmtMoney(e.perHead)}</span>}
+                      {e.perHead > 0 && (
+                        <span>Guest list: ₹{e.perHeadRate} × {e.perHeadCount} arrival{e.perHeadCount === 1 ? '' : 's'} = {fmtMoney(e.perHead)}</span>
+                      )}
                       {e.perHead > 0 && e.commission > 0 && ' · '}
                       {e.commission > 0 && <span>Revenue share {fmtMoney(e.commission)}</span>}
                     </div>

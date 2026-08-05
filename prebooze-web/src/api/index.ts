@@ -286,9 +286,13 @@ export const promoter = {
   checkInGuest: (id: string) => apiFetch<void>(`/promoter/guests/${id}/check-in`, { method: 'POST' }),
   earnings: () => apiFetch<{ perHead: number; commission: number; withdrawn: number }>('/promoter/earnings'),
   eventEarnings: () =>
-    apiFetch<{ eventId: string; title: string; date: string; perHead: number; commission: number; total: number; status: 'pending' | 'reminder_sent' | 'received' }[]>(
-      '/promoter/events/earnings'
-    ),
+    apiFetch<
+      {
+        eventId: string; title: string; date: string; organizerId: string; organizerName: string;
+        perHead: number; perHeadRate: number; perHeadCount: number; commission: number; total: number;
+        status: 'pending' | 'reminder_sent' | 'received';
+      }[]
+    >('/promoter/events/earnings'),
   markEventReceived: (eventId: string) => apiFetch<{ ok: true }>(`/promoter/events/${eventId}/mark-received`, { method: 'POST' }),
   remindOrganizerToPay: (eventId: string) => apiFetch<{ ok: true }>(`/promoter/events/${eventId}/remind-payout`, { method: 'POST' }),
   withdraw: (amount: number) => apiFetch<void>('/promoter/withdraw', { body: { amount } }),

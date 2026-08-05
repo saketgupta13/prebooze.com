@@ -22,6 +22,8 @@ export default function PromoterPromotions() {
   // Which of the two modes is showing, per event — only relevant when an
   // event has both Guest list and Paid commission active for this promoter.
   const [activeTab, setActiveTab] = useState<Record<string, Mode>>({});
+  const [orgFilter, setOrgFilter] = useState('all');
+  const [eventFilter, setEventFilter] = useState('all');
 
   useEffect(() => {
     Promise.all([promoterApi.me(), promoterApi.promotions(), promoterApi.team()])
@@ -65,6 +67,15 @@ export default function PromoterPromotions() {
     );
   }
 
+  // organizers this promoter is actually working with, and which events
+  // belong to whichever one is selected — for promoters running lists across
+  // several organizers at once, otherwise the list is just one long scroll
+  const organizerOptions = Array.from(new Map(promotions.map((e) => [e.organizerId, e.organizer?.brandName ?? e.organizerId])).entries());
+  const eventOptions = promotions.filter((e) => orgFilter === 'all' || e.organizerId === orgFilter);
+  const filteredPromotions = promotions.filter(
+    (e) => (orgFilter === 'all' || e.organizerId === orgFilter) && (eventFilter === 'all' || e.id === eventFilter),
+  );
+
   return (
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 6 }}>My promotions</h1>
@@ -74,8 +85,29 @@ export default function PromoterPromotions() {
       </p>
       {err && <div className="alert alert-error" style={{ marginBottom: 12 }}>{err}</div>}
 
+      {organizerOptions.length > 1 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+          <select
+            className="chip"
+            value={orgFilter}
+            onChange={(e) => { setOrgFilter(e.target.value); setEventFilter('all'); }}
+          >
+            <option value="all">All organizers</option>
+            {organizerOptions.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </select>
+          <select className="chip" value={eventFilter} onChange={(e) => setEventFilter(e.target.value)}>
+            <option value="all">All events</option>
+            {eventOptions.map((e) => (
+              <option key={e.id} value={e.id}>{e.title}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="stack" style={{ display: 'grid', gap: 12 }}>
-        {promotions.map((e) => {
+        {filteredPromotions.map((e) => {
           const venue = e.venue;
           const cfg = e.promoterConfig!;
           const link = `${window.location.origin}/p/${e.slug}/${mySlug}`;
@@ -103,6 +135,7 @@ export default function PromoterPromotions() {
                   <div className="muted small">
                     {fmtDate(e.date)} · {fmtTime(e.date)} · {venue?.name}, {venue?.city}
                   </div>
+                  {organizerOptions.length > 1 && <div className="tiny muted-2" style={{ marginTop: 2 }}>by {e.organizer?.brandName ?? 'organizer'}</div>}
                 </div>
                 <span className="badge badge-accent" style={{ height: 'fit-content' }}>You're allowed ✓</span>
               </div>

@@ -78,8 +78,34 @@ export class DirectoryService {
   }
 
   // ---------- promoters ----------
+  /** Promoter.showRate is never written by anything (see PromoterService.
+   * leaderboard()'s comment on this same gap) — computed live off
+   * PromoterGuest here too, same "decided" definition, instead of trusting
+   * a column that's permanently 0. */
   async listPromoters() {
-    return this.prisma.promoter.findMany({ orderBy: { createdAt: 'desc' } });
+    const rows = await this.prisma.promoter.findMany({ orderBy: { createdAt: 'desc' } });
+    if (!rows.length) return rows;
+    const guests = await this.prisma.promoterGuest.findMany({ where: { promoterSlug: { in: rows.map((p) => p.slug) } }, include: { event: true } });
+    const now = Date.now();
+    const cutoffOf = (event: { date: Date; promoterConfig: unknown }) => {
+      const cfg = event.promoterConfig as { enabled?: boolean; cutoff?: string } | null;
+      if (!cfg?.enabled || !cfg.cutoff) return null;
+      const [h, m] = cfg.cutoff.split(':').map(Number);
+      const c = new Date(event.date);
+      c.setHours(h, m, 0, 0);
+      if (c.getTime() < event.date.getTime()) c.setDate(c.getDate() + 1);
+      return c;
+    };
+    return rows.map((p) => {
+      const mine = guests.filter((g) => g.promoterSlug === p.slug);
+      const decided = mine.filter((g) => {
+        if (g.arrived) return true;
+        const c = cutoffOf(g.event);
+        return c ? now >= c.getTime() : false;
+      });
+      const showRate = decided.length ? Math.round((decided.filter((g) => g.arrived).length / decided.length) * 100) : 0;
+      return { ...p, showRate };
+    });
   }
 
   async createPromoter(body: { name?: string; city?: string; contact?: string }) {

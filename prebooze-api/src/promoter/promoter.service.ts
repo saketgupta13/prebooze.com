@@ -129,7 +129,7 @@ export class PromoterService {
   // ---------- promotions & guest lists ----------
   async promotions(userId: string) {
     const promoter = await this.myPromoter(userId);
-    const events = await this.prisma.event.findMany({ where: { status: 'approved' }, include: { tiers: true, venue: true } });
+    const events = await this.prisma.event.findMany({ where: { status: 'approved' }, include: { tiers: true, venue: true, organizer: true } });
     return events.filter((e) => {
       const cfg = e.promoterConfig as unknown as PromoterConfig | null;
       return !!cfg?.enabled && cfg.allowedPromoters?.includes(promoter.slug);
@@ -282,21 +282,27 @@ export class PromoterService {
     const [arrivedGuests, bookings, settlements] = await Promise.all([
       this.prisma.promoterGuest.findMany({
         where: { promoterSlug: promoter.slug, arrived: true },
-        select: { event: { select: { id: true, title: true, date: true, promoterConfig: true } } },
+        select: { event: { select: { id: true, title: true, date: true, promoterConfig: true, organizerId: true, organizer: { select: { brandName: true } } } } },
       }),
       this.prisma.booking.findMany({
         where: { promoterRef: promoter.slug, status: 'confirmed', promoterCommission: { gt: 0 } },
-        select: { eventId: true, promoterCommission: true, event: { select: { id: true, title: true, date: true } } },
+        select: {
+          eventId: true, promoterCommission: true,
+          event: { select: { id: true, title: true, date: true, organizerId: true, organizer: { select: { brandName: true } } } },
+        },
       }),
       this.prisma.promoterEventSettlement.findMany({ where: { promoterId: promoter.id } }),
     ]);
 
     const settlementByEvent = new Map(settlements.map((s) => [s.eventId, s]));
-    const byEvent = new Map<string, { eventId: string; title: string; date: Date; perHead: number; commission: number }>();
-    const ensure = (id: string, title: string, date: Date) => {
+    const byEvent = new Map<
+      string,
+      { eventId: string; title: string; date: Date; organizerId: string; organizerName: string; perHead: number; perHeadRate: number; perHeadCount: number; commission: number }
+    >();
+    const ensure = (id: string, title: string, date: Date, organizerId: string, organizerName: string) => {
       let row = byEvent.get(id);
       if (!row) {
-        row = { eventId: id, title, date, perHead: 0, commission: 0 };
+        row = { eventId: id, title, date, organizerId, organizerName, perHead: 0, perHeadRate: 0, perHeadCount: 0, commission: 0 };
         byEvent.set(id, row);
       }
       return row;
@@ -305,10 +311,13 @@ export class PromoterService {
     for (const g of arrivedGuests) {
       const cfg = g.event.promoterConfig as unknown as PromoterConfig | null;
       if (!cfg?.perHeadPayout || !guestListEnabled(cfg, promoter.slug)) continue;
-      ensure(g.event.id, g.event.title, g.event.date).perHead += cfg.perHeadAmount;
+      const row = ensure(g.event.id, g.event.title, g.event.date, g.event.organizerId, g.event.organizer.brandName);
+      row.perHead += cfg.perHeadAmount;
+      row.perHeadRate = cfg.perHeadAmount;
+      row.perHeadCount += 1;
     }
     for (const b of bookings) {
-      ensure(b.event.id, b.event.title, b.event.date).commission += b.promoterCommission;
+      ensure(b.event.id, b.event.title, b.event.date, b.event.organizerId, b.event.organizer.brandName).commission += b.promoterCommission;
     }
 
     return [...byEvent.values()]

@@ -93,13 +93,44 @@ export default function PromoterDashboard() {
       <PromoteCard type="promoter" refId={me.slug} city={me.city || 'Hyderabad'} label="your PR profile" />
 
       <div className="card" style={{ marginBottom: 18 }}>
-        <h3 style={{ marginBottom: 8 }}>Getting started</h3>
+        <h3 style={{ marginBottom: 8 }}>How the promoter console works</h3>
         <div className="stack" style={{ display: 'grid', gap: 10 }}>
           <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 12, fontSize: 13 }}>
-            <b>1. Get invited to events</b> — organizers enable promoter guest lists per event and add you to the allow-list. Approved events show under <Link to="/promoter/promotions" className="link">My promotions</Link>.
+            <b>1. Get invited to events</b> — organizers add you to an event's promoter allow-list and enable Guest
+            list (free entry), Paid commission (a % on ticket sales through your link), or both. Approved events show
+            under <Link to="/promoter/promotions" className="link">My promotions</Link>.
           </div>
           <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 12, fontSize: 13 }}>
-            <b>2. Share your link & fill the list</b> — every event gives you an affiliate link. Guests add their details, get a time-based QR, and you watch arrivals live.
+            <b>2. Share the right link</b> — on <Link to="/promoter/promotions" className="link">My promotions</Link>, each
+            event gives you a free-entry link, a paid-ticket link, or both (shown as separate tabs when you have
+            both) — only send the ticket link if you want the revenue-share cut.
+          </div>
+          <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 12, fontSize: 13 }}>
+            <b>3. Guests join, you watch arrivals</b> — guests fill their details and get a time-based QR. Open{' '}
+            <Link to="/promoter/promotions" className="link">a specific event</Link>'s guest list to see who's
+            joined and check them in live at the gate.
+          </div>
+          <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 12, fontSize: 13 }}>
+            <b>4. Track what you've earned</b> — <Link to="/promoter/earnings" className="link">Earnings</Link> breaks
+            down per-head guest-list pay and revenue-share commission, per event and per organizer. Organizers pay
+            you directly (Prebooze doesn't move this money) — mark a payout received or send a reminder from there.
+          </div>
+          <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 12, fontSize: 13 }}>
+            <b>5. Bring on a team</b> — if an organizer allows it, add sub-promoters under{' '}
+            <Link to="/promoter/team" className="link">Team</Link> so guests they bring are credited separately on
+            the same event.
+          </div>
+          <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 12, fontSize: 13 }}>
+            <b>6. Build your reputation</b> — the <Link to="/promoter/leaderboard" className="link">Leaderboard</Link> ranks
+            promoters by show-up rate (guests who actually arrive). A high rate gets you invited to more events.
+          </div>
+          <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 12, fontSize: 13 }}>
+            <b>7. Raise your monthly guest quota</b> — <Link to="/promoter/subscription" className="link">Subscription</Link> sets
+            how many guests you can add to lists each month; upgrade any time.
+          </div>
+          <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 12, fontSize: 13 }}>
+            <b>8. Keep your profile current</b> — <Link to="/promoter/settings" className="link">Settings</Link> holds
+            your bio, links, audience reach, and the bank details organizers pay out to.
           </div>
         </div>
       </div>
