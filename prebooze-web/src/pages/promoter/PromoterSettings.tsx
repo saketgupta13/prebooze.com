@@ -1,25 +1,75 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { CITIES } from '../../data/mock';
-import { promoter as promoterApi } from '../../api';
+import { promoter as promoterApi, type PromoterMe } from '../../api';
 import { ApiError } from '../../api/client';
 import ChangePhoneNumber from '../../components/ChangePhoneNumber';
+import WysiwygEditor from '../../components/WysiwygEditor';
+import Loader from '../../components/Loader';
 
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** Real promoter self-serve settings — GET/PATCH /promoter/me. Every field
+ * captured at onboarding (PromoterOnboarding.tsx) round-trips here pre-filled
+ * and editable — bio/links/audienceReach used to be onboarding-only with no
+ * editor afterward (audienceReach wasn't even persisted at all). Bank details
+ * follow the same masked-last4/edit-to-replace pattern as organizer's own
+ * Settings.tsx — this is what an organizer who owes this promoter money for
+ * a specific event actually pays out to (no split-payment rail exists,
+ * they wire it manually). */
 export default function PromoterSettings() {
   const { user, updateUser, toast } = useApp();
-  const [brand, setBrand] = useState(user?.promoterBrand ?? '');
-  const [username, setUsername] = useState(user?.promoterUsername ?? '');
-  const [city, setCity] = useState(user?.city ?? 'Hyderabad');
+  const [me, setMe] = useState<PromoterMe | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState<string | null>(null);
+
+  const [brand, setBrand] = useState('');
+  const [username, setUsername] = useState('');
+  const [city, setCity] = useState('Hyderabad');
+  const [bio, setBio] = useState('');
+  const [links, setLinks] = useState('');
+  const [audienceReach, setAudienceReach] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccount, setBankAccount] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+  const [ifsc, setIfsc] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
-  const save = async () => {
+  useEffect(() => {
+    promoterApi
+      .me()
+      .then((m) => {
+        setMe(m);
+        setBrand(m.name);
+        setUsername(m.slug);
+        setCity(user?.city ?? 'Hyderabad');
+        setBio(m.bio ?? '');
+        setLinks((m.links ?? []).join(', '));
+        setAudienceReach(m.audienceReach ?? '');
+        setBankName(m.bankName ?? '');
+        setAccountHolder(m.accountHolderName ?? '');
+        setIfsc(m.ifsc ?? '');
+      })
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load profile'))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleOpen = (key: string) => setOpen((o) => (o === key ? null : key));
+
+  const saveProfile = async () => {
     setErr('');
     setSaving(true);
     try {
-      const updated = await promoterApi.updateMe({ brandName: brand.trim(), username: username.trim(), city });
-      updateUser({ promoterBrand: updated.name, promoterUsername: updated.slug, city: updated.city });
+      const updated = await promoterApi.updateMe({
+        brandName: brand.trim(), username: username.trim(), city, bio,
+        links: links.split(',').map((s) => s.trim()).filter(Boolean),
+        audienceReach: audienceReach.trim(),
+      });
+      setMe(updated);
+      updateUser({ promoterBrand: updated.name, promoterUsername: updated.slug, city });
       toast('Profile saved ✓');
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Failed to save profile');
@@ -28,15 +78,40 @@ export default function PromoterSettings() {
     }
   };
 
+  const saveBank = async () => {
+    if (!bankName.trim() || !bankAccount.trim() || !accountHolder.trim() || !ifsc.trim()) return;
+    setErr('');
+    setSaving(true);
+    try {
+      const updated = await promoterApi.updateMe({ bankName, bankAccount, accountHolderName: accountHolder, ifsc });
+      setMe(updated);
+      setBankAccount('');
+      setOpen(null);
+      toast('Bank details saved ✓');
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Failed to save bank details');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <Loader />;
+  if (!me) return <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>{err || 'Failed to load'}</div>;
+
   return (
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 18 }}>Profile &amp; settings</h1>
       <div style={{ maxWidth: 520, marginBottom: 16 }}>
         <ChangePhoneNumber />
       </div>
+
       <div className="card" style={{ maxWidth: 520, marginBottom: 16 }}>
-        <h3 style={{ marginBottom: 12 }}>Promoter profile</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3>Promoter profile</h3>
+          {me.verified ? <span className="badge badge-ok">Verified ✓</span> : <span className="badge badge-pending">Pending review</span>}
+        </div>
         {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+        <div className="tiny muted-2" style={{ marginBottom: 12 }}>Promoting since {fmtDate(me.createdAt)}</div>
         <div className="form-row">
           <div className="field">
             <span>Brand name</span>
@@ -55,9 +130,70 @@ export default function PromoterSettings() {
             ))}
           </select>
         </div>
-        <button className="btn btn-pri" disabled={saving} onClick={save}>
-          {saving ? 'Saving…' : 'Save changes'}
+        <div className="field">
+          <span>Links (socials / WhatsApp)</span>
+          <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="ig / wa / telegram" />
+        </div>
+        <div className="field">
+          <span>Bio — what nights do you run?</span>
+          <WysiwygEditor value={bio} onChange={setBio} minHeight={80} />
+        </div>
+        <div className="field">
+          <span>Audience size / reach</span>
+          <input value={audienceReach} onChange={(e) => setAudienceReach(e.target.value)} placeholder="e.g. 8k on Instagram, 2k WhatsApp broadcast" />
+        </div>
+        <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={saving} onClick={saveProfile}>
+          {saving ? 'Saving…' : 'Save profile ✓'}
         </button>
+      </div>
+
+      <div className="card" style={{ maxWidth: 520, marginBottom: 16 }}>
+        <div className="evrow" style={{ flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="bold small">Bank for payouts</div>
+            <div className="tiny muted">
+              {me.bankLast4 ? `${me.bankName ? me.bankName + ' · ' : ''}•••• ${me.bankLast4}` : 'no bank details on file'}
+            </div>
+            <div className="tiny muted-2" style={{ marginTop: 2 }}>
+              organizers pay you directly for each event — this is where they send it
+            </div>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={() => toggleOpen('bank')}>
+            {open === 'bank' ? 'Close' : 'Manage'}
+          </button>
+          {open === 'bank' && (
+            <div style={{ flexBasis: '100%', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="form-row">
+                <div className="field">
+                  <span>Bank name</span>
+                  <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. HDFC Bank" />
+                </div>
+                <div className="field">
+                  <span>Account holder's name</span>
+                  <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="field">
+                  <span>Account number</span>
+                  <input value={bankAccount} onChange={(e) => setBankAccount(e.target.value)} inputMode="numeric" placeholder={me.bankLast4 ? `•••• ${me.bankLast4}` : undefined} />
+                </div>
+                <div className="field">
+                  <span>IFSC code</span>
+                  <input value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} />
+                </div>
+              </div>
+              <button
+                className="btn btn-pri btn-sm"
+                style={{ alignSelf: 'flex-start' }}
+                disabled={!bankName.trim() || !bankAccount.trim() || !accountHolder.trim() || !ifsc.trim() || saving}
+                onClick={saveBank}
+              >
+                {saving ? 'Saving…' : 'Save bank details ✓'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="card" style={{ maxWidth: 520, borderColor: 'rgba(255,92,73,.3)' }}>
@@ -79,7 +215,7 @@ export default function PromoterSettings() {
       </div>
 
       <div className="tiny muted-2" style={{ marginTop: 14 }}>
-        Public profile: <Link to={`/promoter/${user?.promoterUsername ?? 'nova-nights'}`} className="link">/promoter/{user?.promoterUsername ?? 'nova-nights'}</Link>
+        Public profile: <Link to={`/promoter/${me.slug}`} className="link">/promoter/{me.slug}</Link>
       </div>
     </div>
   );

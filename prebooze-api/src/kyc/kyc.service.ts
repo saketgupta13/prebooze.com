@@ -338,6 +338,7 @@ export class KycService {
       city: str('city') || user.city || '',
       bio: str('bio') || '',
       links,
+      audienceReach: str('audience'),
       userId: user.id,
     };
   }

@@ -418,6 +418,23 @@ model Promoter {
   contact String? // business contact email — public, added for the directory CRUD slice
   seo     Json? // {title, description, keywords} — same shape/editor (SeoFields) as every other directory entity; was missing here despite Venue/Organizer having it
 
+  // Collected at onboarding (PromoterOnboarding.tsx) but never persisted
+  // anywhere before — editable afterward from Settings, same gap this closes.
+  audienceReach String? // free-text reach claim, e.g. "8k on Instagram, 2k WhatsApp broadcast"
+
+  // Full payout bank details — same plaintext-on-admin-view precedent as
+  // Organizer.bankLast4/bankAccountNumber/etc (no field-level encryption
+  // anywhere in this schema). bankLast4 is the masked value shown back to
+  // the promoter themselves; bankAccountNumber is the real number, surfaced
+  // to the organizer who actually owes this promoter money for a specific
+  // event (they wire it manually — no split-payment rail exists) and to
+  // admin/staff.
+  bankLast4         String?
+  bankName          String?
+  bankAccountNumber String?
+  accountHolderName String?
+  ifsc              String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -1207,6 +1224,13 @@ model PromoterGuest {
   age          String
   gender       String
   subPromoter  String? // sub-promoter handle credited within the team (?via=)
+  // Party members beyond the main signer — same shape as GuestListEntry.
+  // companions (admin's own free list): [{name, phone?}]. One combined QR
+  // (still just this row's id) covers the whole party; the gate scans once
+  // and `arrived`/`arrivedAt` below flips for everyone together — there's no
+  // per-companion arrival state, matching how a single ticket booking's
+  // whole guest list already checks in as one unit.
+  companions   Json      @default("[]")
   arrived      Boolean   @default(false)
   arrivedAt    DateTime?
   createdAt    DateTime  @default(now())

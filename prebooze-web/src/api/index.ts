@@ -245,6 +245,12 @@ export interface PromoterMe {
   eventsPromoted: number;
   guestsBrought: number;
   planId: string;
+  audienceReach: string | null;
+  bankName: string | null;
+  bankLast4: string | null;
+  accountHolderName: string | null;
+  ifsc: string | null;
+  createdAt: string;
 }
 export interface PromoterTeamMember extends SubPromoter {
   id: string;
@@ -268,8 +274,10 @@ export interface PromoterPass extends PromoterGuest {
 }
 export const promoter = {
   me: () => apiFetch<PromoterMe>('/promoter/me'),
-  updateMe: (patch: { brandName?: string; username?: string; city?: string }) =>
-    apiFetch<{ id: string; name: string; slug: string; city: string }>('/promoter/me', { method: 'PATCH', body: patch }),
+  updateMe: (patch: {
+    brandName?: string; username?: string; city?: string; bio?: string; links?: string[]; audienceReach?: string;
+    bankName?: string; bankAccount?: string; accountHolderName?: string; ifsc?: string;
+  }) => apiFetch<PromoterMe>('/promoter/me', { method: 'PATCH', body: patch }),
   promotions: () => apiFetch<Event[]>('/promoter/promotions'),
   guests: (eventId: string) => apiFetch<PromoterGuest[]>(`/promoter/events/${eventId}/guests`),
   captureGuest: (eventSlug: string, promoterSlug: string, guest: Omit<PromoterGuest, 'id' | 'createdAt' | 'arrived'>) =>

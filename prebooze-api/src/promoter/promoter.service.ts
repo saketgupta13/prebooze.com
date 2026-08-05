@@ -75,12 +75,18 @@ export class PromoterService {
 
   /** Self-serve profile edit — same pattern as OrganizerService.updateMe:
    * username changes are collision-checked and rejected (not auto-suffixed),
-   * and brandName/username are mirrored onto User.promoterBrand/promoterUsername
+   * brandName/username are mirrored onto User.promoterBrand/promoterUsername
    * so the global header + self-follow check (case-normalized on both sides)
-   * stay in sync. PromoterSettings.tsx only edits brand/username/city today,
-   * hence the narrow patch shape — Promoter.bio/links exist on the model but
-   * have no editor UI yet. */
-  async updateMe(userId: string, patch: { brandName?: string; username?: string; city?: string }) {
+   * stay in sync, and bank details follow the exact same
+   * bankLast4-is-masked/bankAccountNumber-is-real split Organizer.updateMe
+   * uses (see schema comment on Promoter.bankAccountNumber). */
+  async updateMe(
+    userId: string,
+    patch: {
+      brandName?: string; username?: string; city?: string; bio?: string; links?: string[]; audienceReach?: string;
+      bankName?: string; bankAccount?: string; accountHolderName?: string; ifsc?: string;
+    },
+  ) {
     const promoter = await this.myPromoter(userId);
 
     const slug = patch.username?.trim().toLowerCase();
@@ -96,6 +102,14 @@ export class PromoterService {
         name: patch.brandName?.trim(),
         slug,
         city: patch.city?.trim(),
+        bio: patch.bio,
+        links: patch.links,
+        audienceReach: patch.audienceReach?.trim(),
+        bankName: patch.bankName?.trim(),
+        bankAccountNumber: patch.bankAccount?.trim(),
+        bankLast4: patch.bankAccount ? patch.bankAccount.trim().slice(-4) : undefined,
+        accountHolderName: patch.accountHolderName?.trim(),
+        ifsc: patch.ifsc?.trim().toUpperCase(),
       },
     });
 
