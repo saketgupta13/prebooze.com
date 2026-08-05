@@ -581,6 +581,7 @@ model Event {
   guestListEntries GuestListEntry[]
   checkInLogs      CheckInLog[]
   promoterSettlements PromoterEventSettlement[]
+  teamSettlements     PromoterTeamSettlement[]
 
   // Reports slice (Admin API 9). Finally backs the "Event commission (per
   // event)" permission module that's existed since the staff-auth slice with
@@ -915,6 +916,12 @@ model Booking {
   // already earned on a past sale. 0 when promoterRef is unset/not a
   // recognised revenue-share promoter for this event.
   promoterCommission Int           @default(0)
+  // Sub-promoter handle credited within promoterRef's own team (?via= on the
+  // ticket link, same attribution label PromoterGuest.subPromoter already
+  // uses for the free-entry side) — purely a tracking tag, doesn't change
+  // promoterCommission or any pricing; it's what PromoterTeamMember payout
+  // splits are computed against.
+  promoterVia      String?
   walletCreditUsed Int           @default(0)
   paymentId        String? // Razorpay payment id (or dev-stub id — see RazorpayService)
   refundedTo       RefundMethod?
@@ -1243,7 +1250,22 @@ model PromoterTeamMember {
   handle     String
   name       String
   hue        Int
+  // % of this member's own tagged earnings (PromoterGuest.subPromoter /
+  // Booking.promoterVia matching this handle) the lead intends to pay them
+  // — one rate, not renegotiated per event, same "one rate" convention as
+  // the lead's own revenueShare with organizers. 0 = not yet configured,
+  // tracked/visible but nothing is computed as "owed" until set, same
+  // blank-means-not-enabled convention used elsewhere in this schema.
+  payoutSplitPct Int @default(0)
+  // Optional soft cap on this member's own free-entry signups per month —
+  // a slice of the lead's own monthly quota, enforced in addition to (not
+  // instead of) the lead's overall quota check. null = no separate cap,
+  // this member can use up to the lead's full remaining quota like anyone
+  // else on the team.
+  monthlyQuotaShare Int?
   createdAt  DateTime @default(now())
+
+  settlements PromoterTeamSettlement[]
 
   @@unique([promoterId, handle])
 }
@@ -1279,6 +1301,28 @@ model PromoterEventSettlement {
   updatedAt      DateTime  @updatedAt
 
   @@unique([promoterId, eventId])
+}
+
+/**
+ * A lead promoter's own attestation that they've paid a team member their
+ * split for one event — same self-attested shape as PromoterEventSettlement
+ * (organizer -> promoter), one level down (promoter -> sub-promoter). The
+ * lead marks this, not the sub-promoter, since the lead is the one actually
+ * disbursing — a sub-promoter has no login here to attest anything
+ * themselves (see PromoterTeamMember — link-only, no userId).
+ */
+model PromoterTeamSettlement {
+  id           String    @id @default(cuid())
+  teamMemberId String
+  teamMember   PromoterTeamMember @relation(fields: [teamMemberId], references: [id])
+  eventId      String
+  event        Event     @relation(fields: [eventId], references: [id])
+  status       String    @default("pending") // pending | paid
+  paidAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([teamMemberId, eventId])
 }
 
 // ============================================================================

@@ -212,6 +212,26 @@ export class PromoterService {
       if (this.partySize(monthRows) + partySize > quota) throw new BadRequestException(`Sorry — ${promoter?.name ?? 'this promoter'} has reached their guest limit for this month`);
     }
 
+    // optional per-sub-promoter slice of the lead's own quota — enforced in
+    // addition to the lead-wide check above, not instead of it
+    if (body.subPromoter && promoter) {
+      const member = await this.prisma.promoterTeamMember.findUnique({
+        where: { promoterId_handle: { promoterId: promoter.id, handle: body.subPromoter } },
+      });
+      if (member?.monthlyQuotaShare) {
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const memberMonthRows = await this.prisma.promoterGuest.findMany({
+          where: { promoterSlug, subPromoter: body.subPromoter, createdAt: { gte: monthStart, lt: nextMonth } },
+          select: { companions: true },
+        });
+        if (this.partySize(memberMonthRows) + partySize > member.monthlyQuotaShare) {
+          throw new BadRequestException(`Sorry — ${member.name} has reached their guest limit for this month`);
+        }
+      }
+    }
+
     // fraud checks need every past guest row for this phone, across all events
     const last10 = norm(body.phone);
     const samePhoneGuests = last10
@@ -476,7 +496,7 @@ export class PromoterService {
     return this.prisma.promoterTeamMember.findMany({ where: { promoterId: promoter.id }, orderBy: { createdAt: 'asc' } });
   }
 
-  async addTeamMember(userId: string, m: { handle?: string; name?: string; hue?: number }) {
+  async addTeamMember(userId: string, m: { handle?: string; name?: string; hue?: number; payoutSplitPct?: number; monthlyQuotaShare?: number | null }) {
     const promoter = await this.myPromoter(userId);
     if (!m.handle?.trim()) throw new BadRequestException('handle is required');
 
@@ -486,7 +506,27 @@ export class PromoterService {
     if (existing) return existing; // matches the mock's silent no-op on a duplicate handle
 
     return this.prisma.promoterTeamMember.create({
-      data: { promoterId: promoter.id, handle: m.handle.trim(), name: m.name?.trim() || m.handle.trim(), hue: m.hue ?? 0 },
+      data: {
+        promoterId: promoter.id, handle: m.handle.trim(), name: m.name?.trim() || m.handle.trim(), hue: m.hue ?? 0,
+        payoutSplitPct: Math.min(100, Math.max(0, m.payoutSplitPct ?? 0)),
+        monthlyQuotaShare: m.monthlyQuotaShare && m.monthlyQuotaShare > 0 ? m.monthlyQuotaShare : null,
+      },
+    });
+  }
+
+  /** Split %/quota share are the only fields a lead edits after adding
+   * someone — handle/name are set once at creation (changing a handle would
+   * orphan every already-tagged PromoterGuest/Booking row from before). */
+  async updateTeamMember(userId: string, memberId: string, patch: { payoutSplitPct?: number; monthlyQuotaShare?: number | null }) {
+    const promoter = await this.myPromoter(userId);
+    const member = await this.prisma.promoterTeamMember.findUnique({ where: { id: memberId } });
+    if (!member || member.promoterId !== promoter.id) throw new NotFoundException('Team member not found');
+    return this.prisma.promoterTeamMember.update({
+      where: { id: memberId },
+      data: {
+        payoutSplitPct: patch.payoutSplitPct !== undefined ? Math.min(100, Math.max(0, patch.payoutSplitPct)) : undefined,
+        monthlyQuotaShare: patch.monthlyQuotaShare !== undefined ? (patch.monthlyQuotaShare && patch.monthlyQuotaShare > 0 ? patch.monthlyQuotaShare : null) : undefined,
+      },
     });
   }
 
@@ -495,6 +535,91 @@ export class PromoterService {
     const member = await this.prisma.promoterTeamMember.findUnique({ where: { id: memberId } });
     if (!member || member.promoterId !== promoter.id) throw new NotFoundException('Team member not found');
     await this.prisma.promoterTeamMember.delete({ where: { id: memberId } });
+    return { ok: true };
+  }
+
+  /** What the lead owes each team member, per event — same "brought/arrived"
+   * numbers the Team page's live stats already show, now carried through to
+   * money: perHead for arrived guests tagged with a member's handle (same
+   * gating as the lead's own earnings — perHeadPayout + guestListEnabled),
+   * plus that member's split of any promoterCommission tagged with their
+   * handle on the ticket-link side. The split is applied to the RAW total
+   * (100% of what was earned through that handle) — a member with 0%
+   * configured still shows their raw numbers, just nothing "owed" yet. */
+  async teamEarnings(userId: string) {
+    const promoter = await this.myPromoter(userId);
+    const members = await this.prisma.promoterTeamMember.findMany({ where: { promoterId: promoter.id } });
+    if (!members.length) return [];
+
+    const [arrivedGuests, bookings, allSettlements] = await Promise.all([
+      this.prisma.promoterGuest.findMany({
+        where: { promoterSlug: promoter.slug, arrived: true, subPromoter: { not: null } },
+        select: { subPromoter: true, event: { select: { id: true, title: true, date: true, promoterConfig: true } } },
+      }),
+      this.prisma.booking.findMany({
+        where: { promoterRef: promoter.slug, status: 'confirmed', promoterVia: { not: null }, promoterCommission: { gt: 0 } },
+        select: { promoterVia: true, promoterCommission: true, event: { select: { id: true, title: true, date: true } } },
+      }),
+      this.prisma.promoterTeamSettlement.findMany({ where: { teamMemberId: { in: members.map((m) => m.id) } } }),
+    ]);
+    const memberByHandle = new Map(members.map((m) => [m.handle, m]));
+
+    const rows = new Map<
+      string,
+      { teamMemberId: string; memberName: string; eventId: string; eventTitle: string; eventDate: Date; perHead: number; commission: number }
+    >();
+    const ensure = (memberId: string, memberName: string, eventId: string, eventTitle: string, eventDate: Date) => {
+      const key = `${memberId}::${eventId}`;
+      let row = rows.get(key);
+      if (!row) {
+        row = { teamMemberId: memberId, memberName, eventId, eventTitle, eventDate, perHead: 0, commission: 0 };
+        rows.set(key, row);
+      }
+      return row;
+    };
+
+    for (const g of arrivedGuests) {
+      const member = memberByHandle.get(g.subPromoter!);
+      if (!member) continue;
+      const cfg = g.event.promoterConfig as unknown as PromoterConfig | null;
+      if (!cfg?.perHeadPayout || !guestListEnabled(cfg, promoter.slug)) continue;
+      ensure(member.id, member.name, g.event.id, g.event.title, g.event.date).perHead += cfg.perHeadAmount;
+    }
+    for (const b of bookings) {
+      const member = memberByHandle.get(b.promoterVia!);
+      if (!member) continue;
+      ensure(member.id, member.name, b.event.id, b.event.title, b.event.date).commission += b.promoterCommission;
+    }
+
+    const settlementByKey = new Map(allSettlements.map((s) => [`${s.teamMemberId}::${s.eventId}`, s]));
+    return [...rows.values()]
+      .map((r) => {
+        const member = members.find((m) => m.id === r.teamMemberId)!;
+        const rawTotal = r.perHead + r.commission;
+        return {
+          ...r,
+          splitPct: member.payoutSplitPct,
+          rawTotal,
+          owed: Math.round((rawTotal * member.payoutSplitPct) / 100),
+          status: settlementByKey.get(`${r.teamMemberId}::${r.eventId}`)?.status ?? 'pending',
+        };
+      })
+      .sort((a, b) => b.eventDate.getTime() - a.eventDate.getTime());
+  }
+
+  /** Lead-only action — a team member has no login here to self-attest
+   * anything, so this is purely the lead's own bookkeeping ("I paid Aisha
+   * for this event"), same self-attested-by-whoever-actually-pays pattern
+   * as everything else in this payout chain. */
+  async markTeamMemberPaid(userId: string, teamMemberId: string, eventId: string) {
+    const promoter = await this.myPromoter(userId);
+    const member = await this.prisma.promoterTeamMember.findUnique({ where: { id: teamMemberId } });
+    if (!member || member.promoterId !== promoter.id) throw new NotFoundException('Team member not found');
+    await this.prisma.promoterTeamSettlement.upsert({
+      where: { teamMemberId_eventId: { teamMemberId, eventId } },
+      create: { teamMemberId, eventId, status: 'paid', paidAt: new Date() },
+      update: { status: 'paid', paidAt: new Date() },
+    });
     return { ok: true };
   }
 

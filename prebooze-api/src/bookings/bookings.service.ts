@@ -26,6 +26,11 @@ export interface CreateBookingInput {
   couponCode?: string;
   walletCredit?: number; // ₹ the user wants to apply from their balance
   promoterRef?: string;
+  // Sub-promoter handle credited within promoterRef's own team (?via= on the
+  // ticket link) — pure attribution, doesn't affect pricing or
+  // promoterCommission, which are both computed the same regardless. Only
+  // meaningful alongside a real promoterRef; ignored otherwise.
+  promoterVia?: string;
   payMethodId?: string; // saved card/UPI used at checkout — becomes the default
   razorpay?: { orderId: string; paymentId: string; signature: string };
 }
@@ -272,6 +277,7 @@ export class BookingsService {
           mainGuest: input.mainGuest.trim(),
           whatsapp: input.whatsapp.trim(),
           promoterRef: input.promoterRef,
+          promoterVia: input.promoterRef ? input.promoterVia : undefined,
           promoterCommission,
           walletCreditUsed,
           paymentId: paymentId ?? undefined,

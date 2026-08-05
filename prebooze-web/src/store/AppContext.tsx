@@ -79,6 +79,8 @@ export interface SubPromoter {
   handle: string;
   name: string;
   hue: number;
+  payoutSplitPct?: number;
+  monthlyQuotaShare?: number | null;
 }
 
 interface Selection {
@@ -182,6 +184,13 @@ interface AppState {
   promoterRefByEvent: Record<string, string>;
   setPromoterRefForEvent: (eventId: string, slug: string) => void;
   clearPromoterRefForEvent: (eventId: string) => void;
+  // Same per-event keying/persistence as promoterRefByEvent, just for the
+  // sub-promoter tag (?via=) on the ticket link — independent of ref since a
+  // link could carry ref without via (no team member) or vice versa isn't
+  // meaningful, but keeping it a separate map avoids coupling their lifetimes.
+  promoterViaByEvent: Record<string, string>;
+  setPromoterViaForEvent: (eventId: string, handle: string) => void;
+  clearPromoterViaForEvent: (eventId: string) => void;
   toastMsg: string | null;
   toast: (msg: string) => void;
   /** Real "am I on someone's team" access — set only for an invited
@@ -349,6 +358,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       delete next[eventId];
       return next;
     });
+  const [promoterViaByEvent, setPromoterViaByEvent] = useState<Record<string, string>>(() => load('pb_promoter_via', {}));
+  const setPromoterViaForEvent = (eventId: string, handle: string) =>
+    setPromoterViaByEvent((prev) => (prev[eventId] === handle ? prev : { ...prev, [eventId]: handle }));
+  const clearPromoterViaForEvent = (eventId: string) =>
+    setPromoterViaByEvent((prev) => {
+      if (!(eventId in prev)) return prev;
+      const next = { ...prev };
+      delete next[eventId];
+      return next;
+    });
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const toast = useCallback((msg: string) => {
@@ -495,6 +514,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_promoter_refs', JSON.stringify(promoterRefByEvent));
   }, [promoterRefByEvent]);
+  useEffect(() => {
+    localStorage.setItem('pb_promoter_via', JSON.stringify(promoterViaByEvent));
+  }, [promoterViaByEvent]);
   // register the logged-in user's referral code so /r/:code can resolve it
   useEffect(() => {
     if (user?.phone) {
@@ -967,12 +989,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       promoterRefByEvent,
       setPromoterRefForEvent,
       clearPromoterRefForEvent,
+      promoterViaByEvent,
+      setPromoterViaForEvent,
+      clearPromoterViaForEvent,
       toastMsg,
       toast,
       orgTeamAccess,
       orgTeamAccessLoaded,
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, pendingRequestId, myVenues, promoterRefByEvent, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, pendingRequestId, myVenues, promoterRefByEvent, promoterViaByEvent, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

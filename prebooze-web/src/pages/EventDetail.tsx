@@ -42,7 +42,7 @@ export default function EventDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { user, city, setSelection, myEvents, bookings, interested, toggleInterested, promoterRefByEvent, setPromoterRefForEvent, waitlists, joinWaitlist } = useApp();
+  const { user, city, setSelection, myEvents, bookings, interested, toggleInterested, promoterRefByEvent, setPromoterRefForEvent, setPromoterViaForEvent, waitlists, joinWaitlist } = useApp();
   const { salesPaused } = usePlatformInfo();
 
   const mockEvent = eventBySlug(slug ?? '') ?? myEvents.find((e) => e.slug === slug);
@@ -129,9 +129,13 @@ export default function EventDetail() {
   // (?ref=slug) — keyed to this event specifically so it survives a reload
   // and can't be clobbered by a different promoter's link on a different event.
   const ref = params.get('ref');
+  const via = params.get('via'); // sub-promoter handle credited within ref's own team
   useEffect(() => {
     if (ref && event?.id) setPromoterRefForEvent(event.id, ref);
   }, [ref, event?.id, setPromoterRefForEvent]);
+  useEffect(() => {
+    if (ref && via && event?.id) setPromoterViaForEvent(event.id, via);
+  }, [ref, via, event?.id, setPromoterViaForEvent]);
   const refSlug = ref ?? (event ? promoterRefByEvent[event.id] : undefined);
   const mockRefPromoter = PROMOTERS.find((p) => p.slug === refSlug);
   // Real lookup — the mock PROMOTERS array never contains a real promoter's

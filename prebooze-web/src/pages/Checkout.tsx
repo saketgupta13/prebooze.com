@@ -39,7 +39,7 @@ function loadRazorpayScript(): Promise<void> {
 export default function Checkout() {
   const {
     user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, setHold, clearHold,
-    captureCart, setCartStatus, promoterRefByEvent, clearPromoterRefForEvent, walletBalance, spendWallet, payMethods,
+    captureCart, setCartStatus, promoterRefByEvent, clearPromoterRefForEvent, promoterViaByEvent, walletBalance, spendWallet, payMethods,
     setDefaultPayMethod, refreshWallet,
   } = useApp();
   const navigate = useNavigate();
@@ -363,6 +363,7 @@ export default function Checkout() {
           couponCode: appliedCode ?? undefined,
           walletCredit: useCredit ? effectiveWalletBalance : 0,
           promoterRef: event?.id ? promoterRefByEvent[event.id] : undefined,
+          promoterVia: event?.id ? promoterViaByEvent[event.id] : undefined,
           payMethodId: (livePayMethods ?? []).some((m) => m.id === payMethod) ? payMethod : undefined,
           razorpay,
         });

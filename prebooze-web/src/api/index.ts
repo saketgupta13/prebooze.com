@@ -133,6 +133,7 @@ export interface CreateBookingInput {
   couponCode?: string;
   walletCredit?: number;
   promoterRef?: string;
+  promoterVia?: string;
   payMethodId?: string;
   razorpay?: { orderId: string; paymentId: string; signature: string };
 }
@@ -303,7 +304,18 @@ export const promoter = {
   withdrawals: () => apiFetch<PromoterWithdrawal[]>('/promoter/withdrawals'),
   team: () => apiFetch<PromoterTeamMember[]>('/promoter/team'),
   addTeamMember: (m: SubPromoter) => apiFetch<PromoterTeamMember>('/promoter/team', { body: m }),
+  updateTeamMember: (id: string, patch: { payoutSplitPct?: number; monthlyQuotaShare?: number | null }) =>
+    apiFetch<PromoterTeamMember>(`/promoter/team/${id}`, { method: 'PATCH', body: patch }),
   removeTeamMember: (id: string) => apiFetch<{ ok: true }>(`/promoter/team/${id}`, { method: 'DELETE' }),
+  teamEarnings: () =>
+    apiFetch<
+      {
+        teamMemberId: string; memberName: string; eventId: string; eventTitle: string; eventDate: string;
+        perHead: number; commission: number; rawTotal: number; splitPct: number; owed: number; status: 'pending' | 'paid';
+      }[]
+    >('/promoter/team/earnings'),
+  markTeamMemberPaid: (teamMemberId: string, eventId: string) =>
+    apiFetch<{ ok: true }>(`/promoter/team/${teamMemberId}/events/${eventId}/mark-paid`, { method: 'POST' }),
   leaderboard: () => apiFetch<LeaderboardRow[]>('/promoter/leaderboard'),
   usage: () => apiFetch<{ used: number; quota: number }>('/promoter/usage'),
   subscription: subscriptionApi('promoter'),

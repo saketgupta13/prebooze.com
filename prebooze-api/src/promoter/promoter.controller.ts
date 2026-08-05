@@ -75,13 +75,28 @@ export class PromoterController {
   }
 
   @Post('team')
-  addTeamMember(@Req() req: AuthedReq, @Body() body: { handle?: string; name?: string; hue?: number }) {
+  addTeamMember(@Req() req: AuthedReq, @Body() body: { handle?: string; name?: string; hue?: number; payoutSplitPct?: number; monthlyQuotaShare?: number | null }) {
     return this.promoter.addTeamMember(req.user.sub, body);
+  }
+
+  @Patch('team/:id')
+  updateTeamMember(@Req() req: AuthedReq, @Param('id') id: string, @Body() body: { payoutSplitPct?: number; monthlyQuotaShare?: number | null }) {
+    return this.promoter.updateTeamMember(req.user.sub, id, body);
   }
 
   @Delete('team/:id')
   removeTeamMember(@Req() req: AuthedReq, @Param('id') id: string) {
     return this.promoter.removeTeamMember(req.user.sub, id);
+  }
+
+  @Get('team/earnings')
+  teamEarnings(@Req() req: AuthedReq) {
+    return this.promoter.teamEarnings(req.user.sub);
+  }
+
+  @Post('team/:id/events/:eventId/mark-paid')
+  markTeamMemberPaid(@Req() req: AuthedReq, @Param('id') id: string, @Param('eventId') eventId: string) {
+    return this.promoter.markTeamMemberPaid(req.user.sub, id, eventId);
   }
 
   @Get('leaderboard')
