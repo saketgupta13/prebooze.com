@@ -84,7 +84,8 @@ export class PromoterService {
   async updateMe(
     userId: string,
     patch: {
-      brandName?: string; username?: string; city?: string; bio?: string; links?: string[]; audienceReach?: string;
+      brandName?: string; username?: string; city?: string; country?: string; state?: string; pincode?: string;
+      bio?: string; links?: string[]; audienceReach?: string;
       bankName?: string; bankAccount?: string; accountHolderName?: string; ifsc?: string; logoUrl?: string;
     },
   ) {
@@ -103,6 +104,9 @@ export class PromoterService {
         name: patch.brandName?.trim(),
         slug,
         city: patch.city?.trim(),
+        country: patch.country?.trim(),
+        state: patch.state?.trim(),
+        pincode: patch.pincode?.trim(),
         bio: patch.bio,
         links: patch.links,
         audienceReach: patch.audienceReach?.trim(),

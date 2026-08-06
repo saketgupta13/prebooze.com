@@ -1,11 +1,11 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { GUEST_SITE_URL } from '../store/data';
 import NotificationsPanel from './NotificationsPanel';
 import { Drawer } from './ui';
 import { useBranding } from '../lib/useBranding';
-import { clearLiveToken } from '../lib/liveApi';
+import { clearLiveToken, getLiveToken, liveMe, type LiveStaffMe } from '../lib/liveApi';
 
 interface SearchResult {
   type: string;
@@ -79,6 +79,57 @@ const EXTRA_NAV = [
 // searching data records (that's the second half of the search results).
 const SECTION_NAV = [...MAIN_NAV, ...CONTENT_NAV, ...EXTRA_NAV];
 
+// Which PERM_MODULES cell (see prebooze-admin's data.ts / prebooze-api's
+// staff.service.ts — identical strings on both sides) actually gates each
+// route's data on the backend. Mirrors every RequirePermission(MODULE, …)
+// call site exactly, including the few surprising reuses (Settings/Reports/
+// Refer&earn/Invoices/Promoter payouts all share 'Payments & payouts'
+// because their controllers do) — this only decides whether the *link* is
+// shown, so it has to match what the API would actually let the request
+// through for, not what the label suggests. '/staff' and '/profile' aren't
+// in here: staff&role management is Owner-only and isn't part of the
+// delegatable matrix at all (OwnerOnlyGuard), and a staffer's own profile
+// page has no permission gate on the backend — both handled as special
+// cases in canView() below.
+const NAV_MODULE: Record<string, string> = {
+  '/': 'Dashboard',
+  '/events': 'Events & approvals',
+  '/bookings': 'Bookings',
+  '/abandoned': 'Abandoned carts',
+  '/customers': 'Customers',
+  '/verifications': 'Verifications (KYC)',
+  '/leads': 'Leads',
+  '/organizers': 'Organizers',
+  '/promoters': 'Promoters',
+  '/featured': 'Featured',
+  '/referrals': 'Payments & payouts',
+  '/venues': 'Venues',
+  '/locations': 'Locations',
+  '/lineups': 'Lineups',
+  '/payments': 'Payments & payouts',
+  '/promoter-payouts': 'Payments & payouts',
+  '/invoices': 'Payments & payouts',
+  '/finance': 'Payments & payouts',
+  '/promos': 'Promo codes',
+  '/reviews': 'Reviews',
+  '/reports': 'Payments & payouts',
+  '/analytics': 'Reports',
+  '/banners': 'Content',
+  '/reels': 'Reels',
+  '/careers': 'Careers',
+  '/testimonials': 'Content',
+  '/faqs': 'Content',
+  '/categories': 'Content',
+  '/trending': 'Content',
+  '/venue-types': 'Content',
+  '/blogs': 'Content',
+  '/pages': 'Content',
+  '/policies': 'Content',
+  '/menus': 'Content',
+  '/email-templates': 'Content',
+  '/settings': 'Payments & payouts',
+};
+
 export default function AdminLayout() {
   const { session, logout, notifications, events, bookings, organizers, venues, promoters, customers } = useAdmin();
   const { logoUrl } = useBranding();
@@ -90,13 +141,47 @@ export default function AdminLayout() {
   const searchWrapRef = useRef<HTMLDivElement>(null);
   const unread = notifications.filter((n) => !n.read).length;
 
+  // The real permission matrix for whoever is actually signed in — fetched
+  // fresh on every mount (not cached in the persisted mock session) so an
+  // Owner editing a role's permissions takes effect the next time that
+  // staffer's shell loads, not just at their next login. Starts null, so
+  // every module-gated link is hidden until this resolves — the alternative
+  // (defaulting to visible) would flash the exact "shows everything" bug
+  // this exists to fix, even if only for one request's worth of time.
+  const [staffMeta, setStaffMeta] = useState<LiveStaffMe | null>(null);
+  useEffect(() => {
+    if (!getLiveToken()) return;
+    liveMe.get().then(setStaffMeta).catch(() => {});
+  }, []);
+
+  const visibleTo = useMemo(() => {
+    const set = new Set<string>(['/profile']); // self-service, no backend permission gate
+    if (staffMeta) {
+      for (const [to, module] of Object.entries(NAV_MODULE)) {
+        if (staffMeta.permissions[module]?.view) set.add(to);
+      }
+      // Staff & role management isn't part of the delegatable matrix at all
+      // (OwnerOnlyGuard) — hardcoded to the Owner role, not a permission cell.
+      if (staffMeta.roleName === 'Owner') set.add('/staff');
+    }
+    return set;
+  }, [staffMeta]);
+
+  const mainNav = useMemo(() => MAIN_NAV.filter((n) => visibleTo.has(n.to)), [visibleTo]);
+  const contentNav = useMemo(() => CONTENT_NAV.filter((n) => visibleTo.has(n.to)), [visibleTo]);
+  const extraNav = useMemo(() => EXTRA_NAV.filter((n) => visibleTo.has(n.to)), [visibleTo]);
+  const mobileNav = useMemo(() => MOBILE_NAV.filter((n) => visibleTo.has(n.to)), [visibleTo]);
+  const sectionNav = useMemo(() => SECTION_NAV.filter((n) => visibleTo.has(n.to)), [visibleTo]);
+
   const results = useMemo<SearchResult[]>(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
 
     // Section matches first — "jump to X" beats fuzzy record search when
     // the query looks like a page name (e.g. typing "staff" or "reports").
-    const sections: SearchResult[] = SECTION_NAV.filter((s) => s.label.toLowerCase().includes(q)).map((s) => ({
+    // Only sections this staffer can actually open — otherwise search would
+    // leak the same sections the sidebar is now hiding.
+    const sections: SearchResult[] = sectionNav.filter((s) => s.label.toLowerCase().includes(q)).map((s) => ({
       type: 'Section', label: s.label, sub: s.to, to: s.to,
     }));
 
@@ -110,7 +195,7 @@ export default function AdminLayout() {
 
     return [...sections.slice(0, 3), ...records].slice(0, 8);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, events, organizers, venues, promoters, bookings, customers]);
+  }, [query, events, organizers, venues, promoters, bookings, customers, sectionNav]);
 
   const goTo = (r: SearchResult) => {
     navigate(r.to);
@@ -193,32 +278,26 @@ export default function AdminLayout() {
 
       <div className="shell">
         <nav className="sidebar">
-          {MAIN_NAV.map((n) => (
+          {mainNav.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
               <span>{n.icon}</span>
               <span>{n.label}</span>
             </NavLink>
           ))}
-          <div className="group">Content</div>
-          {CONTENT_NAV.map((n) => (
+          {contentNav.length > 0 && <div className="group">Content</div>}
+          {contentNav.map((n) => (
             <NavLink key={n.to} to={n.to} className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
               <span>{n.icon}</span>
               <span>{n.label}</span>
             </NavLink>
           ))}
           <div style={{ flex: 1 }} />
-          <NavLink to="/staff" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
-            <span>🛡</span>
-            <span>Staff &amp; roles</span>
-          </NavLink>
-          <NavLink to="/email-templates" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
-            <span>✉️</span>
-            <span>Email templates</span>
-          </NavLink>
-          <NavLink to="/settings" className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
-            <span>⚙</span>
-            <span>Settings</span>
-          </NavLink>
+          {extraNav.filter((n) => n.to !== '/profile').map((n) => (
+            <NavLink key={n.to} to={n.to} className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
+              <span>{n.icon}</span>
+              <span>{n.label}</span>
+            </NavLink>
+          ))}
         </nav>
 
         <main className="content">
@@ -227,7 +306,7 @@ export default function AdminLayout() {
       </div>
 
       <nav className="bottomnav">
-        {MOBILE_NAV.map((n) => (
+        {mobileNav.map((n) => (
           <NavLink
             key={n.to}
             to={n.to}
@@ -267,7 +346,7 @@ export default function AdminLayout() {
         </button>
       </nav>
 
-      {moreOpen && <MoreMenu onClose={() => setMoreOpen(false)} />}
+      {moreOpen && <MoreMenu onClose={() => setMoreOpen(false)} mainNav={mainNav} contentNav={contentNav} extraNav={extraNav} />}
       {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
       <ToastHost />
     </>
@@ -276,11 +355,20 @@ export default function AdminLayout() {
 
 const MOBILE_TAB_PATHS = new Set(['/', '/events', '/bookings', '/payments']);
 
+interface NavItem {
+  to: string;
+  icon: string;
+  label: string;
+  end?: boolean;
+}
+
 /** Everything the sidebar shows on desktop but the 4-icon bottom tab bar has
  * no room for — MAIN_NAV/CONTENT_NAV/EXTRA_NAV minus whatever's already a
- * tab, grouped the same way the sidebar groups them. */
-function MoreMenu({ onClose }: { onClose: () => void }) {
-  const mainRest = MAIN_NAV.filter((n) => !MOBILE_TAB_PATHS.has(n.to));
+ * tab, grouped the same way the sidebar groups them. Takes the already
+ * permission-filtered arrays from AdminLayout rather than the raw
+ * constants, so this drawer can't leak a section the sidebar itself hides. */
+function MoreMenu({ onClose, mainNav, contentNav, extraNav }: { onClose: () => void; mainNav: NavItem[]; contentNav: NavItem[]; extraNav: NavItem[] }) {
+  const mainRest = mainNav.filter((n) => !MOBILE_TAB_PATHS.has(n.to));
   return (
     <Drawer onClose={onClose}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -299,8 +387,8 @@ function MoreMenu({ onClose }: { onClose: () => void }) {
             <span>{n.label}</span>
           </NavLink>
         ))}
-        <div className="group">Content</div>
-        {CONTENT_NAV.map((n) => (
+        {contentNav.length > 0 && <div className="group">Content</div>}
+        {contentNav.map((n) => (
           <NavLink
             key={n.to}
             to={n.to}
@@ -312,7 +400,7 @@ function MoreMenu({ onClose }: { onClose: () => void }) {
           </NavLink>
         ))}
         <div className="group">Account</div>
-        {EXTRA_NAV.map((n) => (
+        {extraNav.map((n) => (
           <NavLink
             key={n.to}
             to={n.to}

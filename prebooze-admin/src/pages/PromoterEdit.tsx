@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import WysiwygEditor from '../components/WysiwygEditor';
 import RealImageUpload from '../components/RealImageUpload';
 import SeoFields, { emptySeo } from '../components/SeoFields';
+import { LiveLocationPicker } from '../components/ui';
 import { livePromoters, LiveApiError, type LivePromoter } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
@@ -23,7 +24,8 @@ export default function PromoterEdit() {
 
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
-  const [city, setCity] = useState('');
+  const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
+  const [pincode, setPincode] = useState('');
   const [bio, setBio] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [seo, setSeo] = useState<Seo>(emptySeo());
@@ -39,7 +41,8 @@ export default function PromoterEdit() {
         if (found) {
           setName(found.name);
           setContact(found.contact ?? '');
-          setCity(found.city);
+          setLoc({ country: found.country || 'India', state: found.state ?? '', city: found.city });
+          setPincode(found.pincode ?? '');
           setBio(found.bio ?? '');
           setLogoUrl(found.logoUrl ?? null);
           setSeo((found.seo as Seo | null) ?? emptySeo());
@@ -70,7 +73,11 @@ export default function PromoterEdit() {
     e.preventDefault();
     if (!name.trim()) { setErr('Name is required'); return; }
     try {
-      await livePromoters.update(p.id, { name: name.trim(), contact: contact.trim(), city: city.trim() || '—', bio: bio.trim(), logoUrl: logoUrl ?? undefined, seo });
+      await livePromoters.update(p.id, {
+        name: name.trim(), contact: contact.trim(),
+        city: loc.city.trim() || '—', state: loc.state.trim() || null, country: loc.country.trim() || null, pincode: pincode.trim() || null,
+        bio: bio.trim(), logoUrl: logoUrl ?? undefined, seo,
+      });
       navigate(`/promoters/${p.id}`);
     } catch (e2) {
       setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to save');
@@ -97,9 +104,10 @@ export default function PromoterEdit() {
             <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} />
           </div>
         </div>
+        <LiveLocationPicker value={loc} onChange={setLoc} />
         <div className="field">
-          <label>City</label>
-          <input className="input" value={city} onChange={(e) => setCity(e.target.value)} />
+          <label>Pincode</label>
+          <input className="input" value={pincode} onChange={(e) => setPincode(e.target.value)} />
         </div>
         <div className="field">
           <label>Bio</label>

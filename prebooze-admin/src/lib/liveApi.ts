@@ -309,7 +309,9 @@ export interface LiveOrganizer {
   bankLast4: string | null; seo: Seo | null;
 }
 export interface LivePromoter {
-  id: string; slug: string; name: string; verified: boolean; city: string; bio: string; links: string[];
+  id: string; slug: string; name: string; verified: boolean; city: string;
+  state: string | null; country: string | null; pincode: string | null;
+  bio: string; links: string[];
   followers: number; eventsPromoted: number; guestsBrought: number; showRate: number; planId: string;
   contact: string | null; seo: Seo | null; logoUrl: string | null;
 }

@@ -59,6 +59,7 @@ export function toApiUser(u: User) {
     promoterBrand: u.promoterBrand ?? undefined,
     promoterUsername: u.promoterUsername ?? undefined,
     promoterPlan: u.promoterPlan ?? undefined,
+    promoterLogoUrl: u.promoterLogoUrl ?? undefined,
     isVenue: u.role === 'venue' || undefined,
     venueName: u.venueName ?? undefined,
     venueId: u.venueId ?? undefined,

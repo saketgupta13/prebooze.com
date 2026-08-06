@@ -77,7 +77,8 @@ export default function PromoterOnboarding() {
       ]);
       const payload = {
         brand: brand.trim(), brandName: brand.trim(), username: username.trim(),
-        city: loc.city, bio, links, audience: audience.trim() || undefined,
+        city: loc.city, country: loc.country, state: loc.state, pincode: loc.pincode,
+        bio, links, audience: audience.trim() || undefined,
       };
       const res = await kyc.submitRole('promoter', payload, [idDocFile, selfieFile]);
       updateUser({ ...res.user, pendingRole: 'promoter' });

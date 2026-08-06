@@ -239,6 +239,9 @@ export interface PromoterMe {
   slug: string;
   name: string;
   city: string;
+  country: string | null;
+  state: string | null;
+  pincode: string | null;
   bio: string;
   links: string[];
   verified: boolean;
@@ -277,7 +280,8 @@ export interface PromoterPass extends PromoterGuest {
 export const promoter = {
   me: () => apiFetch<PromoterMe>('/promoter/me'),
   updateMe: (patch: {
-    brandName?: string; username?: string; city?: string; bio?: string; links?: string[]; audienceReach?: string;
+    brandName?: string; username?: string; city?: string; country?: string; state?: string; pincode?: string;
+    bio?: string; links?: string[]; audienceReach?: string;
     bankName?: string; bankAccount?: string; accountHolderName?: string; ifsc?: string; logoUrl?: string;
   }) => apiFetch<PromoterMe>('/promoter/me', { method: 'PATCH', body: patch }),
   upload: (file: File) => {

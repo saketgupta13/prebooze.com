@@ -295,10 +295,9 @@ export class KycService {
    * slug-style but distinct fields (seeded promoters use short ids like
    * "pr1" with a separate human slug), so both need picking. `payload` is
    * the raw onboarding submission (PromoterOnboarding.tsx) — without pulling
-   * from it, bio/links/city the applicant actually entered landed nowhere,
-   * same gap newOrganizerRow/newLineupRow close for their roles. Promoter
-   * has no country/state/pincode columns (unlike Organizer/Lineup), so only
-   * city is pulled from location fields. */
+   * from it, bio/links/city/country/state/pincode the applicant actually
+   * entered landed nowhere, same gap newOrganizerRow/newLineupRow close for
+   * their roles. */
   private async newPromoterRow(
     user: { id: string; promoterBrand: string | null; promoterUsername: string | null; name: string; city: string },
     payload: Record<string, unknown> | null,
@@ -336,6 +335,9 @@ export class KycService {
       name: user.promoterBrand || user.name || 'Promoter',
       verified: true, // this row is only ever created at the moment KYC is approved
       city: str('city') || user.city || '',
+      country: str('country'),
+      state: str('state'),
+      pincode: str('pincode'),
       bio: str('bio') || '',
       links,
       audienceReach: str('audience'),

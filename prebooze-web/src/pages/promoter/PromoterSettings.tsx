@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { CITIES } from '../../data/mock';
 import { promoter as promoterApi, type PromoterMe } from '../../api';
 import { ApiError } from '../../api/client';
 import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 import WysiwygEditor from '../../components/WysiwygEditor';
 import Loader from '../../components/Loader';
 import { RealUploadBox } from '../../components/RealUploadBox';
+import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -20,7 +20,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day
  * a specific event actually pays out to (no split-payment rail exists,
  * they wire it manually). */
 export default function PromoterSettings() {
-  const { user, updateUser, toast } = useApp();
+  const { updateUser, toast } = useApp();
   const [me, setMe] = useState<PromoterMe | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export default function PromoterSettings() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [brand, setBrand] = useState('');
   const [username, setUsername] = useState('');
-  const [city, setCity] = useState('Hyderabad');
+  const [loc, setLoc] = useState<LocationValue>(emptyLocation());
   const [bio, setBio] = useState('');
   const [links, setLinks] = useState('');
   const [audienceReach, setAudienceReach] = useState('');
@@ -47,7 +47,7 @@ export default function PromoterSettings() {
         setLogoUrl(m.logoUrl ?? null);
         setBrand(m.name);
         setUsername(m.slug);
-        setCity(user?.city ?? 'Hyderabad');
+        setLoc({ country: m.country || 'India', state: m.state ?? '', city: m.city ?? '', pincode: m.pincode ?? '' });
         setBio(m.bio ?? '');
         setLinks((m.links ?? []).join(', '));
         setAudienceReach(m.audienceReach ?? '');
@@ -67,7 +67,9 @@ export default function PromoterSettings() {
     setSaving(true);
     try {
       const updated = await promoterApi.updateMe({
-        brandName: brand.trim(), username: username.trim(), city, bio,
+        brandName: brand.trim(), username: username.trim(),
+        city: loc.city.trim(), country: loc.country.trim(), state: loc.state.trim(), pincode: loc.pincode.trim(),
+        bio,
         links: links.split(',').map((s) => s.trim()).filter(Boolean),
         audienceReach: audienceReach.trim(),
         logoUrl: logoUrl ?? undefined,
@@ -77,7 +79,7 @@ export default function PromoterSettings() {
       // PromoterService.updateMe) — without this, a logo change here would
       // show correctly on this page but the header would keep showing the
       // old value until a full page reload remounted AppContext's /me fetch.
-      updateUser({ promoterBrand: updated.name, promoterUsername: updated.slug, city, promoterLogoUrl: updated.logoUrl ?? undefined });
+      updateUser({ promoterBrand: updated.name, promoterUsername: updated.slug, promoterLogoUrl: updated.logoUrl ?? undefined });
       toast('Profile saved ✓');
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Failed to save profile');
@@ -137,14 +139,7 @@ export default function PromoterSettings() {
             <input value={username} onChange={(e) => setUsername(e.target.value)} />
           </div>
         </div>
-        <div className="field">
-          <span>City</span>
-          <select value={city} onChange={(e) => setCity(e.target.value)}>
-            {CITIES.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </div>
+        <LocationPicker value={loc} onChange={setLoc} />
         <div className="field">
           <span>Links (socials / WhatsApp)</span>
           <input value={links} onChange={(e) => setLinks(e.target.value)} placeholder="ig / wa / telegram" />

@@ -400,6 +400,13 @@ model Promoter {
   name           String
   verified       Boolean  @default(false)
   city           String
+  // Full location, same fields Onboarding.tsx's LocationPicker already
+  // collects for Organizer/Lineup/Venue — Promoter never got these columns,
+  // so country/state/pincode the applicant filled in at onboarding landed
+  // nowhere. See newPromoterRow in kyc.service.ts.
+  country        String?
+  state          String?
+  pincode        String?
   bio            String
   // Real, uploaded logo (POST /promoter/upload) — optional, falls back to
   // the hue placeholder when unset, same real-upload-over-hue-placeholder
