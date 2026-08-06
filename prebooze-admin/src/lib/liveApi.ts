@@ -440,11 +440,19 @@ export interface AnalyticsTopEvent {
   completed: number;
   conversionPct: number;
 }
+export interface AnalyticsBucket {
+  label: string;
+  sessions: number;
+}
 export interface LiveAnalytics {
   stages: FunnelStageCount[];
   totalEvents: number;
   daily: AnalyticsDailyPoint[];
   topEvents: AnalyticsTopEvent[];
+  devices: AnalyticsBucket[];
+  browsers: AnalyticsBucket[];
+  operatingSystems: AnalyticsBucket[];
+  trafficSources: AnalyticsBucket[];
 }
 export interface AnalyticsRealtime {
   since: string;

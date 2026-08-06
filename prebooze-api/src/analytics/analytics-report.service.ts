@@ -2,12 +2,41 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { FUNNEL_TYPES } from './track.service';
 
+const SEARCH_HOSTS = ['google.', 'bing.', 'yahoo.', 'duckduckgo.', 'baidu.', 'yandex.'];
+const SOCIAL_HOSTS = ['facebook.', 'instagram.', 'twitter.', 'x.com', 't.co', 'linkedin.', 'whatsapp.', 'pinterest.', 'reddit.', 'youtube.', 'snapchat.', 'tiktok.'];
+
+/** direct = no referrer at all (typed the URL, opened a bookmark, or came
+ * from a native app webview that strips it) · campaign = carries a real
+ * utm_source, regardless of the referring host · search/social = referrer
+ * host matches a known engine/platform · everything else with a referrer is
+ * "referral". Computed on read, not stored, so recategorizing later doesn't
+ * need a backfill. */
+function trafficSourceOf(referrerHost: string | null, utmSource: string | null): string {
+  if (utmSource) return 'campaign';
+  if (!referrerHost) return 'direct';
+  const h = referrerHost.toLowerCase();
+  if (SEARCH_HOSTS.some((s) => h.includes(s))) return 'search';
+  if (SOCIAL_HOSTS.some((s) => h.includes(s))) return 'social';
+  return 'referral';
+}
+
+/** Groups a sessionId->label map into label counts, sorted descending —
+ * shared by every breakdown below (device/browser/os/source all use the
+ * exact same "one label per session, count sessions per label" shape). */
+function bucketBy(map: Map<string, string>): { label: string; sessions: number }[] {
+  const counts = new Map<string, number>();
+  for (const v of map.values()) counts.set(v, (counts.get(v) ?? 0) + 1);
+  return [...counts.entries()].map(([label, sessions]) => ({ label, sessions })).sort((a, b) => b.sessions - a.sessions);
+}
+
 /** Real booking-funnel analytics off FunnelEvent — see that model's comment
  * for what's actually tracked (8 booking-flow steps, sessionId + optional
- * eventId + a JSON meta bag; no device/browser/referrer is captured, so
- * this deliberately doesn't pretend to show dimensions nothing collects).
- * Counts are *distinct sessions* that reached each stage, not raw event
- * fires — a reload doesn't inflate the numbers, same as a real funnel tool. */
+ * eventId, plus device/browser/os parsed server-side from the User-Agent and
+ * referrer/UTM/landing-page captured client-side at first touch per
+ * session). Counts are *distinct sessions* that reached each stage, not raw
+ * event fires — a reload doesn't inflate the numbers, same as a real funnel
+ * tool. Device/browser/os/source are one label per session (they're set
+ * once and don't change mid-session), not per-event. */
 @Injectable()
 export class AnalyticsReportService {
   constructor(private prisma: PrismaService) {}
@@ -45,13 +74,34 @@ export class AnalyticsReportService {
             }
           : {}),
       },
-      select: { type: true, sessionId: true, eventId: true, createdAt: true },
+      select: {
+        type: true, sessionId: true, eventId: true, createdAt: true,
+        device: true, browser: true, os: true, referrerHost: true, utmSource: true,
+      },
     });
 
     const stages = FUNNEL_TYPES.map((type) => ({
       type,
       sessions: new Set(rows.filter((r) => r.type === type).map((r) => r.sessionId)).size,
     }));
+
+    // Device/browser/os/source — one value per session (they don't change
+    // mid-session by construction), last row for a session wins but they're
+    // all consistent anyway so it never actually matters which one is picked.
+    const sessionDevice = new Map<string, string>();
+    const sessionBrowser = new Map<string, string>();
+    const sessionOs = new Map<string, string>();
+    const sessionSource = new Map<string, string>();
+    for (const r of rows) {
+      if (r.device) sessionDevice.set(r.sessionId, r.device);
+      if (r.browser) sessionBrowser.set(r.sessionId, r.browser);
+      if (r.os) sessionOs.set(r.sessionId, r.os);
+      if (!sessionSource.has(r.sessionId)) sessionSource.set(r.sessionId, trafficSourceOf(r.referrerHost, r.utmSource));
+    }
+    const devices = bucketBy(sessionDevice);
+    const browsers = bucketBy(sessionBrowser);
+    const operatingSystems = bucketBy(sessionOs);
+    const trafficSources = bucketBy(sessionSource);
 
     // Daily trend — distinct sessions per day for the funnel's top (viewed)
     // and bottom (completed) stages, the two numbers that actually matter
@@ -99,14 +149,15 @@ export class AnalyticsReportService {
       conversionPct: b.viewed.size ? Math.round((b.completed.size / b.viewed.size) * 100) : 0,
     }));
 
-    return { stages, totalEvents: rows.length, daily, topEvents };
+    return { stages, totalEvents: rows.length, daily, topEvents, devices, browsers, operatingSystems, trafficSources };
   }
 
   /** "Right now" — distinct sessions with any funnel activity in the last 5
    * minutes, same live-traffic idea as a real analytics tool's realtime
-   * view, built off exactly what's tracked rather than inventing dimensions
-   * (device/location/etc) nothing here actually captures. Poll this on an
-   * interval from the frontend; it's not a push/websocket feed. */
+   * view. Kept to stage counts only (no device/source breakdown here) since
+   * a 5-minute window rarely has enough sessions for a breakdown to mean
+   * anything — that's what get()'s wider date range is for. Poll this on
+   * an interval from the frontend; it's not a push/websocket feed. */
   async realtime() {
     const since = new Date(Date.now() - 5 * 60 * 1000);
     const rows = await this.prisma.funnelEvent.findMany({

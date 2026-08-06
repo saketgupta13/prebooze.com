@@ -15,7 +15,21 @@ export class TrackController {
   ) {}
 
   @Post()
-  async record(@Body() body: { sessionId?: string; type?: string; eventId?: string; meta?: Record<string, unknown> }, @Req() req: { headers: { authorization?: string } }) {
+  async record(
+    @Body()
+    body: {
+      sessionId?: string;
+      type?: string;
+      eventId?: string;
+      meta?: Record<string, unknown>;
+      referrerHost?: string;
+      utmSource?: string;
+      utmMedium?: string;
+      utmCampaign?: string;
+      landingPath?: string;
+    },
+    @Req() req: { headers: { authorization?: string; 'user-agent'?: string } },
+  ) {
     const header = req.headers.authorization ?? '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : '';
     let userId: string | undefined;
@@ -27,6 +41,6 @@ export class TrackController {
         // not logged in / expired — fine, still record the event anonymously
       }
     }
-    return this.track.record(body, userId);
+    return this.track.record(body, userId, req.headers['user-agent']);
   }
 }

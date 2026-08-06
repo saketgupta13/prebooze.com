@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   liveAnalytics, FUNNEL_STAGES, LiveApiError,
-  type FunnelStageCount, type AnalyticsFilters, type AnalyticsRealtime, type LiveAnalytics,
+  type FunnelStageCount, type AnalyticsBucket, type AnalyticsFilters, type AnalyticsRealtime, type LiveAnalytics,
 } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
-import { LineChart } from '../components/ui';
+import { LineChart, DonutChart } from '../components/ui';
 
 const TITLE = 'Analytics';
+const PALETTE = ['#9be13d', '#5b8def', '#e8a13d', '#e05d5d', '#a06ee1', '#3dc9c9', '#e14fa0'];
+const colored = (buckets: AnalyticsBucket[]) => buckets.map((b, i) => ({ label: b.label, value: b.sessions, color: PALETTE[i % PALETTE.length] }));
 const REALTIME_POLL_MS = 15000;
 
 function toDateInput(d: Date) {
@@ -100,9 +102,10 @@ export default function Analytics() {
         <h1 className="page-title">Analytics</h1>
       </div>
       <p className="tiny hint" style={{ marginTop: -6 }}>
-        Real booking-funnel data — distinct browser sessions that reached each step, not raw event fires. Built off
-        what's actually tracked (event views through booking completion); no device/browser/traffic-source
-        breakdown exists to show, unlike a full analytics suite.
+        Real booking-funnel data — distinct browser sessions that reached each step, not raw event fires. Device/
+        browser/OS are parsed server-side from each request; traffic source comes from the referrer and UTM params
+        captured at first touch. Still no ad-spend/conversion-value integration or logged-in-vs-anonymous split —
+        just what's actually tracked here.
       </p>
 
       <div className="card" style={{ borderColor: 'var(--green)' }}>
@@ -210,6 +213,27 @@ export default function Analytics() {
           <div className="tiny muted" style={{ padding: '10px 0' }}>No activity in this range yet.</div>
         )}
       </div>
+
+      {report && (report.devices.length > 0 || report.browsers.length > 0) && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+          <div className="card">
+            <div className="display" style={{ fontWeight: 700, marginBottom: 10 }}>Device</div>
+            <DonutChart data={colored(report.devices)} />
+          </div>
+          <div className="card">
+            <div className="display" style={{ fontWeight: 700, marginBottom: 10 }}>Browser</div>
+            <DonutChart data={colored(report.browsers)} />
+          </div>
+          <div className="card">
+            <div className="display" style={{ fontWeight: 700, marginBottom: 10 }}>OS</div>
+            <DonutChart data={colored(report.operatingSystems)} />
+          </div>
+          <div className="card">
+            <div className="display" style={{ fontWeight: 700, marginBottom: 10 }}>Traffic source</div>
+            <DonutChart data={colored(report.trafficSources)} />
+          </div>
+        </div>
+      )}
 
       {report && report.topEvents.length > 0 && (
         <div className="card">

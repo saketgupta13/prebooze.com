@@ -1668,6 +1668,28 @@ model FunnelEvent {
   meta      Json?
   createdAt DateTime @default(now())
 
+  // Device/browser/OS — parsed server-side from the request's User-Agent
+  // header (TrackService.parseUserAgent), never trusted from the client
+  // body directly, since a client could send anything there but not fake
+  // the header without faking the whole request.
+  device  String? // mobile | tablet | desktop
+  browser String? // Chrome | Safari | Firefox | Edge | Samsung Internet | Opera | Other
+  os      String? // iOS | Android | Windows | macOS | Linux | Other
+
+  // Traffic-source inputs — client-supplied (only the browser knows
+  // document.referrer and the landing URL's query string), captured once at
+  // first touch per session (lib/track.ts) and resent on every track() call
+  // so every row in a session carries the same "how did they arrive"
+  // attribution. Stored raw; AnalyticsReportService buckets these into a
+  // direct/search/social/referral/campaign category on read rather than
+  // persisting a derived label that could drift from the categorization
+  // logic.
+  referrerHost String? // hostname of document.referrer, when set
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  landingPath  String? // first page path of the session
+
   @@index([type, createdAt])
   @@index([eventId])
   @@index([sessionId])
