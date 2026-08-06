@@ -149,7 +149,7 @@ export default function EventDetail() {
   const refPromoter = isBackendEnabled() ? liveRefPromoter : mockRefPromoter;
 
   useEffect(() => {
-    if (event) track('event_viewed', { eventId: event.id });
+    if (event) track('event_viewed', { eventId: event.id, meta: refSlug ? { promoterRef: refSlug, promoterVia: via ?? undefined } : undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event?.id]);
 
@@ -207,7 +207,7 @@ export default function EventDetail() {
 
   const book = () => {
     if (existingRole(user)) return; // business/elevated-role account — checkout also blocks this
-    track('book_clicked', { eventId: event.id });
+    track('book_clicked', { eventId: event.id, meta: refSlug ? { promoterRef: refSlug, promoterVia: via ?? undefined } : undefined });
     setSelection({ eventId: event.id, eventSlug: liveEvent ? event.slug : undefined, qty });
     if (!user) {
       navigate('/login', { state: { from: '/checkout' } });

@@ -1690,6 +1690,14 @@ model FunnelEvent {
   utmCampaign  String?
   landingPath  String? // first page path of the session
 
+  // Geography — looked up server-side from the request IP (TrackService,
+  // via the offline geoip-lite database) and stored as the resolved
+  // labels, never the raw IP itself, same "derive once, store the label"
+  // move as device/browser/os above.
+  geoCountry String?
+  geoRegion  String?
+  geoCity    String?
+
   @@index([type, createdAt])
   @@index([eventId])
   @@index([sessionId])

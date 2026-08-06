@@ -21,31 +21,47 @@ function trafficSourceOf(referrerHost: string | null, utmSource: string | null):
 }
 
 /** Groups a sessionId->label map into label counts, sorted descending —
- * shared by every breakdown below (device/browser/os/source all use the
- * exact same "one label per session, count sessions per label" shape). */
+ * shared by every breakdown below (device/browser/os/source/campaign/geo
+ * all use the exact same "one label per session, count sessions per label"
+ * shape). */
 function bucketBy(map: Map<string, string>): { label: string; sessions: number }[] {
   const counts = new Map<string, number>();
   for (const v of map.values()) counts.set(v, (counts.get(v) ?? 0) + 1);
   return [...counts.entries()].map(([label, sessions]) => ({ label, sessions })).sort((a, b) => b.sessions - a.sessions);
 }
 
+/** Safe string read off a FunnelEvent.meta Json blob — meta is
+ * client/server assembled ad hoc per event type (see track() call sites),
+ * never schema-validated, so every read has to tolerate it being null,
+ * an array, or missing the key entirely. */
+function metaStr(meta: unknown, key: string): string | undefined {
+  if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
+    const v = (meta as Record<string, unknown>)[key];
+    if (typeof v === 'string') return v;
+  }
+  return undefined;
+}
+
 /** Real booking-funnel analytics off FunnelEvent — see that model's comment
- * for what's actually tracked (8 booking-flow steps, sessionId + optional
- * eventId, plus device/browser/os parsed server-side from the User-Agent and
- * referrer/UTM/landing-page captured client-side at first touch per
- * session). Counts are *distinct sessions* that reached each stage, not raw
- * event fires — a reload doesn't inflate the numbers, same as a real funnel
- * tool. Device/browser/os/source are one label per session (they're set
- * once and don't change mid-session), not per-event. */
+ * for what's actually tracked (8 booking-flow steps plus a payment_failed
+ * side-event, sessionId + optional eventId, device/browser/os parsed
+ * server-side from the User-Agent, geography resolved server-side from the
+ * request IP, and referrer/UTM/landing-page captured client-side at first
+ * touch per session). Counts are *distinct sessions* that reached each
+ * stage, not raw event fires — a reload doesn't inflate the numbers, same
+ * as a real funnel tool. Revenue/promoter/ticket-tier numbers come from
+ * real Booking rows in the same scope/date window, not from FunnelEvent —
+ * that's the actual money, funnel events are just visibility into how
+ * people got there. */
 @Injectable()
 export class AnalyticsReportService {
   constructor(private prisma: PrismaService) {}
 
   /** City/organizer filters go through Event (FunnelEvent has no city/
    * organizerId of its own) — resolves to the set of matching event ids
-   * first, then filters FunnelEvent by that set alongside any explicit
-   * eventId. A filter that matches zero events correctly zeroes out the
-   * whole report rather than silently ignoring the filter. */
+   * first, then filters FunnelEvent/Booking by that set alongside any
+   * explicit eventId. A filter that matches zero events correctly zeroes
+   * out the whole report rather than silently ignoring the filter. */
   private async resolveEventIds(city?: string, organizerId?: string): Promise<string[] | undefined> {
     if (!city && !organizerId) return undefined;
     const events = await this.prisma.event.findMany({
@@ -60,23 +76,26 @@ export class AnalyticsReportService {
 
   async get(params: { from?: string; to?: string; eventId?: string; city?: string; organizerId?: string }) {
     const scopedEventIds = await this.resolveEventIds(params.city, params.organizerId);
+    const dateWhere =
+      params.from || params.to
+        ? {
+            createdAt: {
+              ...(params.from ? { gte: new Date(params.from) } : {}),
+              ...(params.to ? { lte: new Date(params.to) } : {}),
+            },
+          }
+        : {};
+    const eventScopeWhere = {
+      ...(params.eventId ? { eventId: params.eventId } : {}),
+      ...(scopedEventIds ? { eventId: { in: scopedEventIds } } : {}),
+    };
 
     const rows = await this.prisma.funnelEvent.findMany({
-      where: {
-        ...(params.eventId ? { eventId: params.eventId } : {}),
-        ...(scopedEventIds ? { eventId: { in: scopedEventIds } } : {}),
-        ...(params.from || params.to
-          ? {
-              createdAt: {
-                ...(params.from ? { gte: new Date(params.from) } : {}),
-                ...(params.to ? { lte: new Date(params.to) } : {}),
-              },
-            }
-          : {}),
-      },
+      where: { ...eventScopeWhere, ...dateWhere },
       select: {
-        type: true, sessionId: true, eventId: true, createdAt: true,
-        device: true, browser: true, os: true, referrerHost: true, utmSource: true,
+        type: true, sessionId: true, eventId: true, createdAt: true, meta: true,
+        device: true, browser: true, os: true, referrerHost: true, utmSource: true, utmCampaign: true,
+        geoCountry: true, geoCity: true,
       },
     });
 
@@ -85,38 +104,162 @@ export class AnalyticsReportService {
       sessions: new Set(rows.filter((r) => r.type === type).map((r) => r.sessionId)).size,
     }));
 
-    // Device/browser/os/source — one value per session (they don't change
-    // mid-session by construction), last row for a session wins but they're
-    // all consistent anyway so it never actually matters which one is picked.
+    // Device/browser/os/source/campaign/geo — one value per session (they
+    // don't change mid-session by construction), last row for a session
+    // wins but they're all consistent anyway so it never actually matters
+    // which one is picked.
     const sessionDevice = new Map<string, string>();
     const sessionBrowser = new Map<string, string>();
     const sessionOs = new Map<string, string>();
     const sessionSource = new Map<string, string>();
+    const sessionCampaign = new Map<string, string>();
+    const sessionGeo = new Map<string, string>();
+    const sessionPromoter = new Map<string, string>();
     for (const r of rows) {
       if (r.device) sessionDevice.set(r.sessionId, r.device);
       if (r.browser) sessionBrowser.set(r.sessionId, r.browser);
       if (r.os) sessionOs.set(r.sessionId, r.os);
       if (!sessionSource.has(r.sessionId)) sessionSource.set(r.sessionId, trafficSourceOf(r.referrerHost, r.utmSource));
+      if (r.utmCampaign && !sessionCampaign.has(r.sessionId)) sessionCampaign.set(r.sessionId, r.utmCampaign);
+      if (!sessionGeo.has(r.sessionId)) {
+        const label = r.geoCity && r.geoCountry ? `${r.geoCity}, ${r.geoCountry}` : r.geoCountry || undefined;
+        if (label) sessionGeo.set(r.sessionId, label);
+      }
+      if (r.type === 'event_viewed' && !sessionPromoter.has(r.sessionId)) {
+        const ref = metaStr(r.meta, 'promoterRef');
+        if (ref) sessionPromoter.set(r.sessionId, ref);
+      }
     }
     const devices = bucketBy(sessionDevice);
     const browsers = bucketBy(sessionBrowser);
     const operatingSystems = bucketBy(sessionOs);
     const trafficSources = bucketBy(sessionSource);
+    const campaigns = bucketBy(sessionCampaign);
+    const geographies = bucketBy(sessionGeo);
+    const viewsByPromoter = new Map<string, number>();
+    for (const ref of sessionPromoter.values()) viewsByPromoter.set(ref, (viewsByPromoter.get(ref) ?? 0) + 1);
+
+    // New vs returning — a session is "returning" if it was ever seen
+    // (anywhere in history) before this report's own start date. With no
+    // `from`, the range start is the epoch, so nothing can precede it and
+    // everything is trivially "new" — same honest behavior as a real
+    // analytics tool over an all-time window.
+    const sessionIds = [...new Set(rows.map((r) => r.sessionId))];
+    const firstTouches = sessionIds.length
+      ? await this.prisma.funnelEvent.groupBy({ by: ['sessionId'], where: { sessionId: { in: sessionIds } }, _min: { createdAt: true } })
+      : [];
+    const rangeStart = params.from ? new Date(params.from) : new Date(0);
+    let newCount = 0;
+    let returningCount = 0;
+    for (const f of firstTouches) {
+      if (f._min.createdAt && f._min.createdAt < rangeStart) returningCount++;
+      else newCount++;
+    }
+    const visitorType = [
+      { label: 'new', sessions: newCount },
+      { label: 'returning', sessions: returningCount },
+    ].filter((b) => b.sessions > 0);
+
+    // Hour-of-day x day-of-week heatmap — distinct viewing sessions, server
+    // clock (same timezone every other timestamp in this report uses).
+    const heatCounts = new Map<string, Set<string>>();
+    for (const r of rows) {
+      if (r.type !== 'event_viewed') continue;
+      const key = `${r.createdAt.getUTCDay()}-${r.createdAt.getUTCHours()}`;
+      const set = heatCounts.get(key) ?? new Set<string>();
+      set.add(r.sessionId);
+      heatCounts.set(key, set);
+    }
+    const heatmap = [...heatCounts.entries()].map(([key, sessionsSet]) => {
+      const [weekday, hour] = key.split('-').map(Number);
+      return { weekday, hour, sessions: sessionsSet.size };
+    });
+
+    // Payment failures — why checkout was abandoned, not just that it was.
+    const failureReasons = new Map<string, number>();
+    for (const r of rows) {
+      if (r.type !== 'payment_failed') continue;
+      const reason = metaStr(r.meta, 'reason') ?? 'unknown';
+      failureReasons.set(reason, (failureReasons.get(reason) ?? 0) + 1);
+    }
+    const paymentFailures = [...failureReasons.entries()]
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Real money — Booking rows in the exact same scope/date window as the
+    // funnel above (eventId/city/organizer + from/to), joined against
+    // Promoter and TicketTier for display names.
+    const bookings = await this.prisma.booking.findMany({
+      where: { ...eventScopeWhere, ...dateWhere },
+      select: { total: true, status: true, createdAt: true, promoterRef: true, promoterCommission: true, tierBreakdown: true },
+    });
+    const confirmedBookings = bookings.filter((b) => b.status === 'confirmed');
+    const totalRevenue = confirmedBookings.reduce((s, b) => s + b.total, 0);
+    const refundedAmount = bookings.filter((b) => b.status === 'refunded').reduce((s, b) => s + b.total, 0);
+    const bookingCount = confirmedBookings.length;
+    const avgOrderValue = bookingCount ? Math.round(totalRevenue / bookingCount) : 0;
+
+    const promoterAgg = new Map<string, { bookings: number; revenue: number; commission: number }>();
+    for (const b of confirmedBookings) {
+      if (!b.promoterRef) continue;
+      const agg = promoterAgg.get(b.promoterRef) ?? { bookings: 0, revenue: 0, commission: 0 };
+      agg.bookings += 1;
+      agg.revenue += b.total;
+      agg.commission += b.promoterCommission;
+      promoterAgg.set(b.promoterRef, agg);
+    }
+    const allPromoterRefs = [...new Set([...promoterAgg.keys(), ...viewsByPromoter.keys()])];
+    const attributedPromoters = allPromoterRefs.length
+      ? await this.prisma.promoter.findMany({ where: { slug: { in: allPromoterRefs } }, select: { slug: true, name: true } })
+      : [];
+    const promoterNameBySlug = new Map(attributedPromoters.map((p) => [p.slug, p.name]));
+    const promoterAttribution = allPromoterRefs
+      .map((ref) => ({
+        promoterRef: ref,
+        promoterName: promoterNameBySlug.get(ref) ?? ref,
+        views: viewsByPromoter.get(ref) ?? 0,
+        bookings: promoterAgg.get(ref)?.bookings ?? 0,
+        revenue: promoterAgg.get(ref)?.revenue ?? 0,
+        commission: promoterAgg.get(ref)?.commission ?? 0,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+
+    const tierQty = new Map<string, number>();
+    for (const b of confirmedBookings) {
+      const breakdown = (b.tierBreakdown ?? {}) as Record<string, number>;
+      for (const [tierId, qty] of Object.entries(breakdown)) {
+        tierQty.set(tierId, (tierQty.get(tierId) ?? 0) + (Number(qty) || 0));
+      }
+    }
+    const tierIds = [...tierQty.keys()];
+    const tiers = tierIds.length
+      ? await this.prisma.ticketTier.findMany({ where: { id: { in: tierIds } }, select: { id: true, name: true, price: true } })
+      : [];
+    const ticketTierSales = tiers
+      .map((t) => ({ tierId: t.id, tierName: t.name, qty: tierQty.get(t.id) ?? 0, revenue: (tierQty.get(t.id) ?? 0) * t.price }))
+      .sort((a, b) => b.revenue - a.revenue);
 
     // Daily trend — distinct sessions per day for the funnel's top (viewed)
-    // and bottom (completed) stages, the two numbers that actually matter
-    // for a trend line: traffic in, conversions out.
+    // and bottom (completed) stages, plus real confirmed-booking revenue
+    // for that same day, the numbers that actually matter for a trend
+    // line: traffic in, conversions out, money made.
     const dayKey = (d: Date) => d.toISOString().slice(0, 10);
-    const dailyMap = new Map<string, { viewed: Set<string>; completed: Set<string> }>();
+    const dailyMap = new Map<string, { viewed: Set<string>; completed: Set<string>; revenue: number }>();
     for (const r of rows) {
       if (r.type !== 'event_viewed' && r.type !== 'booking_completed') continue;
       const key = dayKey(r.createdAt);
-      const bucket = dailyMap.get(key) ?? { viewed: new Set<string>(), completed: new Set<string>() };
+      const bucket = dailyMap.get(key) ?? { viewed: new Set<string>(), completed: new Set<string>(), revenue: 0 };
       (r.type === 'event_viewed' ? bucket.viewed : bucket.completed).add(r.sessionId);
       dailyMap.set(key, bucket);
     }
+    for (const b of confirmedBookings) {
+      const key = dayKey(b.createdAt);
+      const bucket = dailyMap.get(key) ?? { viewed: new Set<string>(), completed: new Set<string>(), revenue: 0 };
+      bucket.revenue += b.total;
+      dailyMap.set(key, bucket);
+    }
     const daily = [...dailyMap.entries()]
-      .map(([date, b]) => ({ date, viewed: b.viewed.size, completed: b.completed.size }))
+      .map(([date, b]) => ({ date, viewed: b.viewed.size, completed: b.completed.size, revenue: b.revenue }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
     // Top events by distinct viewing sessions, joined to real titles —
@@ -149,7 +292,13 @@ export class AnalyticsReportService {
       conversionPct: b.viewed.size ? Math.round((b.completed.size / b.viewed.size) * 100) : 0,
     }));
 
-    return { stages, totalEvents: rows.length, daily, topEvents, devices, browsers, operatingSystems, trafficSources };
+    return {
+      stages, totalEvents: rows.length, daily, topEvents,
+      devices, browsers, operatingSystems, trafficSources,
+      campaigns, geographies, visitorType, heatmap, paymentFailures,
+      revenue: { totalRevenue, refundedAmount, bookingCount, avgOrderValue },
+      promoterAttribution, ticketTierSales,
+    };
   }
 
   /** "Right now" — distinct sessions with any funnel activity in the last 5

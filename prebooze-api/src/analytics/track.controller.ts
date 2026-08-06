@@ -28,7 +28,11 @@ export class TrackController {
       utmCampaign?: string;
       landingPath?: string;
     },
-    @Req() req: { headers: { authorization?: string; 'user-agent'?: string } },
+    @Req()
+    req: {
+      headers: { authorization?: string; 'user-agent'?: string; 'x-forwarded-for'?: string };
+      socket?: { remoteAddress?: string };
+    },
   ) {
     const header = req.headers.authorization ?? '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : '';
@@ -41,6 +45,9 @@ export class TrackController {
         // not logged in / expired — fine, still record the event anonymously
       }
     }
-    return this.track.record(body, userId, req.headers['user-agent']);
+    // nginx sets X-Forwarded-For to the real visitor IP (see deploy config)
+    // — falls back to the socket's own address only for local/direct dev.
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
+    return this.track.record(body, userId, req.headers['user-agent'], ip);
   }
 }

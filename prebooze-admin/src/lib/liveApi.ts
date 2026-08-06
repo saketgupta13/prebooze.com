@@ -431,6 +431,7 @@ export interface AnalyticsDailyPoint {
   date: string;
   viewed: number;
   completed: number;
+  revenue: number;
 }
 export interface AnalyticsTopEvent {
   eventId: string;
@@ -444,6 +445,35 @@ export interface AnalyticsBucket {
   label: string;
   sessions: number;
 }
+export interface AnalyticsHeatCell {
+  weekday: number; // 0=Sun..6=Sat, UTC
+  hour: number; // 0-23, UTC
+  sessions: number;
+}
+export interface AnalyticsPaymentFailure {
+  reason: string;
+  count: number;
+}
+export interface AnalyticsRevenue {
+  totalRevenue: number;
+  refundedAmount: number;
+  bookingCount: number;
+  avgOrderValue: number;
+}
+export interface AnalyticsPromoterAttribution {
+  promoterRef: string;
+  promoterName: string;
+  views: number;
+  bookings: number;
+  revenue: number;
+  commission: number;
+}
+export interface AnalyticsTicketTierSale {
+  tierId: string;
+  tierName: string;
+  qty: number;
+  revenue: number;
+}
 export interface LiveAnalytics {
   stages: FunnelStageCount[];
   totalEvents: number;
@@ -453,6 +483,14 @@ export interface LiveAnalytics {
   browsers: AnalyticsBucket[];
   operatingSystems: AnalyticsBucket[];
   trafficSources: AnalyticsBucket[];
+  campaigns: AnalyticsBucket[];
+  geographies: AnalyticsBucket[];
+  visitorType: AnalyticsBucket[];
+  heatmap: AnalyticsHeatCell[];
+  paymentFailures: AnalyticsPaymentFailure[];
+  revenue: AnalyticsRevenue;
+  promoterAttribution: AnalyticsPromoterAttribution[];
+  ticketTierSales: AnalyticsTicketTierSale[];
 }
 export interface AnalyticsRealtime {
   since: string;

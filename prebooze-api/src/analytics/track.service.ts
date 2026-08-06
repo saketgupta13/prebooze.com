@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import geoip from 'geoip-lite';
 import { PrismaService } from '../prisma.service';
 
 export const FUNNEL_TYPES = [
@@ -12,6 +13,11 @@ export const FUNNEL_TYPES = [
   'payment_submitted',
   'booking_completed',
 ] as const;
+
+/** Side events, not sequential funnel stages — recorded so we can see *why*
+ * people drop off at payment, not just that they did, without treating them
+ * as another waterfall bar. Checked separately from FUNNEL_TYPES below. */
+export const EXTRA_TYPES = ['payment_failed'] as const;
 
 interface TrackInput {
   sessionId?: string;
@@ -26,6 +32,19 @@ interface TrackInput {
   utmMedium?: string;
   utmCampaign?: string;
   landingPath?: string;
+}
+
+/** Offline IP -> city/region/country lookup (geoip-lite ships its own local
+ * database, no external API call/key). Only the resolved labels are stored
+ * on FunnelEvent, never the raw IP — same "derive once, keep the label"
+ * move as parseUserAgent below. Private/local/unresolvable IPs (dev
+ * environment, LAN) correctly resolve to nothing rather than a fake city. */
+function lookupGeo(ip: string | undefined): { geoCountry?: string; geoRegion?: string; geoCity?: string } {
+  if (!ip) return {};
+  const clean = ip.replace(/^::ffff:/, '').split(',')[0].trim();
+  const geo = geoip.lookup(clean);
+  if (!geo) return {};
+  return { geoCountry: geo.country || undefined, geoRegion: geo.region || undefined, geoCity: geo.city || undefined };
 }
 
 /** Coarse, dependency-free User-Agent parsing — covers the handful of
@@ -85,17 +104,21 @@ export class TrackService {
 
   constructor(private prisma: PrismaService) {}
 
-  async record(input: TrackInput, userId?: string, userAgent?: string) {
-    if (!input.sessionId?.trim() || !input.type || !(FUNNEL_TYPES as readonly string[]).includes(input.type)) {
+  async record(input: TrackInput, userId?: string, userAgent?: string, ip?: string) {
+    const isKnownType =
+      !!input.type &&
+      ((FUNNEL_TYPES as readonly string[]).includes(input.type) || (EXTRA_TYPES as readonly string[]).includes(input.type));
+    if (!input.sessionId?.trim() || !isKnownType) {
       return { ok: false };
     }
     const { device, browser, os } = parseUserAgent(userAgent ?? '');
+    const { geoCountry, geoRegion, geoCity } = lookupGeo(ip);
     await this.prisma.funnelEvent
       .create({
         data: {
           sessionId: input.sessionId.trim().slice(0, 100),
           userId,
-          type: input.type,
+          type: input.type!,
           eventId: input.eventId,
           meta: input.meta as Prisma.InputJsonValue | undefined,
           device,
@@ -106,6 +129,9 @@ export class TrackService {
           utmMedium: input.utmMedium?.slice(0, 100),
           utmCampaign: input.utmCampaign?.slice(0, 100),
           landingPath: input.landingPath?.slice(0, 300),
+          geoCountry,
+          geoRegion,
+          geoCity,
         },
       })
       .catch((err) => this.log.warn(`Failed to record ${input.type}: ${(err as Error).message}`));

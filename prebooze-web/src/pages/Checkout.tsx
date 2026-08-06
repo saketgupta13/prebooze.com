@@ -391,11 +391,18 @@ export default function Checkout() {
               setCouponMsg({ ok: false, text: (e as Error).message ?? 'Payment succeeded but the booking could not be finalized — contact support' });
             }
           },
-          modal: { ondismiss: () => setPaying(false) },
+          modal: {
+            ondismiss: () => {
+              setPaying(false);
+              track('payment_failed', { eventId: event.id, meta: { reason: 'user_cancelled' } });
+            },
+          },
         });
-        rzp.on('payment.failed', () => {
+        rzp.on('payment.failed', (e: unknown) => {
           setPaying(false);
           setCouponMsg({ ok: false, text: 'Payment failed or was cancelled' });
+          const err = (e as { error?: { reason?: string; description?: string } })?.error;
+          track('payment_failed', { eventId: event.id, meta: { reason: err?.reason ?? err?.description ?? 'unknown' } });
         });
         track('payment_widget_opened', { eventId: event.id });
         rzp.open();
