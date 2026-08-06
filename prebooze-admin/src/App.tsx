@@ -25,7 +25,7 @@ import Payments from './pages/Payments';
 import PromoterPayouts from './pages/PromoterPayouts';
 import Promos from './pages/Promos';
 import Reports from './pages/Reports';
-import Funnel from './pages/Funnel';
+import Analytics from './pages/Analytics';
 import { Banners, Blogs, Pages } from './pages/Content';
 import Categories from './pages/Categories';
 import TrendingSearches from './pages/TrendingSearches';
@@ -107,7 +107,7 @@ export default function App() {
         <Route path="/promos/:code/edit" element={<PromoEdit />} />
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/reports" element={<Reports />} />
-        <Route path="/funnel" element={<Funnel />} />
+        <Route path="/analytics" element={<Analytics />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/testimonials" element={<Testimonials />} />
         <Route path="/faqs" element={<Faqs />} />

@@ -1,39 +1,62 @@
-import { useEffect, useState } from 'react';
-import { liveFunnel, FUNNEL_STAGES, LiveApiError, type FunnelStageCount } from '../lib/liveApi';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  liveAnalytics, FUNNEL_STAGES, LiveApiError,
+  type FunnelStageCount, type AnalyticsFilters, type AnalyticsRealtime, type LiveAnalytics,
+} from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import { LineChart } from '../components/ui';
 
-const TITLE = 'Funnel';
+const TITLE = 'Analytics';
+const REALTIME_POLL_MS = 15000;
 
 function toDateInput(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
-/** Real booking-funnel visibility (GET /admin/funnel) — before this, the
- * only way to see where real guests were dropping off was to hand-query
- * Cart/Booking rows over SSH. Counts are distinct sessions that reached
- * each stage, not raw event fires, so a reload doesn't inflate the numbers. */
-export default function Funnel() {
+/** Real booking-funnel analytics (GET /admin/analytics + /realtime +
+ * /filters) — event/city/organizer filters, a daily viewed-vs-completed
+ * trend, a top-events ranking, and a "right now" panel (distinct sessions
+ * active in the last 5 minutes, polled — not a push feed). Built entirely
+ * off FunnelEvent, the only thing actually tracked; deliberately doesn't
+ * show device/browser/referrer breakdowns since nothing here collects
+ * those, unlike a full Google-Analytics-style property. */
+export default function Analytics() {
   const session = useLiveSession();
   const { token } = session;
 
-  // Computed at mount, not module load — an admin tab left open across
-  // midnight shouldn't default to a silently stale "today".
   const [from, setFrom] = useState(() => toDateInput(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)));
   const [to, setTo] = useState(() => toDateInput(new Date()));
-  const [stages, setStages] = useState<FunnelStageCount[]>([]);
+  const [organizerId, setOrganizerId] = useState('');
+  const [city, setCity] = useState('');
+  const [eventId, setEventId] = useState('');
+
+  const [filters, setFilters] = useState<AnalyticsFilters | null>(null);
+  const [report, setReport] = useState<LiveAnalytics | null>(null);
+  const [realtime, setRealtime] = useState<AnalyticsRealtime | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
+
+  useEffect(() => {
+    if (!token) return;
+    liveAnalytics.filters().then(setFilters).catch(() => {});
+  }, [token]);
 
   const load = () => {
     setLoading(true);
     setErr('');
-    liveFunnel
-      // Explicit Z — a bare "T23:59:59" has no timezone, so JS parses it as
-      // the *server's* local time (this bit in local dev, where the server
-      // is IST); an unambiguous UTC boundary is required either way.
-      .get({ from, to: to ? `${to}T23:59:59Z` : undefined })
-      .then((r) => setStages(r.stages))
+    liveAnalytics
+      .get({
+        from,
+        // Explicit Z — a bare "T23:59:59" has no timezone, so JS parses it
+        // as the *server's* local time; an unambiguous UTC boundary is
+        // required either way.
+        to: to ? `${to}T23:59:59Z` : undefined,
+        eventId: eventId || undefined,
+        city: city || undefined,
+        organizerId: organizerId || undefined,
+      })
+      .then(setReport)
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   };
@@ -43,24 +66,73 @@ export default function Funnel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  // Realtime — polled, not pushed.
+  useEffect(() => {
+    if (!token) return;
+    const tick = () => liveAnalytics.realtime().then(setRealtime).catch(() => {});
+    tick();
+    const t = setInterval(tick, REALTIME_POLL_MS);
+    return () => clearInterval(t);
+  }, [token]);
+
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
 
-  const countFor = (type: string) => stages.find((s) => s.type === type)?.sessions ?? 0;
-  const first = countFor(FUNNEL_STAGES[0].type);
+  // Cascading: narrow the event dropdown to whatever organizer/city is
+  // already picked, so it never offers a combination that'd just return
+  // zero rows.
+  const eventOptions = useMemo(() => {
+    if (!filters) return [];
+    return filters.events.filter((e) => (!organizerId || e.organizerId === organizerId) && (!city || e.city === city));
+  }, [filters, organizerId, city]);
+
+  const countFor = (stages: FunnelStageCount[], type: string) => stages.find((s) => s.type === type)?.sessions ?? 0;
+  const stages = report?.stages ?? [];
+  const first = countFor(stages, FUNNEL_STAGES[0].type);
   let prevCount = 0;
 
   return (
-    <div className="stack fade" style={{ maxWidth: 760 }}>
+    <div className="stack fade" style={{ maxWidth: 980 }}>
       <LiveHeaderBar title={TITLE} session={session} />
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
 
       <div className="page-hd">
-        <h1 className="page-title">Funnel</h1>
+        <h1 className="page-title">Analytics</h1>
       </div>
       <p className="tiny hint" style={{ marginTop: -6 }}>
-        Distinct browser sessions that reached each step — a guest reloading a page doesn't inflate these numbers.
+        Real booking-funnel data — distinct browser sessions that reached each step, not raw event fires. Built off
+        what's actually tracked (event views through booking completion); no device/browser/traffic-source
+        breakdown exists to show, unlike a full analytics suite.
       </p>
+
+      <div className="card" style={{ borderColor: 'var(--green)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span className="display" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
+            Right now
+          </span>
+          <span className="tiny muted">last 5 min · refreshes every 15s</span>
+        </div>
+        <div className="kpi-grid" style={{ marginBottom: realtime && realtime.recent.length > 0 ? 10 : 0 }}>
+          <div className="kpi"><div className="l">Active sessions</div><div className="v">{realtime?.activeSessions ?? '—'}</div></div>
+          {FUNNEL_STAGES.filter((s) => ['event_viewed', 'checkout_viewed', 'booking_completed'].includes(s.type)).map((s) => (
+            <div className="kpi" key={s.type}>
+              <div className="l">{s.label}</div>
+              <div className="v">{realtime ? countFor(realtime.byType, s.type) : '—'}</div>
+            </div>
+          ))}
+        </div>
+        {realtime && realtime.recent.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 140, overflowY: 'auto' }}>
+            {realtime.recent.map((r, i) => (
+              <div key={i} className="tiny muted" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>{FUNNEL_STAGES.find((s) => s.type === r.type)?.label ?? r.type}{r.eventTitle ? ` · ${r.eventTitle}` : ''}</span>
+                <span>{new Date(r.at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div className="field" style={{ maxWidth: 160 }}>
@@ -71,12 +143,48 @@ export default function Funnel() {
           <label>To</label>
           <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
+        <div className="field" style={{ maxWidth: 200 }}>
+          <label>City</label>
+          <select className="input" value={city} onChange={(e) => { setCity(e.target.value); setEventId(''); }}>
+            <option value="">All cities</option>
+            {filters?.cities.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="field" style={{ maxWidth: 220 }}>
+          <label>Organizer</label>
+          <select className="input" value={organizerId} onChange={(e) => { setOrganizerId(e.target.value); setEventId(''); }}>
+            <option value="">All organizers</option>
+            {filters?.organizers.map((o) => <option key={o.id} value={o.id}>{o.brandName}</option>)}
+          </select>
+        </div>
+        <div className="field" style={{ maxWidth: 240 }}>
+          <label>Event</label>
+          <select className="input" value={eventId} onChange={(e) => setEventId(e.target.value)}>
+            <option value="">All events</option>
+            {eventOptions.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
+          </select>
+        </div>
         <button className="btn btn-pri btn-sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
       </div>
 
+      {report && report.daily.length > 1 && (
+        <div className="card">
+          <div className="display" style={{ fontWeight: 700, marginBottom: 10 }}>Traffic vs conversions</div>
+          <LineChart
+            height={140}
+            labels={[report.daily[0].date, report.daily[report.daily.length - 1].date]}
+            series={[
+              { label: 'Viewed', color: 'var(--green)', points: report.daily.map((d) => d.viewed) },
+              { label: 'Booking completed', color: '#5b8def', points: report.daily.map((d) => d.completed) },
+            ]}
+          />
+        </div>
+      )}
+
       <div className="card">
+        <div className="display" style={{ fontWeight: 700, marginBottom: 10 }}>Funnel — this range</div>
         {FUNNEL_STAGES.map((stage, i) => {
-          const count = countFor(stage.type);
+          const count = countFor(stages, stage.type);
           const ofFirst = first ? Math.round((count / first) * 100) : 0;
           const ofPrev = i === 0 ? null : prevCount ? Math.round((count / prevCount) * 100) : 0;
           const barPct = first ? Math.max(2, Math.round((count / first) * 100)) : 0;
@@ -102,6 +210,30 @@ export default function Funnel() {
           <div className="tiny muted" style={{ padding: '10px 0' }}>No activity in this range yet.</div>
         )}
       </div>
+
+      {report && report.topEvents.length > 0 && (
+        <div className="card">
+          <div className="display" style={{ fontWeight: 700, marginBottom: 10 }}>Top events by views</div>
+          <div className="tblwrap">
+            <div className="thead" style={{ minWidth: 600 }}>
+              <span style={{ flex: 1.8 }}>Event</span>
+              <span style={{ flex: 1.2 }}>Organizer</span>
+              <span style={{ flex: 0.9 }}>Viewed</span>
+              <span style={{ flex: 0.9 }}>Booked</span>
+              <span style={{ flex: 0.9 }}>Conversion</span>
+            </div>
+            {report.topEvents.map((e) => (
+              <div key={e.eventId} className="trow" style={{ minWidth: 600 }}>
+                <span style={{ flex: 1.8, fontWeight: 700 }}>{e.title}</span>
+                <span style={{ flex: 1.2 }} className="muted">{e.organizerBrand}</span>
+                <span style={{ flex: 0.9 }}>{e.viewed.toLocaleString('en-IN')}</span>
+                <span style={{ flex: 0.9 }}>{e.completed.toLocaleString('en-IN')}</span>
+                <span style={{ flex: 0.9 }} className={e.conversionPct >= 10 ? 'green' : ''}>{e.conversionPct}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,7 +36,7 @@ const MAIN_NAV = [
   { to: '/promos', icon: '🏷', label: 'Promo codes' },
   { to: '/reviews', icon: '★', label: 'Reviews' },
   { to: '/reports', icon: '📈', label: 'Reports' },
-  { to: '/funnel', icon: '🔻', label: 'Funnel' },
+  { to: '/analytics', icon: '📊', label: 'Analytics' },
 ];
 
 const CONTENT_NAV = [

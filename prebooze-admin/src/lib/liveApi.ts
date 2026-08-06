@@ -427,19 +427,49 @@ export interface FunnelStageCount {
   type: string;
   sessions: number;
 }
-export interface LiveFunnel {
+export interface AnalyticsDailyPoint {
+  date: string;
+  viewed: number;
+  completed: number;
+}
+export interface AnalyticsTopEvent {
+  eventId: string;
+  title: string;
+  organizerBrand: string;
+  viewed: number;
+  completed: number;
+  conversionPct: number;
+}
+export interface LiveAnalytics {
   stages: FunnelStageCount[];
   totalEvents: number;
+  daily: AnalyticsDailyPoint[];
+  topEvents: AnalyticsTopEvent[];
 }
-export const liveFunnel = {
-  get: (params: { from?: string; to?: string; eventId?: string } = {}) => {
+export interface AnalyticsRealtime {
+  since: string;
+  activeSessions: number;
+  byType: FunnelStageCount[];
+  recent: { type: string; eventTitle: string | null; at: string }[];
+}
+export interface AnalyticsFilters {
+  organizers: { id: string; brandName: string }[];
+  cities: string[];
+  events: { id: string; title: string; organizerId: string; city: string | null }[];
+}
+export const liveAnalytics = {
+  get: (params: { from?: string; to?: string; eventId?: string; city?: string; organizerId?: string } = {}) => {
     const q = new URLSearchParams();
     if (params.from) q.set('from', params.from);
     if (params.to) q.set('to', params.to);
     if (params.eventId) q.set('eventId', params.eventId);
+    if (params.city) q.set('city', params.city);
+    if (params.organizerId) q.set('organizerId', params.organizerId);
     const qs = q.toString();
-    return liveFetch<LiveFunnel>('/admin/funnel' + (qs ? `?${qs}` : ''));
+    return liveFetch<LiveAnalytics>('/admin/analytics' + (qs ? `?${qs}` : ''));
   },
+  realtime: () => liveFetch<AnalyticsRealtime>('/admin/analytics/realtime'),
+  filters: () => liveFetch<AnalyticsFilters>('/admin/analytics/filters'),
 };
 
 export interface LivePayoutRow {
