@@ -9,11 +9,13 @@ import QRCode from '../components/QRCode';
 import { downloadTicket } from '../lib/ticket';
 import { downloadIcs } from '../lib/calendar';
 import { eventLocation } from '../lib/venue';
+import { copyToClipboard } from '../lib/clipboard';
 
 export default function Confirmation() {
   const { id } = useParams();
   const { bookings, myEvents, user, updateUser } = useApp();
   const [copied, setCopied] = useState(false);
+  const [copyErr, setCopyErr] = useState('');
 
   const [liveBookings, setLiveBookings] = useState<Booking[] | null>(null);
   useEffect(() => {
@@ -53,10 +55,15 @@ export default function Confirmation() {
   const venue = event.venue ?? (event.venueId ? venueById(event.venueId) : undefined);
   const shareUrl = `${window.location.origin}/events/${event.slug}`;
   const visibility = user?.attendanceVisibility ?? 'off';
-  const copy = () => {
-    navigator.clipboard?.writeText(shareUrl).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+  const copy = async () => {
+    setCopyErr('');
+    const ok = await copyToClipboard(shareUrl);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } else {
+      setCopyErr('Could not copy — long-press or select the link to copy it manually');
+    }
   };
   const waShare = () =>
     window.open(`https://wa.me/?text=${encodeURIComponent(`I'm going to ${event.title}! 🎟️ ${shareUrl}`)}`, '_blank');
@@ -101,6 +108,7 @@ export default function Confirmation() {
             <button className="btn btn-whatsapp btn-sm" onClick={waShare}>💬 Share on WhatsApp</button>
             <button className="btn btn-ghost btn-sm" onClick={copy}>{copied ? 'Link copied ✓' : '🔗 Copy link'}</button>
           </div>
+          {copyErr && <div className="tiny danger-text" style={{ marginTop: 6 }}>{copyErr}</div>}
           {visibility === 'off' ? (
             <div className="dashed-box" style={{ marginTop: 12, fontSize: 12.5, border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: '10px 12px' }}>
               You're hidden on <b>“Who's going”</b> — friends who follow you can't see you're in.{' '}

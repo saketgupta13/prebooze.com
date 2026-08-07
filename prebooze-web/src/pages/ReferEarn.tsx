@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { REFERRAL_CONFIG, fmtMoney } from '../data/mock';
+import { copyToClipboard } from '../lib/clipboard';
 
 const mask = (phone: string) => phone.slice(0, 7) + '••••' + phone.slice(-2);
 
@@ -9,15 +10,21 @@ const mask = (phone: string) => phone.slice(0, 7) + '••••' + phone.slice
 export default function ReferEarn() {
   const { user, myReferralCode, referrals, walletBalance } = useApp();
   const [copied, setCopied] = useState(false);
+  const [copyErr, setCopyErr] = useState('');
   const link = `${window.location.origin}/r/${myReferralCode}`;
   const mine = referrals.filter((r) => r.referrerPhone === user?.phone);
   const qualified = mine.filter((r) => r.status === 'qualified');
   const earned = qualified.length * REFERRAL_CONFIG.referrer;
 
-  const copy = () => {
-    navigator.clipboard?.writeText(link).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+  const copy = async () => {
+    setCopyErr('');
+    const ok = await copyToClipboard(link);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } else {
+      setCopyErr('Could not copy — long-press or select the link above to copy it manually');
+    }
   };
   const waShare = () =>
     window.open(
@@ -46,6 +53,7 @@ export default function ReferEarn() {
             <button className="btn btn-whatsapp" onClick={waShare}>💬 Share on WhatsApp</button>
             <button className="btn btn-ghost" onClick={copy}>{copied ? 'Copied ✓' : '🔗 Copy link'}</button>
           </div>
+          {copyErr && <div className="tiny danger-text" style={{ marginTop: 8 }}>{copyErr}</div>}
         </div>
 
         <div className="kpis" style={{ marginBottom: 18 }}>

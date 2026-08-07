@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { copyToClipboard } from '../lib/clipboard';
 
 /** Share menu — WhatsApp / Facebook / Instagram / copy link. */
 export default function ShareButton({ path, label = '⇪ Share', text = 'Check this out on Prebooze 🎟️' }: { path: string; label?: string; text?: string }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [err, setErr] = useState('');
   const ref = useRef<HTMLDivElement>(null);
   const url = typeof window !== 'undefined' ? window.location.origin + path : path;
 
@@ -15,10 +17,15 @@ export default function ShareButton({ path, label = '⇪ Share', text = 'Check t
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
-  const copy = () => {
-    navigator.clipboard?.writeText(url).catch(() => {});
-    setCopied(true);
-    setTimeout(() => { setCopied(false); setOpen(false); }, 1400);
+  const copy = async () => {
+    setErr('');
+    const ok = await copyToClipboard(url);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => { setCopied(false); setOpen(false); }, 1400);
+    } else {
+      setErr('Could not copy — long-press or select the link below to copy it manually');
+    }
   };
 
   return (
@@ -43,6 +50,7 @@ export default function ShareButton({ path, label = '⇪ Share', text = 'Check t
               </button>
               <div className="sep" />
               <button onClick={copy}>🔗 Copy link</button>
+              {err && <div className="tiny danger-text" style={{ padding: '6px 8px' }}>{err}</div>}
             </>
           )}
         </div>
