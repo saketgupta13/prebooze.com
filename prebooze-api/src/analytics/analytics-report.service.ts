@@ -280,13 +280,15 @@ export class AnalyticsReportService {
     const topEventIds = [...byEvent.entries()].sort((a, b) => b[1].viewed.size - a[1].viewed.size).slice(0, 10);
     const eventTitles = await this.prisma.event.findMany({
       where: { id: { in: topEventIds.map(([id]) => id) } },
-      select: { id: true, title: true, organizer: { select: { brandName: true } } },
+      select: { id: true, title: true, organizer: { select: { brandName: true } }, venue: { select: { name: true } }, hostedByVenue: true },
     });
     const titleById = new Map(eventTitles.map((e) => [e.id, e]));
     const topEvents = topEventIds.map(([id, b]) => ({
       eventId: id,
       title: titleById.get(id)?.title ?? id,
-      organizerBrand: titleById.get(id)?.organizer.brandName ?? '',
+      // Solo venue-hosted event (no organizer) — show the venue's own name
+      // instead of an organizer brand that doesn't exist for this event.
+      organizerBrand: titleById.get(id)?.organizer?.brandName ?? titleById.get(id)?.venue?.name ?? '',
       viewed: b.viewed.size,
       completed: b.completed.size,
       conversionPct: b.viewed.size ? Math.round((b.completed.size / b.viewed.size) * 100) : 0,

@@ -266,8 +266,78 @@ model Venue {
   // Organizer.logoUrl plays for organizers.
   logoUrl String?
 
+  // ---- venue-hosted events (opt-in, admin-gated) ----
+  // false for every venue by default and forever unless they explicitly
+  // apply and an admin approves it (see VenueHostingRequest) — the venue's
+  // own dashboard shows zero hosting UI while this is false. Once true,
+  // the venue can create events directly (solo or with a collaborating
+  // organizer) the same way an organizer creates one today.
+  hostingEnabled     Boolean               @default(false)
+  hostingRequestedAt DateTime?
+  hostingRequests    VenueHostingRequest[]
+  ledger             VenueLedgerTx[]
+
+  // Payout bank details — same plaintext-on-admin-view precedent as
+  // Organizer.bankLast4/bankAccountNumber/etc (no field-level encryption
+  // anywhere in this schema). Only meaningful once hostingEnabled — a
+  // venue that never hosts never needs these, hence fully optional.
+  bankLast4         String?
+  bankName          String?
+  bankAccountNumber String?
+  accountHolderName String?
+  ifsc              String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/**
+ * A venue's application to enable event hosting — reviewed by admin, not
+ * auto-approved, because (per product decision) most venues don't know the
+ * hosting rules/process upfront. `contactedAt` gates Approve in the admin
+ * UI: an admin ticks this only after actually reaching out and confirming
+ * the venue understands what they're signing up for, so Approve can't be a
+ * blind rubber-stamp. Deliberately its own small model rather than reusing
+ * KycSubmission — this isn't a new-role application (the venue already
+ * exists and is verified), it's a capability toggle on an existing role,
+ * and KycService.approve()'s job is provisioning brand-new
+ * Organizer/Promoter/Venue/Lineup rows, which has nothing to do with this.
+ */
+model VenueHostingRequest {
+  id          String    @id @default(cuid())
+  venueId     String
+  venue       Venue     @relation(fields: [venueId], references: [id])
+  status      String    @default("pending") // pending | approved | rejected
+  contactedAt DateTime? // admin's "Contacted ✓" — Approve is blocked until this is set
+  reviewedBy  String?
+  reviewNote  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+/**
+ * Real ledger for a venue's own hosted events — same shape and role as
+ * OrganizerLedgerTx, just credited to the venue instead of an organizer.
+ * Only ever written to for events where Event.hostedByVenue is true; an
+ * organizer-booked event at this venue (hostedByVenue false) never touches
+ * this — that revenue still credits the organizer's own ledger, completely
+ * unchanged. If the venue is collaborating with an organizer on a hosted
+ * event, the full net amount still lands here (the venue is the platform's
+ * ledger-of-record for its own hosted events) — splitting it with the
+ * collaborating organizer happens offline between them, same self-attested
+ * pattern as promoter↔organizer settlement (PromoterEventSettlement) —
+ * Prebooze only ever tracks its own commission, never that split.
+ */
+model VenueLedgerTx {
+  id         String   @id @default(cuid())
+  venueId    String
+  venue      Venue    @relation(fields: [venueId], references: [id])
+  type       String // sale | refund | withdrawal
+  amount     Int // + credit, - debit
+  eventId    String?
+  eventTitle String?
+  note       String?
+  createdAt  DateTime @default(now())
 }
 
 // Real venue reviews — same shape as OrgReview, previously the one elevated
@@ -571,8 +641,19 @@ model Event {
   venue            Venue?           @relation(fields: [venueId], references: [id])
   privateCity      String?
   privateLocality  String?
-  organizerId      String
-  organizer        Organizer        @relation(fields: [organizerId], references: [id])
+  // Nullable as of the venue-hosting feature — every event before that had
+  // exactly one required organizer, and that's still true whenever
+  // hostedByVenue is false (the overwhelming majority of events, unchanged
+  // forever). Null only when a venue is hosting solo; set even when
+  // hostedByVenue is true if the venue picked a collaborating organizer.
+  organizerId      String?
+  organizer        Organizer?       @relation(fields: [organizerId], references: [id])
+  // true = venueId is the actual host/owner of this event (via
+  // VenueService), not just a location an organizer booked. Determines
+  // which ledger gets credited and who the public "hosted by" line
+  // credits. @default(false) — every existing event stays exactly as it
+  // is; this is opt-in and additive only.
+  hostedByVenue    Boolean          @default(false)
   status           EventStatus      @default(pending)
   rejectionReason  String?
   conditions       String[]         @default([])

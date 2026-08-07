@@ -7,7 +7,7 @@ import SeoFields, { emptySeo } from '../components/SeoFields';
 import MapEmbed from '../components/MapEmbed';
 import RealImageUpload, { RealGalleryUpload } from '../components/RealImageUpload';
 import WysiwygEditor from '../components/WysiwygEditor';
-import { liveVenues, liveEvents, liveVenueTypes, LiveApiError, type LiveVenue, type LiveEvent, type LiveVenueType } from '../lib/liveApi';
+import { liveVenues, liveEvents, liveVenueTypes, liveVenueHosting, LiveApiError, type LiveVenue, type LiveEvent, type LiveVenueType, type LiveVenueHostingRequest } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import PlansAndSubscribers from '../components/PlansAndSubscribers';
@@ -107,6 +107,113 @@ function SocialLinksEditor({ value, onChange }: { value: { instagram?: string; f
   );
 }
 
+/** Venue hosting-request review queue — a venue opts in from its own
+ * dashboard (VenueService.requestHosting), then sits here until admin has
+ * actually talked to them (not every venue knows Prebooze's hosting rules).
+ * "Contacted ✓" is enforced server-side too (approveHostingRequest throws
+ * if contactedAt is unset) — this checkbox isn't just cosmetic. */
+function HostingRequestsQueue() {
+  const [requests, setRequests] = useState<LiveVenueHostingRequest[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    liveVenueHosting.list()
+      .then(setRequests)
+      .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load hosting requests'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const pending = requests.filter((r) => r.status === 'pending');
+  const reviewed = requests.filter((r) => r.status !== 'pending').slice(0, 5);
+
+  const markContacted = async (id: string) => {
+    setBusyId(id);
+    try {
+      await liveVenueHosting.markContacted(id);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to mark contacted');
+    } finally {
+      setBusyId(null);
+    }
+  };
+  const approve = async (id: string) => {
+    setBusyId(id);
+    try {
+      await liveVenueHosting.approve(id);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to approve');
+    } finally {
+      setBusyId(null);
+    }
+  };
+  const reject = async (id: string) => {
+    const reviewNote = window.prompt('Reason for rejecting (shown to the venue, optional):') ?? undefined;
+    setBusyId(id);
+    try {
+      await liveVenueHosting.reject(id, reviewNote || undefined);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to reject');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  if (!loading && pending.length === 0 && reviewed.length === 0) return null;
+
+  return (
+    <div className="card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="display" style={{ fontWeight: 700 }}>🏟 Venue hosting requests</div>
+        {pending.length > 0 && <Tag label={`${pending.length} pending`} cls="tag-amber" />}
+      </div>
+      {err && <div className="tiny red">{err}</div>}
+      <div className="tiny muted">Call/message the venue to walk them through hosting rules before approving — tick "Contacted" first.</div>
+
+      {pending.map((r) => (
+        <div key={r.id} className="card" style={{ padding: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={{ fontWeight: 700 }}>{r.venue.name}</div>
+            <div className="tiny muted">
+              {r.venue.city} · {r.venue.contactPerson || 'no contact person on file'}
+              {r.venue.contactPersonPhone ? ` · ${r.venue.contactPersonPhone}` : ''}
+              {r.venue.contact ? ` · ${r.venue.contact}` : ''}
+            </div>
+          </div>
+          <label className="small" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={Boolean(r.contactedAt)}
+              disabled={Boolean(r.contactedAt) || busyId === r.id}
+              onChange={() => markContacted(r.id)}
+              style={{ accentColor: 'var(--green)' }}
+            />
+            Contacted ✓
+          </label>
+          <button type="button" className="btn btn-pri btn-sm" disabled={!r.contactedAt || busyId === r.id} onClick={() => approve(r.id)}>
+            ✓ Approve
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busyId === r.id} onClick={() => reject(r.id)}>
+            ✕ Reject
+          </button>
+        </div>
+      ))}
+
+      {reviewed.length > 0 && (
+        <div className="tiny muted" style={{ borderTop: '1px solid rgba(139,195,74,.15)', paddingTop: 8 }}>
+          Recently reviewed: {reviewed.map((r) => `${r.venue.name} (${r.status})`).join(' · ')}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Real venue directory — Venue catalog rows (already-verified, or created
  * automatically at KYC onboard time, see VenueService.onboard and
  * KycService.approve). No delete endpoint exists (venues stay linked to
@@ -149,6 +256,9 @@ export function Venues() {
         <h1 className="page-title">Venues</h1>
         <Link to="/venues/new" className="btn btn-pri">+ Add venue</Link>
       </div>
+
+      <HostingRequestsQueue />
+
       <CityFilterDropdown value={city} onChange={setCity} cities={cities} />
 
       <div className="tblwrap">
@@ -182,6 +292,7 @@ export function Venues() {
             <span style={{ flex: 1, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {v.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Docs pending" cls="tag-red" />}
               {v.pendingCity && <Tag label="🏙 City change" cls="tag-amber" />}
+              {v.hostingEnabled && <Tag label="🎪 Hosting" cls="tag-green" />}
             </span>
           </div>
         ))}
@@ -246,6 +357,7 @@ export function VenueDetail() {
         <h1 className="display" style={{ fontSize: 18 }}>{venue.name}</h1>
         {venue.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Docs pending" cls="tag-red" />}
         {venue.pendingCity && <Tag label={`🏙 City change → ${venue.pendingCity}`} cls="tag-amber" />}
+        {venue.hostingEnabled && <Tag label="🎪 Hosting enabled" cls="tag-green" />}
         <div style={{ flex: 1 }} />
         <Link to={`/venues/${venue.id}/edit`} className="btn btn-pri btn-sm">✎ Edit venue</Link>
       </div>

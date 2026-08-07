@@ -91,6 +91,10 @@ import VenueListing from './pages/venue/VenueListing';
 import VenueEvents from './pages/venue/VenueEvents';
 import VenueSettings from './pages/venue/VenueSettings';
 import VenueBilling from './pages/venue/VenueBilling';
+import VenueHosting from './pages/venue/VenueHosting';
+import VenueHostedEvents from './pages/venue/VenueHostedEvents';
+import CreateHostedEvent from './pages/venue/CreateHostedEvent';
+import VenueLedger from './pages/venue/VenueLedger';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useApp();
@@ -343,6 +347,11 @@ export default function App() {
           <Route path="events" element={<VenueEvents />} />
           <Route path="billing" element={<VenueBilling />} />
           <Route path="settings" element={<VenueSettings />} />
+          <Route path="hosting" element={<VenueHosting />} />
+          <Route path="hosting/events" element={<VenueHostedEvents />} />
+          <Route path="hosting/events/create" element={<CreateHostedEvent />} />
+          <Route path="hosting/events/:id/edit" element={<CreateHostedEvent />} />
+          <Route path="hosting/ledger" element={<VenueLedger />} />
         </Route>
 
         {/* Company / static */}

@@ -586,6 +586,30 @@ export const platform = {
   settings: () => apiFetch<PlatformInfo>('/settings'),
 };
 
+export interface VenueLedgerTx {
+  id: string;
+  type: 'sale' | 'refund' | 'withdrawal';
+  amount: number;
+  eventId?: string;
+  eventTitle?: string;
+  note?: string;
+  createdAt: string;
+}
+export interface VenueHostingRequest {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  contactedAt: string | null;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+export interface VenueCollaboratorOption {
+  id: string;
+  brandName: string;
+  username: string;
+  city: string;
+}
+
 // ---------- venue partner ----------
 export const venuePartner = {
   upload: (file: File) => {
@@ -610,4 +634,17 @@ export const venuePartner = {
     URL.revokeObjectURL(url);
   },
   subscription: subscriptionApi('venue'),
+  // ---- hosting (opt-in, admin-gated — see VenueService doc comments) ----
+  hostingStatus: () => apiFetch<{ hostingEnabled: boolean; request: VenueHostingRequest | null }>('/venue/hosting'),
+  requestHosting: () => apiFetch<VenueHostingRequest>('/venue/hosting/request'),
+  hostedEvents: () => apiFetch<Event[]>('/venue/hosting/events'),
+  upsertHostedEvent: (e: {
+    id?: string; title: string; description?: string; category?: string; subCategory?: string; ageLimit?: string;
+    tags?: string[]; date?: string; durationHrs?: number; organizerId?: string | null; status?: 'draft' | 'pending';
+    conditions?: string[]; rules?: unknown; lineup?: unknown; seo?: unknown;
+    posterUrl?: string | null; galleryUrls?: string[]; teaserVideoUrl?: string | null; socialBanners?: { postUrl?: string; storyUrl?: string };
+    tiers?: { id?: string; name: string; price: number; quantity: number; includes?: string[]; description?: string }[];
+  }) => apiFetch<Event>('/venue/hosting/events', { body: e }),
+  myLedger: () => apiFetch<{ balance: number; transactions: VenueLedgerTx[] }>('/venue/hosting/ledger'),
+  collaboratorOptions: () => apiFetch<VenueCollaboratorOption[]>('/venue/hosting/collaborator-options'),
 };

@@ -27,7 +27,7 @@ export class PaymentsService {
     // "paid" days before they even took place).
     const events = await this.prisma.event.findMany({
       where: { status: { not: 'draft' }, commission: { not: null } },
-      select: { id: true, title: true, date: true, durationHrs: true, commission: true, paidOut: true, payoutUtr: true, organizer: { select: { brandName: true } } },
+      select: { id: true, title: true, date: true, durationHrs: true, commission: true, paidOut: true, payoutUtr: true, organizer: { select: { brandName: true } }, venue: { select: { name: true } }, hostedByVenue: true },
     }).then((rows) => rows.filter((e) => new Date(e.date).getTime() + e.durationHrs * 3600_000 <= Date.now()));
     const revenueByEvent = await this.prisma.booking.groupBy({
       by: ['eventId'],
@@ -43,7 +43,9 @@ export class PaymentsService {
       return {
         id: e.id,
         title: e.title,
-        organizer: e.organizer.brandName,
+        // Solo venue-hosted event (no organizer) — this is who staff
+        // actually need to pay out for this event's commission.
+        organizer: e.organizer?.brandName ?? e.venue?.name ?? '—',
         revenue,
         commission: e.commission,
         commissionAmt,
@@ -91,7 +93,7 @@ export class PaymentsService {
    * organizer's own brand name attached so admin can see who owes whom. */
   async promoterPayoutsAll() {
     const events = await this.prisma.event.findMany({
-      select: { id: true, title: true, date: true, promoterConfig: true, organizer: { select: { brandName: true } } },
+      select: { id: true, title: true, date: true, promoterConfig: true, organizer: { select: { brandName: true } }, venue: { select: { name: true } } },
     });
     const eventIds = events.map((e) => e.id);
     const eventById = new Map(events.map((e) => [e.id, e]));
@@ -119,7 +121,7 @@ export class PaymentsService {
       let row = rows.get(key);
       if (!row) {
         const event = eventById.get(eventId)!;
-        row = { eventId, eventTitle: event.title, eventDate: event.date, organizerBrand: event.organizer.brandName, promoterId: promoter.id, promoterName: promoter.name, perHead: 0, commission: 0 };
+        row = { eventId, eventTitle: event.title, eventDate: event.date, organizerBrand: event.organizer?.brandName ?? event.venue?.name ?? '—', promoterId: promoter.id, promoterName: promoter.name, perHead: 0, commission: 0 };
         rows.set(key, row);
       }
       return row;

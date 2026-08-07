@@ -302,9 +302,21 @@ export class BookingsService {
       // both the promoter's and Prebooze's cuts were funded by the guest on
       // top of baseSubtotal, so the organizer nets baseSubtotal in full.
       const organizerCredit = promoterMarkupApplies ? baseSubtotal : subtotal - commission;
-      await tx.organizerLedgerTx.create({
-        data: { organizerId: event.organizerId, type: 'sale', amount: organizerCredit, eventId: event.id, eventTitle: event.title, note: `Booking ${id}` },
-      });
+      // Venue-hosted events (see Event.hostedByVenue) credit the venue's own
+      // ledger instead — the venue is the platform's ledger-of-record for
+      // its own hosted events even when collaborating with an organizer;
+      // that split happens offline between them (see VenueLedgerTx doc
+      // comment). Every event created the normal organizer way is
+      // hostedByVenue: false and hits the exact same branch as before.
+      if (event.hostedByVenue && event.venueId) {
+        await tx.venueLedgerTx.create({
+          data: { venueId: event.venueId, type: 'sale', amount: organizerCredit, eventId: event.id, eventTitle: event.title, note: `Booking ${id}` },
+        });
+      } else if (event.organizerId) {
+        await tx.organizerLedgerTx.create({
+          data: { organizerId: event.organizerId, type: 'sale', amount: organizerCredit, eventId: event.id, eventTitle: event.title, note: `Booking ${id}` },
+        });
+      }
 
       // platform's own finance ledger (Admin API finance ledger slice) — one
       // running total per event per category, not one row per booking
@@ -456,9 +468,15 @@ export class BookingsService {
 
       const commission = this.commissionFor(subtotal, event.commission);
       if (subtotal > 0) {
-        await tx.organizerLedgerTx.create({
-          data: { organizerId: event.organizerId, type: 'sale', amount: subtotal - commission, eventId: event.id, eventTitle: event.title, note: `Booking ${id} (manual)` },
-        });
+        if (event.hostedByVenue && event.venueId) {
+          await tx.venueLedgerTx.create({
+            data: { venueId: event.venueId, type: 'sale', amount: subtotal - commission, eventId: event.id, eventTitle: event.title, note: `Booking ${id} (manual)` },
+          });
+        } else if (event.organizerId) {
+          await tx.organizerLedgerTx.create({
+            data: { organizerId: event.organizerId, type: 'sale', amount: subtotal - commission, eventId: event.id, eventTitle: event.title, note: `Booking ${id} (manual)` },
+          });
+        }
       }
       await this.postEventLedger(tx, event.id, event.title, 'Ticket commission', 'income', commission);
       await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
@@ -561,14 +579,21 @@ export class BookingsService {
         });
       }
 
-      // reverse the organizer's earnings credit from the original sale —
-      // same subtotal-minus-commission the original booking credited them
-      const event = await tx.event.findUnique({ where: { id: booking.eventId }, select: { organizerId: true, title: true, commission: true } });
+      // reverse the organizer's (or venue's) earnings credit from the
+      // original sale — same subtotal-minus-commission the original
+      // booking credited them
+      const event = await tx.event.findUnique({ where: { id: booking.eventId }, select: { organizerId: true, hostedByVenue: true, venueId: true, title: true, commission: true } });
       const commission = event ? this.commissionFor(booking.subtotal, event.commission) : 0;
       if (event) {
-        await tx.organizerLedgerTx.create({
-          data: { organizerId: event.organizerId, type: 'refund', amount: -(booking.subtotal - commission), eventId: booking.eventId, eventTitle: event.title, note: `Refund — booking ${id}` },
-        });
+        if (event.hostedByVenue && event.venueId) {
+          await tx.venueLedgerTx.create({
+            data: { venueId: event.venueId, type: 'refund', amount: -(booking.subtotal - commission), eventId: booking.eventId, eventTitle: event.title, note: `Refund — booking ${id}` },
+          });
+        } else if (event.organizerId) {
+          await tx.organizerLedgerTx.create({
+            data: { organizerId: event.organizerId, type: 'refund', amount: -(booking.subtotal - commission), eventId: booking.eventId, eventTitle: event.title, note: `Refund — booking ${id}` },
+          });
+        }
       }
 
       // reverse the platform's own income the same way — the refund gives
@@ -737,11 +762,19 @@ export class BookingsService {
 
     let remindedCount = 0;
     for (const b of candidates) {
+      // A solo-hosted venue event (Event.hostedByVenue, no collaborating
+      // organizer) has nobody to review here — this reminder is
+      // organizer-review-specific by design (VenueReview is a separate,
+      // already-working system guests can use directly from the venue's
+      // page). A future "review the venue" nudge would be a clean addition
+      // here, not a fix this change needs to make.
+      if (!b.event.organizer) continue;
+
       const endsAt = b.event.date.getTime() + b.event.durationHrs * 60 * 60 * 1000;
       const hoursSinceEnd = (Date.now() - endsAt) / (60 * 60 * 1000);
       if (hoursSinceEnd < 24 || hoursSinceEnd > 72) continue; // ask once, a day-to-three-days after it actually ended
 
-      const data = { name: b.user.name || b.mainGuest, eventTitle: b.event.title, organizerName: b.event.organizer.brandName, organizerId: b.event.organizerId };
+      const data = { name: b.user.name || b.mainGuest, eventTitle: b.event.title, organizerName: b.event.organizer.brandName, organizerId: b.event.organizer.id };
       await this.email.sendTemplate(b.user.email, 'review_request', data).catch(() => {});
       await this.wa.send(b.user.phone, 'review_reminder', [data.eventTitle, data.organizerName]).catch(() => {});
       await this.prisma.booking.update({ where: { id: b.id }, data: { reviewReminderSentAt: new Date() } });

@@ -146,7 +146,7 @@ export default function EventEditorReal() {
                 setPrivateLoc({ country: 'India', state: '', city: found.privateCity ?? '' });
                 setPrivateLocality(found.privateLocality ?? '');
               }
-              setOrganizerId(found.organizerId);
+              setOrganizerId(found.organizerId ?? '');
               setDateTime(found.date ? toLocalDateTimeInput(found.date) : '');
               setDurationHrs(String(found.durationHrs ?? 4));
               setAgeLimit(found.ageLimit ?? '18+');
@@ -332,6 +332,12 @@ export default function EventEditorReal() {
         <div className="card" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn btn-ghost btn-sm" onClick={togglePaidOut}>{existing.paidOut ? 'Mark unpaid' : 'Mark paid out'}</button>
           <button className="btn btn-ghost btn-sm" onClick={toggleSalesPaused}>{existing.salesPaused ? 'Resume sales' : 'Pause sales'}</button>
+        </div>
+      )}
+      {existing?.hostedByVenue && (
+        <div className="card" style={{ borderColor: 'var(--amber, #d99a2b)', color: 'var(--amber, #d99a2b)' }}>
+          🎪 This event is hosted by <b>{existing.venue?.name ?? 'a venue'}</b>, not a regular organizer. Approve/reject/commission/paid-out above are safe to use as normal, but the full "Save" form below requires
+          picking an organizer — only use it if you actually mean to attach this event to one.
         </div>
       )}
 

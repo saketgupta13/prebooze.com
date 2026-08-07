@@ -49,11 +49,11 @@ export default function EventsReal() {
     let l = tab === 'all' ? events : events.filter((e) => e.status === tab);
     if (category !== ANY) l = l.filter((e) => e.category === category);
     if (venue !== ANY) l = l.filter((e) => e.venue?.name === venue);
-    if (organizer !== ANY) l = l.filter((e) => e.organizer.brandName === organizer);
+    if (organizer !== ANY) l = l.filter((e) => (e.organizer?.brandName ?? e.venue?.name ?? '') === organizer);
     if (city !== ANY) l = l.filter((e) => (e.venue?.city ?? e.privateCity) === city);
     if (query.trim()) {
       const q = query.toLowerCase();
-      l = l.filter((e) => e.title.toLowerCase().includes(q) || e.organizer.brandName.toLowerCase().includes(q));
+      l = l.filter((e) => e.title.toLowerCase().includes(q) || (e.organizer?.brandName ?? e.venue?.name ?? '').toLowerCase().includes(q));
     }
     return l;
   }, [events, tab, category, venue, organizer, city, query]);
@@ -75,7 +75,7 @@ export default function EventsReal() {
 
   const categories = [...new Set(events.map((e) => e.category))];
   const venues = [...new Set(events.map((e) => e.venue?.name).filter((n): n is string => !!n))];
-  const organizers = [...new Set(events.map((e) => e.organizer.brandName))];
+  const organizers = [...new Set(events.map((e) => e.organizer?.brandName ?? e.venue?.name).filter((n): n is string => !!n))];
   const cities = [...new Set(events.map((e) => e.venue?.city ?? e.privateCity).filter((c): c is string => !!c))];
 
   return (
@@ -134,7 +134,9 @@ export default function EventsReal() {
                 <div className="tiny muted">{e.category} · {new Date(e.date).toLocaleDateString('en-IN')} · {e.status}</div>
               </span>
               <span style={{ flex: 1.2 }} className="muted small">
-                {e.organizer.brandName}<br />{e.venue ? `${e.venue.name} · ${e.venue.city}` : `🔒 ${e.privateLocality}, ${e.privateCity}`}
+                {e.organizer ? (e.hostedByVenue ? `${e.organizer.brandName} · 🎪 with venue` : e.organizer.brandName) : `🎪 ${e.venue?.name ?? 'venue-hosted'}`}
+                <br />
+                {e.venue ? `${e.venue.name} · ${e.venue.city}` : `🔒 ${e.privateLocality}, ${e.privateCity}`}
               </span>
               <span style={{ flex: 1 }}>{e.status === 'pending' ? '—' : `${sold}/${cap}`}</span>
               <span style={{ flex: 0.9, display: 'flex', alignItems: 'center', gap: 4 }}>

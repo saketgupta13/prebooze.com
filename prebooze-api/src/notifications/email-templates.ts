@@ -335,6 +335,23 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     tokens: ['name', 'itemLabel'],
   },
   {
+    id: 'venue_hosting_approved', name: 'Venue hosting approved', category: 'Roles',
+    trigger: 'Admin approves a venue\'s request to host their own events (VenueService.approveHostingRequest)',
+    preheader: 'You can now host events at your venue',
+    defaultSubject: 'Approved — you can now host events at {{name}}',
+    defaultBody: `<p>Hey,</p><p>Great news — <b>{{name}}</b> is now approved to host events directly. You can create an event solo, or invite an organizer to run it with you. Take a look at the hosting guide on your dashboard before your first event.</p>`,
+    cta: { label: 'Start hosting →', urlTemplate: '{{webUrl}}/venue/hosting' },
+    tokens: ['name'],
+  },
+  {
+    id: 'venue_hosting_rejected', name: 'Venue hosting request declined', category: 'Roles',
+    trigger: 'Admin declines a venue\'s request to host their own events (VenueService.rejectHostingRequest)',
+    preheader: 'Your hosting request needs another look',
+    defaultSubject: 'Your hosting request for {{name}} needs another look',
+    defaultBody: `<p>Hey,</p><p>Your request to host events at <b>{{name}}</b> wasn't approved this time.</p><p style="background:rgba(255,107,94,.08);border:1px solid rgba(255,107,94,.25);border-radius:8px;padding:10px 12px;">{{reviewNote}}</p><p>Reach out to our team if you'd like to discuss and reapply.</p>`,
+    tokens: ['name', 'reviewNote'],
+  },
+  {
     id: 'staff_invite', name: 'Staff invite', category: 'Admin',
     trigger: 'Owner adds a new staff member under Staff & roles',
     preheader: 'Your staff login is ready',

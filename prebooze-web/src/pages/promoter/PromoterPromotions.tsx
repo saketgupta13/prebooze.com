@@ -75,10 +75,14 @@ export default function PromoterPromotions() {
   // organizers this promoter is actually working with, and which events
   // belong to whichever one is selected — for promoters running lists across
   // several organizers at once, otherwise the list is just one long scroll
-  const organizerOptions = Array.from(new Map(promotions.map((e) => [e.organizerId, e.organizer?.brandName ?? e.organizerId])).entries());
-  const eventOptions = promotions.filter((e) => orgFilter === 'all' || e.organizerId === orgFilter);
+  const orgGroupKey = (e: Event) => e.organizerId ?? `venue:${e.venueId ?? ''}`;
+  const organizerOptions = Array.from(new Map(promotions.map((e) => [
+    orgGroupKey(e),
+    e.organizer?.brandName ?? e.venue?.name ?? 'Venue-hosted',
+  ])).entries());
+  const eventOptions = promotions.filter((e) => orgFilter === 'all' || orgGroupKey(e) === orgFilter);
   const filteredPromotions = promotions.filter(
-    (e) => (orgFilter === 'all' || e.organizerId === orgFilter) && (eventFilter === 'all' || e.id === eventFilter),
+    (e) => (orgFilter === 'all' || orgGroupKey(e) === orgFilter) && (eventFilter === 'all' || e.id === eventFilter),
   );
 
   return (

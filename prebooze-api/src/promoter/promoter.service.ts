@@ -344,13 +344,13 @@ export class PromoterService {
     const [arrivedGuests, bookings, settlements] = await Promise.all([
       this.prisma.promoterGuest.findMany({
         where: { promoterSlug: promoter.slug, arrived: true },
-        select: { event: { select: { id: true, title: true, date: true, promoterConfig: true, organizerId: true, organizer: { select: { brandName: true } } } } },
+        select: { event: { select: { id: true, title: true, date: true, promoterConfig: true, organizerId: true, organizer: { select: { brandName: true } }, venueId: true, venue: { select: { name: true } } } } },
       }),
       this.prisma.booking.findMany({
         where: { promoterRef: promoter.slug, status: 'confirmed', promoterCommission: { gt: 0 } },
         select: {
           eventId: true, promoterCommission: true,
-          event: { select: { id: true, title: true, date: true, organizerId: true, organizer: { select: { brandName: true } } } },
+          event: { select: { id: true, title: true, date: true, organizerId: true, organizer: { select: { brandName: true } }, venueId: true, venue: { select: { name: true } } } },
         },
       }),
       this.prisma.promoterEventSettlement.findMany({ where: { promoterId: promoter.id } }),
@@ -370,16 +370,28 @@ export class PromoterService {
       return row;
     };
 
+    // Solo venue-hosted event (Event.hostedByVenue, no organizer) — the
+    // venue is who owes the promoter, same as an organizer would. id/name
+    // here are purely a grouping key for the earnings-page filter
+    // dropdown (prebooze-web's PromoterEarnings.tsx), never used as an
+    // /organizers/:id link, so a venue's id/name fits with no frontend change.
+    const hostOf = (event: { organizerId: string | null; organizer: { brandName: string } | null; venueId: string | null; venue: { name: string } | null }) =>
+      event.organizer
+        ? { id: event.organizerId!, name: event.organizer.brandName }
+        : { id: event.venueId ?? 'unknown', name: event.venue?.name ?? 'Unknown host' };
+
     for (const g of arrivedGuests) {
       const cfg = g.event.promoterConfig as unknown as PromoterConfig | null;
       if (!cfg?.perHeadPayout || !guestListEnabled(cfg, promoter.slug)) continue;
-      const row = ensure(g.event.id, g.event.title, g.event.date, g.event.organizerId, g.event.organizer.brandName);
+      const host = hostOf(g.event);
+      const row = ensure(g.event.id, g.event.title, g.event.date, host.id, host.name);
       row.perHead += cfg.perHeadAmount;
       row.perHeadRate = cfg.perHeadAmount;
       row.perHeadCount += 1;
     }
     for (const b of bookings) {
-      ensure(b.event.id, b.event.title, b.event.date, b.event.organizerId, b.event.organizer.brandName).commission += b.promoterCommission;
+      const host = hostOf(b.event);
+      ensure(b.event.id, b.event.title, b.event.date, host.id, host.name).commission += b.promoterCommission;
     }
 
     return [...byEvent.values()]
@@ -405,15 +417,21 @@ export class PromoterService {
     return { ok: true };
   }
 
-  /** Nudges the organizer via a real WhatsApp/email — recipient is the
-   * organizer's own account (Organizer.userId), same lookup pattern
-   * BookingsService uses for guest notifications. WhatsApp send is
-   * best-effort (new template needs its own AiSensy approval before it
-   * actually delivers — see org-team.service.ts's addStaff for the same
-   * documented constraint); email has no such gate and works immediately. */
+  /** Nudges whoever owes the promoter via a real WhatsApp/email — the
+   * organizer's own account (Organizer.userId) normally, same lookup
+   * pattern BookingsService uses for guest notifications. For a solo
+   * venue-hosted event (Event.hostedByVenue, no organizer), the venue's
+   * own account (Venue.userId) is who owes the promoter instead. WhatsApp
+   * send is best-effort (new template needs its own AiSensy approval
+   * before it actually delivers — see org-team.service.ts's addStaff for
+   * the same documented constraint); email has no such gate and works
+   * immediately. */
   async remindOrganizerToPay(userId: string, eventId: string) {
     const promoter = await this.myPromoter(userId);
-    const event = await this.prisma.event.findUnique({ where: { id: eventId }, include: { organizer: { include: { user: true } } } });
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      include: { organizer: { include: { user: true } }, venue: { include: { user: true } } },
+    });
     if (!event) throw new NotFoundException('Event not found');
 
     await this.prisma.promoterEventSettlement.upsert({
@@ -422,11 +440,15 @@ export class PromoterService {
       update: { status: 'reminder_sent', reminderSentAt: new Date() },
     });
 
-    const orgUser = event.organizer.user;
-    if (orgUser) {
-      await this.wa.send(orgUser.phone, 'promoter_payout_reminder', [promoter.name, event.title]).catch(() => {});
+    const payer = event.organizer
+      ? { user: event.organizer.user, brand: event.organizer.brandName }
+      : event.venue
+        ? { user: event.venue.user, brand: event.venue.name }
+        : null;
+    if (payer?.user) {
+      await this.wa.send(payer.user.phone, 'promoter_payout_reminder', [promoter.name, event.title]).catch(() => {});
       await this.email
-        .sendTemplate(orgUser.email, 'promoter_payout_reminder', { promoterName: promoter.name, eventTitle: event.title, orgBrand: event.organizer.brandName })
+        .sendTemplate(payer.user.email, 'promoter_payout_reminder', { promoterName: promoter.name, eventTitle: event.title, orgBrand: payer.brand })
         .catch(() => {});
     }
     await this.notifications.notify('💸', `${promoter.name} says you still owe them for "${event.title}"`, `/promoter-payouts`);

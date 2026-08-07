@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import PendingReview, { RejectedReview } from '../../components/PendingReview';
+import { venuePartner } from '../../api';
 
 const NAV = [
   { to: '/venue', label: '▦ Dashboard', end: true },
@@ -10,8 +12,22 @@ const NAV = [
   { to: '/venue/settings', label: '⚙ Settings' },
 ];
 
+// Hosting nav is opt-in: "🎪 Host events" always shows (it's the request/
+// status page — see VenueHosting.tsx), the two working pages under it only
+// once admin has actually approved (hostingEnabled), matching "if enable
+// then only show all new option otherwise nothing to show" from the plan.
+const HOSTING_ENABLED_NAV = [
+  { to: '/venue/hosting/events', label: '🎟 Events I host' },
+  { to: '/venue/hosting/ledger', label: '💰 Hosting ledger' },
+];
+
 export default function VenueLayout() {
   const { user } = useApp();
+  const [hostingEnabled, setHostingEnabled] = useState(false);
+
+  useEffect(() => {
+    if (user?.isVenue) venuePartner.hostingStatus().then((s) => setHostingEnabled(s.hostingEnabled)).catch(() => {});
+  }, [user?.isVenue]);
 
   if (!user) return <Navigate to="/login" state={{ from: '/venue' }} replace />;
   if (!user.isVenue) {
@@ -27,6 +43,14 @@ export default function VenueLayout() {
           <div className="cap">VENUE</div>
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
+              {n.label}
+            </NavLink>
+          ))}
+          <NavLink to="/venue/hosting" end className={({ isActive }) => (isActive ? 'on' : '')}>
+            🎪 Host events
+          </NavLink>
+          {hostingEnabled && HOSTING_ENABLED_NAV.map((n) => (
+            <NavLink key={n.to} to={n.to} className={({ isActive }) => (isActive ? 'on' : '')}>
               {n.label}
             </NavLink>
           ))}

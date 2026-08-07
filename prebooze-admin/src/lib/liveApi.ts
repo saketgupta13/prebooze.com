@@ -202,9 +202,16 @@ export interface LiveEvent {
   venueId: string | null;
   privateCity: string | null;
   privateLocality: string | null;
-  organizerId: string;
+  // null for a venue-hosted event with no collaborating organizer — see
+  // hostedByVenue below. Always set for every event created the normal
+  // organizer way.
+  organizerId: string | null;
+  // true when the venue itself is the event's host/owner (not just a
+  // booked location an organizer picked) — absent/false for every event
+  // created the normal organizer way.
+  hostedByVenue?: boolean;
   venue: { id: string; name: string; city: string } | null;
-  organizer: { id: string; brandName: string };
+  organizer: { id: string; brandName: string } | null;
   tiers: LiveTicketTier[];
 }
 export interface LiveEventInput {
@@ -376,6 +383,7 @@ export interface LiveVenue {
   contactPerson: string | null; contactPersonPhone: string | null;
   socialLinks: { instagram?: string; facebook?: string; other?: string[] } | null;
   logoUrl: string | null; galleryUrls: string[];
+  hostingEnabled: boolean;
 }
 
 export interface LiveOrgStaffMember {
@@ -402,6 +410,19 @@ export const liveVenues = {
   setVerified: (id: string, verified: boolean) => liveFetch<LiveVenue>(`/admin/venues/${id}/verify`, { method: 'POST', body: { verified } }),
   approveCityChange: (id: string) => liveFetch<LiveVenue>(`/admin/venues/${id}/city-change/approve`, { method: 'POST' }),
   rejectCityChange: (id: string) => liveFetch<LiveVenue>(`/admin/venues/${id}/city-change/reject`, { method: 'POST' }),
+};
+
+export interface LiveVenueHostingRequest {
+  id: string; venueId: string; status: 'pending' | 'approved' | 'rejected';
+  contactedAt: string | null; reviewedBy: string | null; reviewNote: string | null;
+  reviewedAt: string | null; createdAt: string;
+  venue: { id: string; name: string; city: string; verified: boolean; contactPerson: string | null; contactPersonPhone: string | null; contact: string | null };
+}
+export const liveVenueHosting = {
+  list: (status?: string) => liveFetch<LiveVenueHostingRequest[]>(`/admin/venues/hosting-requests${status ? `?status=${status}` : ''}`),
+  markContacted: (id: string) => liveFetch<LiveVenueHostingRequest>(`/admin/venues/hosting-requests/${id}/contacted`, { method: 'POST' }),
+  approve: (id: string) => liveFetch<LiveVenueHostingRequest>(`/admin/venues/hosting-requests/${id}/approve`, { method: 'POST' }),
+  reject: (id: string, reviewNote?: string) => liveFetch<LiveVenueHostingRequest>(`/admin/venues/hosting-requests/${id}/reject`, { method: 'POST', body: { reviewNote } }),
 };
 export const liveLineups = {
   list: () => liveFetch<LiveLineup[]>('/admin/lineups'),

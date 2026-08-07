@@ -755,9 +755,19 @@ export class OrganizerService {
   /** Notifies the real event owner regardless of who actually clicked
    * approve/reject at the org (a real team member with "Events & wizard"
    * edit could be the one who submitted it) — same reasoning as
-   * OrganizerService.withdraw notifying org.userId, not the caller. */
-  private async notifyEventOwner(organizerId: string): Promise<{ email: string; name: string } | null> {
-    const org = await this.prisma.organizer.findUnique({ where: { id: organizerId } });
+   * OrganizerService.withdraw notifying org.userId, not the caller. A
+   * solo venue-hosted event (Event.hostedByVenue, no organizer) has no
+   * Organizer row to look up at all — falls back to the venue's own
+   * owning user in that case. */
+  private async notifyEventOwner(event: { organizerId: string | null; hostedByVenue: boolean; venueId: string | null }): Promise<{ email: string; name: string } | null> {
+    if (!event.organizerId) {
+      if (!event.hostedByVenue || !event.venueId) return null;
+      const venue = await this.prisma.venue.findUnique({ where: { id: event.venueId } });
+      if (!venue?.userId) return null;
+      const user = await this.prisma.user.findUnique({ where: { id: venue.userId } });
+      return user?.email ? { email: user.email, name: user.name } : null;
+    }
+    const org = await this.prisma.organizer.findUnique({ where: { id: event.organizerId } });
     if (!org?.userId) return null;
     const user = await this.prisma.user.findUnique({ where: { id: org.userId } });
     return user?.email ? { email: user.email, name: user.name } : null;
@@ -767,7 +777,7 @@ export class OrganizerService {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
     const updated = await this.prisma.event.update({ where: { id: eventId }, data: { status: 'approved', rejectionReason: null } });
-    const owner = await this.notifyEventOwner(event.organizerId);
+    const owner = await this.notifyEventOwner(event);
     if (owner) {
       await this.email.sendTemplate(owner.email, 'event_approved', {
         name: owner.name, eventTitle: updated.title, eventSlug: updated.slug,
@@ -780,7 +790,7 @@ export class OrganizerService {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
     const updated = await this.prisma.event.update({ where: { id: eventId }, data: { status: 'rejected', rejectionReason: reason ?? '' } });
-    const owner = await this.notifyEventOwner(event.organizerId);
+    const owner = await this.notifyEventOwner(event);
     if (owner) {
       const reasonBlock = reason
         ? `<p style="background:rgba(255,107,94,.08);border:1px solid rgba(255,107,94,.25);border-radius:8px;padding:10px 12px;">${reason}</p>`

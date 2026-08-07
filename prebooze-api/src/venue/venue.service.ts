@@ -1,9 +1,12 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../admin/notifications.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
+import { WhatsappService } from '../notifications/whatsapp';
+import { EmailService } from '../notifications/email';
 
 interface OnboardInput {
   name?: string;
@@ -26,6 +29,54 @@ interface OnboardInput {
   socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
 }
 
+interface HostedTierInput {
+  id?: string;
+  name: string;
+  price: number;
+  quantity: number;
+  includes?: string[];
+  description?: string;
+}
+
+/** A venue's own event — same shape as organizer.service.ts's EventInput,
+ * minus venueId/privateCity/privateLocality (a venue always hosts at its
+ * own address, there's no picking), plus an optional collaborating
+ * organizer. Deliberately a parallel type + parallel saveHostedEvent
+ * implementation rather than a shared one with OrganizerService — the
+ * live organizer event-creation path stays completely untouched by this
+ * feature; duplicating ~80 lines here is a better trade than adding any
+ * risk to the flow every existing organizer depends on right now. */
+export interface VenueEventInput {
+  id?: string;
+  title: string;
+  description?: string;
+  category?: string;
+  subCategory?: string;
+  ageLimit?: string;
+  tags?: string[];
+  date?: string;
+  durationHrs?: number;
+  // undefined = leave whatever collaborator this event already has
+  // (or none, on create); null/'' = explicitly solo, no organizer.
+  organizerId?: string | null;
+  status?: 'draft' | 'pending' | 'approved' | 'rejected';
+  conditions?: string[];
+  rules?: unknown;
+  lineup?: unknown;
+  posterHue?: number;
+  seo?: unknown;
+  promoterConfig?: unknown;
+  galleryUrls?: string[];
+  teaserVideoUrl?: string | null;
+  socialBanners?: unknown;
+  posterUrl?: string | null;
+  tiers?: HostedTierInput[];
+}
+
+function slugifyBase(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'event';
+}
+
 @Injectable()
 export class VenueService {
   constructor(
@@ -33,6 +84,8 @@ export class VenueService {
     private subscriptions: SubscriptionsService,
     private notifications: NotificationsService,
     private staffAlerts: StaffAlertsService,
+    private wa: WhatsappService,
+    private email: EmailService,
   ) {}
 
   // ---------- subscription (Razorpay-billed venue plans) ----------
@@ -238,5 +291,262 @@ export class VenueService {
       },
       orderBy: { date: 'asc' },
     });
+  }
+
+  // ============================================================
+  // Venue hosting — opt-in, admin-gated. Every method below is a no-op for
+  // the overwhelming majority of venues (hostingEnabled stays false
+  // forever unless they explicitly ask and admin approves) — nothing here
+  // changes what events()/myListing()/onboard() above already do.
+  // ============================================================
+
+  private requireHostingEnabled(venue: { hostingEnabled: boolean }) {
+    if (!venue.hostingEnabled) throw new ForbiddenException('Event hosting isn’t enabled for your venue yet');
+  }
+
+  /** What the venue's own dashboard needs to decide what to show: nothing
+   * (never asked), a pending/rejected request, or fully enabled. */
+  async hostingStatus(userId: string) {
+    const venue = await this.myVenue(userId);
+    const latest = await this.prisma.venueHostingRequest.findFirst({
+      where: { venueId: venue.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { hostingEnabled: venue.hostingEnabled, request: latest };
+  }
+
+  /** The opt-in itself — creates a request, does NOT enable anything.
+   * Notifies admin the same way a city-change request does (bell +
+   * WhatsApp alert to staff), since this needs a real human review, not
+   * an automatic approval. */
+  async requestHosting(userId: string) {
+    const venue = await this.myVenue(userId);
+    if (venue.hostingEnabled) throw new BadRequestException('Event hosting is already enabled for your venue');
+    const pending = await this.prisma.venueHostingRequest.findFirst({ where: { venueId: venue.id, status: 'pending' } });
+    if (pending) throw new BadRequestException('You already have a hosting request under review');
+
+    const request = await this.prisma.venueHostingRequest.create({ data: { venueId: venue.id } });
+    await this.prisma.venue.update({ where: { id: venue.id }, data: { hostingRequestedAt: new Date() } });
+
+    await this.notifications.notify('🎪', `${venue.name} wants to host their own events — review before approving`, '/admin/venues');
+    await this.staffAlerts.alert(`🎪 Venue hosting request — ${venue.name} (${venue.city})`).catch(() => {});
+    return request;
+  }
+
+  /** All events this venue itself hosts (Event.hostedByVenue), any
+   * status — unlike events() above (approved events booked by *any*
+   * organizer), this is the venue managing its own drafts/pending/live
+   * events, the same visibility an organizer has over their own events. */
+  async hostedEvents(userId: string) {
+    const venue = await this.myVenue(userId);
+    this.requireHostingEnabled(venue);
+    return this.prisma.event.findMany({
+      where: { venueId: venue.id, hostedByVenue: true },
+      include: { tiers: true, organizer: { select: { id: true, brandName: true, username: true, verified: true } } },
+      orderBy: { date: 'desc' },
+    });
+  }
+
+  private async uniqueHostedSlug(base: string) {
+    let candidate = base;
+    let n = 1;
+    while (await this.prisma.event.findUnique({ where: { slug: candidate } })) {
+      candidate = `${base}-${++n}`;
+    }
+    return candidate;
+  }
+
+  /** Create/edit a venue-hosted event — mirrors OrganizerService's own
+   * saveEvent as closely as the different inputs allow (see VenueEventInput
+   * doc comment for why this is a deliberate duplicate, not a shared
+   * helper). venueId is always this venue's own id — there's no picking,
+   * a venue hosts at itself. organizerId is optional: set it to
+   * collaborate with a real organizer, leave it unset/null to host solo.
+   * No consent is required from the picked organizer (matches how an
+   * organizer already tags any venue today, now symmetric). */
+  async saveHostedEvent(userId: string, input: VenueEventInput) {
+    const venue = await this.myVenue(userId);
+    this.requireHostingEnabled(venue);
+    if (!input.title?.trim()) throw new BadRequestException('title is required');
+
+    let eventId = input.id;
+    let slug: string | undefined;
+    let existing: Awaited<ReturnType<typeof this.prisma.event.findUnique>> = null;
+    if (eventId) {
+      existing = await this.prisma.event.findUnique({ where: { id: eventId } });
+      if (!existing) throw new NotFoundException('Event not found');
+      if (existing.venueId !== venue.id || !existing.hostedByVenue) throw new ForbiddenException();
+      slug = existing.slug;
+    } else {
+      eventId = 'ev-' + randomBytes(6).toString('hex');
+      slug = await this.uniqueHostedSlug(slugifyBase(input.title));
+    }
+
+    const status = input.status === 'draft' ? 'draft' : 'pending';
+
+    let organizerId: string | null;
+    if (input.organizerId !== undefined) {
+      if (!input.organizerId) {
+        organizerId = null;
+      } else {
+        const org = await this.prisma.organizer.findUnique({ where: { id: input.organizerId } });
+        if (!org) throw new BadRequestException('Unknown organizer');
+        organizerId = org.id;
+      }
+    } else {
+      organizerId = existing?.organizerId ?? null;
+    }
+
+    const data = {
+      title: input.title.trim(),
+      description: input.description ?? existing?.description ?? '',
+      category: input.category ?? existing?.category ?? '',
+      subCategory: input.subCategory ?? existing?.subCategory,
+      ageLimit: input.ageLimit ?? existing?.ageLimit ?? '',
+      tags: input.tags ?? existing?.tags ?? [],
+      date: input.date ? new Date(input.date) : (existing?.date ?? new Date()),
+      durationHrs: input.durationHrs ?? existing?.durationHrs ?? 0,
+      venueId: venue.id,
+      privateCity: null,
+      privateLocality: null,
+      organizerId,
+      hostedByVenue: true,
+      status: status as never,
+      conditions: input.conditions ?? existing?.conditions ?? [],
+      rules: (input.rules ?? existing?.rules ?? []) as Prisma.InputJsonValue,
+      lineup: (input.lineup ?? existing?.lineup ?? []) as Prisma.InputJsonValue,
+      posterHue: input.posterHue ?? existing?.posterHue ?? (input.title.length * 47) % 360,
+      seo: (input.seo ?? existing?.seo) as Prisma.InputJsonValue,
+      promoterConfig: (input.promoterConfig ?? existing?.promoterConfig) as Prisma.InputJsonValue,
+      galleryUrls: input.galleryUrls ?? existing?.galleryUrls ?? [],
+      teaserVideoUrl: input.teaserVideoUrl !== undefined ? input.teaserVideoUrl : (existing?.teaserVideoUrl ?? null),
+      socialBanners: (input.socialBanners ?? existing?.socialBanners) as Prisma.InputJsonValue,
+      posterUrl: input.posterUrl !== undefined ? input.posterUrl : (existing?.posterUrl ?? null),
+    };
+
+    await this.prisma.event.upsert({
+      where: { id: eventId },
+      create: { id: eventId, slug: slug!, ...data },
+      update: data,
+    });
+
+    if (status === 'pending' && existing?.status !== 'pending') {
+      await this.notifications.notify('⚠', `"${data.title}" submitted for approval by ${venue.name} (venue-hosted)`, '/admin/events?status=pending');
+    }
+
+    if (input.tiers) await this.syncHostedTiers(eventId, input.tiers);
+    else if (!existing) throw new BadRequestException('At least one ticket tier is required');
+
+    return this.prisma.event.findUniqueOrThrow({ where: { id: eventId }, include: { tiers: true, venue: true, organizer: true } });
+  }
+
+  private async syncHostedTiers(eventId: string, tiers: HostedTierInput[]) {
+    const existing = await this.prisma.ticketTier.findMany({ where: { eventId } });
+    const keepIds = new Set(tiers.filter((t) => t.id).map((t) => t.id));
+
+    for (const t of existing) {
+      if (keepIds.has(t.id)) continue;
+      if (t.sold > 0) throw new BadRequestException(`Can't remove "${t.name}" — it already has ${t.sold} sold`);
+      await this.prisma.ticketTier.delete({ where: { id: t.id } });
+    }
+
+    for (const t of tiers) {
+      if (!t.name?.trim()) throw new BadRequestException('Every ticket tier needs a name');
+      const common = {
+        name: t.name.trim(),
+        price: Math.max(0, Math.round(t.price)),
+        quantity: Math.max(0, Math.round(t.quantity)),
+        includes: t.includes ?? [],
+        description: t.description,
+      };
+      const found = t.id ? existing.find((e) => e.id === t.id) : undefined;
+      if (found) {
+        if (common.quantity < found.sold) {
+          throw new BadRequestException(`"${found.name}" already sold ${found.sold} — can't reduce quantity below that`);
+        }
+        await this.prisma.ticketTier.update({ where: { id: found.id }, data: common });
+      } else {
+        await this.prisma.ticketTier.create({ data: { eventId, ...common } });
+      }
+    }
+  }
+
+  /** Real revenue for this venue's own hosted events — same shape as
+   * OrganizerService's ledger read, just off VenueLedgerTx instead of
+   * OrganizerLedgerTx. Only ever has rows once hostingEnabled and at least
+   * one hosted event has sold a ticket (see BookingsService's ledger
+   * crediting). */
+  async myLedger(userId: string) {
+    const venue = await this.myVenue(userId);
+    this.requireHostingEnabled(venue);
+    const [transactions, agg] = await Promise.all([
+      this.prisma.venueLedgerTx.findMany({ where: { venueId: venue.id }, orderBy: { createdAt: 'desc' }, take: 200 }),
+      this.prisma.venueLedgerTx.aggregate({ where: { venueId: venue.id }, _sum: { amount: true } }),
+    ]);
+    return { balance: agg._sum.amount ?? 0, transactions };
+  }
+
+  /** Real, verified organizers a venue can pick as a collaborator — same
+   * "no consent needed" reasoning as an organizer picking any venue today. */
+  async collaboratorOptions() {
+    return this.prisma.organizer.findMany({
+      where: { verified: true },
+      select: { id: true, brandName: true, username: true, city: true },
+      orderBy: { brandName: 'asc' },
+    });
+  }
+
+  // ---------- admin: hosting request review (Contacted ✓ gates Approve) ----------
+
+  async listHostingRequests(status?: string) {
+    return this.prisma.venueHostingRequest.findMany({
+      where: status ? { status } : undefined,
+      include: { venue: { select: { id: true, name: true, city: true, verified: true, contactPerson: true, contactPersonPhone: true, contact: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async markHostingRequestContacted(id: string) {
+    const req = await this.prisma.venueHostingRequest.findUnique({ where: { id } });
+    if (!req) throw new NotFoundException('Request not found');
+    if (req.status !== 'pending') throw new BadRequestException('This request has already been reviewed');
+    return this.prisma.venueHostingRequest.update({ where: { id }, data: { contactedAt: new Date() } });
+  }
+
+  async approveHostingRequest(id: string, reviewedBy?: string) {
+    const req = await this.prisma.venueHostingRequest.findUnique({ where: { id }, include: { venue: true } });
+    if (!req) throw new NotFoundException('Request not found');
+    if (req.status !== 'pending') throw new BadRequestException('This request has already been reviewed');
+    if (!req.contactedAt) throw new BadRequestException('Mark this venue as contacted before approving');
+
+    await this.prisma.venue.update({ where: { id: req.venueId }, data: { hostingEnabled: true } });
+    const updated = await this.prisma.venueHostingRequest.update({
+      where: { id },
+      data: { status: 'approved', reviewedBy, reviewedAt: new Date() },
+    });
+
+    if (req.venue.userId) {
+      const user = await this.prisma.user.findUnique({ where: { id: req.venue.userId } });
+      if (user?.email) await this.email.sendTemplate(user.email, 'venue_hosting_approved', { name: req.venue.name }).catch(() => {});
+      if (user?.phone) await this.wa.send(user.phone, 'venue_hosting_approved', [req.venue.name]).catch(() => {});
+    }
+    return updated;
+  }
+
+  async rejectHostingRequest(id: string, reviewNote: string | undefined, reviewedBy?: string) {
+    const req = await this.prisma.venueHostingRequest.findUnique({ where: { id }, include: { venue: true } });
+    if (!req) throw new NotFoundException('Request not found');
+    if (req.status !== 'pending') throw new BadRequestException('This request has already been reviewed');
+
+    const updated = await this.prisma.venueHostingRequest.update({
+      where: { id },
+      data: { status: 'rejected', reviewNote, reviewedBy, reviewedAt: new Date() },
+    });
+
+    if (req.venue.userId) {
+      const user = await this.prisma.user.findUnique({ where: { id: req.venue.userId } });
+      if (user?.email) await this.email.sendTemplate(user.email, 'venue_hosting_rejected', { name: req.venue.name, reviewNote: reviewNote || 'No reason given.' }).catch(() => {});
+    }
+    return updated;
   }
 }

@@ -38,7 +38,14 @@ export interface Event {
   venueId?: string | null;
   privateCity?: string | null;
   privateLocality?: string | null;
-  organizerId: string;
+  // Optional as of venue-hosted events — null/undefined when a venue is
+  // hosting solo (hostedByVenue true, no collaborating organizer picked).
+  // Still always set for every event created the normal organizer way.
+  organizerId?: string | null;
+  // true = venue is the actual host/owner of this event (see venueId),
+  // not just a booked location an organizer picked. Absent/false for
+  // every event created the normal organizer way.
+  hostedByVenue?: boolean;
   status: EventStatus;
   rejectionReason?: string;
   conditions: string[];

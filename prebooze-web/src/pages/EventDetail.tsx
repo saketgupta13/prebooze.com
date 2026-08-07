@@ -31,6 +31,7 @@ import Stars from '../components/Stars';
 import Stepper from '../components/Stepper';
 import EventCard from '../components/EventCard';
 import ShareButton from '../components/ShareButton';
+import ReviewsSection from '../components/ReviewsSection';
 
 /** Real event + venue + organizer + reviews + recommended, all from the
  * live catalog API — this page used to read purely from the local mock
@@ -179,7 +180,7 @@ export default function EventDetail() {
   }
 
   const venue = event.venue ?? (event.venueId ? venueById(event.venueId) : undefined);
-  const organizer = event.organizer ?? organizerById(event.organizerId);
+  const organizer = event.organizer ?? (event.organizerId ? organizerById(event.organizerId) : undefined);
   // A role account showing "Interested" in their own event (as its
   // organizer/venue, or as a line-up tagged on it) isn't a real guest
   // signal — same reasoning as hiding the Follow button on your own
@@ -261,27 +262,35 @@ export default function EventDetail() {
                   )}
                 </div>
 
-                {/* Hosted by + who's going — fills the space under the title */}
+                {/* Hosted by + who's going — fills the space under the title.
+                    A solo venue-hosted event (Event.hostedByVenue, no
+                    collaborating organizer) has no organizer to show here at
+                    all — the "Hosted at" venue card below is the only host
+                    line in that case; when a venue *does* pick a
+                    collaborating organizer, both cards render exactly like
+                    a normal organizer event with a venue tag. */}
                 <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>
-                  <Link
-                    to={`/organizers/${organizer.id}`}
-                    className="evrow"
-                    style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
-                  >
-                    {organizer.logoUrl ? (
-                      <img src={organizer.logoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
-                    ) : (
-                      <span className="avatar">🎧</span>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="tiny muted-2">Hosted by</div>
-                      <div className="bold small">
-                        {organizer.brandName} {organizer.verified && <span className="verified">✓</span>}{' '}
-                        <span className="muted" style={{ fontWeight: 400 }}>· ★ {organizer.rating}</span>
+                  {organizer && (
+                    <Link
+                      to={`/organizers/${organizer.id}`}
+                      className="evrow"
+                      style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
+                    >
+                      {organizer.logoUrl ? (
+                        <img src={organizer.logoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
+                      ) : (
+                        <span className="avatar">🎧</span>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="tiny muted-2">{event.hostedByVenue ? 'In collaboration with' : 'Hosted by'}</div>
+                        <div className="bold small">
+                          {organizer.brandName} {organizer.verified && <span className="verified">✓</span>}{' '}
+                          <span className="muted" style={{ fontWeight: 400 }}>· ★ {organizer.rating}</span>
+                        </div>
                       </div>
-                    </div>
-                    <span className="link small">View →</span>
-                  </Link>
+                      <span className="link small">View →</span>
+                    </Link>
+                  )}
 
                   {venue ? (
                     <Link
@@ -295,7 +304,7 @@ export default function EventDetail() {
                         <span className="avatar">🏛</span>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="tiny muted-2">Hosted at</div>
+                        <div className="tiny muted-2">{event.hostedByVenue ? 'Hosted by' : 'Hosted at'}</div>
                         <div className="bold small">
                           {venue.name} {venue.verified && <span className="verified">✓</span>}
                         </div>
@@ -476,32 +485,44 @@ export default function EventDetail() {
               </section>
             )}
 
-            {/* Reviews */}
-            <section className="section">
-              <div className="section-hd">
-                <h2>Organizer rating & reviews</h2>
-              </div>
-              <div className="card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontSize: 26, fontWeight: 800 }}>{organizer.rating}</span>
-                  <Stars rating={organizer.rating} />
-                  <span className="muted small">
-                    · {organizer.reviewCount} reviews of {organizer.brandName}
-                  </span>
+            {/* Reviews — a solo venue-hosted event (no organizer at all) has
+                nobody to show an "Organizer rating" for; the venue's own
+                real review system (ReviewsSection, same component
+                VenueDetail.tsx uses) takes over in that one case. */}
+            {organizer ? (
+              <section className="section">
+                <div className="section-hd">
+                  <h2>Organizer rating & reviews</h2>
                 </div>
-                {reviews.slice(0, 2).map((r) => (
-                  <div key={r.id} className="review">
-                    <span className="bold">{r.author}</span> · <Stars rating={r.rating} />
-                    {r.eventTitle && <> · <span className="muted-2">{r.eventTitle}</span></>}
-                    <div className="muted">“{r.text}”</div>
+                <div className="card">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 26, fontWeight: 800 }}>{organizer.rating}</span>
+                    <Stars rating={organizer.rating} />
+                    <span className="muted small">
+                      · {organizer.reviewCount} reviews of {organizer.brandName}
+                    </span>
                   </div>
-                ))}
-                {liveEvent && reviews.length === 0 && <div className="tiny muted">No reviews yet.</div>}
-                <Link to={`/organizers/${organizer.id}`} className="link small bold">
-                  Read all reviews →
-                </Link>
-              </div>
-            </section>
+                  {reviews.slice(0, 2).map((r) => (
+                    <div key={r.id} className="review">
+                      <span className="bold">{r.author}</span> · <Stars rating={r.rating} />
+                      {r.eventTitle && <> · <span className="muted-2">{r.eventTitle}</span></>}
+                      <div className="muted">“{r.text}”</div>
+                    </div>
+                  ))}
+                  {liveEvent && reviews.length === 0 && <div className="tiny muted">No reviews yet.</div>}
+                  <Link to={`/organizers/${organizer.id}`} className="link small bold">
+                    Read all reviews →
+                  </Link>
+                </div>
+              </section>
+            ) : venue ? (
+              <section className="section">
+                <div className="section-hd">
+                  <h2>Venue rating & reviews</h2>
+                </div>
+                <ReviewsSection targetType="venue" targetId={venue.id} prompt="How was this event — sound, entry, staff?" />
+              </section>
+            ) : null}
           </div>
 
           {/* Mobile only: the "single Book ticket button" pattern, fixed to

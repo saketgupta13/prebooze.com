@@ -176,8 +176,13 @@ export class FeaturedService {
       return org ? { brand: org.brandName, gstin: org.gstin, pan: org.pan } : null;
     }
     if (type === 'event') {
-      const event = await this.prisma.event.findUnique({ where: { id: refId }, include: { organizer: true } });
-      return event ? { brand: event.organizer.brandName, gstin: event.organizer.gstin, pan: event.organizer.pan } : null;
+      const event = await this.prisma.event.findUnique({ where: { id: refId }, include: { organizer: true, venue: true } });
+      if (!event) return null;
+      // Solo venue-hosted event (Event.hostedByVenue, no collaborating
+      // organizer) — bill the venue instead. Venue has no GSTIN/PAN
+      // modeled (same as promoter/lineup below), just a brand name.
+      if (event.organizer) return { brand: event.organizer.brandName, gstin: event.organizer.gstin, pan: event.organizer.pan };
+      return event.venue ? { brand: event.venue.name } : null;
     }
     if (type === 'venue') {
       const venue = await this.prisma.venue.findUnique({ where: { id: refId } });
@@ -503,8 +508,14 @@ export class FeaturedService {
     refId: string,
   ): Promise<{ email: string | null; phone: string | null; userId: string | null; name: string; itemLabel: string } | null> {
     if (type === 'event') {
-      const event = await this.prisma.event.findUnique({ where: { id: refId }, include: { organizer: true } });
+      const event = await this.prisma.event.findUnique({ where: { id: refId }, include: { organizer: true, venue: true } });
       if (!event) return null;
+      // Solo venue-hosted event — the venue's own account is "the owner"
+      // for notification/billing purposes, same fallback as resolveBillingIdentity.
+      if (!event.organizer) {
+        const venueOwner = event.venue?.userId ? await this.prisma.user.findUnique({ where: { id: event.venue.userId } }) : null;
+        return { email: venueOwner?.email ?? null, phone: venueOwner?.phone ?? null, userId: venueOwner?.id ?? null, name: event.venue?.name ?? event.title, itemLabel: event.title };
+      }
       const owner = event.organizer.userId ? await this.prisma.user.findUnique({ where: { id: event.organizer.userId } }) : null;
       return { email: owner?.email ?? null, phone: owner?.phone ?? null, userId: owner?.id ?? null, name: event.organizer.brandName, itemLabel: event.title };
     }
