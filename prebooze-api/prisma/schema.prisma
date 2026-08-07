@@ -882,6 +882,50 @@ model Featured {
   // — distinct from the already-expired manual reminder button/endpoint.
   // Null = not yet sent; set once so the daily cron doesn't re-send every day.
   expiryReminderSentAt DateTime?
+
+  // Set only for a row created by an auto-renewing FeaturedSubscription
+  // (organizer/promoter/venue/lineup, never 'event' — see that model) —
+  // one immutable row per billed period, `status: active`/`paid: true` from
+  // the moment it's created since a subscription renewal never goes through
+  // the pending-admin-approval queue the one-time flow above does. Null for
+  // every legacy one-time placement and every per-event placement.
+  featuredSubscriptionId String?
+  featuredSubscription    FeaturedSubscription? @relation(fields: [featuredSubscriptionId], references: [id])
+}
+
+/**
+ * A standing Razorpay Subscription (real e-mandate/UPI Autopay, same
+ * RazorpayService.createPlan/createSubscription rails already used for
+ * organizer/promoter/venue/lineup paid plans — see RoleSubscription) behind
+ * one auto-renewing Featured placement. Never used for `type: event` — a
+ * one-off event has a fixed date, there's nothing to recur.
+ *
+ * The rate/GST are locked in at subscribe() time and reused for every
+ * renewal, so a later change to the platform's Featured rates never
+ * silently changes what an already-subscribed placement gets charged —
+ * same reasoning as Booking.promoterCommission being locked in at sale time.
+ */
+model FeaturedSubscription {
+  id            String             @id @default(cuid())
+  type          FeaturedType
+  refId         String
+  city          String
+  amount        Int
+  gstPct        Float
+  gstAmount     Int
+  total         Int
+  razorpaySubId String?            @unique
+  status        SubscriptionStatus @default(created)
+  shortUrl      String? // hosted Razorpay authorization link the frontend redirects the owner to
+  currentStart  DateTime?
+  currentEnd    DateTime?
+  paidCount     Int                @default(0)
+  periods       Featured[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, refId]) // one standing subscription per featured-able entity
 }
 
 // ============================================================================

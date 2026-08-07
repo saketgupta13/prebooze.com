@@ -3,7 +3,7 @@
  * feature swaps from localStorage to live data. */
 import { apiFetch, apiUpload, API_URL, getToken, ApiError } from './client';
 import type {
-  Booking, CareerJob, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, HelpTicket,
+  Booking, CareerJob, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, FeaturedSubscription, HelpTicket,
   Invoice, JobApplication, LineupProfile, Organizer, PayMethod, Person, PersonDetail, PromoterProfile, User, Venue, WaitlistEntry,
 } from '../types';
 import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, WalletTx } from '../store/AppContext';
@@ -528,6 +528,14 @@ export const featured = {
     apiFetch<Featured>(`/featured/${id}/confirm-payment`, { body: proof }),
   mine: (type: Featured['type'], refId: string) => apiFetch<Featured | null>('/featured/mine', { query: { type, refId } }),
   rates: () => apiFetch<{ perEvent: number; organizerMonthly: number; promoterMonthly: number; lineupMonthly: number; venueMonthly: number }>('/featured/rates'),
+  // Real Razorpay Subscription (e-mandate) — auto-renews monthly, no manual
+  // "renew now" click needed. organizer/promoter/lineup/venue only.
+  subscribe: (input: { type: FeaturedSubscription['type']; refId: string }) =>
+    apiFetch<{ ok: boolean; requiresAuthorization: boolean; shortUrl?: string; subscriptionId?: string; keyId?: string }>('/featured/subscribe', { body: input }),
+  cancelSubscription: (type: FeaturedSubscription['type'], refId: string) =>
+    apiFetch<{ ok: boolean }>('/featured/subscription/cancel', { body: { type, refId } }),
+  mySubscription: (type: FeaturedSubscription['type'], refId: string) =>
+    apiFetch<FeaturedSubscription | null>('/featured/mine-subscription', { query: { type, refId } }),
 };
 
 // ---------- support / careers / misc ----------

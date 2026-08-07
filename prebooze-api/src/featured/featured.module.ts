@@ -10,9 +10,14 @@ import { EmailService } from '../notifications/email';
 import { InvoicesService } from '../invoices/invoices.service';
 import { RazorpayService } from '../payments/razorpay.service';
 import { WalletService } from '../wallet/wallet.service';
+import { StaffAlertsService } from '../notifications/staff-alerts';
 
 @Module({
   controllers: [FeaturedController, AdminFeaturedController],
-  providers: [FeaturedService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, InvoicesService, RazorpayService, WalletService],
+  providers: [
+    FeaturedService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard,
+    WhatsappService, EmailService, InvoicesService, RazorpayService, WalletService, StaffAlertsService,
+  ],
+  exports: [FeaturedService],
 })
 export class FeaturedModule {}

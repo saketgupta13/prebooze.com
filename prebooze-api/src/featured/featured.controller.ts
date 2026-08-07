@@ -33,6 +33,24 @@ export class FeaturedController {
   rates() {
     return this.featured.rates();
   }
+
+  @Post('subscribe')
+  @UseGuards(JwtAuthGuard)
+  subscribe(@Req() req: AuthedReq, @Body() body: Parameters<FeaturedService['subscribe']>[1]) {
+    return this.featured.subscribe(req.user.sub, body);
+  }
+
+  @Post('subscription/cancel')
+  @UseGuards(JwtAuthGuard)
+  cancelSubscription(@Req() req: AuthedReq, @Body() body: { type: Parameters<FeaturedService['mine']>[1]; refId: string }) {
+    return this.featured.cancelSubscription(req.user.sub, body.type, body.refId);
+  }
+
+  @Get('mine-subscription')
+  @UseGuards(JwtAuthGuard)
+  mySubscription(@Req() req: AuthedReq, @Query('type') type: Parameters<FeaturedService['mine']>[1], @Query('refId') refId: string) {
+    return this.featured.mySubscription(req.user.sub, type, refId);
+  }
 }
 
 /** Minimal review queue, same reasoning as /admin/events (Phase 6). Rates
@@ -47,6 +65,12 @@ export class AdminFeaturedController {
   @RequirePermission('Featured', 'view')
   list(@Query('status') status?: string) {
     return this.featured.listForAdmin(status);
+  }
+
+  @Get('subscriptions')
+  @RequirePermission('Featured', 'view')
+  listSubscriptions() {
+    return this.featured.listSubscriptionsForAdmin();
   }
 
   @Post(':id/approve')

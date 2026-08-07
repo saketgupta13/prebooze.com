@@ -7,8 +7,10 @@ import { EmailService } from '../notifications/email';
 import { WhatsappService } from '../notifications/whatsapp';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { WalletService } from '../wallet/wallet.service';
+import { FeaturedModule } from '../featured/featured.module';
 
 @Module({
+  imports: [FeaturedModule],
   controllers: [RazorpayWebhookController],
   providers: [SubscriptionsService, PrismaService, RazorpayService, EmailService, WhatsappService, StaffAlertsService, WalletService],
   exports: [SubscriptionsService],

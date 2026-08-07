@@ -111,6 +111,53 @@ export const liveSubscriptions = {
   list: (role?: string) => liveFetch<LiveSubscription[]>('/admin/subscriptions' + (role ? `?role=${role}` : '')),
 };
 
+export interface LiveFeatured {
+  id: string;
+  type: 'event' | 'organizer' | 'promoter' | 'lineup' | 'venue';
+  refId: string;
+  entityName: string;
+  city: string;
+  status: 'pending' | 'active' | 'rejected' | 'expired';
+  billing: 'per_event' | 'monthly';
+  amount: number;
+  createdAt: string;
+  expiresAt: string;
+  paid: boolean;
+  expiryReminderSentAt: string | null;
+  featuredSubscriptionId: string | null;
+}
+export interface LiveFeaturedRates {
+  perEvent: number;
+  organizerMonthly: number;
+  promoterMonthly: number;
+  lineupMonthly: number;
+  venueMonthly: number;
+}
+export interface LiveFeaturedSubscription {
+  id: string;
+  type: 'organizer' | 'promoter' | 'lineup' | 'venue';
+  refId: string;
+  entityName: string;
+  city: string;
+  amount: number;
+  status: 'created' | 'authenticated' | 'active' | 'pending' | 'halted' | 'cancelled' | 'completed' | 'expired';
+  paidCount: number;
+  currentStart: string | null;
+  currentEnd: string | null;
+}
+export const liveFeatured = {
+  list: (status?: string) => liveFetch<LiveFeatured[]>('/admin/featured' + (status ? `?status=${status}` : '')),
+  approve: (id: string) => liveFetch<LiveFeatured>(`/admin/featured/${id}/approve`, { method: 'POST' }),
+  reject: (id: string) => liveFetch<LiveFeatured>(`/admin/featured/${id}/reject`, { method: 'POST' }),
+  remind: (id: string) => liveFetch<{ ok: true; sentTo: string }>(`/admin/featured/${id}/remind`, { method: 'POST' }),
+  rates: () => liveFetch<LiveFeaturedRates>('/featured/rates'),
+  updateRates: (body: Partial<LiveFeaturedRates>) => liveFetch<LiveFeaturedRates>('/admin/featured/rates', { method: 'PATCH', body }),
+  // Read-only — the standing auto-renewal mandate itself is only ever
+  // cancelled by its owner from their own console (self-serve boundary,
+  // same as /admin/subscriptions).
+  subscriptions: () => liveFetch<LiveFeaturedSubscription[]>('/admin/featured/subscriptions'),
+};
+
 export interface LiveTicketTier {
   id: string;
   name: string;

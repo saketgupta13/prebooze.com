@@ -210,6 +210,22 @@ export interface Featured {
   paid?: boolean;
 }
 
+/** A standing Razorpay Subscription (real e-mandate) behind an
+ * auto-renewing Featured placement — organizer/promoter/lineup/venue only,
+ * never 'event'. Same status shape as RoleSubscription. */
+export interface FeaturedSubscription {
+  id: string;
+  type: 'organizer' | 'promoter' | 'lineup' | 'venue';
+  refId: string;
+  city: string;
+  amount: number;
+  status: 'created' | 'authenticated' | 'active' | 'pending' | 'halted' | 'cancelled' | 'completed' | 'expired';
+  shortUrl: string | null;
+  currentStart: string | null;
+  currentEnd: string | null;
+  paidCount: number;
+}
+
 /** A followable guest — the social graph behind "Who's going". */
 export interface Person {
   id: string;
