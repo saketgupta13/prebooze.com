@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import type { Event, LineupProfile } from '../../types';
+import type { Event, LineupProfile, PromoterProfile } from '../../types';
 import Loader from '../../components/Loader';
 import Accordion from '../../components/Accordion';
 import WysiwygEditor from '../../components/WysiwygEditor';
@@ -32,8 +32,9 @@ const DEFAULT_RULES: RuleDraft[] = [
  * own address (no venue picker, unlike the organizer flow) with an optional
  * real, verified organizer as collaborator (no invite/consent needed — same
  * as an organizer already picking any venue). A deliberate, simpler single-
- * page form rather than organizer/CreateEvent.tsx's 6-step wizard — promoter
- * configuration is left for later, kept purely additive on the backend. */
+ * page form rather than organizer/CreateEvent.tsx's 6-step wizard, but with
+ * the same real promoter-management block (backend already accepted
+ * promoterConfig as a passthrough field from the start). */
 export default function CreateHostedEvent() {
   const { id: editId } = useParams();
   const navigate = useNavigate();
@@ -42,6 +43,7 @@ export default function CreateHostedEvent() {
   const [err, setErr] = useState('');
 
   const [lineups, setLineups] = useState<LineupProfile[]>([]);
+  const [promoters, setPromoters] = useState<PromoterProfile[]>([]);
   const [collaborators, setCollaborators] = useState<VenueCollaboratorOption[]>([]);
   const [editing, setEditing] = useState<Event | undefined>(undefined);
 
@@ -67,6 +69,35 @@ export default function CreateHostedEvent() {
   const [rules, setRules] = useState<RuleDraft[]>(DEFAULT_RULES);
   const [lineupSel, setLineupSel] = useState<{ name: string; role: string }[]>([]);
 
+  // Promoters — same two independent modes as organizer/CreateEvent.tsx:
+  // guest list (free entry) and paid commission (revenue-share %), picked
+  // per promoter, either/both/neither.
+  const [promoEnabled, setPromoEnabled] = useState(false);
+  const [promoCap, setPromoCap] = useState('200');
+  const [promoCutoff, setPromoCutoff] = useState('01:00');
+  const [allowedPromoters, setAllowedPromoters] = useState<string[]>([]);
+  const [guestListPromoters, setGuestListPromoters] = useState<string[]>([]);
+  const [commissionPromoters, setCommissionPromoters] = useState<string[]>([]);
+  const [perHead, setPerHead] = useState(false);
+  const [perHeadAmt, setPerHeadAmt] = useState('100');
+  const [allowTeams, setAllowTeams] = useState(false);
+  const [revenueShare, setRevenueShare] = useState<Record<string, string>>({});
+  const togglePromoter = (slug: string) => {
+    setAllowedPromoters((prev) => {
+      if (prev.includes(slug)) {
+        setGuestListPromoters((g) => g.filter((x) => x !== slug));
+        setCommissionPromoters((c) => c.filter((x) => x !== slug));
+        return prev.filter((x) => x !== slug);
+      }
+      setGuestListPromoters((g) => (g.includes(slug) ? g : [...g, slug]));
+      return [...prev, slug];
+    });
+  };
+  const toggleGuestList = (slug: string) =>
+    setGuestListPromoters((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]));
+  const toggleCommission = (slug: string) =>
+    setCommissionPromoters((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]));
+
   const [seoTitle, setSeoTitle] = useState('');
   const [seoDesc, setSeoDesc] = useState('');
   const [seoSlug, setSeoSlug] = useState('');
@@ -74,12 +105,14 @@ export default function CreateHostedEvent() {
   useEffect(() => {
     Promise.all([
       catalog.lineups(),
+      catalog.promoters(),
       venuePartner.collaboratorOptions(),
       catalog.categories(),
       editId ? venuePartner.hostedEvents().then((evs) => evs.find((e) => e.id === editId)) : Promise.resolve(undefined),
     ])
-      .then(([ls, orgs, cats, ev]) => {
+      .then(([ls, ps, orgs, cats, ev]) => {
         setLineups(ls);
+        setPromoters(ps);
         setCollaborators(orgs);
         setCategories(cats);
         const subsForCat = (cat: string) => cats.find((c) => c.name === cat)?.subs ?? [];
@@ -103,6 +136,19 @@ export default function CreateHostedEvent() {
           setConditions(ev.conditions.join('\n'));
           setRules(ev.rules.length ? ev.rules.map((r) => ({ title: r.title, body: r.body })) : DEFAULT_RULES);
           setLineupSel(ev.lineup);
+          const pc = ev.promoterConfig;
+          if (pc) {
+            setPromoEnabled(pc.enabled);
+            setPromoCap(String(pc.cap));
+            setPromoCutoff(pc.cutoff);
+            setAllowedPromoters(pc.allowedPromoters);
+            setGuestListPromoters(pc.guestListPromoters ?? pc.allowedPromoters);
+            setPerHead(pc.perHeadPayout);
+            setPerHeadAmt(String(pc.perHeadAmount));
+            setAllowTeams(pc.allowTeams);
+            setRevenueShare(Object.fromEntries(Object.entries(pc.revenueShare ?? {}).map(([slug, pct]) => [slug, String(pct)])));
+            setCommissionPromoters(Object.entries(pc.revenueShare ?? {}).filter(([, pct]) => pct > 0).map(([slug]) => slug));
+          }
           setSeoTitle(ev.seo?.title ?? '');
           setSeoDesc(ev.seo?.description ?? '');
           setSeoSlug(ev.seo?.slug ?? '');
@@ -145,6 +191,22 @@ export default function CreateHostedEvent() {
     posterUrl,
     galleryUrls,
     teaserVideoUrl,
+    promoterConfig: {
+      enabled: promoEnabled,
+      cap: +promoCap || 0,
+      cutoff: promoCutoff,
+      allowedPromoters,
+      guestListPromoters,
+      perHeadPayout: perHead,
+      perHeadAmount: +perHeadAmt || 0,
+      allowTeams,
+      revenueShare: Object.fromEntries(
+        allowedPromoters
+          .filter((slug) => commissionPromoters.includes(slug))
+          .map((slug) => [slug, +revenueShare[slug] || 0] as const)
+          .filter(([, pct]) => pct > 0)
+      ),
+    },
     tiers: tiers.map((t) => ({
       id: t.id,
       name: t.name.trim(),
@@ -355,6 +417,112 @@ export default function CreateHostedEvent() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3 style={{ marginBottom: 4 }}>Promoters</h3>
+        <p className="muted small" style={{ marginBottom: 14 }}>
+          Let approved promoters bring free-entry guests, earn a commission on ticket sales through their link, or
+          both — you choose per promoter.
+        </p>
+
+        <label
+          className="checkbox-row"
+          style={{ marginBottom: promoEnabled ? 16 : 0, padding: '12px 14px', border: '1.5px solid var(--border-3)', borderRadius: 10 }}
+        >
+          <input type="checkbox" checked={promoEnabled} onChange={(e) => setPromoEnabled(e.target.checked)} />
+          <span style={{ fontWeight: 700, color: 'var(--text)' }}>Enable promoters for this event</span>
+        </label>
+
+        {promoEnabled && (
+          <>
+            <div className="form-row" style={{ marginTop: 6 }}>
+              <div className="field">
+                <span>Free-entry cap (total passes)</span>
+                <input value={promoCap} onChange={(e) => setPromoCap(e.target.value.replace(/\D/g, ''))} inputMode="numeric" />
+              </div>
+              <div className="field">
+                <span>Free entry valid before</span>
+                <input type="time" value={promoCutoff} onChange={(e) => setPromoCutoff(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="field">
+              <span>Allowed promoters — pick who, and how each one promotes your event</span>
+              <div className="tiny muted-2" style={{ marginBottom: 8 }}>
+                🎟️ Guest list = free entry, no ticket sold. 💰 Paid commission = a % of the ticket price on any sale
+                through their link, added on top so it doesn't cut into your revenue (the guest pays the extra, same
+                as Prebooze's own commission on that sale).
+              </div>
+              <div style={{ display: 'grid', gap: 10 }}>
+                {promoters.map((p) => {
+                  const isAllowed = allowedPromoters.includes(p.slug);
+                  const hasGuestList = guestListPromoters.includes(p.slug);
+                  const hasCommission = commissionPromoters.includes(p.slug);
+                  return (
+                    <div key={p.slug} style={{ border: '1.5px solid var(--border-3)', borderRadius: 10, padding: '10px 12px' }}>
+                      <label className="checkbox-row">
+                        <input type="checkbox" checked={isAllowed} onChange={() => togglePromoter(p.slug)} />
+                        <span style={{ fontWeight: 700, color: 'var(--text)' }}>{p.name} {p.verified ? '✓' : ''}</span>
+                      </label>
+                      {isAllowed && (
+                        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center', marginTop: 8, marginLeft: 26 }}>
+                          <label className="checkbox-row" style={{ marginBottom: 0 }}>
+                            <input type="checkbox" checked={hasGuestList} onChange={() => toggleGuestList(p.slug)} />
+                            <span className="small">🎟️ Guest list</span>
+                          </label>
+                          <label className="checkbox-row" style={{ marginBottom: 0 }}>
+                            <input type="checkbox" checked={hasCommission} onChange={() => toggleCommission(p.slug)} />
+                            <span className="small">💰 Paid commission</span>
+                          </label>
+                          {hasCommission && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <input
+                                className="input"
+                                style={{ width: 70 }}
+                                value={revenueShare[p.slug] ?? ''}
+                                onChange={(e) => {
+                                  const v = e.target.value.replace(/\D/g, '').slice(0, 3);
+                                  setRevenueShare((prev) => ({ ...prev, [p.slug]: v }));
+                                }}
+                                inputMode="numeric"
+                                placeholder="0"
+                              />
+                              <span className="small muted-2">%</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {allowedPromoters.length === 0 && (
+                <div className="tiny danger-text" style={{ marginTop: 6 }}>
+                  Pick at least one promoter, or nobody can promote your event.
+                </div>
+              )}
+            </div>
+
+            <div className="hr" />
+
+            <label className="checkbox-row" style={{ marginBottom: 8 }}>
+              <input type="checkbox" checked={perHead} onChange={(e) => setPerHead(e.target.checked)} />
+              <span>Pay promoters per verified arrival <span className="muted-2">(applies to promoters with Guest list checked above)</span></span>
+            </label>
+            {perHead && (
+              <div className="field" style={{ maxWidth: 220, marginLeft: 26 }}>
+                <span>₹ per confirmed check-in</span>
+                <input value={perHeadAmt} onChange={(e) => setPerHeadAmt(e.target.value.replace(/\D/g, ''))} inputMode="numeric" />
+              </div>
+            )}
+
+            <label className="checkbox-row">
+              <input type="checkbox" checked={allowTeams} onChange={(e) => setAllowTeams(e.target.checked)} />
+              <span>Allow promoter teams / sub-promoters</span>
+            </label>
+          </>
+        )}
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>

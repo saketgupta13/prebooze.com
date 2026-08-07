@@ -69,6 +69,7 @@ export interface LiveStaffMe {
   permissions: Record<string, Record<string, boolean>>;
   city?: string;
   lastActiveAt?: string;
+  leadRoleScope: string[];
 }
 /** The signed-in staffer's own account — distinct from AdminStaffController
  * (Owner-only management of everyone else's Staff rows). */
@@ -627,9 +628,12 @@ export interface LeadActivity {
   text: string;
   createdAt: string;
 }
+export type LeadRole = 'organizer' | 'venue' | 'promoter' | 'lineup';
+export const LEAD_ROLES: LeadRole[] = ['organizer', 'venue', 'promoter', 'lineup'];
 export interface Lead {
   id: string;
   name: string;
+  role: LeadRole;
   source: string;
   contact: string | null;
   email: string | null;
@@ -645,6 +649,12 @@ export interface Lead {
   assignedTo: { id: string; name: string } | null;
   organizerId: string | null;
   organizer: { id: string; brandName: string; username: string } | null;
+  venueId: string | null;
+  venue: { id: string; name: string } | null;
+  promoterId: string | null;
+  promoter: { id: string; slug: string; name: string } | null;
+  lineupId: string | null;
+  lineup: { id: string; slug: string; name: string } | null;
   activities: LeadActivity[];
   createdAt: string;
   updatedAt: string;
@@ -655,13 +665,20 @@ export interface LeadOrganizerHit {
   username: string;
   city: string;
 }
-/** Organizer sales pipeline — pre-signup leads across every outreach channel,
- * not just Instagram. `link-organizer` is a manual, staff-picked match (no
- * reliable way to auto-match a scribbled phone number or IG handle to the
- * account someone actually signs up with), which is what makes it possible
- * to later ask "which source actually converts organizers." */
+export interface LeadDirectoryHit {
+  id: string;
+  name: string;
+  city: string;
+}
+/** Sales pipeline across every outreach channel — organizer/venue/promoter/
+ * line-up leads all share this one Kanban, distinguished by `role`.
+ * `link-*` is a manual, staff-picked match (no reliable way to auto-match a
+ * scribbled phone number or IG handle to the account someone actually signs
+ * up with), which is what makes it possible to later ask "which source
+ * actually converts." */
 interface LeadWriteFields {
   name: string;
+  role?: LeadRole;
   source: string;
   contact?: string;
   email?: string;
@@ -679,12 +696,18 @@ export const liveLeads = {
   create: (body: LeadWriteFields) => liveFetch<Lead>('/admin/leads', { body }),
   update: (
     id: string,
-    body: Partial<Omit<LeadWriteFields, 'assignedToId' | 'followUpAt'>> & { stage?: string; assignedToId?: string | null; followUpAt?: string | null },
+    body: Partial<Omit<LeadWriteFields, 'assignedToId' | 'followUpAt' | 'role'>> & { stage?: string; assignedToId?: string | null; followUpAt?: string | null },
   ) => liveFetch<Lead>(`/admin/leads/${id}`, { method: 'PATCH', body }),
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/leads/${id}`, { method: 'DELETE' }),
   addActivity: (id: string, text: string) => liveFetch<LeadActivity>(`/admin/leads/${id}/activity`, { body: { text } }),
   searchOrganizers: (q: string) => liveFetch<LeadOrganizerHit[]>(`/admin/leads/organizer-search?q=${encodeURIComponent(q)}`),
+  searchVenues: (q: string) => liveFetch<LeadDirectoryHit[]>(`/admin/leads/venue-search?q=${encodeURIComponent(q)}`),
+  searchPromoters: (q: string) => liveFetch<(LeadDirectoryHit & { slug: string })[]>(`/admin/leads/promoter-search?q=${encodeURIComponent(q)}`),
+  searchLineups: (q: string) => liveFetch<(LeadDirectoryHit & { slug: string })[]>(`/admin/leads/lineup-search?q=${encodeURIComponent(q)}`),
   linkOrganizer: (id: string, organizerId: string) => liveFetch<Lead>(`/admin/leads/${id}/link-organizer`, { body: { organizerId } }),
+  linkVenue: (id: string, venueId: string) => liveFetch<Lead>(`/admin/leads/${id}/link-venue`, { body: { venueId } }),
+  linkPromoter: (id: string, promoterId: string) => liveFetch<Lead>(`/admin/leads/${id}/link-promoter`, { body: { promoterId } }),
+  linkLineup: (id: string, lineupId: string) => liveFetch<Lead>(`/admin/leads/${id}/link-lineup`, { body: { lineupId } }),
   /** Real onboarding-link send (email is guaranteed-delivered; WhatsApp is
    * best-effort until the new 'lead_onboarding_invite' AiSensy campaign is
    * approved — see LeadsService.sendOnboardingLink). */
@@ -727,12 +750,14 @@ export interface LiveStaff {
   phone: string | null;
   lastActiveAt: string | null;
   createdAt: string;
+  leadRoleScope: string[];
 }
 export const liveStaff = {
   list: () => liveFetch<LiveStaff[]>('/admin/staff'),
   create: (body: { email: string; name?: string; roleName: string; city?: string; phone?: string }) =>
     liveFetch<LiveStaff & { tempPassword: string }>('/admin/staff', { body }),
   updateRole: (id: string, roleName: string) => liveFetch<LiveStaff>(`/admin/staff/${id}`, { method: 'PATCH', body: { roleName } }),
+  setLeadRoleScope: (id: string, roles: string[]) => liveFetch<LiveStaff>(`/admin/staff/${id}/lead-scope`, { method: 'PATCH', body: { roles } }),
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/staff/${id}`, { method: 'DELETE' }),
 };
 

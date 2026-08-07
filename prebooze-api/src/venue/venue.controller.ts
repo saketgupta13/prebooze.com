@@ -118,6 +118,11 @@ export class VenueController {
     return this.venue.myLedger(req.user.sub);
   }
 
+  @Post('hosting/withdraw')
+  withdraw(@Req() req: AuthedReq, @Body('amount') amount: number) {
+    return this.venue.withdraw(req.user.sub, amount);
+  }
+
   @Get('hosting/collaborator-options')
   collaboratorOptions() {
     return this.venue.collaboratorOptions();

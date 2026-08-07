@@ -23,6 +23,11 @@ export class AdminStaffController {
     return this.staff.updateStaffRole(id, roleName);
   }
 
+  @Patch(':id/lead-scope')
+  setLeadRoleScope(@Param('id') id: string, @Body('roles') roles: string[]) {
+    return this.staff.setLeadRoleScope(id, roles ?? []);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.staff.removeStaff(id);

@@ -641,10 +641,11 @@ export const venuePartner = {
   upsertHostedEvent: (e: {
     id?: string; title: string; description?: string; category?: string; subCategory?: string; ageLimit?: string;
     tags?: string[]; date?: string; durationHrs?: number; organizerId?: string | null; status?: 'draft' | 'pending';
-    conditions?: string[]; rules?: unknown; lineup?: unknown; seo?: unknown;
+    conditions?: string[]; rules?: unknown; lineup?: unknown; seo?: unknown; promoterConfig?: unknown;
     posterUrl?: string | null; galleryUrls?: string[]; teaserVideoUrl?: string | null; socialBanners?: { postUrl?: string; storyUrl?: string };
     tiers?: { id?: string; name: string; price: number; quantity: number; includes?: string[]; description?: string }[];
   }) => apiFetch<Event>('/venue/hosting/events', { body: e }),
   myLedger: () => apiFetch<{ balance: number; transactions: VenueLedgerTx[] }>('/venue/hosting/ledger'),
+  withdraw: (amount: number) => apiFetch<{ ok: true }>('/venue/hosting/withdraw', { body: { amount } }),
   collaboratorOptions: () => apiFetch<VenueCollaboratorOption[]>('/venue/hosting/collaborator-options'),
 };

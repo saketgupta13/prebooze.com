@@ -131,6 +131,14 @@ export interface Venue {
   socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; // public — same shape as Organizer.socialLinks
   contactPerson?: string; // admin/venue-owner only — never in the public catalog select
   contactPersonPhone?: string;
+  // Payout bank details, only meaningful once hostingEnabled — same shape as
+  // Organizer's, only ever present on the real GET /venue/listing self-serve
+  // response, never on the public catalog.
+  bankLast4?: string | null;
+  bankName?: string | null;
+  bankAccountNumber?: string | null;
+  accountHolderName?: string | null;
+  ifsc?: string | null;
 }
 
 export interface Organizer {

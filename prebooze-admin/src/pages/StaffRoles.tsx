@@ -6,6 +6,12 @@ import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
 const TITLE = 'Staff & roles';
 const PERM_KEYS: PermKey[] = ['view', 'edit', 'approve'];
+const LEAD_ROLE_OPTIONS = [
+  { key: 'organizer', label: 'Organizer', emoji: '🎤' },
+  { key: 'venue', label: 'Venue', emoji: '🏛' },
+  { key: 'promoter', label: 'Promoter', emoji: '📣' },
+  { key: 'lineup', label: 'Line-up', emoji: '🎧' },
+];
 
 const fmtLastActive = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'invited';
@@ -78,6 +84,16 @@ export default function StaffRoles() {
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to update role');
+    }
+  };
+
+  const toggleLeadScope = async (s: LiveStaff, role: string) => {
+    const next = s.leadRoleScope.includes(role) ? s.leadRoleScope.filter((r) => r !== role) : [...s.leadRoleScope, role];
+    try {
+      await liveStaff.setLeadRoleScope(s.id, next);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to update lead scope');
     }
   };
 
@@ -188,9 +204,10 @@ export default function StaffRoles() {
 
       {/* Member list with role assigner */}
       <div className="tblwrap">
-        <div className="thead" style={{ minWidth: 480 }}>
+        <div className="thead" style={{ minWidth: 640 }}>
           <span style={{ flex: 1.6 }}>Member</span>
-          <span style={{ flex: 1.3 }}>Role</span>
+          <span style={{ flex: 1.1 }}>Role</span>
+          <span style={{ flex: 1.6 }}>Lead scope</span>
           <span style={{ flex: 0.8 }}>City</span>
           <span style={{ flex: 1 }}>Last active</span>
           <span style={{ width: 60 }} />
@@ -198,12 +215,12 @@ export default function StaffRoles() {
         {staff.map((s) => {
           const isOwner = s.roleName === 'Owner';
           return (
-            <div key={s.id} className="trow" style={{ minWidth: 480 }}>
+            <div key={s.id} className="trow" style={{ minWidth: 640 }}>
               <span style={{ flex: 1.6 }}>
                 <div style={{ fontWeight: 700 }}>{s.name}</div>
                 <div className="tiny muted">{s.email}</div>
               </span>
-              <span style={{ flex: 1.3 }}>
+              <span style={{ flex: 1.1 }}>
                 {isOwner ? (
                   <Tag label="Owner" cls="tag-green" />
                 ) : (
@@ -217,6 +234,24 @@ export default function StaffRoles() {
                       <option key={r}>{r}</option>
                     ))}
                   </select>
+                )}
+              </span>
+              <span style={{ flex: 1.6, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {isOwner ? (
+                  <span className="tiny muted">sees everything</span>
+                ) : (
+                  LEAD_ROLE_OPTIONS.map((r) => (
+                    <button
+                      key={r.key}
+                      type="button"
+                      className={`chip ${s.leadRoleScope.includes(r.key) ? 'on' : ''}`}
+                      style={{ fontSize: 11, padding: '3px 8px' }}
+                      onClick={() => toggleLeadScope(s, r.key)}
+                      title={`Toggle ${r.label} leads for ${s.name}`}
+                    >
+                      {r.emoji} {r.label}
+                    </button>
+                  ))
                 )}
               </span>
               <span style={{ flex: 0.8 }} className="muted">{s.city ?? '—'}</span>
@@ -233,7 +268,7 @@ export default function StaffRoles() {
         })}
         {staff.length === 0 && !loading && <div className="trow muted">No staff yet.</div>}
       </div>
-      <div className="tiny hint">changing a role applies its permission matrix to that member immediately</div>
+      <div className="tiny hint">changing a role applies its permission matrix to that member immediately · lead scope with nothing selected means unrestricted (sees every lead)</div>
 
       {/* Role editor */}
       <div className="page-hd" style={{ marginTop: 8 }}>

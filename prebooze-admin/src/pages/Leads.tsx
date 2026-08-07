@@ -2,18 +2,25 @@ import { useEffect, useState } from 'react';
 import {
   liveLeads,
   liveStaff,
+  liveMe,
   LiveApiError,
   LEAD_SOURCES,
   LEAD_STAGES,
+  LEAD_ROLES,
   type Lead,
+  type LeadRole,
   type LeadOrganizerHit,
+  type LeadDirectoryHit,
   type LiveStaff,
+  type LiveStaffMe,
 } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import { Kpi, Drawer, LiveLocationPicker } from '../components/ui';
 
 const TITLE = 'Leads';
+const ROLE_LABEL: Record<LeadRole, string> = { organizer: 'Organizer', venue: 'Venue', promoter: 'Promoter', lineup: 'Line-up' };
+const ROLE_EMOJI: Record<LeadRole, string> = { organizer: '🎤', venue: '🏛', promoter: '📣', lineup: '🎧' };
 
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -28,31 +35,51 @@ function fmtDate(iso: string) {
 function isOverdue(lead: Lead) {
   return Boolean(lead.followUpAt) && new Date(lead.followUpAt as string).getTime() < Date.now() && !['Signed up', 'Declined'].includes(lead.stage);
 }
+/** Whichever of organizer/venue/promoter/lineup is actually linked — at
+ * most one is ever set, matching `lead.role`. */
+function linkedLabel(lead: Lead): string | null {
+  if (lead.organizer) return `${lead.organizer.brandName} (@${lead.organizer.username})`;
+  if (lead.venue) return lead.venue.name;
+  if (lead.promoter) return `${lead.promoter.name} (@${lead.promoter.slug})`;
+  if (lead.lineup) return `${lead.lineup.name} (@${lead.lineup.slug})`;
+  return null;
+}
+type DirHit = LeadOrganizerHit | LeadDirectoryHit | (LeadDirectoryHit & { slug: string });
+function hitLabel(h: DirHit) {
+  return 'brandName' in h ? h.brandName : h.name;
+}
+function hitSub(h: DirHit) {
+  const handle = 'username' in h ? h.username : 'slug' in h ? h.slug : null;
+  return [handle ? `@${handle}` : null, h.city].filter(Boolean).join(' · ');
+}
 
 const emptyForm = {
-  name: '', source: LEAD_SOURCES[0] as string, contact: '', email: '', contactPerson: '',
+  name: '', role: 'organizer' as LeadRole, source: LEAD_SOURCES[0] as string, contact: '', email: '', contactPerson: '',
   country: '', state: '', city: '', eventType: '', assignedToId: '', followUpAt: '',
 };
 
-/** Organizer sales pipeline across every outreach channel (see
- * liveLeads/LeadsService) — a Kanban board so the day-to-day view is "what
- * needs to move next," with a side drawer for the full record: editable
- * fields, a dated activity timeline (not one flat notes box), and a manual
- * link to the real Organizer once they actually sign up. */
+/** Sales pipeline across every outreach channel — organizer, venue,
+ * promoter and line-up leads all share this one Kanban (see liveLeads/
+ * LeadsService), distinguished by `role`. A Sales-scoped staffer only ever
+ * sees/works the role(s) they're assigned (enforced server-side — see
+ * StaffRoles.tsx's lead-scope picker); this page just renders whatever
+ * `list()` returns and narrows its own "add lead" role options to match. */
 export default function Leads() {
   const session = useLiveSession();
   const { token } = session;
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [staff, setStaff] = useState<LiveStaff[]>([]);
+  const [me, setMe] = useState<LiveStaffMe | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
+  const [roleFilter, setRoleFilter] = useState<'all' | LeadRole>('all');
   const [drawer, setDrawer] = useState<'create' | string | null>(null); // 'create' or a lead id
   const [form, setForm] = useState(emptyForm);
   const [activityText, setActivityText] = useState('');
-  const [orgQuery, setOrgQuery] = useState('');
-  const [orgHits, setOrgHits] = useState<LeadOrganizerHit[]>([]);
+  const [dirQuery, setDirQuery] = useState('');
+  const [dirHits, setDirHits] = useState<DirHit[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [sendBusy, setSendBusy] = useState<'email' | 'whatsapp' | null>(null);
   const [sendMsg, setSendMsg] = useState('');
@@ -60,10 +87,11 @@ export default function Leads() {
   const load = () => {
     setLoading(true);
     setErr('');
-    Promise.all([liveLeads.list(), liveStaff.list()])
-      .then(([l, s]) => {
+    Promise.all([liveLeads.list(), liveStaff.list(), liveMe.get()])
+      .then(([l, s, m]) => {
         setLeads(l);
         setStaff(s);
+        setMe(m);
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
@@ -77,15 +105,17 @@ export default function Leads() {
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
 
+  const allowedRoles: LeadRole[] = me && me.leadRoleScope.length ? (me.leadRoleScope.filter((r) => LEAD_ROLES.includes(r as LeadRole)) as LeadRole[]) : LEAD_ROLES;
   const selected = typeof drawer === 'string' ? leads.find((l) => l.id === drawer) : null;
 
   const openCreate = () => {
-    setForm(emptyForm);
+    setForm({ ...emptyForm, role: allowedRoles[0] ?? 'organizer' });
     setDrawer('create');
   };
   const openLead = (lead: Lead) => {
     setForm({
       name: lead.name,
+      role: lead.role,
       source: lead.source,
       contact: lead.contact ?? '',
       email: lead.email ?? '',
@@ -98,8 +128,8 @@ export default function Leads() {
       followUpAt: lead.followUpAt ? lead.followUpAt.slice(0, 10) : '',
     });
     setActivityText('');
-    setOrgQuery('');
-    setOrgHits([]);
+    setDirQuery('');
+    setDirHits([]);
     setSendMsg('');
     setDrawer(lead.id);
   };
@@ -111,6 +141,7 @@ export default function Leads() {
     try {
       await liveLeads.create({
         name: form.name,
+        role: form.role,
         source: form.source,
         contact: form.contact || undefined,
         email: form.email || undefined,
@@ -186,10 +217,15 @@ export default function Leads() {
     }
   };
 
-  const runOrgSearch = (q: string) => {
-    setOrgQuery(q);
-    if (!q.trim()) return setOrgHits([]);
-    liveLeads.searchOrganizers(q).then(setOrgHits).catch(() => setOrgHits([]));
+  const runDirSearch = (q: string) => {
+    setDirQuery(q);
+    if (!q.trim() || !selected) return setDirHits([]);
+    const fn =
+      selected.role === 'organizer' ? liveLeads.searchOrganizers
+      : selected.role === 'venue' ? liveLeads.searchVenues
+      : selected.role === 'promoter' ? liveLeads.searchPromoters
+      : liveLeads.searchLineups;
+    fn(q).then(setDirHits).catch(() => setDirHits([]));
   };
 
   const sendOnboarding = async (channel: 'email' | 'whatsapp') => {
@@ -208,24 +244,31 @@ export default function Leads() {
     }
   };
 
-  const linkOrganizer = async (organizerId: string) => {
+  const linkHit = async (hitId: string) => {
     if (!selected) return;
     try {
-      await liveLeads.linkOrganizer(selected.id, organizerId);
-      setOrgQuery('');
-      setOrgHits([]);
+      const fn =
+        selected.role === 'organizer' ? liveLeads.linkOrganizer
+        : selected.role === 'venue' ? liveLeads.linkVenue
+        : selected.role === 'promoter' ? liveLeads.linkPromoter
+        : liveLeads.linkLineup;
+      await fn(selected.id, hitId);
+      setDirQuery('');
+      setDirHits([]);
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to link');
     }
   };
 
-  const total = leads.length;
-  const signedUp = leads.filter((l) => l.stage === 'Signed up').length;
-  const declined = leads.filter((l) => l.stage === 'Declined').length;
+  const visibleLeads = roleFilter === 'all' ? leads : leads.filter((l) => l.role === roleFilter);
+
+  const total = visibleLeads.length;
+  const signedUp = visibleLeads.filter((l) => l.stage === 'Signed up').length;
+  const declined = visibleLeads.filter((l) => l.stage === 'Declined').length;
   const active = total - signedUp - declined;
-  const responded = leads.filter((l) => l.stage !== 'New').length;
-  const overdueCount = leads.filter(isOverdue).length;
+  const responded = visibleLeads.filter((l) => l.stage !== 'New').length;
+  const overdueCount = visibleLeads.filter(isOverdue).length;
 
   const staffName = (id: string | null) => staff.find((s) => s.id === id)?.name ?? '';
 
@@ -240,6 +283,19 @@ export default function Leads() {
         <button className="btn btn-pri" onClick={openCreate}>+ Add lead</button>
       </div>
 
+      {allowedRoles.length > 1 && (
+        <div className="tabs">
+          <button className={roleFilter === 'all' ? 'on' : ''} onClick={() => setRoleFilter('all')}>
+            All ({leads.length})
+          </button>
+          {allowedRoles.map((r) => (
+            <button key={r} className={roleFilter === r ? 'on' : ''} onClick={() => setRoleFilter(r)}>
+              {ROLE_EMOJI[r]} {ROLE_LABEL[r]} ({leads.filter((l) => l.role === r).length})
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="kpi-grid">
         <Kpi label="Total leads" value={total} />
         <Kpi label="In progress" value={active} />
@@ -250,7 +306,7 @@ export default function Leads() {
 
       <div className="kanban">
         {LEAD_STAGES.map((stage) => {
-          const col = leads.filter((l) => l.stage === stage);
+          const col = visibleLeads.filter((l) => l.stage === stage);
           return (
             <div
               key={stage}
@@ -283,6 +339,7 @@ export default function Leads() {
                   >
                     <div style={{ fontSize: 12.5, fontWeight: 700 }}>{lead.name}</div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '5px 0' }}>
+                      {roleFilter === 'all' && <span className="tag tag-dim">{ROLE_EMOJI[lead.role]} {ROLE_LABEL[lead.role]}</span>}
                       <span className="tag">{lead.source}</span>
                       {lead.city && <span className="tag tag-dim">{lead.city}</span>}
                     </div>
@@ -311,6 +368,17 @@ export default function Leads() {
             <h2 style={{ font: '700 16px "Space Grotesk", sans-serif' }}>{drawer === 'create' ? 'Add lead' : 'Lead'}</h2>
             <button className="btn btn-ghost btn-sm" onClick={close}>✕</button>
           </div>
+
+          {drawer === 'create' ? (
+            <div className="field">
+              <label>Lead type</label>
+              <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as LeadRole })}>
+                {allowedRoles.map((r) => <option key={r} value={r}>{ROLE_EMOJI[r]} {ROLE_LABEL[r]}</option>)}
+              </select>
+            </div>
+          ) : (
+            selected && <div className="tag tag-dim" style={{ width: 'fit-content' }}>{ROLE_EMOJI[selected.role]} {ROLE_LABEL[selected.role]} lead</div>
+          )}
 
           <div className="field">
             <label>Name</label>
@@ -397,21 +465,21 @@ export default function Leads() {
 
                 <hr />
 
-                {selected.organizer ? (
+                {linkedLabel(selected) ? (
                   <div className="dashed-box">
-                    ✓ Linked to organizer <b>{selected.organizer.brandName}</b> (@{selected.organizer.username})
+                    ✓ Linked to {ROLE_LABEL[selected.role].toLowerCase()} <b>{linkedLabel(selected)}</b>
                   </div>
                 ) : (
                   <div className="field">
-                    <label>Link to organizer (once they've signed up)</label>
-                    <input className="input" placeholder="Search by brand or username…" value={orgQuery} onChange={(e) => runOrgSearch(e.target.value)} />
-                    {orgHits.length > 0 && (
+                    <label>Link to {ROLE_LABEL[selected.role].toLowerCase()} (once they've signed up)</label>
+                    <input className="input" placeholder="Search by name or handle…" value={dirQuery} onChange={(e) => runDirSearch(e.target.value)} />
+                    {dirHits.length > 0 && (
                       <div className="card" style={{ padding: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {orgHits.map((o) => (
+                        {dirHits.map((h) => (
                           <button
-                            key={o.id}
+                            key={h.id}
                             type="button"
-                            onClick={() => linkOrganizer(o.id)}
+                            onClick={() => linkHit(h.id)}
                             style={{
                               display: 'flex', justifyContent: 'space-between', gap: 8, textAlign: 'left',
                               background: 'none', border: 'none', padding: '6px 8px', borderRadius: 6, cursor: 'pointer', color: 'var(--text)', fontSize: 12.5,
@@ -419,8 +487,8 @@ export default function Leads() {
                             onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(139,195,74,.1)')}
                             onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                           >
-                            <span>{o.brandName}</span>
-                            <span className="tiny muted">@{o.username} · {o.city}</span>
+                            <span>{hitLabel(h)}</span>
+                            <span className="tiny muted">{hitSub(h)}</span>
                           </button>
                         ))}
                       </div>

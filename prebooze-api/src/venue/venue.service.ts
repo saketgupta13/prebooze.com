@@ -7,6 +7,7 @@ import { NotificationsService } from '../admin/notifications.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
+import { money } from '../notifications/email-templates';
 
 interface OnboardInput {
   name?: string;
@@ -484,6 +485,32 @@ export class VenueService {
       this.prisma.venueLedgerTx.aggregate({ where: { venueId: venue.id }, _sum: { amount: true } }),
     ]);
     return { balance: agg._sum.amount ?? 0, transactions };
+  }
+
+  /** Self-service withdraw off the hosting ledger — same shape as
+   * OrganizerService.withdraw: a debit ledger row, settled manually by our
+   * team from here (no real transfer rail), owner notified on their bank
+   * account on file. */
+  async withdraw(userId: string, amount: number) {
+    const venue = await this.myVenue(userId);
+    this.requireHostingEnabled(venue);
+    if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Enter a valid amount');
+    const agg = await this.prisma.venueLedgerTx.aggregate({ where: { venueId: venue.id }, _sum: { amount: true } });
+    const balance = agg._sum.amount ?? 0;
+    if (amount > balance) throw new BadRequestException('More than your available balance');
+
+    await this.prisma.venueLedgerTx.create({
+      data: { venueId: venue.id, type: 'withdrawal', amount: -amount, note: 'Withdrawal to bank' },
+    });
+
+    const user = venue.userId ? await this.prisma.user.findUnique({ where: { id: venue.userId } }) : null;
+    if (user) {
+      if (user.phone) await this.wa.send(user.phone, 'organizer_payout', [String(amount)]).catch(() => {});
+      if (user.email) await this.email.sendTemplate(user.email, 'payout_processed', {
+        name: user.name, amount: money(amount), role: 'venue',
+      }).catch(() => {});
+    }
+    return { ok: true };
   }
 
   /** Real, verified organizers a venue can pick as a collaborator — same

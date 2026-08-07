@@ -287,6 +287,8 @@ model Venue {
   accountHolderName String?
   ifsc              String?
 
+  lead Lead?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -433,6 +435,11 @@ model Organizer {
 model Lead {
   id            String    @id @default(cuid())
   name          String
+  // Which sales pipeline this lead belongs to — decides which directory
+  // search/link endpoint and onboarding link applies (see LeadsService).
+  // Defaults to 'organizer' so every pre-existing row (created before this
+  // field existed) keeps behaving exactly as it did.
+  role          String    @default("organizer") // organizer | venue | promoter | lineup
   source        String // 'Instagram' | 'WhatsApp' | 'Phone call' | 'Referral / walk-in' | 'Website inquiry' | 'Other social' | 'Other'
   contact       String?
   email         String?
@@ -449,6 +456,17 @@ model Lead {
   assignedTo   Staff?     @relation(fields: [assignedToId], references: [id])
   organizerId  String?    @unique
   organizer    Organizer? @relation(fields: [organizerId], references: [id])
+  // One of venueId/promoterId/lineupId is set once a non-organizer lead
+  // actually signs up — same manual staff-picked-match reasoning as
+  // organizerId above, just one column per pipeline rather than a
+  // polymorphic refId, to keep real FK integrity and Prisma relation
+  // includes exactly like the existing organizer link already has.
+  venueId      String?    @unique
+  venue        Venue?     @relation(fields: [venueId], references: [id])
+  promoterId   String?    @unique
+  promoter     Promoter?  @relation(fields: [promoterId], references: [id])
+  lineupId     String?    @unique
+  lineup       Lineup?    @relation(fields: [lineupId], references: [id])
 
   activities LeadActivity[]
 
@@ -519,6 +537,8 @@ model Promoter {
   accountHolderName String?
   ifsc              String?
 
+  lead Lead?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -547,6 +567,8 @@ model Lineup {
   // KycService.approve. Seeded demo lineups have no owning user, hence optional.
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id])
+
+  lead Lead?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -620,16 +642,16 @@ model VenueType {
 }
 
 model Event {
-  id               String           @id
-  slug             String           @unique
-  title            String
-  description      String
-  category         String
-  subCategory      String?
-  ageLimit         String
-  tags             String[]         @default([])
-  date             DateTime
-  durationHrs      Float
+  id                  String                    @id
+  slug                String                    @unique
+  title               String
+  description         String
+  category            String
+  subCategory         String?
+  ageLimit            String
+  tags                String[]                  @default([])
+  date                DateTime
+  durationHrs         Float
   // Optional — an organizer running a secret/guest-list-only event can skip
   // registering a real Venue partner entirely and instead set privateCity/
   // privateLocality below. Guests then only ever see "{locality}, {city}",
@@ -637,44 +659,44 @@ model Event {
   // responsible for telling booked guests the real address themselves
   // (see Attendees.tsx export). Exactly one of venueId or
   // privateCity+privateLocality is set — enforced in OrganizerService.saveEvent.
-  venueId          String?
-  venue            Venue?           @relation(fields: [venueId], references: [id])
-  privateCity      String?
-  privateLocality  String?
+  venueId             String?
+  venue               Venue?                    @relation(fields: [venueId], references: [id])
+  privateCity         String?
+  privateLocality     String?
   // Nullable as of the venue-hosting feature — every event before that had
   // exactly one required organizer, and that's still true whenever
   // hostedByVenue is false (the overwhelming majority of events, unchanged
   // forever). Null only when a venue is hosting solo; set even when
   // hostedByVenue is true if the venue picked a collaborating organizer.
-  organizerId      String?
-  organizer        Organizer?       @relation(fields: [organizerId], references: [id])
+  organizerId         String?
+  organizer           Organizer?                @relation(fields: [organizerId], references: [id])
   // true = venueId is the actual host/owner of this event (via
   // VenueService), not just a location an organizer booked. Determines
   // which ledger gets credited and who the public "hosted by" line
   // credits. @default(false) — every existing event stays exactly as it
   // is; this is opt-in and additive only.
-  hostedByVenue    Boolean          @default(false)
-  status           EventStatus      @default(pending)
-  rejectionReason  String?
-  conditions       String[]         @default([])
-  rules            Json             @default("[]") // PartyRule[] — {title, body}[]
-  lineup           Json             @default("[]") // LineupItem[] — {name, role}[]
-  posterHue        Int
-  seo              Json? // {title, description, slug, keywords}
-  promoterConfig   Json? // PromoterConfig — see prebooze-web/src/types.ts
+  hostedByVenue       Boolean                   @default(false)
+  status              EventStatus               @default(pending)
+  rejectionReason     String?
+  conditions          String[]                  @default([])
+  rules               Json                      @default("[]") // PartyRule[] — {title, body}[]
+  lineup              Json                      @default("[]") // LineupItem[] — {name, role}[]
+  posterHue           Int
+  seo                 Json? // {title, description, slug, keywords}
+  promoterConfig      Json? // PromoterConfig — see prebooze-web/src/types.ts
   // Real media, all optional — a guest-facing gallery + teaser reel, and
   // shareable promo images sized for Instagram (post 1:1 / story 9:16).
   // Real, persisted file URLs (admin/media/upload), same as posterUrl.
-  galleryUrls      String[]         @default([])
-  teaserVideoUrl   String?
-  socialBanners    Json? // {postUrl?, storyUrl?} — real uploaded image URLs
-  tiers            TicketTier[]
-  bookings         Booking[]
-  waitlistEntries  WaitlistEntry[]
-  carts            Cart[]
-  promoterGuests   PromoterGuest[]
-  guestListEntries GuestListEntry[]
-  checkInLogs      CheckInLog[]
+  galleryUrls         String[]                  @default([])
+  teaserVideoUrl      String?
+  socialBanners       Json? // {postUrl?, storyUrl?} — real uploaded image URLs
+  tiers               TicketTier[]
+  bookings            Booking[]
+  waitlistEntries     WaitlistEntry[]
+  carts               Cart[]
+  promoterGuests      PromoterGuest[]
+  guestListEntries    GuestListEntry[]
+  checkInLogs         CheckInLog[]
   promoterSettlements PromoterEventSettlement[]
   teamSettlements     PromoterTeamSettlement[]
 
@@ -971,7 +993,7 @@ model Featured {
   // the pending-admin-approval queue the one-time flow above does. Null for
   // every legacy one-time placement and every per-event placement.
   featuredSubscriptionId String?
-  featuredSubscription    FeaturedSubscription? @relation(fields: [featuredSubscriptionId], references: [id])
+  featuredSubscription   FeaturedSubscription? @relation(fields: [featuredSubscriptionId], references: [id])
 }
 
 /**
@@ -980,7 +1002,6 @@ model Featured {
  * organizer/promoter/venue/lineup paid plans — see RoleSubscription) behind
  * one auto-renewing Featured placement. Never used for `type: event` — a
  * one-off event has a fixed date, there's nothing to recur.
- *
  * The rate/GST are locked in at subscribe() time and reused for every
  * renewal, so a later change to the platform's Featured rates never
  * silently changes what an already-subscribed placement gets charged —
@@ -1047,7 +1068,7 @@ model Booking {
   mainGuest  String
   whatsapp   String
 
-  promoterRef      String? // promoter slug credited with this sale (affiliate commission)
+  promoterRef        String? // promoter slug credited with this sale (affiliate commission)
   // Locked in at booking creation using whatever % was negotiated for this
   // promoter on this event at that moment (Event.promoterConfig.revenueShare)
   // — computed once and stored, not recomputed live, so a later edit to the
@@ -1060,10 +1081,10 @@ model Booking {
   // uses for the free-entry side) — purely a tracking tag, doesn't change
   // promoterCommission or any pricing; it's what PromoterTeamMember payout
   // splits are computed against.
-  promoterVia      String?
-  walletCreditUsed Int           @default(0)
-  paymentId        String? // Razorpay payment id (or dev-stub id — see RazorpayService)
-  refundedTo       RefundMethod?
+  promoterVia        String?
+  walletCreditUsed   Int           @default(0)
+  paymentId          String? // Razorpay payment id (or dev-stub id — see RazorpayService)
+  refundedTo         RefundMethod?
 
   // Manual/admin booking creation slice — null means "the normal guest
   // checkout flow" (Razorpay/dev-stub, implied by paymentId). Set only for
@@ -1383,26 +1404,26 @@ model PromoterGuest {
 }
 
 model PromoterTeamMember {
-  id         String   @id @default(cuid())
-  promoterId String
-  promoter   Promoter @relation(fields: [promoterId], references: [id])
-  handle     String
-  name       String
-  hue        Int
+  id                String   @id @default(cuid())
+  promoterId        String
+  promoter          Promoter @relation(fields: [promoterId], references: [id])
+  handle            String
+  name              String
+  hue               Int
   // % of this member's own tagged earnings (PromoterGuest.subPromoter /
   // Booking.promoterVia matching this handle) the lead intends to pay them
   // — one rate, not renegotiated per event, same "one rate" convention as
   // the lead's own revenueShare with organizers. 0 = not yet configured,
   // tracked/visible but nothing is computed as "owed" until set, same
   // blank-means-not-enabled convention used elsewhere in this schema.
-  payoutSplitPct Int @default(0)
+  payoutSplitPct    Int      @default(0)
   // Optional soft cap on this member's own free-entry signups per month —
   // a slice of the lead's own monthly quota, enforced in addition to (not
   // instead of) the lead's overall quota check. null = no separate cap,
   // this member can use up to the lead's full remaining quota like anyone
   // else on the team.
   monthlyQuotaShare Int?
-  createdAt  DateTime @default(now())
+  createdAt         DateTime @default(now())
 
   settlements PromoterTeamSettlement[]
 
@@ -1451,15 +1472,15 @@ model PromoterEventSettlement {
  * themselves (see PromoterTeamMember — link-only, no userId).
  */
 model PromoterTeamSettlement {
-  id           String    @id @default(cuid())
+  id           String             @id @default(cuid())
   teamMemberId String
   teamMember   PromoterTeamMember @relation(fields: [teamMemberId], references: [id])
   eventId      String
-  event        Event     @relation(fields: [eventId], references: [id])
-  status       String    @default("pending") // pending | paid
+  event        Event              @relation(fields: [eventId], references: [id])
+  status       String             @default("pending") // pending | paid
   paidAt       DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@unique([teamMemberId, eventId])
 }
@@ -1550,16 +1571,23 @@ model StaffRole {
 }
 
 model Staff {
-  id           String    @id @default(cuid())
-  name         String
-  email        String    @unique
-  passwordHash String // scrypt salt:hash, see src/admin/password.util.ts — no new dependency for this
-  roleName     String
-  role         StaffRole @relation(fields: [roleName], references: [name])
-  city         String?
-  phone        String? // WhatsApp number for staff alerts (refund requests, KYC submissions, payout failures) — see Settings.whatsappAlerts
-  lastActiveAt DateTime?
-  leads        Lead[]
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String // scrypt salt:hash, see src/admin/password.util.ts — no new dependency for this
+  roleName      String
+  role          StaffRole @relation(fields: [roleName], references: [name])
+  city          String?
+  phone         String? // WhatsApp number for staff alerts (refund requests, KYC submissions, payout failures) — see Settings.whatsappAlerts
+  lastActiveAt  DateTime?
+  leads         Lead[]
+  // Which Lead pipelines this person can see/work — 'organizer' | 'venue' |
+  // 'promoter' | 'lineup', any combination. Empty (the default) means
+  // unrestricted — every existing staff row keeps seeing every lead exactly
+  // as before this field existed. A non-empty scope is how a salesperson
+  // gets assigned to work only e.g. Venue leads, enforced server-side in
+  // LeadsService, not just hidden in the UI.
+  leadRoleScope String[]  @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -239,12 +239,12 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
   },
   {
     id: 'lead_onboarding_invite', name: 'Lead onboarding invite', category: 'Roles',
-    trigger: 'Staff sends the organizer onboarding link to a sales lead (LeadsService.sendOnboardingLink)',
+    trigger: 'Staff sends the role-appropriate onboarding link to a sales lead — organizer, venue, promoter, or line-up (LeadsService.sendOnboardingLink)',
     preheader: 'Get listed on Prebooze',
     defaultSubject: "You're invited to list on Prebooze 🎉",
-    defaultBody: `<p>Hey {{name}},</p><p>We'd love to have <b>{{brand}}</b> hosting on Prebooze — WhatsApp tickets, QR entry at the door, and commission on your terms. Setting up takes a few minutes.</p>`,
-    cta: { label: 'Get started →', urlTemplate: '{{webUrl}}/organizer/onboarding' },
-    tokens: ['name', 'brand'],
+    defaultBody: `<p>Hey {{name}},</p><p>We'd love to have <b>{{brand}}</b> on Prebooze — WhatsApp tickets, QR entry at the door, and commission on your terms. Setting up takes a few minutes.</p>`,
+    cta: { label: 'Get started →', urlTemplate: '{{webUrl}}{{onboardingPath}}' },
+    tokens: ['name', 'brand', 'onboardingPath'],
   },
   {
     id: 'payout_processed', name: 'Payout processed', category: 'Roles',

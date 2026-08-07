@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { fmtMoney } from '../../data/mock';
 import Loader from '../../components/Loader';
 import { venuePartner, type VenueLedgerTx } from '../../api';
@@ -6,12 +7,12 @@ import { ApiError } from '../../api/client';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-/** Read-only ledger for this venue's own hosted events — GET
- * /venue/hosting/ledger (VenueService.myLedger). Only ever has rows for
- * events with hostedByVenue true; a normal organizer-booked event at this
- * venue never appears here, that revenue still credits the organizer's own
- * ledger untouched. No withdraw flow yet (unlike organizer/Withdraw.tsx) —
- * out of scope for this pass, tracked separately if the venue asks for it. */
+/** Ledger for this venue's own hosted events — GET /venue/hosting/ledger
+ * (VenueService.myLedger), with a real self-service withdraw (POST
+ * /venue/hosting/withdraw), same shape as organizer/Payouts.tsx+Withdraw.tsx.
+ * Only ever has rows for events with hostedByVenue true; a normal
+ * organizer-booked event at this venue never appears here, that revenue
+ * still credits the organizer's own ledger untouched. */
 export default function VenueLedger() {
   const [balance, setBalance] = useState(0);
   const [ledger, setLedger] = useState<VenueLedgerTx[]>([]);
@@ -44,6 +45,9 @@ export default function VenueLedger() {
         <div className="kpi" style={{ borderColor: 'rgba(155,225,61,.4)' }}>
           <div className="l">Balance from hosted events</div>
           <div className="v accent">{fmtMoney(balance)}</div>
+          <Link to="/venue/hosting/ledger/withdraw" className="btn btn-pri btn-sm" style={{ marginTop: 10 }}>
+            Withdraw now
+          </Link>
         </div>
       </div>
       <div className="tiny muted" style={{ marginBottom: 14 }}>

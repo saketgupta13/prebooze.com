@@ -60,6 +60,20 @@ export class StaffService {
     return rest;
   }
 
+  /** Restricts which Lead pipelines (organizer/venue/promoter/lineup) this
+   * person can see/work — see Staff.leadRoleScope. Enforced in
+   * LeadsService, not just used to drive the UI. Empty array = unrestricted,
+   * same semantics as an unset scope. */
+  async setLeadRoleScope(id: string, roles: string[]) {
+    const staff = await this.prisma.staff.findUnique({ where: { id } });
+    if (!staff) throw new NotFoundException('Staff not found');
+    const valid = ['organizer', 'venue', 'promoter', 'lineup'];
+    const clean = [...new Set(roles)].filter((r) => valid.includes(r));
+    const updated = await this.prisma.staff.update({ where: { id }, data: { leadRoleScope: clean } });
+    const { passwordHash: _passwordHash, ...rest } = updated;
+    return rest;
+  }
+
   async removeStaff(id: string) {
     const staff = await this.prisma.staff.findUnique({ where: { id } });
     if (!staff) throw new NotFoundException('Staff not found');

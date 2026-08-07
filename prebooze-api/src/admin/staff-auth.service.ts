@@ -110,6 +110,10 @@ export class StaffAuthService {
       permissions: resolvePermissions(staff.role),
       city: staff.city ?? undefined,
       lastActiveAt: staff.lastActiveAt ?? undefined,
+      // Owner is always unrestricted regardless of the stored value, same
+      // "Owner always passes" reasoning as PermissionGuard — lets the
+      // frontend show every lead-role option without a special case.
+      leadRoleScope: staff.roleName === 'Owner' ? [] : staff.leadRoleScope,
     };
   }
 }
