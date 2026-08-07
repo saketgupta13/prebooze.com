@@ -40,13 +40,18 @@ export class AdminRolesController {
   }
 
   @Post()
-  add(@Body('name') name: string) {
-    return this.staff.addRole(name);
+  add(@Body() body: { name: string; defaultOpen?: boolean }) {
+    return this.staff.addRole(body.name, body.defaultOpen ?? false);
   }
 
   @Patch(':name')
   setPerm(@Param('name') name: string, @Body() body: { module: string; key: 'view' | 'edit' | 'approve'; value: boolean }) {
     return this.staff.setRolePerm(name, body.module, body.key, body.value);
+  }
+
+  @Patch(':name/default-open')
+  setDefaultOpen(@Param('name') name: string, @Body('value') value: boolean) {
+    return this.staff.setRoleDefaultOpen(name, value);
   }
 
   @Delete(':name')

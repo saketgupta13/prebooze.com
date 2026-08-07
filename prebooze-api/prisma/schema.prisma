@@ -1407,6 +1407,17 @@ model JobApplication {
 model StaffRole {
   name        String  @id // "Owner", "Manager", "Finance", "Content", "Scanner only", ...
   permissions Json // { [moduleName]: { view: bool, edit: bool, approve: bool } } — see PERM_MODULES in BACKEND.md
+  // Whenever a new admin feature ships, it's a new PERM_MODULES entry that
+  // no *existing* role row has a key for yet — `permissions` only ever has
+  // whatever was explicit at creation/last-edit time. defaultOpen decides
+  // what a *missing* module resolves to for this role (see
+  // resolvePermissions in permissions.util.ts): true for "broad" roles
+  // (Owner, Manager) that are meant to get new features automatically —
+  // matching how they were originally seeded, spreading every module on by
+  // default — false (the default) for narrow, hand-picked roles (Finance,
+  // Content, Support, Scanner, Sales) where a new module should stay
+  // invisible until an Owner deliberately opts them in.
+  defaultOpen Boolean @default(false)
   staff       Staff[]
 
   createdAt DateTime @default(now())

@@ -2,33 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma.service';
 import { hashPassword, randomTempPassword } from './password.util';
 import { EmailService } from '../notifications/email';
-
-// Mirrors prebooze-admin's src/store/data.ts PERM_MODULES exactly.
-const PERM_MODULES = [
-  'Dashboard',
-  'Events & approvals',
-  'Event commission (per event)',
-  'Bookings',
-  'Refunds',
-  'Payments & payouts',
-  'Customers',
-  'Organizers',
-  'Promoters',
-  'Lineups',
-  'Venues',
-  'Verifications (KYC)',
-  'Reviews',
-  'Locations',
-  'Abandoned carts',
-  'Featured',
-  'Content',
-  'Careers',
-  'Reels',
-  'Promo codes',
-  'Gate check-in',
-  'Reports',
-  'Leads',
-];
+import { PERM_MODULES, resolvePermissions } from './permissions.util';
 
 @Injectable()
 export class StaffService {
@@ -98,16 +72,21 @@ export class StaffService {
   }
 
   // ---------- roles ----------
+  /** Returns each role's fully-resolved permission matrix (every current
+   * PERM_MODULES entry present, defaultOpen fallback applied) — not the
+   * raw stored JSON — so the role editor's checkboxes always show what a
+   * member of that role can actually do right now, including modules
+   * added after this role's row was last saved. */
   async listRoles() {
     const rows = await this.prisma.staffRole.findMany();
-    return Object.fromEntries(rows.map((r) => [r.name, r.permissions]));
+    return Object.fromEntries(rows.map((r) => [r.name, { permissions: resolvePermissions(r), defaultOpen: r.defaultOpen }]));
   }
 
-  async addRole(name: string) {
+  async addRole(name: string, defaultOpen = false) {
     if (!name?.trim()) throw new BadRequestException('name is required');
     if (await this.prisma.staffRole.findUnique({ where: { name } })) throw new BadRequestException(`Role "${name}" already exists`);
     const permissions = Object.fromEntries(PERM_MODULES.map((m) => [m, { view: true, edit: false, approve: false }]));
-    return this.prisma.staffRole.create({ data: { name, permissions } });
+    return this.prisma.staffRole.create({ data: { name, permissions, defaultOpen } });
   }
 
   async setRolePerm(name: string, module: string, key: 'view' | 'edit' | 'approve', value: boolean) {
@@ -116,6 +95,18 @@ export class StaffService {
     const permissions = role.permissions as Record<string, { view: boolean; edit: boolean; approve: boolean }>;
     permissions[module] = { ...(permissions[module] ?? { view: false, edit: false, approve: false }), [key]: value };
     return this.prisma.staffRole.update({ where: { name }, data: { permissions } });
+  }
+
+  /** Whether this role should automatically get access to admin features
+   * added *after* it was created — see StaffRole.defaultOpen in
+   * schema.prisma. Owner can flip this for any role at any time, including
+   * ones they create going forward, instead of a module silently missing
+   * from every existing role until someone remembers to backfill it. */
+  async setRoleDefaultOpen(name: string, defaultOpen: boolean) {
+    if (name === 'Owner') throw new BadRequestException('Owner always has full access — nothing to change');
+    const role = await this.prisma.staffRole.findUnique({ where: { name } });
+    if (!role) throw new NotFoundException('Role not found');
+    return this.prisma.staffRole.update({ where: { name }, data: { defaultOpen } });
   }
 
   async removeRole(name: string) {

@@ -668,11 +668,21 @@ export const liveStaff = {
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/staff/${id}`, { method: 'DELETE' }),
 };
 
+export interface LiveRole {
+  permissions: Perms;
+  // Whether this role automatically gets access to admin features added
+  // *after* it was created (Owner/Manager-style "broad" role) instead of a
+  // new module silently staying invisible until someone remembers to
+  // backfill every existing role — see StaffRole.defaultOpen.
+  defaultOpen: boolean;
+}
 export const liveRoles = {
-  list: () => liveFetch<Record<string, Perms>>('/admin/roles'),
-  add: (name: string) => liveFetch<unknown>('/admin/roles', { body: { name } }),
+  list: () => liveFetch<Record<string, LiveRole>>('/admin/roles'),
+  add: (name: string, defaultOpen?: boolean) => liveFetch<unknown>('/admin/roles', { body: { name, defaultOpen } }),
   setPerm: (name: string, module: string, key: PermKey, value: boolean) =>
     liveFetch<unknown>(`/admin/roles/${encodeURIComponent(name)}`, { method: 'PATCH', body: { module, key, value } }),
+  setDefaultOpen: (name: string, value: boolean) =>
+    liveFetch<unknown>(`/admin/roles/${encodeURIComponent(name)}/default-open`, { method: 'PATCH', body: { value } }),
   remove: (name: string) => liveFetch<{ ok: true }>(`/admin/roles/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 };
 

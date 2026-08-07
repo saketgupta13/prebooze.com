@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma.service';
 import { REDIS } from '../redis.provider';
 import { EmailService } from '../notifications/email';
 import { hashPassword, verifyPassword } from './password.util';
+import { resolvePermissions } from './permissions.util';
 
 type StaffWithRole = Staff & { role: StaffRole };
 const TWOFA_TTL_S = 300; // 5 minutes, same window as guest OTP
@@ -102,7 +103,11 @@ export class StaffAuthService {
       name: staff.name,
       email: staff.email,
       roleName: staff.roleName,
-      permissions: staff.role.permissions,
+      // Fully resolved (every current module present, defaultOpen fallback
+      // applied) — not the raw stored JSON — so the frontend nav always
+      // reflects what this staffer can actually do, even for a module
+      // added after their role's row was last saved.
+      permissions: resolvePermissions(staff.role),
       city: staff.city ?? undefined,
       lastActiveAt: staff.lastActiveAt ?? undefined,
     };

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Tag } from '../components/ui';
-import { liveStaff, liveRoles, PERM_MODULES, LiveApiError, type LiveStaff, type Perms, type PermKey } from '../lib/liveApi';
+import { liveStaff, liveRoles, PERM_MODULES, LiveApiError, type LiveStaff, type LiveRole, type PermKey } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
@@ -15,7 +15,7 @@ export default function StaffRoles() {
   const { token } = session;
 
   const [staff, setStaff] = useState<LiveStaff[]>([]);
-  const [roles, setRoles] = useState<Record<string, Perms>>({});
+  const [roles, setRoles] = useState<Record<string, LiveRole>>({});
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [lastTempPassword, setLastTempPassword] = useState<{ email: string; password: string } | null>(null);
@@ -27,6 +27,7 @@ export default function StaffRoles() {
   const [selectedRole, setSelectedRole] = useState('Finance');
   const [showAddRole, setShowAddRole] = useState(false);
   const [newRole, setNewRole] = useState('');
+  const [newRoleDefaultOpen, setNewRoleDefaultOpen] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -49,7 +50,7 @@ export default function StaffRoles() {
   if (gate) return gate;
 
   const roleNames = Object.keys(roles);
-  const matrix = roles[selectedRole] ?? {};
+  const matrix = roles[selectedRole]?.permissions ?? {};
   const isOwnerRole = selectedRole === 'Owner';
 
   const addStaff = async (e: React.FormEvent) => {
@@ -99,9 +100,10 @@ export default function StaffRoles() {
       return;
     }
     try {
-      await liveRoles.add(name);
+      await liveRoles.add(name, newRoleDefaultOpen);
       setSelectedRole(name);
       setNewRole('');
+      setNewRoleDefaultOpen(false);
       setShowAddRole(false);
       load();
     } catch (e2) {
@@ -115,6 +117,15 @@ export default function StaffRoles() {
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to update permission');
+    }
+  };
+
+  const setDefaultOpen = async (roleName: string, value: boolean) => {
+    try {
+      await liveRoles.setDefaultOpen(roleName, value);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to update');
     }
   };
 
@@ -233,18 +244,29 @@ export default function StaffRoles() {
       {showAddRole && (
         <form
           className="card"
-          style={{ border: '1px solid var(--green)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: 12 }}
+          style={{ border: '1px solid var(--green)', display: 'flex', flexDirection: 'column', gap: 8, padding: 12 }}
           onSubmit={addRole}
         >
-          <input
-            className="input"
-            style={{ flex: 1, minWidth: 160 }}
-            value={newRole}
-            onChange={(e) => setNewRole(e.target.value)}
-            placeholder="Role name (e.g. Marketing)"
-            autoFocus
-          />
-          <button type="submit" className="btn btn-pri btn-sm">Create role</button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              className="input"
+              style={{ flex: 1, minWidth: 160 }}
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+              placeholder="Role name (e.g. Marketing)"
+              autoFocus
+            />
+            <button type="submit" className="btn btn-pri btn-sm">Create role</button>
+          </div>
+          <label className="tiny muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={newRoleDefaultOpen}
+              onChange={(e) => setNewRoleDefaultOpen(e.target.checked)}
+              style={{ accentColor: 'var(--green)', width: 14, height: 14 }}
+            />
+            Automatically grant this role access to new admin features as they ship
+          </label>
         </form>
       )}
 
@@ -260,6 +282,17 @@ export default function StaffRoles() {
         <div className="display" style={{ fontWeight: 700, marginBottom: 6, fontSize: 13 }}>
           Role: {selectedRole} — permissions {isOwnerRole && <span className="tiny muted">(Owner always has full access)</span>}
         </div>
+        {!isOwnerRole && (
+          <label className="tiny muted" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <input
+              type="checkbox"
+              checked={roles[selectedRole]?.defaultOpen ?? false}
+              onChange={(e) => setDefaultOpen(selectedRole, e.target.checked)}
+              style={{ accentColor: 'var(--green)', width: 14, height: 14 }}
+            />
+            Automatically grant new admin features to this role as they ship — otherwise a new module stays off until checked below
+          </label>
+        )}
         <div className="thead" style={{ padding: '6px 0' }}>
           <span style={{ flex: 2 }}>Module</span>
           {PERM_KEYS.map((k) => (

@@ -1,0 +1,1 @@
+ALTER TABLE "StaffRole" ADD COLUMN     "defaultOpen" BOOLEAN NOT NULL DEFAULT false;

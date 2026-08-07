@@ -3,12 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma.service';
 import { PERMISSION_KEY, PermissionLevel } from './permission.decorator';
 import type { StaffTokenPayload } from './staff-auth.guard';
-
-interface PermSet {
-  view: boolean;
-  edit: boolean;
-  approve: boolean;
-}
+import { resolvePermissions } from './permissions.util';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
@@ -30,8 +25,7 @@ export class PermissionGuard implements CanActivate {
     if (staff.roleName === 'Owner') return true;
 
     const role = await this.prisma.staffRole.findUnique({ where: { name: staff.roleName } });
-    const perms = (role?.permissions as Record<string, PermSet> | undefined) ?? {};
-    const set = perms[required.module];
+    const set = role ? resolvePermissions(role)[required.module] : undefined;
     if (!set?.[required.level]) {
       throw new ForbiddenException(`Your role doesn't have "${required.level}" on "${required.module}"`);
     }
