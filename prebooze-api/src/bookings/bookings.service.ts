@@ -10,7 +10,7 @@ import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { ticketPdfBuffer } from '../notifications/ticket-pdf';
 import { WalletService } from '../wallet/wallet.service';
-import { REFERRAL_REFERRER_REWARD, referralCodeFor } from '../referrals/referral.constants';
+import { REFERRAL_REFERRER_REWARD, uniqueReferralCodeFor } from '../referrals/referral.constants';
 import { NotificationsService } from '../admin/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { normalizePhone } from '../auth/auth.service';
@@ -411,7 +411,9 @@ export class BookingsService {
     const phone = normalizePhone(input.phone);
     const buyer =
       (await this.prisma.user.findUnique({ where: { phone } })) ??
-      (await this.prisma.user.create({ data: { phone, name: input.guestName.trim(), referralCode: referralCodeFor(phone) } }));
+      (await this.prisma.user.create({
+        data: { phone, name: input.guestName.trim(), referralCode: await uniqueReferralCodeFor(this.prisma, phone) },
+      }));
 
     const isComp = input.method.toLowerCase().includes('comp');
     const subtotal = isComp ? 0 : tier.price * input.qty;

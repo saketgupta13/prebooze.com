@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { normalizePhone } from '../auth/auth.service';
-import { referralCodeFor } from '../referrals/referral.constants';
+import { uniqueReferralCodeFor } from '../referrals/referral.constants';
 
 @Injectable()
 export class CustomersService {
@@ -110,7 +110,7 @@ export class CustomersService {
     };
     const user = existing
       ? await this.prisma.user.update({ where: { id: existing.id }, data })
-      : await this.prisma.user.create({ data: { phone, referralCode: referralCodeFor(phone), ...data } });
+      : await this.prisma.user.create({ data: { phone, referralCode: await uniqueReferralCodeFor(this.prisma, phone), ...data } });
     return user;
   }
 

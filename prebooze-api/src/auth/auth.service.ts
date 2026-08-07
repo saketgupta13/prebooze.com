@@ -7,7 +7,7 @@ import { PrismaService } from '../prisma.service';
 import { REDIS } from '../redis.provider';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
-import { referralCodeFor } from '../referrals/referral.constants';
+import { uniqueReferralCodeFor } from '../referrals/referral.constants';
 
 const OTP_TTL_S = 300; // 5 minutes
 const MAX_VERIFY_ATTEMPTS = 5;
@@ -158,7 +158,11 @@ export class AuthService {
     const user =
       existing ??
       (await this.prisma.user.create({
-        data: { phone: rec.phone, referralCode: referralCodeFor(rec.phone), username: await this.uniqueUsername(rec.phone) },
+        data: {
+          phone: rec.phone,
+          referralCode: await uniqueReferralCodeFor(this.prisma, rec.phone),
+          username: await this.uniqueUsername(rec.phone),
+        },
       }));
 
     // Lazily link any organizer team invites sent to this phone before this
