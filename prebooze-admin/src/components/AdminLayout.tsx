@@ -157,12 +157,21 @@ export default function AdminLayout() {
   const visibleTo = useMemo(() => {
     const set = new Set<string>(['/profile']); // self-service, no backend permission gate
     if (staffMeta) {
-      for (const [to, module] of Object.entries(NAV_MODULE)) {
-        if (staffMeta.permissions[module]?.view) set.add(to);
+      if (staffMeta.roleName === 'Owner') {
+        // Matches PermissionGuard exactly: "Owner always passes" regardless
+        // of what's literally stored in its permissions JSON — checked by
+        // role name, never by trusting the matrix. Reading the matrix here
+        // like any other role would silently hide any module added *after*
+        // this Owner row was last saved (e.g. Leads), even though the
+        // backend would let Owner straight through — a real bug this
+        // special-case exists to avoid repeating.
+        for (const to of Object.keys(NAV_MODULE)) set.add(to);
+        set.add('/staff');
+      } else {
+        for (const [to, module] of Object.entries(NAV_MODULE)) {
+          if (staffMeta.permissions[module]?.view) set.add(to);
+        }
       }
-      // Staff & role management isn't part of the delegatable matrix at all
-      // (OwnerOnlyGuard) — hardcoded to the Owner role, not a permission cell.
-      if (staffMeta.roleName === 'Owner') set.add('/staff');
     }
     return set;
   }, [staffMeta]);
