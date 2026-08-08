@@ -129,6 +129,45 @@ function ReelCard({ reel }: { reel: { id: string; title: string; hue: number; vi
   );
 }
 
+// Loading placeholders shown while an async section's own fetch is still
+// in flight — same footprint as the real DirectoryCard/venue-ecard/
+// testimonial card, so nothing shifts once real data replaces them.
+function DirectoryCardSkeleton() {
+  return (
+    <div className="card skel-pulse" style={{ display: 'flex', flexDirection: 'column' }}>
+      <div className="skel-bar" style={{ width: 46, height: 46, borderRadius: '50%' }} />
+      <div className="skel-bar" style={{ width: '70%', height: 15, marginTop: 10 }} />
+      <div className="skel-bar" style={{ width: '45%', height: 11, marginTop: 8 }} />
+      <div className="skel-bar" style={{ width: '100%', height: 11, marginTop: 10 }} />
+      <div className="skel-bar" style={{ width: '80%', height: 11, marginTop: 6 }} />
+      <div className="skel-bar" style={{ width: '55%', height: 11, marginTop: 10 }} />
+      <div className="skel-bar" style={{ width: '100%', height: 32, marginTop: 14, borderRadius: 8 }} />
+    </div>
+  );
+}
+
+function VenueCardSkeleton() {
+  return (
+    <div className="skel-pulse" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="skel-bar poster landscape" style={{ background: 'var(--surface-2)' }} />
+      <div className="skel-bar" style={{ width: '65%', height: 15 }} />
+      <div className="skel-bar" style={{ width: '45%', height: 11 }} />
+    </div>
+  );
+}
+
+function TestimonialSkeleton() {
+  return (
+    <div className="card skel-pulse" style={{ display: 'flex', flexDirection: 'column' }}>
+      <div className="skel-bar" style={{ width: 88, height: 14 }} />
+      <div className="skel-bar" style={{ width: '100%', height: 12, marginTop: 12 }} />
+      <div className="skel-bar" style={{ width: '90%', height: 12, marginTop: 6 }} />
+      <div className="skel-bar" style={{ width: '65%', height: 12, marginTop: 6 }} />
+      <div className="skel-bar" style={{ width: '40%', height: 13, marginTop: 14 }} />
+    </div>
+  );
+}
+
 const JOIN = [
   { icon: '🎤', title: 'Host events', desc: 'List your event, sell tickets, scan QR at the gate — payouts weekly.', cta: 'Host with us →', to: '/host' },
   { icon: '📣', title: 'Become a promoter', desc: 'Run guest lists with your own affiliate links and earn per head.', cta: 'Start promoting →', to: '/promoter/onboarding' },
@@ -188,6 +227,11 @@ export default function Home() {
     content.testimonials().then(setLiveTestimonials).catch(() => setLiveTestimonials([]));
   }, []);
   const testimonials = liveTestimonials ?? (isBackendEnabled() ? [] : TESTIMONIALS);
+  // Real quotes only — unlike Reels' abstract hue placeholders, showing
+  // TESTIMONIALS' fabricated names/quotes during the loading window would
+  // be presenting fake reviews as real ones, so this gets a genuine
+  // skeleton (below) instead of a mock-data fallback.
+  const testimonialsLoading = isBackendEnabled() && liveTestimonials === null;
   const categoryTree = liveCategories ?? (isBackendEnabled() ? [] : CATEGORY_TREE);
   const categoryChips = liveCategories ? ['All', ...liveCategories.map((c) => c.name)] : CATEGORIES;
 
@@ -207,6 +251,15 @@ export default function Home() {
     catalog.lineups(city).then(setLiveLineups).catch(() => setLiveLineups([]));
     catalog.venues(city).then(setLiveVenues).catch(() => setLiveVenues([]));
   }, [city]);
+  // Each fetch above resolves at a different time — without tracking these,
+  // every section below hid itself (rendered nothing) until its own call
+  // finished, then popped into existence and shoved everything after it
+  // down the page. That's the dominant source of the measured layout
+  // shift: up to 4 independent pop-ins on every single homepage load.
+  const orgLoading = isBackendEnabled() && liveOrganizers === null;
+  const promoLoading = isBackendEnabled() && livePromoters === null;
+  const lineupLoading = isBackendEnabled() && liveLineups === null;
+  const venueLoading = isBackendEnabled() && liveVenues === null;
 
   // Same isBackendEnabled() guard as everywhere else on this page — without
   // it, the brief liveEvents===null window on first load fell through to
@@ -403,7 +456,12 @@ export default function Home() {
         )}
 
         {/* Reels */}
-        {(liveReels ?? (isBackendEnabled() ? [] : REEL_HUES)).length > 0 && (
+        {/* REEL_HUES (abstract colour blocks, no fabricated claims) doubles as
+            the loading placeholder here too, not just the offline fallback —
+            liveReels is null in both cases, so this was one line away from
+            already working; the isBackendEnabled() ? [] wrapper was the only
+            thing hiding the section during the real fetch's loading window. */}
+        {(liveReels ?? REEL_HUES).length > 0 && (
           <section className="section">
             <div className="section-hd">
               <h2>Things happening at events 🎬</h2>
@@ -418,83 +476,91 @@ export default function Home() {
         )}
 
         {/* Top organizers */}
-        {topOrganizers.length > 0 && (
+        {(topOrganizers.length > 0 || orgLoading) && (
         <section className="section">
           <div className="section-hd">
             <h2>Top organizers in {city}</h2>
             <Link to="/organizers">See all →</Link>
           </div>
           <Slider slideWidth={244}>
-            {topOrganizers.map((o) => {
-              const live = published.filter((e) => (e.organizer?.id ?? e.organizerId) === o.id).length;
-              return (
-                <DirectoryCard key={o.id} to={`/organizers/${o.id}`} hue={o.logoHue} avatarText="🎧" avatarImage={o.logoUrl} name={o.brandName} verified={o.verified} meta={`${o.city} · ★ ${o.rating}`} bio={o.about} featured={orgFeat.has(o.id)}
-                  stats={<><b>{o.eventsHosted}</b> events · <b>{live}</b> live · <b>{netFollowers(o.id, o.followers).toLocaleString('en-IN')}</b> followers</>}
-                  action={followBtn(o.id, user?.isOrganizer && user.orgUsername?.toLowerCase() === o.username.toLowerCase())} />
-              );
-            })}
+            {orgLoading
+              ? Array.from({ length: 4 }, (_, i) => <DirectoryCardSkeleton key={i} />)
+              : topOrganizers.map((o) => {
+                  const live = published.filter((e) => (e.organizer?.id ?? e.organizerId) === o.id).length;
+                  return (
+                    <DirectoryCard key={o.id} to={`/organizers/${o.id}`} hue={o.logoHue} avatarText="🎧" avatarImage={o.logoUrl} name={o.brandName} verified={o.verified} meta={`${o.city} · ★ ${o.rating}`} bio={o.about} featured={orgFeat.has(o.id)}
+                      stats={<><b>{o.eventsHosted}</b> events · <b>{live}</b> live · <b>{netFollowers(o.id, o.followers).toLocaleString('en-IN')}</b> followers</>}
+                      action={followBtn(o.id, user?.isOrganizer && user.orgUsername?.toLowerCase() === o.username.toLowerCase())} />
+                  );
+                })}
           </Slider>
         </section>
         )}
 
         {/* Top promoters */}
-        {topPromoters.length > 0 && (
+        {(topPromoters.length > 0 || promoLoading) && (
         <section className="section">
           <div className="section-hd">
             <h2>Top promoters in {city} 📣</h2>
             <Link to="/promoters">See all →</Link>
           </div>
           <Slider slideWidth={244}>
-            {topPromoters.map((p) => (
-              <DirectoryCard key={p.slug} to={`/promoter/${p.slug}`} hue={p.hue} avatarText="📣" avatarImage={p.logoUrl} name={p.name} verified={p.verified} meta={`${p.city} · ${netFollowers('promoter:' + p.slug, p.followers).toLocaleString('en-IN')} followers`} bio={p.bio} featured={promoFeat.has(p.slug)}
-                stats={<><span className={p.showRate >= 70 ? 'accent bold' : 'bold'}>{p.showRate}%</span> show-rate · <b>{p.guestsBrought.toLocaleString('en-IN')}</b> brought</>}
-                action={followBtn('promoter:' + p.slug, user?.isPromoter && user.promoterUsername?.toLowerCase() === p.slug.toLowerCase())} />
-            ))}
+            {promoLoading
+              ? Array.from({ length: 4 }, (_, i) => <DirectoryCardSkeleton key={i} />)
+              : topPromoters.map((p) => (
+                  <DirectoryCard key={p.slug} to={`/promoter/${p.slug}`} hue={p.hue} avatarText="📣" avatarImage={p.logoUrl} name={p.name} verified={p.verified} meta={`${p.city} · ${netFollowers('promoter:' + p.slug, p.followers).toLocaleString('en-IN')} followers`} bio={p.bio} featured={promoFeat.has(p.slug)}
+                    stats={<><span className={p.showRate >= 70 ? 'accent bold' : 'bold'}>{p.showRate}%</span> show-rate · <b>{p.guestsBrought.toLocaleString('en-IN')}</b> brought</>}
+                    action={followBtn('promoter:' + p.slug, user?.isPromoter && user.promoterUsername?.toLowerCase() === p.slug.toLowerCase())} />
+                ))}
           </Slider>
         </section>
         )}
 
         {/* Top line-ups */}
-        {topLineups.length > 0 && (
+        {(topLineups.length > 0 || lineupLoading) && (
         <section className="section">
           <div className="section-hd">
             <h2>Top line-ups in {city} 🎤</h2>
             <Link to="/lineups">See all →</Link>
           </div>
           <Slider slideWidth={244}>
-            {topLineups.map((l) => (
-              <DirectoryCard key={l.slug} to={`/lineup/${l.slug}`} hue={l.hue} avatarText={l.emoji} avatarImage={l.logoUrl} name={l.name} verified={l.verified} meta={`${l.category} · ${l.city}`} bio={l.bio} featured={lineFeat.has(l.slug)}
-                stats={<><b>{netFollowers('lineup:' + l.slug, l.followers).toLocaleString('en-IN')}</b> followers · <b>{l.eventsPlayed}</b> shows</>}
-                action={followBtn('lineup:' + l.slug, user?.isLineup && user.lineupUsername?.toLowerCase() === l.slug.toLowerCase())} />
-            ))}
+            {lineupLoading
+              ? Array.from({ length: 4 }, (_, i) => <DirectoryCardSkeleton key={i} />)
+              : topLineups.map((l) => (
+                  <DirectoryCard key={l.slug} to={`/lineup/${l.slug}`} hue={l.hue} avatarText={l.emoji} avatarImage={l.logoUrl} name={l.name} verified={l.verified} meta={`${l.category} · ${l.city}`} bio={l.bio} featured={lineFeat.has(l.slug)}
+                    stats={<><b>{netFollowers('lineup:' + l.slug, l.followers).toLocaleString('en-IN')}</b> followers · <b>{l.eventsPlayed}</b> shows</>}
+                    action={followBtn('lineup:' + l.slug, user?.isLineup && user.lineupUsername?.toLowerCase() === l.slug.toLowerCase())} />
+                ))}
           </Slider>
         </section>
         )}
 
         {/* Trending venues */}
-        {topVenues.length > 0 && (
+        {(topVenues.length > 0 || venueLoading) && (
         <section className="section">
           <div className="section-hd">
             <h2>Top venues in {city}</h2>
             <Link to="/venues">See all →</Link>
           </div>
           <Slider slideWidth={260}>
-            {topVenues.map((v) => {
-              const count = published.filter((e) => (e.venue?.id ?? e.venueId) === v.id).length;
-              return (
-                <Link key={v.id} to={`/venues/${v.id}`} className="ecard" style={{ position: 'relative' }}>
-                  <Poster hue={v.photoHue} emoji="🏛" label={v.galleryUrls?.[0] ? undefined : 'venue photo'} imageUrl={v.galleryUrls?.[0]} variant="landscape" />
-                  {v.logoUrl && <img src={v.logoUrl} alt="" className="ecard-logo" />}
-                  <div>
-                    <h3>
-                      {v.name} {v.verified && <span className="verified">✓</span>}{' '}
-                      {venueFeat.has(v.id) && <span className="badge badge-accent" style={{ fontSize: 10 }}>★ Featured</span>}
-                    </h3>
-                    <div className="meta">★ {v.rating} · {count} event{count === 1 ? '' : 's'} · {v.type}</div>
-                  </div>
-                </Link>
-              );
-            })}
+            {venueLoading
+              ? Array.from({ length: 4 }, (_, i) => <VenueCardSkeleton key={i} />)
+              : topVenues.map((v) => {
+                  const count = published.filter((e) => (e.venue?.id ?? e.venueId) === v.id).length;
+                  return (
+                    <Link key={v.id} to={`/venues/${v.id}`} className="ecard" style={{ position: 'relative' }}>
+                      <Poster hue={v.photoHue} emoji="🏛" label={v.galleryUrls?.[0] ? undefined : 'venue photo'} imageUrl={v.galleryUrls?.[0]} variant="landscape" />
+                      {v.logoUrl && <img src={v.logoUrl} alt="" width={38} height={38} loading="lazy" decoding="async" className="ecard-logo" />}
+                      <div>
+                        <h3>
+                          {v.name} {v.verified && <span className="verified">✓</span>}{' '}
+                          {venueFeat.has(v.id) && <span className="badge badge-accent" style={{ fontSize: 10 }}>★ Featured</span>}
+                        </h3>
+                        <div className="meta">★ {v.rating} · {count} event{count === 1 ? '' : 's'} · {v.type}</div>
+                      </div>
+                    </Link>
+                  );
+                })}
           </Slider>
         </section>
         )}
@@ -536,20 +602,22 @@ export default function Home() {
         </section>
 
         {/* Happy guests */}
-        {testimonials.length > 0 && (
+        {(testimonials.length > 0 || testimonialsLoading) && (
         <section className="section">
           <div className="section-hd">
             <h2>Happy guests 💚</h2>
             <Link to="/testimonials">Read all reviews →</Link>
           </div>
           <Slider slideWidth={300}>
-            {testimonials.map((t) => (
-              <div key={t.id} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-                <Stars rating={t.rating} />
-                <p style={{ margin: '10px 0 12px', fontSize: 14, flex: 1 }}>"{t.quote}"</p>
-                <div className="small bold">{t.author} <span className="muted-2" style={{ fontWeight: 400 }}>· {t.location}</span></div>
-              </div>
-            ))}
+            {testimonialsLoading
+              ? Array.from({ length: 4 }, (_, i) => <TestimonialSkeleton key={i} />)
+              : testimonials.map((t) => (
+                  <div key={t.id} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+                    <Stars rating={t.rating} />
+                    <p style={{ margin: '10px 0 12px', fontSize: 14, flex: 1 }}>"{t.quote}"</p>
+                    <div className="small bold">{t.author} <span className="muted-2" style={{ fontWeight: 400 }}>· {t.location}</span></div>
+                  </div>
+                ))}
           </Slider>
         </section>
         )}

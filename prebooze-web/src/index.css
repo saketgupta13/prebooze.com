@@ -1,3 +1,43 @@
+/* Self-hosted (not fonts.googleapis.com) — the external stylesheet + font
+ * round trip was ~915ms of render-blocking time before first paint. Only
+ * the Latin subset is needed (no non-Latin copy anywhere in the app), so
+ * each file is ~14KB instead of Google's full multi-script bundle. */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/manrope-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/manrope-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/manrope-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/manrope-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/manrope-800.woff2') format('woff2');
+}
+
 /* ============ Prebooze design tokens (from design/README.md) ============ */
 :root {
   --bg: #1a1c17;
@@ -9,7 +49,9 @@
   --border-dash: rgba(255, 255, 255, 0.14);
   --text: #edefe6;
   --muted: #9a9d8c;
-  --muted-2: #7d8070;
+  /* Was #7d8070 (~3.8:1 on --surface-2) — failed WCAG AA's 4.5:1 for normal
+   * text. Lightened to clear 4.5:1 against every surface it's used on. */
+  --muted-2: #8d9080;
   --accent: #9be13d;
   --on-accent: #14150f;
   --danger: #ff5c49;
@@ -406,7 +448,7 @@ textarea { resize: vertical; min-height: 84px; }
   gap: 24px;
   margin-bottom: 26px;
 }
-.ftr-cols h4 { font-size: 13px; margin-bottom: 10px; color: var(--text); }
+.ftr-cols h3 { font-size: 13px; margin-bottom: 10px; color: var(--text); }
 .ftr-cols a { display: block; font-size: 13px; color: var(--muted); padding: 3px 0; }
 .ftr-cols a:hover { color: var(--text); }
 .ftr-base {
@@ -459,6 +501,17 @@ textarea { resize: vertical; min-height: 84px; }
   position: relative;
   overflow: hidden;
 }
+/* Loading placeholders for the homepage's async sections (organizers,
+   promoters, line-ups, venues, testimonials) — each used to render nothing
+   at all until its own API call resolved, so the whole section popped into
+   existence and shoved everything below it down, one shift per section as
+   each request finished at a different time. This reserves the same
+   footprint up front so real data can swap in without moving anything. */
+.skel-bar { background: var(--surface-2); border-radius: 4px; }
+.skel-pulse { animation: skel-pulse 1.4s ease-in-out infinite; }
+@keyframes skel-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .skel-pulse { animation: none; } }
+
 /* A real reel is a <video> reusing .poster/.poster.reel for sizing (border,
    radius, aspect-ratio, slider-track flex-basis) — object-fit crops it to
    fill that box the same way the photo posters' background-image does. */
@@ -566,9 +619,12 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
 .hero-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border-radius: 50%; background: rgba(0,0,0,.42); border: 1px solid rgba(255,255,255,.25); color: #fff; cursor: pointer; z-index: 3; font-size: 20px; line-height: 1; }
 .hero-arrow:hover { background: rgba(0,0,0,.65); }
 .hero-arrow.left { left: 12px; } .hero-arrow.right { right: 12px; }
-.hero-dots { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 3; }
-.hero-dots button { width: 8px; height: 8px; border-radius: 999px; border: none; background: rgba(255,255,255,.4); cursor: pointer; transition: width .2s; }
-.hero-dots button.on { background: var(--accent); width: 22px; }
+.hero-dots { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; z-index: 3; }
+/* Visual dot stays 8px (drawn via ::after) but the actual clickable button
+ * is 28px square — was 8x8, well under any reasonable tap-size guidance. */
+.hero-dots button { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 999px; border: none; background: none; padding: 0; cursor: pointer; }
+.hero-dots button::after { content: ''; width: 8px; height: 8px; border-radius: 999px; background: rgba(255,255,255,.4); transition: width .2s; }
+.hero-dots button.on::after { background: var(--accent); width: 22px; }
 @media (max-width: 680px) {
   .hero-slide { min-height: 236px; }
   .hero-slide .hero-inner { padding: 26px 24px; }

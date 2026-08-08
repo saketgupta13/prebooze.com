@@ -29,7 +29,7 @@ export default function Footer() {
       <div className="container">
         <div className="ftr-cols">
           <div>
-            <h4>Explore</h4>
+            <h3>Explore</h3>
             <Link to="/browse">Events</Link>
             <Link to="/categories">Browse by category</Link>
             <Link to="/venues">Venues</Link>
@@ -39,14 +39,14 @@ export default function Footer() {
             <Link to="/blog">Blog</Link>
           </div>
           <div>
-            <h4>Company</h4>
+            <h3>Company</h3>
             <Link to="/about">About us</Link>
             <Link to="/host">Host with us</Link>
             <Link to="/careers">Careers</Link>
             <Link to="/contact">Contact</Link>
           </div>
           <div>
-            <h4>Support</h4>
+            <h3>Support</h3>
             <Link to="/help">Help center</Link>
             <Link to="/faqs">FAQs</Link>
             <Link to="/legal/refund-policy">Refund policy</Link>
@@ -54,7 +54,7 @@ export default function Footer() {
             <Link to="/legal/privacy">Privacy</Link>
           </div>
           <div>
-            <h4>Follow</h4>
+            <h3>Follow</h3>
             <div style={{ display: 'flex', gap: 10 }}>
               {socialList.map((s) => (
                 <a

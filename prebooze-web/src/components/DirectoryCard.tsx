@@ -25,11 +25,15 @@ export default function DirectoryCard({
       {featured && (
         <span className="badge badge-accent" style={{ position: 'absolute', top: 12, right: 12, fontSize: 10 }}>★ Featured</span>
       )}
-      <Link to={to} style={{ width: 'fit-content' }}>
+      <Link to={to} style={{ width: 'fit-content' }} aria-label={name}>
         {avatarImage ? (
           <img
             src={avatarImage}
             alt=""
+            width={46}
+            height={46}
+            loading="lazy"
+            decoding="async"
             style={{ width: 46, height: 46, borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
           />
         ) : (

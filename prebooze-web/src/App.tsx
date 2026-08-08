@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useApp } from './store/AppContext';
 import { usePlatformInfo } from './lib/usePlatformInfo';
@@ -9,93 +9,103 @@ import Toast from './components/Toast';
 import CookieConsent from './components/CookieConsent';
 import ComingSoonGate from './components/ComingSoonGate';
 import SalesPausedBanner from './components/SalesPausedBanner';
+import { PageLoader } from './components/Loader';
+// Home stays a static import — it's the entry route almost every visitor
+// hits first, so lazy-loading it would trade the single main-bundle
+// download for a request waterfall (route chunk fetched only after the
+// router itself evaluates) on the exact page the Lighthouse LCP finding
+// was about. Every other route below is code-split: a 967KB single bundle
+// (Lighthouse: 621KB unused JS) shipped every page's code on every visit,
+// most of it never touched (nobody hits an organizer's payout console on
+// their first pageview).
 import Home from './pages/Home';
-import Browse from './pages/Browse';
-import Categories from './pages/Categories';
-import EventDetail from './pages/EventDetail';
-import Checkout from './pages/Checkout';
-import Confirmation from './pages/Confirmation';
-import MyBookings from './pages/MyBookings';
-import Profile from './pages/Profile';
-import EditProfile from './pages/EditProfile';
-import FinishProfile from './pages/FinishProfile';
-import Venues from './pages/Venues';
-import VenueDetail from './pages/VenueDetail';
-import OrganizerProfile from './pages/OrganizerProfile';
-import Organizers from './pages/Organizers';
-import Promoters from './pages/Promoters';
-import People from './pages/People';
-import PersonProfile from './pages/PersonProfile';
-import Testimonials from './pages/Testimonials';
-import ReferralLanding from './pages/ReferralLanding';
-import Wallet from './pages/Wallet';
-import ReferEarn from './pages/ReferEarn';
-import Wishlist from './pages/Wishlist';
-import HelpCenter from './pages/HelpCenter';
-import Careers from './pages/Careers';
-import JobDetail from './pages/JobDetail';
-import PaymentMethods from './pages/PaymentMethods';
-import Login from './pages/auth/Login';
-import Otp from './pages/auth/Otp';
-import ProfileCompletion from './pages/auth/ProfileCompletion';
-import IdVerification from './pages/auth/IdVerification';
-import Onboarding from './pages/organizer/Onboarding';
-import OrganizerLayout from './pages/organizer/OrganizerLayout';
-import Dashboard from './pages/organizer/Dashboard';
-import MyEvents from './pages/organizer/MyEvents';
-import CreateEvent from './pages/organizer/CreateEvent';
-import Attendees from './pages/organizer/Attendees';
-import Scanner from './pages/organizer/Scanner';
-import Coupons from './pages/organizer/Coupons';
-import Payouts from './pages/organizer/Payouts';
-import OrganizerPromoters from './pages/organizer/OrganizerPromoters';
-import Settings from './pages/organizer/Settings';
-import Withdraw from './pages/organizer/Withdraw';
-import OrgGuestList from './pages/organizer/OrgGuestList';
-import OrgAbandonedCarts from './pages/organizer/OrgAbandonedCarts';
-import OrgLiveMonitor from './pages/organizer/OrgLiveMonitor';
-import OrgReviews from './pages/organizer/OrgReviews';
-import OrgTeamRoles from './pages/organizer/OrgTeamRoles';
-import OrganizerBilling from './pages/organizer/OrganizerBilling';
-import HostLanding from './pages/static/HostLanding';
-import About from './pages/static/About';
-import Contact from './pages/static/Contact';
-import Legal from './pages/static/Legal';
-import Faqs from './pages/static/Faqs';
-import Blog from './pages/static/Blog';
-import BlogPost from './pages/static/BlogPost';
-import LineupProfile from './pages/LineupProfile';
-import Lineups from './pages/Lineups';
-import LineupOnboarding from './pages/LineupOnboarding';
-import LineupLayout from './pages/lineup/LineupLayout';
-import LineupDashboard from './pages/lineup/LineupDashboard';
-import LineupSettings from './pages/lineup/LineupSettings';
-import LineupBilling from './pages/lineup/LineupBilling';
-import PromoterProfile from './pages/PromoterProfile';
-import PromoterOnboarding from './pages/promoter/PromoterOnboarding';
-import PromoterLayout from './pages/promoter/PromoterLayout';
-import PromoterDashboard from './pages/promoter/PromoterDashboard';
-import PromoterPromotions from './pages/promoter/PromoterPromotions';
-import PromoterSubscription from './pages/promoter/PromoterSubscription';
-import PromoterEarnings from './pages/promoter/PromoterEarnings';
-import PromoterTeam from './pages/promoter/PromoterTeam';
-import PromoterLeaderboard from './pages/promoter/PromoterLeaderboard';
-import PromoterSettings from './pages/promoter/PromoterSettings';
-import PromoterGuestList from './pages/promoter/PromoterGuestList';
-import GuestLanding from './pages/promoter/GuestLanding';
-import GuestPass from './pages/promoter/GuestPass';
-import VenueOnboarding from './pages/venue/VenueOnboarding';
-import VenueLayout from './pages/venue/VenueLayout';
-import VenueDashboard from './pages/venue/VenueDashboard';
-import VenueListing from './pages/venue/VenueListing';
-import VenueEvents from './pages/venue/VenueEvents';
-import VenueSettings from './pages/venue/VenueSettings';
-import VenueBilling from './pages/venue/VenueBilling';
-import VenueHosting from './pages/venue/VenueHosting';
-import VenueHostedEvents from './pages/venue/VenueHostedEvents';
-import CreateHostedEvent from './pages/venue/CreateHostedEvent';
-import VenueLedger from './pages/venue/VenueLedger';
-import VenueWithdraw from './pages/venue/VenueWithdraw';
+
+const Browse = lazy(() => import('./pages/Browse'));
+const Categories = lazy(() => import('./pages/Categories'));
+const EventDetail = lazy(() => import('./pages/EventDetail'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const Confirmation = lazy(() => import('./pages/Confirmation'));
+const MyBookings = lazy(() => import('./pages/MyBookings'));
+const Profile = lazy(() => import('./pages/Profile'));
+const EditProfile = lazy(() => import('./pages/EditProfile'));
+const FinishProfile = lazy(() => import('./pages/FinishProfile'));
+const Venues = lazy(() => import('./pages/Venues'));
+const VenueDetail = lazy(() => import('./pages/VenueDetail'));
+const OrganizerProfile = lazy(() => import('./pages/OrganizerProfile'));
+const Organizers = lazy(() => import('./pages/Organizers'));
+const Promoters = lazy(() => import('./pages/Promoters'));
+const People = lazy(() => import('./pages/People'));
+const PersonProfile = lazy(() => import('./pages/PersonProfile'));
+const Testimonials = lazy(() => import('./pages/Testimonials'));
+const ReferralLanding = lazy(() => import('./pages/ReferralLanding'));
+const Wallet = lazy(() => import('./pages/Wallet'));
+const ReferEarn = lazy(() => import('./pages/ReferEarn'));
+const Wishlist = lazy(() => import('./pages/Wishlist'));
+const HelpCenter = lazy(() => import('./pages/HelpCenter'));
+const Careers = lazy(() => import('./pages/Careers'));
+const JobDetail = lazy(() => import('./pages/JobDetail'));
+const PaymentMethods = lazy(() => import('./pages/PaymentMethods'));
+const Login = lazy(() => import('./pages/auth/Login'));
+const Otp = lazy(() => import('./pages/auth/Otp'));
+const ProfileCompletion = lazy(() => import('./pages/auth/ProfileCompletion'));
+const IdVerification = lazy(() => import('./pages/auth/IdVerification'));
+const Onboarding = lazy(() => import('./pages/organizer/Onboarding'));
+const OrganizerLayout = lazy(() => import('./pages/organizer/OrganizerLayout'));
+const Dashboard = lazy(() => import('./pages/organizer/Dashboard'));
+const MyEvents = lazy(() => import('./pages/organizer/MyEvents'));
+const CreateEvent = lazy(() => import('./pages/organizer/CreateEvent'));
+const Attendees = lazy(() => import('./pages/organizer/Attendees'));
+const Scanner = lazy(() => import('./pages/organizer/Scanner'));
+const Coupons = lazy(() => import('./pages/organizer/Coupons'));
+const Payouts = lazy(() => import('./pages/organizer/Payouts'));
+const OrganizerPromoters = lazy(() => import('./pages/organizer/OrganizerPromoters'));
+const Settings = lazy(() => import('./pages/organizer/Settings'));
+const Withdraw = lazy(() => import('./pages/organizer/Withdraw'));
+const OrgGuestList = lazy(() => import('./pages/organizer/OrgGuestList'));
+const OrgAbandonedCarts = lazy(() => import('./pages/organizer/OrgAbandonedCarts'));
+const OrgLiveMonitor = lazy(() => import('./pages/organizer/OrgLiveMonitor'));
+const OrgReviews = lazy(() => import('./pages/organizer/OrgReviews'));
+const OrgTeamRoles = lazy(() => import('./pages/organizer/OrgTeamRoles'));
+const OrganizerBilling = lazy(() => import('./pages/organizer/OrganizerBilling'));
+const HostLanding = lazy(() => import('./pages/static/HostLanding'));
+const About = lazy(() => import('./pages/static/About'));
+const Contact = lazy(() => import('./pages/static/Contact'));
+const Legal = lazy(() => import('./pages/static/Legal'));
+const Faqs = lazy(() => import('./pages/static/Faqs'));
+const Blog = lazy(() => import('./pages/static/Blog'));
+const BlogPost = lazy(() => import('./pages/static/BlogPost'));
+const LineupProfile = lazy(() => import('./pages/LineupProfile'));
+const Lineups = lazy(() => import('./pages/Lineups'));
+const LineupOnboarding = lazy(() => import('./pages/LineupOnboarding'));
+const LineupLayout = lazy(() => import('./pages/lineup/LineupLayout'));
+const LineupDashboard = lazy(() => import('./pages/lineup/LineupDashboard'));
+const LineupSettings = lazy(() => import('./pages/lineup/LineupSettings'));
+const LineupBilling = lazy(() => import('./pages/lineup/LineupBilling'));
+const PromoterProfile = lazy(() => import('./pages/PromoterProfile'));
+const PromoterOnboarding = lazy(() => import('./pages/promoter/PromoterOnboarding'));
+const PromoterLayout = lazy(() => import('./pages/promoter/PromoterLayout'));
+const PromoterDashboard = lazy(() => import('./pages/promoter/PromoterDashboard'));
+const PromoterPromotions = lazy(() => import('./pages/promoter/PromoterPromotions'));
+const PromoterSubscription = lazy(() => import('./pages/promoter/PromoterSubscription'));
+const PromoterEarnings = lazy(() => import('./pages/promoter/PromoterEarnings'));
+const PromoterTeam = lazy(() => import('./pages/promoter/PromoterTeam'));
+const PromoterLeaderboard = lazy(() => import('./pages/promoter/PromoterLeaderboard'));
+const PromoterSettings = lazy(() => import('./pages/promoter/PromoterSettings'));
+const PromoterGuestList = lazy(() => import('./pages/promoter/PromoterGuestList'));
+const GuestLanding = lazy(() => import('./pages/promoter/GuestLanding'));
+const GuestPass = lazy(() => import('./pages/promoter/GuestPass'));
+const VenueOnboarding = lazy(() => import('./pages/venue/VenueOnboarding'));
+const VenueLayout = lazy(() => import('./pages/venue/VenueLayout'));
+const VenueDashboard = lazy(() => import('./pages/venue/VenueDashboard'));
+const VenueListing = lazy(() => import('./pages/venue/VenueListing'));
+const VenueEvents = lazy(() => import('./pages/venue/VenueEvents'));
+const VenueSettings = lazy(() => import('./pages/venue/VenueSettings'));
+const VenueBilling = lazy(() => import('./pages/venue/VenueBilling'));
+const VenueHosting = lazy(() => import('./pages/venue/VenueHosting'));
+const VenueHostedEvents = lazy(() => import('./pages/venue/VenueHostedEvents'));
+const CreateHostedEvent = lazy(() => import('./pages/venue/CreateHostedEvent'));
+const VenueLedger = lazy(() => import('./pages/venue/VenueLedger'));
+const VenueWithdraw = lazy(() => import('./pages/venue/VenueWithdraw'));
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useApp();
@@ -164,6 +174,7 @@ export default function App() {
       <Header />
       <SalesPausedBanner />
       <MaintenanceGate>
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Guest — discovery */}
         <Route path="/" element={<Home />} />
@@ -367,6 +378,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
       </MaintenanceGate>
       <Footer />
       <Toast />

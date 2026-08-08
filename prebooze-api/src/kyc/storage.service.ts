@@ -16,12 +16,16 @@ const UPLOAD_DIR = join(process.cwd(), 'uploads');
 // uploaded — a phone-camera photo routinely lands at several MB, which is
 // invisible in-app (browsers don't care) but silently breaks WhatsApp/
 // Facebook link-preview unfurling, which drops any og:image over ~300KB
-// with no error anywhere. 1600px on the long edge is comfortably more than
-// this app ever displays an image at; JPEG q82 keeps photos visually
-// lossless while landing well under that budget. Real transparency (a logo
-// on a transparent background) stays PNG — converting that to JPEG would
-// bake in a black/white matte.
-const MAX_DIMENSION = 1600;
+// with no error anywhere, and ships a full-size original to every guest
+// even when the largest place it's ever displayed (an event/venue/logo
+// hero, .poster.square at up to 340px CSS width) needs a fraction of it —
+// a 46px avatar in a directory listing was shipping a 210KB original.
+// 960px on the long edge covers that largest hero context at a healthy 2x+
+// retina multiple with real headroom to spare. JPEG q82 keeps photos
+// visually lossless at that size. Real transparency (a logo on a
+// transparent background) stays PNG — converting that to JPEG would bake
+// in a black/white matte.
+const MAX_DIMENSION = 960;
 const JPEG_QUALITY = 82;
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 

@@ -71,7 +71,7 @@ export default function Wishlist() {
                     ❤️
                   </button>
                   <Poster hue={v.photoHue} emoji="🏛" label={v.galleryUrls?.[0] ? undefined : 'venue photo'} imageUrl={v.galleryUrls?.[0]} variant="landscape" />
-                  {v.logoUrl && <img src={v.logoUrl} alt="" className="ecard-logo" />}
+                  {v.logoUrl && <img src={v.logoUrl} alt="" width={38} height={38} loading="lazy" decoding="async" className="ecard-logo" />}
                   <div>
                     <h3>
                       {v.name} {v.verified && <span className="verified">✓</span>}
