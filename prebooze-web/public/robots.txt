@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Signed-in-only account pages — nothing to index, and RequireAuth redirects
+# a logged-out crawler to /login anyway, but keeping crawl budget off them.
+Disallow: /login
+Disallow: /verify-otp
+Disallow: /complete-profile
+Disallow: /finish-profile
+Disallow: /verify-id
+Disallow: /checkout
+Disallow: /confirmation/
+Disallow: /bookings
+Disallow: /profile
+Disallow: /wallet
+Disallow: /wishlist
+Disallow: /payment-methods
+Disallow: /refer

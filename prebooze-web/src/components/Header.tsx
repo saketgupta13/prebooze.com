@@ -108,7 +108,6 @@ export default function Header() {
   const displayName = user?.name || user?.orgBrand || user?.promoterBrand || user?.lineupName || user?.venueName || 'Profile';
   const navigate = useNavigate();
   const [cityOpen, setCityOpen] = useState(false);
-  const [autoDetect, setAutoDetect] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [q, setQ] = useState('');
 
@@ -156,11 +155,14 @@ export default function Header() {
   }, []);
   const trending = liveTrending ?? (isBackendEnabled() ? [] : TRENDING_SEARCHES);
 
-  // first visit: open the city picker and try geo-detection once
+  // first visit: open the city picker (geo-detection itself stays behind
+  // the picker's own "Detect my location" button — auto-firing a
+  // geolocation permission prompt on page load is what Lighthouse flags
+  // as reading as suspicious, so opening the modal is as far as this goes
+  // on its own).
   useEffect(() => {
     if (!localStorage.getItem('pb_city_manual') && !localStorage.getItem('pb_geo_done')) {
       localStorage.setItem('pb_geo_done', '1');
-      setAutoDetect(true);
       setCityOpen(true);
     }
   }, []);
@@ -179,10 +181,10 @@ export default function Header() {
 
         <SearchBox className="hdr-search" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} />
 
-        <button className="hdr-city" onClick={() => { setAutoDetect(false); setCityOpen(true); }}>
+        <button className="hdr-city" onClick={() => setCityOpen(true)}>
           📍 {city} <Caret />
         </button>
-        <CityPicker open={cityOpen} onClose={() => setCityOpen(false)} autoDetect={autoDetect} />
+        <CityPicker open={cityOpen} onClose={() => setCityOpen(false)} />
 
         <span className="hdr-spacer" />
 

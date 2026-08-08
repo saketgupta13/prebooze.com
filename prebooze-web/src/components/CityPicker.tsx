@@ -7,7 +7,7 @@ import { isBackendEnabled } from '../api/client';
 interface CityRow { name: string; icon?: string; top: boolean; events: number }
 
 /** BookMyShow-style city picker — top cities with icons, search, and geo-detect. */
-export default function CityPicker({ open, onClose, autoDetect = false }: { open: boolean; onClose: () => void; autoDetect?: boolean }) {
+export default function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { city, setCity } = useApp();
   const [q, setQ] = useState('');
   const [detecting, setDetecting] = useState(false);
@@ -52,50 +52,45 @@ export default function CityPicker({ open, onClose, autoDetect = false }: { open
     [setCity, onClose]
   );
 
-  const detect = useCallback(
-    (auto = false) => {
-      if (!navigator.geolocation) {
-        if (!auto) setGeoMsg('Location not supported on this device');
-        return;
-      }
-      setDetecting(true);
-      setGeoMsg('');
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          try {
-            const r = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`
-            );
-            const d = await r.json();
-            const detected = (d.city || d.locality || '').trim();
-            const match = allCities.find((c) => c.toLowerCase() === detected.toLowerCase());
-            if (match && (eventCounts.get(match) ?? 0) > 0) {
-              setCity(match);
-              setGeoMsg(`📍 Detected ${match}`);
-              onClose();
-            } else {
-              setGeoMsg(detected ? `No events in ${detected} yet — pick a city` : 'Couldn’t detect your city');
-            }
-          } catch {
-            setGeoMsg('Couldn’t detect your city');
+  // Only ever called from the "Detect my location" button below — Lighthouse
+  // (rightly) flags a geolocation permission prompt firing on page load as
+  // suspicious/trust-eroding, so this never triggers itself automatically,
+  // on open or otherwise. The browser's own permission prompt is the gate.
+  const detect = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGeoMsg('Location not supported on this device');
+      return;
+    }
+    setDetecting(true);
+    setGeoMsg('');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const r = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`
+          );
+          const d = await r.json();
+          const detected = (d.city || d.locality || '').trim();
+          const match = allCities.find((c) => c.toLowerCase() === detected.toLowerCase());
+          if (match && (eventCounts.get(match) ?? 0) > 0) {
+            setCity(match);
+            setGeoMsg(`📍 Detected ${match}`);
+            onClose();
+          } else {
+            setGeoMsg(detected ? `No events in ${detected} yet — pick a city` : 'Couldn’t detect your city');
           }
-          setDetecting(false);
-        },
-        () => {
-          setDetecting(false);
-          if (!auto) setGeoMsg('Location permission denied');
-        },
-        { timeout: 8000 }
-      );
-    },
-    [allCities, eventCounts, setCity, onClose]
-  );
-
-  // auto-detect once when opened for the first visit
-  useEffect(() => {
-    if (open && autoDetect) detect(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, autoDetect]);
+        } catch {
+          setGeoMsg('Couldn’t detect your city');
+        }
+        setDetecting(false);
+      },
+      () => {
+        setDetecting(false);
+        setGeoMsg('Location permission denied');
+      },
+      { timeout: 8000 }
+    );
+  }, [allCities, eventCounts, setCity, onClose]);
 
   if (!open) return null;
 
@@ -107,7 +102,7 @@ export default function CityPicker({ open, onClose, autoDetect = false }: { open
           <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="close">✕</button>
         </div>
 
-        <button className="btn btn-ghost btn-block" style={{ marginBottom: 12, borderColor: 'var(--accent)', color: 'var(--accent)' }} disabled={detecting} onClick={() => detect(false)}>
+        <button className="btn btn-ghost btn-block" style={{ marginBottom: 12, borderColor: 'var(--accent)', color: 'var(--accent)' }} disabled={detecting} onClick={detect}>
           {detecting ? '📡 Detecting your city…' : '📍 Detect my location'}
         </button>
         {geoMsg && <div className="tiny muted-2 center" style={{ marginBottom: 10 }}>{geoMsg}</div>}
