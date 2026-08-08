@@ -9,12 +9,12 @@ export class ReelsService {
     return this.prisma.reel.findMany({ orderBy: { createdAt: 'desc' } });
   }
 
-  async create(body: { title?: string; videoUrl?: string }) {
+  async create(body: { title?: string; videoUrl?: string; posterUrl?: string }) {
     let h = 0;
     const seed = body.title ?? String(Date.now());
     for (const c of seed) h = (h * 31 + c.charCodeAt(0)) % 360;
     return this.prisma.reel.create({
-      data: { title: body.title?.trim() || 'Untitled reel', hue: h, videoUrl: body.videoUrl, active: true },
+      data: { title: body.title?.trim() || 'Untitled reel', hue: h, videoUrl: body.videoUrl, posterUrl: body.posterUrl, active: true },
     });
   }
 

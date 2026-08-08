@@ -90,6 +90,45 @@ const HOW: Record<'guests' | 'organizers' | 'promoters' | 'lineups' | 'venues', 
   },
 };
 
+/** Poster-first, tap-to-play — a reel's actual video only starts
+ * downloading once a guest taps it, instead of every reel in the slider
+ * autoplaying (and fetching its full video) the instant the homepage
+ * loads. posterUrl is a real server-generated first-frame JPEG (see
+ * StorageService.processVideo); reels published before that existed fall
+ * back to a tap-to-load play button with no image. */
+function ReelCard({ reel }: { reel: { id: string; title: string; hue: number; videoUrl: string | null; posterUrl: string | null } }) {
+  const [playing, setPlaying] = useState(false);
+
+  if (!reel.videoUrl) return <Poster hue={reel.hue} emoji="▶" label={reel.title} variant="reel" />;
+
+  if (playing) {
+    return (
+      <video
+        className="poster reel"
+        src={reel.videoUrl}
+        poster={reel.posterUrl ?? undefined}
+        autoPlay
+        muted
+        loop
+        playsInline
+        title={reel.title}
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="poster reel reel-cover"
+      onClick={() => setPlaying(true)}
+      aria-label={`Play ${reel.title}`}
+      style={reel.posterUrl ? { backgroundImage: `url(${reel.posterUrl})` } : undefined}
+    >
+      <span className="reel-play">▶</span>
+    </button>
+  );
+}
+
 const JOIN = [
   { icon: '🎤', title: 'Host events', desc: 'List your event, sell tickets, scan QR at the gate — payouts weekly.', cta: 'Host with us →', to: '/host' },
   { icon: '📣', title: 'Become a promoter', desc: 'Run guest lists with your own affiliate links and earn per head.', cta: 'Start promoting →', to: '/promoter/onboarding' },
@@ -138,7 +177,7 @@ export default function Home() {
   // events" strip used to be 12 hardcoded hue placeholders with no data
   // behind them at all, even though a real Reel model + admin CRUD + public
   // GET /reels already existed and just had no frontend consumer.
-  const [liveReels, setLiveReels] = useState<{ id: string; title: string; hue: number; videoUrl: string | null }[] | null>(null);
+  const [liveReels, setLiveReels] = useState<{ id: string; title: string; hue: number; videoUrl: string | null; posterUrl: string | null }[] | null>(null);
   useEffect(() => {
     if (!isBackendEnabled()) return;
     catalog.reels().then(setLiveReels).catch(() => setLiveReels([]));
@@ -372,22 +411,7 @@ export default function Home() {
             </div>
             <Slider slideWidth={150}>
               {liveReels
-                ? liveReels.map((r) =>
-                    r.videoUrl ? (
-                      <video
-                        key={r.id}
-                        className="poster reel"
-                        src={r.videoUrl}
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        title={r.title}
-                      />
-                    ) : (
-                      <Poster key={r.id} hue={r.hue} emoji="▶" label={r.title} variant="reel" />
-                    )
-                  )
+                ? liveReels.map((r) => <ReelCard key={r.id} reel={r} />)
                 : REEL_HUES.map((hue, i) => <Poster key={i} hue={hue} emoji="▶" label={`reel ${i + 1}`} variant="reel" />)}
             </Slider>
           </section>

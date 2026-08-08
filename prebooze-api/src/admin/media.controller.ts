@@ -23,6 +23,8 @@ export class MediaController {
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
   async upload(@UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('file is required (max 80MB)');
-    return { url: await this.storage.save(file) };
+    // posterUrl is only present for video uploads (StorageService.saveMedia)
+    // — existing callers that only destructure {url} are unaffected.
+    return this.storage.saveMedia(file);
   }
 }

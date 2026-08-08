@@ -19,7 +19,7 @@ export class AdminReelsController {
 
   @Post()
   @RequirePermission(MODULE, 'edit')
-  create(@Body() body: { title?: string; videoUrl?: string }) {
+  create(@Body() body: { title?: string; videoUrl?: string; posterUrl?: string }) {
     return this.reels.create(body);
   }
 

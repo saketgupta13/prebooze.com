@@ -18,6 +18,7 @@ export default function Reels() {
   const [err, setErr] = useState('');
   const [title, setTitle] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [posterUrl, setPosterUrl] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = () => {
@@ -44,8 +45,9 @@ export default function Reels() {
     setUploading(true);
     setErr('');
     try {
-      const { url } = await liveMedia.upload(file);
+      const { url, posterUrl: poster } = await liveMedia.upload(file);
       setVideoUrl(url);
+      setPosterUrl(poster ?? '');
     } catch (e2) {
       setErr(e2 instanceof LiveApiError ? e2.message : 'Upload failed');
     } finally {
@@ -57,9 +59,10 @@ export default function Reels() {
     e.preventDefault();
     if (!videoUrl) return;
     try {
-      await liveReels.create({ title: title.trim(), videoUrl });
+      await liveReels.create({ title: title.trim(), videoUrl, posterUrl: posterUrl || undefined });
       setTitle('');
       setVideoUrl('');
+      setPosterUrl('');
       load();
     } catch (e2) {
       setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to publish reel');
@@ -114,7 +117,9 @@ export default function Reels() {
         {reels.map((r) => (
           <div key={r.id} className="trow" style={{ minWidth: 520, opacity: r.active ? 1 : 0.55 }}>
             <span style={{ width: 56 }}>
-              {r.videoUrl ? (
+              {r.posterUrl ? (
+                <img src={r.posterUrl} alt="" style={{ width: 40, height: 56, objectFit: 'cover', borderRadius: 6 }} />
+              ) : r.videoUrl ? (
                 <video src={r.videoUrl} muted style={{ width: 40, height: 56, objectFit: 'cover', borderRadius: 6 }} />
               ) : (
                 <span style={{ display: 'inline-flex', width: 40, height: 56, borderRadius: 6, alignItems: 'center', justifyContent: 'center', background: `radial-gradient(ellipse at 30% 25%, hsla(${r.hue},70%,55%,.4), transparent 60%), rgba(255,255,255,.04)` }}>▶</span>

@@ -73,7 +73,7 @@ export const catalog = {
   venueTypes: () => apiFetch<{ name: string; icon?: string; events: number }[]>('/venue-types'),
   search: (q: string) => apiFetch<{ label: string; type: string; to: string }[]>('/search', { query: { q } }),
   trending: () => apiFetch<string[]>('/search/trending'),
-  reels: () => apiFetch<{ id: string; title: string; hue: number; videoUrl: string | null }[]>('/reels'),
+  reels: () => apiFetch<{ id: string; title: string; hue: number; videoUrl: string | null; posterUrl: string | null }[]>('/reels'),
 };
 
 // ---------- CMS content (guest-facing reads of admin's Content section) ----------

@@ -253,7 +253,10 @@ export const liveEvents = {
 };
 
 export const liveMedia = {
-  upload: async (file: File): Promise<{ url: string }> => {
+  // posterUrl is only present for video uploads — StorageService generates
+  // it server-side (first-frame JPEG) so the guest homepage can show a
+  // lightweight poster instead of autoplaying every reel's raw video.
+  upload: async (file: File): Promise<{ url: string; posterUrl?: string }> => {
     const token = getLiveToken();
     const form = new FormData();
     form.append('file', file);
@@ -930,10 +933,10 @@ export const livePromos = {
   remove: (code: string) => liveFetch<{ ok: true }>(`/admin/promos/${code}`, { method: 'DELETE' }),
 };
 
-export interface LiveReel { id: string; title: string; hue: number; active: boolean; videoUrl: string | null; }
+export interface LiveReel { id: string; title: string; hue: number; active: boolean; videoUrl: string | null; posterUrl: string | null; }
 export const liveReels = {
   list: () => liveFetch<LiveReel[]>('/admin/reels'),
-  create: (body: { title: string; videoUrl?: string }) => liveFetch<LiveReel>('/admin/reels', { body }),
+  create: (body: { title: string; videoUrl?: string; posterUrl?: string }) => liveFetch<LiveReel>('/admin/reels', { body }),
   toggle: (id: string) => liveFetch<LiveReel>(`/admin/reels/${id}/toggle`, { method: 'POST' }),
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/reels/${id}`, { method: 'DELETE' }),
 };

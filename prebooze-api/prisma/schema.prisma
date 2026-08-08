@@ -1708,6 +1708,11 @@ model Reel {
   hue      Int
   active   Boolean @default(true)
   videoUrl String?
+  // First-frame poster, generated server-side at upload time (see
+  // StorageService.processVideo) — the guest homepage shows this by default
+  // and only fetches the real video once a guest taps to play it, instead
+  // of every reel autoplaying and downloading on page load.
+  posterUrl String?
 
   createdAt DateTime @default(now())
 }
