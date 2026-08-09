@@ -42,6 +42,11 @@
          FOUT-driven layout shift (text reflowing once the real font swaps
          in) as small and as early as possible. -->
     <link rel="preload" href="/fonts/manrope-400.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- The header logo is the LCP element on most loads but was only
+         discovered after the JS bundle fetched, parsed, and mounted
+         <Header> — this starts the fetch from the initial HTML parse
+         instead, in parallel with the JS bundle rather than after it. -->
+    <link rel="preload" href="/prebooze-logo.png" as="image" />
     <title>Prebooze — Your city's events, one tap away</title>
   </head>
   <body>

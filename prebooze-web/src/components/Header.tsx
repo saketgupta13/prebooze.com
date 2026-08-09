@@ -176,7 +176,7 @@ export default function Header() {
     <header className="hdr">
       <div className="container hdr-in">
         <Link to="/" className="hdr-logo">
-          <img src={logoUrl || '/prebooze-logo.png'} alt="Prebooze" />
+          <img src={logoUrl || '/prebooze-logo.png'} alt="Prebooze" width={203} height={42} fetchPriority="high" />
         </Link>
 
         <SearchBox className="hdr-search" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} />
