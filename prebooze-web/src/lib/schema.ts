@@ -1,4 +1,4 @@
-import type { Event, Venue, Organizer, PromoterProfile, LineupProfile } from '../types';
+import type { Event, Venue, Organizer, PromoterProfile, LineupProfile, CmsBlog } from '../types';
 import type { PlatformInfo } from '../api';
 import { stripHtml } from './richtext';
 
@@ -192,6 +192,30 @@ export function buildLineupSchema(lineup: LineupProfile) {
       addressCountry: lineup.country || 'IN',
     },
     ...(sameAs.length ? { sameAs } : {}),
+  };
+}
+
+/** Blog post — BlogPosting, Google's article rich-result type. Prebooze's
+ * blog has no byline (posts are written under the brand, not an
+ * individual), so author and publisher are both the Organization. */
+export function buildBlogPostSchema(post: CmsBlog) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.meta || undefined,
+    image: post.bannerUrl || undefined,
+    datePublished: post.createdAt,
+    dateModified: post.updatedAt,
+    url: `${SITE_ORIGIN}/blog/${post.id}`,
+    articleSection: post.category || undefined,
+    author: { '@type': 'Organization', name: 'Prebooze', url: SITE_ORIGIN },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Prebooze',
+      url: SITE_ORIGIN,
+      logo: { '@type': 'ImageObject', url: `${SITE_ORIGIN}/prebooze-logo.png` },
+    },
   };
 }
 

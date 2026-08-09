@@ -8,6 +8,8 @@ import { PageLoader } from '../../components/Loader';
 import ShareButton from '../../components/ShareButton';
 import { stripHtml } from '../../lib/richtext';
 import { useSeo } from '../../lib/useSeo';
+import { useJsonLd } from '../../lib/useJsonLd';
+import { buildBlogPostSchema, buildBreadcrumbSchema } from '../../lib/schema';
 
 const hueFromId = (id: string) => {
   let h = 0;
@@ -26,6 +28,16 @@ export default function BlogPost() {
   const [more, setMore] = useState<CmsBlogSummary[]>([]);
   const [loading, setLoading] = useState(true);
   useSeo(null, post?.title);
+  useJsonLd(post ? buildBlogPostSchema(post) : null);
+  useJsonLd(
+    post
+      ? buildBreadcrumbSchema([
+          { name: 'Home', path: '/' },
+          { name: 'Blog', path: '/blog' },
+          { name: post.title, path: `/blog/${post.id}` },
+        ])
+      : null,
+  );
 
   useEffect(() => {
     if (!isBackendEnabled() || !slug) return;
