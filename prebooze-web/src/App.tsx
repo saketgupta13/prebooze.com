@@ -3,6 +3,8 @@ import { Suspense, lazy, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useApp } from './store/AppContext';
 import { usePlatformInfo } from './lib/usePlatformInfo';
+import { useJsonLd } from './lib/useJsonLd';
+import { buildOrganizationSchema } from './lib/schema';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
@@ -147,6 +149,16 @@ function CanonicalUrl() {
   return null;
 }
 
+/** Site-wide Schema.org Organization markup — present on every route, one
+ * effect, built from live platform settings so it can't drift from
+ * whatever admin has actually configured in Settings. Ties search results
+ * back to a real brand entity for Google's Knowledge Panel data. */
+function OrganizationSchema() {
+  const info = usePlatformInfo();
+  useJsonLd(buildOrganizationSchema(info));
+  return null;
+}
+
 /** Real gate for Settings → Danger zone → "Maintenance mode" — the
  * platform-wide toggle already blocks booking creation server-side
  * (BookingsService.priceHold), this is the other half the setting's own
@@ -172,6 +184,7 @@ export default function App() {
     <ComingSoonGate>
       <ScrollToTop />
       <CanonicalUrl />
+      <OrganizationSchema />
       <Header />
       <SalesPausedBanner />
       <MaintenanceGate>

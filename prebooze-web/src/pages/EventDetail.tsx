@@ -21,6 +21,8 @@ import { eventLocation } from '../lib/venue';
 import { existingRole, roleLabel } from '../lib/roles';
 import { stripHtml } from '../lib/richtext';
 import { useSeo } from '../lib/useSeo';
+import { useJsonLd } from '../lib/useJsonLd';
+import { buildEventSchema, buildBreadcrumbSchema } from '../lib/schema';
 import { track } from '../lib/track';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { useIsMobile } from '../lib/useIsMobile';
@@ -90,6 +92,16 @@ export default function EventDetail() {
 
   const event = liveEvent ?? mockEvent;
   useSeo(event?.seo, event?.title, event?.posterUrl);
+  useJsonLd(event ? buildEventSchema(event) : null);
+  useJsonLd(
+    event
+      ? buildBreadcrumbSchema([
+          { name: 'Home', path: '/' },
+          { name: 'Events', path: '/browse' },
+          { name: event.title, path: `/events/${event.slug}` },
+        ])
+      : null,
+  );
 
   // Promoters this event's organizer has allow-listed for free-entry guest
   // lists (Event.promoterConfig.allowedPromoters, a slug array) — matched
