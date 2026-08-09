@@ -9,32 +9,52 @@
       content="Prebooze — find your next night out. Book tickets to concerts, comedy, festivals and parties from verified organizers. WhatsApp tickets, QR entry."
     />
     <meta name="google-site-verification" content="89jcaI7VGf93Uttze65CFLDCDVQHeFDoSYaci8c42nc" />
-    <!-- Google tag (gtag.js) — the dataLayer/gtag() stub below is set up
+    <!-- Google tag (gtag.js) — the dataLayer/gtag() stub below runs
          immediately (cheap: it just queues calls into an array, same as
-         Google's own snippet does before the real library has loaded), but
-         the actual ~165KB gtag.js file is only requested once the browser
-         reports idle time, instead of racing the page's own JS/CSS/images
-         for bandwidth in that first critical second. requestIdleCallback
-         isn't in Safari, so it falls back to a short timeout there — either
-         way this fires well before a real visitor has finished reading the
-         page, so pageview coverage is effectively unaffected. -->
+         Google's own snippet does before the real library loads, so no
+         event is ever lost — just delayed until gtag.js actually loads and
+         drains the queue). The ~165KB gtag.js file itself loads on
+         whichever of these fires first:
+           1. requestIdleCallback  — the common case: loads as soon as the
+              browser has spare time, usually within a few hundred ms
+           2. a real interaction   — scroll/click/key/touch — loads right
+              away rather than making an already-engaged visitor wait
+           3. a fixed 4s timeout   — safety net so a very busy page (idle
+              never fires) or a passive reader (no interaction) still gets
+              tracked without an unbounded wait
+         Whichever fires first wins; the rest are cancelled. -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'G-9XVPTSRC8T');
 
-      function loadGtagScript() {
-        var s = document.createElement('script');
-        s.async = true;
-        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-9XVPTSRC8T';
-        document.head.appendChild(s);
-      }
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(loadGtagScript, { timeout: 4000 });
-      } else {
-        setTimeout(loadGtagScript, 2000);
-      }
+      (function () {
+        var loaded = false;
+        var interactionEvents = ['scroll', 'click', 'keydown', 'touchstart', 'mousemove'];
+
+        function loadGtagScript() {
+          if (loaded) return;
+          loaded = true;
+          interactionEvents.forEach(function (evt) {
+            window.removeEventListener(evt, loadGtagScript);
+          });
+          var s = document.createElement('script');
+          s.async = true;
+          s.src = 'https://www.googletagmanager.com/gtag/js?id=G-9XVPTSRC8T';
+          document.head.appendChild(s);
+        }
+
+        interactionEvents.forEach(function (evt) {
+          window.addEventListener(evt, loadGtagScript, { once: true, passive: true });
+        });
+
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(loadGtagScript, { timeout: 4000 });
+        } else {
+          setTimeout(loadGtagScript, 4000);
+        }
+      })();
     </script>
     <link rel="canonical" href="https://prebooze.com" />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
