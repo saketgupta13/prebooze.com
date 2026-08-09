@@ -94,7 +94,7 @@ export default function GuestLanding() {
         <div className="card card-shadow">
           <div style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
             <div style={{ width: 76, flexShrink: 0 }}>
-              <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} imageUrl={event.posterUrl} />
+              <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} imageUrl={event.posterUrl} alt={event.title} />
             </div>
             <div style={{ minWidth: 0 }}>
               <span className="badge badge-accent">Free entry 🎟️</span>

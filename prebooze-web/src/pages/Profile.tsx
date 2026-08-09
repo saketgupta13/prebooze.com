@@ -240,7 +240,7 @@ export default function Profile() {
               <div className="grid-3">
                 {upcoming.map((b) => (
                   <div key={b.id} className="ecard">
-                    <Poster hue={b.event!.posterHue} emoji="🎟" label="poster" imageUrl={b.event!.posterUrl} />
+                    <Poster hue={b.event!.posterHue} emoji="🎟" label="poster" imageUrl={b.event!.posterUrl} alt={b.event!.title} />
                     <div>
                       <h3>{b.event!.title}</h3>
                       <div className="meta">{fmtDate(b.event!.date)}</div>
@@ -265,7 +265,7 @@ export default function Profile() {
               <div className="grid-3">
                 {attended.slice(0, 6).map((b) => (
                   <div key={b.id} className="ecard">
-                    <Poster hue={b.event!.posterHue} emoji="📸" label="poster" imageUrl={b.event!.posterUrl} />
+                    <Poster hue={b.event!.posterHue} emoji="📸" label="poster" imageUrl={b.event!.posterUrl} alt={b.event!.title} />
                     <div>
                       <h3>{b.event!.title}</h3>
                       <div className="meta">{fmtDate(b.event!.date)}</div>

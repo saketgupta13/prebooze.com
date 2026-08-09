@@ -70,7 +70,7 @@ export default function LineupProfile() {
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 22, flexWrap: 'wrap' }}>
           <div style={{ width: 96 }}>
             {lineup.logoUrl ? (
-              <img src={lineup.logoUrl} alt="" style={{ width: 96, height: 96, borderRadius: 12, objectFit: 'cover' }} />
+              <img src={lineup.logoUrl} alt={lineup.name} loading="eager" decoding="async" style={{ width: 96, height: 96, borderRadius: 12, objectFit: 'cover' }} />
             ) : (
               <Poster hue={lineup.hue} emoji={lineup.emoji} variant="square" />
             )}
@@ -181,7 +181,7 @@ export default function LineupProfile() {
                     <Link key={l.slug} to={`/lineup/${l.slug}`} className="card" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                       <div style={{ width: 46, flexShrink: 0 }}>
                         {l.logoUrl ? (
-                          <img src={l.logoUrl} alt="" style={{ width: 46, height: 46, borderRadius: 8, objectFit: 'cover' }} />
+                          <img src={l.logoUrl} alt={l.name} loading="lazy" decoding="async" style={{ width: 46, height: 46, borderRadius: 8, objectFit: 'cover' }} />
                         ) : (
                           <Poster hue={l.hue} emoji={l.emoji} variant="square" />
                         )}

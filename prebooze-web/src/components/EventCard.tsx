@@ -28,7 +28,7 @@ export default function EventCard({ event }: { event: Event }) {
       >
         {saved ? '❤️' : '🤍'}
       </button>
-      <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} label="Poster 3:4" imageUrl={event.posterUrl} />
+      <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} label="Poster 3:4" imageUrl={event.posterUrl} alt={event.title} />
       <div>
         <h3>{event.title}</h3>
         <div className="meta">

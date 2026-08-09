@@ -76,7 +76,7 @@ export default function VenueDetail() {
 
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', margin: '22px 0', flexWrap: 'wrap' }}>
           <div style={{ width: 96 }}>
-            <Poster hue={venue.photoHue} emoji="🏛" variant="square" imageUrl={venue.logoUrl} />
+            <Poster hue={venue.photoHue} emoji="🏛" variant="square" imageUrl={venue.logoUrl} alt={venue.name} eager />
           </div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <h1 style={{ fontSize: 24 }}>

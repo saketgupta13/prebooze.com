@@ -74,7 +74,7 @@ export default function OrganizerProfile() {
       <div className="container">
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 22, flexWrap: 'wrap' }}>
           <div style={{ width: 96 }}>
-            <Poster hue={org.logoHue} emoji="🎧" variant="square" imageUrl={org.logoUrl} />
+            <Poster hue={org.logoHue} emoji="🎧" variant="square" imageUrl={org.logoUrl} alt={org.brandName} eager />
           </div>
           <div style={{ flex: 1, minWidth: 220 }}>
             <h1 style={{ fontSize: 24 }}>

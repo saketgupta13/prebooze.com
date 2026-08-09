@@ -60,7 +60,7 @@ export default function BlogPost() {
           {fmtDate(post.updatedAt)} · {readMins(post.content ?? '')} min read
         </div>
 
-        <Poster hue={hueFromId(post.id)} emoji="📰" label="cover image 16:9" variant="landscape" imageUrl={post.bannerUrl} />
+        <Poster hue={hueFromId(post.id)} emoji="📰" label="cover image 16:9" variant="landscape" imageUrl={post.bannerUrl} alt={post.title} eager />
 
         <article
           className="rich-text"
@@ -84,7 +84,7 @@ export default function BlogPost() {
               {more.map((p) => (
                 <Link key={p.id} to={`/blog/${p.id}`} className="card" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                   <div style={{ width: 84, flexShrink: 0 }}>
-                    <Poster hue={hueFromId(p.id)} emoji="📰" variant="landscape" imageUrl={p.bannerUrl} />
+                    <Poster hue={hueFromId(p.id)} emoji="📰" variant="landscape" imageUrl={p.bannerUrl} alt={p.title} />
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <h3 style={{ fontSize: 14 }}>{p.title}</h3>

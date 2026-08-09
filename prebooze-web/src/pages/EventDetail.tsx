@@ -240,7 +240,7 @@ export default function EventDetail() {
           <div className="detail-head-area">
             {/* Head */}
             <div className="detail-head">
-              <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} label="portrait banner 3:4" imageUrl={event.posterUrl} />
+              <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} label="portrait banner 3:4" imageUrl={event.posterUrl} alt={event.title} eager />
               <div className="detail-title">
                 <h1>{event.title}</h1>
                 <div className="detail-meta">
