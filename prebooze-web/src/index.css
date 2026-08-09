@@ -460,7 +460,10 @@ textarea { resize: vertical; min-height: 84px; }
   align-items: center;
   gap: 10px;
 }
-.ftr-base img { height: 22px; }
+/* aspect-ratio reserves the width too (was height-only, so the browser
+   didn't know how wide the logo would be until it decoded, leaving a
+   brief horizontal gap that closed once it loaded). */
+.ftr-base img { height: 22px; aspect-ratio: 960 / 199; }
 .ftr-spacer { flex: 1; }
 
 /* ============ Hero ============ */
