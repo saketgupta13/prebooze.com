@@ -1,5 +1,6 @@
 import type { Event } from '../types';
 import type { PlatformInfo } from '../api';
+import { stripHtml } from './richtext';
 
 const SITE_ORIGIN = 'https://prebooze.com';
 
@@ -53,7 +54,7 @@ export function buildEventSchema(event: Event) {
     '@context': 'https://schema.org',
     '@type': 'Event',
     name: event.title,
-    description: event.description,
+    description: stripHtml(event.description),
     startDate: start.toISOString(),
     endDate: end.toISOString(),
     eventStatus: 'https://schema.org/EventScheduled',
