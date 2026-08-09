@@ -9,11 +9,14 @@
       content="Prebooze — find your next night out. Book tickets to concerts, comedy, festivals and parties from verified organizers. WhatsApp tickets, QR entry."
     />
     <meta name="google-site-verification" content="89jcaI7VGf93Uttze65CFLDCDVQHeFDoSYaci8c42nc" />
-    <!-- Google tag (gtag.js) — the dataLayer/gtag() stub below runs
-         immediately (cheap: it just queues calls into an array, same as
-         Google's own snippet does before the real library loads, so no
-         event is ever lost — just delayed until gtag.js actually loads and
-         drains the queue). The ~165KB gtag.js file itself loads on
+    <!-- Google Tag Manager — replaces the old direct gtag.js-to-GA4
+         connection (GTM will own that connection instead, via a GA4
+         Configuration tag set up inside the GTM container, so GA4 keeps
+         working the same as before without double-counting pageviews from
+         two independent connections). The dataLayer.push below runs
+         immediately — it's just an array push, no network cost, and
+         gtm.start needs an accurate early timestamp for GTM's own timing
+         data — but the actual gtm.js network request is deferred until
          whichever of these fires first:
            1. requestIdleCallback  — the common case: loads as soon as the
               browser has spare time, usually within a few hundred ms
@@ -25,37 +28,40 @@
          Whichever fires first wins; the rest are cancelled. -->
     <script>
       window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-9XVPTSRC8T');
+      dataLayer.push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
 
       (function () {
         var loaded = false;
         var interactionEvents = ['scroll', 'click', 'keydown', 'touchstart', 'mousemove'];
 
-        function loadGtagScript() {
+        function loadGtm() {
           if (loaded) return;
           loaded = true;
           interactionEvents.forEach(function (evt) {
-            window.removeEventListener(evt, loadGtagScript);
+            window.removeEventListener(evt, loadGtm);
           });
-          var s = document.createElement('script');
-          s.async = true;
-          s.src = 'https://www.googletagmanager.com/gtag/js?id=G-9XVPTSRC8T';
-          document.head.appendChild(s);
+          var f = document.getElementsByTagName('script')[0];
+          var j = document.createElement('script');
+          j.async = true;
+          j.src = 'https://www.googletagmanager.com/gtm.js?id=GTM-W6R8TWJZ';
+          f.parentNode.insertBefore(j, f);
         }
 
         interactionEvents.forEach(function (evt) {
-          window.addEventListener(evt, loadGtagScript, { once: true, passive: true });
+          window.addEventListener(evt, loadGtm, { once: true, passive: true });
         });
 
         if ('requestIdleCallback' in window) {
-          requestIdleCallback(loadGtagScript, { timeout: 4000 });
-        } else {
-          setTimeout(loadGtagScript, 4000);
+          requestIdleCallback(loadGtm);
         }
+        // Independent of the requestIdleCallback branch above (not an
+        // else) — this is the one guaranteed-to-fire backstop regardless
+        // of idle-callback support or behavior, so the 4s ceiling doesn't
+        // depend on requestIdleCallback's own timeout option.
+        setTimeout(loadGtm, 4000);
       })();
     </script>
+    <!-- End Google Tag Manager -->
     <link rel="canonical" href="https://prebooze.com" />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
     <meta property="og:type" content="website" />
@@ -88,6 +94,10 @@
     <title>Prebooze — Your city's events, one tap away</title>
   </head>
   <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-W6R8TWJZ"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
