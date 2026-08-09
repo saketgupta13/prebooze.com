@@ -8,6 +8,7 @@ import { isBackendEnabled } from '../api/client';
 import { existingRole, roleHome, roleLabel } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { track } from '../lib/track';
+import { pushEvent } from '../lib/gtm';
 import { eventLocation } from '../lib/venue';
 
 const ABSORBED_NOTE: Record<string, string> = {
@@ -325,6 +326,21 @@ export default function Checkout() {
 
   const afterBookingSuccess = (id: string) => {
     track('booking_completed', { eventId: event?.id });
+    // GA4's standard "purchase" event — using its recommended param shape
+    // (transaction_id/value/currency/items) instead of a custom event name
+    // is what unlocks GA4's built-in Ecommerce reports for this instead of
+    // needing a hand-built one.
+    pushEvent('purchase', {
+      transaction_id: id,
+      value: finalTotal,
+      currency: 'INR',
+      items: lines.map((l) => ({
+        item_id: l.tier.id,
+        item_name: event ? `${event.title} — ${l.tier.name}` : l.tier.name,
+        price: l.tier.price,
+        quantity: l.qty,
+      })),
+    });
     if (cartId) setCartStatus(cartId, 'completed');
     setSelection(null);
     clearHold();

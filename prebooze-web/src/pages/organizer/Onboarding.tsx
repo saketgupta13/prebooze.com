@@ -10,6 +10,7 @@ import { FileDropBox } from '../../components/FileDropBox';
 import { dataUrlToFile } from '../../lib/fileUtils';
 import { kyc } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
+import { pushEvent } from '../../lib/gtm';
 
 const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
 
@@ -105,6 +106,7 @@ export default function Onboarding() {
       };
       const res = await kyc.submitRole('organizer', payload, [aadhaarFile, selfieFile]);
       updateUser({ ...res.user, pendingRole: 'organizer' });
+      pushEvent('organizer_onboarding_submitted');
       clearDraft(DRAFT_ID);
       navigate('/organizer'); // console redirects to a "pending review" screen until the team approves
     } catch (e) {

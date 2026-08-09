@@ -7,6 +7,7 @@ import { notify } from '../lib/notify';
 import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTeamApi, bookings as bookingsApi, wallet as walletApi, support as supportApi, careers as careersApi, type OrgTeamAccess } from '../api';
 import { isBackendEnabled, setToken, clearToken, getToken } from '../api/client';
 import { track } from '../lib/track';
+import { pushEvent } from '../lib/gtm';
 
 export interface GuestReview {
   id: string;
@@ -563,6 +564,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (isBackendEnabled()) {
           const { token, user: apiUser, isNew } = await auth.verifyOtp(pendingRequestId, code);
           track('otp_verified');
+          // GA4 standard events — isNew distinguishes a first-time signup
+          // from a returning login, same distinction the rest of the app
+          // already makes off this same verifyOtp() response.
+          pushEvent(isNew ? 'sign_up' : 'login', { method: 'whatsapp_otp' });
           setToken(token);
           setUser(normalizeUser({ ...apiUser, pendingRole: inferPendingRole(apiUser) }));
           // Bootstrap effects above only run once on mount (before a token

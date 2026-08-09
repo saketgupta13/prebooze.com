@@ -13,6 +13,7 @@ import { RealUploadBox } from '../../components/RealUploadBox';
 import { dataUrlToFile } from '../../lib/fileUtils';
 import { auth, venuePartner, catalog } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
+import { pushEvent } from '../../lib/gtm';
 
 // Offline/dev-mode fallback only — the real, admin-managed list (Admin >
 // Content > Venue types) is fetched below and used whenever a backend is
@@ -148,6 +149,7 @@ export default function VenueOnboarding() {
       // authoritative roleStatus/venueId the layout gate needs.
       const fresh = await auth.me();
       updateUser({ ...fresh, pendingRole: 'venue' });
+      pushEvent('venue_onboarding_submitted');
       clearDraft(DRAFT_ID);
       setDone(true);
     } catch (e) {
