@@ -106,6 +106,7 @@ const VenueHostedEvents = lazy(() => import('./pages/venue/VenueHostedEvents'));
 const CreateHostedEvent = lazy(() => import('./pages/venue/CreateHostedEvent'));
 const VenueLedger = lazy(() => import('./pages/venue/VenueLedger'));
 const VenueWithdraw = lazy(() => import('./pages/venue/VenueWithdraw'));
+const NotFound = lazy(() => import('./pages/static/NotFound'));
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useApp();
@@ -376,7 +377,7 @@ export default function App() {
         <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/legal/:page" element={<Legal />} />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
       </Suspense>
       </MaintenanceGate>

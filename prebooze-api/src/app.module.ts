@@ -21,6 +21,7 @@ import { AdminModule } from './admin/admin.module';
 import { ContentModule } from './content/content.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { SitemapModule } from './sitemap/sitemap.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     ContentModule,
     SubscriptionsModule,
     AnalyticsModule,
+    SitemapModule,
   ],
   controllers: [AppController],
 })
