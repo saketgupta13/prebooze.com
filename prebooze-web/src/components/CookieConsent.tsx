@@ -40,7 +40,7 @@ export default function CookieConsent() {
     >
       <p style={{ margin: 0, flex: '1 1 320px', fontSize: 13, color: 'var(--muted)' }}>
         We use cookies to keep you signed in and to remember your city and preferences. See our{' '}
-        <Link to="/legal/cookies" style={{ color: 'var(--accent)' }}>Cookie Policy</Link> for details.
+        <Link to="/legal/cookies" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Cookie Policy</Link> for details.
       </p>
       <div style={{ display: 'flex', gap: 8, flex: 'none' }}>
         <button className="btn btn-ghost" onClick={() => decide('rejected')}>Reject non-essential</button>
