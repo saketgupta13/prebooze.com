@@ -13,6 +13,8 @@ import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
 import { useSeo } from '../lib/useSeo';
 import { useEntitySeo } from '../lib/useEntitySeo';
+import { useJsonLd } from '../lib/useJsonLd';
+import { buildLineupSchema, buildBreadcrumbSchema } from '../lib/schema';
 
 /** Public line-up profile — artists, DJs, sponsors and promoters guests can follow. */
 export default function LineupProfile() {
@@ -37,6 +39,16 @@ export default function LineupProfile() {
   const lineup = liveLineup ?? (isBackendEnabled() ? undefined : lineupBySlug(slug ?? ''));
   const liveSeo = useEntitySeo('lineup', slug);
   useSeo(liveSeo, lineup?.name, lineup?.logoUrl);
+  useJsonLd(lineup ? buildLineupSchema(lineup) : null);
+  useJsonLd(
+    lineup
+      ? buildBreadcrumbSchema([
+          { name: 'Home', path: '/' },
+          { name: 'Line-ups', path: '/lineups' },
+          { name: lineup.name, path: `/lineup/${lineup.slug}` },
+        ])
+      : null,
+  );
 
   if (loading && !lineup) {
     return <PageLoader />;

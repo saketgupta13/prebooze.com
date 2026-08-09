@@ -13,6 +13,8 @@ import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
 import { useSeo } from '../lib/useSeo';
 import { useEntitySeo } from '../lib/useEntitySeo';
+import { useJsonLd } from '../lib/useJsonLd';
+import { buildVenueSchema, buildBreadcrumbSchema } from '../lib/schema';
 
 export default function VenueDetail() {
   const { id } = useParams();
@@ -36,6 +38,16 @@ export default function VenueDetail() {
   const venue = liveVenue ?? (isBackendEnabled() ? undefined : VENUES.find((v) => v.id === id));
   const liveSeo = useEntitySeo('venue', id);
   useSeo(liveSeo, venue?.name, venue?.logoUrl);
+  useJsonLd(venue ? buildVenueSchema(venue) : null);
+  useJsonLd(
+    venue
+      ? buildBreadcrumbSchema([
+          { name: 'Home', path: '/' },
+          { name: 'Venues', path: '/venues' },
+          { name: venue.name, path: `/venues/${venue.id}` },
+        ])
+      : null,
+  );
 
   if (loading && !venue) {
     return <PageLoader />;

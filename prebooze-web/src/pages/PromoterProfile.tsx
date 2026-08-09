@@ -13,6 +13,8 @@ import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
 import { useSeo } from '../lib/useSeo';
 import { useEntitySeo } from '../lib/useEntitySeo';
+import { useJsonLd } from '../lib/useJsonLd';
+import { buildPromoterSchema, buildBreadcrumbSchema } from '../lib/schema';
 
 /** Public promoter profile — followable, shows the events they're promoting. */
 export default function PromoterProfile() {
@@ -37,6 +39,16 @@ export default function PromoterProfile() {
   const promoter = livePromoter ?? (isBackendEnabled() ? undefined : promoterBySlug(slug ?? ''));
   const liveSeo = useEntitySeo('promoter', slug);
   useSeo(liveSeo, promoter?.name);
+  useJsonLd(promoter ? buildPromoterSchema(promoter) : null);
+  useJsonLd(
+    promoter
+      ? buildBreadcrumbSchema([
+          { name: 'Home', path: '/' },
+          { name: 'Promoters', path: '/promoters' },
+          { name: promoter.name, path: `/promoter/${promoter.slug}` },
+        ])
+      : null,
+  );
 
   if (loading && !promoter) {
     return <PageLoader />;

@@ -13,6 +13,8 @@ import ReviewsSection from '../components/ReviewsSection';
 import Poster from '../components/Poster';
 import { useSeo } from '../lib/useSeo';
 import { useEntitySeo } from '../lib/useEntitySeo';
+import { useJsonLd } from '../lib/useJsonLd';
+import { buildOrganizerSchema, buildBreadcrumbSchema } from '../lib/schema';
 
 export default function OrganizerProfile() {
   const { id } = useParams();
@@ -38,6 +40,16 @@ export default function OrganizerProfile() {
   const org = liveOrg ?? (isBackendEnabled() ? undefined : ORGANIZERS.find((o) => o.id === id));
   const liveSeo = useEntitySeo('organizer', id);
   useSeo(liveSeo, org?.brandName, org?.logoUrl);
+  useJsonLd(org ? buildOrganizerSchema(org) : null);
+  useJsonLd(
+    org
+      ? buildBreadcrumbSchema([
+          { name: 'Home', path: '/' },
+          { name: 'Organizers', path: '/organizers' },
+          { name: org.brandName, path: `/organizers/${org.id}` },
+        ])
+      : null,
+  );
 
   if (loading && !org) {
     return <PageLoader />;
