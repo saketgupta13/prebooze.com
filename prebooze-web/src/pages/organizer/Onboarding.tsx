@@ -12,6 +12,7 @@ import { kyc } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
+import { attributionForPayload } from '../../lib/track';
 
 const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
 
@@ -104,6 +105,7 @@ export default function Onboarding() {
         socialLinks: { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined, other: otherLinks },
         gstin: noGst ? '' : gstin.trim().toUpperCase(), pan: pan.trim().toUpperCase(),
         bankName: bankName.trim(), bankAccount: account.trim(), accountHolderName: accountHolder.trim(), bankIfsc: ifsc.trim(),
+        ...attributionForPayload(),
       };
       const res = await kyc.submitRole('organizer', payload, [aadhaarFile, selfieFile]);
       updateUser({ ...res.user, pendingRole: 'organizer' });

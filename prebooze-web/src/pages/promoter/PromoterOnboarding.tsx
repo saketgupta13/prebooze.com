@@ -12,6 +12,7 @@ import { kyc } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
+import { attributionForPayload } from '../../lib/track';
 
 const DRAFT_ID = 'promoter';
 type Draft = {
@@ -81,6 +82,7 @@ export default function PromoterOnboarding() {
         brand: brand.trim(), brandName: brand.trim(), username: username.trim(),
         city: loc.city, country: loc.country, state: loc.state, pincode: loc.pincode,
         bio, links, audience: audience.trim() || undefined,
+        ...attributionForPayload(),
       };
       const res = await kyc.submitRole('promoter', payload, [idDocFile, selfieFile]);
       updateUser({ ...res.user, pendingRole: 'promoter' });

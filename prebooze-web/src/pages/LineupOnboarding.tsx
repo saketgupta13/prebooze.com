@@ -11,6 +11,7 @@ import { kyc, lineup as lineupApi } from '../api';
 import { isBackendEnabled, ApiError } from '../api/client';
 import { pushEvent } from '../lib/gtm';
 import { trackMeta } from '../lib/meta';
+import { attributionForPayload } from '../lib/track';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 const DRAFT_ID = 'lineup';
@@ -74,6 +75,7 @@ export default function LineupOnboarding() {
         name: stageName.trim(), category, username: username.trim(),
         city: loc.city, state: loc.state, country: loc.country, pincode: loc.pincode,
         bio, links: links.map((l) => l.trim()).filter(Boolean), logoUrl: logoUrl || undefined,
+        ...attributionForPayload(),
       };
       const res = await kyc.submitRole('lineup', payload, []);
       updateUser({ ...res.user, pendingRole: 'lineup' });

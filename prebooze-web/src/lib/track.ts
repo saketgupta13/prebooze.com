@@ -65,3 +65,20 @@ export function track(type: string, opts?: { eventId?: string; meta?: Record<str
     body: { sessionId: sessionId(), type, eventId: opts?.eventId, meta: opts?.meta, ...attribution() },
   }).catch(() => {});
 }
+
+/** Same first-touch attribution `track()` sends, for embedding directly into
+ * a KYC/role application's own payload — so a reviewer looking at a pending
+ * application in Admin > Verifications can see where the lead actually came
+ * from (e.g. a paid Meta campaign) without cross-referencing a separate
+ * analytics table by session/timestamp. Only returns fields that are
+ * actually present, so an organic/direct visitor's application doesn't grow
+ * a payload full of `undefined` marketing fields. */
+export function attributionForPayload(): Record<string, string> {
+  const a = attribution();
+  const out: Record<string, string> = {};
+  if (a.utmSource) out.utmSource = a.utmSource;
+  if (a.utmMedium) out.utmMedium = a.utmMedium;
+  if (a.utmCampaign) out.utmCampaign = a.utmCampaign;
+  if (a.referrerHost) out.referrerHost = a.referrerHost;
+  return out;
+}

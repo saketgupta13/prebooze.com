@@ -15,6 +15,7 @@ import { auth, venuePartner, catalog } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
+import { attributionForPayload } from '../../lib/track';
 
 // Offline/dev-mode fallback only — the real, admin-managed list (Admin >
 // Content > Venue types) is fetched below and used whenever a backend is
@@ -145,6 +146,7 @@ export default function VenueOnboarding() {
         contactPerson: contactPerson.trim() || undefined,
         contactPersonPhone: contactPersonPhone.trim() || undefined,
         socialLinks: (instagram.trim() || facebook.trim()) ? { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined } : undefined,
+        ...attributionForPayload(),
       });
       // onboard() only returns the new Venue row — refetch /me for the
       // authoritative roleStatus/venueId the layout gate needs.

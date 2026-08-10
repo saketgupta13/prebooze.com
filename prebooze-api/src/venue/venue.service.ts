@@ -29,6 +29,14 @@ interface OnboardInput {
   contactPerson?: string;
   contactPersonPhone?: string;
   socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
+  // First-touch marketing attribution (see prebooze-web's lib/track.ts) —
+  // stored on the KycSubmission payload only, purely so a reviewer in
+  // Admin > Verifications can see where the lead came from; never touches
+  // the real Venue catalog row.
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  referrerHost?: string;
 }
 
 interface HostedTierInput {
@@ -200,6 +208,7 @@ export class VenueService {
         payload: {
           venueId: id, name: venue.name, type: venue.type, city: venue.city, address: venue.address,
           capacity: venue.capacity, amenities: venue.amenities, timings: venue.timings, about: venue.about,
+          utmSource: input.utmSource, utmMedium: input.utmMedium, utmCampaign: input.utmCampaign, referrerHost: input.referrerHost,
         } as Prisma.InputJsonValue,
         documents: [
           { type: 'license', path: input.licenseDoc },

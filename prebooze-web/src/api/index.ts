@@ -617,7 +617,16 @@ export const venuePartner = {
     form.append('file', file);
     return apiUpload<{ url: string }>('/venue/upload', form);
   },
-  onboard: (v: Partial<Venue> & { licenseDoc?: string; addressProofDoc?: string }) => apiFetch<Venue>('/venue/onboard', { body: v }),
+  onboard: (
+    v: Partial<Venue> & {
+      licenseDoc?: string;
+      addressProofDoc?: string;
+      utmSource?: string;
+      utmMedium?: string;
+      utmCampaign?: string;
+      referrerHost?: string;
+    },
+  ) => apiFetch<Venue>('/venue/onboard', { body: v }),
   myListing: () => apiFetch<Venue & { favourites: number }>('/venue/listing'),
   updateListing: (patch: Partial<Venue>) => apiFetch<Venue>('/venue/listing', { method: 'PATCH', body: patch }),
   events: () => apiFetch<Event[]>('/venue/events'),
