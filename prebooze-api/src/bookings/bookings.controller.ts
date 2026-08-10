@@ -7,6 +7,13 @@ import { PermissionGuard } from '../admin/permission.guard';
 import { RequirePermission } from '../admin/permission.decorator';
 
 type AuthedReq = { user: { sub: string } };
+// Same shape TrackController uses for IP/UA — nginx sets X-Forwarded-For to
+// the real visitor IP (see deploy config), socket.remoteAddress is only a
+// local/direct-dev fallback.
+type AuthedReqWithMeta = AuthedReq & {
+  headers: { 'user-agent'?: string; 'x-forwarded-for'?: string };
+  socket?: { remoteAddress?: string };
+};
 
 @Controller()
 export class BookingsController {
@@ -28,8 +35,9 @@ export class BookingsController {
 
   @Post('bookings')
   @UseGuards(JwtAuthGuard)
-  create(@Req() req: AuthedReq, @Body() body: CreateBookingInput) {
-    return this.bookings.create(req.user.sub, body);
+  create(@Req() req: AuthedReqWithMeta, @Body() body: CreateBookingInput) {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
+    return this.bookings.create(req.user.sub, body, { ip, userAgent: req.headers['user-agent'] });
   }
 
   @Get('bookings')

@@ -15,6 +15,7 @@ import { NotificationsService } from '../admin/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { normalizePhone } from '../auth/auth.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
+import { MetaConversionsService } from '../meta/meta-conversions.service';
 
 const FALLBACK_FEE_PER_TICKET = 1.5; // ₹ — used only if PlatformSettings row is somehow missing
 
@@ -48,6 +49,7 @@ export class BookingsService {
     private invoices: InvoicesService,
     private staffAlerts: StaffAlertsService,
     private wallet: WalletService,
+    private meta: MetaConversionsService,
   ) {}
 
   async createHold(userId: string, eventId: string, qty: Record<string, number>) {
@@ -215,7 +217,7 @@ export class BookingsService {
     };
   }
 
-  async create(userId: string, input: CreateBookingInput) {
+  async create(userId: string, input: CreateBookingInput, reqMeta?: { ip?: string; userAgent?: string }) {
     const buyer = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (buyer.blocked) throw new ForbiddenException('This account is blocked from booking — contact support');
 
@@ -387,6 +389,20 @@ export class BookingsService {
         }).catch(() => {});
       }
     }
+
+    // Server-side mirror of the browser Pixel's Purchase event (see
+    // Checkout.tsx's trackMeta call) — same `id` as the event_id both sides
+    // use, so Meta dedupes browser+server into one event instead of
+    // double-counting. Never blocks/fails a real, already-paid booking.
+    this.meta
+      .sendEvent(
+        'Purchase',
+        id,
+        `https://prebooze.com/events/${event.slug}`,
+        { phone: input.whatsapp, email: user.email, clientIp: reqMeta?.ip, userAgent: reqMeta?.userAgent },
+        { value: total, currency: 'INR', content_type: 'product', content_ids: lines.map((l) => l.tier.id), num_items: qty },
+      )
+      .catch(() => {});
 
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true } } } });
   }

@@ -78,7 +78,8 @@ export default function LineupOnboarding() {
       const res = await kyc.submitRole('lineup', payload, []);
       updateUser({ ...res.user, pendingRole: 'lineup' });
       pushEvent('lineup_onboarding_submitted');
-      trackMeta('Lead', { content_name: 'lineup_onboarding' });
+      // eventId must match kyc.service.ts's submitRole server-side call.
+      trackMeta('Lead', { content_name: 'lineup_onboarding' }, `${user?.phone}_lineup`);
       clearDraft(DRAFT_ID);
       setDone(true);
     } catch (e) {

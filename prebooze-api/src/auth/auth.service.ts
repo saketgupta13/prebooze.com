@@ -8,6 +8,7 @@ import { REDIS } from '../redis.provider';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { uniqueReferralCodeFor } from '../referrals/referral.constants';
+import { MetaConversionsService } from '../meta/meta-conversions.service';
 
 const OTP_TTL_S = 300; // 5 minutes
 const MAX_VERIFY_ATTEMPTS = 5;
@@ -84,6 +85,7 @@ export class AuthService {
     private wa: WhatsappService,
     private email: EmailService,
     @Inject(REDIS) private redis: Redis,
+    private meta: MetaConversionsService,
   ) {}
 
   /** Every guest now needs a username the moment their account exists — the
@@ -136,7 +138,7 @@ export class AuthService {
     return this.wa.live ? { requestId } : { requestId, devCode: code };
   }
 
-  async verifyOtp(requestId: string, code: string) {
+  async verifyOtp(requestId: string, code: string, reqMeta?: { ip?: string; userAgent?: string }) {
     const key = `otp:${requestId}`;
     const raw = await this.redis.get(key);
     if (!raw) throw new UnauthorizedException('OTP expired — request a new one');
@@ -172,6 +174,23 @@ export class AuthService {
     await this.prisma.orgStaff.updateMany({ where: { phone: user.phone, userId: null }, data: { userId: user.id } });
 
     const token = await this.jwt.signAsync({ sub: user.id, phone: user.phone });
+    // Server-side mirror of the browser Pixel's CompleteRegistration event
+    // (see AppContext.tsx's trackMeta call) — same isNew-only condition
+    // (Meta has no standard "Login" event), same shared event_id (phone —
+    // toApiUser() doesn't expose the DB id to the frontend, phone is the
+    // one unique identifier both sides already have) so Meta dedupes
+    // browser+server. Never blocks a real login/signup.
+    if (!existing) {
+      this.meta
+        .sendEvent(
+          'CompleteRegistration',
+          user.phone,
+          'https://prebooze.com/',
+          { phone: user.phone, email: user.email, clientIp: reqMeta?.ip, userAgent: reqMeta?.userAgent },
+          { method: 'whatsapp_otp' },
+        )
+        .catch(() => {});
+    }
     return { token, user: toApiUser(user), isNew: !existing };
   }
 

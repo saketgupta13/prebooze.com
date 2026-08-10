@@ -8,6 +8,7 @@ import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { JwtAuthGuard } from './jwt.guard';
 import { StorageService } from '../kyc/storage.service';
+import { MetaConversionsService } from '../meta/meta-conversions.service';
 
 @Module({
   imports: [
@@ -18,6 +19,6 @@ import { StorageService } from '../kyc/storage.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, redisProvider, WhatsappService, EmailService, JwtAuthGuard, StorageService],
+  providers: [AuthService, PrismaService, redisProvider, WhatsappService, EmailService, JwtAuthGuard, StorageService, MetaConversionsService],
 })
 export class AuthModule {}

@@ -108,7 +108,8 @@ export default function Onboarding() {
       const res = await kyc.submitRole('organizer', payload, [aadhaarFile, selfieFile]);
       updateUser({ ...res.user, pendingRole: 'organizer' });
       pushEvent('organizer_onboarding_submitted');
-      trackMeta('Lead', { content_name: 'organizer_onboarding' });
+      // eventId must match kyc.service.ts's submitRole server-side call.
+      trackMeta('Lead', { content_name: 'organizer_onboarding' }, `${user?.phone}_organizer`);
       clearDraft(DRAFT_ID);
       navigate('/organizer'); // console redirects to a "pending review" screen until the team approves
     } catch (e) {

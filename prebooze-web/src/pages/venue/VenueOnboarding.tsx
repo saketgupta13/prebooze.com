@@ -151,7 +151,8 @@ export default function VenueOnboarding() {
       const fresh = await auth.me();
       updateUser({ ...fresh, pendingRole: 'venue' });
       pushEvent('venue_onboarding_submitted');
-      trackMeta('Lead', { content_name: 'venue_onboarding' });
+      // eventId must match venue.service.ts's onboard server-side call.
+      trackMeta('Lead', { content_name: 'venue_onboarding' }, `${user?.phone}_venue`);
       clearDraft(DRAFT_ID);
       setDone(true);
     } catch (e) {

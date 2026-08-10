@@ -571,7 +571,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           pushEvent(isNew ? 'sign_up' : 'login', { method: 'whatsapp_otp' });
           // Meta has no standard "Login" event — only fire for a genuine
           // new signup, same isNew distinction as the GA4 call above.
-          if (isNew) trackMeta('CompleteRegistration', { method: 'whatsapp_otp' });
+          // eventId (phone) must match the server-side call in
+          // auth.service.ts's verifyOtp for Meta to dedupe the two.
+          if (isNew) trackMeta('CompleteRegistration', { method: 'whatsapp_otp' }, apiUser.phone);
           setToken(token);
           setUser(normalizeUser({ ...apiUser, pendingRole: inferPendingRole(apiUser) }));
           // Bootstrap effects above only run once on mount (before a token

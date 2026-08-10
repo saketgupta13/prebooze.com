@@ -342,13 +342,17 @@ export default function Checkout() {
         quantity: l.qty,
       })),
     });
-    trackMeta('Purchase', {
-      value: finalTotal,
-      currency: 'INR',
-      content_type: 'product',
-      content_ids: lines.map((l) => l.tier.id),
-      num_items: lines.reduce((sum, l) => sum + l.qty, 0),
-    });
+    trackMeta(
+      'Purchase',
+      {
+        value: finalTotal,
+        currency: 'INR',
+        content_type: 'product',
+        content_ids: lines.map((l) => l.tier.id),
+        num_items: lines.reduce((sum, l) => sum + l.qty, 0),
+      },
+      id,
+    );
     if (cartId) setCartStatus(cartId, 'completed');
     setSelection(null);
     clearHold();

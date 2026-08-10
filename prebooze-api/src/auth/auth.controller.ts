@@ -26,8 +26,12 @@ export class AuthController {
   }
 
   @Post('auth/verify')
-  verify(@Body() dto: VerifyOtpDto) {
-    return this.auth.verifyOtp(dto.requestId, dto.code);
+  verify(
+    @Body() dto: VerifyOtpDto,
+    @Req() req: { headers: { 'user-agent'?: string; 'x-forwarded-for'?: string }; socket?: { remoteAddress?: string } },
+  ) {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
+    return this.auth.verifyOtp(dto.requestId, dto.code, { ip, userAgent: req.headers['user-agent'] });
   }
 
   @Post('auth/logout')

@@ -8,6 +8,7 @@ import { StaffAlertsService } from '../notifications/staff-alerts';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
+import { MetaConversionsService } from '../meta/meta-conversions.service';
 
 interface OnboardInput {
   name?: string;
@@ -87,6 +88,7 @@ export class VenueService {
     private staffAlerts: StaffAlertsService,
     private wa: WhatsappService,
     private email: EmailService,
+    private meta: MetaConversionsService,
   ) {}
 
   // ---------- subscription (Razorpay-billed venue plans) ----------
@@ -207,6 +209,14 @@ export class VenueService {
     });
 
     await this.prisma.user.update({ where: { id: userId }, data: { venueName: venue.name, venueLogoUrl: venue.logoUrl, venueId: id, roleStatus: 'pending' } });
+
+    // Server-side mirror of the browser Pixel's Lead event (see
+    // VenueOnboarding.tsx's trackMeta call) — same `${phone}_venue`
+    // event_id both sides use, matching the kyc.service.ts Lead pattern
+    // for organizer/promoter/lineup.
+    this.meta
+      .sendEvent('Lead', `${user.phone}_venue`, 'https://prebooze.com/venue/onboarding', { phone: user.phone, email: user.email }, { content_name: 'venue_onboarding' })
+      .catch(() => {});
 
     return venue;
   }

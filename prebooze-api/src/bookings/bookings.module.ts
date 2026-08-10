@@ -14,11 +14,12 @@ import { NotificationsService } from '../admin/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { WalletService } from '../wallet/wallet.service';
+import { MetaConversionsService } from '../meta/meta-conversions.service';
 
 // JwtModule is registered `global: true` in AuthModule, so JwtService is
 // already available here without importing it again (see kyc.module.ts).
 @Module({
   controllers: [BookingsController, AdminBookingsController],
-  providers: [BookingsService, HoldsService, RazorpayService, WhatsappService, EmailService, PrismaService, redisProvider, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService, InvoicesService, StaffAlertsService, WalletService],
+  providers: [BookingsService, HoldsService, RazorpayService, WhatsappService, EmailService, PrismaService, redisProvider, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService, InvoicesService, StaffAlertsService, WalletService, MetaConversionsService],
 })
 export class BookingsModule {}

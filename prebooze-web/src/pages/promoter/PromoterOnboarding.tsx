@@ -85,7 +85,8 @@ export default function PromoterOnboarding() {
       const res = await kyc.submitRole('promoter', payload, [idDocFile, selfieFile]);
       updateUser({ ...res.user, pendingRole: 'promoter' });
       pushEvent('promoter_onboarding_submitted');
-      trackMeta('Lead', { content_name: 'promoter_onboarding' });
+      // eventId must match kyc.service.ts's submitRole server-side call.
+      trackMeta('Lead', { content_name: 'promoter_onboarding' }, `${user?.phone}_promoter`);
       clearDraft(DRAFT_ID);
       navigate('/promoter'); // console redirects to a "pending review" screen until the team approves
     } catch (e) {

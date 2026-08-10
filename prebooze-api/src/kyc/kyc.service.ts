@@ -8,6 +8,7 @@ import { NotificationsService } from '../admin/notifications.service';
 import { EmailService } from '../notifications/email';
 import { KYC_ROLE_LABEL } from '../notifications/email-templates';
 import { StaffAlertsService } from '../notifications/staff-alerts';
+import { MetaConversionsService } from '../meta/meta-conversions.service';
 
 const ROLE_KINDS = ['organizer', 'promoter', 'lineup', 'venue'] as const;
 type RoleKind = (typeof ROLE_KINDS)[number];
@@ -21,6 +22,7 @@ export class KycService {
     private notifications: NotificationsService,
     private email: EmailService,
     private staffAlerts: StaffAlertsService,
+    private meta: MetaConversionsService,
   ) {}
 
   // ---------- guest: automatic ----------
@@ -114,6 +116,16 @@ export class KycService {
     // no venue case here — kind === 'venue' is rejected above, before this point
 
     const updated = await this.prisma.user.update({ where: { id: userId }, data: profilePatch });
+
+    // Server-side mirror of the browser Pixel's Lead event (see the
+    // relevant *Onboarding.tsx's trackMeta call) — same `${phone}_${kind}`
+    // event_id both sides use (phone, not the DB id, since toApiUser()
+    // doesn't expose the id to the frontend; roleStatus blocks
+    // resubmission, so this is naturally a once-per-user-per-kind id).
+    this.meta
+      .sendEvent('Lead', `${user.phone}_${kind}`, `https://prebooze.com/${kind}/onboarding`, { phone: user.phone, email: user.email }, { content_name: `${kind}_onboarding` })
+      .catch(() => {});
+
     return { status: 'pending', user: toApiUser(updated) };
   }
 
