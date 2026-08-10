@@ -49,6 +49,16 @@ export const kyc = {
   myStatus: () => apiFetch<{ id: string; kind: string; status: string; createdAt: string; reviewNote?: string }[]>('/kyc/me'),
 };
 
+/** Captures an incomplete role application as a draft Lead (Admin > Leads),
+ * so it doesn't just disappear if someone verifies OTP and leaves, or fills
+ * part of the form and abandons it — see useDraftLead.ts for the two call
+ * sites (on page load, and debounced as the form fills in). Best-effort:
+ * every call site swallows failures, never blocks the real onboarding flow. */
+export const leadDraft = {
+  capture: (role: 'organizer' | 'promoter' | 'lineup' | 'venue', fields: { name?: string; city?: string; eventType?: string; utmSource?: string }) =>
+    apiFetch<void>('/leads/draft', { body: { role, ...fields } }),
+};
+
 // ---------- discovery ----------
 export const catalog = {
   events: (q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string; includePast?: boolean }) => apiFetch<Event[]>('/events', { query: q }),

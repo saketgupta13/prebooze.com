@@ -12,12 +12,13 @@ import { EmailService } from '../notifications/email';
 import { WhatsappService } from '../notifications/whatsapp';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
+import { LeadsService } from '../admin/leads.service';
 
 // JwtModule is registered `global: true` in AuthModule, so JwtService (used
 // by JwtAuthGuard/StaffAuthGuard here) is already available without
 // importing it again.
 @Module({
   controllers: [KycController, AdminKycController],
-  providers: [KycService, StorageService, KycProviderService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService, EmailService, WhatsappService, StaffAlertsService, MetaConversionsService],
+  providers: [KycService, StorageService, KycProviderService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService, EmailService, WhatsappService, StaffAlertsService, MetaConversionsService, LeadsService],
 })
 export class KycModule {}

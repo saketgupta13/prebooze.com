@@ -9,6 +9,7 @@ import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
+import { LeadsService } from '../admin/leads.service';
 
 interface OnboardInput {
   name?: string;
@@ -97,6 +98,7 @@ export class VenueService {
     private wa: WhatsappService,
     private email: EmailService,
     private meta: MetaConversionsService,
+    private leads: LeadsService,
   ) {}
 
   // ---------- subscription (Razorpay-billed venue plans) ----------
@@ -226,6 +228,7 @@ export class VenueService {
     this.meta
       .sendEvent('Lead', `${user.phone}_venue`, 'https://prebooze.com/venue/onboarding', { phone: user.phone, email: user.email }, { content_name: 'venue_onboarding' })
       .catch(() => {});
+    this.leads.resolveDraft(user.phone, 'venue').catch(() => {});
 
     return venue;
   }

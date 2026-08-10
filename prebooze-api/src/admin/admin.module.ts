@@ -26,7 +26,8 @@ import { AdminSubTiersController } from './sub-tiers.controller';
 import { AdminEmailTemplatesController } from './email-templates-admin.controller';
 import { AdminInvoicesController } from '../invoices/invoices-admin.controller';
 import { AdminSubscriptionsController } from './admin-subscriptions.controller';
-import { AdminLeadsController } from './leads.controller';
+import { AdminLeadsController, LeadDraftController } from './leads.controller';
+import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffService } from './staff.service';
 import { CustomersService } from './customers.service';
@@ -67,6 +68,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { WalletService } from '../wallet/wallet.service';
 import { FeaturedService } from '../featured/featured.service';
 import { BookingsService } from '../bookings/bookings.service';
+import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { HoldsService } from '../bookings/holds.service';
 import { redisProvider } from '../redis.provider';
 
@@ -108,8 +110,10 @@ import { redisProvider } from '../redis.provider';
     AdminInvoicesController,
     AdminSubscriptionsController,
     AdminLeadsController,
+    LeadDraftController,
   ],
   providers: [
+    JwtAuthGuard,
     StaffAuthService,
     StaffService,
     CustomersService,
@@ -144,6 +148,7 @@ import { redisProvider } from '../redis.provider';
     SubscriptionsService,
     FeaturedService,
     BookingsService,
+    MetaConversionsService,
     WalletService,
     HoldsService,
     CronService,

@@ -9,6 +9,7 @@ import { EmailService } from '../notifications/email';
 import { KYC_ROLE_LABEL } from '../notifications/email-templates';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
+import { LeadsService } from '../admin/leads.service';
 
 const ROLE_KINDS = ['organizer', 'promoter', 'lineup', 'venue'] as const;
 type RoleKind = (typeof ROLE_KINDS)[number];
@@ -23,6 +24,7 @@ export class KycService {
     private email: EmailService,
     private staffAlerts: StaffAlertsService,
     private meta: MetaConversionsService,
+    private leads: LeadsService,
   ) {}
 
   // ---------- guest: automatic ----------
@@ -125,6 +127,10 @@ export class KycService {
     this.meta
       .sendEvent('Lead', `${user.phone}_${kind}`, `https://prebooze.com/${kind}/onboarding`, { phone: user.phone, email: user.email }, { content_name: `${kind}_onboarding` })
       .catch(() => {});
+    // An untouched draft lead for this same person+role (see
+    // LeadsService.captureDraft) is now a real application — mark it
+    // converted instead of leaving it to look abandoned.
+    this.leads.resolveDraft(user.phone, kind).catch(() => {});
 
     return { status: 'pending', user: toApiUser(updated) };
   }

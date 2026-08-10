@@ -3,7 +3,13 @@ import { PrismaService } from '../prisma.service';
 import { EmailService } from '../notifications/email';
 import { WhatsappService } from '../notifications/whatsapp';
 
-export const LEAD_SOURCES = ['Instagram', 'WhatsApp', 'Phone call', 'Referral / walk-in', 'Website inquiry', 'Other social', 'Other'] as const;
+export const LEAD_SOURCES = ['Instagram', 'WhatsApp', 'Phone call', 'Referral / walk-in', 'Website inquiry', 'Facebook/Instagram Ads', 'Other social', 'Other'] as const;
+// Auto-captured (see captureDraft/resolveDraft below), never staff-picked —
+// the only two sources a draft lead can carry, so resolveDraft's "find an
+// existing untouched draft for this person" lookup can filter on this list
+// without also matching a real sales-entered lead that happens to share the
+// same phone/role.
+const DRAFT_SOURCES = ['Website inquiry', 'Facebook/Instagram Ads'] as const;
 export const LEAD_STAGES = ['New', 'Contacted', 'Interested', 'Negotiating', 'Signed up', 'Declined'] as const;
 export const LEAD_ROLES = ['organizer', 'venue', 'promoter', 'lineup'] as const;
 export type LeadRole = (typeof LEAD_ROLES)[number];
@@ -151,6 +157,71 @@ export class LeadsService {
       },
       include: LEAD_INCLUDE,
     });
+  }
+
+  // ---------- guest-facing: incomplete onboarding capture ----------
+  // Two call sites feed this (see LeadsController below): the moment a
+  // logged-in visitor lands on a role's onboarding page (bare phone number,
+  // nothing else yet), and again, debounced, once they've typed something
+  // into the form's first field before leaving without submitting. Both
+  // upsert the same row — one evolving draft per (phone, role), not two.
+  async captureDraft(userId: string, role: string, partial: { name?: string; city?: string; eventType?: string; utmSource?: string }) {
+    if (!LEAD_ROLES.includes(role as LeadRole)) throw new BadRequestException('Invalid role');
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return null;
+    // Already holds a role, or already has a real application in flight
+    // (for this role or another — KycService.submitRole enforces the same
+    // "one number, one role" rule) — a shadow draft lead would be noise
+    // once a real application already exists.
+    if (user.role || user.roleStatus === 'pending') return null;
+
+    const source = partial.utmSource === 'facebook' ? 'Facebook/Instagram Ads' : 'Website inquiry';
+    const existing = await this.prisma.lead.findFirst({
+      where: { contact: user.phone, role, stage: 'New', source: { in: [...DRAFT_SOURCES] } },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const name = partial.name?.trim() || existing?.name || user.name || user.phone;
+    if (existing) {
+      return this.prisma.lead.update({
+        where: { id: existing.id },
+        data: {
+          name,
+          source,
+          city: partial.city?.trim() || existing.city,
+          eventType: partial.eventType?.trim() || existing.eventType,
+          email: user.email || existing.email,
+        },
+      });
+    }
+    return this.prisma.lead.create({
+      data: {
+        name,
+        role,
+        source,
+        contact: user.phone,
+        email: user.email || null,
+        city: partial.city?.trim() || null,
+        eventType: partial.eventType?.trim() || null,
+        stage: 'New',
+      },
+    });
+  }
+
+  /** Called from KycService.submitRole / VenueService.onboard once a real
+   * application actually lands — an untouched draft lead (still `stage:
+   * 'New'`, nobody on staff has engaged with it) for this same person+role
+   * is marked converted rather than deleted, so it becomes a real record of
+   * "this lead worked" instead of just vanishing. A draft staff has already
+   * started working (moved off 'New') is left alone — a human's mid-contact
+   * with it, an automatic stage flip out from under them would be
+   * confusing; they'll see the real application land on its own. */
+  async resolveDraft(phone: string, role: string) {
+    const existing = await this.prisma.lead.findFirst({
+      where: { contact: phone, role, stage: 'New', source: { in: [...DRAFT_SOURCES] } },
+    });
+    if (!existing) return;
+    await this.prisma.lead.update({ where: { id: existing.id }, data: { stage: 'Signed up' } });
   }
 
   async remove(id: string, staffId?: string) {

@@ -15,13 +15,14 @@ import { NotificationsService } from '../admin/notifications.service';
 import { StaffAuthGuard } from '../admin/staff-auth.guard';
 import { PermissionGuard } from '../admin/permission.guard';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
+import { LeadsService } from '../admin/leads.service';
 
 @Module({
   controllers: [VenueController, AdminVenueHostingController],
   providers: [
     VenueService, PrismaService, JwtAuthGuard, EmailService, WhatsappService, StaffAlertsService, RazorpayService,
     SubscriptionsService, StorageService, InvoicesService, WalletService, NotificationsService, StaffAuthGuard, PermissionGuard,
-    MetaConversionsService,
+    MetaConversionsService, LeadsService,
   ],
 })
 export class VenueModule {}

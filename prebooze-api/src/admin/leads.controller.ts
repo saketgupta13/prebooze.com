@@ -3,6 +3,7 @@ import { LeadsService } from './leads.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
 import { RequirePermission } from './permission.decorator';
+import { JwtAuthGuard } from '../auth/jwt.guard';
 import type { StaffTokenPayload } from './staff-auth.guard';
 
 const MODULE = 'Leads';
@@ -101,5 +102,24 @@ export class AdminLeadsController {
   @RequirePermission(MODULE, 'edit')
   sendOnboarding(@Param('id') id: string, @Body() body: { email?: boolean; whatsapp?: boolean }, @Req() req: StaffReq) {
     return this.leads.sendOnboardingLink(id, body, req.staff.staffId);
+  }
+}
+
+/** Guest-facing — a logged-in visitor's own browser calls this, never a
+ * staff session. Captures an incomplete role application as a draft Lead
+ * (see LeadsService.captureDraft) instead of it silently disappearing when
+ * someone abandons the onboarding form partway through, or never gets past
+ * the OTP step at all. */
+@Controller('leads')
+@UseGuards(JwtAuthGuard)
+export class LeadDraftController {
+  constructor(private leads: LeadsService) {}
+
+  @Post('draft')
+  draft(
+    @Req() req: { user: { sub: string } },
+    @Body() body: { role: string; name?: string; city?: string; eventType?: string; utmSource?: string },
+  ) {
+    return this.leads.captureDraft(req.user.sub, body.role, body);
   }
 }
