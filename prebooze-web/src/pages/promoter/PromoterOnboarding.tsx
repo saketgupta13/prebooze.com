@@ -11,6 +11,7 @@ import { dataUrlToFile } from '../../lib/fileUtils';
 import { kyc } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
+import { trackMeta } from '../../lib/meta';
 
 const DRAFT_ID = 'promoter';
 type Draft = {
@@ -84,6 +85,7 @@ export default function PromoterOnboarding() {
       const res = await kyc.submitRole('promoter', payload, [idDocFile, selfieFile]);
       updateUser({ ...res.user, pendingRole: 'promoter' });
       pushEvent('promoter_onboarding_submitted');
+      trackMeta('Lead', { content_name: 'promoter_onboarding' });
       clearDraft(DRAFT_ID);
       navigate('/promoter'); // console redirects to a "pending review" screen until the team approves
     } catch (e) {

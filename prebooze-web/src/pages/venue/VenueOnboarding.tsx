@@ -14,6 +14,7 @@ import { dataUrlToFile } from '../../lib/fileUtils';
 import { auth, venuePartner, catalog } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
+import { trackMeta } from '../../lib/meta';
 
 // Offline/dev-mode fallback only — the real, admin-managed list (Admin >
 // Content > Venue types) is fetched below and used whenever a backend is
@@ -150,6 +151,7 @@ export default function VenueOnboarding() {
       const fresh = await auth.me();
       updateUser({ ...fresh, pendingRole: 'venue' });
       pushEvent('venue_onboarding_submitted');
+      trackMeta('Lead', { content_name: 'venue_onboarding' });
       clearDraft(DRAFT_ID);
       setDone(true);
     } catch (e) {

@@ -10,6 +10,7 @@ import { RealUploadBox } from '../components/RealUploadBox';
 import { kyc, lineup as lineupApi } from '../api';
 import { isBackendEnabled, ApiError } from '../api/client';
 import { pushEvent } from '../lib/gtm';
+import { trackMeta } from '../lib/meta';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 const DRAFT_ID = 'lineup';
@@ -77,6 +78,7 @@ export default function LineupOnboarding() {
       const res = await kyc.submitRole('lineup', payload, []);
       updateUser({ ...res.user, pendingRole: 'lineup' });
       pushEvent('lineup_onboarding_submitted');
+      trackMeta('Lead', { content_name: 'lineup_onboarding' });
       clearDraft(DRAFT_ID);
       setDone(true);
     } catch (e) {

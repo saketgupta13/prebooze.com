@@ -9,6 +9,7 @@ import { existingRole, roleHome, roleLabel } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { track } from '../lib/track';
 import { pushEvent } from '../lib/gtm';
+import { trackMeta } from '../lib/meta';
 import { eventLocation } from '../lib/venue';
 
 const ABSORBED_NOTE: Record<string, string> = {
@@ -340,6 +341,13 @@ export default function Checkout() {
         price: l.tier.price,
         quantity: l.qty,
       })),
+    });
+    trackMeta('Purchase', {
+      value: finalTotal,
+      currency: 'INR',
+      content_type: 'product',
+      content_ids: lines.map((l) => l.tier.id),
+      num_items: lines.reduce((sum, l) => sum + l.qty, 0),
     });
     if (cartId) setCartStatus(cartId, 'completed');
     setSelection(null);

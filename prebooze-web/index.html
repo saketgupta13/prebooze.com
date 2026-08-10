@@ -62,6 +62,55 @@
       })();
     </script>
     <!-- End Google Tag Manager -->
+    <!-- Meta Pixel — same deferred-load split as GTM above: fbq() is a
+         queueing stub the moment this runs (no network cost, and every
+         fbq('init'/'track'/...) call anywhere in the app — here or later
+         from React code — is safe to call immediately, queued until the
+         real script loads and replaces the stub). Only the actual
+         fbevents.js network fetch is deferred to idle/interaction/timeout. -->
+    <script>
+      !(function (f) {
+        if (f.fbq) return;
+        var n = (f.fbq = function () {
+          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+        });
+        if (!f._fbq) f._fbq = n;
+        n.push = n;
+        n.loaded = true;
+        n.version = '2.0';
+        n.queue = [];
+      })(window);
+      fbq('init', '2110355219869761');
+      fbq('track', 'PageView');
+
+      (function () {
+        var loaded = false;
+        var interactionEvents = ['scroll', 'click', 'keydown', 'touchstart', 'mousemove'];
+
+        function loadFbPixel() {
+          if (loaded) return;
+          loaded = true;
+          interactionEvents.forEach(function (evt) {
+            window.removeEventListener(evt, loadFbPixel);
+          });
+          var t = document.createElement('script');
+          t.async = true;
+          t.src = 'https://connect.facebook.net/en_US/fbevents.js';
+          var s = document.getElementsByTagName('script')[0];
+          s.parentNode.insertBefore(t, s);
+        }
+
+        interactionEvents.forEach(function (evt) {
+          window.addEventListener(evt, loadFbPixel, { once: true, passive: true });
+        });
+
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(loadFbPixel);
+        }
+        setTimeout(loadFbPixel, 4000);
+      })();
+    </script>
+    <!-- End Meta Pixel -->
     <link rel="canonical" href="https://prebooze.com" />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
     <meta property="og:type" content="website" />
@@ -98,6 +147,7 @@
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-W6R8TWJZ"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
+    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=2110355219869761&ev=PageView&noscript=1" /></noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

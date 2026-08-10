@@ -8,6 +8,7 @@ import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTea
 import { isBackendEnabled, setToken, clearToken, getToken } from '../api/client';
 import { track } from '../lib/track';
 import { pushEvent } from '../lib/gtm';
+import { trackMeta } from '../lib/meta';
 
 export interface GuestReview {
   id: string;
@@ -568,6 +569,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           // from a returning login, same distinction the rest of the app
           // already makes off this same verifyOtp() response.
           pushEvent(isNew ? 'sign_up' : 'login', { method: 'whatsapp_otp' });
+          // Meta has no standard "Login" event — only fire for a genuine
+          // new signup, same isNew distinction as the GA4 call above.
+          if (isNew) trackMeta('CompleteRegistration', { method: 'whatsapp_otp' });
           setToken(token);
           setUser(normalizeUser({ ...apiUser, pendingRole: inferPendingRole(apiUser) }));
           // Bootstrap effects above only run once on mount (before a token
