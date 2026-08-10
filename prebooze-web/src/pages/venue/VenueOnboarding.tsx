@@ -16,6 +16,7 @@ import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
 import { attributionForPayload } from '../../lib/track';
+import { useDraftLead } from '../../lib/useDraftLead';
 
 // Offline/dev-mode fallback only — the real, admin-managed list (Admin >
 // Content > Venue types) is fetched below and used whenever a backend is
@@ -85,6 +86,8 @@ export default function VenueOnboarding() {
       // best-effort — a full localStorage quota shouldn't block onboarding itself
     }
   }, [name, vtypes, loc, address, capacity, amenities, timings, about]);
+
+  useDraftLead('venue', name, { city: loc.city, eventType: vtypes.join(', ') });
 
   if (!user) return <Navigate to="/login" state={{ from: '/venue/onboarding' }} replace />;
   const otherRole = existingRole(user);

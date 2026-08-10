@@ -12,6 +12,7 @@ import { isBackendEnabled, ApiError } from '../api/client';
 import { pushEvent } from '../lib/gtm';
 import { trackMeta } from '../lib/meta';
 import { attributionForPayload } from '../lib/track';
+import { useDraftLead } from '../lib/useDraftLead';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 const DRAFT_ID = 'lineup';
@@ -47,6 +48,8 @@ export default function LineupOnboarding() {
   useEffect(() => {
     saveDraft(DRAFT_ID, { stageName, username, category, loc, bio, links });
   }, [stageName, username, category, loc, bio, links]);
+
+  useDraftLead('lineup', stageName, { city: loc.city, eventType: category });
 
   const setLink = (i: number, v: string) => setLinks((prev) => prev.map((l, idx) => (idx === i ? v : l)));
   const addLink = () => setLinks((prev) => [...prev, '']);

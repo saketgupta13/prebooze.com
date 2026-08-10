@@ -13,6 +13,7 @@ import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
 import { attributionForPayload } from '../../lib/track';
+import { useDraftLead } from '../../lib/useDraftLead';
 
 const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
 
@@ -71,6 +72,8 @@ export default function Onboarding() {
       // best-effort — a full localStorage quota shouldn't block onboarding itself
     }
   }, [brand, username, loc, types, about, instagram, facebook, other, gstin, noGst, pan, bankName, account, accountHolder, ifsc]);
+
+  useDraftLead('organizer', brand, { city: loc.city, eventType: types.join(', ') });
 
   const otherRole = existingRole(user);
   if (otherRole && otherRole !== 'organizer') return <RoleTaken has={otherRole} />;

@@ -13,6 +13,7 @@ import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
 import { attributionForPayload } from '../../lib/track';
+import { useDraftLead } from '../../lib/useDraftLead';
 
 const DRAFT_ID = 'promoter';
 type Draft = {
@@ -55,6 +56,8 @@ export default function PromoterOnboarding() {
       // best-effort — a full localStorage quota shouldn't block onboarding itself
     }
   }, [logo, brand, username, loc, bio, links, audience]);
+
+  useDraftLead('promoter', brand, { city: loc.city });
 
   if (!user) return <Navigate to="/login" state={{ from: '/promoter/onboarding' }} replace />;
   const otherRole = existingRole(user);
