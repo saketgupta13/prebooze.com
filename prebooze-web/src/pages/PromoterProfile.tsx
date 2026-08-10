@@ -8,6 +8,7 @@ import type { PromoterProfile as PromoterProfileData, Event } from '../types';
 import ShareButton from '../components/ShareButton';
 import Poster from '../components/Poster';
 import { PageLoader } from '../components/Loader';
+import { formatLocation } from '../lib/formatLocation';
 import SocialIcon, { guessPlatform } from '../components/SocialIcon';
 import EventCard from '../components/EventCard';
 import ReviewsSection from '../components/ReviewsSection';
@@ -124,7 +125,7 @@ export default function PromoterProfile() {
               <h3 style={{ marginBottom: 8 }}>About</h3>
               <div className="muted small rich-text" dangerouslySetInnerHTML={{ __html: promoter.bio }} />
               <div className="hr" />
-              <div className="kv"><span className="k">Based in</span><span>{promoter.city}</span></div>
+              <div className="kv"><span className="k">Based in</span><span>{formatLocation(promoter)}</span></div>
               <div className="kv"><span className="k">Show-up rate</span><span className="accent bold">{promoter.showRate}%</span></div>
               <div className="kv"><span className="k">Verified</span><span>{promoter.verified ? <span className="verified">✓ by Prebooze</span> : '—'}</span></div>
             </div>

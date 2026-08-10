@@ -285,7 +285,7 @@ export class KycService {
       brandName: user.orgBrand || user.name || 'Organizer',
       username: await unique('username'),
       verified: true, // this row is only ever created at the moment KYC is approved
-      city: user.city || '',
+      city: str('city') || user.city || '',
       country: str('country'),
       state: str('state'),
       pincode: str('pincode'),

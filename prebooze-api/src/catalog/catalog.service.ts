@@ -26,7 +26,7 @@ const TRENDING_STOPWORDS = new Set([
 // leak here. `contact` (a business email) stays public, same as a storefront
 // listing a "contact us" address.
 const PUBLIC_ORGANIZER_SELECT = {
-  id: true, brandName: true, username: true, verified: true, city: true, since: true,
+  id: true, brandName: true, username: true, verified: true, city: true, state: true, country: true, pincode: true, since: true,
   rating: true, reviewCount: true, eventsHosted: true, followers: true, following: true,
   about: true, logoHue: true, logoUrl: true, contact: true, eventTypes: true, socialLinks: true, seo: true,
   createdAt: true, updatedAt: true,
@@ -35,7 +35,7 @@ const PUBLIC_ORGANIZER_SELECT = {
 // Excludes contactPerson/contactPersonPhone — same admin-only/private
 // reasoning as PUBLIC_ORGANIZER_SELECT above.
 const PUBLIC_VENUE_SELECT = {
-  id: true, name: true, verified: true, type: true, locality: true, city: true, address: true,
+  id: true, name: true, verified: true, type: true, locality: true, city: true, state: true, country: true, pincode: true, address: true,
   capacity: true, rating: true, reviewCount: true, followers: true, amenities: true, about: true, timings: true,
   photoHue: true, galleryUrls: true, logoUrl: true, contact: true, rules: true, seo: true, socialLinks: true,
   createdAt: true, updatedAt: true,
@@ -412,7 +412,10 @@ export class CatalogService {
   async cities() {
     // `enabled` (Admin API locations slice) — a disabled city drops out of
     // the public picker entirely, matching the mock's cascading toggle.
-    const cities = await this.prisma.city.findMany({ where: { enabled: true }, orderBy: { sort: 'asc' } });
+    // `state` included so LocationPicker.tsx can cascade its city options to
+    // just the ones under the currently-selected state, instead of showing
+    // every enabled city regardless of state.
+    const cities = await this.prisma.city.findMany({ where: { enabled: true }, orderBy: { sort: 'asc' }, include: { state: true } });
     // Two counts, not one — a private-address event has no venueId to group
     // by, so it'd silently vanish from every city's tally without this.
     const [venueCounts, privateCounts] = await Promise.all([
@@ -432,7 +435,7 @@ export class CatalogService {
       if (!c.privateCity) continue;
       eventsByCity.set(c.privateCity, (eventsByCity.get(c.privateCity) ?? 0) + c._count);
     }
-    return cities.map((c) => ({ name: c.name, icon: c.icon ?? undefined, top: c.top, events: eventsByCity.get(c.name) ?? 0 }));
+    return cities.map((c) => ({ name: c.name, icon: c.icon ?? undefined, top: c.top, state: c.state?.name, events: eventsByCity.get(c.name) ?? 0 }));
   }
 
   /** Real, admin-managed venue-type tags (Admin > Content > Venue types),

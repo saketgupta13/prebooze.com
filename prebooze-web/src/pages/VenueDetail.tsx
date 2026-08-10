@@ -15,6 +15,7 @@ import { useSeo } from '../lib/useSeo';
 import { useEntitySeo } from '../lib/useEntitySeo';
 import { useJsonLd } from '../lib/useJsonLd';
 import { buildVenueSchema, buildBreadcrumbSchema } from '../lib/schema';
+import { formatLocation } from '../lib/formatLocation';
 
 export default function VenueDetail() {
   const { id } = useParams();
@@ -155,14 +156,14 @@ export default function VenueDetail() {
           <div className="card venue-map-card">
             <iframe
               title={`Map — ${venue.name}`}
-              src={`https://maps.google.com/maps?q=${encodeURIComponent(`${venue.name}, ${venue.address}, ${venue.city}`)}&z=15&output=embed`}
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(`${venue.name}, ${venue.address}, ${formatLocation(venue)}`)}&z=15&output=embed`}
               style={{ width: '100%', height: 200, border: '1px solid var(--border)', borderRadius: 10, marginBottom: 12 }}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
             />
-            <div className="small muted" style={{ marginBottom: 10 }}>📍 {venue.address}, {venue.city}</div>
+            <div className="small muted" style={{ marginBottom: 10 }}>📍 {venue.address}, {formatLocation(venue)}</div>
             <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${venue.name}, ${venue.address}, ${venue.city}`)}`}
+              href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${venue.name}, ${venue.address}, ${formatLocation(venue)}`)}`}
               target="_blank"
               rel="noreferrer"
               className="btn btn-pri btn-sm"

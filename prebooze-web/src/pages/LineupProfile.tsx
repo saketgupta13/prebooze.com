@@ -7,6 +7,7 @@ import { isBackendEnabled } from '../api/client';
 import type { LineupProfile as LineupProfileData, Event } from '../types';
 import Poster from '../components/Poster';
 import { PageLoader } from '../components/Loader';
+import { formatLocation } from '../lib/formatLocation';
 import SocialIcon, { guessPlatform } from '../components/SocialIcon';
 import ShareButton from '../components/ShareButton';
 import EventCard from '../components/EventCard';
@@ -136,7 +137,7 @@ export default function LineupProfile() {
               </div>
               <div className="kv">
                 <span className="k">Based in</span>
-                <span>{lineup.city}</span>
+                <span>{formatLocation(lineup)}</span>
               </div>
               <div className="kv">
                 <span className="k">Verified</span>

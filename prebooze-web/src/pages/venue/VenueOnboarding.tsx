@@ -143,7 +143,7 @@ export default function VenueOnboarding() {
         venuePartner.upload(addressProofFile),
       ]);
       await venuePartner.onboard({
-        name: name.trim(), type: vtypes.join(', '), city: loc.city, address: address.trim(),
+        name: name.trim(), type: vtypes.join(', '), city: loc.city, state: loc.state || undefined, country: loc.country || undefined, pincode: loc.pincode || undefined, address: address.trim(),
         capacity: Number(capacity), amenities, timings: timings.trim() || undefined, about: about.trim(),
         licenseDoc: licenseUrl, addressProofDoc: addressProofUrl, logoUrl: logoUrl || undefined,
         contactPerson: contactPerson.trim() || undefined,

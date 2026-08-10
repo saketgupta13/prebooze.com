@@ -15,6 +15,7 @@ import { useSeo } from '../lib/useSeo';
 import { useEntitySeo } from '../lib/useEntitySeo';
 import { useJsonLd } from '../lib/useJsonLd';
 import { buildOrganizerSchema, buildBreadcrumbSchema } from '../lib/schema';
+import { formatLocation } from '../lib/formatLocation';
 
 export default function OrganizerProfile() {
   const { id } = useParams();
@@ -148,7 +149,7 @@ export default function OrganizerProfile() {
               <div className="hr" />
               <div className="kv">
                 <span className="k">Based in</span>
-                <span>{org.city}</span>
+                <span>{formatLocation(org)}</span>
               </div>
               <div className="kv">
                 <span className="k">Joined</span>

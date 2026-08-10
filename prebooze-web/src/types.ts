@@ -182,6 +182,9 @@ export interface PromoterProfile {
   name: string;
   verified: boolean;
   city: string;
+  state?: string | null;
+  country?: string | null;
+  pincode?: string | null;
   bio: string;
   links: string[];
   followers: number;

@@ -24,17 +24,24 @@ export const emptyLocation = (): LocationValue => ({ country: 'India', state: ''
  * for anyone, since no visitor's city picker (also real, GET /cities) could
  * ever select a city not in that same enabled list. So City sources from the
  * real GET /cities here too — same call the guest header's city picker
- * already makes — independent of the State cascade below, which stays
- * address-only. Falls back to the old hardcoded state→city list only
- * offline (no backend configured). */
+ * already makes — cascaded by the selected State (each real City row is
+ * linked to a real State via admin's Locations hierarchy), same idea as the
+ * State cascade below. Falls back to the old hardcoded state→city list only
+ * offline (no backend configured). A State with zero real cities under it
+ * (Prebooze doesn't operate there yet) falls back to free-text city entry,
+ * same as the no-live-data-at-all case already did. */
 export default function LocationPicker({ value, onChange }: { value: LocationValue; onChange: (v: LocationValue) => void }) {
   const states = statesFor(value.country);
-  const [liveCities, setLiveCities] = useState<string[] | null>(null);
+  const [liveCities, setLiveCities] = useState<{ name: string; state?: string }[] | null>(null);
   useEffect(() => {
     if (!isBackendEnabled()) return;
-    catalog.cities().then((rows) => setLiveCities(rows.map((r) => r.name).sort())).catch(() => setLiveCities([]));
+    catalog.cities().then((rows) => setLiveCities([...rows].sort((a, b) => a.name.localeCompare(b.name)))).catch(() => setLiveCities([]));
   }, []);
-  const cities = liveCities ?? (isBackendEnabled() ? [] : citiesFor(value.state));
+  const cities = liveCities
+    ? liveCities.filter((c) => !value.state || c.state === value.state).map((c) => c.name)
+    : isBackendEnabled()
+      ? []
+      : citiesFor(value.state);
 
   return (
     <>
