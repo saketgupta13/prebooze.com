@@ -1,12 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
-const slugify = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '') || 'job';
-
 @Injectable()
 export class CareersAdminService {
   constructor(private prisma: PrismaService) {}
@@ -18,10 +12,8 @@ export class CareersAdminService {
 
   async createJob(body: { title?: string; team?: string; loc?: string; type?: string; about?: string; responsibilities?: string[]; requirements?: string[] }) {
     if (!body.title?.trim()) throw new BadRequestException('title is required');
-    const id = await this.uniqueId(slugify(body.title));
     return this.prisma.careerJob.create({
       data: {
-        id,
         title: body.title.trim(),
         team: body.team ?? '',
         loc: body.loc ?? '',
@@ -53,15 +45,6 @@ export class CareersAdminService {
     if (applicantCount > 0) throw new BadRequestException(`This job has ${applicantCount} applicant(s) — close it instead of removing it`);
     await this.prisma.careerJob.delete({ where: { id } });
     return { ok: true };
-  }
-
-  private async uniqueId(base: string) {
-    let candidate = 'job-' + base;
-    let n = 1;
-    while (await this.prisma.careerJob.findUnique({ where: { id: candidate } })) {
-      candidate = `job-${base}-${++n}`;
-    }
-    return candidate;
   }
 
   // ---------- applicants ----------

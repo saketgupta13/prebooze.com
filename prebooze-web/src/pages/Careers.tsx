@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { CAREER_JOBS } from '../data/mock';
@@ -16,6 +16,8 @@ export default function Careers() {
   const [email, setEmail] = useState(user?.email ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [note, setNote] = useState('');
+  const [cv, setCv] = useState<File | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [liveJobs, setLiveJobs] = useState<CareerJob[] | null>(null);
   useEffect(() => {
@@ -24,15 +26,24 @@ export default function Careers() {
   }, []);
   const jobs = isBackendEnabled() ? (liveJobs ?? []) : CAREER_JOBS;
 
+  useEffect(() => {
+    if (applying) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [applying]);
+
   const submit = (e: React.FormEvent, jobId: string) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !phone.trim()) {
       toast('Name, email and phone are required');
       return;
     }
-    applyJob({ jobId, name: name.trim(), email: email.trim(), phone: phone.trim(), note: note.trim() });
+    if (!cv) {
+      toast('Please attach your CV / resume');
+      return;
+    }
+    applyJob({ jobId, name: name.trim(), email: email.trim(), phone: phone.trim(), note: note.trim() }, cv);
     setApplying(null);
     setNote('');
+    setCv(null);
   };
 
   const appliedIds = new Set(jobApps.filter((a) => a.phone === user?.phone || a.email === email).map((a) => a.jobId));
@@ -55,7 +66,11 @@ export default function Careers() {
                 <Link to={`/careers/${j.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                   <h3 style={{ fontSize: 16 }}>{j.title} <span className="link tiny">view JD →</span></h3>
                 </Link>
-                <div className="tiny muted-2">{j.team} · {j.loc} · {j.type}</div>
+                <div className="chip-row" style={{ marginTop: 6 }}>
+                  <span className="tag">{j.team}</span>
+                  <span className="tag">📍 {j.loc}</span>
+                  <span className="tag">{j.type}</span>
+                </div>
               </div>
               {appliedIds.has(j.id) ? (
                 <span className="badge badge-ok">Applied ✓</span>
@@ -66,7 +81,7 @@ export default function Careers() {
               )}
             </div>
             {applying === j.id && (
-              <form style={{ marginTop: 14, borderTop: '1px dashed var(--border-dash)', paddingTop: 14 }} onSubmit={(e) => submit(e, j.id)}>
+              <form ref={formRef} style={{ marginTop: 14, borderTop: '1px dashed var(--border-dash)', paddingTop: 14 }} onSubmit={(e) => submit(e, j.id)}>
                 <div className="form-row">
                   <div className="field">
                     <span>Full name</span>
@@ -84,6 +99,22 @@ export default function Careers() {
                 <div className="field">
                   <span>Why you? (+ portfolio / LinkedIn link)</span>
                   <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Two lines and a link is perfect…" />
+                </div>
+                <div className="field">
+                  <span>CV / resume (PDF or DOC, max 5 MB)</span>
+                  <label className={`upload-box ${cv ? 'done' : ''}`} style={{ cursor: 'pointer', display: 'block' }}>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f && f.size > 5 * 1024 * 1024) { toast('CV must be under 5 MB'); e.target.value = ''; return; }
+                        setCv(f ?? null);
+                      }}
+                    />
+                    {cv ? `✓ ${cv.name} attached · click to replace` : '⬆ upload your CV / resume'}
+                  </label>
                 </div>
                 <button className="btn btn-pri">Submit application →</button>
               </form>

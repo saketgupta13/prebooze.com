@@ -966,7 +966,7 @@ export const liveLocations = {
 };
 
 export interface LiveJob { id: string; title: string; team: string; loc: string; type: string; status: string; about: string; }
-export interface LiveApplicant { id: string; jobId: string; name: string; email: string; phone: string; note: string; appliedAt: string; }
+export interface LiveApplicant { id: string; jobId: string; name: string; email: string; phone: string; note: string; cv?: string | null; appliedAt: string; }
 export interface LiveCareerTeam { name: string }
 export const liveCareers = {
   listJobs: () => liveFetch<LiveJob[]>('/admin/careers/jobs'),

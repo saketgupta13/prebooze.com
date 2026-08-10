@@ -1511,7 +1511,7 @@ model HelpTicket {
 }
 
 model CareerJob {
-  id               String           @id
+  id               String           @id @default(cuid())
   title            String
   team             String
   loc              String
@@ -1534,7 +1534,7 @@ model JobApplication {
   email String
   phone String
   note  String
-  cv    String? // filename/reference only — no file upload wired up, see BACKEND.md
+  cv    String? // uploaded file URL, via StorageService — optional since not every applicant attaches one
 
   appliedAt DateTime @default(now())
 }

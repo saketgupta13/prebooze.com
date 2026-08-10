@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { CAREER_JOBS } from '../data/mock';
@@ -26,6 +26,11 @@ export default function JobDetail() {
   const [note, setNote] = useState('');
   const [cv, setCv] = useState<File | null>(null);
   const [open, setOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (open) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [open]);
 
   if (isBackendEnabled() && liveJobs === null) return <PageLoader />;
 
@@ -67,8 +72,11 @@ export default function JobDetail() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
             <div>
               <h1 style={{ fontSize: 24 }}>{job.title}</h1>
-              <div className="muted small" style={{ marginTop: 4 }}>
-                {job.team} · {job.loc} · {job.type} · <span className="tag" style={{ fontSize: 10.5 }}>Job ID: {job.id}</span>
+              <div className="chip-row" style={{ marginTop: 8 }}>
+                <span className="tag">{job.team}</span>
+                <span className="tag">📍 {job.loc}</span>
+                <span className="tag">{job.type}</span>
+                <span className="tag" style={{ fontSize: 10.5 }}>Job ID: {job.id}</span>
               </div>
             </div>
             {applied ? (
@@ -81,7 +89,7 @@ export default function JobDetail() {
 
         <div className="card" style={{ marginBottom: 16 }}>
           <h3 style={{ marginBottom: 10 }}>Job description</h3>
-          <p style={{ fontSize: 14.5, marginBottom: 12 }}>{job.about}</p>
+          <div className="rich-text" style={{ fontSize: 14.5, marginBottom: 12 }} dangerouslySetInnerHTML={{ __html: job.about }} />
           <div className="small bold" style={{ marginBottom: 6 }}>What you'll do</div>
           <ul style={{ paddingLeft: 20, display: 'grid', gap: 5, fontSize: 14, marginBottom: 12 }} className="muted">
             {job.responsibilities.map((r) => <li key={r}>{r}</li>)}
@@ -93,7 +101,7 @@ export default function JobDetail() {
         </div>
 
         {open && !applied && (
-          <form className="card card-shadow" onSubmit={submit}>
+          <form ref={formRef} className="card card-shadow" onSubmit={submit}>
             <h3 style={{ marginBottom: 12 }}>Apply — {job.title}</h3>
             <div className="form-row">
               <div className="field">

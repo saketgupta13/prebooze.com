@@ -152,7 +152,7 @@ export default function CareersAdmin() {
 
       <div className="tblwrap">
         <div className="thead" style={{ minWidth: 700 }}>
-          <span style={{ width: 64 }}>ID</span>
+          <span style={{ width: 90 }}>ID</span>
           <span style={{ flex: 1.6 }}>Role</span>
           <span style={{ flex: 1 }}>Team</span>
           <span style={{ flex: 1 }}>Location</span>
@@ -164,7 +164,13 @@ export default function CareersAdmin() {
           return (
             <div key={j.id}>
               <div className="trow" style={{ minWidth: 700, opacity: j.status === 'open' ? 1 : 0.55 }}>
-                <span style={{ width: 64 }} className="tiny muted">{j.id}</span>
+                <span
+                  style={{ width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  className="tiny muted"
+                  title={j.id}
+                >
+                  {j.id}
+                </span>
                 <span style={{ flex: 1.6, fontWeight: 700 }}>{j.title} <span className="tiny muted">· {j.type}</span></span>
                 <span style={{ flex: 1 }} className="muted">{j.team}</span>
                 <span style={{ flex: 1 }} className="muted">{j.loc}</span>
@@ -189,14 +195,25 @@ export default function CareersAdmin() {
                   {apps.length === 0 ? (
                     <div className="muted small">No applicants yet.</div>
                   ) : (
-                    apps.map((a) => (
-                      <div key={a.id} className="trow" style={{ minWidth: 0 }}>
-                        <span style={{ flex: 1.2, fontWeight: 700 }}>{a.name}</span>
-                        <span style={{ flex: 1.4 }} className="muted">{a.email} · {a.phone}</span>
-                        <span style={{ flex: 1.6 }} className="muted tiny">{a.note}</span>
-                        <span style={{ flex: 0.6 }} className="muted tiny">{new Date(a.appliedAt).toLocaleDateString('en-IN')}</span>
-                      </div>
-                    ))
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      {apps.map((a) => (
+                        <div key={a.id} className="card" style={{ padding: 10, display: 'grid', gap: 4 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                            <span style={{ fontWeight: 700 }}>{a.name}</span>
+                            <span className="tiny muted">Applied {new Date(a.appliedAt).toLocaleDateString('en-IN')}</span>
+                          </div>
+                          <div className="small muted">{a.email} · {a.phone}</div>
+                          {a.note && <div className="small" style={{ whiteSpace: 'pre-wrap' }}>{a.note}</div>}
+                          {a.cv ? (
+                            <a href={a.cv} target="_blank" rel="noopener noreferrer" download className="btn btn-ghost btn-sm" style={{ width: 'fit-content', marginTop: 2 }}>
+                              ⬇ Download CV
+                            </a>
+                          ) : (
+                            <span className="tiny muted">No CV attached</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
