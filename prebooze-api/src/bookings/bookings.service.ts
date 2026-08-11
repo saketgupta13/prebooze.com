@@ -220,6 +220,7 @@ export class BookingsService {
   async create(userId: string, input: CreateBookingInput, reqMeta?: { ip?: string; userAgent?: string }) {
     const buyer = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (buyer.blocked) throw new ForbiddenException('This account is blocked from booking — contact support');
+    if (!input.mainGuest?.trim()) throw new BadRequestException('Attendee name is required');
 
     const { event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies, fee, discount, couponRow, walletCreditUsed, total } =
       await this.priceHold(userId, input.holdId, input.couponCode, input.walletCredit, input.promoterRef);
@@ -286,6 +287,13 @@ export class BookingsService {
           qrToken,
         },
       });
+
+      // First real booking is the moment a guest's identity is confirmed —
+      // backfill their blank profile name from it rather than leaving
+      // User.name empty forever (checkout never wrote this back before).
+      if (!buyer.name?.trim()) {
+        await tx.user.update({ where: { id: userId }, data: { name: input.mainGuest.trim() } });
+      }
 
       if (walletCreditUsed > 0) {
         await tx.walletTx.create({

@@ -45,7 +45,10 @@ export class CustomersService {
       const s = statsByUser.get(u.id);
       return {
         id: u.id,
-        name: u.name || 'Guest',
+        // Raw, possibly blank — admin needs to tell "never filled in a
+        // name" apart from "really is named X"; a 'Guest' fallback here
+        // would erase that distinction before it reaches the UI.
+        name: u.name,
         phone: u.phone,
         email: u.email || undefined,
         city: u.city,
@@ -73,7 +76,7 @@ export class CustomersService {
     });
     return {
       id: user.id,
-      name: user.name || 'Guest',
+      name: user.name,
       phone: user.phone,
       email: user.email || undefined,
       city: user.city,

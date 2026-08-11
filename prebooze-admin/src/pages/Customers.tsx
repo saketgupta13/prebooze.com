@@ -76,7 +76,11 @@ export default function Customers() {
         </div>
         {list.map((c) => (
           <div key={c.id} className="trow clickable" style={{ minWidth: 560 }} onClick={() => navigate(`/customers/${c.id}`)}>
-            <span style={{ flex: 1.8, fontWeight: 700 }}>{c.name} {c.verified && '✓'}</span>
+            <span style={{ flex: 1.8, fontWeight: 700 }}>
+              {c.name ? c.name : <span className="muted" style={{ fontWeight: 400, fontStyle: 'italic' }}>{c.phone}</span>}{' '}
+              {c.verified && '✓'}
+              {!c.name && <span className="tag" style={{ marginLeft: 6, fontWeight: 400, fontStyle: 'normal' }}>No profile</span>}
+            </span>
             <span style={{ flex: 0.8 }} className="muted">{c.gender || '—'}</span>
             <span style={{ flex: 1 }} className="muted">{c.city || '—'}</span>
             <span style={{ flex: 1 }}>{c.bookings}</span>

@@ -88,13 +88,14 @@ export default function CustomerDetail() {
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Link to="/customers" style={{ fontSize: 13 }}>← Customers</Link>
-        <h1 className="display" style={{ fontSize: 18 }}>{customer.name} {customer.verified && '✓'}</h1>
+        <h1 className="display" style={{ fontSize: 18 }}>{customer.name || customer.phone} {customer.verified && '✓'}</h1>
+        {!customer.name && <span className="tag">No profile</span>}
         <Tag {...CUSTOMER_STATUS[customer.status]} />
         <div style={{ flex: 1 }} />
         {customer.phone ? (
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => window.open(waLink(customer.phone, `Hey ${customer.name.split(' ')[0]}, this is the Prebooze team 👋`), '_blank', 'noopener')}
+            onClick={() => window.open(waLink(customer.phone, `Hey${customer.name ? ' ' + customer.name.split(' ')[0] : ''}, this is the Prebooze team 👋`), '_blank', 'noopener')}
           >
             💬 WhatsApp
           </button>
