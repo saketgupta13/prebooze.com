@@ -10,6 +10,8 @@ import Footer from './components/Footer';
 import Toast from './components/Toast';
 import CookieConsent from './components/CookieConsent';
 import ComingSoonGate from './components/ComingSoonGate';
+import CompleteProfileGate from './components/CompleteProfileGate';
+import ProfileCompletion from './pages/auth/ProfileCompletion';
 import SalesPausedBanner from './components/SalesPausedBanner';
 import { PageLoader } from './components/Loader';
 // Home stays a static import — it's the entry route almost every visitor
@@ -49,7 +51,6 @@ const JobDetail = lazy(() => import('./pages/JobDetail'));
 const PaymentMethods = lazy(() => import('./pages/PaymentMethods'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Otp = lazy(() => import('./pages/auth/Otp'));
-const ProfileCompletion = lazy(() => import('./pages/auth/ProfileCompletion'));
 const IdVerification = lazy(() => import('./pages/auth/IdVerification'));
 const Onboarding = lazy(() => import('./pages/organizer/Onboarding'));
 const OrganizerLayout = lazy(() => import('./pages/organizer/OrganizerLayout'));
@@ -185,6 +186,7 @@ export default function App() {
       <ScrollToTop />
       <CanonicalUrl />
       <OrganizationSchema />
+      <CompleteProfileGate>
       <Header />
       <SalesPausedBanner />
       <MaintenanceGate>
@@ -397,6 +399,7 @@ export default function App() {
       <Footer />
       <Toast />
       <CookieConsent />
+      </CompleteProfileGate>
     </ComingSoonGate>
   );
 }

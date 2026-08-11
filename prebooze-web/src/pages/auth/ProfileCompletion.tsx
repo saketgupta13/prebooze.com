@@ -41,7 +41,12 @@ export default function ProfileCompletion() {
     try {
       const updated = await auth.updateMe({ name: name.trim(), dob, gender, email: email.trim() || undefined });
       updateUser(updated);
-      navigate(from ?? '/');
+      // Rendered two ways: as the real /complete-profile route (Otp.tsx's
+      // redirect for a brand-new signup — navigate onward as before), or
+      // swapped in by CompleteProfileGate directly over whatever page the
+      // user was already on (nothing to navigate to — saving just makes the
+      // gate stop applying and that page renders in place).
+      if (location.pathname === '/complete-profile') navigate(from ?? '/');
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : 'Failed to save profile');
     } finally {
