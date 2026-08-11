@@ -52,7 +52,15 @@ export class DirectoryService {
 
   async updateOrganizer(id: string, patch: Record<string, unknown>) {
     if (!(await this.prisma.organizer.findUnique({ where: { id } }))) throw new NotFoundException('Organizer not found');
-    return this.prisma.organizer.update({ where: { id }, data: sanitizePatch(patch, ORGANIZER_EDITABLE) as never });
+    const data = sanitizePatch(patch, ORGANIZER_EDITABLE) as Record<string, unknown>;
+    // Keep the display-only last-4 in sync automatically whenever the full
+    // account number is saved — same derivation newOrganizerRow already does
+    // at KYC-approval time, just re-applied here so admin editing the full
+    // number later doesn't leave a stale bankLast4 behind.
+    if (typeof data.bankAccountNumber === 'string') {
+      data.bankLast4 = data.bankAccountNumber ? data.bankAccountNumber.slice(-4) : undefined;
+    }
+    return this.prisma.organizer.update({ where: { id }, data: data as never });
   }
 
   async setOrganizerVerified(id: string, verified: boolean) {
@@ -248,7 +256,8 @@ export class DirectoryService {
 // computed/relational fields (events, followers, ledger, etc.) stay out of
 // client control.
 const ORGANIZER_EDITABLE = [
-  'brandName', 'city', 'state', 'country', 'pincode', 'about', 'contact', 'contactPerson', 'phone', 'eventTypes', 'socialLinks', 'gstin', 'pan', 'bankLast4', 'seo',
+  'brandName', 'city', 'state', 'country', 'pincode', 'about', 'contact', 'contactPerson', 'phone', 'eventTypes', 'socialLinks', 'gstin', 'pan',
+  'bankLast4', 'bankAccountNumber', 'bankName', 'accountHolderName', 'ifsc', 'seo',
 ];
 const PROMOTER_EDITABLE = ['name', 'city', 'state', 'country', 'pincode', 'bio', 'contact', 'links', 'planId', 'seo', 'logoUrl'];
 const LINEUP_EDITABLE = ['name', 'category', 'city', 'state', 'country', 'pincode', 'bio', 'links', 'logoUrl', 'seo'];

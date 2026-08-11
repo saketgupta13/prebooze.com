@@ -285,6 +285,26 @@ export const liveKyc = {
   list: (status?: string) => liveFetch<LiveKycApplication[]>('/admin/kyc' + (status ? `?status=${status}` : '')),
   approve: (id: string) => liveFetch<{ ok: true }>(`/admin/kyc/${id}/approve`, { method: 'POST' }),
   reject: (id: string, reason: string) => liveFetch<{ ok: true }>(`/admin/kyc/${id}/reject`, { method: 'POST', body: { reason } }),
+  // Lead team — "Start Onboarding". Only what a sales call would realistically
+  // produce; no GSTIN/PAN/bank/documents here at all, see the two below.
+  startOrganizerOnboarding: (
+    leadId: string,
+    body: {
+      brandName: string; contactPerson: string;
+      city: string; state: string; country: string; pincode?: string;
+      eventTypes: string; about?: string;
+      socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
+    },
+  ) => liveFetch<LiveKycApplication>(`/admin/kyc/organizer/from-lead/${leadId}`, { body }),
+  // Verification team only — GSTIN/PAN/bank details.
+  addVerificationDetails: (
+    id: string,
+    body: { gstin?: string; pan?: string; bankName?: string; bankAccount?: string; accountHolderName?: string; bankIfsc?: string },
+  ) => liveFetch<LiveKycApplication>(`/admin/kyc/${id}/verification-details`, { method: 'PATCH', body }),
+  // Verification team only — real KYC documents, already uploaded via
+  // liveMedia.upload (this just records the resulting URLs).
+  addDocuments: (id: string, documents: { type: string; path: string }[]) =>
+    liveFetch<LiveKycApplication>(`/admin/kyc/${id}/documents`, { body: { documents } }),
 };
 
 /** KYC documents are served outside the /v1 prefix (see main.ts); older rows
@@ -364,7 +384,7 @@ export interface LiveOrganizer {
   rating: number; reviewCount: number; eventsHosted: number; followers: number; following: number;
   about: string; logoHue: number; logoUrl: string | null; contact: string; contactPerson: string | null; phone: string | null;
   eventTypes: string | null; socialLinks: { instagram?: string; facebook?: string; other?: string[] } | null; gstin: string | null; pan: string | null;
-  bankLast4: string | null; seo: Seo | null;
+  bankLast4: string | null; bankAccountNumber: string | null; bankName: string | null; accountHolderName: string | null; ifsc: string | null; seo: Seo | null;
 }
 export interface LivePromoter {
   id: string; slug: string; name: string; verified: boolean; city: string;

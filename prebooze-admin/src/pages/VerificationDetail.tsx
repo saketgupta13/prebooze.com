@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Tag } from '../components/ui';
-import { liveKyc, resolveDocUrl, LiveApiError, type LiveKycApplication } from '../lib/liveApi';
+import { liveKyc, liveMedia, resolveDocUrl, LiveApiError, type LiveKycApplication } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
 import { downloadFile } from '../lib/download';
@@ -24,6 +24,12 @@ export default function VerificationDetail() {
   const [err, setErr] = useState('');
   const [reason, setReason] = useState('');
   const [rejecting, setRejecting] = useState(false);
+  const [verifForm, setVerifForm] = useState({ gstin: '', pan: '', bankName: '', bankAccount: '', accountHolderName: '', bankIfsc: '' });
+  const [verifSaving, setVerifSaving] = useState(false);
+  const [verifSaved, setVerifSaved] = useState(false);
+  const [docLabel, setDocLabel] = useState('');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docUploading, setDocUploading] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -39,6 +45,25 @@ export default function VerificationDetail() {
     if (token) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Pre-fill from whatever's already in the payload — non-empty for a
+  // self-serve applicant who already provided these themselves (shown for
+  // reference/correction), empty for a sales-assisted application until the
+  // verification team fills them in here.
+  useEffect(() => {
+    const found = apps.find((a) => a.id === id);
+    if (!found) return;
+    const p = found.payload;
+    setVerifForm({
+      gstin: typeof p.gstin === 'string' ? p.gstin : '',
+      pan: typeof p.pan === 'string' ? p.pan : '',
+      bankName: typeof p.bankName === 'string' ? p.bankName : '',
+      bankAccount: typeof p.bankAccount === 'string' ? p.bankAccount : '',
+      accountHolderName: typeof p.accountHolderName === 'string' ? p.accountHolderName : '',
+      bankIfsc: typeof p.bankIfsc === 'string' ? p.bankIfsc : '',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, apps.length]);
 
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
@@ -72,6 +97,39 @@ export default function VerificationDetail() {
       navigate('/verifications');
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to reject');
+    }
+  };
+
+  const saveVerifDetails = async () => {
+    if (!app) return;
+    setVerifSaving(true);
+    setVerifSaved(false);
+    setErr('');
+    try {
+      await liveKyc.addVerificationDetails(app.id, verifForm);
+      setVerifSaved(true);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to save');
+    } finally {
+      setVerifSaving(false);
+    }
+  };
+
+  const uploadDoc = async () => {
+    if (!app || !docFile) return;
+    setDocUploading(true);
+    setErr('');
+    try {
+      const { url } = await liveMedia.upload(docFile);
+      await liveKyc.addDocuments(app.id, [{ type: docLabel.trim() || docFile.name, path: url }]);
+      setDocLabel('');
+      setDocFile(null);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to upload document');
+    } finally {
+      setDocUploading(false);
     }
   };
 
@@ -128,6 +186,51 @@ export default function VerificationDetail() {
         )}
       </div>
 
+      {app.kind === 'organizer' && (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="display" style={{ fontWeight: 700 }}>Verification details</div>
+          <div className="tiny muted">
+            {app.payload.leadId
+              ? "Collected by calling the applicant — the lead team never fills these in. Required before this can be approved."
+              : 'The applicant already provided these at submission — shown here for reference, editable if a correction is needed.'}
+          </div>
+          <div className="form-row">
+            <div className="field">
+              <label>GSTIN</label>
+              <input className="input" value={verifForm.gstin} onChange={(e) => setVerifForm({ ...verifForm, gstin: e.target.value })} />
+            </div>
+            <div className="field">
+              <label>PAN</label>
+              <input className="input" value={verifForm.pan} onChange={(e) => setVerifForm({ ...verifForm, pan: e.target.value })} />
+            </div>
+          </div>
+          <div className="field">
+            <label>Bank name</label>
+            <input className="input" value={verifForm.bankName} onChange={(e) => setVerifForm({ ...verifForm, bankName: e.target.value })} />
+          </div>
+          <div className="field">
+            <label>Account holder name</label>
+            <input className="input" value={verifForm.accountHolderName} onChange={(e) => setVerifForm({ ...verifForm, accountHolderName: e.target.value })} />
+          </div>
+          <div className="form-row">
+            <div className="field">
+              <label>Account number</label>
+              <input className="input" value={verifForm.bankAccount} onChange={(e) => setVerifForm({ ...verifForm, bankAccount: e.target.value })} />
+            </div>
+            <div className="field">
+              <label>IFSC</label>
+              <input className="input" value={verifForm.bankIfsc} onChange={(e) => setVerifForm({ ...verifForm, bankIfsc: e.target.value })} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button className="btn btn-pri btn-sm" disabled={verifSaving} onClick={saveVerifDetails}>
+              {verifSaving ? 'Saving…' : 'Save details'}
+            </button>
+            {verifSaved && <span className="tiny green">Saved ✓</span>}
+          </div>
+        </div>
+      )}
+
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="display" style={{ fontWeight: 700 }}>Documents</div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -143,27 +246,62 @@ export default function VerificationDetail() {
               </div>
             );
           })}
+          {app.documents.length === 0 && <div className="tiny muted">No documents on file yet.</div>}
         </div>
-      </div>
-
-      {app.status === 'pending' && (
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-pri" style={{ flex: 1 }} onClick={approve}>
-              ✓ Approve &amp; activate
-            </button>
-            <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => setRejecting((v) => !v)}>
-              ✕ Reject
+        {app.status === 'pending' && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid rgba(139,195,74,.08)', paddingTop: 10 }}>
+            <input
+              className="input"
+              style={{ maxWidth: 180 }}
+              placeholder="e.g. GST certificate"
+              value={docLabel}
+              onChange={(e) => setDocLabel(e.target.value)}
+            />
+            <input type="file" accept="image/*,.pdf" onChange={(e) => setDocFile(e.target.files?.[0] ?? null)} />
+            <button className="btn btn-ghost btn-sm" disabled={!docFile || docUploading} onClick={uploadDoc}>
+              {docUploading ? 'Uploading…' : '+ Add document'}
             </button>
           </div>
-          {rejecting && (
+        )}
+      </div>
+
+      {app.status === 'pending' && (() => {
+        const p = app.payload;
+        const missing = app.kind === 'organizer' && p.leadId
+          ? [
+              !p.gstin && 'GSTIN',
+              !p.pan && 'PAN',
+              !p.bankAccount && 'bank account number',
+              !p.bankIfsc && 'IFSC',
+              !p.bankName && 'bank name',
+              !p.accountHolderName && 'account holder name',
+              !app.documents.length && 'a KYC document',
+            ].filter((x): x is string => Boolean(x))
+          : [];
+        return (
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {missing.length > 0 && (
+              <div className="tiny" style={{ color: '#d99a2b' }}>
+                Can't approve yet — still missing: {missing.join(', ')}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
-              <input className="input" style={{ flex: 1 }} placeholder="Reason for rejection…" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
-              <button className="btn btn-danger btn-sm" disabled={!reason.trim()} onClick={submitReject}>Confirm</button>
+              <button className="btn btn-pri" style={{ flex: 1 }} disabled={missing.length > 0} onClick={approve}>
+                ✓ Approve &amp; activate
+              </button>
+              <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => setRejecting((v) => !v)}>
+                ✕ Reject
+              </button>
             </div>
-          )}
-        </div>
-      )}
+            {rejecting && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input className="input" style={{ flex: 1 }} placeholder="Reason for rejection…" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
+                <button className="btn btn-danger btn-sm" disabled={!reason.trim()} onClick={submitReject}>Confirm</button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

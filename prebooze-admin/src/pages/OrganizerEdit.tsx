@@ -19,10 +19,10 @@ export function SocialLinksEditor({ value, onChange }: { value: { instagram?: st
   );
 }
 
-/** Edit organizer — real Organizer row (business profile + compliance
- * fields). Bank/KYC docs upload stays a mock toggle here (no real bank
- * verification/penny-drop backend exists yet); the account number itself,
- * if entered, is genuinely saved as bankLast4. */
+/** Edit organizer — real Organizer row (business profile + compliance +
+ * full bank/payout fields). No document re-upload here (that only happens
+ * during verification, see VerificationDetail.tsx) — this is for correcting
+ * or completing an organizer's own business/bank details after the fact. */
 export default function OrganizerEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -39,7 +39,10 @@ export default function OrganizerEdit() {
   const [socialLinks, setSocialLinks] = useState<{ instagram?: string; facebook?: string; other?: string[] } | null>(null);
   const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
   const [seo, setSeo] = useState<Seo>(emptySeo());
-  const [bank, setBank] = useState('');
+  const [bankAccount, setBankAccount] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [accountHolderName, setAccountHolderName] = useState('');
+  const [ifsc, setIfsc] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -57,6 +60,10 @@ export default function OrganizerEdit() {
           setSocialLinks(o.socialLinks ?? null);
           setLoc({ country: o.country ?? 'India', state: o.state ?? '', city: o.city });
           setSeo((o.seo as Seo | null) ?? emptySeo());
+          setBankAccount(o.bankAccountNumber ?? '');
+          setBankName(o.bankName ?? '');
+          setAccountHolderName(o.accountHolderName ?? '');
+          setIfsc(o.ifsc ?? '');
         }
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
@@ -92,7 +99,12 @@ export default function OrganizerEdit() {
         ...form,
         brandName: form.brandName.trim(),
         city: loc.city, state: loc.state || undefined, country: loc.country || undefined,
-        bankLast4: bank ? bank.slice(-4) : org.bankLast4 ?? undefined,
+        // bankLast4 is derived server-side from bankAccountNumber now
+        // (DirectoryService.updateOrganizer) — never sent from here directly.
+        bankAccountNumber: bankAccount || undefined,
+        bankName: bankName || undefined,
+        accountHolderName: accountHolderName || undefined,
+        ifsc: ifsc || undefined,
         socialLinks: socialLinks ?? undefined,
         seo,
       });
@@ -166,11 +178,33 @@ export default function OrganizerEdit() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="display" style={{ fontWeight: 700 }}>Bank for payouts</div>
-        <div className="field">
-          <label>Bank account number</label>
-          <input className="input" value={bank} onChange={(e) => setBank(e.target.value)} inputMode="numeric" placeholder={org.bankLast4 ? `•••• ${org.bankLast4}` : 'Account number'} />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Bank name</label>
+            <input className="input" value={bankName} onChange={(e) => setBankName(e.target.value)} />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Account holder name</label>
+            <input className="input" value={accountHolderName} onChange={(e) => setAccountHolderName(e.target.value)} />
+          </div>
         </div>
-        <div className="tiny hint">only the last 4 digits are stored · leave blank to keep the current details</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Account number</label>
+            <input
+              className="input"
+              value={bankAccount}
+              onChange={(e) => setBankAccount(e.target.value)}
+              inputMode="numeric"
+              placeholder={org.bankLast4 ? `•••• ${org.bankLast4}` : 'Account number'}
+            />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>IFSC</label>
+            <input className="input" value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} />
+          </div>
+        </div>
+        <div className="tiny hint">leave a field blank to keep its current saved value</div>
       </div>
 
       <SeoFields

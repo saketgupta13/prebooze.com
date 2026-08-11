@@ -3,6 +3,7 @@ import {
   liveLeads,
   liveStaff,
   liveMe,
+  liveKyc,
   LiveApiError,
   LEAD_SOURCES,
   LEAD_STAGES,
@@ -44,6 +45,15 @@ function linkedLabel(lead: Lead): string | null {
   if (lead.lineup) return `${lead.lineup.name} (@${lead.lineup.slug})`;
   return null;
 }
+// "Start Onboarding" only makes sense once the lead team has actually
+// talked to someone — not on a fresh, untouched "New" card, and not once
+// it's already resolved (Signed up / Declined).
+const ONBOARDABLE_STAGES = ['Contacted', 'Interested', 'Negotiating'];
+
+const emptyOnboardForm = {
+  brandName: '', contactPerson: '', contact: '', country: '', state: '', city: '', pincode: '', eventTypes: '', about: '', instagram: '', facebook: '',
+};
+
 type DirHit = LeadOrganizerHit | LeadDirectoryHit | (LeadDirectoryHit & { slug: string });
 function hitLabel(h: DirHit) {
   return 'brandName' in h ? h.brandName : h.name;
@@ -83,6 +93,10 @@ export default function Leads() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [sendBusy, setSendBusy] = useState<'email' | 'whatsapp' | null>(null);
   const [sendMsg, setSendMsg] = useState('');
+  const [onboardOpen, setOnboardOpen] = useState(false);
+  const [onboardForm, setOnboardForm] = useState(emptyOnboardForm);
+  const [onboardBusy, setOnboardBusy] = useState(false);
+  const [onboardSent, setOnboardSent] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -131,6 +145,17 @@ export default function Leads() {
     setDirQuery('');
     setDirHits([]);
     setSendMsg('');
+    setOnboardOpen(false);
+    setOnboardSent(false);
+    setOnboardForm({
+      ...emptyOnboardForm,
+      brandName: lead.name,
+      contactPerson: lead.contactPerson ?? '',
+      country: lead.country ?? '',
+      state: lead.state ?? '',
+      city: lead.city ?? '',
+      eventTypes: lead.eventType ?? '',
+    });
     setDrawer(lead.id);
   };
   const close = () => setDrawer(null);
@@ -258,6 +283,37 @@ export default function Leads() {
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to link');
+    }
+  };
+
+  const startOnboarding = async () => {
+    if (!selected) return;
+    if (!onboardForm.brandName.trim() || !onboardForm.contactPerson.trim() || !onboardForm.city.trim() || !onboardForm.state.trim() || !onboardForm.country.trim() || !onboardForm.eventTypes.trim()) {
+      setErr('Brand name, contact person, city, state, country and event types are all required');
+      return;
+    }
+    setOnboardBusy(true);
+    setErr('');
+    try {
+      await liveKyc.startOrganizerOnboarding(selected.id, {
+        brandName: onboardForm.brandName.trim(),
+        contactPerson: onboardForm.contactPerson.trim(),
+        city: onboardForm.city.trim(),
+        state: onboardForm.state.trim(),
+        country: onboardForm.country.trim(),
+        pincode: onboardForm.pincode.trim() || undefined,
+        eventTypes: onboardForm.eventTypes.trim(),
+        about: onboardForm.about.trim() || undefined,
+        socialLinks: (onboardForm.instagram.trim() || onboardForm.facebook.trim())
+          ? { instagram: onboardForm.instagram.trim() || undefined, facebook: onboardForm.facebook.trim() || undefined }
+          : undefined,
+      });
+      setOnboardSent(true);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to send for verification');
+    } finally {
+      setOnboardBusy(false);
     }
   };
 
@@ -464,6 +520,78 @@ export default function Leads() {
                 </div>
 
                 <hr />
+
+                {selected.role === 'organizer' && !linkedLabel(selected) && ONBOARDABLE_STAGES.includes(selected.stage) && (
+                  <>
+                    <div className="field">
+                      {onboardSent ? (
+                        <div className="dashed-box">✓ Sent for verification — the verification team will take it from here.</div>
+                      ) : (
+                        <>
+                          <label>Start onboarding</label>
+                          <div className="tiny muted" style={{ marginBottom: onboardOpen ? 8 : 0 }}>
+                            Fill in what you have from the call. GSTIN, PAN, bank details and documents are collected separately by the verification team.
+                          </div>
+                          {!onboardOpen ? (
+                            <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setOnboardOpen(true)}>
+                              + Start onboarding
+                            </button>
+                          ) : (
+                            <div className="stack" style={{ gap: 8, marginTop: 4 }}>
+                              <div className="field">
+                                <label>Brand name *</label>
+                                <input className="input" value={onboardForm.brandName} onChange={(e) => setOnboardForm({ ...onboardForm, brandName: e.target.value })} />
+                              </div>
+                              <div className="field">
+                                <label>Contact person *</label>
+                                <input className="input" value={onboardForm.contactPerson} onChange={(e) => setOnboardForm({ ...onboardForm, contactPerson: e.target.value })} />
+                              </div>
+                              <div className="field">
+                                <label>Location *</label>
+                                <LiveLocationPicker
+                                  value={{ country: onboardForm.country, state: onboardForm.state, city: onboardForm.city }}
+                                  onChange={(v) => setOnboardForm({ ...onboardForm, ...v })}
+                                />
+                              </div>
+                              <div className="field">
+                                <label>Pincode</label>
+                                <input className="input" value={onboardForm.pincode} onChange={(e) => setOnboardForm({ ...onboardForm, pincode: e.target.value })} />
+                              </div>
+                              <div className="field">
+                                <label>Event types *</label>
+                                <input
+                                  className="input"
+                                  value={onboardForm.eventTypes}
+                                  onChange={(e) => setOnboardForm({ ...onboardForm, eventTypes: e.target.value })}
+                                  placeholder="e.g. Concerts, Club nights"
+                                />
+                              </div>
+                              <div className="field">
+                                <label>About</label>
+                                <textarea className="input" rows={2} value={onboardForm.about} onChange={(e) => setOnboardForm({ ...onboardForm, about: e.target.value })} />
+                              </div>
+                              <div className="field">
+                                <label>Instagram</label>
+                                <input className="input" value={onboardForm.instagram} onChange={(e) => setOnboardForm({ ...onboardForm, instagram: e.target.value })} />
+                              </div>
+                              <div className="field">
+                                <label>Facebook</label>
+                                <input className="input" value={onboardForm.facebook} onChange={(e) => setOnboardForm({ ...onboardForm, facebook: e.target.value })} />
+                              </div>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button className="btn btn-pri btn-sm" disabled={onboardBusy} onClick={startOnboarding}>
+                                  {onboardBusy ? 'Sending…' : 'Send for verification'}
+                                </button>
+                                <button className="btn btn-ghost btn-sm" onClick={() => setOnboardOpen(false)}>Cancel</button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <hr />
+                  </>
+                )}
 
                 {linkedLabel(selected) ? (
                   <div className="dashed-box">

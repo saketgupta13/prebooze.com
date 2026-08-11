@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Param, Post, Query, Req, UploadedFile, UploadedFiles, UseGuards, UseInterceptors,
+  Body, Controller, Get, Param, Patch, Post, Query, Req, UploadedFile, UploadedFiles, UseGuards, UseInterceptors,
 } from '@nestjs/common';
 import { FileFieldsInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { KycService } from './kyc.service';
@@ -61,9 +61,52 @@ export class AdminKycController {
     return this.kyc.approve(id, req.staff.email);
   }
 
+  /** Lead team only — "Start Onboarding" on a lead. Gated on Leads
+   * permission rather than Verifications, since this is the lead team's own
+   * action (it just happens to create a KycSubmission under the hood); the
+   * resulting application still only becomes approvable by whoever holds
+   * Verifications permission, via addVerificationDetails/addDocuments/
+   * approve above. */
+  @Post('organizer/from-lead/:leadId')
+  @RequirePermission('Leads', 'edit')
+  startOrganizerOnboarding(
+    @Param('leadId') leadId: string,
+    @Body()
+    body: {
+      brandName?: string; contactPerson?: string;
+      city?: string; state?: string; country?: string; pincode?: string;
+      eventTypes?: string; about?: string;
+      socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
+    },
+    @Req() req: { staff: StaffTokenPayload },
+  ) {
+    return this.kyc.startOrganizerOnboarding(leadId, req.staff.email, body);
+  }
+
   @Post(':id/reject')
   @RequirePermission('Verifications (KYC)', 'approve')
   reject(@Param('id') id: string, @Body('reason') reason: string, @Req() req: { staff: StaffTokenPayload }) {
     return this.kyc.reject(id, req.staff.email, reason ?? '');
+  }
+
+  /** Verification team only — GSTIN/PAN/bank details, collected once they've
+   * called the applicant themselves. Lives here (permission-gated to
+   * Verifications, not Leads) even though it's reached from a Leads-started
+   * application, since only the verification team ever fills this in. */
+  @Patch(':id/verification-details')
+  @RequirePermission('Verifications (KYC)', 'edit')
+  addVerificationDetails(
+    @Param('id') id: string,
+    @Body() body: { gstin?: string; pan?: string; bankName?: string; bankAccount?: string; accountHolderName?: string; bankIfsc?: string },
+  ) {
+    return this.kyc.addOrganizerVerificationDetails(id, body);
+  }
+
+  /** Body's documents are already-uploaded URLs (POST /admin/media/upload),
+   * not raw files — see addOrganizerDocuments's doc comment. */
+  @Post(':id/documents')
+  @RequirePermission('Verifications (KYC)', 'edit')
+  addDocuments(@Param('id') id: string, @Body('documents') documents: { type: string; path: string }[]) {
+    return this.kyc.addOrganizerDocuments(id, documents ?? []);
   }
 }

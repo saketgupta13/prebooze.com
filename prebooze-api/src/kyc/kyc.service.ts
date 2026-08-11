@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { StorageService } from './storage.service';
 import { KycProviderService } from './kyc-provider.service';
-import { toApiUser } from '../auth/auth.service';
+import { toApiUser, normalizePhone } from '../auth/auth.service';
 import { NotificationsService } from '../admin/notifications.service';
 import { EmailService } from '../notifications/email';
 import { KYC_ROLE_LABEL } from '../notifications/email-templates';
@@ -158,6 +158,35 @@ export class KycService {
     if (!sub) throw new NotFoundException();
     if (sub.kind === 'guest') throw new BadRequestException('Guest verification is automatic, nothing to approve');
 
+    // Sales-assisted applications (started from Admin > Leads > "Start
+    // Onboarding", identifiable by payload.leadId) never collect GSTIN/PAN/
+    // bank details/documents up front — the lead team only gathers the
+    // basics; the verification team is the one who contacts the applicant
+    // for compliance details and documents (addOrganizerVerificationDetails/
+    // addOrganizerDocuments below). Block approval until all of that has
+    // actually been filled in, instead of silently approving an organizer
+    // Prebooze can't actually pay out to or verify. Self-serve applications
+    // already require all of this at submission time (Onboarding.tsx's
+    // step1Valid/step2Valid), so this never blocks a real applicant — it's
+    // scoped to leadId specifically rather than every organizer submission,
+    // since self-serve deliberately allows an empty GSTIN via its own
+    // "no GST" checkbox, which this stricter gate would otherwise break.
+    if (sub.kind === 'organizer') {
+      const payload = sub.payload as Record<string, unknown> | null;
+      if (payload?.leadId) {
+        const documents = Array.isArray(sub.documents) ? sub.documents : [];
+        const missing: string[] = [];
+        if (!payload.gstin) missing.push('GSTIN');
+        if (!payload.pan) missing.push('PAN');
+        if (!payload.bankAccount) missing.push('bank account number');
+        if (!payload.bankIfsc) missing.push('IFSC code');
+        if (!payload.bankName) missing.push('bank name');
+        if (!payload.accountHolderName) missing.push('account holder name');
+        if (!documents.length) missing.push('at least one KYC document');
+        if (missing.length) throw new BadRequestException(`Can't approve yet — still missing: ${missing.join(', ')}`);
+      }
+    }
+
     const ops: Prisma.PrismaPromise<unknown>[] = [
       this.prisma.kycSubmission.update({
         where: { id },
@@ -172,6 +201,7 @@ export class KycService {
     // approving an organizer needs a live Organizer catalog row to exist —
     // Event.organizerId is a hard FK into Organizer, not User, so without
     // this an approved organizer couldn't create their first event.
+    let newOrganizerId: string | undefined;
     if (sub.kind === 'organizer') {
       const [user, existing] = await Promise.all([
         this.prisma.user.findUnique({ where: { id: sub.userId } }),
@@ -179,6 +209,7 @@ export class KycService {
       ]);
       if (user && !existing) {
         const row = await this.newOrganizerRow(user, sub.payload as Record<string, unknown> | null);
+        newOrganizerId = row.id;
         ops.push(this.prisma.organizer.create({ data: row }));
         // Organizer.username is normalized (lowercased, collision-suffixed);
         // User.orgUsername was captured raw at submission time and never
@@ -235,6 +266,15 @@ export class KycService {
 
     await this.prisma.$transaction(ops);
 
+    // Sales-assisted organizer approval — see the leadId gate above. Now
+    // that the real Organizer row exists, close the loop back on the Lead
+    // it started from: same "link + mark Signed up" atomic update the
+    // manual "Link to organizer" admin action already does.
+    if (newOrganizerId) {
+      const leadId = (sub.payload as { leadId?: string } | null)?.leadId;
+      if (leadId) await this.leads.linkOrganizer(leadId, newOrganizerId).catch(() => {});
+    }
+
     const applicant = await this.prisma.user.findUnique({ where: { id: sub.userId } });
     if (applicant) {
       await this.email.sendTemplate(applicant.email, 'kyc_approved', {
@@ -258,7 +298,8 @@ export class KycService {
     user: { id: string; orgBrand: string | null; orgUsername: string | null; name: string; city: string },
     payload: Record<string, unknown> | null,
   ) {
-    const base = (user.orgUsername || user.orgBrand || user.name || 'organizer')
+    const payloadBrand = (typeof payload?.brand === 'string' && payload.brand.trim()) || (typeof payload?.brandName === 'string' && payload.brandName.trim()) || '';
+    const base = (user.orgUsername || payloadBrand || user.orgBrand || user.name || 'organizer')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '') || 'organizer';
@@ -282,7 +323,7 @@ export class KycService {
 
     return {
       id: await unique('id'),
-      brandName: user.orgBrand || user.name || 'Organizer',
+      brandName: payloadBrand || user.orgBrand || user.name || 'Organizer',
       username: await unique('username'),
       verified: true, // this row is only ever created at the moment KYC is approved
       city: str('city') || user.city || '',
@@ -456,5 +497,123 @@ export class KycService {
       }).catch(() => {});
     }
     return { ok: true };
+  }
+
+  // ---------- sales-assisted organizer onboarding (Admin > Leads) ----------
+
+  /** Lead team's half — "Start Onboarding" on a Lead. Deliberately collects
+   * only what a sales call would realistically produce (brand/contact/
+   * location/event types) — no GSTIN/PAN/bank/documents here at all; the
+   * verification team owns all of that (see addOrganizerVerificationDetails/
+   * addOrganizerDocuments below), never the lead team. Provisions a real
+   * User for the lead's phone if one doesn't exist yet (same "create by
+   * phone, they reconcile on first real login" pattern already used for
+   * organizer team invites) and drops a real, empty-of-compliance-data
+   * KycSubmission into the same Verifications queue every self-serve
+   * application already goes through — no separate review UI needed. */
+  async startOrganizerOnboarding(
+    leadId: string,
+    staffEmail: string,
+    body: {
+      brandName?: string; contactPerson?: string;
+      city?: string; state?: string; country?: string; pincode?: string;
+      eventTypes?: string; about?: string;
+      socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
+    },
+  ) {
+    const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
+    if (!lead) throw new NotFoundException('Lead not found');
+    if (lead.role !== 'organizer') throw new BadRequestException(`This is a "${lead.role}" lead — can't start organizer onboarding for it`);
+    if (!lead.contact?.trim()) throw new BadRequestException('This lead has no phone number on file');
+    if (!body.brandName?.trim()) throw new BadRequestException('Brand name is required');
+    if (!body.contactPerson?.trim()) throw new BadRequestException('Contact person is required');
+    if (!body.city?.trim() || !body.state?.trim() || !body.country?.trim()) throw new BadRequestException('City, state and country are required');
+    if (!body.eventTypes?.trim()) throw new BadRequestException('Event types are required');
+
+    const phone = normalizePhone(lead.contact);
+    let user = await this.prisma.user.findUnique({ where: { phone } });
+    if (!user) {
+      user = await this.prisma.user.create({ data: { phone, name: body.contactPerson.trim(), email: lead.email?.trim() || '' } });
+    }
+    if (user.role) throw new BadRequestException(`This phone number already holds the "${user.role}" role`);
+    if (user.roleStatus === 'pending') throw new BadRequestException('This phone number already has an application under review');
+
+    const submission = await this.prisma.kycSubmission.create({
+      data: {
+        userId: user.id,
+        kind: 'organizer',
+        status: 'pending',
+        payload: {
+          brand: body.brandName.trim(),
+          brandName: body.brandName.trim(),
+          contactPerson: body.contactPerson.trim(),
+          contact: lead.email?.trim() || undefined,
+          phone,
+          city: body.city.trim(),
+          state: body.state.trim(),
+          country: body.country.trim(),
+          pincode: body.pincode?.trim() || undefined,
+          types: body.eventTypes.trim(),
+          about: body.about?.trim() || undefined,
+          socialLinks: body.socialLinks ?? undefined,
+          leadId,
+        } as Prisma.InputJsonValue,
+        documents: [],
+      },
+    });
+
+    await this.prisma.user.update({ where: { id: user.id }, data: { roleStatus: 'pending' } });
+    await this.prisma.leadActivity.create({ data: { leadId, text: `Onboarding started by ${staffEmail} — sent for verification` } });
+    await this.notifications.notify('🛡', `${body.brandName.trim()} sent for verification (via Leads)`, '/admin/kyc').catch(() => {});
+
+    return submission;
+  }
+
+  /** Verification team's half, part 1 — GSTIN/PAN/bank details, filled in
+   * once they've actually called the applicant and collected them. Only
+   * touches these specific keys in the payload, leaving everything the lead
+   * team already filled in untouched. Blocked once the submission's already
+   * been decided — nothing left to update. */
+  async addOrganizerVerificationDetails(
+    id: string,
+    body: { gstin?: string; pan?: string; bankName?: string; bankAccount?: string; accountHolderName?: string; bankIfsc?: string },
+  ) {
+    const sub = await this.prisma.kycSubmission.findUnique({ where: { id } });
+    if (!sub) throw new NotFoundException('Submission not found');
+    if (sub.kind !== 'organizer') throw new BadRequestException('Only organizer applications take verification details this way');
+    if (sub.status !== 'pending') throw new BadRequestException('This application has already been reviewed');
+
+    const payload = { ...(sub.payload as Record<string, unknown>) };
+    if (body.gstin !== undefined) payload.gstin = body.gstin.trim().toUpperCase() || undefined;
+    if (body.pan !== undefined) payload.pan = body.pan.trim().toUpperCase() || undefined;
+    if (body.bankName !== undefined) payload.bankName = body.bankName.trim() || undefined;
+    if (body.bankAccount !== undefined) payload.bankAccount = body.bankAccount.trim() || undefined;
+    if (body.accountHolderName !== undefined) payload.accountHolderName = body.accountHolderName.trim() || undefined;
+    if (body.bankIfsc !== undefined) payload.bankIfsc = body.bankIfsc.trim().toUpperCase() || undefined;
+
+    return this.prisma.kycSubmission.update({ where: { id }, data: { payload: payload as Prisma.InputJsonValue } });
+  }
+
+  /** Verification team's half, part 2 — real KYC documents, uploaded once
+   * received (GST certificate, PAN card, etc. — whatever the verifier asks
+   * for; each entry names what it is (GST certificate, PAN card, ...), same
+   * free-form `documents[].type` shape self-serve submissions already use.
+   * Takes already-uploaded URLs rather than raw files — the admin panel
+   * already has a generic upload endpoint (POST /admin/media/upload, no
+   * mutation of its own, any staff can call it) for exactly this, so this
+   * method just records the result instead of handling multipart itself.
+   * Appends rather than replaces, so multiple upload rounds don't clobber
+   * earlier ones. */
+  async addOrganizerDocuments(id: string, docs: { type: string; path: string }[]) {
+    const sub = await this.prisma.kycSubmission.findUnique({ where: { id } });
+    if (!sub) throw new NotFoundException('Submission not found');
+    if (sub.status !== 'pending') throw new BadRequestException('This application has already been reviewed');
+    if (!docs.length) throw new BadRequestException('At least one document is required');
+
+    const existing = Array.isArray(sub.documents) ? sub.documents : [];
+    return this.prisma.kycSubmission.update({
+      where: { id },
+      data: { documents: [...existing, ...docs] as unknown as Prisma.InputJsonValue },
+    });
   }
 }
