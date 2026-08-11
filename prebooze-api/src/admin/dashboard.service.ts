@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { BookingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { ReportsService } from './reports.service';
+import { leadPhoneKeySet, phoneKey } from './lead-phone-match.util';
 
 const LIVE_BOOKING_STATUSES: BookingStatus[] = ['confirmed', 'refund_requested'];
 
@@ -24,6 +25,18 @@ export class DashboardService {
     private reports: ReportsService,
   ) {}
 
+  /** Same guest definition + lead exclusion as CustomersService.list — kept
+   * here as a small standalone count rather than importing CustomersService
+   * itself, since a `count()` doesn't need the booking-stats join that
+   * service's full list does. */
+  private async countRealCustomers(): Promise<number> {
+    const guests = await this.prisma.user.findMany({ where: { role: null, roleStatus: null }, select: { phone: true } });
+    if (!guests.length) return 0;
+    const leadPhones = await leadPhoneKeySet(this.prisma);
+    if (!leadPhones.size) return guests.length;
+    return guests.filter((u) => !leadPhones.has(phoneKey(u.phone))).length;
+  }
+
   async overview(days = 14, city?: string) {
     const now = new Date();
     const since = new Date(now.getTime() - days * 86400000);
@@ -41,8 +54,11 @@ export class DashboardService {
       // Every role (organizer/promoter/lineup/venue) shares the same User
       // table as guests — counting all Users here silently folded business
       // accounts into "customers". Same "guest" definition CustomersService
-      // already uses for its "guests" segment: role and roleStatus both null.
-      this.prisma.user.count({ where: { role: null, roleStatus: null } }),
+      // already uses for its "guests" segment: role and roleStatus both
+      // null, *and* not already tracked as a Lead (a prospect being sold to
+      // shouldn't inflate the customer count just because they haven't
+      // formally applied yet — see CustomersService.list for the same logic).
+      this.countRealCustomers(),
       this.prisma.organizer.count(),
       this.prisma.organizer.count({ where: { verified: true } }),
       this.prisma.event.count(),

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma.service';
 import { normalizePhone } from '../auth/auth.service';
 import { uniqueReferralCodeFor } from '../referrals/referral.constants';
+import { leadPhoneKeySet, phoneKey } from './lead-phone-match.util';
 
 @Injectable()
 export class CustomersService {
@@ -18,7 +19,18 @@ export class CustomersService {
   async list(segment?: 'guests' | 'organizers') {
     const isGuest = { role: null, roleStatus: null } as const;
     const where = segment === 'guests' ? isGuest : segment === 'organizers' ? { NOT: isGuest } : {};
-    const users = await this.prisma.user.findMany({ where, orderBy: { createdAt: 'desc' } });
+    let users = await this.prisma.user.findMany({ where, orderBy: { createdAt: 'desc' } });
+    // A person can be tracked as a Lead (organizer/venue/promoter/lineup
+    // prospect) before ever formally applying — role/roleStatus alone
+    // don't catch that, since nothing about "being a sales lead" touches
+    // either field. Someone who's a real customer AND a lead is still
+    // excluded here deliberately (confirmed with the user 2026-08-11) —
+    // Leads and Customers are meant to stay two clean, non-overlapping
+    // lists, not "customer, but also shown as a lead."
+    if (segment === 'guests' && users.length) {
+      const leadPhones = await leadPhoneKeySet(this.prisma);
+      if (leadPhones.size) users = users.filter((u) => !leadPhones.has(phoneKey(u.phone)));
+    }
     if (!users.length) return [];
 
     const stats = await this.prisma.booking.groupBy({
