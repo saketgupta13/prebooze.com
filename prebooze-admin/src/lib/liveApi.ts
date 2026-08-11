@@ -294,6 +294,7 @@ export const liveKyc = {
       city: string; state: string; country: string; pincode?: string;
       eventTypes: string; about?: string;
       socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
+      confirmExistingUser?: boolean;
     },
   ) => liveFetch<LiveKycApplication>(`/admin/kyc/organizer/from-lead/${leadId}`, { body }),
   // Verification team only — GSTIN/PAN/bank details.

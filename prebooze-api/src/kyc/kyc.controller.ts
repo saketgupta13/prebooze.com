@@ -77,6 +77,7 @@ export class AdminKycController {
       city?: string; state?: string; country?: string; pincode?: string;
       eventTypes?: string; about?: string;
       socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
+      confirmExistingUser?: boolean;
     },
     @Req() req: { staff: StaffTokenPayload },
   ) {

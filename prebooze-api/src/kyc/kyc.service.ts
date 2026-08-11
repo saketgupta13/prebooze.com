@@ -519,6 +519,7 @@ export class KycService {
       city?: string; state?: string; country?: string; pincode?: string;
       eventTypes?: string; about?: string;
       socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
+      confirmExistingUser?: boolean;
     },
   ) {
     const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
@@ -532,6 +533,20 @@ export class KycService {
 
     const phone = normalizePhone(lead.contact);
     let user = await this.prisma.user.findUnique({ where: { phone } });
+    // A lead's phone number can coincidentally match a real, unrelated
+    // Prebooze account (a genuine guest, or someone who signed up some
+    // other way) — the lead team typing in a phone number is not the same
+    // thing as that person actually being that account holder. Silently
+    // repurposing a stranger's account (flipping their roleStatus to
+    // 'pending' as if they'd personally applied) is exactly the bug this
+    // guard exists to prevent — confirmed for real 2026-08-11 when a lead's
+    // phone matched an existing guest with no relation to the application.
+    // Only a genuinely brand-new phone (no prior account at all) skips this.
+    if (user && !body.confirmExistingUser) {
+      throw new BadRequestException(
+        `EXISTING_ACCOUNT: This phone number already belongs to an existing Prebooze account${user.name ? ` (${user.name})` : ''} — confirm this is the same person before continuing.`,
+      );
+    }
     if (!user) {
       user = await this.prisma.user.create({ data: { phone, name: body.contactPerson.trim(), email: lead.email?.trim() || '' } });
     }

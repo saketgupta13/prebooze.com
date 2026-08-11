@@ -294,8 +294,8 @@ export default function Leads() {
     }
     setOnboardBusy(true);
     setErr('');
-    try {
-      await liveKyc.startOrganizerOnboarding(selected.id, {
+    const submit = (confirmExistingUser?: boolean) =>
+      liveKyc.startOrganizerOnboarding(selected.id, {
         brandName: onboardForm.brandName.trim(),
         contactPerson: onboardForm.contactPerson.trim(),
         city: onboardForm.city.trim(),
@@ -307,7 +307,23 @@ export default function Leads() {
         socialLinks: (onboardForm.instagram.trim() || onboardForm.facebook.trim())
           ? { instagram: onboardForm.instagram.trim() || undefined, facebook: onboardForm.facebook.trim() || undefined }
           : undefined,
+        confirmExistingUser,
       });
+    try {
+      try {
+        await submit();
+      } catch (e) {
+        // This lead's phone already belongs to a real, unrelated Prebooze
+        // account — don't silently reuse a stranger's identity. Confirm
+        // with staff first, same "are you sure" pattern as removeLead below.
+        if (e instanceof LiveApiError && e.message.startsWith('EXISTING_ACCOUNT:')) {
+          const proceed = confirm(e.message.replace('EXISTING_ACCOUNT: ', '') + '\n\nContinue anyway?');
+          if (!proceed) { setOnboardBusy(false); return; }
+          await submit(true);
+        } else {
+          throw e;
+        }
+      }
       setOnboardSent(true);
       load();
     } catch (e) {
