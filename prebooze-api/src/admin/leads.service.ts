@@ -345,6 +345,45 @@ export class LeadsService {
     return { ok: true, sent };
   }
 
+  /** Auto-captured draft leads (see captureDraft) gone quiet for 30+ minutes
+   * with no real application ever landing — e.g. someone verified OTP to
+   * start an organizer application and never touched the form, or filled
+   * part of it and left. Reuses the same 'lead_onboarding_invite' WhatsApp
+   * template the manual "Send onboarding link" admin action already sends
+   * (LeadsService.sendOnboardingLink) — same already-approved AiSensy
+   * campaign, no new template needed. Only ever fires once per lead
+   * (autoNudgeSentAt gate) and only for still-untouched drafts (`stage:
+   * 'New'`) — a lead staff has already started working is left alone. */
+  async dueAutoNudges() {
+    const cutoff = new Date(Date.now() - 30 * 60 * 1000);
+    return this.prisma.lead.findMany({
+      where: {
+        source: { in: [...DRAFT_SOURCES] },
+        stage: 'New',
+        autoNudgeSentAt: null,
+        updatedAt: { lte: cutoff },
+        contact: { not: null },
+      },
+    });
+  }
+
+  async sendAutoNudges() {
+    const due = await this.dueAutoNudges();
+    let sent = 0;
+    for (const lead of due) {
+      try {
+        await this.wa.sendLeadOnboardingInvite(lead.contact!, lead.contactPerson?.trim() || lead.name, lead.name);
+        await this.prisma.lead.update({ where: { id: lead.id }, data: { autoNudgeSentAt: new Date() } });
+        await this.prisma.leadActivity.create({ data: { leadId: lead.id, text: 'Automated onboarding reminder sent via WhatsApp' } });
+        sent++;
+      } catch {
+        // leave autoNudgeSentAt unset — picked up again on the next tick
+        // rather than silently lost for a transient send failure.
+      }
+    }
+    return { sent };
+  }
+
   /** Follow-ups due today or overdue, still in an active (non-terminal) stage. */
   async dueFollowUps() {
     return this.prisma.lead.findMany({

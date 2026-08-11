@@ -451,6 +451,12 @@ model Lead {
   stage         String    @default("New") // New | Contacted | Interested | Negotiating | Signed up | Declined
   followUpAt    DateTime?
   followUpDone  Boolean   @default(false)
+  // Set once the automated "you started but didn't finish" WhatsApp nudge
+  // (LeadsService.sendAutoNudges) has gone out for this lead — distinct
+  // from followUpAt/followUpDone above, which are a staff member's own
+  // manually-scheduled reminder, not a system-sent message. Never reset;
+  // one nudge per draft lead, ever.
+  autoNudgeSentAt DateTime?
 
   assignedToId String?
   assignedTo   Staff?     @relation(fields: [assignedToId], references: [id])

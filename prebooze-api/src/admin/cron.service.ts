@@ -139,4 +139,15 @@ export class CronService {
     }
     if (due.length) this.log.log(`Lead follow-ups: notified for ${due.length} lead(s)`);
   }
+
+  /** Every 5 minutes — frequent, unlike the once-daily ticks above, since
+   * this is chasing a 30-minute-since-last-activity window (see
+   * LeadsService.sendAutoNudges) rather than a fixed time of day; a lead
+   * that goes quiet at any hour should get its nudge within a few minutes
+   * of crossing that threshold, not wait for the next morning. */
+  @Cron('*/5 * * * *')
+  async leadAutoNudgeTick() {
+    const { sent } = await this.leads.sendAutoNudges();
+    if (sent) this.log.log(`Lead auto-nudge: WhatsApp reminder sent to ${sent} draft lead(s)`);
+  }
 }
