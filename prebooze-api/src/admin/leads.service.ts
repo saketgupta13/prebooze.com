@@ -353,11 +353,21 @@ export class LeadsService {
    * (LeadsService.sendOnboardingLink) — same already-approved AiSensy
    * campaign, no new template needed. Only ever fires once per lead
    * (autoNudgeSentAt gate) and only for still-untouched drafts (`stage:
-   * 'New'`) — a lead staff has already started working is left alone. */
+   * 'New'`) — a lead staff has already started working is left alone.
+   *
+   * Scoped to organizer + venue only — the approved WhatsApp template's
+   * copy is organizer-specific (no per-role text/link the way the email
+   * version has via onboardingPath), and venues double as organizers
+   * whenever they self-host or collaborate on events (see venue hosting),
+   * so the organizer-oriented invite still applies to them. Promoter/
+   * lineup drafts still land in the Kanban for staff to work manually —
+   * just no automated WhatsApp until a role-correct template exists for
+   * them, which also isn't needed yet since ad spend is organizer-only. */
   async dueAutoNudges() {
     const cutoff = new Date(Date.now() - 30 * 60 * 1000);
     return this.prisma.lead.findMany({
       where: {
+        role: { in: ['organizer', 'venue'] },
         source: { in: [...DRAFT_SOURCES] },
         stage: 'New',
         autoNudgeSentAt: null,
