@@ -355,19 +355,22 @@ export class LeadsService {
    * (autoNudgeSentAt gate) and only for still-untouched drafts (`stage:
    * 'New'`) — a lead staff has already started working is left alone.
    *
-   * Scoped to organizer + venue only — the approved WhatsApp template's
-   * copy is organizer-specific (no per-role text/link the way the email
-   * version has via onboardingPath), and venues double as organizers
-   * whenever they self-host or collaborate on events (see venue hosting),
-   * so the organizer-oriented invite still applies to them. Promoter/
-   * lineup drafts still land in the Kanban for staff to work manually —
-   * just no automated WhatsApp until a role-correct template exists for
-   * them, which also isn't needed yet since ad spend is organizer-only. */
+   * Scoped to organizer only — the approved WhatsApp template's copy is
+   * organizer-specific text (no per-role text/link the way the email
+   * version has via onboardingPath). Venue was considered too (venues can
+   * self-host/collaborate on events, so they're organizer-adjacent) but
+   * the actual template wording says something specific to becoming an
+   * organizer, which would be factually wrong to send someone who applied
+   * to list their venue, not to run events — so venue stays out too.
+   * Promoter/venue/lineup drafts still land in the Kanban for staff to
+   * work manually — just no automated WhatsApp until a role-correct
+   * template exists for them, which also isn't needed yet since ad spend
+   * is organizer-only right now. */
   async dueAutoNudges() {
     const cutoff = new Date(Date.now() - 30 * 60 * 1000);
     return this.prisma.lead.findMany({
       where: {
-        role: { in: ['organizer', 'venue'] },
+        role: 'organizer',
         source: { in: [...DRAFT_SOURCES] },
         stage: 'New',
         autoNudgeSentAt: null,
