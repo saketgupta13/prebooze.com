@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CityFilterDropdown, Tag } from '../components/ui';
+import { CityFilterDropdown, GradientPhoto, Tag } from '../components/ui';
 import { liveOrganizers, LiveApiError, type LiveOrganizer } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -70,7 +70,14 @@ export default function Organizers() {
             style={{ minWidth: 640 }}
             onClick={() => navigate(`/organizers/${o.id}`)}
           >
-            <span style={{ flex: 1.6, fontWeight: 700 }}>{o.brandName}</span>
+            <span style={{ flex: 1.6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {o.logoUrl ? (
+                <img src={o.logoUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', flex: 'none', objectFit: 'cover' }} />
+              ) : (
+                <GradientPhoto seed={o.logoHue} style={{ width: 28, height: 28, borderRadius: '50%', flex: 'none', padding: 0 }} />
+              )}
+              {o.brandName}
+            </span>
             <span style={{ flex: 1.6 }} className="muted">{o.contact || '—'}</span>
             <span style={{ flex: 1 }} className="muted">{o.city}</span>
             <span style={{ flex: 0.8 }}>{o.eventsHosted}</span>

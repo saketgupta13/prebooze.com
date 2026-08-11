@@ -362,7 +362,7 @@ export interface LiveOrganizer {
   id: string; brandName: string; username: string; verified: boolean; city: string;
   state: string | null; country: string | null; pincode: string | null; since: string;
   rating: number; reviewCount: number; eventsHosted: number; followers: number; following: number;
-  about: string; logoHue: number; contact: string; contactPerson: string | null; phone: string | null;
+  about: string; logoHue: number; logoUrl: string | null; contact: string; contactPerson: string | null; phone: string | null;
   eventTypes: string | null; socialLinks: { instagram?: string; facebook?: string; other?: string[] } | null; gstin: string | null; pan: string | null;
   bankLast4: string | null; seo: Seo | null;
 }

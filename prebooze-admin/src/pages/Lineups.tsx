@@ -16,9 +16,9 @@ const EMOJI: Record<string, string> = { DJ: '🎧', Band: '🎸', Comedian: '�
 
 /** Line-ups directory — real Lineup catalog rows (artists, DJs, bands,
  * sponsors, promoters, hosts). Already-approved only — pending self-serve
- * applications are reviewed under Verifications. No real photo-upload field
- * exists for a lineup profile (only hue/emoji), so the mock's image picker
- * is dropped in favor of the same gradient placeholder used in the list. */
+ * applications are reviewed under Verifications. A real logo (logoUrl,
+ * uploaded via RealImageUpload below) falls back to the hue/emoji gradient
+ * placeholder when unset — same pattern as Venues/Promoters. */
 export function Lineups() {
   const session = useLiveSession();
   const { token } = session;
@@ -84,7 +84,11 @@ export function Lineups() {
         {list.map((l) => (
           <div key={l.id} className="trow clickable" style={{ minWidth: 640 }} onClick={() => navigate(`/lineups/${l.id}/edit`)}>
             <span style={{ flex: 2, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <GradientPhoto seed={l.hue} style={{ width: 30, height: 30, borderRadius: '50%', flex: 'none', padding: 0 }} />
+              {l.logoUrl ? (
+                <img src={l.logoUrl} alt="" style={{ width: 30, height: 30, borderRadius: '50%', flex: 'none', objectFit: 'cover' }} />
+              ) : (
+                <GradientPhoto seed={l.hue} style={{ width: 30, height: 30, borderRadius: '50%', flex: 'none', padding: 0 }} />
+              )}
               {l.name} {l.verified && '✓'}
             </span>
             <span style={{ flex: 1 }}><Tag label={l.category} cls={['Artist', 'DJ', 'Band', 'Comedian'].includes(l.category) ? 'tag-green' : ''} /></span>
