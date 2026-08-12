@@ -19,6 +19,30 @@ function toDateInput(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+function daysAgo(n: number) {
+  return toDateInput(new Date(Date.now() - n * 24 * 60 * 60 * 1000));
+}
+
+const TODAY = () => toDateInput(new Date());
+const RANGE_PRESETS: Record<string, () => { from: string; to: string }> = {
+  Today: () => ({ from: TODAY(), to: TODAY() }),
+  Yesterday: () => ({ from: daysAgo(1), to: daysAgo(1) }),
+  'Last 7 days': () => ({ from: daysAgo(6), to: TODAY() }),
+  'Last 14 days': () => ({ from: daysAgo(13), to: TODAY() }),
+  'Last 30 days': () => ({ from: daysAgo(29), to: TODAY() }),
+  'This month': () => {
+    const now = new Date();
+    return { from: toDateInput(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))), to: TODAY() };
+  },
+  'Last month': () => {
+    const now = new Date();
+    const firstOfThisMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const lastOfPrevMonth = new Date(firstOfThisMonth.getTime() - 24 * 60 * 60 * 1000);
+    const firstOfPrevMonth = new Date(Date.UTC(lastOfPrevMonth.getUTCFullYear(), lastOfPrevMonth.getUTCMonth(), 1));
+    return { from: toDateInput(firstOfPrevMonth), to: toDateInput(lastOfPrevMonth) };
+  },
+};
+
 function csvCell(v: string | number) {
   return typeof v === 'number' ? String(v) : `"${v.replace(/"/g, '""')}"`;
 }
@@ -44,8 +68,9 @@ export default function Analytics() {
   const session = useLiveSession();
   const { token } = session;
 
-  const [from, setFrom] = useState(() => toDateInput(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)));
-  const [to, setTo] = useState(() => toDateInput(new Date()));
+  const [from, setFrom] = useState(() => daysAgo(6));
+  const [to, setTo] = useState(TODAY);
+  const [rangePreset, setRangePreset] = useState('Last 7 days');
   const [organizerId, setOrganizerId] = useState('');
   const [city, setCity] = useState('');
   const [eventId, setEventId] = useState('');
@@ -63,16 +88,23 @@ export default function Analytics() {
     liveAnalytics.filters().then(setFilters).catch(() => {});
   }, [token]);
 
-  const load = () => {
+  // Accepts explicit from/to so a preset click can load immediately with
+  // the just-computed dates instead of reading stale pre-update state
+  // (setFrom/setTo followed by an immediate load() in the same handler
+  // would otherwise still see the old values, React state updates being
+  // async).
+  const load = (overrides?: { from?: string; to?: string }) => {
+    const effectiveFrom = overrides?.from ?? from;
+    const effectiveTo = overrides?.to ?? to;
     setLoading(true);
     setErr('');
     liveAnalytics
       .get({
-        from,
+        from: effectiveFrom,
         // Explicit Z — a bare "T23:59:59" has no timezone, so JS parses it
         // as the *server's* local time; an unambiguous UTC boundary is
         // required either way.
-        to: to ? `${to}T23:59:59Z` : undefined,
+        to: effectiveTo ? `${effectiveTo}T23:59:59Z` : undefined,
         eventId: eventId || undefined,
         city: city || undefined,
         organizerId: organizerId || undefined,
@@ -82,6 +114,19 @@ export default function Analytics() {
       .then(setReport)
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
+  };
+
+  // A preset click both fills the From/To fields and loads immediately —
+  // manually editing From/To directly still requires clicking Refresh, same
+  // as every other filter on this page.
+  const applyPreset = (label: string) => {
+    setRangePreset(label);
+    const preset = RANGE_PRESETS[label];
+    if (!preset) return;
+    const { from: f, to: t } = preset();
+    setFrom(f);
+    setTo(t);
+    if (token) load({ from: f, to: t });
   };
 
   useEffect(() => {
@@ -181,12 +226,19 @@ export default function Analytics() {
 
       <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div className="field" style={{ maxWidth: 160 }}>
+          <label>Range</label>
+          <select className="input" value={rangePreset} onChange={(e) => applyPreset(e.target.value)}>
+            <option value="" disabled>Custom range</option>
+            {Object.keys(RANGE_PRESETS).map((label) => <option key={label} value={label}>{label}</option>)}
+          </select>
+        </div>
+        <div className="field" style={{ maxWidth: 160 }}>
           <label>From</label>
-          <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <input className="input" type="date" value={from} onChange={(e) => { setFrom(e.target.value); setRangePreset(''); }} />
         </div>
         <div className="field" style={{ maxWidth: 160 }}>
           <label>To</label>
-          <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <input className="input" type="date" value={to} onChange={(e) => { setTo(e.target.value); setRangePreset(''); }} />
         </div>
         <div className="field" style={{ maxWidth: 200 }}>
           <label>City</label>
@@ -229,7 +281,7 @@ export default function Analytics() {
             allLabel="All cities"
           />
         </div>
-        <button className="btn btn-pri btn-sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
+        <button className="btn btn-pri btn-sm" onClick={() => load()} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
         <button className="btn btn-sm" onClick={exportCsv} disabled={!report}>Export CSV</button>
       </div>
 
