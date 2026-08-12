@@ -85,25 +85,41 @@ function metaStr(meta: unknown, key: string): string | undefined {
 export class AnalyticsReportService {
   constructor(private prisma: PrismaService) {}
 
-  /** City/organizer filters go through Event (FunnelEvent has no city/
-   * organizerId of its own) — resolves to the set of matching event ids
-   * first, then filters FunnelEvent/Booking by that set alongside any
-   * explicit eventId. A filter that matches zero events correctly zeroes
-   * out the whole report rather than silently ignoring the filter. */
-  private async resolveEventIds(city?: string, organizerId?: string): Promise<string[] | undefined> {
-    if (!city && !organizerId) return undefined;
+  /** No EventStatus for "completed" — an event's end time is always derived
+   * from date + durationHrs, same as Dashboard's `liveNow` calc, never a
+   * stored flag. "Live" here means hasn't ended yet (covers both upcoming
+   * and currently in progress); "past" means it has. */
+  private hasEnded(e: { date: Date; durationHrs: number }, now: number): boolean {
+    return e.date.getTime() + e.durationHrs * 3600000 < now;
+  }
+
+  /** City/organizer/eventScope filters go through Event (FunnelEvent has no
+   * city/organizerId/date of its own) — resolves to the set of matching
+   * event ids first, then filters FunnelEvent/Booking by that set alongside
+   * any explicit eventId. A filter that matches zero events correctly
+   * zeroes out the whole report rather than silently ignoring the filter. */
+  private async resolveEventIds(city?: string, organizerId?: string, eventScope?: string): Promise<string[] | undefined> {
+    if (!city && !organizerId && (!eventScope || eventScope === 'all')) return undefined;
     const events = await this.prisma.event.findMany({
       where: {
         ...(organizerId ? { organizerId } : {}),
         ...(city ? { OR: [{ privateCity: city }, { venue: { city } }] } : {}),
       },
-      select: { id: true },
+      select: { id: true, date: true, durationHrs: true },
     });
-    return events.map((e) => e.id);
+    const now = Date.now();
+    const scoped =
+      !eventScope || eventScope === 'all'
+        ? events
+        : events.filter((e) => (eventScope === 'past' ? this.hasEnded(e, now) : !this.hasEnded(e, now)));
+    return scoped.map((e) => e.id);
   }
 
-  async get(params: { from?: string; to?: string; eventId?: string; city?: string; organizerId?: string; visitorState?: string; visitorCity?: string }) {
-    const scopedEventIds = await this.resolveEventIds(params.city, params.organizerId);
+  async get(params: {
+    from?: string; to?: string; eventId?: string; city?: string; organizerId?: string;
+    visitorState?: string; visitorCity?: string; eventScope?: string;
+  }) {
+    const scopedEventIds = await this.resolveEventIds(params.city, params.organizerId, params.eventScope);
     const dateWhere =
       params.from || params.to
         ? {
@@ -171,10 +187,11 @@ export class AnalyticsReportService {
       if (r.os) sessionOs.set(r.sessionId, r.os);
       if (!sessionSource.has(r.sessionId)) sessionSource.set(r.sessionId, trafficSourceOf(r.referrerHost, r.utmSource));
       if (r.utmCampaign && !sessionCampaign.has(r.sessionId)) sessionCampaign.set(r.sessionId, r.utmCampaign);
-      if (!sessionGeo.has(r.sessionId)) {
-        const label = r.geoCity && r.geoCountry ? `${r.geoCity}, ${r.geoCountry}` : r.geoCountry || undefined;
-        if (label) sessionGeo.set(r.sessionId, label);
-      }
+      // India-only, bare city name — same reasoning as the region/city
+      // dropdown lists above (this platform is India-only for now, and a
+      // country-suffixed/country-only label is dead weight nobody needs to
+      // read here).
+      if (r.geoCity && r.geoCountry === 'IN' && !sessionGeo.has(r.sessionId)) sessionGeo.set(r.sessionId, r.geoCity);
       if (r.geoRegion && r.geoCountry === 'IN' && !sessionRegion.has(r.sessionId)) sessionRegion.set(r.sessionId, indianStateName(r.geoRegion));
       if (r.siteSource && !sessionAdPlatform.has(r.sessionId)) sessionAdPlatform.set(r.sessionId, siteSourceLabel(r.siteSource));
       if (r.type === 'event_viewed' && !sessionPromoter.has(r.sessionId)) {
@@ -390,14 +407,21 @@ export class AnalyticsReportService {
   /** Options for the filter dropdowns — real organizers/cities/events, not
    * a hardcoded list, and includes each event's own city/organizerId so the
    * frontend can cascade the event dropdown down to whatever's already
-   * selected without another round trip. */
-  async filters() {
-    const events = await this.prisma.event.findMany({
-      select: { id: true, title: true, organizerId: true, privateCity: true, venue: { select: { city: true } } },
+   * selected without another round trip. `eventScope` narrows the *events*
+   * list only (live/past/all) — City/Organizer stay unfiltered, they're
+   * stable metadata, not "past data" in the sense that prompted this. */
+  async filters(eventScope?: string) {
+    const allEvents = await this.prisma.event.findMany({
+      select: { id: true, title: true, organizerId: true, privateCity: true, date: true, durationHrs: true, venue: { select: { city: true } } },
       orderBy: { date: 'desc' },
     });
+    const now = Date.now();
+    const events =
+      !eventScope || eventScope === 'all'
+        ? allEvents
+        : allEvents.filter((e) => (eventScope === 'past' ? this.hasEnded(e, now) : !this.hasEnded(e, now)));
     const organizers = await this.prisma.organizer.findMany({ select: { id: true, brandName: true }, orderBy: { brandName: 'asc' } });
-    const cities = [...new Set(events.map((e) => e.privateCity ?? e.venue?.city).filter((c): c is string => !!c))].sort();
+    const cities = [...new Set(allEvents.map((e) => e.privateCity ?? e.venue?.city).filter((c): c is string => !!c))].sort();
     // Visitor states/cities (FunnelEvent.geoRegion/geoCity) — distinct from
     // `cities` above, which is where *events* are hosted, not where visitors
     // are browsing from. India-only, same reasoning as the regions/geo

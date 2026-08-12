@@ -603,7 +603,12 @@ export interface AnalyticsFilters {
   events: { id: string; title: string; organizerId: string; city: string | null }[];
 }
 export const liveAnalytics = {
-  get: (params: { from?: string; to?: string; eventId?: string; city?: string; organizerId?: string; visitorState?: string; visitorCity?: string } = {}) => {
+  get: (
+    params: {
+      from?: string; to?: string; eventId?: string; city?: string; organizerId?: string;
+      visitorState?: string; visitorCity?: string; eventScope?: 'live' | 'past' | 'all';
+    } = {},
+  ) => {
     const q = new URLSearchParams();
     if (params.from) q.set('from', params.from);
     if (params.to) q.set('to', params.to);
@@ -612,11 +617,13 @@ export const liveAnalytics = {
     if (params.organizerId) q.set('organizerId', params.organizerId);
     if (params.visitorState) q.set('visitorState', params.visitorState);
     if (params.visitorCity) q.set('visitorCity', params.visitorCity);
+    if (params.eventScope) q.set('eventScope', params.eventScope);
     const qs = q.toString();
     return liveFetch<LiveAnalytics>('/admin/analytics' + (qs ? `?${qs}` : ''));
   },
   realtime: () => liveFetch<AnalyticsRealtime>('/admin/analytics/realtime'),
-  filters: () => liveFetch<AnalyticsFilters>('/admin/analytics/filters'),
+  filters: (eventScope?: 'live' | 'past' | 'all') =>
+    liveFetch<AnalyticsFilters>('/admin/analytics/filters' + (eventScope ? `?eventScope=${eventScope}` : '')),
 };
 
 export interface LivePayoutRow {

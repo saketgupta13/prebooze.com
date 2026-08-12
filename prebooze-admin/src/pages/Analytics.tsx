@@ -76,6 +76,10 @@ export default function Analytics() {
   const [eventId, setEventId] = useState('');
   const [visitorState, setVisitorState] = useState('');
   const [visitorCity, setVisitorCity] = useState('');
+  // Defaults to live (upcoming + currently running) events — a past event's
+  // traffic isn't actionable anymore and was drowning out what's happening
+  // now. "Past events" and "All events" stay one click away, not deleted.
+  const [eventScope, setEventScope] = useState<'live' | 'past' | 'all'>('live');
 
   const [filters, setFilters] = useState<AnalyticsFilters | null>(null);
   const [report, setReport] = useState<LiveAnalytics | null>(null);
@@ -85,17 +89,19 @@ export default function Analytics() {
 
   useEffect(() => {
     if (!token) return;
-    liveAnalytics.filters().then(setFilters).catch(() => {});
-  }, [token]);
+    liveAnalytics.filters(eventScope).then(setFilters).catch(() => {});
+  }, [token, eventScope]);
 
   // Accepts explicit from/to so a preset click can load immediately with
   // the just-computed dates instead of reading stale pre-update state
   // (setFrom/setTo followed by an immediate load() in the same handler
   // would otherwise still see the old values, React state updates being
   // async).
-  const load = (overrides?: { from?: string; to?: string }) => {
+  const load = (overrides?: { from?: string; to?: string; eventId?: string; eventScope?: 'live' | 'past' | 'all' }) => {
     const effectiveFrom = overrides?.from ?? from;
     const effectiveTo = overrides?.to ?? to;
+    const effectiveEventId = overrides?.eventId ?? eventId;
+    const effectiveEventScope = overrides?.eventScope ?? eventScope;
     setLoading(true);
     setErr('');
     liveAnalytics
@@ -105,15 +111,26 @@ export default function Analytics() {
         // as the *server's* local time; an unambiguous UTC boundary is
         // required either way.
         to: effectiveTo ? `${effectiveTo}T23:59:59Z` : undefined,
-        eventId: eventId || undefined,
+        eventId: effectiveEventId || undefined,
         city: city || undefined,
         organizerId: organizerId || undefined,
         visitorState: visitorState || undefined,
         visitorCity: visitorCity || undefined,
+        eventScope: effectiveEventScope,
       })
       .then(setReport)
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
+  };
+
+  // Clears eventId too — a specific event picked under "Live" may not exist
+  // in "Past"/"All" and vice versa, and reloads immediately (same reasoning
+  // as applyPreset: this is a scope toggle, not a value you'd tune then
+  // separately hit Refresh for).
+  const changeEventScope = (v: 'live' | 'past' | 'all') => {
+    setEventScope(v);
+    setEventId('');
+    if (token) load({ eventId: '', eventScope: v });
   };
 
   // A preset click both fills the From/To fields and loads immediately —
@@ -239,6 +256,14 @@ export default function Analytics() {
         <div className="field" style={{ maxWidth: 160 }}>
           <label>To</label>
           <input className="input" type="date" value={to} onChange={(e) => { setTo(e.target.value); setRangePreset(''); }} />
+        </div>
+        <div className="field" style={{ maxWidth: 160 }}>
+          <label>Events</label>
+          <select className="input" value={eventScope} onChange={(e) => changeEventScope(e.target.value as 'live' | 'past' | 'all')}>
+            <option value="live">Live events</option>
+            <option value="past">Past events</option>
+            <option value="all">All events</option>
+          </select>
         </div>
         <div className="field" style={{ maxWidth: 200 }}>
           <label>City</label>

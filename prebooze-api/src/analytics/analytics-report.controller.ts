@@ -21,8 +21,9 @@ export class AdminAnalyticsController {
     @Query('organizerId') organizerId?: string,
     @Query('visitorState') visitorState?: string,
     @Query('visitorCity') visitorCity?: string,
+    @Query('eventScope') eventScope?: string,
   ) {
-    return this.analytics.get({ from, to, eventId, city, organizerId, visitorState, visitorCity });
+    return this.analytics.get({ from, to, eventId, city, organizerId, visitorState, visitorCity, eventScope });
   }
 
   @Get('realtime')
@@ -33,7 +34,7 @@ export class AdminAnalyticsController {
 
   @Get('filters')
   @RequirePermission(MODULE, 'view')
-  filters() {
-    return this.analytics.filters();
+  filters(@Query('eventScope') eventScope?: string) {
+    return this.analytics.filters(eventScope);
   }
 }
