@@ -118,11 +118,10 @@ export class AnalyticsReportService {
       ...(scopedEventIds ? { eventId: { in: scopedEventIds } } : {}),
     };
     // Visitor state/city are FunnelEvent-only properties (Booking has no geo
-    // of its own) — applied to the funnel query below but deliberately NOT
-    // to the Booking query further down, so revenue/promoter/ticket-tier
-    // numbers stay the real, un-narrowed totals rather than an unreliable
-    // best-effort join through optional userId. Both filters imply IN, same
-    // scoping as the region/city breakdowns and dropdown lists below.
+    // of its own) — applied to the funnel query below directly, and to the
+    // Booking query further down via a userId join (see visitorUserIds).
+    // Both filters imply IN, same scoping as the region/city breakdowns and
+    // dropdown lists below.
     const visitorGeoWhere = {
       ...(params.visitorState ? { geoRegion: params.visitorState, geoCountry: 'IN' } : {}),
       ...(params.visitorCity ? { geoCity: params.visitorCity, geoCountry: 'IN' } : {}),
@@ -131,11 +130,22 @@ export class AnalyticsReportService {
     const rows = await this.prisma.funnelEvent.findMany({
       where: { ...eventScopeWhere, ...dateWhere, ...visitorGeoWhere },
       select: {
-        type: true, sessionId: true, eventId: true, createdAt: true, meta: true,
+        type: true, sessionId: true, eventId: true, createdAt: true, meta: true, userId: true,
         device: true, browser: true, os: true, referrerHost: true, utmSource: true, utmCampaign: true, siteSource: true,
         geoCountry: true, geoRegion: true, geoCity: true,
       },
     });
+    // Booking has no geo of its own — when a visitor-geo filter is active,
+    // narrow it to users who actually had a matching-geo funnel row (they're
+    // only ever a Booking.userId while logged in, which every checkout/
+    // completion event already requires). Less precise than a real per-
+    // transaction geo would be, but real signal beats leaving revenue
+    // completely unfiltered while every other number on the page *is*
+    // scoped to the selected state/city — that inconsistency is confusing,
+    // not honest.
+    const visitorUserIds = params.visitorState || params.visitorCity
+      ? [...new Set(rows.map((r) => r.userId).filter((id): id is string => !!id))]
+      : null;
 
     const stages = FUNNEL_TYPES.map((type) => ({
       type,
@@ -231,10 +241,11 @@ export class AnalyticsReportService {
       .sort((a, b) => b.count - a.count);
 
     // Real money — Booking rows in the exact same scope/date window as the
-    // funnel above (eventId/city/organizer + from/to), joined against
-    // Promoter and TicketTier for display names.
+    // funnel above (eventId/city/organizer + from/to + visitor geo via
+    // userId, see visitorUserIds above), joined against Promoter and
+    // TicketTier for display names.
     const bookings = await this.prisma.booking.findMany({
-      where: { ...eventScopeWhere, ...dateWhere },
+      where: { ...eventScopeWhere, ...dateWhere, ...(visitorUserIds ? { userId: { in: visitorUserIds } } : {}) },
       select: { total: true, status: true, createdAt: true, promoterRef: true, promoterCommission: true, tierBreakdown: true },
     });
     const confirmedBookings = bookings.filter((b) => b.status === 'confirmed');
