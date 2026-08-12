@@ -205,6 +205,21 @@ export default function Checkout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, event, selection]);
 
+  // Client-only, same reasoning as EventDetail's ViewContent — no backend
+  // moment to mirror server-side. Fires once per checkout entry, same gate
+  // as the cart-capture effect above.
+  useEffect(() => {
+    if (!user || !event || !selection || lines.length === 0 || expired) return;
+    trackMeta('InitiateCheckout', {
+      content_type: 'product',
+      content_ids: lines.map((l) => l.tier.id),
+      value: total,
+      currency: 'INR',
+      num_items: ticketCount,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, event, selection]);
+
   // Hold lapsed without payment → mark the cart abandoned (recoverable).
   useEffect(() => {
     if (expired && cartId) setCartStatus(cartId, 'abandoned');

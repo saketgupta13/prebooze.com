@@ -24,6 +24,7 @@ import { useSeo } from '../lib/useSeo';
 import { useJsonLd } from '../lib/useJsonLd';
 import { buildEventSchema, buildBreadcrumbSchema } from '../lib/schema';
 import { track } from '../lib/track';
+import { trackMeta } from '../lib/meta';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { useIsMobile } from '../lib/useIsMobile';
 import Poster, { categoryEmoji } from '../components/Poster';
@@ -163,6 +164,20 @@ export default function EventDetail() {
 
   useEffect(() => {
     if (event) track('event_viewed', { eventId: event.id, meta: refSlug ? { promoterRef: refSlug, promoterVia: via ?? undefined } : undefined });
+    // Client-only — no server-side CAPI mirror (see MetaConversionsService
+    // call sites: only Purchase/Lead/CompleteRegistration have a real backend
+    // moment to confirm from). Feeds retargeting ("viewed, didn't buy") and
+    // gives Meta's optimizer funnel signal above the Purchase event alone.
+    if (event) {
+      const minPrice = event.tiers.length ? Math.min(...event.tiers.map((t) => t.price)) : undefined;
+      trackMeta('ViewContent', {
+        content_type: 'product',
+        content_ids: [event.id],
+        content_name: event.title,
+        value: minPrice,
+        currency: 'INR',
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event?.id]);
 
