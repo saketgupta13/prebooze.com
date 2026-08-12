@@ -503,10 +503,20 @@ export default function Checkout() {
     }, 900);
   };
 
+  // The Pay button sits well below the Attendee details card on a real
+  // checkout page — setting attendeeErr alone left the message correctly
+  // placed but still off-screen above whatever was in view when Pay was
+  // clicked, which is no better than the old disconnected-error bug in
+  // practice. Scrolling the card into view is what actually makes it visible.
+  const failAttendee = (msg: string) => {
+    setAttendeeErr(msg);
+    document.getElementById('attendee-details')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const pay = () => {
     setAttendeeErr('');
     if (!name.trim() || !whatsapp.trim()) {
-      setAttendeeErr('Main attendee name and WhatsApp number are required');
+      failAttendee('Main attendee name and WhatsApp number are required');
       return;
     }
     // Guest names/numbers are optional — check-in scans one QR for the whole
@@ -516,7 +526,7 @@ export default function Checkout() {
     // with no corresponding security benefit. Whatever's filled in still
     // gets saved for the organizer's guest list.
     if (!EMAIL_RE.test(email.trim())) {
-      setAttendeeErr('Enter a valid email — your ticket confirmation is sent there too');
+      failAttendee('Enter a valid email — your ticket confirmation is sent there too');
       return;
     }
     if (liveEvent) payLive();
@@ -568,7 +578,7 @@ export default function Checkout() {
         <div className="checkout-grid">
           <div>
             {/* Attendee details */}
-            <div className="card" style={{ marginBottom: 18 }}>
+            <div id="attendee-details" className="card" style={{ marginBottom: 18 }}>
               <h3 style={{ marginBottom: 14 }}>Attendee details</h3>
               <div className="field">
                 <span>Full name (main attendee) *</span>
