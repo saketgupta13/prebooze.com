@@ -20,6 +20,15 @@ function trafficSourceOf(referrerHost: string | null, utmSource: string | null):
   return 'referral';
 }
 
+/** Meta's {{site_source_name}} dynamic param resolves to short platform
+ * codes at click time — mapped to readable labels for the chart; anything
+ * else passed through as-is (covers future placements/typos gracefully
+ * rather than dropping the row into an "unknown" bucket). */
+const SITE_SOURCE_LABELS: Record<string, string> = { fb: 'Facebook', ig: 'Instagram', an: 'Audience Network', msg: 'Messenger' };
+function siteSourceLabel(raw: string): string {
+  return SITE_SOURCE_LABELS[raw.toLowerCase()] ?? raw;
+}
+
 /** Groups a sessionId->label map into label counts, sorted descending —
  * shared by every breakdown below (device/browser/os/source/campaign/geo
  * all use the exact same "one label per session, count sessions per label"
@@ -74,7 +83,7 @@ export class AnalyticsReportService {
     return events.map((e) => e.id);
   }
 
-  async get(params: { from?: string; to?: string; eventId?: string; city?: string; organizerId?: string }) {
+  async get(params: { from?: string; to?: string; eventId?: string; city?: string; organizerId?: string; visitorState?: string }) {
     const scopedEventIds = await this.resolveEventIds(params.city, params.organizerId);
     const dateWhere =
       params.from || params.to
@@ -89,13 +98,19 @@ export class AnalyticsReportService {
       ...(params.eventId ? { eventId: params.eventId } : {}),
       ...(scopedEventIds ? { eventId: { in: scopedEventIds } } : {}),
     };
+    // Visitor state is a FunnelEvent-only property (Booking has no geo of
+    // its own) — applied to the funnel query below but deliberately NOT to
+    // the Booking query further down, so revenue/promoter/ticket-tier
+    // numbers stay the real, un-narrowed totals rather than an unreliable
+    // best-effort join through optional userId.
+    const visitorGeoWhere = params.visitorState ? { geoRegion: params.visitorState } : {};
 
     const rows = await this.prisma.funnelEvent.findMany({
-      where: { ...eventScopeWhere, ...dateWhere },
+      where: { ...eventScopeWhere, ...dateWhere, ...visitorGeoWhere },
       select: {
         type: true, sessionId: true, eventId: true, createdAt: true, meta: true,
-        device: true, browser: true, os: true, referrerHost: true, utmSource: true, utmCampaign: true,
-        geoCountry: true, geoCity: true,
+        device: true, browser: true, os: true, referrerHost: true, utmSource: true, utmCampaign: true, siteSource: true,
+        geoCountry: true, geoRegion: true, geoCity: true,
       },
     });
 
@@ -114,6 +129,8 @@ export class AnalyticsReportService {
     const sessionSource = new Map<string, string>();
     const sessionCampaign = new Map<string, string>();
     const sessionGeo = new Map<string, string>();
+    const sessionRegion = new Map<string, string>();
+    const sessionAdPlatform = new Map<string, string>();
     const sessionPromoter = new Map<string, string>();
     for (const r of rows) {
       if (r.device) sessionDevice.set(r.sessionId, r.device);
@@ -125,6 +142,8 @@ export class AnalyticsReportService {
         const label = r.geoCity && r.geoCountry ? `${r.geoCity}, ${r.geoCountry}` : r.geoCountry || undefined;
         if (label) sessionGeo.set(r.sessionId, label);
       }
+      if (r.geoRegion && !sessionRegion.has(r.sessionId)) sessionRegion.set(r.sessionId, r.geoRegion);
+      if (r.siteSource && !sessionAdPlatform.has(r.sessionId)) sessionAdPlatform.set(r.sessionId, siteSourceLabel(r.siteSource));
       if (r.type === 'event_viewed' && !sessionPromoter.has(r.sessionId)) {
         const ref = metaStr(r.meta, 'promoterRef');
         if (ref) sessionPromoter.set(r.sessionId, ref);
@@ -136,6 +155,8 @@ export class AnalyticsReportService {
     const trafficSources = bucketBy(sessionSource);
     const campaigns = bucketBy(sessionCampaign);
     const geographies = bucketBy(sessionGeo);
+    const regions = bucketBy(sessionRegion);
+    const adPlatforms = bucketBy(sessionAdPlatform);
     const viewsByPromoter = new Map<string, number>();
     for (const ref of sessionPromoter.values()) viewsByPromoter.set(ref, (viewsByPromoter.get(ref) ?? 0) + 1);
 
@@ -297,7 +318,7 @@ export class AnalyticsReportService {
     return {
       stages, totalEvents: rows.length, daily, topEvents,
       devices, browsers, operatingSystems, trafficSources,
-      campaigns, geographies, visitorType, heatmap, paymentFailures,
+      campaigns, geographies, regions, adPlatforms, visitorType, heatmap, paymentFailures,
       revenue: { totalRevenue, refundedAmount, bookingCount, avgOrderValue },
       promoterAttribution, ticketTierSales,
     };
@@ -343,9 +364,19 @@ export class AnalyticsReportService {
     });
     const organizers = await this.prisma.organizer.findMany({ select: { id: true, brandName: true }, orderBy: { brandName: 'asc' } });
     const cities = [...new Set(events.map((e) => e.privateCity ?? e.venue?.city).filter((c): c is string => !!c))].sort();
+    // Visitor states (FunnelEvent.geoRegion) — distinct from `cities` above,
+    // which is where *events* are hosted, not where visitors are browsing
+    // from.
+    const regionRows = await this.prisma.funnelEvent.findMany({
+      where: { geoRegion: { not: null } },
+      select: { geoRegion: true },
+      distinct: ['geoRegion'],
+    });
+    const visitorStates = regionRows.map((r) => r.geoRegion as string).sort();
     return {
       organizers,
       cities,
+      visitorStates,
       events: events.map((e) => ({ id: e.id, title: e.title, organizerId: e.organizerId, city: e.privateCity ?? e.venue?.city ?? null })),
     };
   }

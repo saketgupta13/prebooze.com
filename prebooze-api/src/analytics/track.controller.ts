@@ -26,6 +26,7 @@ export class TrackController {
       utmSource?: string;
       utmMedium?: string;
       utmCampaign?: string;
+      siteSource?: string;
       landingPath?: string;
     },
     @Req()

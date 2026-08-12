@@ -48,6 +48,7 @@ export default function Analytics() {
   const [organizerId, setOrganizerId] = useState('');
   const [city, setCity] = useState('');
   const [eventId, setEventId] = useState('');
+  const [visitorState, setVisitorState] = useState('');
 
   const [filters, setFilters] = useState<AnalyticsFilters | null>(null);
   const [report, setReport] = useState<LiveAnalytics | null>(null);
@@ -73,6 +74,7 @@ export default function Analytics() {
         eventId: eventId || undefined,
         city: city || undefined,
         organizerId: organizerId || undefined,
+        visitorState: visitorState || undefined,
       })
       .then(setReport)
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
@@ -111,6 +113,8 @@ export default function Analytics() {
       { header: ['Promoter', 'Views', 'Bookings', 'Revenue (₹)', 'Commission (₹)'], rows: report.promoterAttribution.map((p) => [p.promoterName, p.views, p.bookings, p.revenue, p.commission]) },
       { header: ['Ticket tier', 'Qty sold', 'Revenue (₹)'], rows: report.ticketTierSales.map((t) => [t.tierName, t.qty, t.revenue]) },
       { header: ['Payment failure reason', 'Count'], rows: report.paymentFailures.map((f) => [f.reason, f.count]) },
+      { header: ['Visitor state', 'Sessions'], rows: report.regions.map((r) => [r.label, r.sessions]) },
+      { header: ['Ad platform', 'Sessions'], rows: report.adPlatforms.map((a) => [a.label, a.sessions]) },
     ]);
   };
 
@@ -202,6 +206,13 @@ export default function Analytics() {
             {eventOptions.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
           </select>
         </div>
+        <div className="field" style={{ maxWidth: 200 }}>
+          <label>Visitor state</label>
+          <select className="input" value={visitorState} onChange={(e) => setVisitorState(e.target.value)}>
+            <option value="">All states</option>
+            {filters?.visitorStates.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
         <button className="btn btn-pri btn-sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
         <button className="btn btn-sm" onClick={exportCsv} disabled={!report}>Export CSV</button>
       </div>
@@ -291,7 +302,7 @@ export default function Analytics() {
         </div>
       )}
 
-      {report && (report.visitorType.length > 0 || report.campaigns.length > 0 || report.geographies.length > 0) && (
+      {report && (report.visitorType.length > 0 || report.campaigns.length > 0 || report.geographies.length > 0 || report.regions.length > 0 || report.adPlatforms.length > 0) && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
           {report.visitorType.length > 0 && (
             <div className="card">
@@ -305,10 +316,22 @@ export default function Analytics() {
               <DonutChart data={colored(report.campaigns)} />
             </div>
           )}
+          {report.adPlatforms.length > 0 && (
+            <div className="card">
+              <div className="display" style={{ fontWeight: 700, marginBottom: 10 }}>Ad platform (Facebook vs Instagram)</div>
+              <DonutChart data={colored(report.adPlatforms)} />
+            </div>
+          )}
           {report.geographies.length > 0 && (
             <div className="card">
               <div className="display" style={{ fontWeight: 700, marginBottom: 10 }}>Visitor city</div>
               <DonutChart data={colored(report.geographies)} />
+            </div>
+          )}
+          {report.regions.length > 0 && (
+            <div className="card">
+              <div className="display" style={{ fontWeight: 700, marginBottom: 10 }}>Visitor state</div>
+              <DonutChart data={colored(report.regions)} />
             </div>
           )}
         </div>

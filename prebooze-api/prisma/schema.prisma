@@ -1871,6 +1871,11 @@ model FunnelEvent {
   utmMedium    String?
   utmCampaign  String?
   landingPath  String? // first page path of the session
+  // Meta's {{site_source_name}} dynamic URL param — resolves to "fb"/"ig" at
+  // click time, so it's the one reliable way to split Facebook vs Instagram
+  // traffic (utm_source alone is set to a fixed campaign-level value like
+  // "meta" for both placements). Same capture pattern as the utm* fields.
+  siteSource String?
 
   // Geography — looked up server-side from the request IP (TrackService,
   // via the offline geoip-lite database) and stored as the resolved

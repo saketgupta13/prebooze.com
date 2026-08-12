@@ -580,6 +580,8 @@ export interface LiveAnalytics {
   trafficSources: AnalyticsBucket[];
   campaigns: AnalyticsBucket[];
   geographies: AnalyticsBucket[];
+  regions: AnalyticsBucket[];
+  adPlatforms: AnalyticsBucket[];
   visitorType: AnalyticsBucket[];
   heatmap: AnalyticsHeatCell[];
   paymentFailures: AnalyticsPaymentFailure[];
@@ -596,16 +598,18 @@ export interface AnalyticsRealtime {
 export interface AnalyticsFilters {
   organizers: { id: string; brandName: string }[];
   cities: string[];
+  visitorStates: string[];
   events: { id: string; title: string; organizerId: string; city: string | null }[];
 }
 export const liveAnalytics = {
-  get: (params: { from?: string; to?: string; eventId?: string; city?: string; organizerId?: string } = {}) => {
+  get: (params: { from?: string; to?: string; eventId?: string; city?: string; organizerId?: string; visitorState?: string } = {}) => {
     const q = new URLSearchParams();
     if (params.from) q.set('from', params.from);
     if (params.to) q.set('to', params.to);
     if (params.eventId) q.set('eventId', params.eventId);
     if (params.city) q.set('city', params.city);
     if (params.organizerId) q.set('organizerId', params.organizerId);
+    if (params.visitorState) q.set('visitorState', params.visitorState);
     const qs = q.toString();
     return liveFetch<LiveAnalytics>('/admin/analytics' + (qs ? `?${qs}` : ''));
   },

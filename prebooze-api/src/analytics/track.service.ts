@@ -31,6 +31,7 @@ interface TrackInput {
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+  siteSource?: string;
   landingPath?: string;
 }
 
@@ -128,6 +129,7 @@ export class TrackService {
           utmSource: input.utmSource?.slice(0, 100),
           utmMedium: input.utmMedium?.slice(0, 100),
           utmCampaign: input.utmCampaign?.slice(0, 100),
+          siteSource: input.siteSource?.slice(0, 100),
           landingPath: input.landingPath?.slice(0, 300),
           geoCountry,
           geoRegion,

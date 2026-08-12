@@ -19,8 +19,9 @@ export class AdminAnalyticsController {
     @Query('eventId') eventId?: string,
     @Query('city') city?: string,
     @Query('organizerId') organizerId?: string,
+    @Query('visitorState') visitorState?: string,
   ) {
-    return this.analytics.get({ from, to, eventId, city, organizerId });
+    return this.analytics.get({ from, to, eventId, city, organizerId, visitorState });
   }
 
   @Get('realtime')
