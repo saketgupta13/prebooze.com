@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, LINEUPS, ORGANIZERS, TRENDING_SEARCHES, VENUES } from '../data/mock';
 import { catalog } from '../api';
@@ -107,6 +107,7 @@ export default function Header() {
   // left the header looking broken for every approved/pending role account.
   const displayName = user?.name || user?.orgBrand || user?.promoterBrand || user?.lineupName || user?.venueName || 'Profile';
   const navigate = useNavigate();
+  const location = useLocation();
   const [cityOpen, setCityOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -155,17 +156,24 @@ export default function Header() {
   }, []);
   const trending = liveTrending ?? (isBackendEnabled() ? [] : TRENDING_SEARCHES);
 
-  // first visit: open the city picker (geo-detection itself stays behind
-  // the picker's own "Detect my location" button — auto-firing a
-  // geolocation permission prompt on page load is what Lighthouse flags
-  // as reading as suspicious, so opening the modal is as far as this goes
-  // on its own).
+  // First visit: open the city picker, but only on the homepage — this used
+  // to fire on any first page load, including a deep link straight from an
+  // ad (an event page), where it rendered as a modal wall completely
+  // covering the event someone just clicked through to see, right as they
+  // landed. Deferred until they actually reach '/' instead of being skipped
+  // outright: `pb_geo_done` is only set at the point this actually shows,
+  // so a session that starts on a deep link still gets the prompt if/when
+  // it later reaches the homepage. Geo-detection itself stays behind the
+  // picker's own "Detect my location" button — auto-firing a geolocation
+  // permission prompt on page load is what Lighthouse flags as reading as
+  // suspicious, so opening the modal is as far as this goes on its own.
   useEffect(() => {
+    if (location.pathname !== '/') return;
     if (!localStorage.getItem('pb_city_manual') && !localStorage.getItem('pb_geo_done')) {
       localStorage.setItem('pb_geo_done', '1');
       setCityOpen(true);
     }
-  }, []);
+  }, [location.pathname]);
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
