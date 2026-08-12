@@ -6,6 +6,7 @@ import {
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import { LineChart, DonutChart } from '../components/ui';
+import SearchableSelect from '../components/SearchableSelect';
 
 const TITLE = 'Analytics';
 const PALETTE = ['#9be13d', '#5b8def', '#e8a13d', '#e05d5d', '#a06ee1', '#3dc9c9', '#e14fa0'];
@@ -49,6 +50,7 @@ export default function Analytics() {
   const [city, setCity] = useState('');
   const [eventId, setEventId] = useState('');
   const [visitorState, setVisitorState] = useState('');
+  const [visitorCity, setVisitorCity] = useState('');
 
   const [filters, setFilters] = useState<AnalyticsFilters | null>(null);
   const [report, setReport] = useState<LiveAnalytics | null>(null);
@@ -75,6 +77,7 @@ export default function Analytics() {
         city: city || undefined,
         organizerId: organizerId || undefined,
         visitorState: visitorState || undefined,
+        visitorCity: visitorCity || undefined,
       })
       .then(setReport)
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
@@ -208,10 +211,23 @@ export default function Analytics() {
         </div>
         <div className="field" style={{ maxWidth: 200 }}>
           <label>Visitor state</label>
-          <select className="input" value={visitorState} onChange={(e) => setVisitorState(e.target.value)}>
-            <option value="">All states</option>
-            {filters?.visitorStates.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <SearchableSelect
+            value={visitorState}
+            onChange={setVisitorState}
+            options={(filters?.visitorStates ?? []).map((s) => ({ value: s.code, label: s.name }))}
+            placeholder="All states"
+            allLabel="All states"
+          />
+        </div>
+        <div className="field" style={{ maxWidth: 200 }}>
+          <label>Visitor city</label>
+          <SearchableSelect
+            value={visitorCity}
+            onChange={setVisitorCity}
+            options={(filters?.visitorCities ?? []).map((c) => ({ value: c, label: c }))}
+            placeholder="All cities"
+            allLabel="All cities"
+          />
         </div>
         <button className="btn btn-pri btn-sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
         <button className="btn btn-sm" onClick={exportCsv} disabled={!report}>Export CSV</button>

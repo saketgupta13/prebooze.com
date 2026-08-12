@@ -132,6 +132,13 @@ h1.display, .display {
 }
 .input:focus { border-color: var(--green); }
 .field { display: flex; flex-direction: column; gap: 5px; }
+
+/* searchable select */
+.ss { position: relative; }
+.ss-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; max-height: 220px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,.45); padding: 4px; }
+.ss-opt { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 8px 10px; border-radius: 7px; cursor: pointer; font: inherit; }
+.ss-opt:hover { background: var(--surface-2); }
+.ss-empty { padding: 10px; color: var(--muted); font-size: 13px; }
 .field > label { font-size: 11.5px; color: var(--muted); }
 .search-box {
   display: flex;
