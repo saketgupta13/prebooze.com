@@ -114,6 +114,12 @@ export default function Checkout() {
   const [guestPhones, setGuestPhones] = useState<string[]>([]);
   const [couponInput, setCouponInput] = useState('');
   const [couponMsg, setCouponMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // Separate from couponMsg — pay() used to shove attendee-field validation
+  // errors into the coupon box's message slot, so a blank Email (the only
+  // one of the three required fields with no visible required-indicator)
+  // silently blocked payment with an error that appeared nowhere near the
+  // field or the Pay button.
+  const [attendeeErr, setAttendeeErr] = useState('');
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
   const [payMethod, setPayMethod] = useState(() => payMethods.find((m) => m.isDefault)?.id ?? 'razorpay');
   const [paying, setPaying] = useState(false);
@@ -498,8 +504,9 @@ export default function Checkout() {
   };
 
   const pay = () => {
+    setAttendeeErr('');
     if (!name.trim() || !whatsapp.trim()) {
-      setCouponMsg({ ok: false, text: 'Main attendee name and WhatsApp number are required' });
+      setAttendeeErr('Main attendee name and WhatsApp number are required');
       return;
     }
     // Guest names/numbers are optional — check-in scans one QR for the whole
@@ -509,7 +516,7 @@ export default function Checkout() {
     // with no corresponding security benefit. Whatever's filled in still
     // gets saved for the organizer's guest list.
     if (!EMAIL_RE.test(email.trim())) {
-      setCouponMsg({ ok: false, text: 'Enter a valid email — your ticket confirmation is sent there too' });
+      setAttendeeErr('Enter a valid email — your ticket confirmation is sent there too');
       return;
     }
     if (liveEvent) payLive();
@@ -564,7 +571,7 @@ export default function Checkout() {
             <div className="card" style={{ marginBottom: 18 }}>
               <h3 style={{ marginBottom: 14 }}>Attendee details</h3>
               <div className="field">
-                <span>Full name (main attendee)</span>
+                <span>Full name (main attendee) *</span>
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
               </div>
               <div className="form-row">
@@ -579,7 +586,7 @@ export default function Checkout() {
                   </select>
                 </div>
                 <div className="field">
-                  <span>WhatsApp number</span>
+                  <span>WhatsApp number *</span>
                   <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+91" />
                 </div>
               </div>
@@ -643,13 +650,18 @@ export default function Checkout() {
                 </>
               )}
               <div className="field">
-                <span>Email</span>
+                <span>Email *</span>
                 <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@mail.com" />
               </div>
               <div className="small muted">
                 🎟 Tickets sent to WhatsApp <span className="bold">{whatsapp || '—'}</span> and emailed to{' '}
                 <span className="bold">{email || '—'}</span> <span className="verified">✓</span>
               </div>
+              {attendeeErr && (
+                <div className="small danger-text" style={{ marginTop: 10 }}>
+                  ✕ {attendeeErr}
+                </div>
+              )}
             </div>
 
             {/* Coupon */}
