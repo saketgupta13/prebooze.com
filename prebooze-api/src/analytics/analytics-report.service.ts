@@ -129,10 +129,14 @@ export class AnalyticsReportService {
             },
           }
         : {};
-    const eventScopeWhere = {
-      ...(params.eventId ? { eventId: params.eventId } : {}),
-      ...(scopedEventIds ? { eventId: { in: scopedEventIds } } : {}),
-    };
+    // A specific eventId always wins outright rather than being merged with
+    // scopedEventIds — both set the same `eventId` key, so spreading both
+    // silently let scopedEventIds clobber a specific pick the moment it
+    // stopped being conditional (eventScope defaults to 'live' now, so
+    // scopedEventIds is defined on nearly every request). The Event
+    // dropdown is already built from the same city/organizer/eventScope-
+    // scoped list, so a specific pick from it needs no further narrowing.
+    const eventScopeWhere = params.eventId ? { eventId: params.eventId } : scopedEventIds ? { eventId: { in: scopedEventIds } } : {};
     // Visitor state/city are FunnelEvent-only properties (Booking has no geo
     // of its own) — applied to the funnel query below directly, and to the
     // Booking query further down via a userId join (see visitorUserIds).
