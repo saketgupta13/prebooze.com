@@ -115,6 +115,31 @@ export class OrganizerController {
     return this.organizer.withdraw(req.user.sub, amount);
   }
 
+  @Get('payment-profiles')
+  listPaymentProfiles(@Req() req: AuthedReq) {
+    return this.organizer.listPaymentProfiles(req.user.sub);
+  }
+
+  @Post('payment-profiles')
+  createPaymentProfile(@Req() req: AuthedReq, @Body() body: Parameters<OrganizerService['createPaymentProfile']>[1]) {
+    return this.organizer.createPaymentProfile(req.user.sub, body);
+  }
+
+  @Patch('payment-profiles/:id')
+  updatePaymentProfile(@Req() req: AuthedReq, @Param('id') id: string, @Body() body: Parameters<OrganizerService['updatePaymentProfile']>[2]) {
+    return this.organizer.updatePaymentProfile(req.user.sub, id, body);
+  }
+
+  @Delete('payment-profiles/:id')
+  deletePaymentProfile(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.organizer.deletePaymentProfile(req.user.sub, id);
+  }
+
+  @Post('payment-profiles/:id/default')
+  setDefaultPaymentProfile(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.organizer.setDefaultPaymentProfile(req.user.sub, id);
+  }
+
   @Get('carts')
   carts(@Req() req: AuthedReq) {
     return this.organizer.carts(req.user.sub);

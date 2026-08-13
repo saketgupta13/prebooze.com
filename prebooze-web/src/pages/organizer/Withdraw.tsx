@@ -4,7 +4,6 @@ import { fmtMoney } from '../../data/mock';
 import Loader from '../../components/Loader';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
-import type { Organizer } from '../../types';
 
 /** Withdraw available balance — real POST /organizer/withdraw. Settlement
  * itself is manual on our side (see Payouts.tsx), so this doesn't claim an
@@ -12,7 +11,8 @@ import type { Organizer } from '../../types';
 export default function Withdraw() {
   const navigate = useNavigate();
   const [balance, setBalance] = useState(0);
-  const [org, setOrg] = useState<Organizer | null>(null);
+  const [hasDefaultProfile, setHasDefaultProfile] = useState(false);
+  const [defaultBankLast4, setDefaultBankLast4] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState('0');
   const [confirming, setConfirming] = useState(false);
@@ -20,8 +20,13 @@ export default function Withdraw() {
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    Promise.all([organizer.payouts(), organizer.me()])
-      .then(([p, o]) => { setBalance(p.balance); setAmount(String(p.balance)); setOrg(o); })
+    Promise.all([organizer.payouts(), organizer.paymentProfiles()])
+      .then(([p, profiles]) => {
+        setBalance(p.balance); setAmount(String(p.balance));
+        const def = profiles.find((pr) => pr.isDefault);
+        setHasDefaultProfile(!!def);
+        setDefaultBankLast4(def?.bankLast4 ?? null);
+      })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   }, []);
@@ -43,7 +48,7 @@ export default function Withdraw() {
 
   if (loading) return <Loader />;
 
-  if (!org?.verified) {
+  if (!hasDefaultProfile) {
     return (
       <div>
         <div className="breadcrumb">
@@ -56,9 +61,9 @@ export default function Withdraw() {
             <span className="bold accent">{fmtMoney(balance)}</span>
           </div>
           <p className="muted small" style={{ margin: '12px 0' }}>
-            Complete verification (PAN, GSTIN, bank details, ID) before withdrawing — one-time, usually reviewed within 24h.
+            Add a payment profile before withdrawing — tell us where the money should go.
           </p>
-          <Link to="/organizer/settings/verification" className="btn btn-pri btn-block btn-lg">Complete verification →</Link>
+          <Link to="/organizer/settings/payment-profiles" className="btn btn-pri btn-block btn-lg">Add a payment profile →</Link>
         </div>
       </div>
     );
@@ -79,7 +84,7 @@ export default function Withdraw() {
         </div>
         <div className="kv">
           <span className="k">Payout account</span>
-          <span>{org?.bankLast4 ? <>•••• {org.bankLast4} <span className="verified">✓</span></> : 'No bank on file — add one in Settings'}</span>
+          <span>{defaultBankLast4 ? <>•••• {defaultBankLast4} <span className="verified">✓</span></> : 'No bank on file — add one in Settings'}</span>
         </div>
         <div className="field" style={{ marginTop: 12 }}>
           <span>Amount to withdraw</span>
@@ -101,7 +106,7 @@ export default function Withdraw() {
         ) : (
           <div className="card" style={{ background: 'var(--surface-2)', padding: 14 }}>
             <div className="small" style={{ marginBottom: 10 }}>
-              Request a withdrawal of <b>{fmtMoney(amt)}</b> to {org?.bankLast4 ? `•••• ${org.bankLast4}` : 'your account on file'}? Our team processes it from here.
+              Request a withdrawal of <b>{fmtMoney(amt)}</b> to {defaultBankLast4 ? `•••• ${defaultBankLast4}` : 'your account on file'}? Our team processes it from here.
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-pri" style={{ flex: 1 }} disabled={submitting} onClick={confirm}>

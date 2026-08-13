@@ -406,20 +406,49 @@ model Organizer {
   // profile can render a real Instagram/Facebook icon instead of guessing
   // from a freeform delimited string.
   socialLinks       Json?
-  gstin             String?
-  pan               String?
-  // Full payout bank details — same plaintext-on-admin-view precedent as
-  // gstin/pan above (no field-level encryption anywhere in this schema).
-  // bankLast4 stays as the masked value shown back to the organizer
-  // themselves; bankAccountNumber is the real number, only ever surfaced to
-  // admin/staff for actually processing a payout.
-  bankLast4         String?
-  bankName          String?
-  bankAccountNumber String?
-  accountHolderName String?
-  ifsc              String?
   seo               Json?
   lead              Lead?
+
+  // Payout bank accounts — plural, self-serve, no admin review (see
+  // PaymentProfile). PAN/GSTIN moved here too, since they're properties of
+  // the payout entity, not the organizer brand. `verified` above is identity
+  // KYC only (Aadhaar + selfie) and is completely independent of these —
+  // withdraw() only requires a default PaymentProfile to exist.
+  paymentProfiles PaymentProfile[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// A bank account + business identity an organizer can withdraw to. Plural by
+// design (an organizer may invoice/get paid under more than one legal
+// entity) — self-serve CRUD, no admin approval, unlike identity verification
+// (KycSubmission/Organizer.verified). Same plaintext-on-admin-view precedent
+// as the rest of this schema (no field-level encryption). bankLast4 is the
+// masked value shown back to the organizer; bankAccountNumber is the real
+// number, only ever surfaced to admin/staff for actually processing a payout.
+model PaymentProfile {
+  id          String    @id @default(cuid())
+  organizerId String
+  organizer   Organizer @relation(fields: [organizerId], references: [id])
+  isDefault   Boolean   @default(false)
+
+  legalName       String // Company / Firm / LLP / Individual name
+  businessAddress String
+  country         String?
+  state           String?
+  city            String?
+  pincode         String?
+
+  bankAccountNumber String
+  bankLast4         String
+  accountHolderName String
+  ifsc              String
+  branch            String?
+
+  pan   String
+  gstin String?
+  noGst Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1327,6 +1356,16 @@ model OrganizerLedgerTx {
   eventTitle  String?
   note        String?
   createdAt   DateTime  @default(now())
+
+  // Denormalized snapshot of which PaymentProfile a withdrawal actually paid
+  // out to — same "capture the name alongside the id" precedent as
+  // eventId/eventTitle above. Needed once profiles are plural: a later edit
+  // or deletion of the profile must never change the historical record of
+  // where a past payout went. Only set for type:'withdrawal'.
+  paymentProfileId        String?
+  payoutBankLast4         String?
+  payoutAccountHolderName String?
+  payoutIfsc              String?
 }
 
 // Organizer's own team/permissions system — same view/edit-per-module shape

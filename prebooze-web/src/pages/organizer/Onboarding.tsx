@@ -5,7 +5,6 @@ import LocationPicker, { emptyLocation, type LocationValue } from '../../compone
 import RoleTaken from '../../components/RoleTaken';
 import { existingRole } from '../../lib/roles';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
-import WysiwygEditor from '../../components/WysiwygEditor';
 import { FileDropBox } from '../../components/FileDropBox';
 import { kyc } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
@@ -16,17 +15,22 @@ import { useDraftLead } from '../../lib/useDraftLead';
 const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
 
 const DRAFT_ID = 'organizer';
-// PAN/GSTIN/bank/Aadhaar/selfie all moved to the self-serve "Complete
-// verification" step (Settings → Verification, whenever the organizer's
-// ready — usually right before their first withdrawal) — signup only
-// collects what's needed to start building events. See KycService.
-// quickSignupOrganizer and OrganizerVerification.tsx.
+const slugify = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+// Username is auto-derived from the brand name server-side (see
+// KycService.quickSignupOrganizer) — no longer typed here. PAN/GSTIN/bank/
+// Aadhaar/selfie all moved to the self-serve "Complete verification" step
+// (Settings → Verification, whenever the organizer's ready — usually right
+// before their first withdrawal) — signup only collects what's needed to
+// start building events. "About" moved to Settings → Brand profile, editable
+// any time rather than a one-shot signup field. See KycService.
+// quickSignupOrganizer, OrganizerVerification.tsx and Settings.tsx.
 type Draft = {
-  brand: string; username: string; loc: LocationValue; types: string[]; about: string;
+  brand: string; loc: LocationValue; types: string[];
   instagram: string; facebook: string; other: string[];
 };
 const emptyDraft: Draft = {
-  brand: '', username: '', loc: emptyLocation(), types: [], about: '',
+  brand: '', loc: emptyLocation(), types: [],
   instagram: '', facebook: '', other: [''],
 };
 
@@ -39,28 +43,26 @@ export default function Onboarding() {
   const draft0 = loadDraft(DRAFT_ID, emptyDraft);
   const [logo, setLogo] = useState('');
   const [brand, setBrand] = useState(user?.orgBrand || draft0.brand);
-  const [username, setUsername] = useState(user?.orgUsername || draft0.username);
   const [loc, setLoc] = useState(draft0.loc);
   const [types, setTypes] = useState<string[]>(draft0.types);
-  const [about, setAbout] = useState(draft0.about);
   const [instagram, setInstagram] = useState(draft0.instagram);
   const [facebook, setFacebook] = useState(draft0.facebook);
   const [other, setOther] = useState<string[]>(draft0.other.length ? draft0.other : ['']);
 
   useEffect(() => {
     try {
-      saveDraft(DRAFT_ID, { brand, username, loc, types, about, instagram, facebook, other });
+      saveDraft(DRAFT_ID, { brand, loc, types, instagram, facebook, other });
     } catch {
       // best-effort — a full localStorage quota shouldn't block onboarding itself
     }
-  }, [brand, username, loc, types, about, instagram, facebook, other]);
+  }, [brand, loc, types, instagram, facebook, other]);
 
   useDraftLead('organizer', brand, { city: loc.city, eventType: types.join(', ') });
 
   const otherRole = existingRole(user);
   if (otherRole && otherRole !== 'organizer') return <RoleTaken has={otherRole} />;
 
-  const valid = brand.trim() && username.trim() && loc.city.trim() && types.length > 0;
+  const valid = brand.trim() && loc.city.trim() && types.length > 0;
 
   const toggleType = (t: string) => setTypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
   const setOtherLink = (i: number, v: string) => setOther((prev) => prev.map((l, idx) => (idx === i ? v : l)));
@@ -71,7 +73,7 @@ export default function Onboarding() {
     e.preventDefault();
     const otherLinks = other.map((l) => l.trim()).filter(Boolean);
     if (!isBackendEnabled()) {
-      submitRoleApplication('organizer', { orgBrand: brand.trim(), orgUsername: username.trim() });
+      submitRoleApplication('organizer', { orgBrand: brand.trim(), orgUsername: slugify(brand) });
       clearDraft(DRAFT_ID);
       navigate('/organizer');
       return;
@@ -80,9 +82,9 @@ export default function Onboarding() {
     setSubmitting(true);
     try {
       const res = await kyc.quickSignupOrganizer({
-        brand: brand.trim(), username: username.trim(),
+        brand: brand.trim(),
         city: loc.city, country: loc.country, state: loc.state, pincode: loc.pincode,
-        types, about,
+        types,
         socialLinks: { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined, other: otherLinks },
       });
       updateUser(res.user);
@@ -102,7 +104,7 @@ export default function Onboarding() {
       <div className="container" style={{ maxWidth: 640 }}>
         <h1 style={{ fontSize: 24 }}>Set up your organizer profile</h1>
         <p className="muted small" style={{ margin: '6px 0 18px' }}>
-          Just enough to start building your first event — add payout details later, whenever you're ready to withdraw.
+          Just enough to start building your first event — add the rest later, whenever you're ready.
         </p>
 
         <form className="card" onSubmit={submit}>
@@ -114,15 +116,9 @@ export default function Onboarding() {
             style={{ marginBottom: 16 }}
           />
 
-          <div className="form-row">
-            <div className="field">
-              <span>Organizer / brand name *</span>
-              <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand name" autoFocus />
-            </div>
-            <div className="field">
-              <span>Username *</span>
-              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@brand" />
-            </div>
+          <div className="field">
+            <span>Organizer / brand name *</span>
+            <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand name" autoFocus />
           </div>
           <LocationPicker value={loc} onChange={setLoc} />
           <div className="field">
@@ -134,10 +130,6 @@ export default function Onboarding() {
                 </button>
               ))}
             </div>
-          </div>
-          <div className="field">
-            <span>About your brand</span>
-            <WysiwygEditor value={about} onChange={setAbout} minHeight={80} />
           </div>
           <div className="field">
             <span>Website & social links</span>

@@ -9,6 +9,13 @@ import { downloadFile } from '../lib/download';
 const TITLE = 'Verification detail';
 const KIND_ICON: Record<string, string> = { organizer: '🧑‍💼', promoter: '📣', lineup: '🎤', venue: '📍' };
 const KIND_LABEL: Record<string, string> = { organizer: 'Organizer', promoter: 'Promoter', lineup: 'Line-up', venue: 'Venue' };
+const DOC_LABEL: Record<string, string> = {
+  aadhaar: "Aadhaar card", registration: 'Registration document', ownerAadhaar: "Owner's Aadhaar card", selfie: 'Selfie',
+};
+// Rendered structurally by the "Identity verification" card below when
+// payload.verificationUpgrade is set — hidden from the generic key/value
+// payload dump so they don't show up twice.
+const IDENTITY_PAYLOAD_KEYS = new Set(['verificationUpgrade', 'entityType', 'contactName', 'contactPhone', 'contactEmail', 'contactRole', 'contactRoleOther']);
 
 /** Full detail view for a single verification application — same real
  * KycService-backed queue as Verifications.tsx, just filtered to one id
@@ -165,7 +172,7 @@ export default function VerificationDetail() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="display" style={{ fontWeight: 700 }}>Application details</div>
-        {Object.entries(app.payload).map(([k, v]) =>
+        {Object.entries(app.payload).filter(([k]) => !(app.payload.verificationUpgrade && IDENTITY_PAYLOAD_KEYS.has(k))).map(([k, v]) =>
           // "about"/"bio" are the applicant's WysiwygEditor field on every
           // onboarding form (organizer/venue call it "about", promoter/
           // lineup call it "bio") — real HTML, not plain text. Rendering it
@@ -186,13 +193,38 @@ export default function VerificationDetail() {
         )}
       </div>
 
-      {app.kind === 'organizer' && (
+      {app.kind === 'organizer' && !!app.payload.verificationUpgrade && (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="display" style={{ fontWeight: 700 }}>Identity verification</div>
+          <div className="tiny muted">
+            No API to validate an Aadhaar number against — this is a document-based review. Check the documents below against who's named here.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
+            <span className="muted">Entity type</span>
+            <span>{app.payload.entityType === 'firm' ? 'Firm / Company / LLP' : 'Individual'}</span>
+          </div>
+          <div className="tiny" style={{ fontWeight: 700, marginTop: 4 }}>Submitted by</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
+            <span className="muted">Name</span><span>{String(app.payload.contactName ?? '—')}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
+            <span className="muted">Phone</span><span>{String(app.payload.contactPhone ?? '—')}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
+            <span className="muted">Email</span><span>{String(app.payload.contactEmail ?? '—')}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0' }}>
+            <span className="muted">Role</span>
+            <span>{app.payload.contactRole === 'Other' ? String(app.payload.contactRoleOther ?? 'Other') : String(app.payload.contactRole ?? '—')}</span>
+          </div>
+        </div>
+      )}
+
+      {app.kind === 'organizer' && !!app.payload.leadId && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="display" style={{ fontWeight: 700 }}>Verification details</div>
           <div className="tiny muted">
-            {app.payload.leadId
-              ? "Collected by calling the applicant — the lead team never fills these in. Required before this can be approved."
-              : 'The applicant already provided these at submission — shown here for reference, editable if a correction is needed.'}
+            Collected by calling the applicant — the lead team never fills these in. Required before this can be approved.
           </div>
           <div className="form-row">
             <div className="field">
@@ -236,12 +268,19 @@ export default function VerificationDetail() {
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {app.documents.map((d, i) => {
             const url = resolveDocUrl(d.path);
+            const isPdf = url.toLowerCase().endsWith('.pdf');
             return (
               <div key={`${d.type}-${i}`} style={{ width: 200 }}>
-                <img src={url} alt={d.type} style={{ width: '100%', borderRadius: 8, border: '1px solid rgba(139,195,74,.2)' }} />
-                <div className="tiny" style={{ fontWeight: 700, marginTop: 4 }}>{d.type}</div>
+                {isPdf ? (
+                  <div style={{ width: '100%', aspectRatio: '1', borderRadius: 8, border: '1px solid rgba(139,195,74,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>
+                    📄
+                  </div>
+                ) : (
+                  <img src={url} alt={d.type} style={{ width: '100%', borderRadius: 8, border: '1px solid rgba(139,195,74,.2)' }} />
+                )}
+                <div className="tiny" style={{ fontWeight: 700, marginTop: 4 }}>{DOC_LABEL[d.type] ?? d.type}</div>
                 <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 4 }} onClick={() => downloadFile(url, `${d.type}${url.slice(url.lastIndexOf('.'))}`)}>
-                  ⬇ Download
+                  ⬇ {isPdf ? 'Open PDF' : 'Download'}
                 </button>
               </div>
             );
@@ -267,6 +306,7 @@ export default function VerificationDetail() {
 
       {app.status === 'pending' && (() => {
         const p = app.payload;
+        const docTypes = new Set(app.documents.map((d) => d.type));
         const missing = app.kind === 'organizer' && p.leadId
           ? [
               !p.gstin && 'GSTIN',
@@ -277,6 +317,10 @@ export default function VerificationDetail() {
               !p.accountHolderName && 'account holder name',
               !app.documents.length && 'a KYC document',
             ].filter((x): x is string => Boolean(x))
+          : app.kind === 'organizer' && p.verificationUpgrade
+          ? (p.entityType === 'individual' ? ['aadhaar', 'selfie'] : ['registration', 'ownerAadhaar', 'selfie'])
+              .filter((t) => !docTypes.has(t))
+              .map((t) => DOC_LABEL[t] ?? t)
           : [];
         return (
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

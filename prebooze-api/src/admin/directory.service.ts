@@ -53,19 +53,32 @@ export class DirectoryService {
   async updateOrganizer(id: string, patch: Record<string, unknown>) {
     if (!(await this.prisma.organizer.findUnique({ where: { id } }))) throw new NotFoundException('Organizer not found');
     const data = sanitizePatch(patch, ORGANIZER_EDITABLE) as Record<string, unknown>;
-    // Keep the display-only last-4 in sync automatically whenever the full
-    // account number is saved — same derivation newOrganizerRow already does
-    // at KYC-approval time, just re-applied here so admin editing the full
-    // number later doesn't leave a stale bankLast4 behind.
-    if (typeof data.bankAccountNumber === 'string') {
-      data.bankLast4 = data.bankAccountNumber ? data.bankAccountNumber.slice(-4) : undefined;
-    }
     return this.prisma.organizer.update({ where: { id }, data: data as never });
   }
 
   async setOrganizerVerified(id: string, verified: boolean) {
     if (!(await this.prisma.organizer.findUnique({ where: { id } }))) throw new NotFoundException('Organizer not found');
     return this.prisma.organizer.update({ where: { id }, data: { verified } });
+  }
+
+  // ---------- organizer payment profiles (support-ticket convenience —
+  // organizers manage these themselves self-serve; this is the same "god
+  // mode" edit access admin already has over every other organizer field,
+  // just pointed at PaymentProfile now that bank/PAN/GSTIN live there
+  // instead of flat on Organizer) ----------
+  async organizerPaymentProfiles(organizerId: string) {
+    if (!(await this.prisma.organizer.findUnique({ where: { id: organizerId } }))) throw new NotFoundException('Organizer not found');
+    return this.prisma.paymentProfile.findMany({ where: { organizerId }, orderBy: { createdAt: 'asc' } });
+  }
+
+  async updateOrganizerPaymentProfile(organizerId: string, profileId: string, patch: Record<string, unknown>) {
+    const profile = await this.prisma.paymentProfile.findUnique({ where: { id: profileId } });
+    if (!profile || profile.organizerId !== organizerId) throw new NotFoundException('Payment profile not found');
+    const data = sanitizePatch(patch, PAYMENT_PROFILE_EDITABLE) as Record<string, unknown>;
+    if (typeof data.bankAccountNumber === 'string' && data.bankAccountNumber) {
+      data.bankLast4 = data.bankAccountNumber.slice(-4);
+    }
+    return this.prisma.paymentProfile.update({ where: { id: profileId }, data: data as never });
   }
 
   /** Staff-facing visibility into an organizer's own team (OrgStaff — see
@@ -256,8 +269,13 @@ export class DirectoryService {
 // computed/relational fields (events, followers, ledger, etc.) stay out of
 // client control.
 const ORGANIZER_EDITABLE = [
-  'brandName', 'city', 'state', 'country', 'pincode', 'about', 'contact', 'contactPerson', 'phone', 'eventTypes', 'socialLinks', 'gstin', 'pan',
-  'bankLast4', 'bankAccountNumber', 'bankName', 'accountHolderName', 'ifsc', 'seo',
+  'brandName', 'city', 'state', 'country', 'pincode', 'about', 'contact', 'contactPerson', 'phone', 'eventTypes', 'socialLinks', 'seo',
+];
+// PAN/GSTIN/bank moved off Organizer entirely — see PaymentProfile and
+// updateOrganizerPaymentProfile above.
+const PAYMENT_PROFILE_EDITABLE = [
+  'legalName', 'businessAddress', 'country', 'state', 'city', 'pincode',
+  'bankAccountNumber', 'accountHolderName', 'ifsc', 'branch', 'pan', 'gstin', 'noGst',
 ];
 const PROMOTER_EDITABLE = ['name', 'city', 'state', 'country', 'pincode', 'bio', 'contact', 'links', 'planId', 'seo', 'logoUrl'];
 const LINEUP_EDITABLE = ['name', 'category', 'city', 'state', 'country', 'pincode', 'bio', 'links', 'logoUrl', 'seo'];

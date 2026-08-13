@@ -7,11 +7,17 @@ import { dataUrlToFile } from '../../lib/fileUtils';
 import Loader from '../../components/Loader';
 import type { Organizer } from '../../types';
 
-/** Self-serve financial + identity verification — everything Onboarding.tsx
- * used to collect up front (PAN, GSTIN, bank, Aadhaar, selfie), now moved
- * here so it can happen whenever the organizer's actually ready, typically
- * right before their first withdrawal (KycService.withdraw requires
- * `verified`). Submits into the exact same admin Verifications queue every
+const CONTACT_ROLES = ['Owner', 'Manager', 'Accountant', 'Other'] as const;
+type ContactRole = (typeof CONTACT_ROLES)[number];
+
+/** Self-serve *identity* verification — badge-only, entirely separate from
+ * payout details (see PaymentProfiles.tsx). There's no API to check an
+ * Aadhaar number against, so this collects actual documents for a human
+ * reviewer instead of a typed number: an individual uploads their own
+ * Aadhaar card, a firm uploads its registration document plus the owner's
+ * Aadhaar card — a selfie is required either way. Also records who's
+ * actually submitting this (name/phone/email/role), since it may not be the
+ * account owner. Submits into the same admin Verifications queue every
  * other role's KYC already goes through — see KycService.
  * submitOrganizerVerification / approve(). */
 export default function OrganizerVerification() {
@@ -23,15 +29,16 @@ export default function OrganizerVerification() {
   const [err, setErr] = useState('');
   const [done, setDone] = useState(false);
 
-  const [gstin, setGstin] = useState('');
-  const [noGst, setNoGst] = useState(false);
-  const [pan, setPan] = useState('');
+  const [entityType, setEntityType] = useState<'individual' | 'firm' | ''>('');
   const [aadhaar, setAadhaar] = useState('');
+  const [registration, setRegistration] = useState('');
+  const [ownerAadhaar, setOwnerAadhaar] = useState('');
   const [selfie, setSelfie] = useState('');
-  const [bankName, setBankName] = useState('');
-  const [bankAccount, setBankAccount] = useState('');
-  const [accountHolder, setAccountHolder] = useState('');
-  const [ifsc, setIfsc] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactRole, setContactRole] = useState<ContactRole | ''>('');
+  const [contactRoleOther, setContactRoleOther] = useState('');
 
   useEffect(() => {
     Promise.all([organizer.me(), kyc.myStatus()])
@@ -43,25 +50,25 @@ export default function OrganizerVerification() {
       .finally(() => setLoading(false));
   }, []);
 
-  const valid = pan.trim() && (noGst || gstin.trim()) && bankName.trim() && bankAccount.trim() && accountHolder.trim() && ifsc.trim() && aadhaar.trim() && selfie;
+  const docsValid = entityType === 'individual' ? !!aadhaar : entityType === 'firm' ? !!registration && !!ownerAadhaar : false;
+  const contactValid = contactName.trim() && contactPhone.trim() && contactEmail.trim() && contactRole && (contactRole !== 'Other' || contactRoleOther.trim());
+  const valid = !!entityType && docsValid && !!selfie && contactValid;
 
   const submit = async () => {
     setErr('');
     setSubmitting(true);
     try {
-      const selfieFile = await dataUrlToFile(selfie, 'selfie.jpg');
+      const docLabels = entityType === 'individual' ? ['aadhaar', 'selfie'] : ['registration', 'ownerAadhaar', 'selfie'];
+      const dataUrls = entityType === 'individual' ? [aadhaar, selfie] : [registration, ownerAadhaar, selfie];
+      const docs = await Promise.all(dataUrls.map((d, i) => dataUrlToFile(d, `${docLabels[i]}.jpg`)));
       await kyc.submitOrganizerVerification(
         {
-          gstin: noGst ? undefined : gstin.trim().toUpperCase(),
-          noGst,
-          pan: pan.trim().toUpperCase(),
-          bankName: bankName.trim(),
-          bankAccount: bankAccount.trim(),
-          accountHolderName: accountHolder.trim(),
-          bankIfsc: ifsc.trim().toUpperCase(),
-          aadhaar: aadhaar.trim(),
+          entityType: entityType as 'individual' | 'firm',
+          contactName: contactName.trim(), contactPhone: contactPhone.trim(), contactEmail: contactEmail.trim(),
+          contactRole: contactRole as ContactRole, contactRoleOther: contactRole === 'Other' ? contactRoleOther.trim() : undefined,
+          docLabels,
         },
-        selfieFile,
+        docs,
       );
       setDone(true);
     } catch (e) {
@@ -78,7 +85,7 @@ export default function OrganizerVerification() {
     return (
       <div className="card" style={{ maxWidth: 560 }}>
         <div className="bold" style={{ marginBottom: 6 }}>You're verified <span className="verified">✓</span></div>
-        <p className="muted small">Your account is fully verified — payouts are enabled.</p>
+        <p className="muted small">Your identity has been verified.</p>
         <Link to="/organizer/settings" className="link small bold" style={{ display: 'inline-block', marginTop: 10 }}>← Back to Settings</Link>
       </div>
     );
@@ -103,59 +110,73 @@ export default function OrganizerVerification() {
         <Link to="/organizer/settings" className="link small bold">← Back to Settings</Link>
       </div>
       <p className="muted small" style={{ marginBottom: 18 }}>
-        Required once, before your first withdrawal — gets you the <span className="verified">✓</span> verified badge and enables payouts.
+        Identity verification only — gets you the <span className="verified">✓</span> verified badge. Doesn't affect withdrawals; add a payment profile for that in Settings.
       </p>
 
       <div className="card" style={{ marginBottom: 16, maxWidth: 640 }}>
-        <h3 style={{ marginBottom: 12 }}>Business details</h3>
-        <div className="form-row">
-          <div className="field">
-            <span>PAN number *</span>
-            <input value={pan} onChange={(e) => setPan(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} maxLength={10} />
-          </div>
-          <div className="field">
-            <span>GSTIN *</span>
-            <input value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} disabled={noGst} maxLength={15} />
-            <label className="checkbox-row" style={{ marginTop: 6 }}>
-              <input type="checkbox" checked={noGst} onChange={() => setNoGst((v) => !v)} />
-              I don't have a GSTIN
-            </label>
-          </div>
+        <h3 style={{ marginBottom: 12 }}>Who are we verifying?</h3>
+        <div className="chip-row">
+          <button type="button" className={`chip ${entityType === 'individual' ? 'on' : ''}`} onClick={() => setEntityType('individual')}>
+            Individual{entityType === 'individual' ? ' ✓' : ''}
+          </button>
+          <button type="button" className={`chip ${entityType === 'firm' ? 'on' : ''}`} onClick={() => setEntityType('firm')}>
+            Firm / Company / LLP{entityType === 'firm' ? ' ✓' : ''}
+          </button>
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 16, maxWidth: 640 }}>
-        <h3 style={{ marginBottom: 4 }}>Identity</h3>
-        <p className="tiny muted" style={{ marginBottom: 12 }}>Used to confirm you're a real, accountable person before payouts are enabled.</p>
-        <div className="field" style={{ marginBottom: 12 }}>
-          <span>Aadhaar number *</span>
-          <input value={aadhaar} onChange={(e) => setAadhaar(e.target.value.replace(/\D/g, '').slice(0, 12))} inputMode="numeric" />
+      {entityType && (
+        <div className="card" style={{ marginBottom: 16, maxWidth: 640 }}>
+          <h3 style={{ marginBottom: 4 }}>Documents</h3>
+          <p className="tiny muted" style={{ marginBottom: 12 }}>
+            We don't have a way to validate these automatically — a real person on our team reviews them.
+          </p>
+          {entityType === 'individual' ? (
+            <FileDropBox value={aadhaar} onChange={setAadhaar} accept="image/*,.pdf" label="🪪 Upload your Aadhaar card" doneLabel="✓ Aadhaar uploaded — click to replace" style={{ marginBottom: 12 }} />
+          ) : (
+            <>
+              <FileDropBox value={registration} onChange={setRegistration} accept="image/*,.pdf" label="📄 Upload your business registration document" doneLabel="✓ Registration doc uploaded — click to replace" style={{ marginBottom: 12 }} />
+              <FileDropBox value={ownerAadhaar} onChange={setOwnerAadhaar} accept="image/*,.pdf" label="🪪 Upload the owner's Aadhaar card" doneLabel="✓ Owner's Aadhaar uploaded — click to replace" style={{ marginBottom: 12 }} />
+            </>
+          )}
+          <FileDropBox value={selfie} onChange={setSelfie} label="📷 capture or upload a selfie" doneLabel="✓ Selfie captured — click to replace" />
         </div>
-        <FileDropBox value={selfie} onChange={setSelfie} label="📷 capture or upload a selfie" doneLabel="✓ Selfie captured — click to replace" />
-      </div>
+      )}
 
       <div className="card" style={{ marginBottom: 16, maxWidth: 640 }}>
-        <h3 style={{ marginBottom: 12 }}>Bank for payouts</h3>
+        <h3 style={{ marginBottom: 4 }}>Who's submitting this?</h3>
+        <p className="tiny muted" style={{ marginBottom: 12 }}>
+          Not always the owner — tell us who we're talking to and their role.
+        </p>
         <div className="form-row">
           <div className="field">
-            <span>Bank name *</span>
-            <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. HDFC Bank" />
+            <span>Name *</span>
+            <input value={contactName} onChange={(e) => setContactName(e.target.value)} />
           </div>
           <div className="field">
-            <span>Account holder's name *</span>
-            <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} />
+            <span>Phone *</span>
+            <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} inputMode="tel" />
           </div>
         </div>
         <div className="form-row">
           <div className="field">
-            <span>Account number *</span>
-            <input value={bankAccount} onChange={(e) => setBankAccount(e.target.value)} inputMode="numeric" />
+            <span>Email *</span>
+            <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} type="email" />
           </div>
           <div className="field">
-            <span>IFSC code *</span>
-            <input value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} />
+            <span>Role *</span>
+            <select value={contactRole} onChange={(e) => setContactRole(e.target.value as ContactRole)}>
+              <option value="">Select…</option>
+              {CONTACT_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
           </div>
         </div>
+        {contactRole === 'Other' && (
+          <div className="field">
+            <span>Describe the role *</span>
+            <input value={contactRoleOther} onChange={(e) => setContactRoleOther(e.target.value)} placeholder="e.g. Marketing lead" />
+          </div>
+        )}
       </div>
 
       {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}

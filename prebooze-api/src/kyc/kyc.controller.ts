@@ -37,25 +37,29 @@ export class KycController {
     return this.kyc.submitRole(req.user.sub, kind as 'organizer', payload, documents ?? []);
   }
 
-  /** Self-serve organizer signup, minimal — no documents, no review. */
+  /** Self-serve organizer signup, minimal — no documents, no review.
+   * Username is auto-derived from the brand name (see KycService.
+   * quickSignupOrganizer), not taken here. */
   @Post('organizer/quick-signup')
   @UseGuards(JwtAuthGuard)
   quickSignupOrganizer(
     @Req() req: { user: { sub: string } },
     @Body()
     body: {
-      brand?: string; username?: string;
+      brand?: string;
       city?: string; state?: string; country?: string; pincode?: string;
-      types?: string[]; about?: string;
+      types?: string[];
       socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
     },
   ) {
     return this.kyc.quickSignupOrganizer(req.user.sub, body);
   }
 
-  /** Self-serve financial + identity verification, submitted whenever the
-   * organizer's ready (typically right before their first withdrawal). One
-   * file expected: a selfie. */
+  /** Self-serve *identity* verification, submitted whenever the organizer's
+   * ready — entirely separate from payout details (see PaymentProfile /
+   * OrganizerController below). Up to 3 files: Aadhaar+selfie (individual)
+   * or registration+ownerAadhaar+selfie (firm), tagged via payload.docLabels
+   * in the same order they're attached. */
   @Post('organizer/verification')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('documents', 3))

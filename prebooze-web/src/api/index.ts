@@ -4,7 +4,7 @@
 import { apiFetch, apiUpload, API_URL, getToken, ApiError } from './client';
 import type {
   Booking, CareerJob, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, FeaturedSubscription, HelpTicket,
-  Invoice, JobApplication, LineupProfile, Organizer, PayMethod, Person, PersonDetail, PromoterProfile, User, Venue, WaitlistEntry,
+  Invoice, JobApplication, LineupProfile, Organizer, PayMethod, PaymentProfile, Person, PersonDetail, PromoterProfile, User, Venue, WaitlistEntry,
 } from '../types';
 import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, WalletTx } from '../store/AppContext';
 
@@ -49,18 +49,27 @@ export const kyc = {
   },
   myStatus: () => apiFetch<{ id: string; kind: string; status: string; createdAt: string; reviewNote?: string }[]>('/kyc/me'),
   quickSignupOrganizer: (payload: {
-    brand: string; username: string;
+    brand: string;
     city: string; state?: string; country?: string; pincode?: string;
-    types: string[]; about?: string;
+    types: string[];
     socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
   }) => apiFetch<{ status: 'approved'; user: User }>('/kyc/organizer/quick-signup', { body: payload }),
+  /** Identity verification only (Aadhaar+selfie, or registration+owner's
+   * Aadhaar+selfie for a firm) — entirely separate from payout details, see
+   * organizer.createPaymentProfile below. `docs` order must match
+   * `payload.docLabels` order — see OrganizerVerification.tsx. */
   submitOrganizerVerification: (
-    payload: { gstin?: string; noGst?: boolean; pan: string; bankName: string; bankAccount: string; accountHolderName: string; bankIfsc: string; aadhaar: string },
-    selfie: File,
+    payload: {
+      entityType: 'individual' | 'firm';
+      contactName: string; contactPhone: string; contactEmail: string;
+      contactRole: 'Owner' | 'Manager' | 'Accountant' | 'Other'; contactRoleOther?: string;
+      docLabels: string[];
+    },
+    docs: File[],
   ) => {
     const form = new FormData();
     form.append('payload', JSON.stringify(payload));
-    form.append('documents', selfie);
+    docs.forEach((f) => form.append('documents', f));
     return apiUpload<{ id: string; status: string }>('/kyc/organizer/verification', form);
   },
 };
@@ -390,7 +399,7 @@ export interface OrgLedgerTx {
 }
 export const organizer = {
   me: () => apiFetch<Organizer>('/organizer/me'),
-  updateMe: (patch: { brandName?: string; username?: string; city?: string; country?: string; state?: string; pincode?: string; logoUrl?: string; about?: string; socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) =>
+  updateMe: (patch: { brandName?: string; username?: string; city?: string; country?: string; state?: string; pincode?: string; logoUrl?: string; about?: string; socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) =>
     apiFetch<Organizer>('/organizer/me', { method: 'PATCH', body: patch }),
   upload: (file: File) => {
     const form = new FormData();
@@ -434,6 +443,22 @@ export const organizer = {
       }[]
     >('/organizer/promoters'),
   withdraw: (amount: number) => apiFetch<void>('/organizer/withdraw', { body: { amount } }),
+  // ---- payment profiles (bank accounts to withdraw to) — self-serve,
+  // no admin review, plural. Entirely separate from identity verification
+  // (kyc.submitOrganizerVerification above). ----
+  paymentProfiles: () => apiFetch<PaymentProfile[]>('/organizer/payment-profiles'),
+  createPaymentProfile: (data: {
+    legalName: string; businessAddress: string; country?: string; state?: string; city?: string; pincode?: string;
+    bankAccountNumber: string; accountHolderName: string; ifsc: string; branch?: string;
+    pan: string; gstin?: string; noGst?: boolean;
+  }) => apiFetch<PaymentProfile>('/organizer/payment-profiles', { body: data }),
+  updatePaymentProfile: (id: string, data: Partial<{
+    legalName: string; businessAddress: string; country: string; state: string; city: string; pincode: string;
+    bankAccountNumber: string; accountHolderName: string; ifsc: string; branch: string;
+    pan: string; gstin: string; noGst: boolean;
+  }>) => apiFetch<PaymentProfile>(`/organizer/payment-profiles/${id}`, { method: 'PATCH', body: data }),
+  deletePaymentProfile: (id: string) => apiFetch<{ ok: true }>(`/organizer/payment-profiles/${id}`, { method: 'DELETE' }),
+  setDefaultPaymentProfile: (id: string) => apiFetch<{ ok: true }>(`/organizer/payment-profiles/${id}/default`, { method: 'POST' }),
   abandonedCarts: () => apiFetch<CartRecord[]>('/organizer/carts'),
   remindCart: (id: string) => apiFetch<void>(`/organizer/carts/${id}/remind`, { method: 'POST' }),
   // ---- gate ops: guest list, promoter guests, live monitor ----

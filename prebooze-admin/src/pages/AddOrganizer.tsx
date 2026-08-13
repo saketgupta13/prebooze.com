@@ -27,8 +27,6 @@ export default function AddOrganizer() {
   const [eventTypes, setEventTypes] = useState('Concerts');
   const [about, setAbout] = useState('');
   const [socialLinks, setSocialLinks] = useState<{ instagram?: string; facebook?: string; other?: string[] } | null>(null);
-  const [gstin, setGstin] = useState('');
-  const [pan, setPan] = useState('');
 
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
@@ -50,8 +48,6 @@ export default function AddOrganizer() {
         eventTypes,
         about: about.trim() || undefined,
         socialLinks: socialLinks ?? undefined,
-        gstin: gstin.trim() || undefined,
-        pan: pan.trim() || undefined,
       });
       navigate(`/organizers/${created.id}`);
     } catch (e2) {
@@ -114,16 +110,7 @@ export default function AddOrganizer() {
           <label>Social links</label>
           <SocialLinksEditor value={socialLinks} onChange={setSocialLinks} />
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div className="field" style={{ flex: 1 }}>
-            <label>GSTIN (optional)</label>
-            <input className="input" value={gstin} onChange={(e) => setGstin(e.target.value)} />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>PAN number</label>
-            <input className="input" value={pan} onChange={(e) => setPan(e.target.value)} />
-          </div>
-        </div>
+        <div className="tiny hint">PAN/GSTIN/bank details are added later by the organizer themselves (Settings → Payment profiles), or by staff on their behalf via Edit organizer once this row exists.</div>
         <button type="submit" className="btn btn-pri" style={{ padding: 10 }} disabled={saving}>{saving ? 'Saving…' : 'Save organizer ✓'}</button>
       </form>
     </div>

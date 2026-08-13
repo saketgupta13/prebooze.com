@@ -33,6 +33,18 @@ export class AdminOrganizersController {
     return this.directory.setOrganizerVerified(id, verified);
   }
 
+  @Get(':id/payment-profiles')
+  @RequirePermission('Organizers', 'view')
+  paymentProfiles(@Param('id') id: string) {
+    return this.directory.organizerPaymentProfiles(id);
+  }
+
+  @Patch(':id/payment-profiles/:profileId')
+  @RequirePermission('Organizers', 'edit')
+  updatePaymentProfile(@Param('id') id: string, @Param('profileId') profileId: string, @Body() body: Record<string, unknown>) {
+    return this.directory.updateOrganizerPaymentProfile(id, profileId, body);
+  }
+
   @Get(':id/team')
   @RequirePermission('Organizers', 'view')
   team(@Param('id') id: string) {

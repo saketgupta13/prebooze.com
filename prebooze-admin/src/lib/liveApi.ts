@@ -384,8 +384,19 @@ export interface LiveOrganizer {
   state: string | null; country: string | null; pincode: string | null; since: string;
   rating: number; reviewCount: number; eventsHosted: number; followers: number; following: number;
   about: string; logoHue: number; logoUrl: string | null; contact: string; contactPerson: string | null; phone: string | null;
-  eventTypes: string | null; socialLinks: { instagram?: string; facebook?: string; other?: string[] } | null; gstin: string | null; pan: string | null;
-  bankLast4: string | null; bankAccountNumber: string | null; bankName: string | null; accountHolderName: string | null; ifsc: string | null; seo: Seo | null;
+  eventTypes: string | null; socialLinks: { instagram?: string; facebook?: string; other?: string[] } | null; seo: Seo | null;
+}
+// GSTIN/PAN/bank live here now, not on LiveOrganizer — see PaymentProfile
+// (prebooze-api). Self-serve, plural, no admin review — this admin surface
+// is support-ticket convenience, same "god mode" edit access admin already
+// has over everything else.
+export interface LivePaymentProfile {
+  id: string; organizerId: string; isDefault: boolean;
+  legalName: string; businessAddress: string;
+  country: string | null; state: string | null; city: string | null; pincode: string | null;
+  bankAccountNumber: string; bankLast4: string; accountHolderName: string; ifsc: string; branch: string | null;
+  pan: string; gstin: string | null; noGst: boolean;
+  createdAt: string; updatedAt: string;
 }
 export interface LivePromoter {
   id: string; slug: string; name: string; verified: boolean; city: string;
@@ -421,6 +432,9 @@ export const liveOrganizers = {
   setVerified: (id: string, verified: boolean) => liveFetch<LiveOrganizer>(`/admin/organizers/${id}/verify`, { method: 'POST', body: { verified } }),
   team: (id: string) => liveFetch<LiveOrgStaffMember[]>(`/admin/organizers/${id}/team`),
   removeTeamMember: (id: string, staffId: string) => liveFetch<{ ok: true }>(`/admin/organizers/${id}/team/${staffId}`, { method: 'DELETE' }),
+  paymentProfiles: (id: string) => liveFetch<LivePaymentProfile[]>(`/admin/organizers/${id}/payment-profiles`),
+  updatePaymentProfile: (id: string, profileId: string, body: Partial<LivePaymentProfile>) =>
+    liveFetch<LivePaymentProfile>(`/admin/organizers/${id}/payment-profiles/${profileId}`, { method: 'PATCH', body }),
 };
 export const livePromoters = {
   list: () => liveFetch<LivePromoter[]>('/admin/promoters'),

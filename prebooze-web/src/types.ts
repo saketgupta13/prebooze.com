@@ -167,13 +167,31 @@ export interface Organizer {
   contactPerson?: string;
   phone?: string;
   eventTypes?: string;
-  gstin?: string;
-  pan?: string;
-  bankLast4?: string;
-  bankAccountNumber?: string;
-  bankName?: string;
-  accountHolderName?: string;
-  ifsc?: string;
+}
+
+// A bank account + business identity an organizer can withdraw to — plural,
+// self-serve, no admin review. See GET/POST /organizer/payment-profiles.
+// GSTIN/PAN/bank details live here now, not on Organizer.
+export interface PaymentProfile {
+  id: string;
+  organizerId: string;
+  isDefault: boolean;
+  legalName: string;
+  businessAddress: string;
+  country?: string | null;
+  state?: string | null;
+  city?: string | null;
+  pincode?: string | null;
+  bankAccountNumber: string;
+  bankLast4: string;
+  accountHolderName: string;
+  ifsc: string;
+  branch?: string | null;
+  pan: string;
+  gstin?: string | null;
+  noGst: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PromoterProfile {

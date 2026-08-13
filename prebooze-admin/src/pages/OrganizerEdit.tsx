@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { LiveLocationPicker, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import WysiwygEditor from '../components/WysiwygEditor';
-import { liveOrganizers, LiveApiError, type LiveOrganizer } from '../lib/liveApi';
+import { liveOrganizers, LiveApiError, type LiveOrganizer, type LivePaymentProfile } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
 import type { Seo } from '../types';
@@ -19,10 +19,12 @@ export function SocialLinksEditor({ value, onChange }: { value: { instagram?: st
   );
 }
 
-/** Edit organizer — real Organizer row (business profile + compliance +
- * full bank/payout fields). No document re-upload here (that only happens
- * during verification, see VerificationDetail.tsx) — this is for correcting
- * or completing an organizer's own business/bank details after the fact. */
+/** Edit organizer — real Organizer row (business profile). No document
+ * re-upload here (that only happens during verification, see
+ * VerificationDetail.tsx) — this is for correcting or completing an
+ * organizer's own business details after the fact. Bank/PAN/GSTIN live on
+ * PaymentProfile now (plural, self-serve) — see the card below, not this
+ * form's own state. */
 export default function OrganizerEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -30,19 +32,16 @@ export default function OrganizerEdit() {
   const { token } = session;
 
   const [org, setOrg] = useState<LiveOrganizer | null>(null);
+  const [profiles, setProfiles] = useState<LivePaymentProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
   const [form, setForm] = useState({
-    brandName: '', contactPerson: '', contact: '', phone: '', eventTypes: '', about: '', gstin: '', pan: '', pincode: '',
+    brandName: '', contactPerson: '', contact: '', phone: '', eventTypes: '', about: '', pincode: '',
   });
   const [socialLinks, setSocialLinks] = useState<{ instagram?: string; facebook?: string; other?: string[] } | null>(null);
   const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
   const [seo, setSeo] = useState<Seo>(emptySeo());
-  const [bankAccount, setBankAccount] = useState('');
-  const [bankName, setBankName] = useState('');
-  const [accountHolderName, setAccountHolderName] = useState('');
-  const [ifsc, setIfsc] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -55,15 +54,12 @@ export default function OrganizerEdit() {
         if (o) {
           setForm({
             brandName: o.brandName, contactPerson: o.contactPerson ?? '', contact: o.contact ?? '', phone: o.phone ?? '',
-            eventTypes: o.eventTypes ?? '', about: o.about ?? '', gstin: o.gstin ?? '', pan: o.pan ?? '', pincode: o.pincode ?? '',
+            eventTypes: o.eventTypes ?? '', about: o.about ?? '', pincode: o.pincode ?? '',
           });
           setSocialLinks(o.socialLinks ?? null);
           setLoc({ country: o.country ?? 'India', state: o.state ?? '', city: o.city });
           setSeo((o.seo as Seo | null) ?? emptySeo());
-          setBankAccount(o.bankAccountNumber ?? '');
-          setBankName(o.bankName ?? '');
-          setAccountHolderName(o.accountHolderName ?? '');
-          setIfsc(o.ifsc ?? '');
+          liveOrganizers.paymentProfiles(o.id).then(setProfiles).catch(() => {});
         }
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
@@ -99,12 +95,6 @@ export default function OrganizerEdit() {
         ...form,
         brandName: form.brandName.trim(),
         city: loc.city, state: loc.state || undefined, country: loc.country || undefined,
-        // bankLast4 is derived server-side from bankAccountNumber now
-        // (DirectoryService.updateOrganizer) — never sent from here directly.
-        bankAccountNumber: bankAccount || undefined,
-        bankName: bankName || undefined,
-        accountHolderName: accountHolderName || undefined,
-        ifsc: ifsc || undefined,
         socialLinks: socialLinks ?? undefined,
         seo,
       });
@@ -164,48 +154,9 @@ export default function OrganizerEdit() {
           <label>Social links</label>
           <SocialLinksEditor value={socialLinks} onChange={setSocialLinks} />
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div className="field" style={{ flex: 1 }}>
-            <label>GSTIN (optional)</label>
-            <input className="input" value={form.gstin} onChange={set('gstin')} />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>PAN number</label>
-            <input className="input" value={form.pan} onChange={set('pan')} />
-          </div>
-        </div>
       </div>
 
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div className="display" style={{ fontWeight: 700 }}>Bank for payouts</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Bank name</label>
-            <input className="input" value={bankName} onChange={(e) => setBankName(e.target.value)} />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Account holder name</label>
-            <input className="input" value={accountHolderName} onChange={(e) => setAccountHolderName(e.target.value)} />
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Account number</label>
-            <input
-              className="input"
-              value={bankAccount}
-              onChange={(e) => setBankAccount(e.target.value)}
-              inputMode="numeric"
-              placeholder={org.bankLast4 ? `•••• ${org.bankLast4}` : 'Account number'}
-            />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>IFSC</label>
-            <input className="input" value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} />
-          </div>
-        </div>
-        <div className="tiny hint">leave a field blank to keep its current saved value</div>
-      </div>
+      <PaymentProfilesCard organizerId={org.id} profiles={profiles} onChange={setProfiles} />
 
       <SeoFields
         seo={seo}
@@ -219,5 +170,108 @@ export default function OrganizerEdit() {
         <Link to={`/organizers/${org.id}`} className="btn btn-ghost" style={{ padding: 10 }}>Cancel</Link>
       </div>
     </form>
+  );
+}
+
+/** Bank accounts the organizer manages themselves (self-serve, no admin
+ * review — see PaymentProfile). This card is support-ticket convenience
+ * only: staff can view/correct an entry on the organizer's behalf, same
+ * "god mode" edit access admin already has over everything else — it does
+ * NOT gate identity verification (org.verified above is unrelated). */
+function PaymentProfilesCard({ organizerId, profiles, onChange }: {
+  organizerId: string; profiles: LivePaymentProfile[]; onChange: (p: LivePaymentProfile[]) => void;
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({ legalName: '', bankAccountNumber: '', accountHolderName: '', ifsc: '', pan: '', gstin: '' });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const startEdit = (p: LivePaymentProfile) => {
+    setForm({ legalName: p.legalName, bankAccountNumber: '', accountHolderName: p.accountHolderName, ifsc: p.ifsc, pan: p.pan, gstin: p.gstin ?? '' });
+    setEditingId(p.id);
+    setErr('');
+  };
+
+  const save = async (id: string) => {
+    setSaving(true);
+    setErr('');
+    try {
+      const patch: Partial<LivePaymentProfile> = {
+        legalName: form.legalName || undefined,
+        accountHolderName: form.accountHolderName || undefined,
+        ifsc: form.ifsc ? form.ifsc.toUpperCase() : undefined,
+        pan: form.pan ? form.pan.toUpperCase() : undefined,
+        gstin: form.gstin ? form.gstin.toUpperCase() : undefined,
+        bankAccountNumber: form.bankAccountNumber || undefined,
+      };
+      const updated = await liveOrganizers.updatePaymentProfile(organizerId, id, patch);
+      onChange(profiles.map((p) => (p.id === id ? updated : p)));
+      setEditingId(null);
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="display" style={{ fontWeight: 700 }}>Payment profiles</div>
+      {err && <div className="tiny" style={{ color: 'var(--red)' }}>{err}</div>}
+      {!profiles.length && <div className="tiny muted">No payment profile on file — the organizer hasn't added one yet.</div>}
+      {profiles.map((p) => (
+        <div key={p.id} style={{ borderBottom: '1px solid rgba(139,195,74,.08)', paddingBottom: 10 }}>
+          {editingId === p.id ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Legal name</label>
+                  <input className="input" value={form.legalName} onChange={(e) => setForm({ ...form, legalName: e.target.value })} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Account holder</label>
+                  <input className="input" value={form.accountHolderName} onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Account number</label>
+                  <input className="input" value={form.bankAccountNumber} onChange={(e) => setForm({ ...form, bankAccountNumber: e.target.value })} inputMode="numeric" placeholder={`•••• ${p.bankLast4}`} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>IFSC</label>
+                  <input className="input" value={form.ifsc} onChange={(e) => setForm({ ...form, ifsc: e.target.value.toUpperCase() })} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>PAN</label>
+                  <input className="input" value={form.pan} onChange={(e) => setForm({ ...form, pan: e.target.value.toUpperCase() })} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>GSTIN</label>
+                  <input className="input" value={form.gstin} onChange={(e) => setForm({ ...form, gstin: e.target.value.toUpperCase() })} disabled={p.noGst} />
+                </div>
+              </div>
+              <div className="tiny hint">leave account number blank to keep its current saved value</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="btn btn-pri btn-sm" disabled={saving} onClick={() => save(p.id)}>{saving ? 'Saving…' : 'Save'}</button>
+                <button type="button" className="btn btn-ghost btn-sm" disabled={saving} onClick={() => setEditingId(null)}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div>
+                <div className="tiny" style={{ fontWeight: 700 }}>
+                  {p.legalName}{p.isDefault && <span className="tiny muted" style={{ marginLeft: 6 }}>· default</span>}
+                </div>
+                <div className="tiny muted">•••• {p.bankLast4} · {p.accountHolderName} · {p.ifsc} · PAN {p.pan}</div>
+              </div>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => startEdit(p)}>Edit</button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }

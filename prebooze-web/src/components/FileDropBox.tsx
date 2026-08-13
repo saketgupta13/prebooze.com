@@ -4,14 +4,19 @@ import type { ReactNode } from 'react';
 /** A real file picker with a real preview — reads the picked image into a
  * data URL via FileReader. Replaces the old fake "click to toggle a
  * boolean" upload-box pattern used across the organizer console. */
-export function FileDropBox({ value, onChange, label, doneLabel, style }: {
+export function FileDropBox({ value, onChange, label, doneLabel, style, accept = 'image/*' }: {
   value?: string;
   onChange: (dataUrl: string) => void;
   label: string;
   doneLabel?: ReactNode;
   style?: React.CSSProperties;
+  // Widened for document uploads (e.g. a firm's registration certificate,
+  // often issued as a PDF) — defaults to images-only for every existing
+  // caller (logo, selfie, gallery-style docs).
+  accept?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const isPdf = value?.startsWith('data:application/pdf');
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -25,7 +30,7 @@ export function FileDropBox({ value, onChange, label, doneLabel, style }: {
       className={`upload-box ${value ? 'done' : ''}`}
       onClick={() => inputRef.current?.click()}
       style={{
-        ...(value
+        ...(value && !isPdf
           ? {
               backgroundImage: `linear-gradient(rgba(10,12,7,.35), rgba(10,12,7,.55)), url(${value})`,
               backgroundSize: 'cover',
@@ -35,8 +40,8 @@ export function FileDropBox({ value, onChange, label, doneLabel, style }: {
         ...style,
       }}
     >
-      <input ref={inputRef} type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
-      {value ? (doneLabel ?? '✓ Image uploaded — click to replace') : label}
+      <input ref={inputRef} type="file" accept={accept} onChange={onFile} style={{ display: 'none' }} />
+      {value ? (isPdf ? '📄 PDF selected — click to replace' : (doneLabel ?? '✓ Image uploaded — click to replace')) : label}
     </button>
   );
 }

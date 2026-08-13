@@ -7,7 +7,7 @@ import { RealUploadBox } from '../../components/RealUploadBox';
 import Loader from '../../components/Loader';
 import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import ChangePhoneNumber from '../../components/ChangePhoneNumber';
-import type { Organizer } from '../../types';
+import type { Organizer, PaymentProfile } from '../../types';
 
 const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
 
@@ -41,16 +41,13 @@ export default function Settings() {
   const [contact, setContact] = useState('');
   const [orgPhone, setOrgPhone] = useState('');
   const [eventTypes, setEventTypes] = useState<string[]>([]);
-  const [bankName, setBankName] = useState('');
-  const [bank, setBank] = useState('');
-  const [accountHolder, setAccountHolder] = useState('');
-  const [ifsc, setIfsc] = useState('');
+  const [profiles, setProfiles] = useState<PaymentProfile[]>([]);
 
   useEffect(() => {
-    organizer
-      .me()
-      .then((o) => {
+    Promise.all([organizer.me(), organizer.paymentProfiles()])
+      .then(([o, p]) => {
         setOrg(o);
+        setProfiles(p);
         setLogoUrl(o.logoUrl ?? null);
         setBrandName(o.brandName ?? '');
         setUsername(o.username ?? '');
@@ -64,10 +61,6 @@ export default function Settings() {
         setContact(o.contact ?? '');
         setOrgPhone(o.phone ?? '');
         setEventTypes(o.eventTypes ? o.eventTypes.split(',').map((t) => t.trim()).filter(Boolean) : []);
-        setBankName(o.bankName ?? '');
-        setBank(o.bankAccountNumber ?? '');
-        setAccountHolder(o.accountHolderName ?? '');
-        setIfsc(o.ifsc ?? '');
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
@@ -98,21 +91,6 @@ export default function Settings() {
       // this page but the header would keep showing the old value until a
       // full page reload remounted AppContext's one-time /me fetch.
       updateUser({ orgBrand: updated.brandName, orgLogoUrl: updated.logoUrl ?? undefined });
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveBank = async () => {
-    if (!bankName.trim() || !bank.trim() || !accountHolder.trim() || !ifsc.trim()) return;
-    setErr('');
-    setSaving(true);
-    try {
-      const updated = await organizer.updateMe({ bankName, bankAccount: bank, accountHolderName: accountHolder, ifsc });
-      setOrg(updated);
-      setOpen(null);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Failed to save');
     } finally {
@@ -224,49 +202,26 @@ export default function Settings() {
         <div className="evrow" style={{ flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="bold small">
-              {org.verified ? 'Bank for payouts' : 'Verification'}
+              Verification
               {org.verified && <span className="verified" style={{ marginLeft: 6 }}>✓</span>}
             </div>
             <div className="tiny muted">
-              {org.verified
-                ? org.bankLast4 ? `${org.bankName ? org.bankName + ' · ' : ''}•••• ${org.bankLast4}` : 'no bank details on file'
-                : 'PAN, GSTIN, bank details and ID — required once, before your first withdrawal'}
+              {org.verified ? 'Your identity is verified' : 'Aadhaar/registration + selfie — a one-time verified badge, doesn\'t affect withdrawals'}
             </div>
           </div>
-          {org.verified ? (
-            <button className="btn btn-ghost btn-sm" onClick={() => toggleOpen('bank')}>
-              {open === 'bank' ? 'Close' : 'Manage'}
-            </button>
-          ) : (
-            <Link to="/organizer/settings/verification" className="btn btn-pri btn-sm">Complete verification →</Link>
-          )}
-          {open === 'bank' && (
-            <div style={{ flexBasis: '100%', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div className="form-row">
-                <div className="field">
-                  <span>Bank name</span>
-                  <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. HDFC Bank" />
-                </div>
-                <div className="field">
-                  <span>Account holder's name</span>
-                  <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="field">
-                  <span>Account number</span>
-                  <input value={bank} onChange={(e) => setBank(e.target.value)} inputMode="numeric" />
-                </div>
-                <div className="field">
-                  <span>IFSC code</span>
-                  <input value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} />
-                </div>
-              </div>
-              <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={!bankName.trim() || !bank.trim() || !accountHolder.trim() || !ifsc.trim() || saving} onClick={saveBank}>
-                {saving ? 'Saving…' : 'Save bank details ✓'}
-              </button>
+          {!org.verified && <Link to="/organizer/settings/verification" className="btn btn-pri btn-sm">Complete verification →</Link>}
+        </div>
+
+        <div className="evrow" style={{ flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="bold small">Payment profiles</div>
+            <div className="tiny muted">
+              {profiles.length
+                ? `${profiles.length} on file · default: ${profiles.find((p) => p.isDefault)?.bankLast4 ? `•••• ${profiles.find((p) => p.isDefault)!.bankLast4}` : 'none set'}`
+                : 'No payment profile yet — required before withdrawing'}
             </div>
-          )}
+          </div>
+          <Link to="/organizer/settings/payment-profiles" className="btn btn-ghost btn-sm">Manage →</Link>
         </div>
 
         <div className="evrow">

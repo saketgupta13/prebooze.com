@@ -168,12 +168,20 @@ export class FeaturedService {
   }
 
   /** Real business identity for the invoice's "bill to" — an organizer's
-   * brand/GSTIN/PAN, distinct from the individual account holder's name.
-   * Venue/promoter/lineup have no GSTIN/PAN modeled, just a brand name. */
+   * brand plus GSTIN/PAN off their default PaymentProfile (GSTIN/PAN no
+   * longer live on Organizer itself — see PaymentProfile), distinct from the
+   * individual account holder's name. Venue/promoter/lineup have no
+   * GSTIN/PAN modeled, just a brand name. An organizer with no payment
+   * profile yet just bills under their brand name with no GSTIN/PAN line —
+   * Featured billing was never gated on having one. */
   private async resolveBillingIdentity(type: FeaturedType, refId: string): Promise<{ brand: string; gstin?: string | null; pan?: string | null } | null> {
+    const organizerBilling = async (org: { id: string; brandName: string }) => {
+      const profile = await this.prisma.paymentProfile.findFirst({ where: { organizerId: org.id, isDefault: true } });
+      return { brand: org.brandName, gstin: profile?.gstin, pan: profile?.pan };
+    };
     if (type === 'organizer') {
       const org = await this.prisma.organizer.findUnique({ where: { id: refId } });
-      return org ? { brand: org.brandName, gstin: org.gstin, pan: org.pan } : null;
+      return org ? organizerBilling(org) : null;
     }
     if (type === 'event') {
       const event = await this.prisma.event.findUnique({ where: { id: refId }, include: { organizer: true, venue: true } });
@@ -181,7 +189,7 @@ export class FeaturedService {
       // Solo venue-hosted event (Event.hostedByVenue, no collaborating
       // organizer) — bill the venue instead. Venue has no GSTIN/PAN
       // modeled (same as promoter/lineup below), just a brand name.
-      if (event.organizer) return { brand: event.organizer.brandName, gstin: event.organizer.gstin, pan: event.organizer.pan };
+      if (event.organizer) return organizerBilling(event.organizer);
       return event.venue ? { brand: event.venue.name } : null;
     }
     if (type === 'venue') {

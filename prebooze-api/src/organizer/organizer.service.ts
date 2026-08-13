@@ -71,20 +71,11 @@ export class OrganizerService {
 
   /** Any team member (any role) can call this for basic org display context
    * (brand/logo/city — several dashboard pages need it just to show "who am
-   * I working for"). KYC/banking fields (PAN, GSTIN, bank account) are only
-   * included for the real owner or a team member with "Settings & team"
-   * view — the same people who can actually reach the Settings page that
-   * displays/edits them. This isn't just least-privilege: Settings.tsx
-   * always round-trips whatever me() returned back through updateMe() on
-   * save (empty string -> explicitly cleared, not "unchanged"), so blanket-
-   * redacting for someone who WILL submit that form would silently wipe the
-   * organizer's real GSTIN/PAN/bank details the next time they saved
-   * anything else on the page. */
+   * I working for"). PAN/GSTIN/bank details no longer live on this row at
+   * all (see PaymentProfile) — they're fetched separately via
+   * listPaymentProfiles, gated on "Payouts & withdrawals" there. */
   async me(userId: string) {
-    const access = await this.orgAccess.resolve(userId);
-    if (access.isOwner || access.can('Settings & team', 'view') || access.can('Settings & team', 'edit')) return access.org;
-    const { gstin: _gstin, pan: _pan, bankAccountNumber: _bank, bankLast4: _bankLast4, bankName: _bankName, accountHolderName: _holder, ifsc: _ifsc, ...safe } = access.org;
-    return safe;
+    return (await this.orgAccess.resolve(userId)).org;
   }
 
   /** Every gate-ops endpoint below (guest list, live monitor, manual
@@ -170,7 +161,7 @@ export class OrganizerService {
    * also mirrored onto User.orgBrand/orgLogoUrl — those are read straight
    * off the JWT-fetched user for the global header, so a rename here used
    * to go stale there until this synced it back. */
-  async updateMe(userId: string, patch: { brandName?: string; username?: string; city?: string; country?: string; state?: string; pincode?: string; logoUrl?: string; about?: string; socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; gstin?: string; pan?: string; bankAccount?: string; bankName?: string; accountHolderName?: string; ifsc?: string; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) {
+  async updateMe(userId: string, patch: { brandName?: string; username?: string; city?: string; country?: string; state?: string; pincode?: string; logoUrl?: string; about?: string; socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) {
     const org = await this.orgAccess.require(userId, 'Settings & team', 'edit');
 
     const username = patch.username?.trim().toLowerCase();
@@ -192,17 +183,10 @@ export class OrganizerService {
         logoUrl: patch.logoUrl,
         about: patch.about?.trim(),
         socialLinks: patch.socialLinks as Prisma.InputJsonValue,
-        gstin: patch.gstin?.trim().toUpperCase() || null,
-        pan: patch.pan?.trim().toUpperCase(),
         contact: patch.contact?.trim(),
         contactPerson: patch.contactPerson?.trim(),
         phone: patch.phone?.trim(),
         eventTypes: patch.eventTypes,
-        bankLast4: patch.bankAccount ? patch.bankAccount.trim().slice(-4) : undefined,
-        bankAccountNumber: patch.bankAccount?.trim(),
-        bankName: patch.bankName?.trim(),
-        accountHolderName: patch.accountHolderName?.trim(),
-        ifsc: patch.ifsc?.trim().toUpperCase(),
       },
     });
 
@@ -663,28 +647,153 @@ export class OrganizerService {
       .sort((a, b) => b.totalOwed - a.totalOwed);
   }
 
+  // ---------- payment profiles (bank accounts to withdraw to) ----------
+  /** Self-serve, no admin review — decoupled from identity verification
+   * (Organizer.verified) entirely. An organizer can hold several of these
+   * (different legal entities/accounts); withdraw() always pays out to
+   * whichever is isDefault. Same "Payouts & withdrawals" gate withdraw()
+   * itself uses, since this is exactly as sensitive as withdrawing. */
+  async listPaymentProfiles(userId: string) {
+    const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'view');
+    return this.prisma.paymentProfile.findMany({ where: { organizerId: org.id }, orderBy: { createdAt: 'asc' } });
+  }
+
+  private validatePaymentProfileInput(data: {
+    legalName?: string | null; businessAddress?: string | null; country?: string | null; state?: string | null; city?: string | null; pincode?: string | null;
+    bankAccountNumber?: string | null; accountHolderName?: string | null; ifsc?: string | null; branch?: string | null;
+    pan?: string | null; gstin?: string | null; noGst?: boolean | null;
+  }) {
+    if (!data.legalName?.trim()) throw new BadRequestException('Company/Firm/LLP/Individual name is required');
+    if (!data.businessAddress?.trim()) throw new BadRequestException('Business address is required');
+    if (!data.bankAccountNumber?.trim() || !data.accountHolderName?.trim() || !data.ifsc?.trim()) {
+      throw new BadRequestException('Full bank account details are required');
+    }
+    if (!data.pan?.trim()) throw new BadRequestException('PAN is required');
+    if (!data.noGst && !data.gstin?.trim()) throw new BadRequestException('GSTIN is required, or tick "I don\'t have a GSTIN"');
+  }
+
+  async createPaymentProfile(userId: string, data: {
+    legalName: string; businessAddress: string; country?: string; state?: string; city?: string; pincode?: string;
+    bankAccountNumber: string; accountHolderName: string; ifsc: string; branch?: string;
+    pan: string; gstin?: string; noGst?: boolean;
+  }) {
+    const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'edit');
+    this.validatePaymentProfileInput(data);
+    const bankAccountNumber = data.bankAccountNumber.trim();
+    const isFirst = (await this.prisma.paymentProfile.count({ where: { organizerId: org.id } })) === 0;
+    return this.prisma.paymentProfile.create({
+      data: {
+        organizerId: org.id,
+        isDefault: isFirst,
+        legalName: data.legalName.trim(),
+        businessAddress: data.businessAddress.trim(),
+        country: data.country?.trim(),
+        state: data.state?.trim(),
+        city: data.city?.trim(),
+        pincode: data.pincode?.trim(),
+        bankAccountNumber,
+        bankLast4: bankAccountNumber.slice(-4),
+        accountHolderName: data.accountHolderName.trim(),
+        ifsc: data.ifsc.trim().toUpperCase(),
+        branch: data.branch?.trim(),
+        pan: data.pan.trim().toUpperCase(),
+        gstin: data.noGst ? null : data.gstin?.trim().toUpperCase(),
+        noGst: !!data.noGst,
+      },
+    });
+  }
+
+  private async ownedPaymentProfile(orgId: string, id: string) {
+    const profile = await this.prisma.paymentProfile.findUnique({ where: { id } });
+    if (!profile || profile.organizerId !== orgId) throw new NotFoundException('Payment profile not found');
+    return profile;
+  }
+
+  async updatePaymentProfile(userId: string, id: string, data: {
+    legalName?: string; businessAddress?: string; country?: string; state?: string; city?: string; pincode?: string;
+    bankAccountNumber?: string; accountHolderName?: string; ifsc?: string; branch?: string;
+    pan?: string; gstin?: string; noGst?: boolean;
+  }) {
+    const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'edit');
+    const existing = await this.ownedPaymentProfile(org.id, id);
+    const merged = { ...existing, ...data };
+    this.validatePaymentProfileInput(merged);
+    const bankAccountNumber = data.bankAccountNumber?.trim() ?? existing.bankAccountNumber;
+    return this.prisma.paymentProfile.update({
+      where: { id },
+      data: {
+        legalName: data.legalName?.trim(),
+        businessAddress: data.businessAddress?.trim(),
+        country: data.country?.trim(),
+        state: data.state?.trim(),
+        city: data.city?.trim(),
+        pincode: data.pincode?.trim(),
+        bankAccountNumber,
+        bankLast4: bankAccountNumber.slice(-4),
+        accountHolderName: data.accountHolderName?.trim(),
+        ifsc: data.ifsc?.trim().toUpperCase(),
+        branch: data.branch?.trim(),
+        pan: data.pan?.trim().toUpperCase(),
+        gstin: data.noGst ? null : data.gstin?.trim().toUpperCase(),
+        noGst: data.noGst,
+      },
+    });
+  }
+
+  /** Deleting the current default auto-promotes the next-oldest remaining
+   * profile, so withdraw() never has to special-case "default just got
+   * deleted" — it always either finds exactly one default or none at all. */
+  async deletePaymentProfile(userId: string, id: string) {
+    const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'edit');
+    const target = await this.ownedPaymentProfile(org.id, id);
+    await this.prisma.paymentProfile.delete({ where: { id } });
+    if (target.isDefault) {
+      const next = await this.prisma.paymentProfile.findFirst({ where: { organizerId: org.id }, orderBy: { createdAt: 'asc' } });
+      if (next) await this.prisma.paymentProfile.update({ where: { id: next.id }, data: { isDefault: true } });
+    }
+    return { ok: true };
+  }
+
+  async setDefaultPaymentProfile(userId: string, id: string) {
+    const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'edit');
+    await this.ownedPaymentProfile(org.id, id);
+    await this.prisma.$transaction([
+      this.prisma.paymentProfile.updateMany({ where: { organizerId: org.id, isDefault: true }, data: { isDefault: false } }),
+      this.prisma.paymentProfile.update({ where: { id }, data: { isDefault: true } }),
+    ]);
+    return { ok: true };
+  }
+
   async withdraw(userId: string, amount: number) {
     const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'edit');
-    // Signup no longer collects bank details (see KycService.quickSignupOrganizer)
-    // — verified only flips true once financial verification is reviewed and
-    // approved (submitOrganizerVerification), so this is the real guard that
-    // used to come for free when bank details were mandatory at signup.
-    // Without it, an unverified organizer could debit their own ledger with
-    // no real bank account on file to actually send the money to.
-    if (!org.verified) throw new BadRequestException('Complete your verification (Settings → Verification) before withdrawing');
+    // Identity verification (Organizer.verified) is a badge only — it never
+    // blocks a withdrawal. The real requirement is having somewhere to send
+    // the money: a default PaymentProfile. Signup no longer collects bank
+    // details at all (see KycService.quickSignupOrganizer), so without this
+    // guard an organizer with zero payment profiles could debit their own
+    // ledger with nowhere to actually wire the money.
+    const profile = await this.prisma.paymentProfile.findFirst({ where: { organizerId: org.id, isDefault: true } });
+    if (!profile) throw new BadRequestException('Add a payment profile (Settings → Payment profiles) before withdrawing');
     if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Enter a valid amount');
     const agg = await this.prisma.organizerLedgerTx.aggregate({ where: { organizerId: org.id }, _sum: { amount: true } });
     const balance = agg._sum.amount ?? 0;
     if (amount > balance) throw new BadRequestException('More than your available balance');
 
+    // Snapshot which account this specific payout went to — a later edit or
+    // deletion of the profile must never change the historical record of
+    // where this withdrawal actually landed.
     await this.prisma.organizerLedgerTx.create({
-      data: { organizerId: org.id, type: 'withdrawal', amount: -amount, note: 'Withdrawal to bank' },
+      data: {
+        organizerId: org.id, type: 'withdrawal', amount: -amount, note: 'Withdrawal to bank',
+        paymentProfileId: profile.id, payoutBankLast4: profile.bankLast4,
+        payoutAccountHolderName: profile.accountHolderName, payoutIfsc: profile.ifsc,
+      },
     });
 
     // Notify the account owner, not whoever triggered it — the payout lands
-    // in the owner's bank account (org.bankAccountNumber) regardless of
-    // which team member with "Payouts & withdrawals" edit access clicked
-    // withdraw, so that's who needs to know it happened.
+    // in the owner's bank account regardless of which team member with
+    // "Payouts & withdrawals" edit access clicked withdraw, so that's who
+    // needs to know it happened.
     const user = org.userId ? await this.prisma.user.findUnique({ where: { id: org.userId } }) : null;
     if (user) {
       await this.wa.send(user.phone, 'organizer_payout', [String(amount)]).catch(() => {});

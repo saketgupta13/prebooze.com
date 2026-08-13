@@ -136,21 +136,24 @@ export class KycService {
   }
 
   /** Self-serve organizer signup, minimal — brand/location/event-types
-   * only, no admin review. Unlike submitRole, this creates the live
-   * Organizer row and approves the role immediately, so an organizer can
-   * start building draft events the moment they submit this — the
+   * only, no admin review. Username is auto-derived from the brand name
+   * (newOrganizerRow's collision-suffixed slug, same scheme Promoter/Lineup
+   * already use) rather than typed — one less thing to fill in, and it's
+   * editable later via updateMe anyway. Unlike submitRole, this creates the
+   * live Organizer row and approves the role immediately, so an organizer
+   * can start building draft events the moment they submit this — the
    * per-event admin approval queue is the real safety net before anything
    * they build reaches a guest, unchanged by any of this. `verified` stays
-   * false until they separately complete financial/identity verification
-   * (submitOrganizerVerification below) and it's reviewed — that's now the
-   * only thing `verified` means for organizer, decoupled from "has an
-   * account they can use." */
+   * false until identity verification (submitOrganizerVerification below)
+   * is reviewed and approved — that's now the *only* thing `verified` means
+   * for organizer, entirely decoupled from payout ability (PaymentProfile,
+   * see OrganizerService) and from "has an account they can use." */
   async quickSignupOrganizer(
     userId: string,
     payload: {
-      brand?: string; username?: string;
+      brand?: string;
       city?: string; state?: string; country?: string; pincode?: string;
-      types?: string[]; about?: string;
+      types?: string[];
       socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
     },
   ) {
@@ -163,7 +166,6 @@ export class KycService {
     }
     if (user.roleStatus === 'pending') throw new BadRequestException('Your application is already under review');
     if (!payload.brand?.trim()) throw new BadRequestException('Brand name is required');
-    if (!payload.username?.trim()) throw new BadRequestException('Username is required');
     if (!payload.city?.trim()) throw new BadRequestException('City is required');
     if (!payload.types?.length) throw new BadRequestException('At least one event type is required');
 
@@ -186,16 +188,24 @@ export class KycService {
     return { status: 'approved', user: toApiUser(updated) };
   }
 
-  /** Self-serve financial + identity verification — submitted whenever the
-   * organizer is ready (typically right before their first withdrawal, but
-   * nothing forces that timing), the counterpart to the verification team
-   * proactively collecting the same fields via addOrganizerVerificationDetails/
-   * addOrganizerDocuments below. Both paths land in the exact same admin
-   * Verifications queue and go through the same approve()/reject() — one
-   * review process regardless of who initiated it. */
+  /** Self-serve *identity* verification only — badge-only, entirely
+   * separate from payout ability (PaymentProfile, self-serve, no review —
+   * see OrganizerService). There's no API to validate an Aadhaar number
+   * against, so this collects actual documents for a human reviewer instead
+   * of a typed number: an individual uploads their own Aadhaar card; a firm
+   * uploads its registration document plus the owner's Aadhaar card. A
+   * selfie is required either way. Since the person submitting this may not
+   * be the account owner (any team member could be doing the actual KYC
+   * call), it also records who's vouching for it — name/phone/email/role —
+   * so a reviewer knows who they're dealing with and in what capacity. */
   async submitOrganizerVerification(
     userId: string,
-    payload: { gstin?: string; noGst?: boolean; pan?: string; bankName?: string; bankAccount?: string; accountHolderName?: string; bankIfsc?: string; aadhaar?: string },
+    payload: {
+      entityType?: 'individual' | 'firm';
+      contactName?: string; contactPhone?: string; contactEmail?: string;
+      contactRole?: 'Owner' | 'Manager' | 'Accountant' | 'Other'; contactRoleOther?: string;
+      docLabels?: string[];
+    },
     files: Express.Multer.File[],
   ) {
     const org = await this.prisma.organizer.findUnique({ where: { userId } });
@@ -204,18 +214,25 @@ export class KycService {
     const alreadyPending = await this.prisma.kycSubmission.findFirst({ where: { userId, kind: 'organizer', status: 'pending' } });
     if (alreadyPending) throw new BadRequestException('Your verification is already under review');
 
-    if (!payload.pan?.trim()) throw new BadRequestException('PAN is required');
-    if (!payload.noGst && !payload.gstin?.trim()) throw new BadRequestException('GSTIN is required, or tick "I don\'t have a GSTIN"');
-    if (!payload.bankName?.trim() || !payload.bankAccount?.trim() || !payload.accountHolderName?.trim() || !payload.bankIfsc?.trim()) {
-      throw new BadRequestException('Full bank account details are required');
+    if (payload.entityType !== 'individual' && payload.entityType !== 'firm') {
+      throw new BadRequestException('Select whether this is an individual or a firm/company');
     }
-    if (!payload.aadhaar?.trim()) throw new BadRequestException('Aadhaar number is required');
-    if (!files.length) throw new BadRequestException('A selfie is required');
+    if (!payload.contactName?.trim() || !payload.contactPhone?.trim() || !payload.contactEmail?.trim()) {
+      throw new BadRequestException('Contact person name, phone and email are required');
+    }
+    if (!payload.contactRole) throw new BadRequestException('Contact person role is required');
+    if (payload.contactRole === 'Other' && !payload.contactRoleOther?.trim()) {
+      throw new BadRequestException('Describe the contact person\'s role');
+    }
 
     const documents = await Promise.all(files.map(async (f, i) => ({
-      type: i === 0 ? 'selfie' : `doc_${i + 1}`,
+      type: payload.docLabels?.[i] ?? `doc_${i + 1}`,
       path: await this.storage.save(f),
     })));
+    const types = new Set(documents.map((d) => d.type));
+    const required = payload.entityType === 'individual' ? ['aadhaar', 'selfie'] : ['registration', 'ownerAadhaar', 'selfie'];
+    const missing = required.filter((t) => !types.has(t));
+    if (missing.length) throw new BadRequestException(`Missing required document(s): ${missing.join(', ')}`);
 
     const submission = await this.prisma.kycSubmission.create({
       data: {
@@ -224,14 +241,12 @@ export class KycService {
         status: 'pending',
         payload: {
           verificationUpgrade: true,
-          noGst: !!payload.noGst,
-          gstin: payload.noGst ? undefined : payload.gstin!.trim().toUpperCase(),
-          pan: payload.pan.trim().toUpperCase(),
-          bankName: payload.bankName!.trim(),
-          bankAccount: payload.bankAccount!.trim(),
-          accountHolderName: payload.accountHolderName!.trim(),
-          bankIfsc: payload.bankIfsc!.trim().toUpperCase(),
-          aadhaar: payload.aadhaar.trim(),
+          entityType: payload.entityType,
+          contactName: payload.contactName.trim(),
+          contactPhone: payload.contactPhone.trim(),
+          contactEmail: payload.contactEmail.trim(),
+          contactRole: payload.contactRole,
+          contactRoleOther: payload.contactRole === 'Other' ? payload.contactRoleOther!.trim() : undefined,
         } as Prisma.InputJsonValue,
         documents: documents as unknown as Prisma.InputJsonValue,
       },
@@ -267,25 +282,21 @@ export class KycService {
     if (!sub) throw new NotFoundException();
     if (sub.kind === 'guest') throw new BadRequestException('Guest verification is automatic, nothing to approve');
 
-    // Two kinds of organizer submission never collect GSTIN/PAN/bank/docs up
-    // front and need this stricter gate before approval: sales-assisted
-    // applications (payload.leadId — lead team only gathers the basics, the
-    // verification team fills the rest via addOrganizerVerificationDetails/
-    // addOrganizerDocuments below) and self-serve verification-upgrade
-    // submissions (payload.verificationUpgrade — quickSignupOrganizer
-    // already created the account with none of this; this submission *is*
-    // the compliance data, submitOrganizerVerification already required all
-    // of it before creating the row, but re-checking here means a future
-    // caller of this same submission-creation path can't accidentally skip
-    // it). Plain self-serve submissions (the old all-in-one Onboarding.tsx
-    // flow, if still reachable) already require all of this at submission
-    // time, so this never blocks them either way. `noGst` lets a
-    // legitimately GST-exempt applicant through either path without a
-    // GSTIN on file — same "no GST" checkbox self-serve always had.
+    // Two kinds of organizer submission need a stricter gate before
+    // approval, since neither is guaranteed complete just by existing:
+    // sales-assisted applications (payload.leadId — lead team only gathers
+    // the basics up front, the verification team fills in GSTIN/PAN/bank
+    // via addOrganizerVerificationDetails/addOrganizerDocuments below before
+    // this can be approved — that data becomes this organizer's first
+    // PaymentProfile, see the creation branch below) and self-serve identity
+    // verification (payload.verificationUpgrade — submitOrganizerVerification
+    // already required all of this at submission time; re-checking here
+    // means a future caller of this same submission-creation path can't
+    // accidentally skip it). `noGst` lets a legitimately GST-exempt lead
+    // through without a GSTIN on file.
     if (sub.kind === 'organizer') {
       const payload = sub.payload as Record<string, unknown> | null;
-      if (payload?.leadId || payload?.verificationUpgrade) {
-        const documents = Array.isArray(sub.documents) ? sub.documents : [];
+      if (payload?.leadId) {
         const missing: string[] = [];
         if (!payload.gstin && !payload.noGst) missing.push('GSTIN');
         if (!payload.pan) missing.push('PAN');
@@ -293,7 +304,13 @@ export class KycService {
         if (!payload.bankIfsc) missing.push('IFSC code');
         if (!payload.bankName) missing.push('bank name');
         if (!payload.accountHolderName) missing.push('account holder name');
-        if (!documents.length) missing.push('at least one KYC document');
+        if (missing.length) throw new BadRequestException(`Can't approve yet — still missing: ${missing.join(', ')}`);
+      }
+      if (payload?.verificationUpgrade) {
+        const documents = Array.isArray(sub.documents) ? (sub.documents as { type: string }[]) : [];
+        const types = new Set(documents.map((d) => d.type));
+        const required = payload.entityType === 'individual' ? ['aadhaar', 'selfie'] : ['registration', 'ownerAadhaar', 'selfie'];
+        const missing = required.filter((t) => !types.has(t));
         if (missing.length) throw new BadRequestException(`Can't approve yet — still missing: ${missing.join(', ')}`);
       }
     }
@@ -328,30 +345,40 @@ export class KycService {
         // the real catalog username (e.g. the public-profile "is this my
         // own page" check) doesn't silently mismatch on casing forever.
         ops.push(this.prisma.user.update({ where: { id: sub.userId }, data: { orgUsername: row.username } }));
-      } else if (existing) {
-        // Verification-upgrade submission for an organizer who already
-        // exists (quickSignupOrganizer already created the row, unverified)
-        // — patch the financial/compliance fields onto it and flip the
-        // badge, rather than trying to create a second row for the same
-        // person (organizerId is unique per userId).
+        // Sales-assisted applications collect GSTIN/PAN/bank up front (the
+        // missing-fields gate above already required all of it) — that
+        // becomes this organizer's first PaymentProfile, same self-serve
+        // model everyone else's payout details go through.
         const payload = sub.payload as Record<string, unknown> | null;
         const str = (k: string) => (typeof payload?.[k] === 'string' ? (payload[k] as string).trim() : '') || undefined;
         const bankAccount = str('bankAccount');
-        ops.push(
-          this.prisma.organizer.update({
-            where: { id: existing.id },
+        if (bankAccount) {
+          ops.push(this.prisma.paymentProfile.create({
             data: {
-              verified: true,
-              gstin: str('gstin'),
-              pan: str('pan'),
+              organizerId: row.id,
+              isDefault: true,
+              legalName: str('accountHolderName') ?? row.brandName,
+              businessAddress: '',
+              country: row.country,
+              state: row.state,
+              city: row.city,
+              pincode: row.pincode,
               bankAccountNumber: bankAccount,
-              bankLast4: bankAccount ? bankAccount.slice(-4) : undefined,
-              bankName: str('bankName'),
-              accountHolderName: str('accountHolderName'),
-              ifsc: str('bankIfsc')?.toUpperCase(),
+              bankLast4: bankAccount.slice(-4),
+              accountHolderName: str('accountHolderName') ?? '',
+              ifsc: str('bankIfsc')?.toUpperCase() ?? '',
+              pan: str('pan') ?? '',
+              gstin: payload?.noGst ? null : str('gstin'),
+              noGst: !!payload?.noGst,
             },
-          }),
-        );
+          }));
+        }
+      } else if (existing) {
+        // Self-serve identity verification for an organizer who already
+        // exists (quickSignupOrganizer already created the row, unverified)
+        // — this submission carries no financial data at all (see
+        // submitOrganizerVerification), just flip the badge.
+        ops.push(this.prisma.organizer.update({ where: { id: existing.id }, data: { verified: true } }));
       }
     }
 
@@ -454,7 +481,6 @@ export class KycService {
 
     const str = (k: string) => (typeof payload?.[k] === 'string' ? (payload[k] as string).trim() : '') || undefined;
     const types = Array.isArray(payload?.types) ? (payload!.types as string[]).join(', ') : str('types');
-    const bankAccount = str('bankAccount');
     const social = payload?.socialLinks as { instagram?: string; facebook?: string; other?: string[] } | undefined;
 
     return {
@@ -472,16 +498,9 @@ export class KycService {
       userId: user.id,
       eventTypes: types,
       socialLinks: social ?? undefined,
-      gstin: str('gstin'),
-      pan: str('pan'),
       contact: str('contact'),
       contactPerson: str('contactPerson'),
       phone: str('phone'),
-      bankLast4: bankAccount ? bankAccount.slice(-4) : undefined,
-      bankAccountNumber: bankAccount,
-      bankName: str('bankName'),
-      accountHolderName: str('accountHolderName'),
-      ifsc: str('bankIfsc')?.toUpperCase(),
     };
   }
 

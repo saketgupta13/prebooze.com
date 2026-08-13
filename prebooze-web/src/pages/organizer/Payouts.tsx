@@ -4,7 +4,6 @@ import { fmtMoney } from '../../data/mock';
 import Loader from '../../components/Loader';
 import { organizer, type OrgLedgerTx } from '../../api';
 import { ApiError } from '../../api/client';
-import type { Organizer } from '../../types';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -31,14 +30,18 @@ const STATUS_LABEL: Record<PromoterPayoutRow['status'], string> = {
 export default function Payouts() {
   const [balance, setBalance] = useState(0);
   const [ledger, setLedger] = useState<OrgLedgerTx[]>([]);
-  const [org, setOrg] = useState<Organizer | null>(null);
+  const [defaultBankLast4, setDefaultBankLast4] = useState<string | null>(null);
   const [promoterPayouts, setPromoterPayouts] = useState<PromoterPayoutRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    Promise.all([organizer.payouts(), organizer.me(), organizer.promoterPayouts()])
-      .then(([p, o, pp]) => { setBalance(p.balance); setLedger(p.ledger); setOrg(o); setPromoterPayouts(pp); })
+    Promise.all([organizer.payouts(), organizer.paymentProfiles(), organizer.promoterPayouts()])
+      .then(([p, profiles, pp]) => {
+        setBalance(p.balance); setLedger(p.ledger);
+        setDefaultBankLast4(profiles.find((pr) => pr.isDefault)?.bankLast4 ?? null);
+        setPromoterPayouts(pp);
+      })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load payouts'))
       .finally(() => setLoading(false));
   }, []);
@@ -79,11 +82,11 @@ export default function Payouts() {
 
       <div className="card" style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span className="small">
-          Payout to <span className="bold">{org?.bankLast4 ? `•••• ${org.bankLast4}` : 'no bank on file'}</span>{' '}
-          {org?.bankLast4 && <span className="verified">✓</span>}{' '}
+          Payout to <span className="bold">{defaultBankLast4 ? `•••• ${defaultBankLast4}` : 'no bank on file'}</span>{' '}
+          {defaultBankLast4 && <span className="verified">✓</span>}{' '}
           <span className="muted">· processed by our team after each withdrawal request</span>
         </span>
-        <Link to="/organizer/settings" className="btn btn-ghost btn-sm">change</Link>
+        <Link to="/organizer/settings/payment-profiles" className="btn btn-ghost btn-sm">change</Link>
       </div>
 
       {promoterPayouts.length > 0 && (

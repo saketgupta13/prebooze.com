@@ -21,9 +21,10 @@ const TRENDING_STOPWORDS = new Set([
 ]);
 
 // Excludes the admin-only/private fields added for the Admin API
-// directory-CRUD slice (contactPerson, phone, gstin, pan, bankLast4) — every
-// one of these catalog reads is public and unauthenticated, those must never
-// leak here. `contact` (a business email) stays public, same as a storefront
+// directory-CRUD slice (contactPerson, phone) — every one of these catalog
+// reads is public and unauthenticated, those must never leak here. GSTIN/
+// PAN/bank live on PaymentProfile now, never joined into a public read at
+// all. `contact` (a business email) stays public, same as a storefront
 // listing a "contact us" address.
 const PUBLIC_ORGANIZER_SELECT = {
   id: true, brandName: true, username: true, verified: true, city: true, state: true, country: true, pincode: true, since: true,
