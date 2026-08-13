@@ -9,6 +9,7 @@ import { FeaturedService } from '../featured/featured.service';
 import { BookingsService } from '../bookings/bookings.service';
 import { LeadsService } from './leads.service';
 import { NotificationsService } from './notifications.service';
+import { CartsService } from './carts.service';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -29,6 +30,7 @@ export class CronService {
     private bookings: BookingsService,
     private leads: LeadsService,
     private notifications: NotificationsService,
+    private carts: CartsService,
   ) {}
 
   /** Payouts are never marked paid automatically — there's no real bank
@@ -149,5 +151,17 @@ export class CronService {
   async leadAutoNudgeTick() {
     const { sent } = await this.leads.sendAutoNudges();
     if (sent) this.log.log(`Lead auto-nudge: WhatsApp reminder sent to ${sent} draft lead(s)`);
+  }
+
+  /** Every 5 minutes, same cadence as the lead nudge above and for the same
+   * reason — chasing an 8-minute hold expiry (CartsService.sendAutoNudges),
+   * not a fixed time of day. This is the single highest-leverage recovery
+   * point in the booking funnel: a guest who verified OTP and held a
+   * ticket but never paid is the closest thing to a sure conversion if
+   * reminded quickly, versus every earlier funnel stage. */
+  @Cron('*/5 * * * *')
+  async cartAutoNudgeTick() {
+    const { sent } = await this.carts.sendAutoNudges();
+    if (sent) this.log.log(`Cart auto-nudge: WhatsApp+email reminder sent to ${sent} abandoned cart(s)`);
   }
 }

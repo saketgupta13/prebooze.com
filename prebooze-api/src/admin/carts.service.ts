@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 
+const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService/OrganizerService — a cart still `active` past this is abandoned
+
 @Injectable()
 export class CartsService {
   constructor(
@@ -75,5 +77,23 @@ export class CartsService {
       count++;
     }
     return { ok: true, count };
+  }
+
+  /** Automated counterpart to remind()/bulkRemind() above — those are
+   * human-triggered (an admin or organizer clicking a button); this is the
+   * platform proactively recovering a guest who verified OTP, held a
+   * ticket, and then just never finished — the single biggest drop-off
+   * point in the whole booking funnel. Only fires once the hold has
+   * actually expired (never nudges someone mid-checkout) and only once per
+   * cart (remindedAt gate, same as the manual paths — a guest who already
+   * got a manual reminder isn't double-nudged). Driven by CronService. */
+  async sendAutoNudges() {
+    const cutoff = new Date(Date.now() - HOLD_TTL_MS);
+    const carts = await this.prisma.cart.findMany({
+      where: { status: 'active', remindedAt: null, createdAt: { lt: cutoff } },
+      select: { id: true },
+    });
+    for (const c of carts) await this.remind(c.id).catch(() => {});
+    return { sent: carts.length };
   }
 }
