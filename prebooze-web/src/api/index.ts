@@ -48,6 +48,21 @@ export const kyc = {
     return apiUpload<{ status: 'pending'; user: User }>('/kyc/role', form);
   },
   myStatus: () => apiFetch<{ id: string; kind: string; status: string; createdAt: string; reviewNote?: string }[]>('/kyc/me'),
+  quickSignupOrganizer: (payload: {
+    brand: string; username: string;
+    city: string; state?: string; country?: string; pincode?: string;
+    types: string[]; about?: string;
+    socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
+  }) => apiFetch<{ status: 'approved'; user: User }>('/kyc/organizer/quick-signup', { body: payload }),
+  submitOrganizerVerification: (
+    payload: { gstin?: string; noGst?: boolean; pan: string; bankName: string; bankAccount: string; accountHolderName: string; bankIfsc: string; aadhaar: string },
+    selfie: File,
+  ) => {
+    const form = new FormData();
+    form.append('payload', JSON.stringify(payload));
+    form.append('documents', selfie);
+    return apiUpload<{ id: string; status: string }>('/kyc/organizer/verification', form);
+  },
 };
 
 /** Captures an incomplete role application as a draft Lead (Admin > Leads),

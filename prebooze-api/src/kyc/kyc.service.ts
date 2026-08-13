@@ -135,6 +135,115 @@ export class KycService {
     return { status: 'pending', user: toApiUser(updated) };
   }
 
+  /** Self-serve organizer signup, minimal — brand/location/event-types
+   * only, no admin review. Unlike submitRole, this creates the live
+   * Organizer row and approves the role immediately, so an organizer can
+   * start building draft events the moment they submit this — the
+   * per-event admin approval queue is the real safety net before anything
+   * they build reaches a guest, unchanged by any of this. `verified` stays
+   * false until they separately complete financial/identity verification
+   * (submitOrganizerVerification below) and it's reviewed — that's now the
+   * only thing `verified` means for organizer, decoupled from "has an
+   * account they can use." */
+  async quickSignupOrganizer(
+    userId: string,
+    payload: {
+      brand?: string; username?: string;
+      city?: string; state?: string; country?: string; pincode?: string;
+      types?: string[]; about?: string;
+      socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
+    },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException();
+    if (user.role) {
+      throw new BadRequestException(
+        user.role === 'organizer' ? "You're already an approved organizer" : 'This number already holds a role — one number, one role',
+      );
+    }
+    if (user.roleStatus === 'pending') throw new BadRequestException('Your application is already under review');
+    if (!payload.brand?.trim()) throw new BadRequestException('Brand name is required');
+    if (!payload.username?.trim()) throw new BadRequestException('Username is required');
+    if (!payload.city?.trim()) throw new BadRequestException('City is required');
+    if (!payload.types?.length) throw new BadRequestException('At least one event type is required');
+
+    const row = await this.newOrganizerRow(user, payload, false);
+    await this.prisma.$transaction([
+      this.prisma.organizer.create({ data: row }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { role: 'organizer', roleStatus: 'approved', orgBrand: row.brandName, orgUsername: row.username },
+      }),
+    ]);
+
+    this.meta
+      .sendEvent('Lead', `${user.phone}_organizer`, 'https://prebooze.com/organizer/onboarding', { phone: user.phone, email: user.email }, { content_name: 'organizer_onboarding' })
+      .catch(() => {});
+    this.leads.resolveDraft(user.phone, 'organizer').catch(() => {});
+    await this.notifications.notify('🎪', `${row.brandName} signed up as a new organizer`, '/organizers').catch(() => {});
+
+    const updated = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    return { status: 'approved', user: toApiUser(updated) };
+  }
+
+  /** Self-serve financial + identity verification — submitted whenever the
+   * organizer is ready (typically right before their first withdrawal, but
+   * nothing forces that timing), the counterpart to the verification team
+   * proactively collecting the same fields via addOrganizerVerificationDetails/
+   * addOrganizerDocuments below. Both paths land in the exact same admin
+   * Verifications queue and go through the same approve()/reject() — one
+   * review process regardless of who initiated it. */
+  async submitOrganizerVerification(
+    userId: string,
+    payload: { gstin?: string; noGst?: boolean; pan?: string; bankName?: string; bankAccount?: string; accountHolderName?: string; bankIfsc?: string; aadhaar?: string },
+    files: Express.Multer.File[],
+  ) {
+    const org = await this.prisma.organizer.findUnique({ where: { userId } });
+    if (!org) throw new BadRequestException('Complete your organizer signup first');
+    if (org.verified) throw new BadRequestException("You're already verified");
+    const alreadyPending = await this.prisma.kycSubmission.findFirst({ where: { userId, kind: 'organizer', status: 'pending' } });
+    if (alreadyPending) throw new BadRequestException('Your verification is already under review');
+
+    if (!payload.pan?.trim()) throw new BadRequestException('PAN is required');
+    if (!payload.noGst && !payload.gstin?.trim()) throw new BadRequestException('GSTIN is required, or tick "I don\'t have a GSTIN"');
+    if (!payload.bankName?.trim() || !payload.bankAccount?.trim() || !payload.accountHolderName?.trim() || !payload.bankIfsc?.trim()) {
+      throw new BadRequestException('Full bank account details are required');
+    }
+    if (!payload.aadhaar?.trim()) throw new BadRequestException('Aadhaar number is required');
+    if (!files.length) throw new BadRequestException('A selfie is required');
+
+    const documents = await Promise.all(files.map(async (f, i) => ({
+      type: i === 0 ? 'selfie' : `doc_${i + 1}`,
+      path: await this.storage.save(f),
+    })));
+
+    const submission = await this.prisma.kycSubmission.create({
+      data: {
+        userId,
+        kind: 'organizer',
+        status: 'pending',
+        payload: {
+          verificationUpgrade: true,
+          noGst: !!payload.noGst,
+          gstin: payload.noGst ? undefined : payload.gstin!.trim().toUpperCase(),
+          pan: payload.pan.trim().toUpperCase(),
+          bankName: payload.bankName!.trim(),
+          bankAccount: payload.bankAccount!.trim(),
+          accountHolderName: payload.accountHolderName!.trim(),
+          bankIfsc: payload.bankIfsc!.trim().toUpperCase(),
+          aadhaar: payload.aadhaar.trim(),
+        } as Prisma.InputJsonValue,
+        documents: documents as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    await this.notifications.notify('🛡', `${org.brandName} submitted verification details for review`, '/admin/kyc').catch(() => {});
+    await this.staffAlerts.alert(`🛡 ${org.brandName} submitted verification details for review`).catch(() => {});
+    if (user) await this.email.sendTemplate(user.email, 'kyc_pending', { name: user.name, roleLabel: 'organizer' }).catch(() => {});
+    return submission;
+  }
+
   async myStatus(userId: string) {
     const submissions = await this.prisma.kycSubmission.findMany({
       where: { userId },
@@ -158,25 +267,27 @@ export class KycService {
     if (!sub) throw new NotFoundException();
     if (sub.kind === 'guest') throw new BadRequestException('Guest verification is automatic, nothing to approve');
 
-    // Sales-assisted applications (started from Admin > Leads > "Start
-    // Onboarding", identifiable by payload.leadId) never collect GSTIN/PAN/
-    // bank details/documents up front — the lead team only gathers the
-    // basics; the verification team is the one who contacts the applicant
-    // for compliance details and documents (addOrganizerVerificationDetails/
-    // addOrganizerDocuments below). Block approval until all of that has
-    // actually been filled in, instead of silently approving an organizer
-    // Prebooze can't actually pay out to or verify. Self-serve applications
-    // already require all of this at submission time (Onboarding.tsx's
-    // step1Valid/step2Valid), so this never blocks a real applicant — it's
-    // scoped to leadId specifically rather than every organizer submission,
-    // since self-serve deliberately allows an empty GSTIN via its own
-    // "no GST" checkbox, which this stricter gate would otherwise break.
+    // Two kinds of organizer submission never collect GSTIN/PAN/bank/docs up
+    // front and need this stricter gate before approval: sales-assisted
+    // applications (payload.leadId — lead team only gathers the basics, the
+    // verification team fills the rest via addOrganizerVerificationDetails/
+    // addOrganizerDocuments below) and self-serve verification-upgrade
+    // submissions (payload.verificationUpgrade — quickSignupOrganizer
+    // already created the account with none of this; this submission *is*
+    // the compliance data, submitOrganizerVerification already required all
+    // of it before creating the row, but re-checking here means a future
+    // caller of this same submission-creation path can't accidentally skip
+    // it). Plain self-serve submissions (the old all-in-one Onboarding.tsx
+    // flow, if still reachable) already require all of this at submission
+    // time, so this never blocks them either way. `noGst` lets a
+    // legitimately GST-exempt applicant through either path without a
+    // GSTIN on file — same "no GST" checkbox self-serve always had.
     if (sub.kind === 'organizer') {
       const payload = sub.payload as Record<string, unknown> | null;
-      if (payload?.leadId) {
+      if (payload?.leadId || payload?.verificationUpgrade) {
         const documents = Array.isArray(sub.documents) ? sub.documents : [];
         const missing: string[] = [];
-        if (!payload.gstin) missing.push('GSTIN');
+        if (!payload.gstin && !payload.noGst) missing.push('GSTIN');
         if (!payload.pan) missing.push('PAN');
         if (!payload.bankAccount) missing.push('bank account number');
         if (!payload.bankIfsc) missing.push('IFSC code');
@@ -217,6 +328,30 @@ export class KycService {
         // the real catalog username (e.g. the public-profile "is this my
         // own page" check) doesn't silently mismatch on casing forever.
         ops.push(this.prisma.user.update({ where: { id: sub.userId }, data: { orgUsername: row.username } }));
+      } else if (existing) {
+        // Verification-upgrade submission for an organizer who already
+        // exists (quickSignupOrganizer already created the row, unverified)
+        // — patch the financial/compliance fields onto it and flip the
+        // badge, rather than trying to create a second row for the same
+        // person (organizerId is unique per userId).
+        const payload = sub.payload as Record<string, unknown> | null;
+        const str = (k: string) => (typeof payload?.[k] === 'string' ? (payload[k] as string).trim() : '') || undefined;
+        const bankAccount = str('bankAccount');
+        ops.push(
+          this.prisma.organizer.update({
+            where: { id: existing.id },
+            data: {
+              verified: true,
+              gstin: str('gstin'),
+              pan: str('pan'),
+              bankAccountNumber: bankAccount,
+              bankLast4: bankAccount ? bankAccount.slice(-4) : undefined,
+              bankName: str('bankName'),
+              accountHolderName: str('accountHolderName'),
+              ifsc: str('bankIfsc')?.toUpperCase(),
+            },
+          }),
+        );
       }
     }
 
@@ -297,6 +432,7 @@ export class KycService {
   private async newOrganizerRow(
     user: { id: string; orgBrand: string | null; orgUsername: string | null; name: string; city: string },
     payload: Record<string, unknown> | null,
+    verified = true,
   ) {
     const payloadBrand = (typeof payload?.brand === 'string' && payload.brand.trim()) || (typeof payload?.brandName === 'string' && payload.brandName.trim()) || '';
     const base = (user.orgUsername || payloadBrand || user.orgBrand || user.name || 'organizer')
@@ -325,7 +461,7 @@ export class KycService {
       id: await unique('id'),
       brandName: payloadBrand || user.orgBrand || user.name || 'Organizer',
       username: await unique('username'),
-      verified: true, // this row is only ever created at the moment KYC is approved
+      verified,
       city: str('city') || user.city || '',
       country: str('country'),
       state: str('state'),

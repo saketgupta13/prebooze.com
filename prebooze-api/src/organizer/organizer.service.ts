@@ -665,6 +665,13 @@ export class OrganizerService {
 
   async withdraw(userId: string, amount: number) {
     const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'edit');
+    // Signup no longer collects bank details (see KycService.quickSignupOrganizer)
+    // — verified only flips true once financial verification is reviewed and
+    // approved (submitOrganizerVerification), so this is the real guard that
+    // used to come for free when bank details were mandatory at signup.
+    // Without it, an unverified organizer could debit their own ledger with
+    // no real bank account on file to actually send the money to.
+    if (!org.verified) throw new BadRequestException('Complete your verification (Settings → Verification) before withdrawing');
     if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Enter a valid amount');
     const agg = await this.prisma.organizerLedgerTx.aggregate({ where: { organizerId: org.id }, _sum: { amount: true } });
     const balance = agg._sum.amount ?? 0;

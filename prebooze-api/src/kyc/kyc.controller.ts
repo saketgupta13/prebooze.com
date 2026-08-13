@@ -37,6 +37,37 @@ export class KycController {
     return this.kyc.submitRole(req.user.sub, kind as 'organizer', payload, documents ?? []);
   }
 
+  /** Self-serve organizer signup, minimal — no documents, no review. */
+  @Post('organizer/quick-signup')
+  @UseGuards(JwtAuthGuard)
+  quickSignupOrganizer(
+    @Req() req: { user: { sub: string } },
+    @Body()
+    body: {
+      brand?: string; username?: string;
+      city?: string; state?: string; country?: string; pincode?: string;
+      types?: string[]; about?: string;
+      socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
+    },
+  ) {
+    return this.kyc.quickSignupOrganizer(req.user.sub, body);
+  }
+
+  /** Self-serve financial + identity verification, submitted whenever the
+   * organizer's ready (typically right before their first withdrawal). One
+   * file expected: a selfie. */
+  @Post('organizer/verification')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('documents', 3))
+  submitOrganizerVerification(
+    @Req() req: { user: { sub: string } },
+    @Body('payload') payloadRaw: string,
+    @UploadedFiles() documents: Express.Multer.File[],
+  ) {
+    const payload = payloadRaw ? JSON.parse(payloadRaw) : {};
+    return this.kyc.submitOrganizerVerification(req.user.sub, payload, documents ?? []);
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   me(@Req() req: { user: { sub: string } }) {

@@ -37,9 +37,6 @@ export default function Settings() {
   const [instagram, setInstagram] = useState('');
   const [facebook, setFacebook] = useState('');
   const [other, setOther] = useState<string[]>(['']);
-  const [gstin, setGstin] = useState('');
-  const [noGst, setNoGst] = useState(false);
-  const [pan, setPan] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [contact, setContact] = useState('');
   const [orgPhone, setOrgPhone] = useState('');
@@ -63,9 +60,6 @@ export default function Settings() {
         setFacebook(o.socialLinks?.facebook ?? '');
         const o2 = o.socialLinks?.other ?? [];
         setOther(o2.length ? o2 : ['']);
-        setGstin(o.gstin ?? '');
-        setNoGst(!o.gstin);
-        setPan(o.pan ?? '');
         setContactPerson(o.contactPerson ?? '');
         setContact(o.contact ?? '');
         setOrgPhone(o.phone ?? '');
@@ -95,7 +89,7 @@ export default function Settings() {
         logoUrl: logoUrl ?? undefined,
         about,
         socialLinks: { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined, other: other.map((l) => l.trim()).filter(Boolean) },
-        gstin: noGst ? '' : gstin, pan, contactPerson, contact, phone: orgPhone, eventTypes: eventTypes.join(', '),
+        contactPerson, contact, phone: orgPhone, eventTypes: eventTypes.join(', '),
       });
       setOrg(updated);
       setOpen(null);
@@ -220,20 +214,6 @@ export default function Settings() {
                   ))}
                 </div>
               </div>
-              <div className="form-row">
-                <div className="field">
-                  <span>PAN number</span>
-                  <input value={pan} onChange={(e) => setPan(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} />
-                </div>
-                <div className="field">
-                  <span>GSTIN</span>
-                  <input value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} disabled={noGst} maxLength={15} />
-                  <label className="checkbox-row" style={{ marginTop: 6 }}>
-                    <input type="checkbox" checked={noGst} onChange={() => setNoGst((v) => !v)} />
-                    I don't have a GSTIN
-                  </label>
-                </div>
-              </div>
               <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={saving} onClick={saveProfile}>
                 {saving ? 'Saving…' : 'Save profile ✓'}
               </button>
@@ -243,14 +223,23 @@ export default function Settings() {
 
         <div className="evrow" style={{ flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="bold small">Bank for payouts</div>
+            <div className="bold small">
+              {org.verified ? 'Bank for payouts' : 'Verification'}
+              {org.verified && <span className="verified" style={{ marginLeft: 6 }}>✓</span>}
+            </div>
             <div className="tiny muted">
-              {org.bankLast4 ? `${org.bankName ? org.bankName + ' · ' : ''}•••• ${org.bankLast4}` : 'no bank details on file'}
+              {org.verified
+                ? org.bankLast4 ? `${org.bankName ? org.bankName + ' · ' : ''}•••• ${org.bankLast4}` : 'no bank details on file'
+                : 'PAN, GSTIN, bank details and ID — required once, before your first withdrawal'}
             </div>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => toggleOpen('bank')}>
-            {open === 'bank' ? 'Close' : 'Manage'}
-          </button>
+          {org.verified ? (
+            <button className="btn btn-ghost btn-sm" onClick={() => toggleOpen('bank')}>
+              {open === 'bank' ? 'Close' : 'Manage'}
+            </button>
+          ) : (
+            <Link to="/organizer/settings/verification" className="btn btn-pri btn-sm">Complete verification →</Link>
+          )}
           {open === 'bank' && (
             <div style={{ flexBasis: '100%', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="form-row">

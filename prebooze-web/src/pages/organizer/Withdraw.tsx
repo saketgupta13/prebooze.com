@@ -43,6 +43,27 @@ export default function Withdraw() {
 
   if (loading) return <Loader />;
 
+  if (!org?.verified) {
+    return (
+      <div>
+        <div className="breadcrumb">
+          <Link to="/organizer/payouts">← Payouts</Link> / Withdraw
+        </div>
+        <h1 style={{ fontSize: 24, marginBottom: 18 }}>Withdraw to bank</h1>
+        <div className="card" style={{ maxWidth: 480 }}>
+          <div className="kv">
+            <span className="k">Available balance</span>
+            <span className="bold accent">{fmtMoney(balance)}</span>
+          </div>
+          <p className="muted small" style={{ margin: '12px 0' }}>
+            Complete verification (PAN, GSTIN, bank details, ID) before withdrawing — one-time, usually reviewed within 24h.
+          </p>
+          <Link to="/organizer/settings/verification" className="btn btn-pri btn-block btn-lg">Complete verification →</Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="breadcrumb">

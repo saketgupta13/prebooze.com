@@ -63,6 +63,7 @@ const Coupons = lazy(() => import('./pages/organizer/Coupons'));
 const Payouts = lazy(() => import('./pages/organizer/Payouts'));
 const OrganizerPromoters = lazy(() => import('./pages/organizer/OrganizerPromoters'));
 const Settings = lazy(() => import('./pages/organizer/Settings'));
+const OrganizerVerification = lazy(() => import('./pages/organizer/OrganizerVerification'));
 const Withdraw = lazy(() => import('./pages/organizer/Withdraw'));
 const OrgGuestList = lazy(() => import('./pages/organizer/OrgGuestList'));
 const OrgAbandonedCarts = lazy(() => import('./pages/organizer/OrgAbandonedCarts'));
@@ -346,6 +347,7 @@ export default function App() {
           <Route path="team" element={<OrgTeamRoles />} />
           <Route path="billing" element={<OrganizerBilling />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="settings/verification" element={<OrganizerVerification />} />
         </Route>
 
         {/* Line-up (artist) console */}
