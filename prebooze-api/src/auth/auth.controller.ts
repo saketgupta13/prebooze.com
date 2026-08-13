@@ -7,6 +7,11 @@ import { StorageService } from '../kyc/storage.service';
 
 class RequestOtpDto {
   @IsString() @IsNotEmpty() phone!: string;
+  // Set only when this request came from a role's onboarding-login redirect
+  // (see Login.tsx) — drives an early draft-lead capture, never present for
+  // a guest login/checkout.
+  leadRole?: string;
+  utmSource?: string;
 }
 class VerifyOtpDto {
   @IsString() @IsNotEmpty() requestId!: string;
@@ -22,7 +27,7 @@ export class AuthController {
 
   @Post('auth/otp')
   requestOtp(@Body() dto: RequestOtpDto) {
-    return this.auth.requestOtp(dto.phone);
+    return this.auth.requestOtp(dto.phone, dto.leadRole, dto.utmSource);
   }
 
   @Post('auth/verify')

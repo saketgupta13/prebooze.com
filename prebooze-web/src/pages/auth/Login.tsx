@@ -5,6 +5,23 @@ import { enabledCountries } from '../../data/locations';
 import { ApiError } from '../../api/client';
 import { usePlatformInfo } from '../../lib/usePlatformInfo';
 
+// Same 4-path check Otp.tsx's skipsGuestFunnel already uses — kept as a
+// plain inline map here rather than a shared import, since it's small and
+// each usage needs a slightly different shape (a role string here, a
+// boolean there).
+const ONBOARDING_COPY: Record<string, { visual: string; heading: string }> = {
+  '/organizer/onboarding': { visual: 'List your first event free — sign in to get started.', heading: 'Set up your organizer account' },
+  '/venue/onboarding': { visual: 'List your venue and host events free — sign in to get started.', heading: 'Set up your venue account' },
+  '/promoter/onboarding': { visual: 'Earn commission bringing guests to events — sign in to get started.', heading: 'Set up your promoter account' },
+  '/lineup/onboarding': { visual: 'Get booked for events as a performer — sign in to get started.', heading: 'Set up your line-up account' },
+};
+const LEAD_ROLE_BY_PATH: Record<string, string> = {
+  '/organizer/onboarding': 'organizer',
+  '/venue/onboarding': 'venue',
+  '/promoter/onboarding': 'promoter',
+  '/lineup/onboarding': 'lineup',
+};
+
 export default function Login() {
   const { requestOtp } = useApp();
   const { logoUrl } = usePlatformInfo();
@@ -16,6 +33,10 @@ export default function Login() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const from = (location.state as { from?: string } | null)?.from;
+  const onboardingCopy = from ? ONBOARDING_COPY[from] : undefined;
+  const leadRole = from ? LEAD_ROLE_BY_PATH[from] : undefined;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (phone.length !== 10) return setErr('Enter a valid 10-digit mobile number');
@@ -23,7 +44,7 @@ export default function Login() {
     setErr('');
     setBusy(true);
     try {
-      await requestOtp(`${code} ${phone}`);
+      await requestOtp(`${code} ${phone}`, leadRole);
       navigate('/verify-otp', { state: location.state });
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "Couldn't send code — please try again");
@@ -38,12 +59,12 @@ export default function Login() {
         <div className="auth-visual">
           <img src={logoUrl || '/prebooze-logo.png'} alt="Prebooze" style={{ height: 66, width: 'auto' }} />
           <p className="muted small">
-            Concerts · comedy · festivals · warehouse parties — from verified organizers only.
+            {onboardingCopy?.visual ?? 'Concerts · comedy · festivals · warehouse parties — from verified organizers only.'}
           </p>
         </div>
 
         <form className="card card-shadow auth-card" onSubmit={submit} style={{ width: '100%' }}>
-          <h1 style={{ fontSize: 24 }}>Welcome 👋</h1>
+          <h1 style={{ fontSize: 24 }}>{onboardingCopy ? onboardingCopy.heading : 'Welcome 👋'}</h1>
           <p className="muted small" style={{ margin: '6px 0 18px' }}>
             Login or sign up — no password needed
           </p>

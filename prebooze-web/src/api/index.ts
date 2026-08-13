@@ -10,7 +10,8 @@ import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, Wal
 
 // ---------- auth ----------
 export const auth = {
-  requestOtp: (phone: string) => apiFetch<{ requestId: string }>('/auth/otp', { body: { phone } }),
+  requestOtp: (phone: string, leadRole?: string, utmSource?: string) =>
+    apiFetch<{ requestId: string }>('/auth/otp', { body: { phone, leadRole, utmSource } }),
   verifyOtp: (requestId: string, code: string) => apiFetch<{ token: string; user: User; isNew: boolean }>('/auth/verify', { body: { requestId, code } }),
   me: () => apiFetch<User>('/me'),
   updateMe: (patch: Partial<User>) => apiFetch<User>('/me', { method: 'PATCH', body: patch }),

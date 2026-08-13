@@ -208,6 +208,31 @@ export class LeadsService {
     });
   }
 
+  /** Third capture point, earlier than captureDraft above — fires the
+   * moment someone requests an OTP from a role's login redirect, before
+   * they've verified it or an account exists at all. Real ad data showed a
+   * meaningful group of people entering their number and never completing
+   * verification; captureDraft can't reach them (it's keyed off a userId,
+   * which doesn't exist yet at this point). Same phone+role dedupe key as
+   * captureDraft, so if this same person does go on to verify and reach the
+   * real onboarding page, that call finds and enriches this same row rather
+   * than creating a second one — no new reconciliation logic needed. */
+  async captureDraftByPhone(phone: string, role: string, utmSource?: string) {
+    if (!LEAD_ROLES.includes(role as LeadRole)) return null;
+    const user = await this.prisma.user.findUnique({ where: { phone } });
+    if (user && (user.role || user.roleStatus === 'pending')) return null;
+
+    const source = utmSource === 'facebook' ? 'Facebook/Instagram Ads' : 'Website inquiry';
+    const existing = await this.prisma.lead.findFirst({
+      where: { contact: phone, role, stage: 'New', source: { in: [...DRAFT_SOURCES] } },
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (existing) return existing;
+    return this.prisma.lead.create({
+      data: { name: user?.name || phone, role, source, contact: phone, email: user?.email || null, stage: 'New' },
+    });
+  }
+
   /** Called from KycService.submitRole / VenueService.onboard once a real
    * application actually lands — an untouched draft lead (still `stage:
    * 'New'`, nobody on staff has engaged with it) for this same person+role
