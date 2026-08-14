@@ -345,7 +345,11 @@ export default function CreateEvent() {
               </div>
             </div>
           </div>
-          <p className="muted small">{ev.description || 'No description yet.'}</p>
+          {ev.description ? (
+            <div className="muted small rich-text" dangerouslySetInnerHTML={{ __html: ev.description }} />
+          ) : (
+            <p className="muted small">No description yet.</p>
+          )}
           {ev.conditions.length > 0 && (
             <ul style={{ paddingLeft: 20, marginTop: 12 }} className="muted small">
               {ev.conditions.map((c) => (

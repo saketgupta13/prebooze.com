@@ -23,12 +23,10 @@ const STATUS_BADGE: Record<EventStatus, { cls: string; label: string }> = {
   draft: { cls: 'badge-outline', label: 'Draft' },
 };
 
-/** Real event list (GET /organizer/events) — this is the one organizer page
- * wired to the real backend so far; commission is admin-set and read-only
- * (see BACKEND.md), so an honest display needs real data, not the mock
- * store. Note: "+ Create event"/"✎ Edit" still open the older mock-only
- * flow (CreateEvent.tsx) — a real event created here won't show up in this
- * list until that flow is wired too, tracked as separate follow-up work. */
+/** Real event list (GET /organizer/events) — commission is admin-set and
+ * read-only (see BACKEND.md), so an honest display needs real data, not the
+ * mock store. "+ Create event"/"✎ Edit" open CreateEvent.tsx, which saves via
+ * the same real POST /organizer/events endpoint this list reads from. */
 export default function MyEvents() {
   const { featured, requestFeatured, toast } = useApp();
   const [tab, setTab] = useState<'all' | EventStatus>('all');
