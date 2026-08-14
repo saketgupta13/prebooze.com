@@ -6,7 +6,7 @@ import { findFeatured } from '../../lib/featured';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event, EventStatus } from '../../types';
-import { categoryEmoji } from '../../components/Poster';
+import Poster, { categoryEmoji } from '../../components/Poster';
 
 const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -87,14 +87,7 @@ export default function MyEvents() {
           const feat = findFeatured(featured, 'event', e.id);
           return (
             <div key={e.id} className="evrow">
-              <div
-                className="thumb"
-                style={{
-                  background: `radial-gradient(ellipse at 30% 25%, hsla(${e.posterHue},70%,55%,.3), transparent 60%), var(--surface-2)`,
-                }}
-              >
-                {categoryEmoji(e.category)}
-              </div>
+              <Poster className="thumb" hue={e.posterHue} emoji={categoryEmoji(e.category)} imageUrl={e.posterUrl} alt={e.title} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="bold small">{e.title}</div>
                 <div className="tiny muted">

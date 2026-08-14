@@ -323,7 +323,7 @@ export default function CreateEvent() {
 
         <div className="card">
           <div className="detail-head">
-            <Poster hue={(title.length * 47) % 360} emoji={categoryEmoji(ev.category)} label="portrait banner 3:4" />
+            <Poster hue={(title.length * 47) % 360} emoji={categoryEmoji(ev.category)} label="portrait banner 3:4" imageUrl={ev.posterUrl} alt={ev.title} />
             <div className="detail-title">
               <h1 style={{ fontSize: 24 }}>{ev.title}</h1>
               <div className="detail-meta">
