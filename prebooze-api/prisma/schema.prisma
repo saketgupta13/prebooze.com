@@ -471,6 +471,12 @@ model Lead {
   role          String    @default("organizer") // organizer | venue | promoter | lineup
   source        String // 'Instagram' | 'WhatsApp' | 'Phone call' | 'Referral / walk-in' | 'Website inquiry' | 'Other social' | 'Other'
   contact       String?
+  // A second number for the same person — sales sometimes has two (a
+  // personal number and a brand/business one, or an old number that still
+  // rings). Free-form like `contact`, same reasoning (see
+  // lead-phone-match.util.ts): not every value here is guaranteed to be a
+  // clean single phone number.
+  alternateContact String?
   email         String?
   contactPerson String?
   country       String?

@@ -64,7 +64,7 @@ function hitSub(h: DirHit) {
 }
 
 const emptyForm = {
-  name: '', role: 'organizer' as LeadRole, source: LEAD_SOURCES[0] as string, contact: '', email: '', contactPerson: '',
+  name: '', role: 'organizer' as LeadRole, source: LEAD_SOURCES[0] as string, contact: '', alternateContact: '', email: '', contactPerson: '',
   country: '', state: '', city: '', eventType: '', assignedToId: '', followUpAt: '',
 };
 
@@ -132,6 +132,7 @@ export default function Leads() {
       role: lead.role,
       source: lead.source,
       contact: lead.contact ?? '',
+      alternateContact: lead.alternateContact ?? '',
       email: lead.email ?? '',
       contactPerson: lead.contactPerson ?? '',
       country: lead.country ?? '',
@@ -169,6 +170,7 @@ export default function Leads() {
         role: form.role,
         source: form.source,
         contact: form.contact || undefined,
+        alternateContact: form.alternateContact || undefined,
         email: form.email || undefined,
         contactPerson: form.contactPerson || undefined,
         country: form.country || undefined,
@@ -193,6 +195,7 @@ export default function Leads() {
         name: form.name,
         source: form.source,
         contact: form.contact,
+        alternateContact: form.alternateContact,
         email: form.email,
         contactPerson: form.contactPerson,
         country: form.country,
@@ -469,6 +472,10 @@ export default function Leads() {
           <div className="field">
             <label>Phone / handle</label>
             <input className="input" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} placeholder="For WhatsApp / calls" />
+          </div>
+          <div className="field">
+            <label>Alternate number (optional)</label>
+            <input className="input" value={form.alternateContact} onChange={(e) => setForm({ ...form, alternateContact: e.target.value })} placeholder="A second number, if they gave one" />
           </div>
           <div className="field">
             <label>Email</label>

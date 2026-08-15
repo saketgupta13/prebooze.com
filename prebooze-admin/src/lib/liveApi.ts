@@ -687,6 +687,7 @@ export interface Lead {
   role: LeadRole;
   source: string;
   contact: string | null;
+  alternateContact: string | null;
   email: string | null;
   contactPerson: string | null;
   country: string | null;
@@ -732,6 +733,7 @@ interface LeadWriteFields {
   role?: LeadRole;
   source: string;
   contact?: string;
+  alternateContact?: string;
   email?: string;
   contactPerson?: string;
   country?: string;

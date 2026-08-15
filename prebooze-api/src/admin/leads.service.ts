@@ -21,6 +21,26 @@ const ONBOARDING_PATH: Record<LeadRole, string> = {
   lineup: '/lineup/onboarding',
 };
 
+// Best-effort formatting for the free-form contact/alternateContact fields
+// below — always strips invisible Unicode direction marks (a real thing
+// copy-pasting a number off Instagram/WhatsApp leaves behind, breaks
+// click-to-call and confuses the last-10-digits match in
+// lead-phone-match.util.ts) and collapses whitespace. Only reformats to
+// "+91 XXXXXXXXXX" when the value is *purely* phone-shaped (10-15 digits,
+// optional leading +) — unlike auth.service.ts's normalizePhone, this never
+// throws, since a sales-typed contact can legitimately be a handle, a name,
+// or several numbers in one field (lead-phone-match.util.ts already handles
+// that case), not just a single clean phone number.
+function cleanContact(raw: string): string {
+  const stripped = raw.replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, '').trim().replace(/\s+/g, ' ');
+  const digitsOnly = stripped.replace(/[^\d+]/g, '');
+  if (/^\+?\d{10,15}$/.test(digitsOnly)) {
+    const withCc = digitsOnly.startsWith('+') ? digitsOnly : `+91${digitsOnly.slice(-10)}`;
+    return `${withCc.slice(0, withCc.length - 10)} ${withCc.slice(-10)}`;
+  }
+  return stripped;
+}
+
 const LEAD_INCLUDE = {
   assignedTo: { select: { id: true, name: true } },
   organizer: { select: { id: true, brandName: true, username: true } },
@@ -34,6 +54,7 @@ interface CreateLeadBody {
   role?: string;
   source: string;
   contact?: string;
+  alternateContact?: string;
   email?: string;
   contactPerson?: string;
   country?: string;
@@ -48,6 +69,7 @@ interface UpdateLeadBody {
   name?: string;
   source?: string;
   contact?: string;
+  alternateContact?: string;
   email?: string;
   contactPerson?: string;
   country?: string;
@@ -115,7 +137,8 @@ export class LeadsService {
         name: body.name.trim(),
         role,
         source: body.source,
-        contact: body.contact?.trim() || null,
+        contact: body.contact?.trim() ? cleanContact(body.contact) : null,
+        alternateContact: body.alternateContact?.trim() ? cleanContact(body.alternateContact) : null,
         email: body.email?.trim() || null,
         contactPerson: body.contactPerson?.trim() || null,
         country: body.country?.trim() || null,
@@ -144,7 +167,8 @@ export class LeadsService {
       data: {
         ...(body.name !== undefined ? { name: body.name.trim() } : {}),
         ...(body.source !== undefined ? { source: body.source } : {}),
-        ...(body.contact !== undefined ? { contact: body.contact?.trim() || null } : {}),
+        ...(body.contact !== undefined ? { contact: body.contact?.trim() ? cleanContact(body.contact) : null } : {}),
+        ...(body.alternateContact !== undefined ? { alternateContact: body.alternateContact?.trim() ? cleanContact(body.alternateContact) : null } : {}),
         ...(body.email !== undefined ? { email: body.email?.trim() || null } : {}),
         ...(body.contactPerson !== undefined ? { contactPerson: body.contactPerson?.trim() || null } : {}),
         ...(body.country !== undefined ? { country: body.country?.trim() || null } : {}),
