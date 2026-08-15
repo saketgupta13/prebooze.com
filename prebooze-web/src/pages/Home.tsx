@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import {
-  CATEGORIES, CATEGORY_TREE, EVENTS, FAQS, LINEUPS, ORGANIZERS, PEOPLE, PROMOTERS, STATS, TESTIMONIALS, VENUES,
+  CATEGORIES, CATEGORY_TREE, EVENTS, FAQS, LINEUPS, ORGANIZERS, PEOPLE, PROMOTERS, TESTIMONIALS, VENUES,
   eventsForPerson, venueById,
 } from '../data/mock';
 import { catalog, content } from '../api';
@@ -382,22 +382,6 @@ export default function Home() {
           );
         })()}
 
-        {/* Highlights counter */}
-        <section className="section" style={{ marginTop: 0 }}>
-          <div className="card" style={{ padding: '26px 20px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(150px, 1fr))`, gap: 16, textAlign: 'center' }}>
-              {STATS.map((s) => (
-                <div key={s.label}>
-                  <div className="accent" style={{ fontSize: 30, fontWeight: 800 }}>
-                    <CountUp value={s.value} />{s.suffix}
-                  </div>
-                  <div className="tiny muted-2" style={{ textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Top selling events */}
         <div className="section-hd">
           <h2>Top selling events in {city}</h2>
@@ -653,18 +637,3 @@ export default function Home() {
   );
 }
 
-/** Animated count-up for the highlights band. */
-function CountUp({ value }: { value: number }) {
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    const steps = 40;
-    let i = 0;
-    const t = setInterval(() => {
-      i++;
-      setN(value < 10 ? Math.round(((value * i) / steps) * 10) / 10 : Math.round((value * i) / steps));
-      if (i >= steps) clearInterval(t);
-    }, 25);
-    return () => clearInterval(t);
-  }, [value]);
-  return <>{n >= 1000 ? n.toLocaleString('en-IN') : n}</>;
-}
