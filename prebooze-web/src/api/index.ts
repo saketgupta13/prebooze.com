@@ -71,6 +71,44 @@ export const kyc = {
     docs.forEach((f) => form.append('documents', f));
     return apiUpload<{ id: string; status: string }>('/kyc/organizer/verification', form);
   },
+  quickSignupPromoter: (payload: {
+    brand: string;
+    city: string; state?: string; country?: string; pincode?: string;
+    bio: string; links?: string; audience?: string;
+  }) => apiFetch<{ status: 'approved'; user: User }>('/kyc/promoter/quick-signup', { body: payload }),
+  /** 2 files, in order: id document, selfie. */
+  submitPromoterVerification: (docs: File[]) => {
+    const form = new FormData();
+    docs.forEach((f) => form.append('documents', f));
+    return apiUpload<{ id: string; status: string }>('/kyc/promoter/verification', form);
+  },
+  quickSignupLineup: (payload: {
+    name: string; category: string;
+    city: string; state?: string; country?: string; pincode?: string;
+    bio: string; links?: string[]; logoUrl?: string;
+  }) => apiFetch<{ status: 'approved'; user: User }>('/kyc/lineup/quick-signup', { body: payload }),
+  /** 2 files, in order: id document, selfie. */
+  submitLineupVerification: (docs: File[]) => {
+    const form = new FormData();
+    docs.forEach((f) => form.append('documents', f));
+    return apiUpload<{ id: string; status: string }>('/kyc/lineup/verification', form);
+  },
+  /** 2 files: license, address proof — tagged via payload.docLabels in the
+   * same order they're attached. Venue's own signup no longer takes any
+   * documents at all — see venuePartner.onboard below. */
+  submitVenueVerification: (
+    payload: {
+      contactName: string; contactPhone: string; contactEmail: string;
+      contactRole: 'Owner' | 'Manager' | 'Accountant' | 'Other'; contactRoleOther?: string;
+      docLabels: string[];
+    },
+    docs: File[],
+  ) => {
+    const form = new FormData();
+    form.append('payload', JSON.stringify(payload));
+    docs.forEach((f) => form.append('documents', f));
+    return apiUpload<{ id: string; status: string }>('/kyc/venue/verification', form);
+  },
 };
 
 /** Captures an incomplete role application as a draft Lead (Admin > Leads),
@@ -667,16 +705,7 @@ export const venuePartner = {
     form.append('file', file);
     return apiUpload<{ url: string }>('/venue/upload', form);
   },
-  onboard: (
-    v: Partial<Venue> & {
-      licenseDoc?: string;
-      addressProofDoc?: string;
-      utmSource?: string;
-      utmMedium?: string;
-      utmCampaign?: string;
-      referrerHost?: string;
-    },
-  ) => apiFetch<Venue>('/venue/onboard', { body: v }),
+  onboard: (v: Partial<Venue>) => apiFetch<Venue>('/venue/onboard', { body: v }),
   myListing: () => apiFetch<Venue & { favourites: number }>('/venue/listing'),
   updateListing: (patch: Partial<Venue>) => apiFetch<Venue>('/venue/listing', { method: 'PATCH', body: patch }),
   events: () => apiFetch<Event[]>('/venue/events'),

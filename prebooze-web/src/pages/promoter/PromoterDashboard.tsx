@@ -50,7 +50,11 @@ export default function PromoterDashboard() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 18, flexWrap: 'wrap', gap: 8 }}>
         <h1 style={{ fontSize: 24 }}>Hey, {me.name} 📣</h1>
-        <span className="badge badge-ok">Verified ✓</span>
+        {me.verified ? (
+          <span className="badge badge-ok">Verified ✓</span>
+        ) : (
+          <Link to="/promoter/settings/verification" className="btn btn-pri btn-sm">Complete verification →</Link>
+        )}
       </div>
 
       <div className="kpis" style={{ marginBottom: 12 }}>

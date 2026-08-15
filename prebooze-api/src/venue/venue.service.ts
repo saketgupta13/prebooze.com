@@ -23,21 +23,11 @@ interface OnboardInput {
   amenities?: string[];
   timings?: string;
   about?: string;
-  licenseDoc?: string;
-  addressProofDoc?: string;
   galleryUrls?: string[];
   logoUrl?: string;
   contactPerson?: string;
   contactPersonPhone?: string;
   socialLinks?: { instagram?: string; facebook?: string; other?: string[] };
-  // First-touch marketing attribution (see prebooze-web's lib/track.ts) —
-  // stored on the KycSubmission payload only, purely so a reviewer in
-  // Admin > Verifications can see where the lead came from; never touches
-  // the real Venue catalog row.
-  utmSource?: string;
-  utmMedium?: string;
-  utmCampaign?: string;
-  referrerHost?: string;
 }
 
 interface HostedTierInput {
@@ -138,15 +128,15 @@ export class VenueService {
     return candidate;
   }
 
-  /** Same guard rules as KycService.submitRole (one number one role, one
-   * pending application at a time) — duplicated rather than shared because
-   * this endpoint's contract takes document *references* as plain JSON
-   * strings (prebooze-web/src/api/index.ts: `licenseDoc?: string`), not
-   * multipart file uploads like /kyc/role, so it can't reuse that method's
-   * Multer-shaped signature. Unlike organizer/promoter onboarding, the
-   * Venue catalog row is created here immediately (unverified) — it shows
-   * up in the directory and is pickable by organizers right away; only the
-   * verified badge waits on admin approval (see KycService.approve). */
+  /** Self-serve venue signup, minimal — same shape as
+   * KycService.quickSignupOrganizer: listing details only, no documents, no
+   * admin review. The Venue catalog row is created immediately (unverified)
+   * — it shows up in the directory and is pickable by organizers right
+   * away, and `role`/`roleStatus` are approved in the same transaction, so
+   * a venue owner can start using their console the moment they submit
+   * this. `verified` now means only "identity verification passed"
+   * (KycService.submitVenueVerification), same decoupling as organizer —
+   * entirely separate from being live/usable. */
   async onboard(userId: string, input: OnboardInput) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new BadRequestException();
@@ -160,9 +150,6 @@ export class VenueService {
     if (!input.name?.trim() || !input.city?.trim() || !input.address?.trim() || !(Number(input.capacity) > 0) || !input.about?.trim()) {
       throw new BadRequestException('name, city, address, capacity and about are required');
     }
-    if (!input.licenseDoc || !input.addressProofDoc) {
-      throw new BadRequestException('Operating license and address proof are both required');
-    }
 
     const id = await this.uniqueId(
       input.name
@@ -174,55 +161,35 @@ export class VenueService {
     let h = 0;
     for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
 
-    const venue = await this.prisma.venue.create({
-      data: {
-        id,
-        name: input.name.trim(),
-        verified: false,
-        type: input.type ?? '',
-        city: input.city.trim(),
-        state: input.state?.trim(),
-        country: input.country?.trim(),
-        pincode: input.pincode?.trim(),
-        address: input.address.trim(),
-        capacity: Number(input.capacity),
-        amenities: input.amenities ?? [],
-        about: input.about.trim(),
-        timings: input.timings,
-        photoHue: h,
-        logoUrl: input.logoUrl,
-        contactPerson: input.contactPerson?.trim(),
-        contactPersonPhone: input.contactPersonPhone?.trim(),
-        socialLinks: input.socialLinks as Prisma.InputJsonValue,
-        userId,
-      },
-    });
+    const venueData = {
+      id,
+      name: input.name.trim(),
+      verified: false,
+      type: input.type ?? '',
+      city: input.city.trim(),
+      state: input.state?.trim(),
+      country: input.country?.trim(),
+      pincode: input.pincode?.trim(),
+      address: input.address.trim(),
+      capacity: Number(input.capacity),
+      amenities: input.amenities ?? [],
+      about: input.about.trim(),
+      timings: input.timings,
+      photoHue: h,
+      logoUrl: input.logoUrl,
+      contactPerson: input.contactPerson?.trim(),
+      contactPersonPhone: input.contactPersonPhone?.trim(),
+      socialLinks: input.socialLinks as Prisma.InputJsonValue,
+      userId,
+    };
 
-    // Full submitted form, not just {venueId, name, city} — admin's
-    // Verification detail screen renders every payload key generically
-    // (VerificationDetail.tsx: Object.entries(app.payload)), so a venue
-    // application used to show almost nothing there while organizer/
-    // promoter/lineup applications already showed everything they
-    // submitted. licenseDoc/addressProofDoc are excluded — those are
-    // already shown as real document images in the Documents section below.
-    await this.prisma.kycSubmission.create({
-      data: {
-        userId,
-        kind: 'venue',
-        status: 'pending',
-        payload: {
-          venueId: id, name: venue.name, type: venue.type, city: venue.city, address: venue.address,
-          capacity: venue.capacity, amenities: venue.amenities, timings: venue.timings, about: venue.about,
-          utmSource: input.utmSource, utmMedium: input.utmMedium, utmCampaign: input.utmCampaign, referrerHost: input.referrerHost,
-        } as Prisma.InputJsonValue,
-        documents: [
-          { type: 'license', path: input.licenseDoc },
-          { type: 'address_proof', path: input.addressProofDoc },
-        ] as unknown as Prisma.InputJsonValue,
-      },
-    });
-
-    await this.prisma.user.update({ where: { id: userId }, data: { venueName: venue.name, venueLogoUrl: venue.logoUrl, venueId: id, roleStatus: 'pending' } });
+    const [venue] = await this.prisma.$transaction([
+      this.prisma.venue.create({ data: venueData }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { venueName: venueData.name, venueLogoUrl: venueData.logoUrl, venueId: id, role: 'venue', roleStatus: 'approved' },
+      }),
+    ]);
 
     // Server-side mirror of the browser Pixel's Lead event (see
     // VenueOnboarding.tsx's trackMeta call) — same `${phone}_venue`
@@ -232,6 +199,7 @@ export class VenueService {
       .sendEvent('Lead', `${user.phone}_venue`, 'https://prebooze.com/venue/onboarding', { phone: user.phone, email: user.email }, { content_name: 'venue_onboarding' })
       .catch(() => {});
     this.leads.resolveDraft(user.phone, 'venue').catch(() => {});
+    await this.notifications.notify('🏛', `${venue.name} signed up as a new venue`, '/venues').catch(() => {});
 
     return venue;
   }

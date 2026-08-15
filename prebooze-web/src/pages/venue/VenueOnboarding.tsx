@@ -8,14 +8,11 @@ import { existingRole } from '../../lib/roles';
 import { notify } from '../../lib/notify';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
 import WysiwygEditor from '../../components/WysiwygEditor';
-import { FileDropBox } from '../../components/FileDropBox';
 import { RealUploadBox } from '../../components/RealUploadBox';
-import { dataUrlToFile } from '../../lib/fileUtils';
 import { auth, venuePartner, catalog } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
-import { attributionForPayload } from '../../lib/track';
 import { useDraftLead } from '../../lib/useDraftLead';
 
 // Offline/dev-mode fallback only — the real, admin-managed list (Admin >
@@ -44,12 +41,16 @@ const emptyDraft: Draft = {
   amenities: [], timings: '', about: '',
 };
 
-/** Venue-partner onboarding — same 2-step pattern as other roles:
- * listing details → license & documents, then Pending admin review. */
+/** Venue-partner onboarding — self-serve, minimal, single-step, same
+ * pattern as organizer's Onboarding.tsx: listing details only, no
+ * documents, no admin review — the venue is live and pickable by
+ * organizers the moment this is submitted. Identity verification (license
+ * + address proof) moved entirely to a separate, optional, self-serve step
+ * — see VenueVerification.tsx, reachable from venue Settings whenever
+ * ready, never blocking anything here. */
 export default function VenueOnboarding() {
   const { user, submitRoleApplication, addMyVenue, updateUser } = useApp();
   const navigate = useNavigate();
-  const [step, setStep] = useState<1 | 2>(1);
 
   const draft0 = loadDraft(DRAFT_ID, emptyDraft);
   const [name, setName] = useState(draft0.name);
@@ -73,8 +74,6 @@ export default function VenueOnboarding() {
   }, []);
   const VENUE_TYPES = venueTypeOptions ?? (isBackendEnabled() ? [] : VENUE_TYPES_FALLBACK);
 
-  const [license, setLicense] = useState('');
-  const [addressProof, setAddressProof] = useState('');
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState('');
@@ -94,8 +93,8 @@ export default function VenueOnboarding() {
   if (otherRole && otherRole !== 'venue') return <RoleTaken has={otherRole} />;
   if (user.isVenue && !done) return <Navigate to="/venue" replace />;
 
-  const step1Valid = name.trim() && vtypes.length > 0 && loc.city && address.trim() && Number(capacity) > 0 && about.trim();
-  const pct = done ? 100 : step === 1 ? 50 : 90;
+  const valid = name.trim() && vtypes.length > 0 && loc.city && address.trim() && Number(capacity) > 0 && about.trim();
+  const pct = done ? 100 : 80;
 
   const toggleAmenity = (a: string) =>
     setAmenities((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
@@ -134,22 +133,13 @@ export default function VenueOnboarding() {
     setErr('');
     setSubmitting(true);
     try {
-      const [licenseFile, addressProofFile] = await Promise.all([
-        dataUrlToFile(license, 'license.jpg'),
-        dataUrlToFile(addressProof, 'address-proof.jpg'),
-      ]);
-      const [{ url: licenseUrl }, { url: addressProofUrl }] = await Promise.all([
-        venuePartner.upload(licenseFile),
-        venuePartner.upload(addressProofFile),
-      ]);
       await venuePartner.onboard({
         name: name.trim(), type: vtypes.join(', '), city: loc.city, state: loc.state || undefined, country: loc.country || undefined, pincode: loc.pincode || undefined, address: address.trim(),
         capacity: Number(capacity), amenities, timings: timings.trim() || undefined, about: about.trim(),
-        licenseDoc: licenseUrl, addressProofDoc: addressProofUrl, logoUrl: logoUrl || undefined,
+        logoUrl: logoUrl || undefined,
         contactPerson: contactPerson.trim() || undefined,
         contactPersonPhone: contactPersonPhone.trim() || undefined,
         socialLinks: (instagram.trim() || facebook.trim()) ? { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined } : undefined,
-        ...attributionForPayload(),
       });
       // onboard() only returns the new Venue row — refetch /me for the
       // authoritative roleStatus/venueId the layout gate needs.
@@ -174,13 +164,14 @@ export default function VenueOnboarding() {
           <div className="confirm-tick">✓</div>
           <h1 style={{ fontSize: 26 }}>Your venue is on Prebooze! 🏛</h1>
           <p className="muted" style={{ margin: '8px 0 22px' }}>
-            <b style={{ color: 'var(--text)' }}>{name}</b> is submitted for review. Once approved it gets the
-            verified badge, appears in the {loc.city} venue directory, and organizers can pick it while creating events.
+            <b style={{ color: 'var(--text)' }}>{name}</b> is live right now — it's in the {loc.city} venue
+            directory and organizers can already pick it while creating events. Add the verified{' '}
+            <span className="verified">✓</span> badge whenever you're ready, from Settings.
           </p>
           <div className="card" style={{ textAlign: 'left', marginBottom: 18 }}>
             <div className="kv"><span className="k">Listing</span><span>{name} · {vtypes.join(', ')} · {loc.city}</span></div>
             <div className="kv"><span className="k">Capacity</span><span>{capacity} guests</span></div>
-            <div className="kv"><span className="k">Status</span><span className="badge badge-pending">Pending review ◌ · ~24h</span></div>
+            <div className="kv"><span className="k">Status</span><span className="badge badge-ok">Live ✓</span></div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/venue" className="btn btn-pri">Go to my venue dashboard →</Link>
@@ -195,8 +186,7 @@ export default function VenueOnboarding() {
     <main className="page">
       <div className="container" style={{ maxWidth: 640 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <h1 style={{ fontSize: 24 }}>{step === 1 ? 'List your venue' : 'License & documents'}</h1>
-          <span className="muted small bold">step {step} of 2</span>
+          <h1 style={{ fontSize: 24 }}>List your venue</h1>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 0 22px' }}>
           <div className="progress" style={{ flex: 1 }}>
@@ -205,13 +195,12 @@ export default function VenueOnboarding() {
           <span className="small muted bold">{pct}%</span>
         </div>
 
-        {step === 1 ? (
-          <form
-            className="card"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (step1Valid) setStep(2);
-            }}
+        <form
+          className="card"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (valid) submit();
+          }}
           >
             <div className="field">
               <span>Venue name</span>
@@ -278,41 +267,19 @@ export default function VenueOnboarding() {
                 <input value={facebook} onChange={(e) => setFacebook(e.target.value)} placeholder="facebook.com/yourvenue" />
               </div>
             </div>
+            {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>
                 ← Back
               </button>
-              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!step1Valid}>
-                Save & continue → documents
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div>
-            <p className="muted small" style={{ marginBottom: 16 }}>
-              Verified venues get the <span className="verified">✓</span> badge, rank in the city directory and
-              can be picked by organizers. Documents are reviewed by the Prebooze team.
-            </p>
-            <div className="card" style={{ marginBottom: 16 }}>
-              <h3 style={{ marginBottom: 12 }}>1 · Operating license</h3>
-              <FileDropBox value={license} onChange={setLicense} label="⬆ upload bar / entertainment operating license" doneLabel="✓ License uploaded — click to replace" />
-            </div>
-            <div className="card" style={{ marginBottom: 16 }}>
-              <h3 style={{ marginBottom: 12 }}>2 · Address proof</h3>
-              <FileDropBox value={addressProof} onChange={setAddressProof} label="⬆ upload utility bill / lease / registration" doneLabel="✓ Address proof uploaded — click to replace" />
-            </div>
-            {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>
-              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!license || !addressProof || submitting} onClick={submit}>
-                {submitting ? 'Submitting…' : 'Submit for review 🏛'}
+              <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!valid || submitting}>
+                {submitting ? 'Setting up…' : 'List my venue →'}
               </button>
             </div>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-              🔒 encrypted · reviewed by admin · usually approved within 24h
+              live immediately · add the verified badge later from Settings, whenever you're ready
             </div>
-          </div>
-        )}
+        </form>
       </div>
     </main>
   );

@@ -116,9 +116,13 @@ export default function PromoterSettings() {
       </div>
 
       <div className="card" style={{ maxWidth: 520, marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
           <h3>Promoter profile</h3>
-          {me.verified ? <span className="badge badge-ok">Verified ✓</span> : <span className="badge badge-pending">Pending review</span>}
+          {me.verified ? (
+            <span className="badge badge-ok">Verified ✓</span>
+          ) : (
+            <Link to="/promoter/settings/verification" className="btn btn-pri btn-sm">Complete verification →</Link>
+          )}
         </div>
         {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
         <div className="tiny muted-2" style={{ marginBottom: 12 }}>Promoting since {fmtDate(me.createdAt)}</div>

@@ -11,7 +11,6 @@ import { kyc, lineup as lineupApi } from '../api';
 import { isBackendEnabled, ApiError } from '../api/client';
 import { pushEvent } from '../lib/gtm';
 import { trackMeta } from '../lib/meta';
-import { attributionForPayload } from '../lib/track';
 import { useDraftLead } from '../lib/useDraftLead';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
@@ -20,15 +19,17 @@ const DRAFT_ID = 'lineup';
 // RealUploadBox below), so it round-trips through the backend, not
 // localStorage, the same reasoning organizer/Onboarding.tsx's draft gives
 // for excluding logo/aadhaar/selfie.
-type Draft = { stageName: string; username: string; category: string; loc: LocationValue; bio: string; links: string[] };
-const emptyDraft: Draft = { stageName: '', username: '', category: 'DJ', loc: emptyLocation(), bio: '', links: [''] };
+type Draft = { stageName: string; category: string; loc: LocationValue; bio: string; links: string[] };
+const emptyDraft: Draft = { stageName: '', category: 'DJ', loc: emptyLocation(), bio: '', links: [''] };
 
-/** Line-up onboarding — single-step submission straight to manual admin
- * review. No ID-doc/selfie step: unlike organizer/promoter/venue, line-ups
- * never touch payouts (no bank fields on the Lineup model at all), so the
- * guest-style identity-verification step that used to live here as step 2
- * didn't apply and has been removed — a stage profile is all a reviewer
- * needs to approve a directory listing. */
+/** Line-up onboarding — self-serve, minimal, single-step, same pattern as
+ * organizer's Onboarding.tsx: a stage profile is live and bookable the
+ * moment this is submitted, no admin review. Username is auto-derived from
+ * the stage name server-side (KycService.quickSignupLineup), not typed
+ * here. Identity verification is now available as a separate, optional,
+ * self-serve step too (LineupVerification.tsx, from lineup Settings) — a
+ * genuinely new capability, since line-ups never touch payouts and never
+ * had one before; it's purely a badge, same as every other role's. */
 export default function LineupOnboarding() {
   const { user, submitRoleApplication, updateUser } = useApp();
   const navigate = useNavigate();
@@ -38,7 +39,6 @@ export default function LineupOnboarding() {
   const draft0 = loadDraft(DRAFT_ID, emptyDraft);
   const [logoUrl, setLogoUrl] = useState('');
   const [stageName, setStageName] = useState(draft0.stageName);
-  const [username, setUsername] = useState(user?.lineupUsername || draft0.username);
   const [category, setCategory] = useState(draft0.category);
   const [loc, setLoc] = useState(draft0.loc);
   const [bio, setBio] = useState(draft0.bio);
@@ -46,8 +46,8 @@ export default function LineupOnboarding() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    saveDraft(DRAFT_ID, { stageName, username, category, loc, bio, links });
-  }, [stageName, username, category, loc, bio, links]);
+    saveDraft(DRAFT_ID, { stageName, category, loc, bio, links });
+  }, [stageName, category, loc, bio, links]);
 
   useDraftLead('lineup', stageName, { city: loc.city, eventType: category });
 
@@ -60,12 +60,12 @@ export default function LineupOnboarding() {
   const otherRole = existingRole(user);
   if (otherRole && otherRole !== 'lineup') return <RoleTaken has={otherRole} />;
 
-  const step1Valid = stageName.trim() && username.trim() && bio.trim();
-  const pct = done ? 100 : 70;
+  const step1Valid = stageName.trim() && bio.trim();
+  const pct = done ? 100 : 80;
 
   const submit = async () => {
     if (!isBackendEnabled()) {
-      const slug = username.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const slug = stageName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       submitRoleApplication('lineup', { lineupName: stageName.trim(), lineupCategory: category, lineupUsername: slug, city: loc.city });
       clearDraft(DRAFT_ID);
       setDone(true);
@@ -74,16 +74,14 @@ export default function LineupOnboarding() {
     setErr('');
     setSubmitting(true);
     try {
-      const payload = {
-        name: stageName.trim(), category, username: username.trim(),
+      const res = await kyc.quickSignupLineup({
+        name: stageName.trim(), category,
         city: loc.city, state: loc.state, country: loc.country, pincode: loc.pincode,
         bio, links: links.map((l) => l.trim()).filter(Boolean), logoUrl: logoUrl || undefined,
-        ...attributionForPayload(),
-      };
-      const res = await kyc.submitRole('lineup', payload, []);
-      updateUser({ ...res.user, pendingRole: 'lineup' });
+      });
+      updateUser(res.user);
       pushEvent('lineup_onboarding_submitted');
-      // eventId must match kyc.service.ts's submitRole server-side call.
+      // eventId must match kyc.service.ts's quickSignupLineup server-side call.
       trackMeta('Lead', { content_name: 'lineup_onboarding' }, `${user?.phone}_lineup`);
       clearDraft(DRAFT_ID);
       setDone(true);
@@ -101,14 +99,13 @@ export default function LineupOnboarding() {
           <div className="confirm-tick">✓</div>
           <h1 style={{ fontSize: 26 }}>You're on the roster! 🎤</h1>
           <p className="muted" style={{ margin: '8px 0 22px' }}>
-            <b style={{ color: 'var(--text)' }}>{stageName}</b> ({category}) is submitted for review.
-            Once approved, your profile goes live, organizers can add you to line-ups, and guests can
-            follow you.
+            <b style={{ color: 'var(--text)' }}>{stageName}</b> ({category}) is live right now — organizers can
+            already add you to line-ups, and guests can follow you. Add the verified{' '}
+            <span className="verified">✓</span> badge whenever you're ready, from Settings.
           </p>
           <div className="card" style={{ textAlign: 'left', marginBottom: 18 }}>
             <div className="kv"><span className="k">Profile</span><span>{stageName} · {category} · {loc.city}</span></div>
-            <div className="kv"><span className="k">Status</span><span className="badge badge-pending">Pending review ◌ · ~24h</span></div>
-            <div className="kv"><span className="k">Next</span><span>we WhatsApp you when you're live</span></div>
+            <div className="kv"><span className="k">Status</span><span className="badge badge-ok">Live ✓</span></div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/lineup/dj-nova" className="btn btn-ghost">See an example profile</Link>
@@ -154,10 +151,6 @@ export default function LineupOnboarding() {
             <input value={stageName} onChange={(e) => setStageName(e.target.value)} placeholder="e.g. DJ Nova" autoFocus />
           </div>
           <div className="field">
-            <span>Username</span>
-            <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. dj-nova — your profile URL" />
-          </div>
-          <div className="field">
             <span>Line-up category</span>
             <div className="chip-row">
               {CATEGORIES.map((c) => (
@@ -194,11 +187,11 @@ export default function LineupOnboarding() {
               ← Back
             </button>
             <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!step1Valid || submitting}>
-              {submitting ? 'Submitting…' : 'Submit for review 🎤'}
+              {submitting ? 'Setting up…' : 'Join the roster →'}
             </button>
           </div>
           <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-            🔒 reviewed by admin · usually approved within 24h
+            live immediately · add the verified badge later from Settings, whenever you're ready
           </div>
         </form>
       </div>

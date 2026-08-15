@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import WysiwygEditor from '../../components/WysiwygEditor';
 import { RealUploadBox } from '../../components/RealUploadBox';
@@ -24,6 +25,7 @@ export default function LineupSettings() {
   });
   const [links, setLinks] = useState<string[]>(['']);
   const [loc, setLoc] = useState<LocationValue>(emptyLocation());
+  const [verified, setVerified] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -43,6 +45,7 @@ export default function LineupSettings() {
         setForm({ lineupName: l.name, lineupCategory: l.category, username: l.slug, bio: l.bio });
         setLinks(l.links.length ? l.links : ['']);
         setLoc({ city: l.city, state: l.state ?? '', country: l.country ?? 'India', pincode: l.pincode ?? '' });
+        setVerified(l.verified);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -79,6 +82,22 @@ export default function LineupSettings() {
       <div style={{ marginBottom: 16 }}>
         <ChangePhoneNumber />
       </div>
+
+      {!loading && (
+        <div className="evrow" style={{ flexWrap: 'wrap', marginBottom: 16 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="bold small">
+              Verification
+              {verified && <span className="verified" style={{ marginLeft: 6 }}>✓</span>}
+            </div>
+            <div className="tiny muted">
+              {verified ? 'Your identity is verified' : "ID + selfie — a one-time verified badge, doesn't affect your profile being live"}
+            </div>
+          </div>
+          {!verified && <Link to="/artist/profile/verification" className="btn btn-pri btn-sm">Complete verification →</Link>}
+        </div>
+      )}
+
       {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
       <form className="card" onSubmit={save}>
         <RealUploadBox

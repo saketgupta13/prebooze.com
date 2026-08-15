@@ -72,6 +72,79 @@ export class KycController {
     return this.kyc.submitOrganizerVerification(req.user.sub, payload, documents ?? []);
   }
 
+  /** Self-serve promoter signup, minimal — no documents, no review.
+   * Username is auto-derived from the brand name (see KycService.
+   * quickSignupPromoter), not taken here. */
+  @Post('promoter/quick-signup')
+  @UseGuards(JwtAuthGuard)
+  quickSignupPromoter(
+    @Req() req: { user: { sub: string } },
+    @Body()
+    body: {
+      brand?: string;
+      city?: string; state?: string; country?: string; pincode?: string;
+      bio?: string; links?: string; audience?: string;
+    },
+  ) {
+    return this.kyc.quickSignupPromoter(req.user.sub, body);
+  }
+
+  /** Self-serve promoter identity verification, submitted whenever ready —
+   * 2 files: id document + selfie, in that order. */
+  @Post('promoter/verification')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('documents', 2))
+  submitPromoterVerification(
+    @Req() req: { user: { sub: string } },
+    @UploadedFiles() documents: Express.Multer.File[],
+  ) {
+    return this.kyc.submitPromoterVerification(req.user.sub, documents ?? []);
+  }
+
+  /** Self-serve line-up signup, minimal — no documents, no review. Username
+   * is auto-derived from the stage name (see KycService.quickSignupLineup). */
+  @Post('lineup/quick-signup')
+  @UseGuards(JwtAuthGuard)
+  quickSignupLineup(
+    @Req() req: { user: { sub: string } },
+    @Body()
+    body: {
+      name?: string; category?: string;
+      city?: string; state?: string; country?: string; pincode?: string;
+      bio?: string; links?: string[]; logoUrl?: string;
+    },
+  ) {
+    return this.kyc.quickSignupLineup(req.user.sub, body);
+  }
+
+  /** Self-serve line-up identity verification, submitted whenever ready —
+   * 2 files: id document + selfie, in that order. */
+  @Post('lineup/verification')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('documents', 2))
+  submitLineupVerification(
+    @Req() req: { user: { sub: string } },
+    @UploadedFiles() documents: Express.Multer.File[],
+  ) {
+    return this.kyc.submitLineupVerification(req.user.sub, documents ?? []);
+  }
+
+  /** Self-serve venue identity verification, submitted whenever ready — 2
+   * files: license + address proof, tagged via payload.docLabels in the
+   * same order they're attached. Venue's own signup (POST /venue/onboard)
+   * no longer collects any documents at all — see VenueService.onboard. */
+  @Post('venue/verification')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('documents', 2))
+  submitVenueVerification(
+    @Req() req: { user: { sub: string } },
+    @Body('payload') payloadRaw: string,
+    @UploadedFiles() documents: Express.Multer.File[],
+  ) {
+    const payload = payloadRaw ? JSON.parse(payloadRaw) : {};
+    return this.kyc.submitVenueVerification(req.user.sub, payload, documents ?? []);
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   me(@Req() req: { user: { sub: string } }) {

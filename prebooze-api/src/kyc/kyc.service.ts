@@ -259,6 +259,245 @@ export class KycService {
     return submission;
   }
 
+  /** Self-serve promoter signup, minimal — same shape as
+   * quickSignupOrganizer: brand/location/bio only, no admin review, no
+   * documents. Creates the live Promoter row immediately (unverified) and
+   * approves the role right away — a promoter can start capturing guests
+   * the moment they submit this. `verified` now means only "identity
+   * verification passed" (submitPromoterVerification below), same
+   * decoupling as organizer. */
+  async quickSignupPromoter(
+    userId: string,
+    payload: {
+      brand?: string;
+      city?: string; state?: string; country?: string; pincode?: string;
+      bio?: string; links?: string; audience?: string;
+    },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException();
+    if (user.role) {
+      throw new BadRequestException(
+        user.role === 'promoter' ? "You're already an approved promoter" : 'This number already holds a role — one number, one role',
+      );
+    }
+    if (user.roleStatus === 'pending') throw new BadRequestException('Your application is already under review');
+    if (!payload.brand?.trim()) throw new BadRequestException('Brand name is required');
+    if (!payload.city?.trim()) throw new BadRequestException('City is required');
+    if (!payload.bio?.trim()) throw new BadRequestException('A short bio is required');
+
+    const row = await this.newPromoterRow(user, payload, false);
+    await this.prisma.$transaction([
+      this.prisma.promoter.create({ data: row }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { role: 'promoter', roleStatus: 'approved', promoterBrand: row.name, promoterUsername: row.slug },
+      }),
+    ]);
+
+    this.meta
+      .sendEvent('Lead', `${user.phone}_promoter`, 'https://prebooze.com/promoter/onboarding', { phone: user.phone, email: user.email }, { content_name: 'promoter_onboarding' })
+      .catch(() => {});
+    this.leads.resolveDraft(user.phone, 'promoter').catch(() => {});
+    await this.notifications.notify('📣', `${row.name} signed up as a new promoter`, '/promoters').catch(() => {});
+
+    const updated = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    return { status: 'approved', user: toApiUser(updated) };
+  }
+
+  /** Self-serve promoter identity verification — badge-only, same guest-
+   * style ID + selfie check as organizer's individual path, minus the
+   * individual/firm split (a promoter applying is always one person). Never
+   * blocks anything else — payouts already ride on Promoter.bankAccount*
+   * fields (self-serve, Settings), entirely separate from this. */
+  async submitPromoterVerification(userId: string, files: Express.Multer.File[]) {
+    const promoter = await this.prisma.promoter.findUnique({ where: { userId } });
+    if (!promoter) throw new BadRequestException('Complete your promoter signup first');
+    if (promoter.verified) throw new BadRequestException("You're already verified");
+    const alreadyPending = await this.prisma.kycSubmission.findFirst({ where: { userId, kind: 'promoter', status: 'pending' } });
+    if (alreadyPending) throw new BadRequestException('Your verification is already under review');
+
+    const documents = await Promise.all(files.map(async (f, i) => ({
+      type: i === 0 ? 'id_doc' : 'selfie',
+      path: await this.storage.save(f),
+    })));
+    const types = new Set(documents.map((d) => d.type));
+    const missing = ['id_doc', 'selfie'].filter((t) => !types.has(t));
+    if (missing.length) throw new BadRequestException(`Missing required document(s): ${missing.join(', ')}`);
+
+    const submission = await this.prisma.kycSubmission.create({
+      data: {
+        userId,
+        kind: 'promoter',
+        status: 'pending',
+        payload: { verificationUpgrade: true } as Prisma.InputJsonValue,
+        documents: documents as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    await this.notifications.notify('🛡', `${promoter.name} submitted verification details for review`, '/admin/kyc').catch(() => {});
+    await this.staffAlerts.alert(`🛡 ${promoter.name} submitted verification details for review`).catch(() => {});
+    if (user) await this.email.sendTemplate(user.email, 'kyc_pending', { name: user.name, roleLabel: 'promoter' }).catch(() => {});
+    return submission;
+  }
+
+  /** Self-serve line-up signup, minimal — same shape as quickSignupOrganizer/
+   * quickSignupPromoter. Creates the live Lineup row immediately (unverified)
+   * and approves the role right away — a stage profile is visible and
+   * bookable the moment this is submitted. Logo is uploaded separately via
+   * RealUploadBox at the same LineupOnboarding.tsx step (lineup.upload has
+   * no ownership gate, so it already works pre-row same as venue's). */
+  async quickSignupLineup(
+    userId: string,
+    payload: {
+      name?: string; category?: string;
+      city?: string; state?: string; country?: string; pincode?: string;
+      bio?: string; links?: string[]; logoUrl?: string;
+    },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException();
+    if (user.role) {
+      throw new BadRequestException(
+        user.role === 'lineup' ? "You're already an approved line-up" : 'This number already holds a role — one number, one role',
+      );
+    }
+    if (user.roleStatus === 'pending') throw new BadRequestException('Your application is already under review');
+    if (!payload.name?.trim()) throw new BadRequestException('Stage / brand name is required');
+    if (!payload.city?.trim()) throw new BadRequestException('City is required');
+    if (!payload.bio?.trim()) throw new BadRequestException('A short bio is required');
+
+    // newLineupRow reads city/bio/links/logoUrl off the *user* object as a
+    // fallback (older-shaped payload support), so mirror the submitted
+    // fields onto User first — same order quickSignupOrganizer's row-then-
+    // user-update transaction implies but lineup needs explicit since
+    // newLineupRow's fallback path reads user.lineupName/lineupCategory/etc,
+    // not this payload's raw brand/category directly.
+    const userForRow = {
+      ...user,
+      lineupName: payload.name.trim(),
+      lineupCategory: payload.category || user.lineupCategory,
+      lineupLogoUrl: payload.logoUrl ?? user.lineupLogoUrl,
+      bio: payload.bio.trim(),
+    };
+    const row = await this.newLineupRow(userForRow, { ...payload, links: payload.links ?? [] }, false);
+    await this.prisma.$transaction([
+      this.prisma.lineup.create({ data: row }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { role: 'lineup', roleStatus: 'approved', lineupName: row.name, lineupCategory: row.category, lineupUsername: row.slug, lineupLogoUrl: row.logoUrl },
+      }),
+    ]);
+
+    this.meta
+      .sendEvent('Lead', `${user.phone}_lineup`, 'https://prebooze.com/lineup/onboarding', { phone: user.phone, email: user.email }, { content_name: 'lineup_onboarding' })
+      .catch(() => {});
+    this.leads.resolveDraft(user.phone, 'lineup').catch(() => {});
+    await this.notifications.notify('🎤', `${row.name} signed up as a new line-up`, '/lineups').catch(() => {});
+
+    const updated = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    return { status: 'approved', user: toApiUser(updated) };
+  }
+
+  /** Self-serve line-up identity verification — genuinely new capability
+   * (line-ups never had one before, since they don't touch payouts). Same
+   * guest-style ID + selfie check as promoter's, purely a badge — never
+   * blocks booking or profile visibility. */
+  async submitLineupVerification(userId: string, files: Express.Multer.File[]) {
+    const lineup = await this.prisma.lineup.findUnique({ where: { userId } });
+    if (!lineup) throw new BadRequestException('Complete your line-up signup first');
+    if (lineup.verified) throw new BadRequestException("You're already verified");
+    const alreadyPending = await this.prisma.kycSubmission.findFirst({ where: { userId, kind: 'lineup', status: 'pending' } });
+    if (alreadyPending) throw new BadRequestException('Your verification is already under review');
+
+    const documents = await Promise.all(files.map(async (f, i) => ({
+      type: i === 0 ? 'id_doc' : 'selfie',
+      path: await this.storage.save(f),
+    })));
+    const types = new Set(documents.map((d) => d.type));
+    const missing = ['id_doc', 'selfie'].filter((t) => !types.has(t));
+    if (missing.length) throw new BadRequestException(`Missing required document(s): ${missing.join(', ')}`);
+
+    const submission = await this.prisma.kycSubmission.create({
+      data: {
+        userId,
+        kind: 'lineup',
+        status: 'pending',
+        payload: { verificationUpgrade: true } as Prisma.InputJsonValue,
+        documents: documents as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    await this.notifications.notify('🛡', `${lineup.name} submitted verification details for review`, '/admin/kyc').catch(() => {});
+    await this.staffAlerts.alert(`🛡 ${lineup.name} submitted verification details for review`).catch(() => {});
+    if (user) await this.email.sendTemplate(user.email, 'kyc_pending', { name: user.name, roleLabel: 'lineup' }).catch(() => {});
+    return submission;
+  }
+
+  /** Self-serve venue identity verification — badge-only, entirely separate
+   * from the venue's onboarding (which no longer collects any documents —
+   * see VenueService.onboard). A venue is always a business, so this is a
+   * single shape (no individual/firm split like organizer's): registration/
+   * license doc + address proof, plus who's submitting it. */
+  async submitVenueVerification(
+    userId: string,
+    payload: {
+      contactName?: string; contactPhone?: string; contactEmail?: string;
+      contactRole?: 'Owner' | 'Manager' | 'Accountant' | 'Other'; contactRoleOther?: string;
+      docLabels?: string[];
+    },
+    files: Express.Multer.File[],
+  ) {
+    const venue = await this.prisma.venue.findUnique({ where: { userId } });
+    if (!venue) throw new BadRequestException('Complete your venue signup first');
+    if (venue.verified) throw new BadRequestException("You're already verified");
+    const alreadyPending = await this.prisma.kycSubmission.findFirst({ where: { userId, kind: 'venue', status: 'pending' } });
+    if (alreadyPending) throw new BadRequestException('Your verification is already under review');
+
+    if (!payload.contactName?.trim() || !payload.contactPhone?.trim() || !payload.contactEmail?.trim()) {
+      throw new BadRequestException('Contact person name, phone and email are required');
+    }
+    if (!payload.contactRole) throw new BadRequestException('Contact person role is required');
+    if (payload.contactRole === 'Other' && !payload.contactRoleOther?.trim()) {
+      throw new BadRequestException('Describe the contact person\'s role');
+    }
+
+    const documents = await Promise.all(files.map(async (f, i) => ({
+      type: payload.docLabels?.[i] ?? `doc_${i + 1}`,
+      path: await this.storage.save(f),
+    })));
+    const types = new Set(documents.map((d) => d.type));
+    const required = ['license', 'address_proof'];
+    const missing = required.filter((t) => !types.has(t));
+    if (missing.length) throw new BadRequestException(`Missing required document(s): ${missing.join(', ')}`);
+
+    const submission = await this.prisma.kycSubmission.create({
+      data: {
+        userId,
+        kind: 'venue',
+        status: 'pending',
+        payload: {
+          verificationUpgrade: true,
+          venueId: venue.id,
+          contactName: payload.contactName.trim(),
+          contactPhone: payload.contactPhone.trim(),
+          contactEmail: payload.contactEmail.trim(),
+          contactRole: payload.contactRole,
+          contactRoleOther: payload.contactRole === 'Other' ? payload.contactRoleOther!.trim() : undefined,
+        } as Prisma.InputJsonValue,
+        documents: documents as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    await this.notifications.notify('🛡', `${venue.name} submitted verification details for review`, '/admin/kyc').catch(() => {});
+    await this.staffAlerts.alert(`🛡 ${venue.name} submitted verification details for review`).catch(() => {});
+    if (user) await this.email.sendTemplate(user.email, 'kyc_pending', { name: user.name, roleLabel: 'venue' }).catch(() => {});
+    return submission;
+  }
+
   async myStatus(userId: string) {
     const submissions = await this.prisma.kycSubmission.findMany({
       where: { userId },
@@ -394,6 +633,11 @@ export class KycService {
         const row = await this.newPromoterRow(user, sub.payload as Record<string, unknown> | null);
         ops.push(this.prisma.promoter.create({ data: row }));
         ops.push(this.prisma.user.update({ where: { id: sub.userId }, data: { promoterUsername: row.slug } }));
+      } else if (existing) {
+        // Self-serve identity verification for a promoter who already exists
+        // (quickSignupPromoter already created the row, unverified) — see
+        // submitPromoterVerification, just flip the badge.
+        ops.push(this.prisma.promoter.update({ where: { id: existing.id }, data: { verified: true } }));
       }
     }
 
@@ -423,6 +667,11 @@ export class KycService {
         const row = await this.newLineupRow(user, sub.payload as Record<string, unknown> | null);
         ops.push(this.prisma.lineup.create({ data: row }));
         ops.push(this.prisma.user.update({ where: { id: sub.userId }, data: { lineupUsername: row.slug } }));
+      } else if (existing) {
+        // Self-serve identity verification for a line-up who already exists
+        // (quickSignupLineup already created the row, unverified) — see
+        // submitLineupVerification, just flip the badge.
+        ops.push(this.prisma.lineup.update({ where: { id: existing.id }, data: { verified: true } }));
       }
     }
 
@@ -446,6 +695,28 @@ export class KycService {
     return { ok: true };
   }
 
+  /** Picks a free slug-style value for a role's id/username/slug field,
+   * appending a numeric suffix on collision (e.g. two organizers both
+   * picking "nightowl" — the seeded catalog isn't reserved). Shared by every
+   * role's newXRow builder below — previously each one hand-copied the same
+   * loop despite comments on all three claiming they were already sharing
+   * one scheme; this makes that actually true, and is what newVenueRow
+   * reuses too rather than adding a fourth copy. */
+  private async uniqueSlugFor(model: 'organizer' | 'promoter' | 'lineup' | 'venue', field: 'id' | 'username' | 'slug', base: string): Promise<string> {
+    const exists = (candidate: string) => {
+      switch (model) {
+        case 'organizer': return this.prisma.organizer.findUnique({ where: { [field]: candidate } as never });
+        case 'promoter': return this.prisma.promoter.findUnique({ where: { [field]: candidate } as never });
+        case 'lineup': return this.prisma.lineup.findUnique({ where: { [field]: candidate } as never });
+        case 'venue': return this.prisma.venue.findUnique({ where: { [field]: candidate } as never });
+      }
+    };
+    let candidate = base;
+    let n = 1;
+    while (await exists(candidate)) candidate = `${base}-${++n}`;
+    return candidate;
+  }
+
   /** Picks a free slug-style id/username for a newly-approved organizer,
    * falling back to a numeric suffix on collision (e.g. two organizers both
    * picking "nightowl" at KYC time — the seeded catalog isn't reserved).
@@ -467,15 +738,6 @@ export class KycService {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '') || 'organizer';
 
-    const unique = async (field: 'id' | 'username') => {
-      let candidate = base;
-      let n = 1;
-      while (await this.prisma.organizer.findUnique({ where: { [field]: candidate } as never })) {
-        candidate = `${base}-${++n}`;
-      }
-      return candidate;
-    };
-
     let h = 0;
     for (const c of user.id) h = (h * 31 + c.charCodeAt(0)) % 360;
 
@@ -484,9 +746,9 @@ export class KycService {
     const social = payload?.socialLinks as { instagram?: string; facebook?: string; other?: string[] } | undefined;
 
     return {
-      id: await unique('id'),
+      id: await this.uniqueSlugFor('organizer', 'id', base),
       brandName: payloadBrand || user.orgBrand || user.name || 'Organizer',
-      username: await unique('username'),
+      username: await this.uniqueSlugFor('organizer', 'username', base),
       verified,
       city: str('city') || user.city || '',
       country: str('country'),
@@ -515,28 +777,12 @@ export class KycService {
   private async newPromoterRow(
     user: { id: string; promoterBrand: string | null; promoterUsername: string | null; name: string; city: string },
     payload: Record<string, unknown> | null,
+    verified = true,
   ) {
     const base = (user.promoterUsername || user.promoterBrand || user.name || 'promoter')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '') || 'promoter';
-
-    const uniqueSlug = async () => {
-      let candidate = base;
-      let n = 1;
-      while (await this.prisma.promoter.findUnique({ where: { slug: candidate } })) {
-        candidate = `${base}-${++n}`;
-      }
-      return candidate;
-    };
-    const uniqueId = async () => {
-      let candidate = 'pr-' + base;
-      let n = 1;
-      while (await this.prisma.promoter.findUnique({ where: { id: candidate } })) {
-        candidate = `pr-${base}-${++n}`;
-      }
-      return candidate;
-    };
 
     const str = (k: string) => (typeof payload?.[k] === 'string' ? (payload[k] as string).trim() : '') || undefined;
     const links = (typeof payload?.links === 'string' ? (payload.links as string).split(',') : Array.isArray(payload?.links) ? (payload!.links as string[]) : [])
@@ -544,10 +790,10 @@ export class KycService {
       .filter(Boolean);
 
     return {
-      id: await uniqueId(),
-      slug: await uniqueSlug(),
+      id: await this.uniqueSlugFor('promoter', 'id', 'pr-' + base),
+      slug: await this.uniqueSlugFor('promoter', 'slug', base),
       name: user.promoterBrand || user.name || 'Promoter',
-      verified: true, // this row is only ever created at the moment KYC is approved
+      verified, // quickSignupPromoter passes false; approve() (old submitRole path) still defaults true
       city: str('city') || user.city || '',
       country: str('country'),
       state: str('state'),
@@ -578,28 +824,12 @@ export class KycService {
       bio: string;
     },
     payload: Record<string, unknown> | null,
+    verified = true,
   ) {
     const base = (user.lineupUsername || user.lineupName || user.name || 'lineup')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '') || 'lineup';
-
-    const uniqueSlug = async () => {
-      let candidate = base;
-      let n = 1;
-      while (await this.prisma.lineup.findUnique({ where: { slug: candidate } })) {
-        candidate = `${base}-${++n}`;
-      }
-      return candidate;
-    };
-    const uniqueId = async () => {
-      let candidate = 'lu-' + base;
-      let n = 1;
-      while (await this.prisma.lineup.findUnique({ where: { id: candidate } })) {
-        candidate = `lu-${base}-${++n}`;
-      }
-      return candidate;
-    };
 
     const category = user.lineupCategory || 'Artist';
     const emoji: Record<string, string> = { DJ: '🎧', Band: '🎸', Comedian: '🎤', Artist: '🎨', Sponsor: '⭐', Promoter: '📣', Host: '🎙' };
@@ -611,10 +841,10 @@ export class KycService {
     const links = Array.isArray(payload?.links) ? (payload!.links as string[]).map((s) => s.trim()).filter(Boolean) : [];
 
     return {
-      id: await uniqueId(),
-      slug: await uniqueSlug(),
+      id: await this.uniqueSlugFor('lineup', 'id', 'lu-' + base),
+      slug: await this.uniqueSlugFor('lineup', 'slug', base),
       name: user.lineupName || user.name || 'Lineup',
-      verified: true, // this row is only ever created at the moment KYC is approved
+      verified, // quickSignupLineup passes false; approve() (old submitRole path) still defaults true
       category,
       city: str('city') || user.city || '',
       state: str('state'),

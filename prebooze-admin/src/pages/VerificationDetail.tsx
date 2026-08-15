@@ -11,11 +11,17 @@ const KIND_ICON: Record<string, string> = { organizer: '🧑‍💼', promoter: 
 const KIND_LABEL: Record<string, string> = { organizer: 'Organizer', promoter: 'Promoter', lineup: 'Line-up', venue: 'Venue' };
 const DOC_LABEL: Record<string, string> = {
   aadhaar: "Aadhaar card", registration: 'Registration document', ownerAadhaar: "Owner's Aadhaar card", selfie: 'Selfie',
+  id_doc: 'ID document', license: 'Operating license', address_proof: 'Address proof',
 };
 // Rendered structurally by the "Identity verification" card below when
 // payload.verificationUpgrade is set — hidden from the generic key/value
 // payload dump so they don't show up twice.
 const IDENTITY_PAYLOAD_KEYS = new Set(['verificationUpgrade', 'entityType', 'contactName', 'contactPhone', 'contactEmail', 'contactRole', 'contactRoleOther']);
+// Every role now has a self-serve verification-upgrade submission (see
+// KycService.submit{Organizer,Venue,Promoter,Lineup}Verification) — same
+// "Identity verification" card below for all four, just with different doc
+// requirements (checked in the missing-docs gate further down).
+const VERIFICATION_KINDS = ['organizer', 'venue', 'promoter', 'lineup'];
 
 /** Full detail view for a single verification application — same real
  * KycService-backed queue as Verifications.tsx, just filtered to one id
@@ -193,30 +199,41 @@ export default function VerificationDetail() {
         )}
       </div>
 
-      {app.kind === 'organizer' && !!app.payload.verificationUpgrade && (
+      {VERIFICATION_KINDS.includes(app.kind) && !!app.payload.verificationUpgrade && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="display" style={{ fontWeight: 700 }}>Identity verification</div>
           <div className="tiny muted">
-            No API to validate an Aadhaar number against — this is a document-based review. Check the documents below against who's named here.
+            No API to validate these documents against — this is a document-based review. Check the documents below against who's named here.
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
-            <span className="muted">Entity type</span>
-            <span>{app.payload.entityType === 'firm' ? 'Firm / Company / LLP' : 'Individual'}</span>
-          </div>
-          <div className="tiny" style={{ fontWeight: 700, marginTop: 4 }}>Submitted by</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
-            <span className="muted">Name</span><span>{String(app.payload.contactName ?? '—')}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
-            <span className="muted">Phone</span><span>{String(app.payload.contactPhone ?? '—')}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
-            <span className="muted">Email</span><span>{String(app.payload.contactEmail ?? '—')}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0' }}>
-            <span className="muted">Role</span>
-            <span>{app.payload.contactRole === 'Other' ? String(app.payload.contactRoleOther ?? 'Other') : String(app.payload.contactRole ?? '—')}</span>
-          </div>
+          {/* entityType only appears on organizer's submission — venue/
+              promoter/lineup verification has no individual/firm split. */}
+          {app.payload.entityType != null && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
+              <span className="muted">Entity type</span>
+              <span>{app.payload.entityType === 'firm' ? 'Firm / Company / LLP' : 'Individual'}</span>
+            </div>
+          )}
+          {/* contact-person fields only appear on organizer/venue's
+              submission — promoter/lineup verification is just a document
+              pair, no "who's submitting this" card. */}
+          {app.payload.contactName != null && (
+            <>
+              <div className="tiny" style={{ fontWeight: 700, marginTop: 4 }}>Submitted by</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
+                <span className="muted">Name</span><span>{String(app.payload.contactName ?? '—')}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
+                <span className="muted">Phone</span><span>{String(app.payload.contactPhone ?? '—')}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid rgba(139,195,74,.08)', padding: '6px 0' }}>
+                <span className="muted">Email</span><span>{String(app.payload.contactEmail ?? '—')}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0' }}>
+                <span className="muted">Role</span>
+                <span>{app.payload.contactRole === 'Other' ? String(app.payload.contactRoleOther ?? 'Other') : String(app.payload.contactRole ?? '—')}</span>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -307,6 +324,15 @@ export default function VerificationDetail() {
       {app.status === 'pending' && (() => {
         const p = app.payload;
         const docTypes = new Set(app.documents.map((d) => d.type));
+        // Required doc set per verification-upgrade kind — organizer alone
+        // branches on entityType (individual vs firm); venue/promoter/lineup
+        // each have one fixed shape. See KycService.submit{X}Verification.
+        const requiredDocsFor = (): string[] => {
+          if (app.kind === 'organizer') return p.entityType === 'individual' ? ['aadhaar', 'selfie'] : ['registration', 'ownerAadhaar', 'selfie'];
+          if (app.kind === 'venue') return ['license', 'address_proof'];
+          if (app.kind === 'promoter' || app.kind === 'lineup') return ['id_doc', 'selfie'];
+          return [];
+        };
         const missing = app.kind === 'organizer' && p.leadId
           ? [
               !p.gstin && 'GSTIN',
@@ -317,10 +343,8 @@ export default function VerificationDetail() {
               !p.accountHolderName && 'account holder name',
               !app.documents.length && 'a KYC document',
             ].filter((x): x is string => Boolean(x))
-          : app.kind === 'organizer' && p.verificationUpgrade
-          ? (p.entityType === 'individual' ? ['aadhaar', 'selfie'] : ['registration', 'ownerAadhaar', 'selfie'])
-              .filter((t) => !docTypes.has(t))
-              .map((t) => DOC_LABEL[t] ?? t)
+          : VERIFICATION_KINDS.includes(app.kind) && p.verificationUpgrade
+          ? requiredDocsFor().filter((t) => !docTypes.has(t)).map((t) => DOC_LABEL[t] ?? t)
           : [];
         return (
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

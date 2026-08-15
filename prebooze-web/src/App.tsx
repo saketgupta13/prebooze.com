@@ -84,6 +84,7 @@ const LineupOnboarding = lazy(() => import('./pages/LineupOnboarding'));
 const LineupLayout = lazy(() => import('./pages/lineup/LineupLayout'));
 const LineupDashboard = lazy(() => import('./pages/lineup/LineupDashboard'));
 const LineupSettings = lazy(() => import('./pages/lineup/LineupSettings'));
+const LineupVerification = lazy(() => import('./pages/lineup/LineupVerification'));
 const LineupBilling = lazy(() => import('./pages/lineup/LineupBilling'));
 const PromoterProfile = lazy(() => import('./pages/PromoterProfile'));
 const PromoterOnboarding = lazy(() => import('./pages/promoter/PromoterOnboarding'));
@@ -95,6 +96,7 @@ const PromoterEarnings = lazy(() => import('./pages/promoter/PromoterEarnings'))
 const PromoterTeam = lazy(() => import('./pages/promoter/PromoterTeam'));
 const PromoterLeaderboard = lazy(() => import('./pages/promoter/PromoterLeaderboard'));
 const PromoterSettings = lazy(() => import('./pages/promoter/PromoterSettings'));
+const PromoterVerification = lazy(() => import('./pages/promoter/PromoterVerification'));
 const PromoterGuestList = lazy(() => import('./pages/promoter/PromoterGuestList'));
 const GuestLanding = lazy(() => import('./pages/promoter/GuestLanding'));
 const GuestPass = lazy(() => import('./pages/promoter/GuestPass'));
@@ -104,6 +106,7 @@ const VenueDashboard = lazy(() => import('./pages/venue/VenueDashboard'));
 const VenueListing = lazy(() => import('./pages/venue/VenueListing'));
 const VenueEvents = lazy(() => import('./pages/venue/VenueEvents'));
 const VenueSettings = lazy(() => import('./pages/venue/VenueSettings'));
+const VenueVerification = lazy(() => import('./pages/venue/VenueVerification'));
 const VenueBilling = lazy(() => import('./pages/venue/VenueBilling'));
 const VenueHosting = lazy(() => import('./pages/venue/VenueHosting'));
 const VenueHostedEvents = lazy(() => import('./pages/venue/VenueHostedEvents'));
@@ -354,6 +357,7 @@ export default function App() {
         <Route path="/artist" element={<LineupLayout />}>
           <Route index element={<LineupDashboard />} />
           <Route path="profile" element={<LineupSettings />} />
+          <Route path="profile/verification" element={<LineupVerification />} />
           <Route path="billing" element={<LineupBilling />} />
         </Route>
 
@@ -367,6 +371,7 @@ export default function App() {
           <Route path="leaderboard" element={<PromoterLeaderboard />} />
           <Route path="subscription" element={<PromoterSubscription />} />
           <Route path="settings" element={<PromoterSettings />} />
+          <Route path="settings/verification" element={<PromoterVerification />} />
         </Route>
 
         {/* Venue-partner console */}
@@ -377,6 +382,7 @@ export default function App() {
           <Route path="events" element={<VenueEvents />} />
           <Route path="billing" element={<VenueBilling />} />
           <Route path="settings" element={<VenueSettings />} />
+          <Route path="settings/verification" element={<VenueVerification />} />
           <Route path="hosting" element={<VenueHosting />} />
           <Route path="hosting/events" element={<VenueHostedEvents />} />
           <Route path="hosting/events/create" element={<CreateHostedEvent />} />

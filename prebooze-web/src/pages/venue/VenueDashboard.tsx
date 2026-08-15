@@ -45,7 +45,7 @@ export default function VenueDashboard() {
         {venue.verified ? (
           <span className="badge badge-ok">Verified ✓</span>
         ) : (
-          <span className="badge badge-pending">Pending review ◌ · ~24h</span>
+          <Link to="/venue/settings/verification" className="btn btn-pri btn-sm">Complete verification →</Link>
         )}
       </div>
       <p className="muted small" style={{ margin: '4px 0 18px' }}>

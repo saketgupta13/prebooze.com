@@ -36,7 +36,11 @@ export default function LineupDashboard() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
         <h1 style={{ fontSize: 24 }}>Hey, {profile.name} 🎤</h1>
-        <span className="badge badge-ok">Verified ✓</span>
+        {profile.verified ? (
+          <span className="badge badge-ok">Verified ✓</span>
+        ) : (
+          <Link to="/artist/profile/verification" className="btn btn-pri btn-sm">Complete verification →</Link>
+        )}
       </div>
       <p className="muted small" style={{ margin: '4px 0 18px' }}>
         {profile.category} · {profile.city || 'city not set'}
