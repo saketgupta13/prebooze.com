@@ -6,13 +6,11 @@ import RoleTaken from '../../components/RoleTaken';
 import { existingRole } from '../../lib/roles';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
 import { FileDropBox } from '../../components/FileDropBox';
-import { kyc, organizer } from '../../api';
+import { kyc, organizer, catalog } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
 import { useDraftLead } from '../../lib/useDraftLead';
-
-const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
 
 const DRAFT_ID = 'organizer';
 const slugify = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -48,6 +46,14 @@ export default function Onboarding() {
   const [instagram, setInstagram] = useState(draft0.instagram);
   const [facebook, setFacebook] = useState(draft0.facebook);
   const [other, setOther] = useState<string[]>(draft0.other.length ? draft0.other : ['']);
+  // Real, admin-managed categories (Admin > Categories) — same source every
+  // other "event type" picker in the app already reads from (CreateEvent.tsx,
+  // Browse.tsx, Categories.tsx), so a category added there shows up here too
+  // with no separate list to keep in sync.
+  const [categories, setCategories] = useState<{ name: string; icon: string }[]>([]);
+  useEffect(() => {
+    catalog.categories().then(setCategories).catch(() => {});
+  }, []);
 
   useEffect(() => {
     try {
@@ -140,9 +146,9 @@ export default function Onboarding() {
           <div className="field">
             <span>Event types you host *</span>
             <div className="chip-row">
-              {EVENT_TYPES.map((t) => (
-                <button type="button" key={t} className={`chip ${types.includes(t) ? 'on' : ''}`} onClick={() => toggleType(t)}>
-                  {t}{types.includes(t) ? ' ✓' : ''}
+              {categories.map((c) => (
+                <button type="button" key={c.name} className={`chip ${types.includes(c.name) ? 'on' : ''}`} onClick={() => toggleType(c.name)}>
+                  {c.icon} {c.name}{types.includes(c.name) ? ' ✓' : ''}
                 </button>
               ))}
             </div>
