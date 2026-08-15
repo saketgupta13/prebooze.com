@@ -9,7 +9,6 @@ import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { uniqueReferralCodeFor } from '../referrals/referral.constants';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
-import { LeadsService } from '../admin/leads.service';
 
 const OTP_TTL_S = 300; // 5 minutes
 const MAX_VERIFY_ATTEMPTS = 5;
@@ -87,7 +86,6 @@ export class AuthService {
     private email: EmailService,
     @Inject(REDIS) private redis: Redis,
     private meta: MetaConversionsService,
-    private leads: LeadsService,
   ) {}
 
   /** Every guest now needs a username the moment their account exists — the
@@ -110,7 +108,7 @@ export class AuthService {
     return candidate;
   }
 
-  async requestOtp(rawPhone: string, leadRole?: string, utmSource?: string) {
+  async requestOtp(rawPhone: string) {
     const phone = normalizePhone(rawPhone);
 
     const rlKey = `otp-rl:${phone}`;
@@ -135,13 +133,6 @@ export class AuthService {
       await this.redis.del(`otp:${requestId}`);
       throw new BadRequestException("Couldn't send your code right now — please try again shortly");
     }
-
-    // Fire-and-forget, same rule as every other tracking side effect in this
-    // codebase — a lead-capture hiccup must never fail a real OTP send.
-    // leadRole only arrives when the visitor was redirected here from a
-    // role's onboarding page (see Login.tsx) — never for a guest login, so
-    // this is naturally scoped to organizer/venue/promoter/lineup intent.
-    if (leadRole) this.leads.captureDraftByPhone(phone, leadRole, utmSource).catch(() => {});
 
     // In dev (no live WhatsApp) return the code so the flow is testable end-to-end.
     return this.wa.live ? { requestId } : { requestId, devCode: code };

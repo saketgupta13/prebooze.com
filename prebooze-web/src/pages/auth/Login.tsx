@@ -15,12 +15,6 @@ const ONBOARDING_COPY: Record<string, { visual: string; heading: string }> = {
   '/promoter/onboarding': { visual: 'Earn commission bringing guests to events — sign in to get started.', heading: 'Set up your promoter account' },
   '/lineup/onboarding': { visual: 'Get booked for events as a performer — sign in to get started.', heading: 'Set up your line-up account' },
 };
-const LEAD_ROLE_BY_PATH: Record<string, string> = {
-  '/organizer/onboarding': 'organizer',
-  '/venue/onboarding': 'venue',
-  '/promoter/onboarding': 'promoter',
-  '/lineup/onboarding': 'lineup',
-};
 
 export default function Login() {
   const { requestOtp } = useApp();
@@ -35,7 +29,6 @@ export default function Login() {
 
   const from = (location.state as { from?: string } | null)?.from;
   const onboardingCopy = from ? ONBOARDING_COPY[from] : undefined;
-  const leadRole = from ? LEAD_ROLE_BY_PATH[from] : undefined;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +37,7 @@ export default function Login() {
     setErr('');
     setBusy(true);
     try {
-      await requestOtp(`${code} ${phone}`, leadRole);
+      await requestOtp(`${code} ${phone}`);
       navigate('/verify-otp', { state: location.state });
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "Couldn't send code — please try again");

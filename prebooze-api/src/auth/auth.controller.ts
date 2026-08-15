@@ -1,20 +1,12 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Patch, Post, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt.guard';
 import { StorageService } from '../kyc/storage.service';
 
 class RequestOtpDto {
   @IsString() @IsNotEmpty() phone!: string;
-  // Set only when this request came from a role's onboarding-login redirect
-  // (see Login.tsx) — drives an early draft-lead capture, never present for
-  // a guest login/checkout. Needs @IsOptional/@IsString like every other
-  // field here — the global ValidationPipe runs with whitelist:true, which
-  // silently strips any DTO property with no class-validator decorator at
-  // all, not just ones that fail validation.
-  @IsOptional() @IsString() leadRole?: string;
-  @IsOptional() @IsString() utmSource?: string;
 }
 class VerifyOtpDto {
   @IsString() @IsNotEmpty() requestId!: string;
@@ -30,7 +22,7 @@ export class AuthController {
 
   @Post('auth/otp')
   requestOtp(@Body() dto: RequestOtpDto) {
-    return this.auth.requestOtp(dto.phone, dto.leadRole, dto.utmSource);
+    return this.auth.requestOtp(dto.phone);
   }
 
   @Post('auth/verify')

@@ -6,7 +6,7 @@ import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } fr
 import { notify } from '../lib/notify';
 import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTeamApi, bookings as bookingsApi, wallet as walletApi, support as supportApi, careers as careersApi, type OrgTeamAccess } from '../api';
 import { isBackendEnabled, setToken, clearToken, getToken } from '../api/client';
-import { track, attributionForPayload } from '../lib/track';
+import { track } from '../lib/track';
 import { pushEvent } from '../lib/gtm';
 import { trackMeta } from '../lib/meta';
 
@@ -105,7 +105,7 @@ interface AppState {
   pendingPhone: string;
   setCity: (c: string) => void;
   setPendingPhone: (p: string) => void;
-  requestOtp: (phone: string, leadRole?: string) => Promise<void>;
+  requestOtp: (phone: string) => Promise<void>;
   /** `isTeamMember` is resolved (awaited, not fire-and-forget) as part of
    * login itself — an invited organizer team member should never be
    * funneled through guest profile-completion/ID-verification, the same
@@ -554,10 +554,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       pendingPhone,
       setCity,
       setPendingPhone,
-      requestOtp: async (phone, leadRole) => {
+      requestOtp: async (phone) => {
         setPendingPhone(phone);
         if (!isBackendEnabled()) return;
-        const res = await auth.requestOtp(phone, leadRole, attributionForPayload().utmSource);
+        const res = await auth.requestOtp(phone);
         setPendingRequestId(res.requestId);
         track('otp_requested');
       },
