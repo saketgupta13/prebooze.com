@@ -6,7 +6,7 @@ import RoleTaken from '../../components/RoleTaken';
 import { existingRole } from '../../lib/roles';
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft';
 import { FileDropBox } from '../../components/FileDropBox';
-import { kyc } from '../../api';
+import { kyc, organizer } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
@@ -88,6 +88,22 @@ export default function Onboarding() {
         socialLinks: { instagram: instagram.trim() || undefined, facebook: facebook.trim() || undefined, other: otherLinks },
       });
       updateUser(res.user);
+      // Logo is only a local preview (data URL) until now — organizer.upload
+      // requires a real Organizer row to already exist (it checks ownership),
+      // which only just happened above, so the real upload has to wait until
+      // after signup succeeds. Best-effort: a failed/skipped logo shouldn't
+      // block account creation itself — they can always add one in Settings.
+      if (logo) {
+        try {
+          const blob = await fetch(logo).then((r) => r.blob());
+          const file = new File([blob], 'logo.jpg', { type: blob.type || 'image/jpeg' });
+          const { url } = await organizer.upload(file);
+          const updated = await organizer.updateMe({ logoUrl: url });
+          updateUser({ orgLogoUrl: updated.logoUrl ?? undefined });
+        } catch {
+          // logo upload failed — account still created fine, just no logo yet
+        }
+      }
       pushEvent('organizer_onboarding_submitted');
       trackMeta('Lead', { content_name: 'organizer_onboarding' }, `${user?.phone}_organizer`);
       clearDraft(DRAFT_ID);
