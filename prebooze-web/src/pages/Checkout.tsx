@@ -525,8 +525,13 @@ export default function Checkout() {
     // empty guest list, so blocking payment on this info was pure friction
     // with no corresponding security benefit. Whatever's filled in still
     // gets saved for the organizer's guest list.
-    if (!EMAIL_RE.test(email.trim())) {
-      failAttendee('Enter a valid email — your ticket confirmation is sent there too');
+    // Email is optional too — only the emailed PDF depends on it (WhatsApp
+    // confirmation and in-app My Bookings both work without one), so a typo
+    // or a skipped field here shouldn't be able to block payment. Still
+    // validated *if* filled in, since a bad address silently blackholes the
+    // real ticket PDF with no other signal that it happened.
+    if (email.trim() && !EMAIL_RE.test(email.trim())) {
+      failAttendee('That email address doesn\'t look right');
       return;
     }
     if (liveEvent) payLive();
@@ -660,12 +665,12 @@ export default function Checkout() {
                 </>
               )}
               <div className="field">
-                <span>Email *</span>
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@mail.com" />
+                <span>Email (optional)</span>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@mail.com — for your ticket PDF" />
               </div>
               <div className="small muted">
-                🎟 Tickets sent to WhatsApp <span className="bold">{whatsapp || '—'}</span> and emailed to{' '}
-                <span className="bold">{email || '—'}</span> <span className="verified">✓</span>
+                🎟 Tickets sent to WhatsApp <span className="bold">{whatsapp || '—'}</span>
+                {email.trim() && <> and emailed to <span className="bold">{email}</span></>} <span className="verified">✓</span>
               </div>
               {attendeeErr && (
                 <div className="small danger-text" style={{ marginTop: 10 }}>

@@ -10,7 +10,6 @@ import Footer from './components/Footer';
 import Toast from './components/Toast';
 import CookieConsent from './components/CookieConsent';
 import ComingSoonGate from './components/ComingSoonGate';
-import CompleteProfileGate from './components/CompleteProfileGate';
 import ProfileCompletion from './pages/auth/ProfileCompletion';
 import SalesPausedBanner from './components/SalesPausedBanner';
 import { PageLoader } from './components/Loader';
@@ -188,7 +187,6 @@ export default function App() {
       <ScrollToTop />
       <CanonicalUrl />
       <OrganizationSchema />
-      <CompleteProfileGate>
       <Header />
       <SalesPausedBanner />
       <MaintenanceGate>
@@ -403,7 +401,6 @@ export default function App() {
       <Footer />
       <Toast />
       <CookieConsent />
-      </CompleteProfileGate>
     </ComingSoonGate>
   );
 }
