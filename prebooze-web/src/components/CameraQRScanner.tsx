@@ -18,7 +18,22 @@ export default function CameraQRScanner({ onScan, active = true }: { onScan: (da
   useEffect(() => {
     let cancelled = false;
     navigator.mediaDevices
-      ?.getUserMedia({ video: { facingMode: 'environment' } })
+      // No resolution/focus constraints previously — the browser was free to
+      // default to something as low as 640x480, which often isn't sharp
+      // enough to resolve a real ticket QR's modules at normal scanning
+      // distance. `ideal` (not `exact`) so devices that can't hit these
+      // still connect at their best available instead of failing outright.
+      // `focusMode`/`advanced` continuous-autofocus keys are silently
+      // ignored by browsers/devices that don't support them.
+      ?.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1920 },
+          height: { ideal: 1920 },
+          focusMode: 'continuous',
+          advanced: [{ focusMode: 'continuous' }],
+        } as unknown as MediaTrackConstraints,
+      })
       .then((stream) => {
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
         streamRef.current = stream;
