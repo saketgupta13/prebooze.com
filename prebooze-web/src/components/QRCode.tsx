@@ -62,31 +62,33 @@ export default function QRCode({ value, size = 220, caption }: { value: string; 
     // same box. An inline `display` here previously silently overrode it,
     // widening the box to the caption text's width and dragging the logo
     // off-center along with it.
-    <div className="qr-wrap" style={{ position: 'relative' }}>
-      {dataUrl ? (
-        <img src={dataUrl} alt="Entry QR code" width={size} height={size} style={{ borderRadius: 8, display: 'block' }} />
-      ) : (
-        <div style={{ width: size, height: size, borderRadius: 8, background: '#ffffff' }} />
-      )}
-      <span
-        style={{
-          // True center on both axes. This used to be `top: 14 + size/2` (a
-          // stray fixed 14px offset), then `top: '50%'` — which looked
-          // right with no caption but was still wrong: `.qr-wrap` is an
-          // inline-flex *column* with the caption stacked below the image,
-          // so `50%` centers against the image+caption's combined height,
-          // not the image alone, drifting down by however tall the caption
-          // text is (measured: 12px off with a 2-line caption). `size / 2`
-          // is an exact pixel offset tied to the image's own height, so it
-          // can't be pulled off-center by whatever caption follows it.
-          position: 'absolute', top: size / 2, left: '50%', transform: 'translate(-50%, -50%)',
-          width: logo + 10, height: logo + 10, background: '#000', borderRadius: 8,
-          border: '1.5px solid #9be13d',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #000',
-        }}
-      >
-        <img src="/prebooze-mark.png" alt="" style={{ width: logo, height: logo, objectFit: 'contain' }} />
-      </span>
+    <div className="qr-wrap">
+      {/* The badge is positioned relative to THIS box, not .qr-wrap
+          directly — .qr-wrap has real CSS padding (index.css) and, with a
+          caption present, stacks extra text height below the image, so
+          top/left percentages (or offsets computed from `size` alone)
+          measured against .qr-wrap itself land off-center by however much
+          padding + caption height happens to add. Sized to exactly
+          size×size with nothing else inside it, this box's center is
+          always the image's true center, regardless of padding or
+          caption. */}
+      <div style={{ position: 'relative', width: size, height: size }}>
+        {dataUrl ? (
+          <img src={dataUrl} alt="Entry QR code" width={size} height={size} style={{ borderRadius: 8, display: 'block' }} />
+        ) : (
+          <div style={{ width: size, height: size, borderRadius: 8, background: '#ffffff' }} />
+        )}
+        <span
+          style={{
+            position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            width: logo + 10, height: logo + 10, background: '#000', borderRadius: 8,
+            border: '1.5px solid #9be13d',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #000',
+          }}
+        >
+          <img src="/prebooze-mark.png" alt="" style={{ width: logo, height: logo, objectFit: 'contain' }} />
+        </span>
+      </div>
       {caption && <span className="cap">{caption}</span>}
     </div>
   );
