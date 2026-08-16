@@ -48,7 +48,11 @@ export default function CameraQRScanner({ onScan, active = true }: { onScan: (da
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(frame.data, frame.width, frame.height, { inversionAttempts: 'dontInvert' });
+        // Ticket QR codes render brand-green modules on a black background
+        // (see QRCode.tsx) — inverted luminance polarity vs. a standard
+        // black-on-white code. jsQR must try both polarities per frame or
+        // it never binarizes these correctly.
+        const code = jsQR(frame.data, frame.width, frame.height, { inversionAttempts: 'attemptBoth' });
         if (code && code.data && code.data !== lastCodeRef.current) {
           lastCodeRef.current = code.data;
           onScan(code.data);
