@@ -412,7 +412,7 @@ export class BookingsService {
       )
       .catch(() => {});
 
-    return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true } } } });
+    return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true, organizer: true } } } });
   }
 
   /** Staff-recorded phone orders/walk-ups/comps — bypasses the hold/QR
@@ -515,13 +515,13 @@ export class BookingsService {
         name: input.guestName.trim(), eventTitle: event.title, qty: String(input.qty), bookingId: id, total: money(total),
       }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined).catch(() => {});
     }
-    return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true } } } });
+    return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true, organizer: true } } } });
   }
 
   async list(userId: string) {
     return this.prisma.booking.findMany({
       where: { userId },
-      include: { event: { include: { venue: true } } },
+      include: { event: { include: { venue: true, organizer: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }

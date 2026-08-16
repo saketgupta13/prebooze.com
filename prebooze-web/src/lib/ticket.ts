@@ -17,7 +17,31 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   // of the app already uses (compare the guest header vs. QRCode.tsx).
   const [logo, headerLogo] = await Promise.all([loadImg('/prebooze-mark.png'), loadImg('/prebooze-logo.png')]);
   const W = 640;
-  const H = 980 + Math.max(0, Math.ceil(booking.guests.length / 2) - 1) * 20; // room for the guest list
+
+  // The title can wrap to 1 or 2 lines and the organizer line is optional
+  // (older bookings' events weren't fetched with organizer included) — so
+  // everything below the title has to flow from where the title actually
+  // ended, not a fixed guess. Measure first on a throwaway context (canvas
+  // pixel size doesn't affect measureText) and compute every y-coordinate
+  // up front, once — the draw step below just uses these same numbers
+  // rather than re-deriving them, so the two can't drift out of sync.
+  const measure = document.createElement('canvas').getContext('2d')!;
+  measure.font = '800 28px Manrope, sans-serif';
+  const titleLines = wrapLines(measure, event.title, W - 96);
+
+  const hasOrganizer = !!event.organizer?.brandName;
+  const titleLastY = 174 + (titleLines.length - 1) * 34;
+  const organizerY = titleLastY + 40;
+  const dateY = (hasOrganizer ? organizerY : titleLastY) + (hasOrganizer ? 38 : 70);
+  const locationY = dateY + 28;
+  const tierY = locationY + 28;
+  const guestY = tierY + 28;
+  const dividerY = guestY + 34;
+  const qy = dividerY + 42;
+  const qsize = 340;
+  const tailFromQy = 576; // QR block + footer height, fixed regardless of header/title height
+  const guestListExtra = Math.max(0, Math.ceil(booking.guests.length / 2) - 1) * 20;
+  const H = qy + tailFromQy + guestListExtra;
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
@@ -52,20 +76,30 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   // event details
   ctx.fillStyle = '#edefe6';
   ctx.font = '800 28px Manrope, sans-serif';
-  wrapText(ctx, event.title, 48, 174, W - 96, 34);
+  titleLines.forEach((l, i) => ctx.fillText(l, 48, 174 + i * 34));
+
+  // organizer — who's actually hosting, not just what/when/where. Only
+  // present when the booking's event was fetched with organizer included
+  // (BookingsService's create/adminCreate/list all do, as of this).
+  if (hasOrganizer) {
+    ctx.fillStyle = '#9be13d';
+    ctx.font = '700 15px Manrope, sans-serif';
+    ctx.fillText(`🎪  Hosted by ${event.organizer!.brandName}`, 48, organizerY);
+  }
+
   ctx.fillStyle = '#9a9d8c';
   ctx.font = '600 17px Manrope, sans-serif';
-  ctx.fillText(`📅  ${fmtDate(event.date)} · ${fmtTime(event.date)}`, 48, 244);
-  ctx.fillText(`📍  ${venue ? `${venue.name}, ${venue.city}` : 'Venue TBA'}`, 48, 272);
-  ctx.fillText(`🎟  ${booking.tierName}`, 48, 300);
-  ctx.fillText(`👤  ${booking.mainGuest} · ${booking.qty} guest${booking.qty > 1 ? 's' : ''}`, 48, 328);
+  ctx.fillText(`📅  ${fmtDate(event.date)} · ${fmtTime(event.date)}`, 48, dateY);
+  ctx.fillText(`📍  ${venue ? `${venue.name}, ${venue.city}` : 'Venue TBA'}`, 48, locationY);
+  ctx.fillText(`🎟  ${booking.tierName}`, 48, tierY);
+  ctx.fillText(`👤  ${booking.mainGuest} · ${booking.qty} guest${booking.qty > 1 ? 's' : ''}`, 48, guestY);
 
   // divider (perforation)
   ctx.strokeStyle = '#3a3d30';
   ctx.setLineDash([6, 8]);
   ctx.beginPath();
-  ctx.moveTo(48, 362);
-  ctx.lineTo(W - 48, 362);
+  ctx.moveTo(48, dividerY);
+  ctx.lineTo(W - 48, dividerY);
   ctx.stroke();
   ctx.setLineDash([]);
 
@@ -79,10 +113,8 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   // on-screen component), so it needed the identical color choice.
   const qr = QRCodeLib.create(booking.qrToken || booking.id, { errorCorrectionLevel: 'H' });
   const n = qr.modules.size;
-  const qsize = 340;
   const cell = qsize / n;
   const qx = (W - qsize) / 2;
-  const qy = 404;
   ctx.fillStyle = '#ffffff';
   roundRect(ctx, qx - 18, qy - 18, qsize + 36, qsize + 36, 14);
   ctx.fill();
@@ -181,17 +213,21 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
-function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lh: number) {
+/** Word-wraps `text` to `maxW`, returning the lines rather than drawing
+ * them directly — the caller needs to know how many lines it'll take
+ * (the title can run 1 or 2 lines) before it can lay out everything below
+ * it, so measuring and drawing had to split into separate steps. */
+function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
   const words = text.split(' ');
+  const lines: string[] = [];
   let line = '';
-  let yy = y;
   for (const w of words) {
     const test = line ? line + ' ' + w : w;
     if (ctx.measureText(test).width > maxW && line) {
-      ctx.fillText(line, x, yy);
+      lines.push(line);
       line = w;
-      yy += lh;
     } else line = test;
   }
-  ctx.fillText(line, x, yy);
+  lines.push(line);
+  return lines;
 }
