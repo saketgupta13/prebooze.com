@@ -1,6 +1,7 @@
 import QRCodeLib from 'qrcode';
 import type { Booking, Event, Venue } from '../types';
 import { fmtDate, fmtTime } from '../data/mock';
+import { platform } from '../api';
 
 const loadImg = (src: string): Promise<HTMLImageElement | null> =>
   new Promise((resolve) => {
@@ -10,12 +11,27 @@ const loadImg = (src: string): Promise<HTMLImageElement | null> =>
     img.src = src;
   });
 
+// Admin types this as either a bare "instagram.com/prebooze_com"-style
+// handle or a full URL (same real, admin-configurable field Footer.tsx
+// already reads via socials.instagram) — this pulls out just the trailing
+// @handle for a short on-ticket mention, not a clickable link.
+function instagramHandle(url?: string): string | null {
+  if (!url?.trim()) return null;
+  const parts = url.trim().replace(/\/+$/, '').split('/');
+  return parts[parts.length - 1] || null;
+}
+
 /** Render the ticket in our design onto a canvas and download it as a PNG. */
 export async function downloadTicket(booking: Booking, event: Event, venue: Venue | undefined) {
   // Two different marks: the wordmark-ish full logo up top, and the plain
   // bunny icon cut into the QR's centre lower down — same split the rest
   // of the app already uses (compare the guest header vs. QRCode.tsx).
-  const [logo, headerLogo] = await Promise.all([loadImg('/prebooze-mark.png'), loadImg('/prebooze-logo.png')]);
+  const [logo, headerLogo, settings] = await Promise.all([
+    loadImg('/prebooze-mark.png'),
+    loadImg('/prebooze-logo.png'),
+    platform.settings().catch(() => null),
+  ]);
+  const igHandle = instagramHandle(settings?.socials.instagram);
   const W = 640;
 
   // The title can wrap to 1 or 2 lines and the organizer line is optional
@@ -39,7 +55,7 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   const dividerY = guestY + 34;
   const qy = dividerY + 42;
   const qsize = 340;
-  const tailFromQy = 576; // QR block + footer height, fixed regardless of header/title height
+  const tailFromQy = 632; // QR block + footer height (thank-you + Instagram + domain), fixed regardless of header/title height
   const guestListExtra = Math.max(0, Math.ceil(booking.guests.length / 2) - 1) * 20;
   const H = qy + tailFromQy + guestListExtra;
   const c = document.createElement('canvas');
@@ -181,6 +197,19 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   ctx.fillStyle = '#7d8070';
   ctx.font = '600 14px Manrope, sans-serif';
   ctx.fillText(`Scan at entry · valid for ${booking.qty} guest${booking.qty > 1 ? 's' : ''} · carry a photo ID`, W / 2, gy + 10);
+
+  ctx.fillStyle = '#edefe6';
+  ctx.font = '700 15px Manrope, sans-serif';
+  ctx.fillText('Thanks for booking with Prebooze — see you on the dance floor! 🎉', W / 2, gy + 40);
+
+  if (igHandle) {
+    ctx.fillStyle = '#9be13d';
+    ctx.font = '600 13px Manrope, sans-serif';
+    ctx.fillText(`📸  Follow us @${igHandle} on Instagram`, W / 2, gy + 64);
+  }
+
+  ctx.fillStyle = '#7d8070';
+  ctx.font = '600 12px Manrope, sans-serif';
   ctx.fillText('prebooze.com', W / 2, H - 40);
   ctx.textAlign = 'left';
 
