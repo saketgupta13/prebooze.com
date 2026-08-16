@@ -126,7 +126,7 @@ export default function Scanner() {
           <h2>Checked in</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Booking</span><span className="bold">{b.id}</span></div>
-            <div className="kv"><span className="k">Guest</span><span>{b.mainGuest}</span></div>
+            <div className="kv"><span className="k">Guest{b.qty > 1 ? 's' : ''}</span><span>{b.guests.map((g) => g.name).join(', ')}</span></div>
             <div className="kv"><span className="k">Tickets</span><span>{b.tierName} · {b.qty}</span></div>
           </div>
           <button className="btn btn-pri btn-block btn-lg" onClick={() => setState({ mode: 'idle' })}>
