@@ -7,6 +7,7 @@ import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
 import Poster, { categoryEmoji } from '../../components/Poster';
 import Loader from '../../components/Loader';
 import type { Event, PromoterProfile } from '../../types';
+import { eventLocation } from '../../lib/venue';
 
 /** Public guest-capture landing reached via a promoter's affiliate link.
  * No login — name / phone / age / gender → a time-based QR pass. All fraud/
@@ -99,7 +100,7 @@ export default function GuestLanding() {
             <div style={{ minWidth: 0 }}>
               <span className="badge badge-accent">Free entry 🎟️</span>
               <h1 style={{ fontSize: 20, margin: '6px 0 2px' }}>{event.title}</h1>
-              <div className="muted small">{fmtDate(event.date)} · {fmtTime(event.date)} · {venue?.name}</div>
+              <div className="muted small">{fmtDate(event.date)} · {fmtTime(event.date)} · {eventLocation(event, venue)}</div>
             </div>
           </div>
 

@@ -8,6 +8,7 @@ import { useApp } from '../store/AppContext';
 import { PageLoader } from '../components/Loader';
 import { useSeo } from '../lib/useSeo';
 import { stripHtml } from '../lib/richtext';
+import { eventLocation } from '../lib/venue';
 import type { Event, Person, PersonDetail } from '../types';
 
 function Avatar({ hue, name, imageUrl, size = 30 }: { hue: number; name: string; imageUrl?: string; size?: number }) {
@@ -137,7 +138,7 @@ export default function PersonProfile() {
           <div className="bold small">
             {event.title} {mine && <span className="badge badge-accent" style={{ fontSize: 10 }}>you too</span>}
           </div>
-          <div className="tiny muted-2">{fmtDate(event.date)} · {fmtTime(event.date)} · {event.venue?.name}</div>
+          <div className="tiny muted-2">{fmtDate(event.date)} · {fmtTime(event.date)} · {eventLocation(event, event.venue)}</div>
         </div>
         <span className="link small">View →</span>
       </Link>

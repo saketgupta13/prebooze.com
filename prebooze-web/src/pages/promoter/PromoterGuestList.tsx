@@ -6,6 +6,7 @@ import { ApiError } from '../../api/client';
 import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
 import Loader from '../../components/Loader';
 import type { Event } from '../../types';
+import { eventLocation } from '../../lib/venue';
 import type { PromoterGuest } from '../../store/AppContext';
 
 type Mode = 'guestlist' | 'commission';
@@ -143,7 +144,7 @@ export default function PromoterGuestList() {
       </div>
       <h1 style={{ fontSize: 24 }}>Live guest list</h1>
       <div className="muted small" style={{ marginBottom: 18 }}>
-        {event.title} · {fmtDate(event.date)} · {venue?.name}
+        {event.title} · {fmtDate(event.date)} · {eventLocation(event, venue)}
       </div>
 
       {modes.length === 0 && (

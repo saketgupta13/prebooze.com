@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { fmtDate, fmtTime, minPrice } from '../../data/mock';
 import { promoter as promoterApi, type PromoterPass } from '../../api';
 import { cutoffDate, countdownLabel, isPassValid } from '../../lib/promoterPass';
+import { eventLocation } from '../../lib/venue';
 import QRCode from '../../components/QRCode';
 import Loader from '../../components/Loader';
 
@@ -61,7 +62,7 @@ export default function GuestPass() {
             <div className="card card-shadow" style={{ textAlign: 'center' }}>
               <h2 style={{ fontSize: 20 }}>{event.title}</h2>
               <div className="muted small" style={{ margin: '6px 0 4px' }}>
-                {fmtDate(event.date)} · {fmtTime(event.date)} · {venue?.name}
+                {fmtDate(event.date)} · {fmtTime(event.date)} · {eventLocation(event, venue)}
               </div>
               <div className="small" style={{ marginBottom: 14 }}>
                 {pass.name}
