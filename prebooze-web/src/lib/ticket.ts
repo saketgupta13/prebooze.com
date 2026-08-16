@@ -88,8 +88,10 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
     }
   }
 
-  // brand bunny in the QR centre on black
-  const box = 88;
+  // brand bunny in the QR centre on black — 0.16 of qsize (340), same
+  // shrunk ratio as QRCode.tsx: the previous ~0.26 occluded too much real
+  // data for jsQR specifically, even inside H-level error correction.
+  const box = 54;
   ctx.fillStyle = '#000000';
   roundRect(ctx, W / 2 - box / 2 - 3, qy + qsize / 2 - box / 2 - 3, box + 6, box + 6, 12);
   ctx.fill();

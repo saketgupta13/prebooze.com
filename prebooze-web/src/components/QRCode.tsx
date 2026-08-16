@@ -43,7 +43,12 @@ export default function QRCode({ value, size = 220, caption }: { value: string; 
     return () => { cancelled = true; };
   }, [value, size]);
 
-  const logo = Math.round(size * 0.26);
+  // 0.26 (a good third of the code's width) was too much real occlusion for
+  // jsQR specifically, even inside H-level error correction's ~30% budget —
+  // real-world capture noise (glare, blur) eats into the same budget, and a
+  // phone's native camera decoder tolerates that combination far better
+  // than a small JS library does. 0.16 leaves meaningfully more clean data.
+  const logo = Math.round(size * 0.16);
   return (
     // NOTE: no `display` here — the .qr-wrap CSS class already sets
     // `display: inline-flex` (column, centered), which is what actually
