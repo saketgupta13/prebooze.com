@@ -6,13 +6,19 @@ import QRCodeLib from 'qrcode';
  * tolerance) so the branded logo cutout in the center doesn't break
  * decodability, the same trick real-world branded tickets use.
  *
- * Brand green-on-black modules, deliberately reinstated after confirming
- * standard black-on-white measurably scanned more reliably (even a phone's
- * native camera app failed to decode the green-on-black version, while
- * black-on-white and a shrunk logo cutout both worked) — a known,
- * knowingly-accepted reliability tradeoff for the branded look, not an
- * oversight. If real-world scan failures resurface, this is the first
- * thing to revisit.
+ * Standard black-on-white modules — settled here after repeated real-world
+ * testing: green-on-black (the original brand look) consistently failed to
+ * scan via the in-app camera scanner even after three separate scanner-side
+ * fixes (inversion-polarity handling, higher capture resolution +
+ * continuous autofocus, an Otsu-threshold binarization fallback), while a
+ * phone's native camera app decoded the exact same physical code every
+ * time. That consistent gap — every scanner-side patch helped in synthetic
+ * tests but not in the field — pointed at the color choice itself, not the
+ * scanner. Black-on-white is what every QR reader in existence is built
+ * and tuned against; it's the one change that actually closed the gap. The
+ * logo cutout stays branded (a separate overlay, not part of the scanned
+ * modules) and shrunk (0.16 of size, not the original 0.26) to leave more
+ * clean data regardless.
  *
  * `value` is a signed JWT (see BookingsService.create's qrToken), not a
  * short opaque id — that's what makes this a genuinely dense code (version
@@ -36,7 +42,7 @@ export default function QRCode({ value, size = 220, caption }: { value: string; 
       // onto the right/bottom edge in the background color, visible as an
       // uneven dead black bar. Scale always tiles exactly, no padding.
       scale: 14,
-      color: { dark: '#9be13d', light: '#000000' },
+      color: { dark: '#000000', light: '#ffffff' },
     })
       .then((url) => { if (!cancelled) setDataUrl(url); })
       .catch(() => {});
@@ -60,7 +66,7 @@ export default function QRCode({ value, size = 220, caption }: { value: string; 
       {dataUrl ? (
         <img src={dataUrl} alt="Entry QR code" width={size} height={size} style={{ borderRadius: 8, display: 'block' }} />
       ) : (
-        <div style={{ width: size, height: size, borderRadius: 8, background: '#000000' }} />
+        <div style={{ width: size, height: size, borderRadius: 8, background: '#ffffff' }} />
       )}
       <span
         style={{
