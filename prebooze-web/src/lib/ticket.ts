@@ -62,21 +62,26 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
 
   // QR block — real, standard QR encoding the booking's signed check-in
   // token (booking.qrToken), high error-correction so the logo cutout below
-  // doesn't break decodability.
+  // doesn't break decodability. Standard black-on-white modules — see
+  // QRCode.tsx's doc comment: the branded green-on-black scheme measurably
+  // hurt real-world scan reliability, confirmed even against a phone's
+  // native camera app. This canvas path duplicates that same QR
+  // independently (a downloadable/printable ticket, not the on-screen
+  // component), so it needed the identical fix.
   const qr = QRCodeLib.create(booking.qrToken || booking.id, { errorCorrectionLevel: 'H' });
   const n = qr.modules.size;
   const qsize = 340;
   const cell = qsize / n;
   const qx = (W - qsize) / 2;
   const qy = 390;
-  ctx.fillStyle = '#000000';
+  ctx.fillStyle = '#ffffff';
   roundRect(ctx, qx - 18, qy - 18, qsize + 36, qsize + 36, 14);
   ctx.fill();
   ctx.strokeStyle = '#9be13d';
   ctx.lineWidth = 2;
   roundRect(ctx, qx - 18, qy - 18, qsize + 36, qsize + 36, 14);
   ctx.stroke();
-  ctx.fillStyle = '#9be13d';
+  ctx.fillStyle = '#000000';
   for (let y = 0; y < n; y++) {
     for (let x = 0; x < n; x++) {
       if (qr.modules.get(y, x)) ctx.fillRect(qx + x * cell, qy + y * cell, cell + 0.5, cell + 0.5);
