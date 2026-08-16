@@ -4,8 +4,18 @@ import QRCodeLib from 'qrcode';
 /** A real, standard-compliant QR code encoding `value` — scannable by any
  * QR reader, not just Prebooze's. High error-correction ('H', ~30%
  * tolerance) so the branded logo cutout in the center doesn't break
- * decodability, the same trick real-world branded tickets use. */
-export default function QRCode({ value, size = 148, caption }: { value: string; size?: number; caption?: string }) {
+ * decodability, the same trick real-world branded tickets use.
+ *
+ * `value` is a signed JWT (see BookingsService.create's qrToken), not a
+ * short opaque id — that's what makes this a genuinely dense code (version
+ * 13, 69x69 modules for a typical booking). Displaying that dense a code at
+ * a small physical size leaves very little real-world margin for a gate
+ * scanner against screen glare, hand-shake, or an imperfect angle, even
+ * though it decodes fine in a clean digital test — 148 was too small in
+ * practice (see the organizer-scanner gate-check fix this size bump shipped
+ * alongside). 220 gives real cameras meaningfully more area to resolve the
+ * same module count into. */
+export default function QRCode({ value, size = 220, caption }: { value: string; size?: number; caption?: string }) {
   const [dataUrl, setDataUrl] = useState('');
 
   useEffect(() => {
