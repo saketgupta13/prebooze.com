@@ -70,12 +70,16 @@ export default function QRCode({ value, size = 220, caption }: { value: string; 
       )}
       <span
         style={{
-          // True center on both axes — this used to be `top: 14 + size/2`,
-          // a fixed 14px offset below center that had nothing to do with
-          // the QR itself (likely meant to visually balance against the
-          // caption below, but it just left the badge off-center on the
-          // code). `50%`/`50%` with the same translate centers it exactly.
-          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+          // True center on both axes. This used to be `top: 14 + size/2` (a
+          // stray fixed 14px offset), then `top: '50%'` — which looked
+          // right with no caption but was still wrong: `.qr-wrap` is an
+          // inline-flex *column* with the caption stacked below the image,
+          // so `50%` centers against the image+caption's combined height,
+          // not the image alone, drifting down by however tall the caption
+          // text is (measured: 12px off with a 2-line caption). `size / 2`
+          // is an exact pixel offset tied to the image's own height, so it
+          // can't be pulled off-center by whatever caption follows it.
+          position: 'absolute', top: size / 2, left: '50%', transform: 'translate(-50%, -50%)',
           width: logo + 10, height: logo + 10, background: '#000', borderRadius: 8,
           border: '1.5px solid #9be13d',
           display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #000',
