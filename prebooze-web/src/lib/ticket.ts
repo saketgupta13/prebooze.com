@@ -210,7 +210,7 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
 
   ctx.fillStyle = '#7d8070';
   ctx.font = '600 11px Manrope, sans-serif';
-  ctx.fillText('Terms & conditions apply — prebooze.com/legal/purchase-terms', W / 2, H - 60);
+  ctx.fillText('Terms & conditions apply — prebooze.com/legal/terms', W / 2, H - 60);
   ctx.font = '600 12px Manrope, sans-serif';
   ctx.fillText('prebooze.com', W / 2, H - 40);
   ctx.textAlign = 'left';
