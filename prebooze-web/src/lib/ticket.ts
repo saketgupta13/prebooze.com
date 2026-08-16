@@ -200,7 +200,7 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
 
   ctx.fillStyle = '#edefe6';
   ctx.font = '700 15px Manrope, sans-serif';
-  ctx.fillText('Thanks for booking with Prebooze — see you on the dance floor! 🎉', W / 2, gy + 40);
+  ctx.fillText('Thanks for booking with Prebooze — see you there! 🎉', W / 2, gy + 40);
 
   if (igHandle) {
     ctx.fillStyle = '#9be13d';
