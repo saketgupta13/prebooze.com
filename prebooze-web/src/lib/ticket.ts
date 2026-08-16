@@ -2,6 +2,7 @@ import QRCodeLib from 'qrcode';
 import type { Booking, Event, Venue } from '../types';
 import { fmtDate, fmtTime } from '../data/mock';
 import { platform } from '../api';
+import { instagramHandle } from './social';
 
 const loadImg = (src: string): Promise<HTMLImageElement | null> =>
   new Promise((resolve) => {
@@ -10,16 +11,6 @@ const loadImg = (src: string): Promise<HTMLImageElement | null> =>
     img.onerror = () => resolve(null);
     img.src = src;
   });
-
-// Admin types this as either a bare "instagram.com/prebooze_com"-style
-// handle or a full URL (same real, admin-configurable field Footer.tsx
-// already reads via socials.instagram) — this pulls out just the trailing
-// @handle for a short on-ticket mention, not a clickable link.
-function instagramHandle(url?: string): string | null {
-  if (!url?.trim()) return null;
-  const parts = url.trim().replace(/\/+$/, '').split('/');
-  return parts[parts.length - 1] || null;
-}
 
 /** Render the ticket in our design onto a canvas and download it as a PNG. */
 export async function downloadTicket(booking: Booking, event: Event, venue: Venue | undefined) {

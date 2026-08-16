@@ -4,6 +4,8 @@ import { fmtDate, fmtTime, minPrice } from '../../data/mock';
 import { promoter as promoterApi, type PromoterPass } from '../../api';
 import { cutoffDate, countdownLabel, isPassValid } from '../../lib/promoterPass';
 import { eventLocation } from '../../lib/venue';
+import { instagramHandle } from '../../lib/social';
+import { usePlatformInfo } from '../../lib/usePlatformInfo';
 import QRCode from '../../components/QRCode';
 import Loader from '../../components/Loader';
 
@@ -16,13 +18,20 @@ export default function GuestPass() {
   const { id } = useParams();
   const [pass, setPass] = useState<PromoterPass | null>(null);
   const [loading, setLoading] = useState(true);
+  const { socials } = usePlatformInfo();
+  const igHandle = instagramHandle(socials.instagram);
 
   useEffect(() => {
     if (!id) return;
     promoterApi.pass(id).then(setPass).catch(() => setPass(null)).finally(() => setLoading(false));
   }, [id]);
 
-  // tick every second for the countdown + rotate the QR seed every 5s
+  // tick every second for the countdown + rotate the QR seed every minute —
+  // 5s was too fast for a real gate scan: the visual code could change out
+  // from under a camera that was still mid-decode, before it ever locked
+  // on. The rotation is a screenshot deterrent only (see checkIn's doc
+  // comment — the server never validates it), so slowing it down doesn't
+  // weaken anything real.
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -46,7 +55,7 @@ export default function GuestPass() {
   const venue = event.venue;
   const cutoff = cutoffDate(event);
   const valid = isPassValid(event);
-  const rotation = Math.floor(now / 5000); // changes every 5s
+  const rotation = Math.floor(now / 60000); // changes once a minute
 
   return (
     <main className="page">
@@ -61,6 +70,11 @@ export default function GuestPass() {
 
             <div className="card card-shadow" style={{ textAlign: 'center' }}>
               <h2 style={{ fontSize: 20 }}>{event.title}</h2>
+              {event.organizer?.brandName && (
+                <div className="small accent" style={{ fontWeight: 700, margin: '2px 0' }}>
+                  🎪 Hosted by {event.organizer.brandName}
+                </div>
+              )}
               <div className="muted small" style={{ margin: '6px 0 4px' }}>
                 {fmtDate(event.date)} · {fmtTime(event.date)} · {eventLocation(event, venue)}
               </div>
@@ -75,7 +89,13 @@ export default function GuestPass() {
                 </div>
               )}
 
-              <QRCode value={`${pass.id}-${rotation}`} caption="one QR for the whole group · rotates every 5s · screenshot-proof" />
+              <QRCode value={`${pass.id}-${rotation}`} caption="one QR for the whole group · rotates every minute · screenshot-proof" />
+
+              <div className="small bold" style={{ marginTop: 16 }}>Thanks for booking with Prebooze — see you there! 🎉</div>
+              {igHandle && <div className="tiny accent" style={{ marginTop: 4 }}>📸 Follow us @{igHandle} on Instagram</div>}
+              <div className="tiny muted-2" style={{ marginTop: 10 }}>
+                Terms & conditions apply — <Link to="/legal/terms" className="link">prebooze.com/legal/terms</Link>
+              </div>
 
               {cutoff && (
                 <div

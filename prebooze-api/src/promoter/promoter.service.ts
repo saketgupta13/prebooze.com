@@ -513,7 +513,7 @@ export class PromoterService {
   async getPass(id: string) {
     // tiers included so the post-cutoff "get a ticket" CTA (minPrice()) has
     // real pricing to show, not just the guest/venue fields the QR itself needs.
-    const guest = await this.prisma.promoterGuest.findUnique({ where: { id }, include: { event: { include: { venue: true, tiers: true } } } });
+    const guest = await this.prisma.promoterGuest.findUnique({ where: { id }, include: { event: { include: { venue: true, tiers: true, organizer: true } } } });
     if (!guest) throw new NotFoundException('Pass not found');
     return guest;
   }

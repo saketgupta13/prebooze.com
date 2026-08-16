@@ -23,3 +23,13 @@ export function myStatus(
   if (interested.includes(eventId)) return 'interested';
   return null;
 }
+
+// Admin types this as either a bare "instagram.com/prebooze_com"-style
+// handle or a full URL (same real, admin-configurable field Footer.tsx
+// already reads via socials.instagram) — this pulls out just the trailing
+// @handle for a short mention, not a clickable link.
+export function instagramHandle(url?: string): string | null {
+  if (!url?.trim()) return null;
+  const parts = url.trim().replace(/\/+$/, '').split('/');
+  return parts[parts.length - 1] || null;
+}
