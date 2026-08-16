@@ -265,7 +265,11 @@ export default function Scanner() {
 
   if (state.mode === 'valid-guestlist') {
     const g = state.row;
-    const partySize = 1 + g.plusOnes + g.companions.length;
+    // plusOnes and companions represent the same people, not two separate
+    // groups — GuestListService.add clamps companions to plusOnes count,
+    // so g.companions.length is always the real companion count regardless
+    // of what plusOnes was originally set to.
+    const partySize = 1 + g.companions.length;
     return (
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
