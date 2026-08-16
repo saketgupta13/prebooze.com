@@ -6,13 +6,13 @@ import QRCodeLib from 'qrcode';
  * tolerance) so the branded logo cutout in the center doesn't break
  * decodability, the same trick real-world branded tickets use.
  *
- * Standard black-on-white modules — a prior brand-green-on-black scheme
- * looked good but measurably hurt real-world scan reliability (confirmed:
- * even a phone's native camera app, far more robust than jsQR, failed to
- * decode it). Every QR reader in existence is built and tuned against
- * black-on-white; the branded look isn't worth the failed scans it causes
- * at the actual gate. The logo cutout badge stays branded (it's a separate
- * overlay, not part of the scanned modules).
+ * Brand green-on-black modules, deliberately reinstated after confirming
+ * standard black-on-white measurably scanned more reliably (even a phone's
+ * native camera app failed to decode the green-on-black version, while
+ * black-on-white and a shrunk logo cutout both worked) — a known,
+ * knowingly-accepted reliability tradeoff for the branded look, not an
+ * oversight. If real-world scan failures resurface, this is the first
+ * thing to revisit.
  *
  * `value` is a signed JWT (see BookingsService.create's qrToken), not a
  * short opaque id — that's what makes this a genuinely dense code (version
@@ -36,7 +36,7 @@ export default function QRCode({ value, size = 220, caption }: { value: string; 
       // onto the right/bottom edge in the background color, visible as an
       // uneven dead black bar. Scale always tiles exactly, no padding.
       scale: 14,
-      color: { dark: '#000000', light: '#ffffff' },
+      color: { dark: '#9be13d', light: '#000000' },
     })
       .then((url) => { if (!cancelled) setDataUrl(url); })
       .catch(() => {});
@@ -60,11 +60,16 @@ export default function QRCode({ value, size = 220, caption }: { value: string; 
       {dataUrl ? (
         <img src={dataUrl} alt="Entry QR code" width={size} height={size} style={{ borderRadius: 8, display: 'block' }} />
       ) : (
-        <div style={{ width: size, height: size, borderRadius: 8, background: '#ffffff' }} />
+        <div style={{ width: size, height: size, borderRadius: 8, background: '#000000' }} />
       )}
       <span
         style={{
-          position: 'absolute', top: 14 + size / 2, left: '50%', transform: 'translate(-50%, -50%)',
+          // True center on both axes — this used to be `top: 14 + size/2`,
+          // a fixed 14px offset below center that had nothing to do with
+          // the QR itself (likely meant to visually balance against the
+          // caption below, but it just left the badge off-center on the
+          // code). `50%`/`50%` with the same translate centers it exactly.
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
           width: logo + 10, height: logo + 10, background: '#000', borderRadius: 8,
           border: '1.5px solid #9be13d',
           display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #000',
