@@ -2,19 +2,22 @@ import QRCodeLib from 'qrcode';
 import type { Booking, Event, Venue } from '../types';
 import { fmtDate, fmtTime } from '../data/mock';
 
-const loadLogo = (): Promise<HTMLImageElement | null> =>
+const loadImg = (src: string): Promise<HTMLImageElement | null> =>
   new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
-    img.src = '/prebooze-mark.png';
+    img.src = src;
   });
 
 /** Render the ticket in our design onto a canvas and download it as a PNG. */
 export async function downloadTicket(booking: Booking, event: Event, venue: Venue | undefined) {
-  const logo = await loadLogo();
+  // Two different marks: the wordmark-ish full logo up top, and the plain
+  // bunny icon cut into the QR's centre lower down — same split the rest
+  // of the app already uses (compare the guest header vs. QRCode.tsx).
+  const [logo, headerLogo] = await Promise.all([loadImg('/prebooze-mark.png'), loadImg('/prebooze-logo.png')]);
   const W = 640;
-  const H = 960 + Math.max(0, Math.ceil(booking.guests.length / 2) - 1) * 20; // room for the guest list
+  const H = 980 + Math.max(0, Math.ceil(booking.guests.length / 2) - 1) * 20; // room for the guest list
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
@@ -28,35 +31,41 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   roundRect(ctx, 24, 24, W - 48, H - 48, 22);
   ctx.fill();
 
-  // header band
+  // header — real logo, centered, no colored strip (previously a solid
+  // green band with "PREBOOZE" typed out as text). "E-TICKET" sits below
+  // the mark rather than beside a wordmark that no longer exists here.
+  let headerBottom = 60;
+  if (headerLogo) {
+    const logoW = 220;
+    const logoH = logoW * (headerLogo.height / headerLogo.width);
+    ctx.drawImage(headerLogo, W / 2 - logoW / 2, 40, logoW, logoH);
+    headerBottom = 40 + logoH;
+  }
   ctx.fillStyle = '#9be13d';
-  roundRect(ctx, 24, 24, W - 48, 92, 22);
-  ctx.fill();
-  ctx.fillStyle = '#1f2118';
-  ctx.fillRect(24, 84, W - 48, 32);
-  ctx.fillStyle = '#14150f';
-  ctx.font = '800 30px Manrope, sans-serif';
-  ctx.fillText('PREBOOZE', 48, 74);
-  ctx.font = '700 15px Manrope, sans-serif';
-  ctx.fillText('E-TICKET', W - 130, 74);
+  ctx.font = '700 13px Manrope, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = '2px';
+  ctx.fillText('E-TICKET', W / 2, headerBottom + 26);
+  ctx.letterSpacing = '0px';
+  ctx.textAlign = 'left';
 
   // event details
   ctx.fillStyle = '#edefe6';
   ctx.font = '800 28px Manrope, sans-serif';
-  wrapText(ctx, event.title, 48, 160, W - 96, 34);
+  wrapText(ctx, event.title, 48, 174, W - 96, 34);
   ctx.fillStyle = '#9a9d8c';
   ctx.font = '600 17px Manrope, sans-serif';
-  ctx.fillText(`📅  ${fmtDate(event.date)} · ${fmtTime(event.date)}`, 48, 230);
-  ctx.fillText(`📍  ${venue ? `${venue.name}, ${venue.city}` : 'Venue TBA'}`, 48, 258);
-  ctx.fillText(`🎟  ${booking.tierName}`, 48, 286);
-  ctx.fillText(`👤  ${booking.mainGuest} · ${booking.qty} guest${booking.qty > 1 ? 's' : ''}`, 48, 314);
+  ctx.fillText(`📅  ${fmtDate(event.date)} · ${fmtTime(event.date)}`, 48, 244);
+  ctx.fillText(`📍  ${venue ? `${venue.name}, ${venue.city}` : 'Venue TBA'}`, 48, 272);
+  ctx.fillText(`🎟  ${booking.tierName}`, 48, 300);
+  ctx.fillText(`👤  ${booking.mainGuest} · ${booking.qty} guest${booking.qty > 1 ? 's' : ''}`, 48, 328);
 
   // divider (perforation)
   ctx.strokeStyle = '#3a3d30';
   ctx.setLineDash([6, 8]);
   ctx.beginPath();
-  ctx.moveTo(48, 348);
-  ctx.lineTo(W - 48, 348);
+  ctx.moveTo(48, 362);
+  ctx.lineTo(W - 48, 362);
   ctx.stroke();
   ctx.setLineDash([]);
 
@@ -73,7 +82,7 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   const qsize = 340;
   const cell = qsize / n;
   const qx = (W - qsize) / 2;
-  const qy = 390;
+  const qy = 404;
   ctx.fillStyle = '#ffffff';
   roundRect(ctx, qx - 18, qy - 18, qsize + 36, qsize + 36, 14);
   ctx.fill();
