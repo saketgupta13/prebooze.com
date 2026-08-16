@@ -401,11 +401,17 @@ export class OrganizerService {
       // again). Reading b.checkedIn here means every guest in the party
       // reflects the real scan instead of always showing "not checked in".
       const guests = b.guests as { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
-      return guests.map((g) => ({
+      return guests.map((g, i) => ({
         bookingId: b.id,
         bookingStatus: b.status,
         tierName: b.tierName,
         name: g.name,
+        // guests[0] is always the buyer (see BookingsService.create/adminCreate
+        // — mainGuest is unshifted onto the front of the array at creation,
+        // never reordered after) — lets the scanner group a multi-guest
+        // booking's search results under the buyer's name regardless of
+        // which guest's name actually matched the search.
+        isMainGuest: i === 0,
         gender: g.gender,
         whatsapp: g.whatsapp ?? b.whatsapp,
         checkedIn: b.checkedIn,

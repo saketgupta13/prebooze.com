@@ -421,6 +421,7 @@ export interface OrgAttendee {
   bookingStatus: string;
   tierName: string;
   name: string;
+  isMainGuest: boolean;
   gender?: string;
   whatsapp: string;
   checkedIn: boolean;
