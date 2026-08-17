@@ -109,6 +109,25 @@ export default function Checkout() {
   const [gender, setGender] = useState(user?.gender ?? '');
   const [whatsapp, setWhatsapp] = useState(user?.phone ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
+  // `user` from context often isn't ready yet at mount (it's filled in by a
+  // separate auth.me() fetch, or updates later if the guest edits their
+  // profile then comes back to a still-open checkout tab) — the useState
+  // initializers above only ever run once, so these fields silently stayed
+  // blank/stale instead of picking up the real profile once it loads.
+  useEffect(() => {
+    if (!user) return;
+    setName(user.name ?? '');
+    setGender(user.gender ?? '');
+    setWhatsapp(user.phone ?? '');
+    setEmail(user.email ?? '');
+  }, [user?.name, user?.gender, user?.phone, user?.email]);
+  // A first real booking backfills User.name from whatever was typed here
+  // (see BookingsService.create) — so a non-empty profile name means this
+  // guest has already been through checkout before and we already have
+  // their details, no need to ask again for the main attendee.
+  const knownGuest = Boolean(user?.name?.trim() && user?.phone?.trim());
+  const [editMain, setEditMain] = useState(false);
+  const showMainFields = !knownGuest || editMain;
   const [guestNames, setGuestNames] = useState<string[]>([]);
   const [guestGenders, setGuestGenders] = useState<string[]>([]);
   const [guestPhones, setGuestPhones] = useState<string[]>([]);
@@ -585,26 +604,40 @@ export default function Checkout() {
             {/* Attendee details */}
             <div id="attendee-details" className="card" style={{ marginBottom: 18 }}>
               <h3 style={{ marginBottom: 14 }}>Attendee details</h3>
-              <div className="field">
-                <span>Full name (main attendee) *</span>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
-              </div>
-              <div className="form-row">
-                <div className="field">
-                  <span>Gender</span>
-                  <select value={gender} onChange={(e) => setGender(e.target.value)}>
-                    <option value="">Select…</option>
-                    <option>Female</option>
-                    <option>Male</option>
-                    <option>Non-binary</option>
-                    <option>Prefer not to say</option>
-                  </select>
+              {!showMainFields ? (
+                <div className="field" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div>
+                    <div className="bold">{name}</div>
+                    <div className="tiny muted">{whatsapp}{gender ? ` · ${gender}` : ''}</div>
+                  </div>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditMain(true)}>
+                    Not you? Edit
+                  </button>
                 </div>
-                <div className="field">
-                  <span>WhatsApp number *</span>
-                  <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+91" />
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="field">
+                    <span>Full name (main attendee) *</span>
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
+                  </div>
+                  <div className="form-row">
+                    <div className="field">
+                      <span>Gender</span>
+                      <select value={gender} onChange={(e) => setGender(e.target.value)}>
+                        <option value="">Select…</option>
+                        <option>Female</option>
+                        <option>Male</option>
+                        <option>Non-binary</option>
+                        <option>Prefer not to say</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <span>WhatsApp number *</span>
+                      <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+91" />
+                    </div>
+                  </div>
+                </>
+              )}
               {ticketCount > 1 && (
                 <>
                   <div className="small muted" style={{ marginBottom: 12 }}>
