@@ -80,15 +80,21 @@ export default function CameraQRScanner({ onScan, active = true }: { onScan: (da
       // enough to resolve a real ticket QR's modules at normal scanning
       // distance. `ideal` (not `exact`) so devices that can't hit these
       // still connect at their best available instead of failing outright.
-      // `focusMode`/`advanced` continuous-autofocus keys are silently
-      // ignored by browsers/devices that don't support them.
+      // Width/height use a natural 16:9-ish ratio, not a forced square —
+      // asking a real (non-square) camera sensor for 1920x1920 makes some
+      // drivers pick a cropped/downscaled mode to satisfy both dimensions,
+      // which was working against us. The video element still displays as
+      // a square via CSS `object-fit: cover`, so nothing downstream cares.
+      // `focusMode`/`exposureMode`/`advanced` keys are silently ignored by
+      // browsers/devices that don't support them.
       ?.getUserMedia({
         video: {
           facingMode: 'environment',
           width: { ideal: 1920 },
-          height: { ideal: 1920 },
+          height: { ideal: 1080 },
           focusMode: 'continuous',
-          advanced: [{ focusMode: 'continuous' }],
+          exposureMode: 'continuous',
+          advanced: [{ focusMode: 'continuous' }, { exposureMode: 'continuous' }],
         } as unknown as MediaTrackConstraints,
       })
       .then((stream) => {
@@ -98,6 +104,12 @@ export default function CameraQRScanner({ onScan, active = true }: { onScan: (da
           videoRef.current.srcObject = stream;
           videoRef.current.play().catch(() => {});
         }
+        // Some Android Chrome builds silently ignore focus/exposure mode
+        // when passed only as an initial getUserMedia constraint, but honor
+        // the identical setting when reapplied via applyConstraints once
+        // the track is already live — cheap to try, no-op where unsupported.
+        const track = stream.getVideoTracks()[0];
+        track?.applyConstraints({ advanced: [{ focusMode: 'continuous' }, { exposureMode: 'continuous' }] } as unknown as MediaTrackConstraints).catch(() => {});
         setReady(true);
       })
       .catch(() => setError("Couldn't access the camera — check permissions, or use manual entry below."));
@@ -142,11 +154,18 @@ export default function CameraQRScanner({ onScan, active = true }: { onScan: (da
           canvas.height = Math.round(video.videoHeight * scale);
           sized = true;
         }
-        // Throttled, not run on every animation-frame tick — a QR held up
-        // to a camera doesn't move fast enough to need 60 attempts/sec, and
-        // spacing them out leaves more CPU per attempt for a snappier video
-        // feed instead of everything competing for the same frame budget.
-        if (timestamp - lastScanAt >= 150) {
+        // Throttled, not run on every animation-frame tick, but not too
+        // sparse either. This matters most when the "ticket" being scanned
+        // is itself displayed on another phone's screen (e.g. a promoter or
+        // VIP pass opened on the guest's phone) rather than printed or on a
+        // static badge — screen-to-screen capture suffers from moiré/glare
+        // that flickers frame-to-frame as the two displays' refresh cycles
+        // drift in and out of phase, so the "clean" decodable moment can be
+        // brief. 150ms (6.6 attempts/sec) traded too much of that catch
+        // rate for CPU headroom; 80ms (12.5/sec) still leaves plenty of
+        // budget at the 960px processing size while roughly doubling the
+        // odds of landing an attempt inside a lucky frame.
+        if (timestamp - lastScanAt >= 80) {
           lastScanAt = timestamp;
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
