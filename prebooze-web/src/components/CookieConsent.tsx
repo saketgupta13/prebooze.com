@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { social } from '../api';
 import { getToken } from '../api/client';
@@ -33,11 +34,18 @@ export function openCookiePreferences() {
  * that already ran earlier in the current tab. */
 export default function CookieConsent() {
   const [open, setOpen] = useState(() => !localStorage.getItem(STORAGE_KEY));
+  // Captured once, at mount — true only for the genuine "no choice exists
+  // yet" case. openCookiePreferences() (the Cookie Policy page's "Manage
+  // cookie preferences" button) can only ever be reached by a guest who
+  // already has a stored choice — the site is inert while blocking, so
+  // there's no way to navigate there and trigger a reopen while it's true.
+  const [blocking] = useState(() => !localStorage.getItem(STORAGE_KEY));
   const [managing, setManaging] = useState(false);
   // Defaults on for a first-time guest (no stored choice yet) — only an
   // explicit prior 'rejected' should show as off when the panel reopens.
   const [analyticsOn, setAnalyticsOn] = useState(() => localStorage.getItem(STORAGE_KEY) !== 'rejected');
   const { updateUser } = useApp();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const reopen = () => {
@@ -48,6 +56,51 @@ export default function CookieConsent() {
     window.addEventListener(REOPEN_EVENT, reopen);
     return () => window.removeEventListener(REOPEN_EVENT, reopen);
   }, []);
+
+  // Real blocking, not just visual — page scroll is locked and focus is
+  // pulled into (and held inside) the dialog, so a guest can't scroll past
+  // or tab/keyboard-focus their way into the page underneath. A plain
+  // mount-time .focus() alone isn't enough: another element with its own
+  // autoFocus (e.g. CityPicker's city-search input, for a guest who also
+  // has no city set yet) can win that race depending on effect order —
+  // pointer-events blocking from the backdrop doesn't stop a keyboard user
+  // from typing into whatever already has DOM focus, so this also
+  // re-claims focus on every focusin that lands outside the dialog, for as
+  // long as blocking stays active.
+  useEffect(() => {
+    if (!blocking || !open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusFirst = () => dialogRef.current?.querySelector<HTMLElement>('button, a[href], input')?.focus();
+    focusFirst();
+    const id = requestAnimationFrame(focusFirst);
+    const onFocusIn = (e: FocusEvent) => {
+      if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) focusFirst();
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      cancelAnimationFrame(id);
+      document.removeEventListener('focusin', onFocusIn);
+    };
+  }, [blocking, open]);
+
+  const trapFocus = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Tab' || !dialogRef.current) return;
+    const focusable = Array.from(
+      dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input')
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 
   if (!open) return null;
 
@@ -88,71 +141,93 @@ export default function CookieConsent() {
   };
 
   return (
+    // Single wrapper handles backdrop + centering + click-capture — styled
+    // like .modal-ov (index.css, used by CityPicker) rather than that class
+    // itself, since its dimming/pointer-capture need to be conditional on
+    // `blocking` rather than always-on. When blocking, this is dimmed and
+    // blurred enough that CityPicker's own modal (which can show at the
+    // same time for a first-time guest with no city set — it lives inside
+    // .hdr's z-index:50 stacking context and can never paint above this
+    // root-level wrapper regardless of its own z-index) reads as inert
+    // background, not as something still clickable. When not blocking (the
+    // reopened-later case, via "Manage cookie preferences" on the Cookie
+    // Policy page), the wrapper is transparent and pointer-events: none, so
+    // only the card itself is interactive and everything else on the page
+    // stays fully clickable/scrollable underneath — no outside-click
+    // dismiss here (pointer-events: none means the wrapper itself never
+    // receives that click to begin with), close via Back/Save as before.
     <div
-      role="dialog"
-      aria-label="Cookie consent"
       style={{
         position: 'fixed',
-        left: 0,
-        right: 0,
-        bottom: 0,
+        inset: 0,
         zIndex: 70,
-        background: 'var(--surface)',
-        borderTop: '1px solid var(--border)',
-        boxShadow: '0 -4px 24px rgba(0,0,0,.25)',
-        padding: '14px 16px',
         display: 'flex',
-        gap: 14,
-        alignItems: managing ? 'flex-start' : 'center',
-        flexWrap: 'wrap',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        padding: '8vh 16px 16px',
+        overflowY: 'auto',
+        background: blocking ? 'rgba(5,6,4,.78)' : 'transparent',
+        backdropFilter: blocking ? 'blur(3px)' : undefined,
+        pointerEvents: blocking ? 'auto' : 'none',
       }}
     >
-      {!managing ? (
-        <>
-          <p style={{ margin: 0, flex: '1 1 320px', fontSize: 13, color: 'var(--muted)' }}>
-            We use cookies to keep you signed in and to remember your city and preferences. See our{' '}
-            <Link to="/legal/cookies" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Cookie Policy</Link> for details.
-          </p>
-          <div style={{ display: 'flex', gap: 8, flex: 'none' }}>
-            <button className="btn btn-ghost" onClick={() => setManaging(true)}>Manage cookies</button>
-            <button className="btn btn-pri" onClick={() => decide('accepted')}>Accept all</button>
-          </div>
-        </>
-      ) : (
-        <div style={{ flex: '1 1 100%', maxWidth: 520 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>Cookie preferences</div>
-          <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--muted)' }}>
-            Choose what Prebooze can use on this device. See our{' '}
-            <Link to="/legal/cookies" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Cookie Policy</Link> for what each category does.
-          </p>
-          <div style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>Essential</div>
-                <div style={{ fontSize: 12, color: 'var(--muted-2)' }}>Sign-in, city, cart — always on, required to use Prebooze.</div>
-              </div>
-              <button className="btn btn-sm btn-ghost" disabled style={{ flex: 'none', opacity: 0.6 }}>Always on</button>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-label="Cookie consent"
+        aria-modal={blocking ? true : undefined}
+        onKeyDown={blocking ? trapFocus : undefined}
+        className="card card-shadow"
+        style={{ width: '100%', maxWidth: 420, pointerEvents: 'auto' }}
+      >
+        {!managing ? (
+          <>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>Cookies 🍪</div>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--muted)' }}>
+              We use cookies to keep you signed in and to remember your city and preferences. See our{' '}
+              <Link to="/legal/cookies" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Cookie Policy</Link> for details.
+            </p>
+            <div style={{ display: 'grid', gap: 8 }}>
+              <button className="btn btn-pri btn-block" onClick={() => decide('accepted')}>Accept all</button>
+              <button className="btn btn-ghost btn-block" onClick={() => setManaging(true)}>Manage cookies</button>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>Analytics &amp; advertising</div>
-                <div style={{ fontSize: 12, color: 'var(--muted-2)' }}>Helps us see how Prebooze is used and how well our promotions work — also turns on the People directory by default (change anytime in Profile).</div>
+          </>
+        ) : (
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>Cookie preferences</div>
+            <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted)' }}>
+              Choose what Prebooze can use on this device. See our{' '}
+              <Link to="/legal/cookies" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Cookie Policy</Link> for what each category does.
+            </p>
+            <div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Essential</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted-2)' }}>Sign-in, city, cart — always on, required to use Prebooze.</div>
+                </div>
+                <button className="btn btn-sm btn-ghost" disabled style={{ flex: 'none', opacity: 0.6 }}>Always on</button>
               </div>
-              <button
-                className={`btn btn-sm ${analyticsOn ? 'btn-pri' : 'btn-ghost'}`}
-                style={{ flex: 'none' }}
-                onClick={() => setAnalyticsOn((v) => !v)}
-              >
-                {analyticsOn ? 'On' : 'Off'}
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Analytics &amp; advertising</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted-2)' }}>Helps us see how Prebooze is used and how well our promotions work — also turns on the People directory by default (change anytime in Profile).</div>
+                </div>
+                <button
+                  className={`btn btn-sm ${analyticsOn ? 'btn-pri' : 'btn-ghost'}`}
+                  style={{ flex: 'none' }}
+                  onClick={() => setAnalyticsOn((v) => !v)}
+                >
+                  {analyticsOn ? 'On' : 'Off'}
+                </button>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setManaging(false)}>Back</button>
+              <button className="btn btn-pri btn-sm" style={{ flex: 1 }} onClick={() => decide(analyticsOn ? 'accepted' : 'rejected')}>Save preferences</button>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-ghost btn-sm" onClick={() => setManaging(false)}>Back</button>
-            <button className="btn btn-pri btn-sm" onClick={() => decide(analyticsOn ? 'accepted' : 'rejected')}>Save preferences</button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
