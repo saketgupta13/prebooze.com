@@ -278,6 +278,11 @@ export interface Person {
   verified?: boolean;
   followers: number;    // aggregate follower count
   follows?: string[];   // person ids this person follows (social graph)
+  // Real upcoming events this person has a confirmed booking for, gated by
+  // their own attendanceVisibility (off/followers/public) — only populated
+  // on GET /people (the directory listing), used to compute "N going" and
+  // "N in common" client-side against the viewer's own bookings/interested.
+  going?: { id: string; slug: string; title: string }[];
 }
 
 /** Real GET /people/:username response — a genuine User row (not the

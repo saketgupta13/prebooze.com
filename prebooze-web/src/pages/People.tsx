@@ -13,7 +13,7 @@ import type { Person } from '../types';
  * Real, opt-in guests only (User.discoverable) — PEOPLE mock stays only as
  * the offline/dev-mode fallback, same pattern as Home.tsx's other pools. */
 export default function People() {
-  const { city, following, netFollowers, toggleFollow } = useApp();
+  const { city, following, netFollowers, toggleFollow, bookings, interested } = useApp();
   const [tab, setTab] = useState<'discover' | 'following'>('discover');
   const [q, setQ] = useState('');
 
@@ -25,6 +25,15 @@ export default function People() {
   const loading = isBackendEnabled() && livePeople === null;
   const cityPeople = livePeople ?? (isBackendEnabled() ? [] : PEOPLE.filter((p) => p.city === city));
 
+  // Real "N in common" — intersects each person's real going[] (see
+  // catalog.service.ts's people(), privacy-gated by their own
+  // attendanceVisibility) against the viewer's own real bookings/interested.
+  const myEventIds = useMemo(
+    () => new Set([...bookings.filter((b) => b.status !== 'cancelled').map((b) => b.eventId), ...interested]),
+    [bookings, interested]
+  );
+  const commonCount = (p: Person) => (p.going ?? []).filter((e) => myEventIds.has(e.id)).length;
+
   const followingCount = cityPeople.filter((p) => following.includes(personFollowKey(p.id))).length;
 
   const list = useMemo(() => {
@@ -34,9 +43,9 @@ export default function People() {
       const s = q.toLowerCase();
       l = l.filter((p) => (p.name + p.username).toLowerCase().includes(s));
     }
-    return [...l].sort((a, b) => b.followers - a.followers);
+    return [...l].sort((a, b) => commonCount(b) - commonCount(a) || b.followers - a.followers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, cityPeople, q, following]);
+  }, [tab, cityPeople, q, following, myEventIds]);
 
   return (
     <main className="page">
@@ -80,6 +89,8 @@ export default function People() {
             {list.map((p) => {
               const key = personFollowKey(p.id);
               const isFollowing = following.includes(key);
+              const going = p.going ?? [];
+              const common = commonCount(p);
               return (
                 <DirectoryCard
                   key={p.id}
@@ -91,7 +102,17 @@ export default function People() {
                   verified={p.verified}
                   meta={`@${p.username} · ${p.city}`}
                   bio={p.bio}
-                  stats={<><b>{netFollowers(key, p.followers).toLocaleString('en-IN')}</b> followers</>}
+                  stats={<><b>{netFollowers(key, p.followers).toLocaleString('en-IN')}</b> followers · <b>{going.length}</b> going</>}
+                  extra={(common > 0 || going.length > 0) && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {common > 0 && (
+                        <span className="tag" style={{ borderColor: 'var(--accent)', color: 'var(--accent)', fontWeight: 700 }}>🔥 {common} in common</span>
+                      )}
+                      {going.slice(0, common > 0 ? 1 : 2).map((e) => (
+                        <Link key={e.id} to={`/events/${e.slug}`} className="tag" style={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🎟 {e.title}</Link>
+                      ))}
+                    </div>
+                  )}
                   action={
                     <button className={`btn btn-sm btn-block ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(key)}>
                       {isFollowing ? 'Following ✓' : '+ Follow'}

@@ -427,7 +427,7 @@ export default function Home() {
           <Slider slideWidth={244}>
             {cityPeople.map((p) => (
               <DirectoryCard key={p.id} to={`/u/${p.username}`} hue={p.avatarHue} avatarImage={p.avatarUrl} avatarText={p.name[0]} name={p.name} verified={p.verified} meta={`@${p.username} · ${p.city}`} bio={p.bio}
-                stats={<><b>{netFollowers(personFollowKey(p.id), p.followers).toLocaleString('en-IN')}</b> followers</>}
+                stats={<><b>{netFollowers(personFollowKey(p.id), p.followers).toLocaleString('en-IN')}</b> followers · <b>{(p.going ?? []).length}</b> going</>}
                 action={followBtn(personFollowKey(p.id))} />
             ))}
           </Slider>

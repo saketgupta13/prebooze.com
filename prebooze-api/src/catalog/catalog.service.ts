@@ -297,17 +297,56 @@ export class CatalogService {
    * single profile, with real follower counts via the same `person:<id>`
    * Follow key convention. Used to read the seeded mock `Person` table
    * (schema.prisma's Person model) — that table is now fully unused by this
-   * endpoint, since /people/:username already reads real User rows too. */
-  async people(city?: string) {
+   * endpoint, since /people/:username already reads real User rows too.
+   *
+   * `going` (each person's real upcoming confirmed-booking events, slim
+   * {id,slug,title}) is included per-person, gated by that person's own
+   * attendanceVisibility exactly like person() below — 'public' always
+   * shows, 'followers' only shows to a viewer who follows them (hence the
+   * optional viewerId, decoded from an optional JWT same as person()'s
+   * route), 'off' never shows. The frontend intersects this against the
+   * viewer's own bookings/interested to compute "N in common" client-side,
+   * same as the mock data's eventsForPerson() used to. */
+  async people(city?: string, viewerId?: string) {
     const users = await this.prisma.user.findMany({
       where: { discoverable: true, username: { not: '' }, ...(city ? { city } : {}) },
     });
-    const counts = await this.realFollowerCounts(users.map((u) => `person:${u.id}`));
+    if (!users.length) return [];
+
+    const [counts, viewerFollowRows] = await Promise.all([
+      this.realFollowerCounts(users.map((u) => `person:${u.id}`)),
+      viewerId
+        ? this.prisma.follow.findMany({
+            where: { followerId: viewerId, followeeKey: { in: users.map((u) => `person:${u.id}`) } },
+            select: { followeeKey: true },
+          })
+        : Promise.resolve([]),
+    ]);
+    const viewerFollows = new Set(viewerFollowRows.map((r) => r.followeeKey));
+
+    const visibleIds = users
+      .filter((u) => u.attendanceVisibility === 'public' || (u.attendanceVisibility === 'followers' && viewerFollows.has(`person:${u.id}`)))
+      .map((u) => u.id);
+    const bookings = visibleIds.length
+      ? await this.prisma.booking.findMany({
+          where: { userId: { in: visibleIds }, status: 'confirmed' },
+          select: { userId: true, event: { select: { id: true, slug: true, title: true, date: true, durationHrs: true } } },
+        })
+      : [];
+    const goingByUser = new Map<string, { id: string; slug: string; title: string }[]>();
+    for (const b of bookings) {
+      if (!b.event || CatalogService.isEventOver(b.event)) continue;
+      const list = goingByUser.get(b.userId) ?? [];
+      list.push({ id: b.event.id, slug: b.event.slug, title: b.event.title });
+      goingByUser.set(b.userId, list);
+    }
+
     return users
       .map((u) => ({
         id: u.id, name: u.name || 'Guest', username: u.username, city: u.city,
         avatarHue: hueFromId(u.id), avatarUrl: u.avatarUrl ?? undefined, bio: u.bio || undefined,
         verified: u.idVerified, followers: counts.get(`person:${u.id}`) ?? 0,
+        going: goingByUser.get(u.id) ?? [],
       }))
       .sort((a, b) => b.followers - a.followers);
   }

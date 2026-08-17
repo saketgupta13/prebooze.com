@@ -80,8 +80,19 @@ export class CatalogController {
   }
 
   @Get('people')
-  people(@Query('city') city?: string) {
-    return this.catalog.people(city);
+  async people(@Query('city') city: string | undefined, @Req() req: { headers: { authorization?: string } }) {
+    const header = req.headers.authorization ?? '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+    let viewerId: string | undefined;
+    if (token) {
+      try {
+        const payload = await this.jwt.verifyAsync(token);
+        if (payload.sub && payload.phone) viewerId = payload.sub;
+      } catch {
+        // not logged in / expired — fine, just means no viewer-relative gating
+      }
+    }
+    return this.catalog.people(city, viewerId);
   }
 
   /** Public, but personalized if a valid guest token happens to be present
