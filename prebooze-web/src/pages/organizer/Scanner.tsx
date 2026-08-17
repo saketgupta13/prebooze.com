@@ -305,6 +305,10 @@ export default function Scanner() {
 
   if (state.mode === 'valid-booking') {
     const row = state.row;
+    // row is one guest's row (attendees comes back one row per guest sharing
+    // a bookingId) — show the whole party here, matching what the camera-scan
+    // "Checked in" screen already shows via booking.guests.map(...).
+    const partyNames = attendees.filter((a) => a.bookingId === row.bookingId).map((a) => a.name);
     return (
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
@@ -313,7 +317,7 @@ export default function Scanner() {
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Booking</span><span className="bold">{row.bookingId}</span></div>
             <div className="kv"><span className="k">Event</span><span>{event?.title}</span></div>
-            <div className="kv"><span className="k">Guest</span><span>{row.name}</span></div>
+            <div className="kv"><span className="k">Guest{partyNames.length > 1 ? 's' : ''}</span><span>{partyNames.join(', ') || row.name}</span></div>
             <div className="kv"><span className="k">Tickets</span><span>{row.tierName}</span></div>
           </div>
           <button className="btn btn-pri btn-block btn-lg" disabled={busy} onClick={() => confirmBooking(row)}>
