@@ -10,9 +10,13 @@ import type { ReactNode } from 'react';
 // (Suspense only handles the pending state, not a rejected one). A hard
 // refresh "fixed" it only because it re-fetched a current index.html with
 // the right hashes. This does that refresh automatically instead of making
-// the guest figure it out — but only once per page load (the sessionStorage
-// flag, cleared at boot in main.tsx), so a genuinely broken deploy or a
-// real offline guest doesn't reload in a loop.
+// the guest figure it out — but only once: the sessionStorage flag is set
+// right before reloading and only cleared once children actually render
+// successfully afterward (componentDidMount/componentDidUpdate below), not
+// unconditionally at boot — clearing it at boot would erase the "already
+// tried" signal on the very reload it's meant to survive, turning a
+// genuinely broken deploy (or a truly offline guest) into an infinite
+// reload loop instead of the manual-retry fallback below.
 const RELOAD_FLAG = 'pb_chunk_reload_attempted';
 
 function isChunkLoadError(error: unknown): boolean {
@@ -32,6 +36,17 @@ export default class ChunkErrorBoundary extends Component<{ children: ReactNode 
       sessionStorage.setItem(RELOAD_FLAG, '1');
       window.location.reload();
     }
+  }
+
+  // Only reached when children mounted/updated without throwing — the
+  // reload attempt (if any) actually worked, so clear the flag and give
+  // the *next* failure its own fresh one-shot recovery attempt.
+  componentDidMount() {
+    if (!this.state.failed) sessionStorage.removeItem(RELOAD_FLAG);
+  }
+
+  componentDidUpdate() {
+    if (!this.state.failed) sessionStorage.removeItem(RELOAD_FLAG);
   }
 
   render() {
