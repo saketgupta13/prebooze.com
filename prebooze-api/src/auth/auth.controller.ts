@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Patch, Post, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt.guard';
 import { StorageService } from '../kyc/storage.service';
@@ -11,6 +11,11 @@ class RequestOtpDto {
 class VerifyOtpDto {
   @IsString() @IsNotEmpty() requestId!: string;
   @IsString() @IsNotEmpty() code!: string;
+  // Only meaningful for a brand-new signup (see AuthService.verifyOtp) —
+  // the frontend already knows its own cookie-consent choice at this
+  // point, so a new User row can be created with the real value instead
+  // of always defaulting to false and needing a separate sync call right after.
+  @IsBoolean() @IsOptional() marketingConsent?: boolean;
 }
 
 @Controller()
@@ -31,7 +36,7 @@ export class AuthController {
     @Req() req: { headers: { 'user-agent'?: string; 'x-forwarded-for'?: string }; socket?: { remoteAddress?: string } },
   ) {
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
-    return this.auth.verifyOtp(dto.requestId, dto.code, { ip, userAgent: req.headers['user-agent'] });
+    return this.auth.verifyOtp(dto.requestId, dto.code, { ip, userAgent: req.headers['user-agent'], marketingConsent: dto.marketingConsent });
   }
 
   @Post('auth/logout')

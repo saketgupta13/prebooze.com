@@ -67,6 +67,7 @@ export function toApiUser(u: User) {
     venueLogoUrl: u.venueLogoUrl ?? undefined,
     attendanceVisibility: u.attendanceVisibility,
     discoverable: u.discoverable,
+    marketingConsent: u.marketingConsent,
     autoRenew: u.autoRenew,
     // null = never applied for a role; 'pending' | 'approved' | 'rejected' otherwise.
     // Pair with orgBrand/promoterBrand/lineupName/venueName (set immediately on
@@ -139,7 +140,7 @@ export class AuthService {
     return this.wa.live ? { requestId } : { requestId, devCode: code };
   }
 
-  async verifyOtp(requestId: string, code: string, reqMeta?: { ip?: string; userAgent?: string }) {
+  async verifyOtp(requestId: string, code: string, reqMeta?: { ip?: string; userAgent?: string; marketingConsent?: boolean }) {
     const key = `otp:${requestId}`;
     const raw = await this.redis.get(key);
     if (!raw) throw new UnauthorizedException('OTP expired — request a new one');
@@ -160,11 +161,16 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { phone: rec.phone } });
     const user =
       existing ??
+      // marketingConsent set once, here, from the frontend's already-known
+      // cookie choice — never overwritten on a later login (an existing
+      // user may have since changed it via POST me/marketing-consent),
+      // same reasoning as referralCode/username being set-once at creation.
       (await this.prisma.user.create({
         data: {
           phone: rec.phone,
           referralCode: await uniqueReferralCodeFor(this.prisma, rec.phone),
           username: await this.uniqueUsername(rec.phone),
+          marketingConsent: reqMeta?.marketingConsent ?? false,
         },
       }));
 
@@ -188,6 +194,7 @@ export class AuthService {
           user.phone,
           'https://prebooze.com/',
           { phone: user.phone, email: user.email, clientIp: reqMeta?.ip, userAgent: reqMeta?.userAgent },
+          user.marketingConsent,
           { method: 'whatsapp_otp' },
         )
         .catch(() => {});

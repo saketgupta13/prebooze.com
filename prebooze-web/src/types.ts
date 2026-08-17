@@ -480,6 +480,7 @@ export interface User {
   roleRejectionReason?: string;
   attendanceVisibility?: 'off' | 'followers' | 'public'; // who can see events I'm attending (default off)
   discoverable?: boolean; // opt-in for the real "People" directory — off by default, or on if cookies were accepted (see CookieConsent.tsx)
+  marketingConsent?: boolean; // mirrors the "Analytics & advertising" cookie choice — gates the server-side Meta Conversions API
   autoRenew?: boolean; // auto-renew subscriptions / featured placements
   // Set once the soft-required "finish your profile" step is completed —
   // see FinishProfile.tsx / POST /me/complete-profile-reward. Presence of

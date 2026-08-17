@@ -125,7 +125,7 @@ export class KycService {
     // doesn't expose the id to the frontend; roleStatus blocks
     // resubmission, so this is naturally a once-per-user-per-kind id).
     this.meta
-      .sendEvent('Lead', `${user.phone}_${kind}`, `https://prebooze.com/${kind}/onboarding`, { phone: user.phone, email: user.email }, { content_name: `${kind}_onboarding` })
+      .sendEvent('Lead', `${user.phone}_${kind}`, `https://prebooze.com/${kind}/onboarding`, { phone: user.phone, email: user.email }, user.marketingConsent, { content_name: `${kind}_onboarding` })
       .catch(() => {});
     // An untouched draft lead for this same person+role (see
     // LeadsService.captureDraft) is now a real application — mark it
@@ -179,7 +179,7 @@ export class KycService {
     ]);
 
     this.meta
-      .sendEvent('Lead', `${user.phone}_organizer`, 'https://prebooze.com/organizer/onboarding', { phone: user.phone, email: user.email }, { content_name: 'organizer_onboarding' })
+      .sendEvent('Lead', `${user.phone}_organizer`, 'https://prebooze.com/organizer/onboarding', { phone: user.phone, email: user.email }, user.marketingConsent, { content_name: 'organizer_onboarding' })
       .catch(() => {});
     this.leads.resolveDraft(user.phone, 'organizer').catch(() => {});
     await this.notifications.notify('🎪', `${row.brandName} signed up as a new organizer`, '/organizers').catch(() => {});
@@ -296,7 +296,7 @@ export class KycService {
     ]);
 
     this.meta
-      .sendEvent('Lead', `${user.phone}_promoter`, 'https://prebooze.com/promoter/onboarding', { phone: user.phone, email: user.email }, { content_name: 'promoter_onboarding' })
+      .sendEvent('Lead', `${user.phone}_promoter`, 'https://prebooze.com/promoter/onboarding', { phone: user.phone, email: user.email }, user.marketingConsent, { content_name: 'promoter_onboarding' })
       .catch(() => {});
     this.leads.resolveDraft(user.phone, 'promoter').catch(() => {});
     await this.notifications.notify('📣', `${row.name} signed up as a new promoter`, '/promoters').catch(() => {});
@@ -391,7 +391,7 @@ export class KycService {
     ]);
 
     this.meta
-      .sendEvent('Lead', `${user.phone}_lineup`, 'https://prebooze.com/lineup/onboarding', { phone: user.phone, email: user.email }, { content_name: 'lineup_onboarding' })
+      .sendEvent('Lead', `${user.phone}_lineup`, 'https://prebooze.com/lineup/onboarding', { phone: user.phone, email: user.email }, user.marketingConsent, { content_name: 'lineup_onboarding' })
       .catch(() => {});
     this.leads.resolveDraft(user.phone, 'lineup').catch(() => {});
     await this.notifications.notify('🎤', `${row.name} signed up as a new line-up`, '/lineups').catch(() => {});

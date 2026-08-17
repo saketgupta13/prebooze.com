@@ -11,7 +11,13 @@ import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, Wal
 // ---------- auth ----------
 export const auth = {
   requestOtp: (phone: string) => apiFetch<{ requestId: string }>('/auth/otp', { body: { phone } }),
-  verifyOtp: (requestId: string, code: string) => apiFetch<{ token: string; user: User; isNew: boolean }>('/auth/verify', { body: { requestId, code } }),
+  verifyOtp: (requestId: string, code: string) =>
+    apiFetch<{ token: string; user: User; isNew: boolean }>('/auth/verify', {
+      // Only matters for a brand-new signup (see AuthService.verifyOtp) —
+      // lets a new User row get created with the real cookie choice
+      // instead of always defaulting to false.
+      body: { requestId, code, marketingConsent: localStorage.getItem('pb_cookie_consent') === 'accepted' },
+    }),
   me: () => apiFetch<User>('/me'),
   updateMe: (patch: Partial<User>) => apiFetch<User>('/me', { method: 'PATCH', body: patch }),
   upload: (file: File) => {
@@ -260,6 +266,7 @@ export const social = {
   followers: () => apiFetch<Person[]>('/me/followers'),
   setAttendanceVisibility: (v: 'off' | 'followers' | 'public') => apiFetch<void>('/me/attendance-visibility', { body: { v } }),
   setDiscoverable: (on: boolean) => apiFetch<void>('/me/discoverable', { body: { on } }),
+  setMarketingConsent: (on: boolean) => apiFetch<void>('/me/marketing-consent', { body: { on } }),
   interested: (eventId: string, on: boolean) => apiFetch<void>(`/events/${eventId}/interested`, { body: { on } }),
   wishlist: (eventId: string, on: boolean) => apiFetch<void>(`/events/${eventId}/wishlist`, { body: { on } }),
   favVenue: (venueId: string, on: boolean) => apiFetch<void>(`/venues/${venueId}/favourite`, { body: { on } }),

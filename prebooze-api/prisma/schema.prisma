@@ -105,6 +105,13 @@ model User {
   // accepts the cookie-consent banner (see CookieConsent.tsx), with a
   // manual override in Profile settings either way.
   discoverable         Boolean              @default(false)
+  // Mirrors the "Analytics & advertising" toggle in CookieConsent.tsx —
+  // gates the server-side Meta Conversions API (MetaConversionsService),
+  // which otherwise has no connection to the frontend's cookie choice at
+  // all. Same sync pattern as discoverable above: set directly at signup
+  // (verifyOtp) when the frontend already knows the choice, or via
+  // POST me/marketing-consent for an already-existing account.
+  marketingConsent     Boolean              @default(false)
   autoRenew            Boolean              @default(false)
 
   // deterministic from phone ("PB" + base36 of the last 8 digits) — set once

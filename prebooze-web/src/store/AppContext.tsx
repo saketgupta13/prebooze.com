@@ -612,13 +612,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
           // banner for the first time on any later visit, not only at
           // signup. Set by CookieConsent.tsx when accepted while logged
           // out; consumed exactly once here so it can never later clobber a
-          // manual change made in Profile settings.
+          // manual change made in Profile settings. discoverable is never
+          // set at User creation time (unlike marketingConsent, which
+          // verifyOtp's request body already passes through for a brand-new
+          // signup) — this is the only place that ever turns it on, so a
+          // new signup still needs to hit this branch too; re-syncing an
+          // already-correct marketingConsent for that case is harmless.
           if (localStorage.getItem('pb_pending_discoverable')) {
             socialApi.setDiscoverable(true).catch(() => {});
+            socialApi.setMarketingConsent(true).catch(() => {});
             localStorage.removeItem('pb_pending_discoverable');
             setUser((u) => {
               if (!u) return u;
-              const n = normalizeUser({ ...u, discoverable: true })!;
+              const n = normalizeUser({ ...u, discoverable: true, marketingConsent: true })!;
               localStorage.setItem('pb_known_' + n.phone, JSON.stringify(n));
               return n;
             });

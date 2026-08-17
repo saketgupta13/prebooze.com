@@ -198,7 +198,7 @@ export class VenueService {
     // event_id both sides use, matching the kyc.service.ts Lead pattern
     // for organizer/promoter/lineup.
     this.meta
-      .sendEvent('Lead', `${user.phone}_venue`, 'https://prebooze.com/venue/onboarding', { phone: user.phone, email: user.email }, { content_name: 'venue_onboarding' })
+      .sendEvent('Lead', `${user.phone}_venue`, 'https://prebooze.com/venue/onboarding', { phone: user.phone, email: user.email }, user.marketingConsent, { content_name: 'venue_onboarding' })
       .catch(() => {});
     this.leads.resolveDraft(user.phone, 'venue').catch(() => {});
     await this.notifications.notify('🏛', `${venue.name} signed up as a new venue`, '/venues').catch(() => {});

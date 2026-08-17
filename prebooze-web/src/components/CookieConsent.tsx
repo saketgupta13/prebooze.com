@@ -52,23 +52,39 @@ export default function CookieConsent() {
   if (!open) return null;
 
   const decide = (value: 'accepted' | 'rejected') => {
+    const accepted = value === 'accepted';
     localStorage.setItem(STORAGE_KEY, value);
     setOpen(false);
     setManaging(false);
-    if (value === 'accepted') {
+    if (accepted) {
       window.__prebooze_loadGtm?.();
       window.__prebooze_loadFbPixel?.();
+    }
+    if (getToken()) {
+      // Real sync either direction — a guest who previously accepted and
+      // now rejects (via the reopened Manage cookies panel) needs the
+      // server-side Meta Conversions API actually turned back off too, not
+      // just the browser-side scripts (see meta-conversions.service.ts).
+      social.setMarketingConsent(accepted).catch(() => {});
+      updateUser({ marketingConsent: accepted });
       // Default the "show me in the People directory" opt-in on when
-      // cookies are accepted — see AppContext.tsx's loginWithOtp for the
-      // logged-out case (this flag is consumed there instead, exactly
-      // once, right after the next login).
-      if (getToken()) {
+      // cookies are accepted — reject never turns this back off
+      // automatically (Profile settings has its own explicit toggle for it).
+      if (accepted) {
         social.setDiscoverable(true).catch(() => {});
         updateUser({ discoverable: true });
-      } else {
-        localStorage.setItem('pb_pending_discoverable', '1');
       }
+    } else if (accepted) {
+      // Not logged in yet — nothing to sync marketingConsent/discoverable
+      // onto. A brand-new signup already gets the real choice at creation
+      // (auth.verifyOtp passes it directly); an existing-but-logged-out
+      // account consumes this pending flag exactly once, right after its
+      // next login (see AppContext.tsx's loginWithOtp).
+      localStorage.setItem('pb_pending_discoverable', '1');
     }
+    // Rejecting while logged out needs no pending flag at all — a new
+    // signup defaults marketingConsent to false already, and an existing
+    // account's stored value is simply left as whatever it already was.
   };
 
   return (

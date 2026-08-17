@@ -458,6 +458,7 @@ export class BookingsService {
         id,
         `https://prebooze.com/events/${event.slug}`,
         { phone: input.whatsapp, email: user.email, clientIp: reqMeta?.ip, userAgent: reqMeta?.userAgent },
+        user.marketingConsent,
         { value: total, currency: 'INR', content_type: 'product', content_ids: lines.map((l) => l.tier.id), num_items: qty },
       )
       .catch(() => {});

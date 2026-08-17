@@ -34,9 +34,14 @@ export class MetaConversionsService {
     eventId: string,
     eventSourceUrl: string,
     userData: MetaUserData,
+    // Required (not optional) so every call site has to pass the calling
+    // user's real User.marketingConsent value explicitly — this used to
+    // fire for every booking/signup/KYC/onboarding event regardless of the
+    // frontend's cookie choice, with zero connection between the two.
+    consentGiven: boolean,
     customData?: Record<string, unknown>,
   ): Promise<void> {
-    if (!this.live) return;
+    if (!this.live || !consentGiven) return;
     const pixelId = process.env.META_PIXEL_ID;
     const token = process.env.META_ACCESS_TOKEN;
 

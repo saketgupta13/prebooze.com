@@ -82,6 +82,11 @@ export class SocialService {
     return { ok: true };
   }
 
+  async setMarketingConsent(userId: string, on: boolean) {
+    await this.prisma.user.update({ where: { id: userId }, data: { marketingConsent: !!on } });
+    return { ok: true };
+  }
+
   /** Not in the original endpoint list: closes a real gap — the frontend's
    * follow/interested/wishlist/favourite state has toggle actions but no
    * accessor anywhere in src/api/index.ts or the User type, so a freshly

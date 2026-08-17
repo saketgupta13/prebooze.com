@@ -50,6 +50,12 @@ export class SocialController {
     return this.social.setDiscoverable(req.user.sub, on);
   }
 
+  @Post('me/marketing-consent')
+  @UseGuards(JwtAuthGuard)
+  marketingConsent(@Req() req: AuthedReq, @Body('on') on: boolean) {
+    return this.social.setMarketingConsent(req.user.sub, on);
+  }
+
   @Get('me/social')
   @UseGuards(JwtAuthGuard)
   mySocialState(@Req() req: AuthedReq) {
