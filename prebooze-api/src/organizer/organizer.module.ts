@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { OrganizerController, AdminEventsController } from './organizer.controller';
+import { OrganizerController, AdminEventsController, VipPassController } from './organizer.controller';
 import { OrgTeamController, OrgRolesController } from './org-team.controller';
 import { OrganizerService } from './organizer.service';
 import { OrgTeamService } from './org-team.service';
@@ -18,7 +18,7 @@ import { StorageService } from '../kyc/storage.service';
 import { InvoicesService } from '../invoices/invoices.service';
 
 @Module({
-  controllers: [OrganizerController, AdminEventsController, OrgTeamController, OrgRolesController],
+  controllers: [OrganizerController, AdminEventsController, OrgTeamController, OrgRolesController, VipPassController],
   providers: [OrganizerService, OrgTeamService, OrgAccessService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, GuestListService, LiveMonitorService, StorageService, InvoicesService],
 })
 export class OrganizerModule {}

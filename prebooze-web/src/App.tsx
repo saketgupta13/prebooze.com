@@ -100,6 +100,7 @@ const PromoterVerification = lazy(() => import('./pages/promoter/PromoterVerific
 const PromoterGuestList = lazy(() => import('./pages/promoter/PromoterGuestList'));
 const GuestLanding = lazy(() => import('./pages/promoter/GuestLanding'));
 const GuestPass = lazy(() => import('./pages/promoter/GuestPass'));
+const VipPass = lazy(() => import('./pages/organizer/VipPass'));
 const VenueOnboarding = lazy(() => import('./pages/venue/VenueOnboarding'));
 const VenueLayout = lazy(() => import('./pages/venue/VenueLayout'));
 const VenueDashboard = lazy(() => import('./pages/venue/VenueDashboard'));
@@ -251,6 +252,7 @@ export default function App() {
         <Route path="/promoter/:slug" element={<PromoterProfile />} />
         <Route path="/p/:eventSlug/:promoterSlug" element={<GuestLanding />} />
         <Route path="/pass/:id" element={<GuestPass />} />
+        <Route path="/vip/:id" element={<VipPass />} />
 
         {/* Guest — auth & identity */}
         <Route path="/login" element={<Login />} />

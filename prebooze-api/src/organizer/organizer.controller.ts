@@ -10,6 +10,7 @@ import { PermissionGuard } from '../admin/permission.guard';
 import { RequirePermission } from '../admin/permission.decorator';
 import { StorageService } from '../kyc/storage.service';
 import { InvoicesService } from '../invoices/invoices.service';
+import { GuestListService } from '../admin/guestlist.service';
 
 type AuthedReq = { user: { sub: string; phone: string } };
 
@@ -262,5 +263,18 @@ export class AdminEventsController {
   @RequirePermission('Events & approvals', 'edit')
   setPoster(@Param('id') id: string, @Body('posterUrl') posterUrl: string | null) {
     return this.organizer.adminSetPoster(id, posterUrl);
+  }
+}
+
+/** Public VIP/guest-list pass fetch — same "no auth, fetch by id" shape as
+ * PromoterController's `@Controller('p')` block, just for the organizer's
+ * own guest-list invitees instead of promoter-captured ones. */
+@Controller('vip')
+export class VipPassController {
+  constructor(private guestList: GuestListService) {}
+
+  @Get('pass/:id')
+  getPass(@Param('id') id: string) {
+    return this.guestList.getPass(id);
   }
 }

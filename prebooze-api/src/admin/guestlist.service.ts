@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { WhatsappService } from '../notifications/whatsapp';
 
 interface Companion {
   name: string;
@@ -8,7 +9,17 @@ interface Companion {
 
 @Injectable()
 export class GuestListService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private wa: WhatsappService) {}
+
+  /** Public pass fetch for VipPass.tsx (GET /vip/pass/:id) — no auth, same
+   * as PromoterService.getPass. venue/organizer included for the pass
+   * page's "hosted by"/location display; unlike a promoter pass, there's
+   * no cutoff to show, so tiers aren't needed here. */
+  async getPass(id: string) {
+    const entry = await this.prisma.guestListEntry.findUnique({ where: { id }, include: { event: { include: { venue: true, organizer: true } } } });
+    if (!entry) throw new NotFoundException('Pass not found');
+    return entry;
+  }
 
   async list(eventId: string) {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
@@ -33,7 +44,7 @@ export class GuestListService {
       if (!companions[i]?.phone?.trim()) throw new BadRequestException(`WhatsApp number is required for plus-one ${i + 1}`);
     }
 
-    return this.prisma.guestListEntry.create({
+    const entry = await this.prisma.guestListEntry.create({
       data: {
         eventId,
         name: body.name.trim(),
@@ -43,6 +54,21 @@ export class GuestListService {
         addedBy,
       },
     });
+
+    // Real gap this closed: an organizer adding someone to their own guest
+    // list previously sent nothing at all — the VIP/companion had no way to
+    // know they were invited and nothing to show at the gate. Reuses the
+    // same guest_pass WhatsApp template promoter passes already send
+    // (real, Meta-approved template — the [name, eventTitle, url] param
+    // shape already fits; a VIP-specific template would need its own
+    // approval, so the distinct "you're invited" feel lives on the pass
+    // page itself instead). Only the main guest gets this — everyone in
+    // the party arrives together and shows the one shared QR.
+    this.wa
+      .send(entry.phone, 'guest_pass', [entry.name, event.title, `${process.env.WEB_APP_URL ?? ''}/vip/${entry.id}`])
+      .catch(() => {});
+
+    return entry;
   }
 
   async toggleArrived(id: string) {

@@ -522,6 +522,12 @@ export interface OrgGuestListEntry {
   arrived: boolean;
   createdAt: string;
 }
+export interface VipPass extends OrgGuestListEntry {
+  event: Event;
+}
+export const vip = {
+  pass: (id: string) => apiFetch<VipPass>(`/vip/pass/${id}`),
+};
 export interface OrgPromoterGuest {
   id: string;
   eventId: string;

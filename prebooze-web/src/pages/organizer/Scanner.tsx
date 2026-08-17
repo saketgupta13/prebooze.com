@@ -99,13 +99,13 @@ function guestListMatches(promoterGuests: OrgPromoterGuest[], orgGuests: OrgGues
  *
  * Paid booking / Guest list is a real toggle, not just a manual-entry
  * filter — it also changes what the camera expects to scan. Guest list
- * covers two different sources: promoter free-entry passes (which do have
- * their own QR, see GuestPass.tsx's rotating `${pass.id}-${rotation}`
+ * covers two different sources, both with their own QR now: promoter
+ * free-entry passes (GuestPass.tsx's rotating `${pass.id}-${rotation}`
  * value — the rotation suffix is a screenshot deterrent only, nothing the
  * server validates) and the organizer's own manually-added guest list
- * (plusOnes/companions, added via the separate Guest list feature), which
- * has no QR concept at all — camera scanning can only ever reach promoter
- * passes; the organizer's own list is manual-search-only either way. */
+ * (VipPass.tsx's static `vip-${entryId}` — never expires, so there's no
+ * rotation to add). Camera scanning tells the two apart by the `vip-`
+ * prefix; anything else is treated as a promoter pass. */
 export default function Scanner() {
   const [events, setEvents] = useState<Event[]>([]);
   const [eventId, setEventId] = useState('');
@@ -157,8 +157,19 @@ export default function Scanner() {
       }
       return;
     }
-    // Guest list mode — promoter pass QR only (see doc comment above: the
-    // organizer's own guest list has no QR to scan at all).
+    // Guest list mode — two possible QR sources now. VipPass.tsx's own
+    // invites are a static `vip-<entryId>` (no rotation — this pass never
+    // expires, so there's no screenshot-window to protect against the way
+    // a time-limited promoter pass has). Anything else is assumed to be a
+    // promoter pass QR (`<passId>-<rotation>`, rotation stripped by taking
+    // everything before the last hyphen).
+    if (raw.startsWith('vip-')) {
+      const entryId = raw.slice(4);
+      const entry = orgGuestList.find((g) => g.id === entryId);
+      if (!entry) return setState({ mode: 'invalid', reason: "Pass not recognized — make sure you're scanning the right event" });
+      if (entry.arrived) return setState({ mode: 'invalid', reason: 'Already checked in' });
+      return setState({ mode: 'valid-guestlist', row: entry });
+    }
     const passId = raw.slice(0, raw.lastIndexOf('-'));
     const pg = promoterGuests.find((g) => g.id === passId);
     if (!pg) return setState({ mode: 'invalid', reason: "Pass not recognized — make sure you're scanning the right event" });
@@ -420,7 +431,7 @@ export default function Scanner() {
           <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
             {entryMode === 'paid'
               ? 'camera scans check in instantly'
-              : "camera scans a promoter's free-entry pass · the organizer's own guest list has no QR — use manual entry"}
+              : "camera scans a promoter's free-entry pass or a VIP invite QR"}
           </div>
         )}
       </div>
