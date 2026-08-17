@@ -8,7 +8,7 @@ import Poster from '../components/Poster';
 import ShareButton from '../components/ShareButton';
 
 export default function Profile() {
-  const { user, following, toggleFollow, updateUser, toggleDiscoverable, followers, followersLoading, favVenues, toggleFavVenue, wishlist } = useApp();
+  const { user, following, toggleFollow, setAttendanceVisibility, toggleDiscoverable, followers, followersLoading, favVenues, toggleFavVenue, wishlist } = useApp();
 
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(true);
@@ -135,7 +135,7 @@ export default function Profile() {
                     key={o.v}
                     className={`btn btn-sm ${cur ? 'btn-pri' : 'btn-ghost'}`}
                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
-                    onClick={() => updateUser({ attendanceVisibility: o.v })}
+                    onClick={() => setAttendanceVisibility(o.v)}
                   >
                     <span>{cur ? '✓ ' : ''}{o.label}</span>
                     <span className="tiny" style={{ opacity: 0.75, fontWeight: 400 }}>{o.desc}</span>

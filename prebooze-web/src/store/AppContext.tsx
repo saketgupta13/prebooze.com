@@ -114,6 +114,7 @@ interface AppState {
    * re-render could pick up orgTeamAccess from context. */
   loginWithOtp: (code: string) => Promise<{ status: 'new' | 'existing'; isTeamMember: boolean }>;
   updateUser: (patch: Partial<User>) => void;
+  setAttendanceVisibility: (v: 'off' | 'followers' | 'public') => void;
   toggleDiscoverable: () => void;
   // Submits an elevated-role application for manual review — never activates
   // the role directly. Guest ID verification is separate (see idVerified /
@@ -543,6 +544,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const walletTxs = isBackendEnabled() ? (liveWallet?.txs ?? []) : user ? (wallets[user.phone] ?? []) : [];
   const walletBalance = isBackendEnabled() ? (liveWallet?.balance ?? 0) : walletTxs.reduce((a, t) => a + t.amount, 0);
 
+  // Shared by updateUser/setAttendanceVisibility/toggleDiscoverable below —
+  // a real function in component scope (not a sibling property on the
+  // useMemo'd object literal, which can't reference other properties of
+  // itself during construction).
+  const patchUser = useCallback((patch: Partial<User>) => {
+    setUser((u) => {
+      if (!u) return u;
+      const next = normalizeUser({ ...u, ...patch })!;
+      localStorage.setItem('pb_known_' + next.phone, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const value = useMemo<AppState>(
     () => ({
       user,
@@ -665,35 +679,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         return { status: 'new', isTeamMember: false };
       },
-      updateUser: (patch) => {
-        setUser((u) => {
-          if (!u) return u;
-          const next = normalizeUser({ ...u, ...patch })!;
-          localStorage.setItem('pb_known_' + next.phone, JSON.stringify(next));
-          return next;
-        });
+      updateUser: patchUser,
+      // Real write — previously only ever touched local state via
+      // updateUser, so this silently never persisted server-side (POST
+      // /me/attendance-visibility existed in api/index.ts but nothing
+      // called it). Same optimistic-update-with-rollback pattern as
+      // toggleFollow/toggleDiscoverable below.
+      setAttendanceVisibility: (v) => {
+        if (!user) return;
+        const prev = user.attendanceVisibility ?? 'off';
+        if (prev === v) return;
+        patchUser({ attendanceVisibility: v });
+        if (isBackendEnabled() && getToken()) {
+          socialApi.setAttendanceVisibility(v).catch(() => patchUser({ attendanceVisibility: prev }));
+        }
       },
-      // Real toggle (unlike attendanceVisibility above, which only ever
-      // touches local state via updateUser) — optimistic local update with
-      // rollback on failure, same pattern as toggleFollow.
+      // Same optimistic-update-with-rollback pattern as setAttendanceVisibility
+      // above and toggleFollow.
       toggleDiscoverable: () => {
         if (!user) return;
         const next = !user.discoverable;
-        setUser((u) => {
-          if (!u) return u;
-          const n = normalizeUser({ ...u, discoverable: next })!;
-          localStorage.setItem('pb_known_' + n.phone, JSON.stringify(n));
-          return n;
-        });
+        patchUser({ discoverable: next });
         if (isBackendEnabled() && getToken()) {
-          socialApi.setDiscoverable(next).catch(() => {
-            setUser((u) => {
-              if (!u) return u;
-              const n = normalizeUser({ ...u, discoverable: !next })!;
-              localStorage.setItem('pb_known_' + n.phone, JSON.stringify(n));
-              return n;
-            });
-          });
+          socialApi.setDiscoverable(next).catch(() => patchUser({ discoverable: !next }));
         }
       },
       submitRoleApplication: (kind, patch) => {

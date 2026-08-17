@@ -13,7 +13,7 @@ import { copyToClipboard } from '../lib/clipboard';
 
 export default function Confirmation() {
   const { id } = useParams();
-  const { bookings, myEvents, user, updateUser } = useApp();
+  const { bookings, myEvents, user, setAttendanceVisibility } = useApp();
   const [copied, setCopied] = useState(false);
   const [copyErr, setCopyErr] = useState('');
 
@@ -120,7 +120,7 @@ export default function Confirmation() {
               <button
                 className="link bold"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', padding: 0 }}
-                onClick={() => updateUser({ attendanceVisibility: 'followers' })}
+                onClick={() => setAttendanceVisibility('followers')}
               >
                 Let followers see you're going →
               </button>
