@@ -227,8 +227,15 @@ export default function Home() {
   // be presenting fake reviews as real ones, so this gets a genuine
   // skeleton (below) instead of a mock-data fallback.
   const testimonialsLoading = isBackendEnabled() && liveTestimonials === null;
+  const categoriesLoading = isBackendEnabled() && liveCategories === null;
   const categoryTree = liveCategories ?? (isBackendEnabled() ? [] : CATEGORY_TREE);
-  const categoryChips = liveCategories ? ['All', ...liveCategories.map((c) => c.name)] : CATEGORIES;
+  // This unconditionally fell through to the mock CATEGORIES chip set
+  // during the loading window in production too (missing the same
+  // isBackendEnabled() guard categoryTree just above already has) — every
+  // load briefly showed the wrong chip labels/count before swapping to the
+  // real ones, a real flicker confirmed via a throttled-network replay.
+  // 'All' alone during loading avoids showing anything wrong at all.
+  const categoryChips = liveCategories ? ['All', ...liveCategories.map((c) => c.name)] : (isBackendEnabled() ? ['All'] : CATEGORIES);
 
   // Real, city-scoped "top X" directories — mock ORGANIZERS/PROMOTERS/
   // LINEUPS/VENUES stay only as the offline/dev-mode fallback. Each section
@@ -364,8 +371,20 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Category tiles — only categories with events; slider only when >8 */}
-        {(() => {
+        {/* Category tiles — only categories with events; slider only when >8.
+            Depends on both categories and events, and sits directly above
+            "Top selling events" — popping in once both resolve (the old
+            behavior) visibly shoved that section (and its new skeleton)
+            down a moment after first paint, confirmed via a throttled
+            replay. A skeleton reservation here avoids that shift instead of
+            just not rendering until ready. */}
+        {(categoriesLoading || eventsLoading) ? (
+          <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="skel-bar skel-pulse" style={{ width: 130, height: 74, borderRadius: 12, flexShrink: 0 }} />
+            ))}
+          </div>
+        ) : (() => {
           const tiles = categoryTree.map((c) => ({
             ...c,
             n: published.filter((e) => e.category === c.name && cityOf(e) === city).length,
