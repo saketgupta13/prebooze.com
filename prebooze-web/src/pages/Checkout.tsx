@@ -389,6 +389,12 @@ export default function Checkout() {
 
   const venue = event.venue ?? (event.venueId ? venueById(event.venueId) : undefined);
 
+  const clearCoupon = () => {
+    setAppliedCode(null);
+    setCouponInput('');
+    setCouponMsg(null);
+  };
+
   const applyCoupon = (codeOverride?: string) => {
     const code = (codeOverride ?? couponInput).trim().toUpperCase();
     if (!code) return;
@@ -815,9 +821,13 @@ export default function Checkout() {
                 </button>
               </div>
               {couponMsg && (
-                <div className={`small ${couponMsg.ok ? 'accent' : 'danger-text'}`} style={{ marginTop: 10 }}>
-                  {couponMsg.ok ? '✓ ' : '✕ '}
-                  {couponMsg.text}
+                <div className={`small ${couponMsg.ok ? 'accent' : 'danger-text'}`} style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span>{couponMsg.ok ? '✓ ' : '✕ '}{couponMsg.text}</span>
+                  {appliedCode && (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={clearCoupon}>
+                      Remove
+                    </button>
+                  )}
                 </div>
               )}
               {availCoupons.length > 0 && (
