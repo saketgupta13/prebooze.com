@@ -996,6 +996,14 @@ model TicketTier {
   sold        Int      @default(0)
   includes    String[] @default([])
   description String?
+
+  // Portion of `price` redeemable inside the venue (food/drinks, per the
+  // organizer's own note) — purely informational, no in-app redemption/
+  // balance tracking; the venue handles actual redemption on their own
+  // side. Always <= price (enforced in OrganizerService.syncTiers /
+  // VenueService.syncHostedTiers), 0 = no cover charge on this tier.
+  coverCharge     Int     @default(0)
+  coverChargeNote String?
 }
 
 model Featured {
@@ -1102,6 +1110,12 @@ model Booking {
   fee           Int
   discount      Int    @default(0)
   total         Int
+
+  // Sum of each line's TicketTier.coverCharge * qty, computed and locked in
+  // at booking creation (same reasoning as promoterCommission below) — a
+  // later edit to a tier's cover charge never silently changes what an
+  // already-sold ticket promised its guest.
+  coverCharge Int @default(0)
 
   couponCode String?
   status     BookingStatus @default(confirmed)

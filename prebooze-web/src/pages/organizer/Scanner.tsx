@@ -241,6 +241,9 @@ export default function Scanner() {
             <div className="kv"><span className="k">Booking</span><span className="bold">{b.id}</span></div>
             <div className="kv"><span className="k">Guest{b.qty > 1 ? 's' : ''}</span><span>{b.guests.map((g) => g.name).join(', ')}</span></div>
             <div className="kv"><span className="k">Tickets</span><span>{b.tierName} · {b.qty}</span></div>
+            {!!b.coverCharge && (
+              <div className="kv"><span className="k">Cover charge</span><span className="accent bold">🍹 ₹{b.coverCharge}</span></div>
+            )}
           </div>
           <button className="btn btn-pri btn-block btn-lg" onClick={() => setState({ mode: 'idle' })}>
             Scan next →
@@ -319,6 +322,9 @@ export default function Scanner() {
             <div className="kv"><span className="k">Event</span><span>{event?.title}</span></div>
             <div className="kv"><span className="k">Guest{partyNames.length > 1 ? 's' : ''}</span><span>{partyNames.join(', ') || row.name}</span></div>
             <div className="kv"><span className="k">Tickets</span><span>{row.tierName}</span></div>
+            {!!row.coverCharge && (
+              <div className="kv"><span className="k">Cover charge</span><span className="accent bold">🍹 ₹{row.coverCharge}</span></div>
+            )}
           </div>
           <button className="btn btn-pri btn-block btn-lg" disabled={busy} onClick={() => confirmBooking(row)}>
             {busy ? 'Checking in…' : 'Check in ✓'}

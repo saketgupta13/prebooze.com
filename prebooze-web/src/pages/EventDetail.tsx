@@ -594,6 +594,11 @@ export default function EventDetail() {
                       <div className="includes">✓ {t.includes.join(' · ✓ ')}</div>
                     )}
                     {t.description && <div className="includes" style={{ marginTop: 2 }}>{t.description}</div>}
+                    {!!t.coverCharge && (
+                      <div className="tiny accent" style={{ marginTop: 2 }}>
+                        🍹 Includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote ? ` (${t.coverChargeNote})` : ''}
+                      </div>
+                    )}
                   </div>
                   {soldOut ? (
                     <span className="badge badge-danger">sold out</span>

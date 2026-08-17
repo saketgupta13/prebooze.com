@@ -43,7 +43,8 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   const locationY = dateY + 28;
   const tierY = locationY + 28;
   const guestY = tierY + 28;
-  const dividerY = guestY + 34;
+  const coverY = guestY + 28;
+  const dividerY = (booking.coverCharge ? coverY : guestY) + 34;
   const qy = dividerY + 42;
   const qsize = 340;
   const tailFromQy = 632; // QR block + footer height (thank-you + Instagram + domain), fixed regardless of header/title height
@@ -100,6 +101,13 @@ export async function downloadTicket(booking: Booking, event: Event, venue: Venu
   ctx.fillText(`📍  ${venue ? `${venue.name}, ${venue.city}` : 'Venue TBA'}`, 48, locationY);
   ctx.fillText(`🎟  ${booking.tierName}`, 48, tierY);
   ctx.fillText(`👤  ${booking.mainGuest} · ${booking.qty} guest${booking.qty > 1 ? 's' : ''}`, 48, guestY);
+  if (booking.coverCharge) {
+    ctx.fillStyle = '#9be13d';
+    ctx.font = '700 15px Manrope, sans-serif';
+    ctx.fillText(`🍹  Includes ₹${booking.coverCharge} redeemable at the venue`, 48, coverY);
+    ctx.fillStyle = '#9a9d8c';
+    ctx.font = '600 17px Manrope, sans-serif';
+  }
 
   // divider (perforation)
   ctx.strokeStyle = '#3a3d30';

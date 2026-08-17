@@ -324,6 +324,10 @@ export class BookingsService {
           walletCreditUsed,
           paymentId: paymentId ?? undefined,
           qrToken,
+          // Locked in now, same reasoning as promoterCommission above — a
+          // later edit to a tier's cover charge never changes what this
+          // specific booking already promised its guest.
+          coverCharge: lines.reduce((a, l) => a + l.tier.coverCharge * l.qty, 0),
         },
       });
 
@@ -533,6 +537,7 @@ export class BookingsService {
           whatsapp: phone,
           paymentMethod: isComp ? 'Comp' : input.method,
           qrToken,
+          coverCharge: tier.coverCharge * input.qty,
         },
       });
 

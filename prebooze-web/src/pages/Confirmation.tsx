@@ -86,6 +86,11 @@ export default function Confirmation() {
             {booking.tierName} · Booking {booking.id}{' '}
             <span className="badge badge-ok">Confirmed ✓</span>
           </div>
+          {!!booking.coverCharge && (
+            <div className="small accent" style={{ marginBottom: 14 }}>
+              🍹 Includes ₹{booking.coverCharge} redeemable at the venue
+            </div>
+          )}
           <QRCode
             value={booking.qrToken || booking.id}
             caption={`Scan at entry — valid for ${booking.qty} guest${booking.qty > 1 ? 's' : ''}`}

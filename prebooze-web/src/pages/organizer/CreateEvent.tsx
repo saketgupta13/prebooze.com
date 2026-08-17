@@ -22,9 +22,11 @@ interface TierDraft {
   quantity: string;
   includes: string[];
   description: string;
+  coverCharge: string;
+  coverChargeNote: string;
 }
 
-const DEFAULT_TIERS: TierDraft[] = [{ name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '' }];
+const DEFAULT_TIERS: TierDraft[] = [{ name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '', coverCharge: '', coverChargeNote: '' }];
 
 interface RuleDraft { title: string; body: string }
 const DEFAULT_RULES: RuleDraft[] = [
@@ -179,7 +181,7 @@ export default function CreateEvent() {
           setTeaserVideoUrl(ev.teaserVideoUrl ?? null);
           setSocialPostUrl(ev.socialBanners?.postUrl ?? '');
           setSocialStoryUrl(ev.socialBanners?.storyUrl ?? '');
-          setTiers(ev.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), includes: t.includes, description: t.description ?? '' })));
+          setTiers(ev.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), includes: t.includes, description: t.description ?? '', coverCharge: t.coverCharge ? String(t.coverCharge) : '', coverChargeNote: t.coverChargeNote ?? '' })));
           setConditions(ev.conditions.join('\n'));
           setRules(ev.rules.length ? ev.rules.map((r) => ({ title: r.title, body: r.body })) : DEFAULT_RULES);
           setLineupSel(ev.lineup);
@@ -260,6 +262,8 @@ export default function CreateEvent() {
       quantity: +t.quantity,
       includes: t.includes,
       description: t.description.trim() || undefined,
+      coverCharge: t.coverCharge.trim() ? +t.coverCharge : undefined,
+      coverChargeNote: t.coverChargeNote.trim() || undefined,
     })),
     seo: {
       title: seoTitle || `${title} | tickets`,
@@ -588,6 +592,35 @@ export default function CreateEvent() {
                   placeholder="e.g. Best value — entry, welcome drink and access to both stages"
                 />
               </div>
+              <div className="form-row" style={{ marginBottom: 6 }}>
+                <div className="field">
+                  <span>Cover charge ₹ (optional)</span>
+                  <input
+                    value={t.coverCharge}
+                    onChange={(e) => setTier(i, { coverCharge: e.target.value })}
+                    inputMode="numeric"
+                    placeholder="e.g. 1000"
+                  />
+                </div>
+                <div className="field">
+                  <span>Redeemable for (optional)</span>
+                  <input
+                    value={t.coverChargeNote}
+                    onChange={(e) => setTier(i, { coverChargeNote: e.target.value })}
+                    placeholder="e.g. food & drinks at the venue"
+                  />
+                </div>
+              </div>
+              {t.coverCharge.trim() && +t.coverCharge > (+t.price || 0) && (
+                <div className="tiny danger-text" style={{ marginBottom: 6 }}>
+                  Cover charge can't exceed the ticket price
+                </div>
+              )}
+              {t.coverCharge.trim() && +t.coverCharge > 0 && !(+t.coverCharge > (+t.price || 0)) && (
+                <div className="tiny muted" style={{ marginBottom: 6 }}>
+                  Guests see this ticket includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote.trim() ? ` (${t.coverChargeNote.trim()})` : ''}.
+                </div>
+              )}
               <div className="chip-row">
                 {INCLUDE_OPTIONS.map((opt) => (
                   <button
@@ -614,7 +647,7 @@ export default function CreateEvent() {
             <button
               className="chip"
               onClick={() =>
-                setTiers((prev) => [...prev, { name: 'VIP', price: '79', quantity: '50', includes: ['Entry', 'Lounge access'], description: '' }])
+                setTiers((prev) => [...prev, { name: 'VIP', price: '79', quantity: '50', includes: ['Entry', 'Lounge access'], description: '', coverCharge: '', coverChargeNote: '' }])
               }
             >
               + Add tier

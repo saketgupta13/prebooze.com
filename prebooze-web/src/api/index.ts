@@ -433,6 +433,7 @@ export interface OrgAttendee {
   gender?: string;
   whatsapp: string;
   checkedIn: boolean;
+  coverCharge: number;
 }
 export interface OrgLedgerTx {
   id: string;

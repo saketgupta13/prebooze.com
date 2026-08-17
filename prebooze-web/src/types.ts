@@ -8,6 +8,10 @@ export interface TicketTier {
   sold: number;
   includes: string[];
   description?: string;
+  // Portion of `price` redeemable inside the venue — 0 = none. Purely
+  // informational; Prebooze doesn't track in-app redemption.
+  coverCharge?: number;
+  coverChargeNote?: string;
 }
 
 export interface LineupItem {
@@ -331,6 +335,9 @@ export interface Booking {
   fee: number;
   discount: number;
   total: number;
+  // Locked in at purchase from the tier(s)' own coverCharge * qty — see
+  // TicketTier.coverCharge for what this represents.
+  coverCharge?: number;
   couponCode?: string;
   status: 'confirmed' | 'cancelled' | 'refunded' | 'refund_requested';
   guests: BookingGuest[];

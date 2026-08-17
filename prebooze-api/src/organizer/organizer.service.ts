@@ -19,6 +19,8 @@ interface TierInput {
   quantity: number;
   includes?: string[];
   description?: string;
+  coverCharge?: number;
+  coverChargeNote?: string;
 }
 
 export interface EventInput {
@@ -367,12 +369,17 @@ export class OrganizerService {
 
     for (const t of tiers) {
       if (!t.name?.trim()) throw new BadRequestException('Every ticket tier needs a name');
+      const price = Math.max(0, Math.round(t.price));
+      const coverCharge = Math.max(0, Math.round(t.coverCharge ?? 0));
+      if (coverCharge > price) throw new BadRequestException(`"${t.name}"'s cover charge can't exceed its ticket price`);
       const common = {
         name: t.name.trim(),
-        price: Math.max(0, Math.round(t.price)),
+        price,
         quantity: Math.max(0, Math.round(t.quantity)),
         includes: t.includes ?? [],
         description: t.description,
+        coverCharge,
+        coverChargeNote: t.coverChargeNote,
       };
       const found = t.id ? existing.find((e) => e.id === t.id) : undefined;
       if (found) {
@@ -415,6 +422,7 @@ export class OrganizerService {
         gender: g.gender,
         whatsapp: g.whatsapp ?? b.whatsapp,
         checkedIn: b.checkedIn,
+        coverCharge: b.coverCharge,
       }));
     });
   }
