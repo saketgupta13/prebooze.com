@@ -25,6 +25,22 @@ export default function Blog() {
     content.blogs().then(setPosts).catch(() => setPosts([]));
   }, []);
   const list = posts ?? [];
+  const loading = isBackendEnabled() && posts === null;
+
+  if (loading) {
+    return (
+      <main className="page">
+        <div className="container">
+          <section className="hero" style={{ padding: '38px 40px' }}>
+            <span className="badge badge-accent">The Prebooze Blog</span>
+            <h1 style={{ marginTop: 12, fontSize: 30 }}>Stories from your city's nights out</h1>
+            <p>City guides, organizer playbooks and venue spotlights — fresh every week.</p>
+          </section>
+          <div className="tiny muted">Loading…</div>
+        </div>
+      </main>
+    );
+  }
 
   if (list.length === 0) {
     return (

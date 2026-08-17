@@ -14,15 +14,23 @@ export default function Promoters() {
   const feat = featuredRefs(featured, 'promoter', city);
 
   const [livePromoters, setLivePromoters] = useState<PromoterProfile[] | null>(null);
+  const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
     if (!isBackendEnabled()) return;
-    catalog.promoters(city).then(setLivePromoters).catch(() => setLivePromoters([]));
+    setLoading(true);
+    catalog.promoters(city).then(setLivePromoters).catch(() => setLivePromoters([])).finally(() => setLoading(false));
   }, [city]);
 
+  // Mock is only ever a stand-in for offline dev mode (no VITE_API_URL) —
+  // this used to fall through to it unconditionally, flashing real guests a
+  // page of fabricated promoters (fake names/show-rates/followers) before
+  // the real fetch resolved, same bug class already fixed on Home.tsx.
   const list = featuredFirst(
     livePromoters
       ? [...livePromoters].sort((a, b) => b.showRate - a.showRate)
-      : [...PROMOTERS].filter((p) => p.city === city).sort((a, b) => b.showRate - a.showRate),
+      : isBackendEnabled()
+        ? []
+        : [...PROMOTERS].filter((p) => p.city === city).sort((a, b) => b.showRate - a.showRate),
     (p) => p.slug,
     feat
   );
@@ -38,6 +46,7 @@ export default function Promoters() {
           Follow the crews with the best guest lists — free entry before the cutoff, always.
         </p>
 
+        {loading && <div className="tiny muted">Loading…</div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(258px, 1fr))', gap: 14 }}>
           {list.map((p) => {
             const key = 'promoter:' + p.slug;
@@ -72,7 +81,7 @@ export default function Promoters() {
             );
           })}
         </div>
-        {list.length === 0 && <div className="empty">No promoters in {city} yet.</div>}
+        {!loading && list.length === 0 && <div className="empty">No promoters in {city} yet.</div>}
       </div>
     </main>
   );

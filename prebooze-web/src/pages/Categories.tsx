@@ -31,6 +31,8 @@ export default function Categories() {
   // this briefly fell through to the mock EVENTS array on every real page
   // load, flashing wrong mock-derived counts before the real ones replaced
   // them a moment later.
+  const eventsLoading = isBackendEnabled() && liveEvents === null;
+  const categoriesLoading = isBackendEnabled() && liveCategories === null;
   const cityEvents = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved' && (e.venueId ? venueById(e.venueId).city : e.privateCity) === city));
   const categories = liveCategories ?? (isBackendEnabled() ? [] : CATEGORY_TREE);
   const catCount = (cat: string) => cityEvents.filter((e) => e.category === cat).length;
@@ -47,6 +49,7 @@ export default function Categories() {
           Every kind of night out in <span className="accent bold">{city}</span> — pick a lane.
         </p>
 
+        {categoriesLoading && <div className="tiny muted" style={{ marginBottom: 14 }}>Loading…</div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
           {categories.map((c) => {
             const total = catCount(c.name);
@@ -58,7 +61,7 @@ export default function Categories() {
                     <div>
                       <h3 style={{ fontSize: 17 }}>{c.name}</h3>
                       <div className="tiny muted-2">
-                        {total > 0 ? `${total} event${total === 1 ? '' : 's'} in ${city}` : `coming soon in ${city}`}
+                        {eventsLoading ? '…' : total > 0 ? `${total} event${total === 1 ? '' : 's'} in ${city}` : `coming soon in ${city}`}
                       </div>
                     </div>
                   </div>

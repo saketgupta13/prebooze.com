@@ -22,10 +22,16 @@ export default function Wishlist() {
     catalog.events({}).then(setLiveEvents).catch(() => setLiveEvents([]));
     catalog.venues().then(setLiveVenues).catch(() => setLiveVenues([]));
   }, []);
+  const loading = isBackendEnabled() && (liveEvents === null || liveVenues === null);
 
-  const all = [...myEvents, ...EVENTS, ...(liveEvents ?? [])];
+  // EVENTS/VENUES (mock) were included unconditionally, with no
+  // isBackendEnabled() gate — a real saved event/venue can't resolve
+  // against them (real ids aren't in the mock seed), so while the live
+  // fetch was in flight, `saved` was empty and the page flashed "Nothing
+  // saved yet" for a guest who genuinely has saved items.
+  const all = [...myEvents, ...(isBackendEnabled() ? [] : EVENTS), ...(liveEvents ?? [])];
   const saved = wishlist.map((id) => all.find((e) => e.id === id)).filter((e): e is NonNullable<typeof e> => !!e);
-  const venuePool = [...VENUES, ...(liveVenues ?? [])];
+  const venuePool = [...(isBackendEnabled() ? [] : VENUES), ...(liveVenues ?? [])];
 
   return (
     <main className="page">
@@ -38,7 +44,9 @@ export default function Wishlist() {
           Events you've saved for later — tap the heart on any event to add it here.
         </p>
 
-        {saved.length === 0 ? (
+        {loading ? (
+          <div className="tiny muted">Loading…</div>
+        ) : saved.length === 0 ? (
           <div className="empty">
             Nothing saved yet. <Link to="/browse" className="link">Browse events →</Link>
           </div>
@@ -52,7 +60,9 @@ export default function Wishlist() {
           <h2>Favourite venues ({favVenues.length}) 🏛</h2>
           <Link to="/venues">Browse venues →</Link>
         </div>
-        {favVenues.length === 0 ? (
+        {loading ? (
+          <div className="tiny muted">Loading…</div>
+        ) : favVenues.length === 0 ? (
           <div className="empty">No favourite venues yet — tap 🤍 on any venue.</div>
         ) : (
           <div className="grid-3">

@@ -36,6 +36,7 @@ export default function Browse() {
       .then(setLiveEvents)
       .catch(() => setLiveEvents([]));
   }, [city, cat, sub, q, sort]);
+  const eventsLoading = isBackendEnabled() && liveEvents === null;
 
   const [liveCategories, setLiveCategories] = useState<{ name: string; icon: string; subs: string[] }[] | null>(null);
   useEffect(() => {
@@ -120,14 +121,14 @@ export default function Browse() {
             <button className={`chip ${sub === '' ? 'on' : ''}`} onClick={() => setSub('')}>All {cat}</button>
             {subsFor(cat).map((s) => (
               <button key={s} className={`chip ${sub === s ? 'on' : ''}`} onClick={() => setSub(sub === s ? '' : s)}>
-                {s} ({subCounts.get(s) ?? 0})
+                {s} ({eventsLoading ? '…' : subCounts.get(s) ?? 0})
               </button>
             ))}
           </div>
         )}
 
         <h1 style={{ fontSize: 21, marginBottom: 18 }}>
-          {events.length} event{events.length === 1 ? '' : 's'} in <span className="accent">{city}</span>
+          {eventsLoading ? 'Loading…' : <>{events.length} event{events.length === 1 ? '' : 's'} in <span className="accent">{city}</span></>}
           {sub && <span className="muted" style={{ fontWeight: 500 }}> · {sub}</span>}
           {q && (
             <span className="muted" style={{ fontWeight: 500 }}>
@@ -143,9 +144,9 @@ export default function Browse() {
               <EventCard key={e.id} event={e} />
             ))}
           </div>
-        ) : (
+        ) : !eventsLoading ? (
           <div className="empty">No events match those filters — try clearing one.</div>
-        )}
+        ) : null}
       </div>
     </main>
   );

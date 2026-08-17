@@ -20,6 +20,7 @@ export default function Careers() {
   const formRef = useRef<HTMLFormElement>(null);
 
   const [liveJobs, setLiveJobs] = useState<CareerJob[] | null>(null);
+  const jobsLoading = isBackendEnabled() && liveJobs === null;
   useEffect(() => {
     if (!isBackendEnabled()) return;
     careersApi.jobs().then(setLiveJobs).catch(() => setLiveJobs([]));
@@ -56,10 +57,10 @@ export default function Careers() {
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Work with us 🚀</h1>
         <p className="muted" style={{ marginBottom: 22 }}>
-          We're building India's nightlife layer — {jobs.filter((j) => j.status === 'open').length} roles open right now.
+          {jobsLoading ? 'Loading open roles…' : <>We're building India's nightlife layer — {jobs.filter((j) => j.status === 'open').length} roles open right now.</>}
         </p>
 
-        {jobs.filter((j) => j.status === 'open').map((j) => (
+        {!jobsLoading && jobs.filter((j) => j.status === 'open').map((j) => (
           <div key={j.id} className="card" style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <div>

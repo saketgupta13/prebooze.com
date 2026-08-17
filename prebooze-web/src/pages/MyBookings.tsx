@@ -24,13 +24,19 @@ export default function MyBookings() {
   const [resendingId, setResendingId] = useState<string | null>(null);
 
   const [liveBookings, setLiveBookings] = useState<Booking[] | null>(null);
+  const loading = isBackendEnabled() && liveBookings === null;
   const refetchLive = () => {
     if (!isBackendEnabled()) return;
     bookingsApi.list().then(setLiveBookings).catch(() => setLiveBookings([]));
   };
   useEffect(refetchLive, []);
 
-  const allBookings = liveBookings ?? bookings;
+  // `bookings` (local context state, cached in localStorage) is only a
+  // stand-in for offline dev mode — falling through to it unconditionally
+  // while the real fetch is in flight meant a guest could briefly see
+  // "No bookings yet" (empty local cache) or, worse, another account's
+  // stale cached bookings on a shared device, on every real page load.
+  const allBookings = liveBookings ?? (isBackendEnabled() ? [] : bookings);
 
   const resolveEvent = (b: Booking) =>
     b.event ?? eventById(b.eventId) ?? myEvents.find((e) => e.id === b.eventId);
@@ -89,7 +95,9 @@ export default function MyBookings() {
           </button>
         </div>
 
-        {list.length === 0 ? (
+        {loading ? (
+          <div className="tiny muted">Loading…</div>
+        ) : list.length === 0 ? (
           <div className="empty">
             No {tab} bookings yet.{' '}
             <Link to="/browse" className="link">

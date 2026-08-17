@@ -246,6 +246,13 @@ export default function Checkout() {
   const finalDiscount = quote?.discount ?? discount;
   const finalCredit = quote?.walletCreditUsed ?? creditApplied;
   const finalTotal = quote?.total ?? total;
+  // The Pay button is already safely disabled until the real quote lands
+  // (see `quoting`/`!holdId` below), but the Total *number* itself rendered
+  // the client-side pre-quote estimate as if final the whole time — a real
+  // guest could watch it change (promoter markup/wallet rounding/server fee
+  // differ from the local estimate) right before paying. Real event only;
+  // offline/mock mode has no server quote to wait for.
+  const quotePending = !!liveEvent && !quote;
   const promoterMarkupApplies = quote?.promoterMarkupApplies ?? false;
   const promoterShare = quote?.promoterShare ?? 0;
   const platformShare = quote?.platformShare ?? 0;
@@ -933,10 +940,10 @@ export default function Checkout() {
             )}
             <div className="total-row">
               <span>Total</span>
-              <span>₹{finalTotal}</span>
+              <span>{quotePending ? 'Calculating…' : `₹${finalTotal}`}</span>
             </div>
-            <button className="btn btn-pri btn-block btn-lg" onClick={pay} disabled={paying || (liveEvent ? !holdId : false) || quoting}>
-              {paying ? 'Processing…' : `Pay ₹${finalTotal}`}
+            <button className="btn btn-pri btn-block btn-lg" onClick={pay} disabled={paying || (liveEvent ? !holdId : false) || quoting || quotePending}>
+              {paying ? 'Processing…' : quotePending ? 'Calculating…' : `Pay ₹${finalTotal}`}
             </button>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
               🔒 secured by Razorpay · <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link>

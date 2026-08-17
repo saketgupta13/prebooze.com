@@ -10,6 +10,7 @@ import Stars from '../components/Stars';
  * (admin's Content > Testimonials), not the hardcoded mock array. */
 export default function Testimonials() {
   const [live, setLive] = useState<CmsTestimonial[] | null>(null);
+  const loading = isBackendEnabled() && live === null;
   useEffect(() => {
     if (!isBackendEnabled()) return;
     content.testimonials().then(setLive).catch(() => setLive([]));
@@ -29,7 +30,7 @@ export default function Testimonials() {
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Happy guests 💚</h1>
         <p className="muted" style={{ marginBottom: 14 }}>
-          <b className="accent">{avg}★</b> average from {all.length}+ verified guests across the network.
+          {loading ? 'Loading…' : <><b className="accent">{avg}★</b> average from {all.length}+ verified guests across the network.</>}
         </p>
         <div className="chip-row" style={{ marginBottom: 18 }}>
           {cities.map((c) => (
@@ -48,7 +49,7 @@ export default function Testimonials() {
             </div>
           ))}
         </div>
-        {list.length === 0 && <div className="empty">No reviews from {cityF} yet.</div>}
+        {!loading && list.length === 0 && <div className="empty">No reviews from {cityF} yet.</div>}
       </div>
     </main>
   );

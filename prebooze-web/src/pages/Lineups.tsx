@@ -14,9 +14,11 @@ export default function Lineups() {
   const feat = featuredRefs(featured, 'lineup', city);
 
   const [liveLineups, setLiveLineups] = useState<LineupProfile[] | null>(null);
+  const [loading, setLoading] = useState(isBackendEnabled());
   useEffect(() => {
     if (!isBackendEnabled()) return;
-    catalog.lineups(city).then(setLiveLineups).catch(() => setLiveLineups([]));
+    setLoading(true);
+    catalog.lineups(city).then(setLiveLineups).catch(() => setLiveLineups([])).finally(() => setLoading(false));
   }, [city]);
 
   const pool = liveLineups ?? (isBackendEnabled() ? [] : LINEUPS.filter((l) => l.city === city));
@@ -45,6 +47,7 @@ export default function Lineups() {
           ))}
         </div>
 
+        {loading && <div className="tiny muted">Loading…</div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(258px, 1fr))', gap: 14 }}>
           {list.map((l) => {
             const key = 'lineup:' + l.slug;
@@ -74,7 +77,7 @@ export default function Lineups() {
             );
           })}
         </div>
-        {list.length === 0 && <div className="empty">No line-ups in {city} yet.</div>}
+        {!loading && list.length === 0 && <div className="empty">No line-ups in {city} yet.</div>}
       </div>
     </main>
   );

@@ -54,6 +54,11 @@ export default function EventDetail() {
   const [liveReviews, setLiveReviews] = useState<GuestReview[]>([]);
   const [liveRecommended, setLiveRecommended] = useState<Event[]>([]);
   const [loaded, setLoaded] = useState(!isBackendEnabled());
+  // The main `loaded` flag flips true as soon as the event itself resolves
+  // — it never waited on these two nested, un-awaited fetches, so the page
+  // used to flash "No reviews yet." for the ~100ms-1s round trip even for
+  // an organizer that has real reviews, before liveReviews caught up.
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   useEffect(() => {
     if (!isBackendEnabled() || !slug) return;
@@ -69,7 +74,10 @@ export default function EventDetail() {
       .then((e) => {
         if (cancelled) return;
         setLiveEvent(e);
-        if (e.organizerId) social.organizerReviews(e.organizerId).then((r) => { if (!cancelled) setLiveReviews(r); }).catch(() => {});
+        if (e.organizerId) {
+          setReviewsLoading(true);
+          social.organizerReviews(e.organizerId).then((r) => { if (!cancelled) setLiveReviews(r); }).catch(() => {}).finally(() => { if (!cancelled) setReviewsLoading(false); });
+        }
         catalog.events({ city }).then((all) => { if (!cancelled) setLiveRecommended(all.filter((x) => x.id !== e.id).slice(0, 4)); }).catch(() => {});
       })
       .catch(() => { if (!cancelled) setLiveEvent(null); })
@@ -91,7 +99,11 @@ export default function EventDetail() {
   const findLineup = (name: string) =>
     lineups ? lineups.find((l) => l.name.toLowerCase() === name.toLowerCase()) : lineupByName(name);
 
-  const event = liveEvent ?? mockEvent;
+  // mockEvent is only ever a stand-in for offline dev mode — gating it here
+  // (instead of falling through unconditionally) matches every other detail
+  // page's convention (OrganizerProfile/PromoterProfile/LineupProfile/
+  // VenueDetail all do the same for their own mock fallback).
+  const event = liveEvent ?? (isBackendEnabled() ? undefined : mockEvent);
   useSeo(event?.seo, event?.title, event?.posterUrl);
   useJsonLd(event ? buildEventSchema(event) : null);
   useJsonLd(
@@ -219,8 +231,10 @@ export default function EventDetail() {
   );
   const ticketCount = Object.values(qty).reduce((a, b) => a + b, 0);
   const minPrice = Math.min(...event.tiers.map((t) => t.price));
-  const recommended = liveEvent ? liveRecommended : EVENTS.filter((e) => e.status === 'approved' && e.id !== event.id).slice(0, 4);
-  const reviews = liveEvent ? liveReviews : REVIEWS;
+  // Gated on isBackendEnabled() (not just liveEvent truthiness) to match
+  // every other detail page's mock-fallback convention.
+  const recommended = liveEvent ? liveRecommended : (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved' && e.id !== event.id).slice(0, 4));
+  const reviews = liveEvent ? liveReviews : (isBackendEnabled() ? [] : REVIEWS);
 
   const going = goingCount(event);
   const allSoldOut = event.tiers.every((t) => t.sold >= t.quantity);
@@ -536,7 +550,7 @@ export default function EventDetail() {
                       <div className="muted">“{r.text}”</div>
                     </div>
                   ))}
-                  {liveEvent && reviews.length === 0 && <div className="tiny muted">No reviews yet.</div>}
+                  {liveEvent && !reviewsLoading && reviews.length === 0 && <div className="tiny muted">No reviews yet.</div>}
                   <Link to={`/organizers/${organizer.id}`} className="link small bold">
                     Read all reviews →
                   </Link>
