@@ -62,11 +62,16 @@ export class GuestListService {
     // (real, Meta-approved template — the [name, eventTitle, url] param
     // shape already fits; a VIP-specific template would need its own
     // approval, so the distinct "you're invited" feel lives on the pass
-    // page itself instead). Only the main guest gets this — everyone in
-    // the party arrives together and shows the one shared QR.
-    this.wa
-      .send(entry.phone, 'guest_pass', [entry.name, event.title, `${process.env.WEB_APP_URL ?? ''}/vip/${entry.id}`])
-      .catch(() => {});
+    // page itself instead). Every named person gets their own message —
+    // the main guest and each companion — all pointing at the same shared
+    // /vip/:id pass, since the whole party still arrives together and
+    // shows one QR at the door; this just means everyone has that link on
+    // their own phone rather than only whoever holds the main guest's.
+    const passUrl = `${process.env.WEB_APP_URL ?? ''}/vip/${entry.id}`;
+    this.wa.send(entry.phone, 'guest_pass', [entry.name, event.title, passUrl]).catch(() => {});
+    for (const c of companions) {
+      this.wa.send(c.phone.trim(), 'guest_pass', [c.name.trim(), event.title, passUrl]).catch(() => {});
+    }
 
     return entry;
   }
