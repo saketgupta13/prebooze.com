@@ -248,7 +248,6 @@ export default function Home() {
   const promoLoading = isBackendEnabled() && livePromoters === null;
   const lineupLoading = isBackendEnabled() && liveLineups === null;
   const venueLoading = isBackendEnabled() && liveVenues === null;
-  const peopleLoading = isBackendEnabled() && livePeople === null;
 
   // Same isBackendEnabled() guard as everywhere else on this page — without
   // it, the brief liveEvents===null window on first load fell through to
@@ -399,14 +398,18 @@ export default function Home() {
 
         {/* People going out in the city — real, opt-in guests only
             (User.discoverable); PEOPLE mock stays only as the offline
-            fallback via peoplePool above. */}
-        {(cityPeople.length > 0 || peopleLoading) && (
+            fallback via peoplePool above.
+            No loading skeleton here (unlike organizers/promoters/etc. above)
+            — this is a brand-new opt-in feature that will genuinely resolve
+            empty for most cities for a while, and a skeleton that then
+            collapses to nothing is a worse flicker than just not rendering
+            the section until it's known to have real content. */}
+        {cityPeople.length > 0 && (
         <section className="section">
           <div className="section-hd">
             <h2>Going out in {city} 🔥</h2>
             <Link to="/people">See all people →</Link>
           </div>
-          {!peopleLoading && (
           <div className="card" style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex' }}>
               {cityPeople.slice(0, 6).map((p, i) => (
@@ -421,15 +424,12 @@ export default function Home() {
             </div>
             <Link to="/people" className="btn btn-pri btn-sm">Find your people →</Link>
           </div>
-          )}
           <Slider slideWidth={244}>
-            {peopleLoading
-              ? Array.from({ length: 4 }, (_, i) => <DirectoryCardSkeleton key={i} />)
-              : cityPeople.map((p) => (
-                  <DirectoryCard key={p.id} to={`/u/${p.username}`} hue={p.avatarHue} avatarImage={p.avatarUrl} avatarText={p.name[0]} name={p.name} verified={p.verified} meta={`@${p.username} · ${p.city}`} bio={p.bio}
-                    stats={<><b>{netFollowers(personFollowKey(p.id), p.followers).toLocaleString('en-IN')}</b> followers</>}
-                    action={followBtn(personFollowKey(p.id))} />
-                ))}
+            {cityPeople.map((p) => (
+              <DirectoryCard key={p.id} to={`/u/${p.username}`} hue={p.avatarHue} avatarImage={p.avatarUrl} avatarText={p.name[0]} name={p.name} verified={p.verified} meta={`@${p.username} · ${p.city}`} bio={p.bio}
+                stats={<><b>{netFollowers(personFollowKey(p.id), p.followers).toLocaleString('en-IN')}</b> followers</>}
+                action={followBtn(personFollowKey(p.id))} />
+            ))}
           </Slider>
         </section>
         )}
