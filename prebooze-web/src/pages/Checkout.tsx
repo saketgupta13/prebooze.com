@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp, CART_HOLD_MINUTES } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import type { Booking, Event, PayMethod } from '../types';
-import { auth, bookings, catalog, wallet, type BookingQuote } from '../api';
+import { auth, bookings, catalog, wallet, type AvailableCoupon, type BookingQuote } from '../api';
 import { isBackendEnabled } from '../api/client';
 import { existingRole, roleHome, roleLabel } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
@@ -57,6 +57,28 @@ export default function Checkout() {
   }, [selection?.eventSlug]);
 
   const event = liveEvent ?? (selection ? (eventById(selection.eventId) ?? myEvents.find((e) => e.id === selection.eventId)) : undefined);
+
+  // ---- available promo codes for this event — event-specific organizer
+  // codes plus platform-wide ones (Coupon.organizerId null), same
+  // eligibility rules the real apply already enforces (BookingsService.
+  // availableCoupons mirrors priceHold's checks), just surfaced up front
+  // instead of only discovered after typing a code that gets rejected.
+  const [availCoupons, setAvailCoupons] = useState<AvailableCoupon[]>([]);
+  useEffect(() => {
+    if (!event) return;
+    if (liveEvent) {
+      bookings.availableCoupons(event.id).then(setAvailCoupons).catch(() => setAvailCoupons([]));
+    } else {
+      const now = new Date();
+      setAvailCoupons(
+        coupons
+          .filter((c) => c.status === 'active' && new Date(c.validTill) > now && c.used < c.usageLimit)
+          .filter((c) => c.eventScope === 'all' || c.eventScope === event.title)
+          .map((c) => ({ code: c.code, type: c.type, value: c.value, maxDiscount: c.maxDiscount ?? null, description: c.description ?? null }))
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.id, liveEvent]);
 
   // ---- real hold (Redis-backed, 8-min TTL) — only for real events, needs a logged-in guest ----
   const [holdId, setHoldId] = useState<string | null>(null);
@@ -367,9 +389,10 @@ export default function Checkout() {
 
   const venue = event.venue ?? (event.venueId ? venueById(event.venueId) : undefined);
 
-  const applyCoupon = () => {
-    const code = couponInput.trim().toUpperCase();
+  const applyCoupon = (codeOverride?: string) => {
+    const code = (codeOverride ?? couponInput).trim().toUpperCase();
     if (!code) return;
+    setCouponInput(code);
     if (liveEvent) {
       // real validation happens server-side in the quote effect below
       setAppliedCode(code);
@@ -787,7 +810,7 @@ export default function Checkout() {
                   value={couponInput}
                   onChange={(e) => setCouponInput(e.target.value)}
                 />
-                <button className="btn btn-ghost" style={{ flex: '0 0 auto' }} onClick={applyCoupon} disabled={quoting}>
+                <button className="btn btn-ghost" style={{ flex: '0 0 auto' }} onClick={() => applyCoupon()} disabled={quoting}>
                   Apply
                 </button>
               </div>
@@ -795,6 +818,31 @@ export default function Checkout() {
                 <div className={`small ${couponMsg.ok ? 'accent' : 'danger-text'}`} style={{ marginTop: 10 }}>
                   {couponMsg.ok ? '✓ ' : '✕ '}
                   {couponMsg.text}
+                </div>
+              )}
+              {availCoupons.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <div className="tiny muted" style={{ marginBottom: 8 }}>Available for this event</div>
+                  <div className="chip-row">
+                    {availCoupons.map((c) => {
+                      const benefit = c.type === 'percent'
+                        ? `${c.value}% off${c.maxDiscount ? ` up to ₹${c.maxDiscount}` : ''}`
+                        : `₹${c.value} off`;
+                      const isApplied = appliedCode === c.code;
+                      return (
+                        <button
+                          key={c.code}
+                          type="button"
+                          className={`chip ${isApplied ? 'on' : ''}`}
+                          disabled={quoting || isApplied}
+                          onClick={() => applyCoupon(c.code)}
+                          title={c.description ?? undefined}
+                        >
+                          {isApplied ? '✓ ' : ''}{c.code} · {benefit}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               {!liveEvent && (

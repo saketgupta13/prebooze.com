@@ -201,6 +201,45 @@ export class BookingsService {
     };
   }
 
+  /** Checkout's "available promo codes" strip — same eligibility rules
+   * priceHold() enforces at apply-time (status/expiry/scope/usage/gender/
+   * first-time/per-user-limit), just surfaced ahead of time instead of only
+   * discovered after a guest types a code and gets rejected. Only ever
+   * returns codes this exact guest can actually use right now. */
+  async availableCoupons(userId: string, eventId: string) {
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    const buyer = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    const candidates = await this.prisma.coupon.findMany({
+      where: {
+        status: 'active',
+        validTill: { gt: new Date() },
+        AND: [
+          { OR: [{ organizerId: null }, ...(event.organizerId ? [{ organizerId: event.organizerId }] : [])] },
+          { OR: [{ eventScope: 'all' }, { eventScope: event.title }] },
+        ],
+      },
+      orderBy: { value: 'desc' },
+    });
+
+    const eligible: { code: string; type: string; value: number; maxDiscount: number | null; description: string | null }[] = [];
+    for (const c of candidates) {
+      if (c.used >= c.usageLimit) continue;
+      if (c.gender !== 'all' && (buyer.gender || '').toLowerCase() !== c.gender.toLowerCase()) continue;
+      if (c.firstTimeOnly) {
+        const priorBookings = await this.prisma.booking.count({ where: { userId } });
+        if (priorBookings > 0) continue;
+      }
+      if (c.perUserLimit > 0) {
+        const priorUses = await this.prisma.booking.count({ where: { userId, couponCode: c.code } });
+        if (priorUses >= c.perUserLimit) continue;
+      }
+      eligible.push({ code: c.code, type: c.type, value: c.value, maxDiscount: c.maxDiscount, description: c.description });
+    }
+    return eligible;
+  }
+
   /** Called before showing the Razorpay checkout widget — creates the order
    * with the *final* (post-coupon, post-wallet-credit) amount, since Razorpay
    * requires the order amount to match what's actually charged. */

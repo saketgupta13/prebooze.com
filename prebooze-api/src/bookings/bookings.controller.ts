@@ -25,6 +25,12 @@ export class BookingsController {
     return this.bookings.createHold(req.user.sub, body.eventId, body.qty);
   }
 
+  @Get('bookings/coupons')
+  @UseGuards(JwtAuthGuard)
+  availableCoupons(@Req() req: AuthedReq, @Query('eventId') eventId: string) {
+    return this.bookings.availableCoupons(req.user.sub, eventId);
+  }
+
   /** Call before showing the Razorpay checkout widget — returns final pricing
    * (post-coupon, post-wallet-credit) plus a Razorpay order id to pay against. */
   @Post('bookings/quote')

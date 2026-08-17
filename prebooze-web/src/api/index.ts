@@ -197,6 +197,13 @@ export interface BookingQuote {
   razorpayOrderId?: string;
   razorpayKeyId?: string;
 }
+export interface AvailableCoupon {
+  code: string;
+  type: 'percent' | 'flat';
+  value: number;
+  maxDiscount: number | null;
+  description: string | null;
+}
 export interface CreateBookingInput {
   holdId: string;
   mainGuest: string;
@@ -211,6 +218,7 @@ export interface CreateBookingInput {
 }
 export const bookings = {
   hold: (eventId: string, qty: Record<string, number>) => apiFetch<{ holdId: string; expiresAt: string }>('/bookings/hold', { body: { eventId, qty } }),
+  availableCoupons: (eventId: string) => apiFetch<AvailableCoupon[]>('/bookings/coupons', { query: { eventId } }),
   quote: (holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string) =>
     apiFetch<BookingQuote>('/bookings/quote', { body: { holdId, couponCode, walletCredit, promoterRef } }),
   create: (input: CreateBookingInput) => apiFetch<Booking>('/bookings', { body: input }),
