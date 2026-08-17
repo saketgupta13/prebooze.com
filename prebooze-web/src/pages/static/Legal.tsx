@@ -4,6 +4,7 @@ import { content } from '../../api';
 import { isBackendEnabled } from '../../api/client';
 import type { CmsPolicy, CmsPolicySummary } from '../../types';
 import { PageLoader } from '../../components/Loader';
+import { openCookiePreferences } from '../../components/CookieConsent';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -66,6 +67,11 @@ export default function Legal() {
           <p className="muted-2 small" style={{ margin: '6px 0 26px' }}>
             Last updated: {fmtDate(doc.updatedAt)}
           </p>
+          {slug === '/legal/cookies' && (
+            <button className="btn btn-ghost btn-sm" style={{ marginBottom: 26 }} onClick={openCookiePreferences}>
+              Manage cookie preferences
+            </button>
+          )}
           {doc.sections.map((s, i) => (
             <section key={s.heading} id={`s${i + 1}`} style={{ marginBottom: 26 }}>
               <h2 style={{ fontSize: 17, marginBottom: 8 }}>

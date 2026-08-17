@@ -16,8 +16,9 @@
          two independent connections). The dataLayer.push below runs
          immediately — it's just an array push, no network cost, and
          gtm.start needs an accurate early timestamp for GTM's own timing
-         data — but the actual gtm.js network request is deferred until
-         whichever of these fires first:
+         data — but the actual gtm.js network request only fires once
+         cookie consent is 'accepted' (see the consent-gate below), and even
+         then is deferred until whichever of these fires first:
            1. requestIdleCallback  — the common case: loads as soon as the
               browser has spare time, usually within a few hundred ms
            2. a real interaction   — scroll/click/key/touch — loads right
@@ -30,7 +31,7 @@
       window.dataLayer = window.dataLayer || [];
       dataLayer.push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
 
-      (function () {
+      window.__prebooze_loadGtm = (function () {
         var loaded = false;
         var interactionEvents = ['scroll', 'click', 'keydown', 'touchstart', 'mousemove'];
 
@@ -47,27 +48,33 @@
           f.parentNode.insertBefore(j, f);
         }
 
-        interactionEvents.forEach(function (evt) {
-          window.addEventListener(evt, loadGtm, { once: true, passive: true });
-        });
-
-        if ('requestIdleCallback' in window) {
-          requestIdleCallback(loadGtm);
-        }
-        // Independent of the requestIdleCallback branch above (not an
-        // else) — this is the one guaranteed-to-fire backstop regardless
-        // of idle-callback support or behavior, so the 4s ceiling doesn't
-        // depend on requestIdleCallback's own timeout option.
-        setTimeout(loadGtm, 4000);
+        // Called two ways: immediately below if consent was already
+        // 'accepted' on a prior visit, or later by CookieConsent.tsx the
+        // instant the guest clicks "Accept all" this visit. Either way,
+        // still goes through the same idle/interaction/timeout deferral —
+        // clicking Accept is itself a real interaction, so in practice it
+        // loads right away without waiting the full 4s.
+        return function scheduleLoadGtm() {
+          interactionEvents.forEach(function (evt) {
+            window.addEventListener(evt, loadGtm, { once: true, passive: true });
+          });
+          if ('requestIdleCallback' in window) {
+            requestIdleCallback(loadGtm);
+          }
+          setTimeout(loadGtm, 4000);
+        };
       })();
+
+      if (localStorage.getItem('pb_cookie_consent') === 'accepted') {
+        window.__prebooze_loadGtm();
+      }
     </script>
     <!-- End Google Tag Manager -->
-    <!-- Meta Pixel — same deferred-load split as GTM above: fbq() is a
-         queueing stub the moment this runs (no network cost, and every
-         fbq('init'/'track'/...) call anywhere in the app — here or later
-         from React code — is safe to call immediately, queued until the
-         real script loads and replaces the stub). Only the actual
-         fbevents.js network fetch is deferred to idle/interaction/timeout. -->
+    <!-- Meta Pixel — same consent-gated, deferred-load split as GTM above:
+         fbq() is a queueing stub the moment this runs (no network cost,
+         safe to call immediately/from React code regardless of consent —
+         nothing is actually transmitted until fbevents.js itself loads,
+         which is what's gated on 'accepted' consent below). -->
     <script>
       !(function (f) {
         if (f.fbq) return;
@@ -83,7 +90,7 @@
       fbq('init', '2110355219869761');
       fbq('track', 'PageView');
 
-      (function () {
+      window.__prebooze_loadFbPixel = (function () {
         var loaded = false;
         var interactionEvents = ['scroll', 'click', 'keydown', 'touchstart', 'mousemove'];
 
@@ -100,15 +107,20 @@
           s.parentNode.insertBefore(t, s);
         }
 
-        interactionEvents.forEach(function (evt) {
-          window.addEventListener(evt, loadFbPixel, { once: true, passive: true });
-        });
-
-        if ('requestIdleCallback' in window) {
-          requestIdleCallback(loadFbPixel);
-        }
-        setTimeout(loadFbPixel, 4000);
+        return function scheduleLoadFbPixel() {
+          interactionEvents.forEach(function (evt) {
+            window.addEventListener(evt, loadFbPixel, { once: true, passive: true });
+          });
+          if ('requestIdleCallback' in window) {
+            requestIdleCallback(loadFbPixel);
+          }
+          setTimeout(loadFbPixel, 4000);
+        };
       })();
+
+      if (localStorage.getItem('pb_cookie_consent') === 'accepted') {
+        window.__prebooze_loadFbPixel();
+      }
     </script>
     <!-- End Meta Pixel -->
     <link rel="canonical" href="https://prebooze.com" />

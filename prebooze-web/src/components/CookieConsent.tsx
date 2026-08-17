@@ -1,26 +1,63 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { social } from '../api';
 import { getToken } from '../api/client';
 import { useApp } from '../store/AppContext';
 
 const STORAGE_KEY = 'pb_cookie_consent'; // 'accepted' | 'rejected'
+const REOPEN_EVENT = 'prebooze:manage-cookies';
 
-/** Cookie consent banner — shown once until the guest chooses, then
- * remembered in localStorage. Only essential cookies (session/auth) are
- * ever required for Prebooze to function; "reject" just skips analytics —
- * there's no analytics SDK wired up yet for this to actually gate, but the
- * choice is recorded for when there is. */
+declare global {
+  interface Window {
+    __prebooze_loadGtm?: () => void;
+    __prebooze_loadFbPixel?: () => void;
+  }
+}
+
+/** Call from anywhere (e.g. the Cookie Policy page's "Manage cookie
+ * preferences" button) to reopen the panel even after a choice was already
+ * made, so a guest can change their mind later. */
+export function openCookiePreferences() {
+  window.dispatchEvent(new Event(REOPEN_EVENT));
+}
+
+/** Cookie consent — shown once until the guest chooses, then remembered in
+ * localStorage; reopenable later (see openCookiePreferences above) as a
+ * granular preferences panel instead of just a yes/no banner. Only
+ * essential cookies (session/auth) are ever required for Prebooze to
+ * function; turning "Analytics & advertising" off genuinely skips it now —
+ * GTM (GA4) and Meta Pixel (index.html) both only load their real tracking
+ * scripts once consent is 'accepted', checked on every fresh page load.
+ * Turning it off after it was already on this session stops it from
+ * reloading on the next visit, but can't retroactively un-load a script
+ * that already ran earlier in the current tab. */
 export default function CookieConsent() {
-  const [choice, setChoice] = useState(() => localStorage.getItem(STORAGE_KEY));
+  const [open, setOpen] = useState(() => !localStorage.getItem(STORAGE_KEY));
+  const [managing, setManaging] = useState(false);
+  // Defaults on for a first-time guest (no stored choice yet) — only an
+  // explicit prior 'rejected' should show as off when the panel reopens.
+  const [analyticsOn, setAnalyticsOn] = useState(() => localStorage.getItem(STORAGE_KEY) !== 'rejected');
   const { updateUser } = useApp();
 
-  if (choice) return null;
+  useEffect(() => {
+    const reopen = () => {
+      setAnalyticsOn(localStorage.getItem(STORAGE_KEY) !== 'rejected');
+      setManaging(true);
+      setOpen(true);
+    };
+    window.addEventListener(REOPEN_EVENT, reopen);
+    return () => window.removeEventListener(REOPEN_EVENT, reopen);
+  }, []);
+
+  if (!open) return null;
 
   const decide = (value: 'accepted' | 'rejected') => {
     localStorage.setItem(STORAGE_KEY, value);
-    setChoice(value);
+    setOpen(false);
+    setManaging(false);
     if (value === 'accepted') {
+      window.__prebooze_loadGtm?.();
+      window.__prebooze_loadFbPixel?.();
       // Default the "show me in the People directory" opt-in on when
       // cookies are accepted — see AppContext.tsx's loginWithOtp for the
       // logged-out case (this flag is consumed there instead, exactly
@@ -50,18 +87,56 @@ export default function CookieConsent() {
         padding: '14px 16px',
         display: 'flex',
         gap: 14,
-        alignItems: 'center',
+        alignItems: managing ? 'flex-start' : 'center',
         flexWrap: 'wrap',
       }}
     >
-      <p style={{ margin: 0, flex: '1 1 320px', fontSize: 13, color: 'var(--muted)' }}>
-        We use cookies to keep you signed in and to remember your city and preferences. See our{' '}
-        <Link to="/legal/cookies" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Cookie Policy</Link> for details.
-      </p>
-      <div style={{ display: 'flex', gap: 8, flex: 'none' }}>
-        <button className="btn btn-ghost" onClick={() => decide('rejected')}>Reject non-essential</button>
-        <button className="btn btn-pri" onClick={() => decide('accepted')}>Accept all</button>
-      </div>
+      {!managing ? (
+        <>
+          <p style={{ margin: 0, flex: '1 1 320px', fontSize: 13, color: 'var(--muted)' }}>
+            We use cookies to keep you signed in and to remember your city and preferences. See our{' '}
+            <Link to="/legal/cookies" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Cookie Policy</Link> for details.
+          </p>
+          <div style={{ display: 'flex', gap: 8, flex: 'none' }}>
+            <button className="btn btn-ghost" onClick={() => setManaging(true)}>Manage cookies</button>
+            <button className="btn btn-pri" onClick={() => decide('accepted')}>Accept all</button>
+          </div>
+        </>
+      ) : (
+        <div style={{ flex: '1 1 100%', maxWidth: 520 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>Cookie preferences</div>
+          <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--muted)' }}>
+            Choose what Prebooze can use on this device. See our{' '}
+            <Link to="/legal/cookies" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Cookie Policy</Link> for what each category does.
+          </p>
+          <div style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>Essential</div>
+                <div style={{ fontSize: 12, color: 'var(--muted-2)' }}>Sign-in, city, cart — always on, required to use Prebooze.</div>
+              </div>
+              <button className="btn btn-sm btn-ghost" disabled style={{ flex: 'none', opacity: 0.6 }}>Always on</button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>Analytics &amp; advertising</div>
+                <div style={{ fontSize: 12, color: 'var(--muted-2)' }}>Helps us see how Prebooze is used and how well our promotions work — also turns on the People directory by default (change anytime in Profile).</div>
+              </div>
+              <button
+                className={`btn btn-sm ${analyticsOn ? 'btn-pri' : 'btn-ghost'}`}
+                style={{ flex: 'none' }}
+                onClick={() => setAnalyticsOn((v) => !v)}
+              >
+                {analyticsOn ? 'On' : 'Off'}
+              </button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setManaging(false)}>Back</button>
+            <button className="btn btn-pri btn-sm" onClick={() => decide(analyticsOn ? 'accepted' : 'rejected')}>Save preferences</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
