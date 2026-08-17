@@ -350,12 +350,15 @@ export class BookingsService {
     // WhatsApp can't carry the real PDF (see WhatsappService/
     // InvoicesService.resendWhatsapp for the same, already-documented
     // AiSensy constraint — no arbitrary media attachment on a campaign
-    // template send; the PDF goes out on email below instead), but a plain
-    // URL substituted into an approved variable slot is just text and needs
-    // no new template approval — same pattern guest_pass/waitlist_offer
-    // already use. Links straight to the confirmation page so a guest who
-    // only has WhatsApp (no email checked) can still open/download the QR.
-    await this.wa.send(input.whatsapp, 'booking_confirmed', [input.mainGuest.trim(), event.title, String(qty), id, String(total), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`]).catch(() => {});
+    // template send; the PDF goes out on email below instead). Confirmed
+    // via a real send that the approved 'booking_confirmed' template has a
+    // fixed 5-variable shape — AiSensy rejects a 6th param outright
+    // ("Template params does not match the campaign"), so the confirmation
+    // URL replaces the plain booking-id slot rather than adding a new one.
+    // Still just a substituted value, not new template wording, so no new
+    // Meta approval needed — same plain-text-URL pattern guest_pass/
+    // waitlist_offer already use.
+    await this.wa.send(input.whatsapp, 'booking_confirmed', [input.mainGuest.trim(), event.title, String(qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`, String(total)]).catch(() => {});
     const ticketVenue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
     const ticketPdf = await ticketPdfBuffer(booking, event, ticketVenue).catch(() => null);
     await this.email.sendTemplate(user.email, 'booking_confirmed', {
@@ -511,7 +514,7 @@ export class BookingsService {
       return created;
     });
 
-    await this.wa.send(phone, 'booking_confirmed', [input.guestName.trim(), event.title, String(input.qty), id, String(total), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`]).catch(() => {});
+    await this.wa.send(phone, 'booking_confirmed', [input.guestName.trim(), event.title, String(input.qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`, String(total)]).catch(() => {});
     if (buyer.email) {
       const venue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
       const ticketPdf = await ticketPdfBuffer(booking, event, venue).catch(() => null);
@@ -537,7 +540,7 @@ export class BookingsService {
     const booking = await this.prisma.booking.findUnique({ where: { id }, include: { event: true } });
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.userId !== userId) throw new ForbiddenException();
-    await this.wa.send(booking.whatsapp, 'booking_confirmed', [booking.mainGuest, booking.event.title, String(booking.qty), booking.id, String(booking.total), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(booking.id)}`]);
+    await this.wa.send(booking.whatsapp, 'booking_confirmed', [booking.mainGuest, booking.event.title, String(booking.qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(booking.id)}`, String(booking.total)]);
     return { ok: true };
   }
 
