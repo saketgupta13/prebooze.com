@@ -434,6 +434,8 @@ export interface OrgAttendee {
   whatsapp: string;
   checkedIn: boolean;
   coverCharge: number;
+  total: number;
+  paymentMethod: string;
 }
 export interface OrgLedgerTx {
   id: string;

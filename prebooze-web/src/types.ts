@@ -338,6 +338,10 @@ export interface Booking {
   // Locked in at purchase from the tier(s)' own coverCharge * qty — see
   // TicketTier.coverCharge for what this represents.
   coverCharge?: number;
+  // Mutually exclusive: self-checkout (Razorpay) sets paymentId and never
+  // paymentMethod; staff-recorded manual/comp bookings are the reverse.
+  paymentId?: string;
+  paymentMethod?: string;
   couponCode?: string;
   status: 'confirmed' | 'cancelled' | 'refunded' | 'refund_requested';
   guests: BookingGuest[];

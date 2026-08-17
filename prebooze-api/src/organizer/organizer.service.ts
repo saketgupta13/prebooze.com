@@ -423,6 +423,13 @@ export class OrganizerService {
         whatsapp: g.whatsapp ?? b.whatsapp,
         checkedIn: b.checkedIn,
         coverCharge: b.coverCharge,
+        total: b.total,
+        // Self-checkout (guest paid via Razorpay) sets paymentId, never
+        // paymentMethod; staff-recorded manual/comp bookings are the
+        // reverse (BookingsService.create vs .adminCreate) — the two
+        // fields are mutually exclusive, so this always resolves to
+        // exactly one real answer, not a guess.
+        paymentMethod: b.paymentId ? 'Online' : b.paymentMethod ?? '—',
       }));
     });
   }
