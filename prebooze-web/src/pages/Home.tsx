@@ -141,6 +141,10 @@ function EventCardSkeleton() {
   );
 }
 
+function ReelSkeleton() {
+  return <div className="skel-bar poster reel skel-pulse" style={{ background: 'var(--surface-2)' }} />;
+}
+
 function VenueCardSkeleton() {
   return (
     <div className="skel-pulse" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -216,6 +220,15 @@ export default function Home() {
     if (!isBackendEnabled()) return;
     catalog.reels().then(setLiveReels).catch(() => setLiveReels([]));
   }, []);
+  // REEL_HUES was reused as the live loading placeholder too (see the old
+  // comment this replaced), reasoned to be fine since the color blocks
+  // aren't "fabricated claims" — but it's a fixed 12 items swapping for
+  // however many real reels actually exist (4 in production today), so the
+  // slider visibly changes width/content the instant the real fetch
+  // resolves. A real flicker, just not a fake-data one. Same
+  // isBackendEnabled() guard as every other section now — REEL_HUES stays
+  // only for the offline/dev-mode fallback.
+  const reelsLoading = isBackendEnabled() && liveReels === null;
   const [liveTestimonials, setLiveTestimonials] = useState<CmsTestimonial[] | null>(null);
   useEffect(() => {
     if (!isBackendEnabled()) return;
@@ -473,20 +486,20 @@ export default function Home() {
         </section>
         )}
 
-        {/* Reels */}
-        {/* REEL_HUES (abstract colour blocks, no fabricated claims) doubles as
-            the loading placeholder here too, not just the offline fallback —
-            liveReels is null in both cases, so this was one line away from
-            already working; the isBackendEnabled() ? [] wrapper was the only
-            thing hiding the section during the real fetch's loading window. */}
-        {(liveReels ?? REEL_HUES).length > 0 && (
+        {/* Reels — REEL_HUES stays only as the offline/dev-mode fallback
+            (isBackendEnabled() guard), not a live loading placeholder;
+            reelsLoading gets a real skeleton instead, sized to match
+            however many reels actually load in rather than a fixed 12. */}
+        {(reelsLoading || (liveReels ?? REEL_HUES).length > 0) && (
           <section className="section">
             <div className="section-hd">
               <h2>Things happening at events 🎬</h2>
               <span className="muted-2 small">‹ swipe ›</span>
             </div>
             <Slider slideWidth={150}>
-              {liveReels
+              {reelsLoading
+                ? Array.from({ length: 4 }, (_, i) => <ReelSkeleton key={i} />)
+                : liveReels
                 ? liveReels.map((r) => <ReelCard key={r.id} reel={r} />)
                 : REEL_HUES.map((hue, i) => <Poster key={i} hue={hue} emoji="▶" label={`reel ${i + 1}`} variant="reel" />)}
             </Slider>
