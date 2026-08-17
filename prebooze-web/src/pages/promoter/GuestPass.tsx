@@ -94,7 +94,7 @@ export default function GuestPass() {
               <div className="small bold" style={{ marginTop: 16 }}>Thanks for booking with Prebooze — see you there! 🎉</div>
               {igHandle && <div className="tiny accent" style={{ marginTop: 4 }}>📸 Follow us @{igHandle} on Instagram</div>}
               <div className="tiny muted-2" style={{ marginTop: 10 }}>
-                Terms & conditions apply — <Link to="/legal/terms" className="link">prebooze.com/legal/terms</Link>
+                Terms & conditions apply — <Link to="/legal/terms" className="link">www.prebooze.com/legal/terms</Link>
               </div>
 
               {cutoff && (
