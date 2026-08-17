@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { social } from '../api';
+import { getToken } from '../api/client';
+import { useApp } from '../store/AppContext';
 
 const STORAGE_KEY = 'pb_cookie_consent'; // 'accepted' | 'rejected'
 
@@ -10,12 +13,25 @@ const STORAGE_KEY = 'pb_cookie_consent'; // 'accepted' | 'rejected'
  * choice is recorded for when there is. */
 export default function CookieConsent() {
   const [choice, setChoice] = useState(() => localStorage.getItem(STORAGE_KEY));
+  const { updateUser } = useApp();
 
   if (choice) return null;
 
   const decide = (value: 'accepted' | 'rejected') => {
     localStorage.setItem(STORAGE_KEY, value);
     setChoice(value);
+    if (value === 'accepted') {
+      // Default the "show me in the People directory" opt-in on when
+      // cookies are accepted — see AppContext.tsx's loginWithOtp for the
+      // logged-out case (this flag is consumed there instead, exactly
+      // once, right after the next login).
+      if (getToken()) {
+        social.setDiscoverable(true).catch(() => {});
+        updateUser({ discoverable: true });
+      } else {
+        localStorage.setItem('pb_pending_discoverable', '1');
+      }
+    }
   };
 
   return (

@@ -98,6 +98,13 @@ model User {
   venueLogoUrl     String?
 
   attendanceVisibility AttendanceVisibility @default(off)
+  // Opt-in for appearing in the real "People" directory (/people, and the
+  // homepage's "Going out in {city}" strip) — off by default since guests
+  // are private individuals, unlike organizer/venue business profiles which
+  // are public by design. Defaults to true automatically when a guest
+  // accepts the cookie-consent banner (see CookieConsent.tsx), with a
+  // manual override in Profile settings either way.
+  discoverable         Boolean              @default(false)
   autoRenew            Boolean              @default(false)
 
   // deterministic from phone ("PB" + base36 of the last 8 digits) — set once

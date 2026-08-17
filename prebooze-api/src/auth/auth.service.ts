@@ -66,6 +66,7 @@ export function toApiUser(u: User) {
     venueId: u.venueId ?? undefined,
     venueLogoUrl: u.venueLogoUrl ?? undefined,
     attendanceVisibility: u.attendanceVisibility,
+    discoverable: u.discoverable,
     autoRenew: u.autoRenew,
     // null = never applied for a role; 'pending' | 'approved' | 'rejected' otherwise.
     // Pair with orgBrand/promoterBrand/lineupName/venueName (set immediately on

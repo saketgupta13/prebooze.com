@@ -292,8 +292,24 @@ export class CatalogService {
     return { ...lineup, followers: counts.get(`lineup:${slug}`) ?? 0 };
   }
 
+  /** Real "People" directory (GET /people?city=) — opt-in guests only
+   * (User.discoverable), projected the same way person() below projects a
+   * single profile, with real follower counts via the same `person:<id>`
+   * Follow key convention. Used to read the seeded mock `Person` table
+   * (schema.prisma's Person model) — that table is now fully unused by this
+   * endpoint, since /people/:username already reads real User rows too. */
   async people(city?: string) {
-    return this.prisma.person.findMany({ where: city ? { city } : {}, orderBy: { followers: 'desc' } });
+    const users = await this.prisma.user.findMany({
+      where: { discoverable: true, username: { not: '' }, ...(city ? { city } : {}) },
+    });
+    const counts = await this.realFollowerCounts(users.map((u) => `person:${u.id}`));
+    return users
+      .map((u) => ({
+        id: u.id, name: u.name || 'Guest', username: u.username, city: u.city,
+        avatarHue: hueFromId(u.id), avatarUrl: u.avatarUrl ?? undefined, bio: u.bio || undefined,
+        verified: u.idVerified, followers: counts.get(`person:${u.id}`) ?? 0,
+      }))
+      .sort((a, b) => b.followers - a.followers);
   }
 
   /** Real public guest profile (GET /people/:username) — the "People"

@@ -44,6 +44,12 @@ export class SocialController {
     return this.social.setAttendanceVisibility(req.user.sub, v);
   }
 
+  @Post('me/discoverable')
+  @UseGuards(JwtAuthGuard)
+  discoverable(@Req() req: AuthedReq, @Body('on') on: boolean) {
+    return this.social.setDiscoverable(req.user.sub, on);
+  }
+
   @Get('me/social')
   @UseGuards(JwtAuthGuard)
   mySocialState(@Req() req: AuthedReq) {

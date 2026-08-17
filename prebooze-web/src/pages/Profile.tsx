@@ -8,7 +8,7 @@ import Poster from '../components/Poster';
 import ShareButton from '../components/ShareButton';
 
 export default function Profile() {
-  const { user, following, toggleFollow, updateUser, followers, followersLoading, favVenues, toggleFavVenue, wishlist } = useApp();
+  const { user, following, toggleFollow, updateUser, toggleDiscoverable, followers, followersLoading, favVenues, toggleFavVenue, wishlist } = useApp();
 
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(true);
@@ -143,6 +143,21 @@ export default function Profile() {
                 );
               })}
             </div>
+          </div>
+
+          <div className="card" style={{ marginBottom: 16 }}>
+            <h3 style={{ marginBottom: 4 }}>People directory</h3>
+            <p className="tiny muted-2" style={{ marginBottom: 10 }}>
+              Let other guests discover your profile in /people and in "Going out in {user.city}". Off by default — or on automatically if you accepted cookies.
+            </p>
+            <button
+              className={`btn btn-sm ${user.discoverable ? 'btn-pri' : 'btn-ghost'}`}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
+              onClick={toggleDiscoverable}
+            >
+              <span>{user.discoverable ? '✓ ' : ''}Show me in the People directory</span>
+              <span className="tiny" style={{ opacity: 0.75, fontWeight: 400 }}>{user.discoverable ? 'On' : 'Off'}</span>
+            </button>
           </div>
 
           <div className="stat3" style={{ marginBottom: 16 }}>

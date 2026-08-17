@@ -474,6 +474,7 @@ export interface User {
   roleStatus?: 'pending' | 'approved' | 'rejected';
   roleRejectionReason?: string;
   attendanceVisibility?: 'off' | 'followers' | 'public'; // who can see events I'm attending (default off)
+  discoverable?: boolean; // opt-in for the real "People" directory — off by default, or on if cookies were accepted (see CookieConsent.tsx)
   autoRenew?: boolean; // auto-renew subscriptions / featured placements
   // Set once the soft-required "finish your profile" step is completed —
   // see FinishProfile.tsx / POST /me/complete-profile-reward. Presence of

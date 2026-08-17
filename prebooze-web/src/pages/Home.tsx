@@ -3,15 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import {
   CATEGORIES, CATEGORY_TREE, EVENTS, FAQS, LINEUPS, ORGANIZERS, PEOPLE, PROMOTERS, TESTIMONIALS, VENUES,
-  eventsForPerson, venueById,
+  venueById,
 } from '../data/mock';
 import { catalog, content } from '../api';
 import { isBackendEnabled } from '../api/client';
-import type { CmsTestimonial, Event, Organizer, PromoterProfile, LineupProfile, Venue } from '../types';
+import type { CmsTestimonial, Event, Organizer, PromoterProfile, LineupProfile, Person, Venue } from '../types';
 import { personFollowKey } from '../lib/social';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import EventCard from '../components/EventCard';
 import DirectoryCard from '../components/DirectoryCard';
+import DirectoryCardSkeleton from '../components/DirectoryCardSkeleton';
 import Slider from '../components/Slider';
 import Poster from '../components/Poster';
 import Accordion from '../components/Accordion';
@@ -129,23 +130,6 @@ function ReelCard({ reel }: { reel: { id: string; title: string; hue: number; vi
   );
 }
 
-// Loading placeholders shown while an async section's own fetch is still
-// in flight — same footprint as the real DirectoryCard/venue-ecard/
-// testimonial card, so nothing shifts once real data replaces them.
-function DirectoryCardSkeleton() {
-  return (
-    <div className="card skel-pulse" style={{ display: 'flex', flexDirection: 'column' }}>
-      <div className="skel-bar" style={{ width: 46, height: 46, borderRadius: '50%' }} />
-      <div className="skel-bar" style={{ width: '70%', height: 15, marginTop: 10 }} />
-      <div className="skel-bar" style={{ width: '45%', height: 11, marginTop: 8 }} />
-      <div className="skel-bar" style={{ width: '100%', height: 11, marginTop: 10 }} />
-      <div className="skel-bar" style={{ width: '80%', height: 11, marginTop: 6 }} />
-      <div className="skel-bar" style={{ width: '55%', height: 11, marginTop: 10 }} />
-      <div className="skel-bar" style={{ width: '100%', height: 32, marginTop: 14, borderRadius: 8 }} />
-    </div>
-  );
-}
-
 function VenueCardSkeleton() {
   return (
     <div className="skel-pulse" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -244,12 +228,16 @@ export default function Home() {
   const [livePromoters, setLivePromoters] = useState<PromoterProfile[] | null>(null);
   const [liveLineups, setLiveLineups] = useState<LineupProfile[] | null>(null);
   const [liveVenues, setLiveVenues] = useState<Venue[] | null>(null);
+  // Real, opt-in "People" directory (User.discoverable) — PEOPLE stays only
+  // as the offline/dev-mode fallback, same reasoning as the pools above.
+  const [livePeople, setLivePeople] = useState<Person[] | null>(null);
   useEffect(() => {
     if (!isBackendEnabled()) return;
     catalog.organizers(city).then(setLiveOrganizers).catch(() => setLiveOrganizers([]));
     catalog.promoters(city).then(setLivePromoters).catch(() => setLivePromoters([]));
     catalog.lineups(city).then(setLiveLineups).catch(() => setLiveLineups([]));
     catalog.venues(city).then(setLiveVenues).catch(() => setLiveVenues([]));
+    catalog.people(city).then(setLivePeople).catch(() => setLivePeople([]));
   }, [city]);
   // Each fetch above resolves at a different time — without tracking these,
   // every section below hid itself (rendered nothing) until its own call
@@ -260,6 +248,7 @@ export default function Home() {
   const promoLoading = isBackendEnabled() && livePromoters === null;
   const lineupLoading = isBackendEnabled() && liveLineups === null;
   const venueLoading = isBackendEnabled() && liveVenues === null;
+  const peopleLoading = isBackendEnabled() && livePeople === null;
 
   // Same isBackendEnabled() guard as everywhere else on this page — without
   // it, the brief liveEvents===null window on first load fell through to
@@ -293,7 +282,8 @@ export default function Home() {
   const topPromoters = featuredFirst([...promoterPool].sort((a, b) => b.showRate - a.showRate), (p) => p.slug, promoFeat).slice(0, 10);
   const topLineups = featuredFirst([...lineupPool].sort((a, b) => b.followers - a.followers), (l) => l.slug, lineFeat).slice(0, 10);
   const topVenues = featuredFirst([...venuePool].sort((a, b) => b.rating - a.rating), (v) => v.id, venueFeat).slice(0, 10);
-  const cityPeople = [...byCity(PEOPLE)].sort((a, b) => b.followers - a.followers).slice(0, 10);
+  const peoplePool = livePeople ?? (isBackendEnabled() ? [] : byCity(PEOPLE));
+  const cityPeople = [...peoplePool].sort((a, b) => b.followers - a.followers).slice(0, 10);
 
   const resumeCart = user
     ? [...carts].filter((c) => c.userPhone === user.phone && c.status !== 'completed').sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
@@ -407,17 +397,22 @@ export default function Home() {
           </div>
         )}
 
-        {/* People going out in the city */}
-        {cityPeople.length > 0 && (
+        {/* People going out in the city — real, opt-in guests only
+            (User.discoverable); PEOPLE mock stays only as the offline
+            fallback via peoplePool above. */}
+        {(cityPeople.length > 0 || peopleLoading) && (
         <section className="section">
           <div className="section-hd">
             <h2>Going out in {city} 🔥</h2>
             <Link to="/people">See all people →</Link>
           </div>
+          {!peopleLoading && (
           <div className="card" style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex' }}>
               {cityPeople.slice(0, 6).map((p, i) => (
-                <span key={p.id} title={p.name} style={{ width: 34, height: 34, borderRadius: '50%', background: `hsl(${p.avatarHue} 55% 45%)`, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, marginLeft: i ? -10 : 0, border: '2px solid var(--bg)' }}>{p.name[0]}</span>
+                <span key={p.id} title={p.name} style={{ width: 34, height: 34, borderRadius: '50%', background: `hsl(${p.avatarHue} 55% 45%)`, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, marginLeft: i ? -10 : 0, border: '2px solid var(--bg)', overflow: 'hidden' }}>
+                  {p.avatarUrl ? <img src={p.avatarUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.name[0]}
+                </span>
               ))}
             </div>
             <div style={{ flex: 1, minWidth: 200 }}>
@@ -426,15 +421,15 @@ export default function Home() {
             </div>
             <Link to="/people" className="btn btn-pri btn-sm">Find your people →</Link>
           </div>
+          )}
           <Slider slideWidth={244}>
-            {cityPeople.map((p) => {
-              const going = eventsForPerson(p.id).filter((a) => a.status === 'going').length;
-              return (
-                <DirectoryCard key={p.id} to={`/u/${p.username}`} hue={p.avatarHue} avatarText={p.name[0]} name={p.name} verified={p.verified} meta={`@${p.username} · ${p.city}`} bio={p.bio}
-                  stats={<><b>{p.followers.toLocaleString('en-IN')}</b> followers · <b>{going}</b> going</>}
-                  action={followBtn(personFollowKey(p.id))} />
-              );
-            })}
+            {peopleLoading
+              ? Array.from({ length: 4 }, (_, i) => <DirectoryCardSkeleton key={i} />)
+              : cityPeople.map((p) => (
+                  <DirectoryCard key={p.id} to={`/u/${p.username}`} hue={p.avatarHue} avatarImage={p.avatarUrl} avatarText={p.name[0]} name={p.name} verified={p.verified} meta={`@${p.username} · ${p.city}`} bio={p.bio}
+                    stats={<><b>{netFollowers(personFollowKey(p.id), p.followers).toLocaleString('en-IN')}</b> followers</>}
+                    action={followBtn(personFollowKey(p.id))} />
+                ))}
           </Slider>
         </section>
         )}

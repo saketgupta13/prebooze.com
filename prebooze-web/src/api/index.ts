@@ -259,6 +259,7 @@ export const social = {
   mySocialState: () => apiFetch<{ following: string[]; interested: string[]; wishlist: string[]; favouriteVenues: string[] }>('/me/social'),
   followers: () => apiFetch<Person[]>('/me/followers'),
   setAttendanceVisibility: (v: 'off' | 'followers' | 'public') => apiFetch<void>('/me/attendance-visibility', { body: { v } }),
+  setDiscoverable: (on: boolean) => apiFetch<void>('/me/discoverable', { body: { on } }),
   interested: (eventId: string, on: boolean) => apiFetch<void>(`/events/${eventId}/interested`, { body: { on } }),
   wishlist: (eventId: string, on: boolean) => apiFetch<void>(`/events/${eventId}/wishlist`, { body: { on } }),
   favVenue: (venueId: string, on: boolean) => apiFetch<void>(`/venues/${venueId}/favourite`, { body: { on } }),

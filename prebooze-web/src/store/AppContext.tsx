@@ -114,6 +114,7 @@ interface AppState {
    * re-render could pick up orgTeamAccess from context. */
   loginWithOtp: (code: string) => Promise<{ status: 'new' | 'existing'; isTeamMember: boolean }>;
   updateUser: (patch: Partial<User>) => void;
+  toggleDiscoverable: () => void;
   // Submits an elevated-role application for manual review — never activates
   // the role directly. Guest ID verification is separate (see idVerified /
   // the automatic flow in IdVerification.tsx) and unaffected by this.
@@ -593,6 +594,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
               localStorage.removeItem('pb_pending_ref');
             }
           }
+          // Not gated by isNew — an existing user might accept the cookie
+          // banner for the first time on any later visit, not only at
+          // signup. Set by CookieConsent.tsx when accepted while logged
+          // out; consumed exactly once here so it can never later clobber a
+          // manual change made in Profile settings.
+          if (localStorage.getItem('pb_pending_discoverable')) {
+            socialApi.setDiscoverable(true).catch(() => {});
+            localStorage.removeItem('pb_pending_discoverable');
+            setUser((u) => {
+              if (!u) return u;
+              const n = normalizeUser({ ...u, discoverable: true })!;
+              localStorage.setItem('pb_known_' + n.phone, JSON.stringify(n));
+              return n;
+            });
+          }
           return { status: isNew ? 'new' : 'existing', isTeamMember: !!access };
         }
         // ---- offline/mock mode (no VITE_API_URL) — unchanged local fallback ----
@@ -656,6 +672,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
           localStorage.setItem('pb_known_' + next.phone, JSON.stringify(next));
           return next;
         });
+      },
+      // Real toggle (unlike attendanceVisibility above, which only ever
+      // touches local state via updateUser) — optimistic local update with
+      // rollback on failure, same pattern as toggleFollow.
+      toggleDiscoverable: () => {
+        if (!user) return;
+        const next = !user.discoverable;
+        setUser((u) => {
+          if (!u) return u;
+          const n = normalizeUser({ ...u, discoverable: next })!;
+          localStorage.setItem('pb_known_' + n.phone, JSON.stringify(n));
+          return n;
+        });
+        if (isBackendEnabled() && getToken()) {
+          socialApi.setDiscoverable(next).catch(() => {
+            setUser((u) => {
+              if (!u) return u;
+              const n = normalizeUser({ ...u, discoverable: !next })!;
+              localStorage.setItem('pb_known_' + n.phone, JSON.stringify(n));
+              return n;
+            });
+          });
+        }
       },
       submitRoleApplication: (kind, patch) => {
         setUser((u) => {
