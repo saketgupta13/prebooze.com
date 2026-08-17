@@ -13,6 +13,7 @@ import ComingSoonGate from './components/ComingSoonGate';
 import ProfileCompletion from './pages/auth/ProfileCompletion';
 import SalesPausedBanner from './components/SalesPausedBanner';
 import { PageLoader } from './components/Loader';
+import ChunkErrorBoundary from './components/ChunkErrorBoundary';
 // Home stays a static import — it's the entry route almost every visitor
 // hits first, so lazy-loading it would trade the single main-bundle
 // download for a request waterfall (route chunk fetched only after the
@@ -194,6 +195,7 @@ export default function App() {
       <Header />
       <SalesPausedBanner />
       <MaintenanceGate>
+      <ChunkErrorBoundary>
       <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Guest — discovery */}
@@ -405,6 +407,7 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       </Suspense>
+      </ChunkErrorBoundary>
       </MaintenanceGate>
       <Footer />
       <Toast />
