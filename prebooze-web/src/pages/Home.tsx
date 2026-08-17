@@ -130,6 +130,17 @@ function ReelCard({ reel }: { reel: { id: string; title: string; hue: number; vi
   );
 }
 
+function EventCardSkeleton() {
+  return (
+    <div className="skel-pulse" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="skel-bar poster" style={{ aspectRatio: '3 / 4', background: 'var(--surface-2)' }} />
+      <div className="skel-bar" style={{ width: '80%', height: 15 }} />
+      <div className="skel-bar" style={{ width: '55%', height: 11 }} />
+      <div className="skel-bar" style={{ width: '40%', height: 22, marginTop: 4 }} />
+    </div>
+  );
+}
+
 function VenueCardSkeleton() {
   return (
     <div className="skel-pulse" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -248,6 +259,13 @@ export default function Home() {
   const promoLoading = isBackendEnabled() && livePromoters === null;
   const lineupLoading = isBackendEnabled() && liveLineups === null;
   const venueLoading = isBackendEnabled() && liveVenues === null;
+  // This one was missing entirely (unlike the four above) — "Top selling
+  // events" is the most prominent section on the page (right under the
+  // hero) and had zero loading guard, so on every load it genuinely showed
+  // "No events in {city} yet." for the ~200-300ms the real fetch was in
+  // flight, then swapped to the real grid the instant it resolved. That's
+  // the dominant visible flicker, worse than any of the skeleton sections.
+  const eventsLoading = isBackendEnabled() && liveEvents === null;
 
   // Same isBackendEnabled() guard as everywhere else on this page — without
   // it, the brief liveEvents===null window on first load fell through to
@@ -382,9 +400,11 @@ export default function Home() {
           ))}
         </div>
         <div className="grid-4">
-          {events.slice(0, eventLimit).map((e) => <EventCard key={e.id} event={e} />)}
+          {eventsLoading
+            ? Array.from({ length: 8 }, (_, i) => <EventCardSkeleton key={i} />)
+            : events.slice(0, eventLimit).map((e) => <EventCard key={e.id} event={e} />)}
         </div>
-        {events.length === 0 && <div className="empty">No events in {city} yet.</div>}
+        {!eventsLoading && events.length === 0 && <div className="empty">No events in {city} yet.</div>}
         {events.length > eventLimit && (
           <div style={{ textAlign: 'center', marginTop: 16 }}>
             <button className="btn btn-ghost" onClick={() => setEventLimit((n) => n + 8)}>Show more events ▾</button>
