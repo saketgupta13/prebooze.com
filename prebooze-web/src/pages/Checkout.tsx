@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp, CART_HOLD_MINUTES } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
@@ -109,6 +109,10 @@ export default function Checkout() {
   const [gender, setGender] = useState(user?.gender ?? '');
   const [whatsapp, setWhatsapp] = useState(user?.phone ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarErr, setAvatarErr] = useState('');
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   // `user` from context often isn't ready yet at mount (it's filled in by a
   // separate auth.me() fetch, or updates later if the guest edits their
   // profile then comes back to a still-open checkout tab) — the useState
@@ -120,7 +124,24 @@ export default function Checkout() {
     setGender(user.gender ?? '');
     setWhatsapp(user.phone ?? '');
     setEmail(user.email ?? '');
-  }, [user?.name, user?.gender, user?.phone, user?.email]);
+    setAvatarUrl(user.avatarUrl ?? '');
+  }, [user?.name, user?.gender, user?.phone, user?.email, user?.avatarUrl]);
+  // Optional — just for a friendlier "who's booking" summary below. Reuses
+  // the same upload endpoint + persistence Edit Profile uses, so a photo
+  // added here shows up on the real profile too, not just this checkout.
+  const uploadAvatar = async (file: File) => {
+    setAvatarErr('');
+    setAvatarBusy(true);
+    try {
+      const { url } = await auth.upload(file);
+      setAvatarUrl(url);
+      await auth.updateMe({ avatarUrl: url }).catch(() => {});
+    } catch {
+      setAvatarErr('Upload failed — try again');
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
   // A first real booking backfills User.name from whatever was typed here
   // (see BookingsService.create) — so a non-empty profile name means this
   // guest has already been through checkout before and we already have
@@ -538,12 +559,17 @@ export default function Checkout() {
       failAttendee('Main attendee name and WhatsApp number are required');
       return;
     }
-    // Guest names/numbers are optional — check-in scans one QR for the whole
-    // booking (BookingsService.checkIn toggles a single Booking.checkedIn
-    // flag, not per-guest), and the backend already accepts a partial or
-    // empty guest list, so blocking payment on this info was pure friction
-    // with no corresponding security benefit. Whatever's filled in still
-    // gets saved for the organizer's guest list.
+    // Extra guests' name + gender are required (WhatsApp number stays
+    // optional) — the organizer's own guest list needs a real name per
+    // ticket, not just a headcount.
+    if (ticketCount > 1) {
+      for (let i = 0; i < ticketCount - 1; i++) {
+        if (!(guestNames[i] ?? '').trim() || !guestGenders[i]) {
+          failAttendee(`Guest ${i + 2}'s name and gender are required`);
+          return;
+        }
+      }
+    }
     // Email is optional too — only the emailed PDF depends on it (WhatsApp
     // confirmation and in-app My Bookings both work without one), so a typo
     // or a skipped field here shouldn't be able to block payment. Still
@@ -605,15 +631,55 @@ export default function Checkout() {
             <div id="attendee-details" className="card" style={{ marginBottom: 18 }}>
               <h3 style={{ marginBottom: 14 }}>Attendee details</h3>
               {!showMainFields ? (
-                <div className="field" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <div>
-                    <div className="bold">{name}</div>
-                    <div className="tiny muted">{whatsapp}{gender ? ` · ${gender}` : ''}</div>
+                <>
+                  <div className="field" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="avatar"
+                          onClick={() => avatarInputRef.current?.click()}
+                          disabled={avatarBusy}
+                          title={avatarUrl ? 'Change photo' : 'Add a photo (optional)'}
+                          style={{
+                            width: 52, height: 52, fontSize: 22, cursor: 'pointer', padding: 0,
+                            ...(avatarUrl ? { backgroundImage: `url(${avatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}),
+                          }}
+                        >
+                          {avatarBusy ? '…' : !avatarUrl && '👤'}
+                        </button>
+                        <span
+                          style={{
+                            position: 'absolute', bottom: -2, right: -2, width: 20, height: 20, borderRadius: '50%',
+                            background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 10, border: '2px solid var(--surface, #16170f)', pointerEvents: 'none',
+                          }}
+                        >
+                          📷
+                        </span>
+                        <input
+                          ref={avatarInputRef}
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            e.target.value = '';
+                            if (f) uploadAvatar(f);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <div className="bold">{name}</div>
+                        <div className="tiny muted">{whatsapp}{gender ? ` · ${gender}` : ''}</div>
+                      </div>
+                    </div>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditMain(true)}>
+                      Not you? Edit
+                    </button>
                   </div>
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditMain(true)}>
-                    Not you? Edit
-                  </button>
-                </div>
+                  {avatarErr && <div className="tiny danger-text" style={{ marginTop: 6 }}>{avatarErr}</div>}
+                </>
               ) : (
                 <>
                   <div className="field">
@@ -641,12 +707,12 @@ export default function Checkout() {
               {ticketCount > 1 && (
                 <>
                   <div className="small muted" style={{ marginBottom: 12 }}>
-                    Optional — add your friends' names now if you have them handy, or skip and bring them along. You'll show one QR for the whole group at the door.
+                    Name and gender are required for each guest — you'll show one QR for the whole group at the door.
                   </div>
                   {Array.from({ length: ticketCount - 1 }, (_, i) => (
                     <div key={i} className="form-row">
                       <div className="field">
-                        <span>Guest {i + 2} name</span>
+                        <span>Guest {i + 2} name *</span>
                         <input
                           value={guestNames[i] ?? ''}
                           onChange={(e) =>
@@ -660,7 +726,7 @@ export default function Checkout() {
                         />
                       </div>
                       <div className="field">
-                        <span>Gender</span>
+                        <span>Gender *</span>
                         <select
                           value={guestGenders[i] ?? ''}
                           onChange={(e) =>
