@@ -10,43 +10,78 @@ import type { ReactNode } from 'react';
 // (Suspense only handles the pending state, not a rejected one). A hard
 // refresh "fixed" it only because it re-fetched a current index.html with
 // the right hashes. This does that refresh automatically instead of making
-// the guest figure it out — but only once: the sessionStorage flag is set
-// right before reloading and only cleared once children actually render
-// successfully afterward (componentDidMount/componentDidUpdate below), not
-// unconditionally at boot — clearing it at boot would erase the "already
-// tried" signal on the very reload it's meant to survive, turning a
-// genuinely broken deploy (or a truly offline guest) into an infinite
-// reload loop instead of the manual-retry fallback below.
-const RELOAD_FLAG = 'pb_chunk_reload_attempted';
+// the guest figure it out.
+//
+// The "already tried once" marker lives in the URL's query string (not
+// sessionStorage — a real deployed test showed sessionStorage.setItem()
+// immediately followed by location.reload() can lose the write, reproducing
+// 6+ reload loops in ~3s with the flag reading back null every time despite
+// sessionStorage correctly surviving a reload when set and reloaded as two
+// separate steps — looked like a storage-IPC-vs-navigation race).
+//
+// The marker also can't be cleared from componentDidMount unconditionally,
+// even though "children mounted without throwing" sounds like the right
+// signal — also confirmed via real testing. Suspense mounts *this*
+// component successfully the instant a lazy import goes *pending*, well
+// before it resolves or rejects, so componentDidMount fires with
+// state.failed still false and strips the marker before the rejection even
+// happens — which is exactly what caused the same infinite-loop symptom a
+// second time after switching off sessionStorage. Clearing is deferred and
+// re-checks failed state at fire time instead.
+const RETRY_PARAM = '_cr';
+const CLEAR_DELAY_MS = 4000;
 
 function isChunkLoadError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
   return /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Loading chunk|dynamically imported module/i.test(msg);
 }
 
+function alreadyRetried(): boolean {
+  return new URLSearchParams(window.location.search).has(RETRY_PARAM);
+}
+
+/** Strips the retry marker back out once the page is confirmed healthy, so
+ * it doesn't linger in the address bar or get carried into a bookmark/share. */
+function clearRetryParam(): void {
+  if (!alreadyRetried()) return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete(RETRY_PARAM);
+  window.history.replaceState(window.history.state, '', url.toString());
+}
+
 export default class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
+  private clearTimer: ReturnType<typeof setTimeout> | null = null;
 
   static getDerivedStateFromError() {
     return { failed: true };
   }
 
   componentDidCatch(error: unknown) {
-    if (isChunkLoadError(error) && !sessionStorage.getItem(RELOAD_FLAG)) {
-      sessionStorage.setItem(RELOAD_FLAG, '1');
-      window.location.reload();
+    if (isChunkLoadError(error) && !alreadyRetried()) {
+      const url = new URL(window.location.href);
+      url.searchParams.set(RETRY_PARAM, '1');
+      window.location.replace(url.toString());
     }
   }
 
-  // Only reached when children mounted/updated without throwing — the
-  // reload attempt (if any) actually worked, so clear the flag and give
-  // the *next* failure its own fresh one-shot recovery attempt.
   componentDidMount() {
-    if (!this.state.failed) sessionStorage.removeItem(RELOAD_FLAG);
+    this.scheduleClear();
   }
 
   componentDidUpdate() {
-    if (!this.state.failed) sessionStorage.removeItem(RELOAD_FLAG);
+    this.scheduleClear();
+  }
+
+  componentWillUnmount() {
+    if (this.clearTimer) clearTimeout(this.clearTimer);
+  }
+
+  private scheduleClear() {
+    if (this.clearTimer) clearTimeout(this.clearTimer);
+    this.clearTimer = setTimeout(() => {
+      if (!this.state.failed) clearRetryParam();
+    }, CLEAR_DELAY_MS);
   }
 
   render() {
