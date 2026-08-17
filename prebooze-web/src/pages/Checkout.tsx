@@ -632,7 +632,7 @@ export default function Checkout() {
               <h3 style={{ marginBottom: 14 }}>Attendee details</h3>
               {!showMainFields ? (
                 <>
-                  <div className="field" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div className="field" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, width: '100%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{ position: 'relative', flexShrink: 0 }}>
                         <button
