@@ -1,67 +1,55 @@
-/** Prebooze proprietary entry code — NOT a standard QR. The matrix is derived
- * from a salted hash of the booking token (no format/timing patterns), so
- * generic QR readers can't decode it — only the Prebooze scanner, which
- * validates the same salted derivation server-side, accepts it. Same
- * deterministic-hash pattern as prebooze-web's QRCode.tsx (the guest-facing
- * component this was ported from), so the code an admin sees here renders
- * identically to what the guest actually has on their ticket. Real signed
- * tokens come with the backend (see BACKEND.md → Real QR). */
+/** A real, standard-compliant QR code encoding `value` — the exact same
+ * signed JWT the guest's own ticket renders (see prebooze-web's QRCode.tsx,
+ * which this was ported from), so what admin sees here is the real code
+ * scannable by the organizer Scanner or any QR reader, not a decorative
+ * lookalike. High error-correction ('H', ~30% tolerance) so the branded
+ * logo cutout in the center doesn't break decodability. Standard
+ * black-on-white modules — green-on-black consistently failed to scan via
+ * the in-app camera scanner in real-world testing (see prebooze-web's
+ * QRCode.tsx for the full investigation); this mirrors that fix exactly so
+ * a code that scans on a guest's phone also scans here. */
+import { useEffect, useState } from 'react';
+import QRCodeLib from 'qrcode';
 import { useBranding } from '../lib/useBranding';
 
-const SALT = 'PBZ1|';
-
-export default function QRCode({ seed, size = 148, caption }: { seed: string; size?: number; caption?: string }) {
+export default function QRCode({ value, size = 148, caption }: { value: string; size?: number; caption?: string }) {
   const { logoUrl } = useBranding();
-  const n = 21;
-  const salted = SALT + seed;
-  let h = 2166136261;
-  for (let i = 0; i < salted.length; i++) {
-    h ^= salted.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  const rand = () => {
-    h ^= h << 13;
-    h ^= h >>> 17;
-    h ^= h << 5;
-    return (h >>> 0) / 4294967295;
-  };
-  const cells: boolean[] = [];
-  for (let i = 0; i < n * n; i++) cells.push(rand() > 0.58);
+  const [dataUrl, setDataUrl] = useState('');
 
-  const finder = (cx: number, cy: number, x: number, y: number) => {
-    const dx = x - cx;
-    const dy = y - cy;
-    if (dx >= 0 && dx < 7 && dy >= 0 && dy < 7) {
-      const ring = Math.max(Math.abs(dx - 3), Math.abs(dy - 3));
-      return ring !== 2 && ring !== 3 ? true : ring === 3;
-    }
-    return null;
-  };
+  useEffect(() => {
+    let cancelled = false;
+    QRCodeLib.toDataURL(value, {
+      errorCorrectionLevel: 'H',
+      margin: 1,
+      scale: 14,
+      color: { dark: '#000000', light: '#ffffff' },
+    })
+      .then((url) => { if (!cancelled) setDataUrl(url); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [value]);
 
-  const logo = Math.round(size * 0.26);
+  const logo = Math.round(size * 0.16);
   return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
-      <svg width={size} height={size} viewBox={`0 0 ${n} ${n}`} shapeRendering="crispEdges" style={{ borderRadius: 8, display: 'block' }}>
-        <rect x={0} y={0} width={n} height={n} fill="#000000" />
-        {Array.from({ length: n * n }, (_, i) => {
-          const x = i % n;
-          const y = Math.floor(i / n);
-          const f = finder(0, 0, x, y) ?? finder(n - 7, 0, x, y) ?? finder(0, n - 7, x, y);
-          const on = f !== null ? f : cells[i];
-          return on ? <rect key={i} x={x} y={y} width={1} height={1} fill="#9be13d" /> : null;
-        })}
-      </svg>
-      <span
-        style={{
-          position: 'absolute', top: 14 + size / 2, left: '50%', transform: 'translate(-50%, -50%)',
-          width: logo + 10, height: logo + 10, background: '#000', borderRadius: 8,
-          border: '1.5px solid #9be13d',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #000',
-        }}
-      >
-        <img src={logoUrl || '/logo.png'} alt="" style={{ width: logo, height: logo, objectFit: 'contain' }} />
-      </span>
-      {caption && <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#9be13d', textAlign: 'center' }}>{caption}</div>}
+    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+      <div style={{ position: 'relative', width: size, height: size }}>
+        {dataUrl ? (
+          <img src={dataUrl} alt="Entry QR code" width={size} height={size} style={{ borderRadius: 8, display: 'block' }} />
+        ) : (
+          <div style={{ width: size, height: size, borderRadius: 8, background: '#ffffff' }} />
+        )}
+        <span
+          style={{
+            position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            width: logo + 10, height: logo + 10, background: '#000', borderRadius: 8,
+            border: '1.5px solid #9be13d',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #000',
+          }}
+        >
+          <img src={logoUrl || '/logo.png'} alt="" style={{ width: logo, height: logo, objectFit: 'contain' }} />
+        </span>
+      </div>
+      {caption && <div style={{ fontSize: 11, fontWeight: 700, color: '#9be13d', textAlign: 'center' }}>{caption}</div>}
     </div>
   );
 }

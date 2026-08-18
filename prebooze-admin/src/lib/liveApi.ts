@@ -330,6 +330,7 @@ export interface LiveBooking {
   guests: { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
   user: { name: string; phone: string };
   event: { title: string };
+  qrToken: string;
 }
 export const liveBookings = {
   list: (status?: string) => liveFetch<LiveBooking[]>('/admin/bookings' + (status ? `?status=${status}` : '')),

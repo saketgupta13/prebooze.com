@@ -17,8 +17,9 @@ const STATUS_TAG: Record<LiveBooking['status'], { label: string; cls: string }> 
 
 const waLink = (phone: string, message: string) => `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
 
-/** Full booking detail — real fee breakdown, real group QR (same seed the
- * guest's own ticket uses), real refund actions against BookingsService. */
+/** Full booking detail — real fee breakdown, the actual signed QR the
+ * guest's own ticket renders (not a lookalike), real refund actions against
+ * BookingsService. */
 export default function BookingDetail() {
   const { id } = useParams();
   const session = useLiveSession();
@@ -148,7 +149,7 @@ export default function BookingDetail() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
         <div className="display" style={{ fontWeight: 700, alignSelf: 'flex-start' }}>Group entry QR</div>
-        <QRCode seed={booking.id} caption={`valid for ${booking.guests.length} guest${booking.guests.length > 1 ? 's' : ''}`} />
+        <QRCode value={booking.qrToken} caption={`valid for ${booking.guests.length} guest${booking.guests.length > 1 ? 's' : ''}`} />
         <div className="tiny hint">one QR covers the whole group — partial check-in supported at the gate</div>
       </div>
 
