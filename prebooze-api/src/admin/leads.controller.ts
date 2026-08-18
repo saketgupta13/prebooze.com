@@ -118,7 +118,7 @@ export class LeadDraftController {
   @Post('draft')
   draft(
     @Req() req: { user: { sub: string } },
-    @Body() body: { role: string; name?: string; city?: string; eventType?: string; utmSource?: string },
+    @Body() body: { role: string; name?: string; city?: string; eventType?: string; utmSource?: string; utmMedium?: string },
   ) {
     return this.leads.captureDraft(req.user.sub, body.role, body);
   }

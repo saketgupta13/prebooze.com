@@ -123,7 +123,7 @@ export const kyc = {
  * sites (on page load, and debounced as the form fills in). Best-effort:
  * every call site swallows failures, never blocks the real onboarding flow. */
 export const leadDraft = {
-  capture: (role: 'organizer' | 'promoter' | 'lineup' | 'venue', fields: { name?: string; city?: string; eventType?: string; utmSource?: string }) =>
+  capture: (role: 'organizer' | 'promoter' | 'lineup' | 'venue', fields: { name?: string; city?: string; eventType?: string; utmSource?: string; utmMedium?: string }) =>
     apiFetch<void>('/leads/draft', { body: { role, ...fields } }),
 };
 

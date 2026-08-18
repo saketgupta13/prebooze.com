@@ -23,7 +23,8 @@ export function useDraftLead(role: 'organizer' | 'promoter' | 'lineup' | 'venue'
   useEffect(() => {
     if (!isBackendEnabled() || firedInitial.current) return;
     firedInitial.current = true;
-    leadDraft.capture(role, { utmSource: attributionForPayload().utmSource }).catch(() => {});
+    const attr = attributionForPayload();
+    leadDraft.capture(role, { utmSource: attr.utmSource, utmMedium: attr.utmMedium }).catch(() => {});
     // Fires exactly once per mount, deliberately not depending on `role`
     // changing mid-session (a visitor doesn't switch onboarding forms
     // without a full navigation/remount anyway).
@@ -33,7 +34,8 @@ export function useDraftLead(role: 'organizer' | 'promoter' | 'lineup' | 'venue'
   useEffect(() => {
     if (!isBackendEnabled() || !name.trim()) return;
     const t = setTimeout(() => {
-      leadDraft.capture(role, { name, city: extraRef.current?.city, eventType: extraRef.current?.eventType, utmSource: attributionForPayload().utmSource }).catch(() => {});
+      const attr = attributionForPayload();
+      leadDraft.capture(role, { name, city: extraRef.current?.city, eventType: extraRef.current?.eventType, utmSource: attr.utmSource, utmMedium: attr.utmMedium }).catch(() => {});
     }, DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [role, name]);

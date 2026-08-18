@@ -14,6 +14,19 @@ export const LEAD_STAGES = ['New', 'Contacted', 'Interested', 'Negotiating', 'Si
 export const LEAD_ROLES = ['organizer', 'venue', 'promoter', 'lineup'] as const;
 export type LeadRole = (typeof LEAD_ROLES)[number];
 
+// Real Meta campaigns tag utm_source as "meta", "fb", or "ig" — "facebook"
+// (the only value earlier code checked for) barely ever shows up in actual
+// traffic. Matched case-insensitively so a campaign builder capitalizing it
+// differently doesn't silently fall through to "Website inquiry" again.
+const META_AD_SOURCES = ['meta', 'facebook', 'fb', 'instagram', 'ig'];
+function isMetaAdSource(utmSource?: string): boolean {
+  return !!utmSource && META_AD_SOURCES.includes(utmSource.toLowerCase());
+}
+
+// utm_medium values every currently-running paid campaign uses to sell
+// tickets to guests — see the exclusion in captureDraft below.
+const SALES_AD_MEDIUMS = ['paid_social', 'paid', 'cpc', 'ppc'];
+
 const ONBOARDING_PATH: Record<LeadRole, string> = {
   organizer: '/organizer/onboarding',
   venue: '/venue/onboarding',
@@ -189,7 +202,7 @@ export class LeadsService {
   // nothing else yet), and again, debounced, once they've typed something
   // into the form's first field before leaving without submitting. Both
   // upsert the same row — one evolving draft per (phone, role), not two.
-  async captureDraft(userId: string, role: string, partial: { name?: string; city?: string; eventType?: string; utmSource?: string }) {
+  async captureDraft(userId: string, role: string, partial: { name?: string; city?: string; eventType?: string; utmSource?: string; utmMedium?: string }) {
     if (!LEAD_ROLES.includes(role as LeadRole)) throw new BadRequestException('Invalid role');
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return null;
@@ -198,8 +211,19 @@ export class LeadsService {
     // "one number, one role" rule) — a shadow draft lead would be noise
     // once a real application already exists.
     if (user.role || user.roleStatus === 'pending') return null;
+    // Every paid campaign actually running right now is a guest ticket-sales
+    // campaign (utm_medium=paid_social, e.g. "hyd-flash-aug15") — anyone it
+    // sends here is a ticket buyer by construction, not a venue/organizer
+    // prospect, even if they wander onto an onboarding page and type a name
+    // before leaving to just book instead. A future real lead-generation
+    // campaign (recruiting venues/organizers/promoters) should tag itself
+    // with a utm_medium NOT in this list so it isn't excluded here. Organic/
+    // direct/referral visitors (no medium, or a non-ad medium) are unaffected
+    // — someone who found the onboarding page themselves is a real inquiry
+    // regardless of ad spend.
+    if (partial.utmMedium && SALES_AD_MEDIUMS.includes(partial.utmMedium.toLowerCase())) return null;
 
-    const source = partial.utmSource === 'facebook' ? 'Facebook/Instagram Ads' : 'Website inquiry';
+    const source = isMetaAdSource(partial.utmSource) ? 'Facebook/Instagram Ads' : 'Website inquiry';
     const existing = await this.prisma.lead.findFirst({
       where: { contact: user.phone, role, stage: 'New', source: { in: [...DRAFT_SOURCES] } },
       orderBy: { updatedAt: 'desc' },
