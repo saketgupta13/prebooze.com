@@ -533,11 +533,46 @@ export interface LiveFinance {
   netProfit: number;
   cash: number;
   refundsPending: number;
-  topEvents: { id: string; title: string; revenue: number; commission: number | null }[];
+  sellingEvents: { id: string; title: string; city: string | null; revenue: number; commission: number; commissionAmt: number; paidOut: boolean }[];
+  revenueByCategory: Record<string, number>;
   settings: { bookingFee: number; gstPct: number };
 }
+export interface LiveDailyPoint {
+  date: string;
+  grossSales: number;
+  commission: number;
+  bookingFees: number;
+  gstPayable: number;
+}
+export interface LiveRefundsReport {
+  requestedCount: number;
+  refundedCount: number;
+  refundedValue: number;
+  refundRate: number;
+  rows: { id: string; guest: string; eventTitle: string; amount: number; status: string }[];
+}
+export interface LiveAttendanceReport {
+  sold: number;
+  checkedIn: number;
+  turnoutRate: number;
+  rows: { id: string; title: string; sold: number; checkedIn: number }[];
+}
+function reportQs(city?: string, from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (city && city !== 'All') params.set('city', city);
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
+export const liveReports = {
+  finance: (city?: string, from?: string, to?: string) => liveFetch<LiveFinance>('/admin/reports/finance' + reportQs(city, from, to)),
+  daily: (city?: string, from?: string, to?: string) => liveFetch<LiveDailyPoint[]>('/admin/reports/daily' + reportQs(city, from, to)),
+  refunds: (city?: string, from?: string, to?: string) => liveFetch<LiveRefundsReport>('/admin/reports/refunds' + reportQs(city, from, to)),
+  attendance: (city?: string, from?: string, to?: string) => liveFetch<LiveAttendanceReport>('/admin/reports/attendance' + reportQs(city, from, to)),
+};
 export const liveFinance = {
-  get: (city?: string) => liveFetch<LiveFinance>('/admin/reports/finance' + (city ? `?city=${city}` : '')),
+  get: (city?: string) => liveFetch<LiveFinance>('/admin/reports/finance' + reportQs(city)),
 };
 
 export const FUNNEL_STAGES = [

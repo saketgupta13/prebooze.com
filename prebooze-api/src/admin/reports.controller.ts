@@ -14,8 +14,26 @@ export class AdminReportsController {
 
   @Get('finance')
   @RequirePermission(MODULE, 'view')
-  finance(@Query('city') city?: string) {
-    return this.reports.finance(city);
+  finance(@Query('city') city?: string, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.finance(city, from, to);
+  }
+
+  @Get('daily')
+  @RequirePermission(MODULE, 'view')
+  daily(@Query('city') city?: string, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.daily(city, from, to);
+  }
+
+  @Get('refunds')
+  @RequirePermission(MODULE, 'view')
+  refunds(@Query('city') city?: string, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.refunds(city, from, to);
+  }
+
+  @Get('attendance')
+  @RequirePermission(MODULE, 'view')
+  attendance(@Query('city') city?: string, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.attendance(city, from, to);
   }
 }
 
