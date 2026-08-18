@@ -25,7 +25,7 @@ export default function BookingDetail() {
   const session = useLiveSession();
   const { token } = session;
 
-  const [booking, setBooking] = useState<LiveBooking & { subtotal?: number; fee?: number; discount?: number; event: { title: string; date?: string; venue?: { city?: string } } } | null>(null);
+  const [booking, setBooking] = useState<LiveBooking & { subtotal?: number; fee?: number; discount?: number; couponCode?: string | null; event: { title: string; date?: string; venue?: { name?: string; city?: string } } } | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [waOpened, setWaOpened] = useState(false);
@@ -95,13 +95,16 @@ export default function BookingDetail() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="display" style={{ fontWeight: 700 }}>Guest</div>
-        <div className="tiny muted">{booking.user.name || booking.mainGuest} · {booking.whatsapp}</div>
+        <div className="tiny muted">
+          <Link to={`/customers/${booking.userId}`}>{booking.user.name || booking.mainGuest}</Link> · {booking.whatsapp}
+        </div>
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="display" style={{ fontWeight: 700 }}>Event</div>
         <div className="tiny">
           <span>{booking.event.title}</span>
+          {booking.event.venue?.name && <span className="muted"> · {booking.event.venue.name}</span>}
           {booking.event.venue?.city && <span className="muted"> · {booking.event.venue.city}</span>}
         </div>
         <div className="tiny muted">{booking.qty} × {booking.tierName} · paid via {booking.paymentMethod ? `manual (${booking.paymentMethod})` : 'online payment'}</div>
@@ -117,7 +120,7 @@ export default function BookingDetail() {
         </div>
         {discount > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-            <span className="muted">Discount</span><span className="red">−₹{fmt(discount)}</span>
+            <span className="muted">Discount{booking.couponCode ? ` (${booking.couponCode})` : ''}</span><span className="red">−₹{fmt(discount)}</span>
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, paddingTop: 6, borderTop: '1px solid rgba(139,195,74,.15)' }}>
@@ -126,7 +129,9 @@ export default function BookingDetail() {
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div className="display" style={{ fontWeight: 700 }}>Guests on this booking ({booking.guests.length})</div>
+        <div className="display" style={{ fontWeight: 700 }}>
+          Guests on this booking ({booking.guests.length}) · {booking.guests.filter((g) => g.checkedIn).length} checked in
+        </div>
         <div className="stack" style={{ gap: 4 }}>
           {booking.guests.map((g, i) => (
             <div
@@ -138,9 +143,10 @@ export default function BookingDetail() {
             >
               <span className="muted">{i + 1}.</span>
               <span style={{ flex: 1, fontWeight: 700 }}>
-                {g.name} {i === 0 && <span className="tiny muted" style={{ fontWeight: 400 }}>(main)</span>} {g.checkedIn && '✓'}
+                {g.name} {i === 0 && <span className="tiny muted" style={{ fontWeight: 400 }}>(main)</span>}
               </span>
-              <span className="muted">{g.whatsapp ?? 'no phone on file'}</span>
+              <span className="muted">{(i === 0 ? g.whatsapp ?? booking.whatsapp : g.whatsapp) ?? 'no phone on file'}</span>
+              <Tag {...(g.checkedIn ? { label: 'Checked in', cls: 'tag-green' } : { label: 'Not checked in', cls: 'tag-dim' })} />
             </div>
           ))}
         </div>
