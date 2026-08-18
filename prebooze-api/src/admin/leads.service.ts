@@ -248,6 +248,23 @@ export class LeadsService {
     await this.prisma.lead.update({ where: { id: existing.id }, data: { stage: 'Signed up' } });
   }
 
+  /** Called from BookingsService once a real guest booking is paid for —
+   * covers the other half of the gap resolveDraft leaves: someone who
+   * merely visited/half-filled a role's onboarding page (see captureDraft
+   * above) and then converted as an ordinary paying guest instead of ever
+   * submitting that application. Deletes rather than stage-flips, unlike
+   * resolveDraft — "Signed up" would misreport them as having joined that
+   * role, when what actually happened is they were never a real lead for
+   * it. Any role, since a guest conversion invalidates a stale draft
+   * regardless of which onboarding page it came from. Only ever touches
+   * untouched (`stage: 'New'`) drafts — one staff has already started
+   * working is left alone, same reasoning as resolveDraft. */
+  async clearDraftsForGuestConversion(phone: string) {
+    await this.prisma.lead.deleteMany({
+      where: { contact: phone, stage: 'New', source: { in: [...DRAFT_SOURCES] } },
+    });
+  }
+
   async remove(id: string, staffId?: string) {
     await this.requireInScope(id, staffId);
     await this.prisma.lead.delete({ where: { id } });

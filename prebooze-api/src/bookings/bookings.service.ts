@@ -16,6 +16,7 @@ import { InvoicesService } from '../invoices/invoices.service';
 import { normalizePhone } from '../auth/auth.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
+import { LeadsService } from '../admin/leads.service';
 
 const FALLBACK_FEE_PER_TICKET = 1.5; // ₹ — used only if PlatformSettings row is somehow missing
 
@@ -50,6 +51,7 @@ export class BookingsService {
     private staffAlerts: StaffAlertsService,
     private wallet: WalletService,
     private meta: MetaConversionsService,
+    private leads: LeadsService,
   ) {}
 
   async createHold(userId: string, eventId: string, qty: Record<string, number>) {
@@ -462,6 +464,13 @@ export class BookingsService {
         { value: total, currency: 'INR', content_type: 'product', content_ids: lines.map((l) => l.tier.id), num_items: qty },
       )
       .catch(() => {});
+
+    // A guest who earlier visited/half-filled a role onboarding page (see
+    // LeadsService.captureDraft) and then just bought a ticket instead
+    // isn't a real venue/organizer/promoter/lineup lead — clear any stale
+    // draft left behind so they don't sit in the sales pipeline forever
+    // mislabeled as an unconverted role prospect.
+    this.leads.clearDraftsForGuestConversion(user.phone).catch(() => {});
 
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true, organizer: true } } } });
   }
