@@ -64,7 +64,6 @@ export default function Invoices() {
   if (gate) return gate;
 
   const totalValue = list.filter((i) => i.status === 'issued').reduce((a, i) => a + i.total, 0);
-  const totalGst = list.filter((i) => i.status === 'issued').reduce((a, i) => a + i.gstAmount, 0);
 
   return (
     <div className="stack fade" style={{ maxWidth: 1200 }}>
@@ -80,7 +79,6 @@ export default function Invoices() {
       <div className="kpi-grid">
         <Kpi label="Invoices (filtered)" value={fmt(list.length)} />
         <Kpi label="Total value" value={`₹${fmt(totalValue)}`} delta="issued only" deltaColor="var(--muted)" />
-        <Kpi label="GST collected" value={`₹${fmt(totalGst)}`} />
         <Kpi label="Voided" value={fmt(list.filter((i) => i.status === 'void').length)} />
       </div>
 
@@ -128,7 +126,7 @@ export default function Invoices() {
         ))}
         {list.length === 0 && !loading && <div className="trow muted">No invoices match these filters.</div>}
       </div>
-      <div className="tiny hint">GST is charged on the platform's own booking-fee / featured-service revenue — never on the organizer's ticket price, same convention as Reports · click a row for the full invoice, download and resend options.</div>
+      <div className="tiny hint">click a row for the full invoice, download and resend options.</div>
     </div>
   );
 }

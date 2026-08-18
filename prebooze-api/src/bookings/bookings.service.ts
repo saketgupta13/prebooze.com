@@ -410,18 +410,14 @@ export class BookingsService {
       name: input.mainGuest.trim(), eventTitle: event.title, qty: String(qty), bookingId: id, total: money(total),
     }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined).catch(() => {});
 
-    // ---- invoice: GST only on the platform's own booking-fee revenue, same
-    // convention Reports.ts/computeFin already uses — the organizer's ticket
-    // price isn't Prebooze's revenue to tax here.
+    // ---- invoice: no GST — Prebooze isn't GST-registered, so this is a
+    // plain invoice, never a "Tax Invoice" (see invoice-pdf.ts) ----
     if (subtotal > 0) {
-      const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
-      const gstPct = settings?.gstPct ?? 0;
-      const gstAmount = Math.round((fee * gstPct) / 100);
       await this.invoices.create({
         type: 'booking', refId: id, role: 'guest',
         payerName: input.mainGuest.trim(), payerEmail: user.email, payerPhone: input.whatsapp,
         city: ticketVenue?.city, description: `${qty}× ${event.title}`,
-        subtotal, gstPct, gstAmount, total,
+        subtotal, total,
       }).catch(() => {});
     }
 

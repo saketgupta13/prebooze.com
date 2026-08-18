@@ -7,7 +7,7 @@ import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
 
 const TITLE = 'Reports';
-const CHIPS = ['Sales', 'Profit & loss', 'Balance sheet', 'Commission by event', 'GST / tax', 'Refunds', 'Attendance', 'Promos'];
+const CHIPS = ['Sales', 'Profit & loss', 'Balance sheet', 'Commission by event', 'Refunds', 'Attendance', 'Promos'];
 const DONUT_COLORS = ['#8bc34a', '#f1c40f', '#e67e22', '#e74c3c', '#9b59b6', '#3498db', '#1abc9c'];
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
@@ -134,8 +134,7 @@ export default function Reports() {
         ['Income', 'Other income (sponsorships etc.)', Math.round(fin.otherIncome)],
         ['Income', 'Total income', Math.round(fin.totalIncome)],
         ...Object.entries(fin.expensesByCat).map(([cat, amt]) => ['Expenses', cat, -Math.round(amt)]),
-        ['Expenses', 'GST payable on platform fees', -Math.round(fin.gstPayable)],
-        ['Expenses', 'Total expenses', -Math.round(fin.totalExpenses + fin.gstPayable)],
+        ['Expenses', 'Total expenses', -Math.round(fin.totalExpenses)],
         ['Summary', 'Net profit', Math.round(fin.netProfit)],
         ['Summary', 'Cash & bank', Math.round(fin.cash)],
       ];
@@ -145,23 +144,12 @@ export default function Reports() {
         ['Section', 'Line', 'Amount (₹)'],
         ['Assets', 'Cash & bank', Math.round(fin.cash)],
         ['Liabilities', 'Organizer payouts due', Math.round(fin.payoutsDue)],
-        ['Liabilities', 'GST payable', Math.round(fin.gstPayable)],
       ];
     } else if (chip === 'Commission by event') {
       rows = [
         [`Prebooze — ${chip}`, period, cityF === 'All' ? 'All cities' : cityF],
         ['Event', 'City', 'Gross (₹)', 'Rate (%)', 'Commission (₹)', 'Paid out'],
         ...fin.sellingEvents.map((e) => [e.title, e.city ?? '', Math.round(e.revenue), e.commission, Math.round(e.commissionAmt), e.paidOut ? 'yes' : 'no']),
-      ];
-    } else if (chip === 'GST / tax') {
-      rows = [
-        [`Prebooze — ${chip}`, period, cityF === 'All' ? 'All cities' : cityF],
-        ['GST rate (%)', fin.settings.gstPct],
-        ['Taxable base — booking fees (₹)', Math.round(fin.feeIncome)],
-        ['GST payable (₹)', Math.round(fin.gstPayable)],
-        [],
-        ['Date', 'Booking fees (₹)', 'GST payable (₹)'],
-        ...(daily ?? []).map((d) => [d.date, d.bookingFees, d.gstPayable]),
       ];
     } else if (chip === 'Refunds' && refunds) {
       rows = [
@@ -241,8 +229,7 @@ export default function Reports() {
           {Object.entries(fin.expensesByCat).map(([cat, amt]) => (
             <Line key={cat} label={cat} value={`−₹${fmt(amt)}`} indent red />
           ))}
-          <Line label="GST payable on platform fees" value={`−₹${fmt(fin.gstPayable)}`} indent red />
-          <Line label="Total expenses" value={`−₹${fmt(fin.totalExpenses + fin.gstPayable)}`} bold red />
+          <Line label="Total expenses" value={`−₹${fmt(fin.totalExpenses)}`} bold red />
           <div style={{ height: 10 }} />
           <Line label="Net profit" value={`₹${fmt(fin.netProfit)}`} bold red={fin.netProfit < 0} delta={prevFinance ? deltaPct(fin.netProfit, prevFinance.netProfit) : undefined} />
           <div className="tiny hint" style={{ marginTop: 10 }}>
@@ -270,10 +257,9 @@ export default function Reports() {
               <div className="display" style={{ fontWeight: 700, marginBottom: 4 }}>Liabilities &amp; equity</div>
               <div className="tiny muted" style={{ marginBottom: 10 }}>as of {to}</div>
               <Line label="Organizer payouts due" value={`₹${fmt(fin.payoutsDue)}`} indent red />
-              <Line label="GST payable" value={`₹${fmt(fin.gstPayable)}`} indent red />
-              <Line label="Total liabilities" value={`₹${fmt(fin.payoutsDue + fin.gstPayable)}`} bold red />
+              <Line label="Total liabilities" value={`₹${fmt(fin.payoutsDue)}`} bold red />
               <div style={{ height: 10 }} />
-              <Line label="Owner's equity (balancing)" value={`₹${fmt(fin.cash - (fin.payoutsDue + fin.gstPayable))}`} bold />
+              <Line label="Owner's equity (balancing)" value={`₹${fmt(fin.cash - fin.payoutsDue)}`} bold />
             </div>
           </div>
         </div>
@@ -340,20 +326,6 @@ export default function Reports() {
             ))}
             {fin.sellingEvents.length === 0 && <div className="trow muted">No selling events in range.</div>}
           </div>
-        </div>
-      ) : chip === 'GST / tax' ? (
-        <div className="stack" style={{ gap: 10 }}>
-          <div className="kpi-grid">
-            <Kpi label="GST rate" value={`${fin.settings.gstPct}%`} />
-            <Kpi label="Taxable base (booking fees)" value={`₹${fmt(fin.feeIncome)}`} />
-            <Kpi label="GST payable" value={`₹${fmt(fin.gstPayable)}`} delta={prevFinance ? deltaPct(fin.gstPayable, prevFinance.gstPayable) : undefined} deltaColor="var(--red)" />
-            <Kpi label="Net of GST" value={`₹${fmt(fin.feeIncome - fin.gstPayable)}`} />
-          </div>
-          <div className="card">
-            <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>GST payable — daily</div>
-            <LineChart height={120} labels={dayLabels} series={[{ label: 'GST payable', color: '#e74c3c', points: (daily ?? []).map((d) => d.gstPayable) }]} />
-          </div>
-          <div className="tiny hint">GST is charged on Prebooze's booking-fee income only (not the organizer's ticket price or commission) · rate is editable under <Link to="/settings">Settings →</Link></div>
         </div>
       ) : chip === 'Refunds' ? (
         <div className="stack" style={{ gap: 10 }}>

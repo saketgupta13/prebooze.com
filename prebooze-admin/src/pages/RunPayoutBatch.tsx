@@ -55,8 +55,8 @@ export default function RunPayoutBatch() {
 
   const picked = due.filter((d) => selected.has(d.id));
   const totals = picked.reduce(
-    (a, d) => ({ gross: a.gross + d.revenue, comm: a.comm + d.commissionAmt, gst: a.gst + d.gst, net: a.net + d.net }),
-    { gross: 0, comm: 0, gst: 0, net: 0 }
+    (a, d) => ({ gross: a.gross + d.revenue, comm: a.comm + d.commissionAmt, net: a.net + d.net }),
+    { gross: 0, comm: 0, net: 0 }
   );
   const missingUtr = picked.some((d) => !utrs[d.id]?.trim());
 
@@ -90,23 +90,22 @@ export default function RunPayoutBatch() {
       <div className="kpi-grid">
         <Kpi label="Transfers selected" value={picked.length} />
         <Kpi label="Gross covered" value={`₹${fmt(totals.gross)}`} />
-        <Kpi label="Commission + GST kept" value={`₹${fmt(totals.comm + totals.gst)}`} />
+        <Kpi label="Commission kept" value={`₹${fmt(totals.comm)}`} />
         <Kpi label="Total payable now" value={<span className="green">₹{fmt(totals.net)}</span>} />
       </div>
 
       <div className="tblwrap">
-        <div className="thead" style={{ minWidth: 820 }}>
+        <div className="thead" style={{ minWidth: 750 }}>
           <span style={{ width: 26 }} />
           <span style={{ flex: 1.3 }}>Organizer</span>
           <span style={{ flex: 1.3 }}>Event</span>
           <span style={{ flex: 0.9 }}>Gross</span>
           <span style={{ flex: 0.9 }}>Commission</span>
-          <span style={{ flex: 0.7 }}>GST</span>
           <span style={{ flex: 0.9 }}>Net payout</span>
           <span style={{ flex: 1.3 }}>UTR / reference</span>
         </div>
         {due.map((d) => (
-          <div key={d.id} className="trow" style={{ minWidth: 820, opacity: selected.has(d.id) ? 1 : 0.5 }}>
+          <div key={d.id} className="trow" style={{ minWidth: 750, opacity: selected.has(d.id) ? 1 : 0.5 }}>
             <span style={{ width: 26 }}>
               <input
                 type="checkbox"
@@ -119,7 +118,6 @@ export default function RunPayoutBatch() {
             <span style={{ flex: 1.3 }} className="muted">{d.title}</span>
             <span style={{ flex: 0.9 }}>₹{fmt(d.revenue)}</span>
             <span style={{ flex: 0.9 }}>₹{fmt(d.commissionAmt)} <span className="muted">({d.commission ?? 0}%)</span></span>
-            <span style={{ flex: 0.7 }}>₹{fmt(d.gst)}</span>
             <span style={{ flex: 0.9, fontWeight: 700 }} className="green">₹{fmt(d.net)}</span>
             <span style={{ flex: 1.3 }}>
               {selected.has(d.id) && (

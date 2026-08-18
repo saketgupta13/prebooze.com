@@ -65,19 +65,20 @@ export class ContentService {
 
   /** Guest-relevant slice of PlatformSettings only — payoutDay/autoPayout
    * stay admin-internal (organizer/promoter payout ops, nothing a guest
-   * needs). bookingFee/gstPct WERE excluded on the same "internal" theory,
-   * but that was actually a bug: BookingsService already charges the real
-   * bookingFee/gstPct on every booking (see bookings.service.ts), so hiding
-   * the number from the API while a guest's Checkout page showed a
-   * different hardcoded estimate risked the two silently diverging.
-   * Exposing the real numbers here is what lets Checkout.tsx show guests
-   * the actual fee they'll be charged instead of a stale guess. */
+   * needs). bookingFee WAS excluded on the same "internal" theory, but that
+   * was actually a bug: BookingsService already charges the real
+   * bookingFee on every booking (see bookings.service.ts), so hiding the
+   * number from the API while a guest's Checkout page showed a different
+   * hardcoded estimate risked the two silently diverging. Exposing the
+   * real number here is what lets Checkout.tsx show guests the actual fee
+   * they'll be charged instead of a stale guess. No GST — Prebooze isn't
+   * registered. */
   async platformInfo() {
     const s = await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
     return {
       maintenanceMode: s.maintenanceMode, comingSoonMode: s.comingSoonMode, salesPaused: s.salesPaused, socials: s.socials, siteSeo: s.siteSeo, contact: s.contact,
       footerCopyright: s.footerCopyright, feeLabel: s.feeLabel, absorbedBy: s.absorbedBy,
-      bookingFee: s.bookingFee, gstPct: s.gstPct, logoUrl: s.logoUrl, faviconUrl: s.faviconUrl,
+      bookingFee: s.bookingFee, logoUrl: s.logoUrl, faviconUrl: s.faviconUrl,
     };
   }
 }

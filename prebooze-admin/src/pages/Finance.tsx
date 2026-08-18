@@ -128,7 +128,6 @@ export default function Finance() {
 
       {finance && (
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <div className="card" style={{ minWidth: 130, flex: 1 }}><div className="tiny muted">GST payable</div><div style={{ fontSize: 16, fontWeight: 800 }}>₹{fmt(finance.gstPayable)}</div></div>
           <div className="card" style={{ minWidth: 130, flex: 1 }}><div className="tiny muted">Cash</div><div style={{ fontSize: 16, fontWeight: 800 }}>₹{fmt(finance.cash)}</div></div>
           <div className="card" style={{ minWidth: 130, flex: 1 }}><div className="tiny muted">Refunds pending</div><div style={{ fontSize: 16, fontWeight: 800 }}>₹{fmt(finance.refundsPending)}</div></div>
         </div>

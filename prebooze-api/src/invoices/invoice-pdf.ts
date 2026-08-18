@@ -18,11 +18,9 @@ export function invoicePdfBuffer(inv: Invoice): Promise<Buffer> {
     doc.on('error', reject);
 
     doc.fillColor(GREEN).fontSize(20).font('Helvetica-Bold').text('PREBOOZE', 50, 50);
-    // "Tax Invoice" is reserved for a GST-registered issuer — Prebooze isn't
-    // (no GSTIN of its own), so this only earns that label on the rare
-    // invoice actually carrying a GST line; everything else is a plain
-    // Invoice, same document otherwise.
-    doc.fillColor('#000').fontSize(9).font('Helvetica').text(inv.gstAmount > 0 ? 'Tax Invoice' : 'Invoice', 50, 74);
+    // "Tax Invoice" is reserved for a GST-registered issuer — Prebooze
+    // isn't, so this is always a plain Invoice.
+    doc.fillColor('#000').fontSize(9).font('Helvetica').text('Invoice', 50, 74);
 
     doc.fontSize(10).fillColor('#000');
     doc.text(`Invoice No.: ${inv.number}`, 350, 50, { align: 'right', width: 195 });
@@ -57,11 +55,6 @@ export function invoicePdfBuffer(inv: Invoice): Promise<Buffer> {
 
     rowY += 26;
     doc.moveTo(50, rowY - 6).lineTo(545, rowY - 6).strokeColor('#eee').stroke();
-    if (inv.gstAmount > 0) {
-      doc.fillColor(MUTED).text(`GST (${inv.gstPct}%)`, 58, rowY);
-      doc.fillColor('#000').text(fmt(inv.gstAmount), 470, rowY, { align: 'right', width: 67 });
-      rowY += 20;
-    }
 
     doc.moveTo(300, rowY).lineTo(545, rowY).strokeColor('#000').stroke();
     rowY += 8;

@@ -105,7 +105,7 @@ export default function InvoiceDetail() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <div>
             <img src={logoUrl || '/logo.png'} alt="Prebooze" style={{ height: 28, width: 'auto', display: 'block', marginBottom: 4 }} />
-            <div className="tiny muted">Tax Invoice</div>
+            <div className="tiny muted">Invoice</div>
           </div>
           <div style={{ textAlign: 'right', fontSize: 12.5 }}>
             <div>Invoice No.: <b>{inv.number}</b></div>
@@ -135,12 +135,6 @@ export default function InvoiceDetail() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end', fontSize: 13 }}>
-          {inv.gstAmount > 0 && (
-            <div style={{ display: 'flex', gap: 24 }}>
-              <span className="muted">GST ({inv.gstPct}%)</span>
-              <span style={{ width: 90, textAlign: 'right' }}>₹{fmt(inv.gstAmount)}</span>
-            </div>
-          )}
           <div style={{ display: 'flex', gap: 24, fontWeight: 700, fontSize: 15, borderTop: '1px solid rgba(139,195,74,.25)', paddingTop: 6, marginTop: 4 }}>
             <span>TOTAL</span>
             <span style={{ width: 90, textAlign: 'right' }} className="green">₹{fmt(inv.total)}</span>

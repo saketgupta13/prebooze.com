@@ -525,7 +525,6 @@ export interface LiveFinance {
   otherIncome: number;
   expensesByCat: Record<string, number>;
   totalExpenses: number;
-  gstPayable: number;
   gross: number;
   payoutsDue: number;
   paidOut: number;
@@ -535,14 +534,13 @@ export interface LiveFinance {
   refundsPending: number;
   sellingEvents: { id: string; title: string; city: string | null; revenue: number; commission: number; commissionAmt: number; paidOut: boolean }[];
   revenueByCategory: Record<string, number>;
-  settings: { bookingFee: number; gstPct: number };
+  settings: { bookingFee: number };
 }
 export interface LiveDailyPoint {
   date: string;
   grossSales: number;
   commission: number;
   bookingFees: number;
-  gstPayable: number;
 }
 export interface LiveRefundsReport {
   requestedCount: number;
@@ -700,7 +698,6 @@ export interface LivePayoutRow {
   revenue: number;
   commission: number | null;
   commissionAmt: number;
-  gst: number;
   net: number;
   paidOut: boolean;
   payoutUtr: string | null;
@@ -711,7 +708,7 @@ export interface LivePromoterPayoutRow {
   status: 'pending' | 'reminder_sent' | 'received';
 }
 export const livePayments = {
-  due: () => liveFetch<{ rows: LivePayoutRow[]; collected: number; commissionKept: number; gstCollected: number; dueTotal: number }>('/admin/payments/due'),
+  due: () => liveFetch<{ rows: LivePayoutRow[]; collected: number; commissionKept: number; dueTotal: number }>('/admin/payments/due'),
   /** Records a real transfer you already made yourself — there's no bank
    * integration behind this, so it never moves money or invents a UTR. */
   markPaid: (eventId: string, utr: string) => liveFetch<{ id: string; paidOut: boolean; payoutUtr: string | null }>('/admin/payments/mark-paid', { body: { eventId, utr } }),
@@ -887,7 +884,6 @@ export const liveRoles = {
 
 export interface LiveSettings {
   bookingFee: number;
-  gstPct: number;
   feeLabel: string;
   absorbedBy: string;
   payoutDay: string;
@@ -1118,8 +1114,6 @@ export interface LiveInvoice {
   city: string | null;
   description: string;
   subtotal: number;
-  gstPct: number;
-  gstAmount: number;
   total: number;
   status: string;
   issuedAt: string;

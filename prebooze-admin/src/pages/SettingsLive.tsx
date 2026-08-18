@@ -128,10 +128,6 @@ export default function SettingsLive() {
             <label>Booking fee ₹</label>
             <input className="input" inputMode="numeric" value={settings.bookingFee} onChange={(e) => set('bookingFee', parseFloat(e.target.value) || 0)} />
           </div>
-          <div className="field" style={{ width: 100 }}>
-            <label>GST %</label>
-            <input className="input" inputMode="numeric" value={settings.gstPct} onChange={(e) => set('gstPct', parseFloat(e.target.value) || 0)} />
-          </div>
           <div className="field" style={{ flex: 1, minWidth: 140 }}>
             <label>Fee label</label>
             <input className="input" value={settings.feeLabel} onChange={(e) => set('feeLabel', e.target.value)} />
@@ -146,8 +142,7 @@ export default function SettingsLive() {
           </div>
         </div>
         <div className="tiny hint">
-          Leave GST at 0% unless Prebooze is actually GST-registered — invoices print as a plain "Invoice" at 0% and a
-          "Tax Invoice" with a GST line above that, and a non-zero rate also gets withheld from organizer payouts.
+          Prebooze isn't GST-registered, so no GST is charged or shown anywhere — invoices print as a plain "Invoice".
         </div>
       </div>
 

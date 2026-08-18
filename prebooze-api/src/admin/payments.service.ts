@@ -19,7 +19,6 @@ export class PaymentsService {
   ) {}
 
   async payoutsDue() {
-    const settings = await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
     // A payout is only ever due once the event has actually happened — an
     // organizer can't be paid out on ticket sales for a show that hasn't
     // run yet (see BACKEND.md — this used to include every non-draft event
@@ -36,10 +35,13 @@ export class PaymentsService {
     });
     const revMap = new Map(revenueByEvent.map((r) => [r.eventId, r._sum.subtotal ?? 0]));
 
+    // Prebooze isn't GST-registered, so nothing is withheld from an
+    // organizer's payout beyond its own commission — `net` here is exactly
+    // what OrganizerLedgerTx already credits them (see BookingsService),
+    // so this on-screen figure and the real ledger balance always agree.
     const rows = events.map((e) => {
       const revenue = revMap.get(e.id) ?? 0;
       const commissionAmt = Math.round((revenue * (e.commission as number)) / 100);
-      const gst = Math.round((commissionAmt * settings.gstPct) / 100);
       return {
         id: e.id,
         title: e.title,
@@ -49,8 +51,7 @@ export class PaymentsService {
         revenue,
         commission: e.commission,
         commissionAmt,
-        gst,
-        net: revenue - commissionAmt - gst,
+        net: revenue - commissionAmt,
         paidOut: e.paidOut,
         payoutUtr: e.payoutUtr,
       };
@@ -59,10 +60,9 @@ export class PaymentsService {
     const due = rows.filter((r) => !r.paidOut);
     const collected = rows.reduce((a, r) => a + r.revenue, 0);
     const commissionKept = rows.reduce((a, r) => a + r.commissionAmt, 0);
-    const gstCollected = rows.reduce((a, r) => a + r.gst, 0);
     const dueTotal = due.reduce((a, r) => a + r.net, 0);
 
-    return { rows, collected, commissionKept, gstCollected, dueTotal };
+    return { rows, collected, commissionKept, dueTotal };
   }
 
   /** Manual only, one real transfer at a time — there's no real bank/IMPS

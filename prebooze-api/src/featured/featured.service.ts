@@ -88,9 +88,11 @@ export class FeaturedService {
    * created unconditionally right here, so cancelling the Razorpay checkout
    * still left behind a real, "issued" invoice for a payment that never
    * happened. It's created in confirmPayment now, only once the signature
-   * actually verifies. gstPct/gstAmount/total are persisted on the row so
-   * that later invoice reflects exactly what this order charged, even if
-   * admin changes the platform GST% before the guest finishes paying. */
+   * actually verifies. Prebooze isn't GST-registered, so no GST is added on
+   * top of `amount` — `gstPct`/`gstAmount` stay 0 and `total` just mirrors
+   * `amount`; the columns are left in the schema (rather than dropped) so
+   * a future registration doesn't need a fresh migration to reintroduce
+   * them. */
   async request(userId: string, input: { type: FeaturedType; refId: string; billing: 'per_event' | 'monthly' }) {
     if (!input.type || !input.refId) throw new BadRequestException('type and refId are required');
     if (input.type === 'event' && input.billing !== 'per_event') throw new BadRequestException('Events are featured per-event, not monthly');
@@ -99,17 +101,13 @@ export class FeaturedService {
     const { city, expiresAt } = await this.resolveTarget(userId, input.type, input.refId);
     const rates = await this.rates();
     const amount = input.billing === 'per_event' ? rates.perEvent : rates[`${input.type}Monthly` as keyof typeof rates];
-
-    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
-    const gstPct = settings?.gstPct ?? 0;
-    const gstAmount = Math.round((amount * gstPct) / 100);
-    const total = amount + gstAmount;
+    const total = amount;
 
     // matches the mock's requestFeatured: a fresh request replaces whatever
     // pending/active/expired record already existed for this exact item
     await this.prisma.featured.deleteMany({ where: { type: input.type as never, refId: input.refId } });
     let row = await this.prisma.featured.create({
-      data: { type: input.type as never, refId: input.refId, city, billing: input.billing as never, amount, expiresAt, gstPct, gstAmount, total },
+      data: { type: input.type as never, refId: input.refId, city, billing: input.billing as never, amount, expiresAt, gstPct: 0, gstAmount: 0, total },
     });
 
     const { orderId } = await this.razorpay.createOrder(total * 100, row.id);
@@ -229,11 +227,7 @@ export class FeaturedService {
     const { city } = await this.resolveTarget(userId, input.type, input.refId);
     const rates = await this.rates();
     const amount = rates[`${input.type}Monthly` as keyof typeof rates];
-
-    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
-    const gstPct = settings?.gstPct ?? 0;
-    const gstAmount = Math.round((amount * gstPct) / 100);
-    const total = amount + gstAmount;
+    const total = amount; // no GST — see request()'s doc comment above
 
     const typeLabel = input.type[0].toUpperCase() + input.type.slice(1);
     const { planId } = await this.razorpay.createPlan(`Featured — ${typeLabel}`, total * 100, `Prebooze Featured placement (${input.type}, auto-renews monthly)`);
@@ -242,11 +236,11 @@ export class FeaturedService {
     const row = await this.prisma.featuredSubscription.upsert({
       where: { type_refId: { type: input.type as never, refId: input.refId } },
       create: {
-        type: input.type as never, refId: input.refId, city, amount, gstPct, gstAmount, total,
+        type: input.type as never, refId: input.refId, city, amount, gstPct: 0, gstAmount: 0, total,
         razorpaySubId: sub.subscriptionId, status: 'created', shortUrl: sub.shortUrl,
       },
       update: {
-        city, amount, gstPct, gstAmount, total, razorpaySubId: sub.subscriptionId,
+        city, amount, gstPct: 0, gstAmount: 0, total, razorpaySubId: sub.subscriptionId,
         status: 'created', shortUrl: sub.shortUrl, currentStart: null, currentEnd: null, paidCount: 0,
       },
     });

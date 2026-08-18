@@ -9,7 +9,6 @@ const LIVE_BOOKING_STATUSES: BookingStatus[] = ['confirmed', 'refund_requested']
 
 export interface SettingsInput {
   bookingFee?: number;
-  gstPct?: number;
   feeLabel?: string;
   absorbedBy?: string;
   payoutDay?: string;
@@ -29,7 +28,7 @@ export interface SettingsInput {
 }
 
 const SETTINGS_FIELDS: (keyof SettingsInput)[] = [
-  'bookingFee', 'gstPct', 'feeLabel', 'absorbedBy', 'payoutDay', 'autoPayout',
+  'bookingFee', 'feeLabel', 'absorbedBy', 'payoutDay', 'autoPayout',
   'weeklyEmail', 'whatsappAlerts', 'require2fa', 'maintenanceMode', 'salesPaused', 'comingSoonMode',
   'socials', 'siteSeo', 'contact', 'footerCopyright', 'logoUrl', 'faviconUrl',
 ];
@@ -121,12 +120,11 @@ export class ReportsService {
       totalExpenses = Object.values(expensesByCat).reduce((a, v) => a + v, 0);
     }
 
-    const gstPayable = Math.round((feeIncome * settings.gstPct) / 100);
     const gross = selling.reduce((a, e) => a + e.revenue, 0);
     const payoutsDue = Math.round(selling.filter((e) => !e.paidOut).reduce((a, e) => a + (e.revenue - (e.revenue * (e.commission as number)) / 100), 0));
     const paidOut = Math.round(selling.filter((e) => e.paidOut).reduce((a, e) => a + (e.revenue - (e.revenue * (e.commission as number)) / 100), 0));
     const totalIncome = commissionIncome + feeIncome + otherIncome;
-    const netProfit = totalIncome - totalExpenses - gstPayable;
+    const netProfit = totalIncome - totalExpenses;
     const cash = gross + otherIncome - paidOut - totalExpenses;
 
     const refundsPendingAgg = await this.prisma.booking.aggregate({
@@ -140,25 +138,24 @@ export class ReportsService {
       .map((e) => ({ id: e.id, title: e.title, city: e.city, revenue: e.revenue, commission: e.commission as number, commissionAmt: Math.round((e.revenue * (e.commission as number)) / 100), paidOut: e.paidOut }));
 
     return {
-      commissionIncome, feeIncome, otherIncome, expensesByCat, totalExpenses, gstPayable,
+      commissionIncome, feeIncome, otherIncome, expensesByCat, totalExpenses,
       gross, payoutsDue, paidOut, totalIncome, netProfit, cash, refundsPending, sellingEvents,
       revenueByCategory: Object.fromEntries(revenueByCategory),
-      settings: { bookingFee: settings.bookingFee, gstPct: settings.gstPct },
+      settings: { bookingFee: settings.bookingFee },
     };
   }
 
   /** Sales/GST tabs' daily line charts — gross sales, commission, booking
-   * fees and the GST payable on those fees, bucketed by the calendar day
-   * each booking was actually made (see finance()'s comment on why
-   * `createdAt`, not the event's date, is the honest real-data choice).
-   * Capped implicitly by the caller's own date-picker range; this just
-   * walks day-by-day between `from`/`to` rather than pre-aggregating in SQL
-   * — the report windows this page supports (weeks/months, not years) keep
-   * that array small enough that a single grouped query + in-memory bucket
-   * is simpler than a raw date_trunc query, and stays correct across
-   * timezones without needing Postgres's session tz to match the browser's. */
+   * fees, bucketed by the calendar day each booking was actually made (see
+   * finance()'s comment on why `createdAt`, not the event's date, is the
+   * honest real-data choice). Capped implicitly by the caller's own
+   * date-picker range; this just walks day-by-day between `from`/`to`
+   * rather than pre-aggregating in SQL — the report windows this page
+   * supports (weeks/months, not years) keep that array small enough that a
+   * single grouped query + in-memory bucket is simpler than a raw
+   * date_trunc query, and stays correct across timezones without needing
+   * Postgres's session tz to match the browser's. */
   async daily(city?: string, from?: string, to?: string) {
-    const settings = await this.settings();
     const events = city
       ? await this.prisma.event.findMany({ where: { OR: [{ venue: { city } }, { privateCity: city }] }, select: { id: true } })
       : null;
@@ -188,7 +185,6 @@ export class ReportsService {
         grossSales: Math.round(v.grossSales),
         commission: Math.round(v.commission),
         bookingFees: Math.round(v.bookingFees),
-        gstPayable: Math.round((v.bookingFees * settings.gstPct) / 100),
       }));
   }
 

@@ -20,7 +20,7 @@ export default function Payments() {
   const [tab, setTab] = useState(TABS[0]);
 
   const [rows, setRows] = useState<LivePayoutRow[]>([]);
-  const [summary, setSummary] = useState({ collected: 0, commissionKept: 0, gstCollected: 0, dueTotal: 0 });
+  const [summary, setSummary] = useState({ collected: 0, commissionKept: 0, dueTotal: 0 });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [payingId, setPayingId] = useState<string | null>(null);
@@ -81,7 +81,6 @@ export default function Payments() {
       <div className="kpi-grid">
         <Kpi label="Collected" value={`₹${fmt(summary.collected)}`} />
         <Kpi label="Commission kept" value={`₹${fmt(summary.commissionKept)}`} />
-        <Kpi label="GST collected" value={`₹${fmt(summary.gstCollected)}`} />
         <Kpi label="Due total" value={<span className="red">₹{fmt(summary.dueTotal)}</span>} alert />
       </div>
 
