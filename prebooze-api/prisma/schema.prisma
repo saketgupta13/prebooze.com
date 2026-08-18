@@ -1168,6 +1168,11 @@ model Booking {
   // daily tick doesn't re-prompt the same guest every day forever.
   reviewReminderSentAt DateTime?
 
+  // Free-text handoff note for support/sales staff (e.g. "guest called,
+  // resent manually") — staff-only, never shown to the guest. Plain text,
+  // not an activity log — the latest note simply overwrites the last.
+  adminNote String?
+
   createdAt DateTime @default(now())
 }
 

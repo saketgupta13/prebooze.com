@@ -326,17 +326,34 @@ export interface LiveBooking {
   total: number;
   status: 'confirmed' | 'cancelled' | 'refunded' | 'refund_requested';
   paymentMethod: string | null;
+  paymentId: string | null;
+  walletCreditUsed: number;
+  refundedTo: 'wallet' | 'source' | null;
   createdAt: string;
+  checkedIn: boolean;
+  checkedInAt: string | null;
+  adminNote: string | null;
   guests: { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
   user: { name: string; phone: string };
   event: { title: string };
   qrToken: string;
+  promoter: { id: string; name: string; slug: string } | null;
+  promoterCommission: number;
+  promoterVia: string | null;
 }
 export const liveBookings = {
-  list: (status?: string) => liveFetch<LiveBooking[]>('/admin/bookings' + (status ? `?status=${status}` : '')),
+  list: (status?: string, userId?: string) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (userId) params.set('userId', userId);
+    const qs = params.toString();
+    return liveFetch<LiveBooking[]>('/admin/bookings' + (qs ? `?${qs}` : ''));
+  },
   get: (id: string) => liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}`),
   approveRefund: (id: string) => liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/approve`, { method: 'POST' }),
   declineRefund: (id: string) => liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/decline`, { method: 'POST' }),
+  resendEmail: (id: string) => liveFetch<{ ok: true }>(`/admin/bookings/${encodeURIComponent(id)}/resend-email`, { method: 'POST' }),
+  setNote: (id: string, note: string) => liveFetch<{ ok: true }>(`/admin/bookings/${encodeURIComponent(id)}/note`, { method: 'POST', body: { note } }),
 };
 
 export interface LiveCustomer {

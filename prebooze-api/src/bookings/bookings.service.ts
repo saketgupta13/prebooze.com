@@ -729,9 +729,9 @@ export class BookingsService {
   }
 
   // ---------- admin: bookings list/detail ----------
-  async adminList(status?: string) {
+  async adminList(status?: string, userId?: string) {
     return this.prisma.booking.findMany({
-      where: status ? { status: status as never } : undefined,
+      where: { ...(status ? { status: status as never } : {}), ...(userId ? { userId } : {}) },
       include: { user: { select: { name: true, phone: true } }, event: { select: { title: true } } },
       orderBy: { createdAt: 'desc' },
     });
@@ -743,7 +743,39 @@ export class BookingsService {
       include: { user: { select: { name: true, phone: true } }, event: { include: { venue: true } } },
     });
     if (!booking) throw new NotFoundException('Booking not found');
-    return booking;
+    // promoterRef is a bare slug, not a Prisma relation (see schema.prisma —
+    // Booking.promoterRef joins against Promoter.slug, same convention
+    // KycService's newPromoterRow comment documents) — a second lookup, only
+    // when actually set, rather than an unconditional join every other
+    // booking would pay for nothing.
+    const promoter = booking.promoterRef
+      ? await this.prisma.promoter.findUnique({ where: { slug: booking.promoterRef }, select: { id: true, name: true, slug: true } })
+      : null;
+    return { ...booking, promoter };
+  }
+
+  /** Staff-triggered — the real Prebooze-branded email + PDF ticket, same
+   * template create() sends at purchase time, for a guest who says they
+   * never got it. Unlike the WhatsApp "resend" button on this same page
+   * (a wa.me deep link staff sends from their own number), this actually
+   * calls the backend send path, so it needs its own admin-only method —
+   * no ownership check, since it's staff acting on the guest's behalf. */
+  async adminResendEmail(id: string) {
+    const booking = await this.prisma.booking.findUnique({ where: { id }, include: { event: true, user: true } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (!booking.user.email) throw new BadRequestException('This guest has no email on file');
+    const ticketVenue = booking.event.venueId ? await this.prisma.venue.findUnique({ where: { id: booking.event.venueId } }) : null;
+    const ticketPdf = await ticketPdfBuffer(booking, booking.event, ticketVenue).catch(() => null);
+    await this.email.sendTemplate(booking.user.email, 'booking_confirmed', {
+      name: booking.mainGuest, eventTitle: booking.event.title, qty: String(booking.qty), bookingId: id, total: money(booking.total),
+    }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined);
+    return { ok: true };
+  }
+
+  async adminSetNote(id: string, note: string) {
+    const booking = await this.prisma.booking.update({ where: { id }, data: { adminNote: note.trim() || null } }).catch(() => null);
+    if (!booking) throw new NotFoundException('Booking not found');
+    return { ok: true };
   }
 
   /** `scannerUserId` is whoever is operating the scanner (the organizer's

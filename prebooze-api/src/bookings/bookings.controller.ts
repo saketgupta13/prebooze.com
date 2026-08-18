@@ -90,8 +90,8 @@ export class AdminBookingsController {
 
   @Get()
   @RequirePermission('Bookings', 'view')
-  list(@Query('status') status?: string) {
-    return this.bookings.adminList(status);
+  list(@Query('status') status?: string, @Query('userId') userId?: string) {
+    return this.bookings.adminList(status, userId);
   }
 
   @Post()
@@ -116,5 +116,17 @@ export class AdminBookingsController {
   @RequirePermission('Refunds', 'approve')
   declineRefund(@Param('id') id: string) {
     return this.bookings.adminDeclineRefund(decodeURIComponent(id));
+  }
+
+  @Post(':id/resend-email')
+  @RequirePermission('Bookings', 'edit')
+  resendEmail(@Param('id') id: string) {
+    return this.bookings.adminResendEmail(decodeURIComponent(id));
+  }
+
+  @Post(':id/note')
+  @RequirePermission('Bookings', 'edit')
+  setNote(@Param('id') id: string, @Body('note') note: string) {
+    return this.bookings.adminSetNote(decodeURIComponent(id), note ?? '');
   }
 }
