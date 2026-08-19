@@ -6,6 +6,7 @@ import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Venue, Event } from '../types';
 import Poster from '../components/Poster';
+import ImageLightbox from '../components/ImageLightbox';
 import { PageLoader } from '../components/Loader';
 import ShareButton from '../components/ShareButton';
 import SocialIcon, { guessPlatform } from '../components/SocialIcon';
@@ -240,16 +241,26 @@ function VenueSlider({ hue, labels, galleryUrls }: { hue: number; labels: string
   const photos = galleryUrls?.length ? galleryUrls : undefined;
   const count = photos?.length ?? labels.length;
   const [idx, setIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const go = (d: number) => setIdx((i) => (i + d + count) % count);
   return (
     <div style={{ position: 'relative' }}>
-      <Poster
-        hue={(hue + idx * 40) % 360}
-        emoji="🏛"
-        label={photos ? undefined : `${labels[idx]} · photo ${idx + 1} of ${labels.length}`}
-        imageUrl={photos?.[idx]}
-        variant="landscape"
-      />
+      {/* Real photos only — tapping the hue-gradient placeholder art has
+          nothing to enlarge. */}
+      <button
+        type="button"
+        onClick={() => photos && setLightboxOpen(true)}
+        aria-label={photos ? 'View full-size photo' : undefined}
+        style={{ display: 'block', width: '100%', padding: 0, border: 0, background: 'none', cursor: photos ? 'pointer' : 'default', font: 'inherit' }}
+      >
+        <Poster
+          hue={(hue + idx * 40) % 360}
+          emoji="🏛"
+          label={photos ? undefined : `${labels[idx]} · photo ${idx + 1} of ${labels.length}`}
+          imageUrl={photos?.[idx]}
+          variant="landscape"
+        />
+      </button>
       <button className="btn btn-ghost btn-sm" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(26,28,23,.75)' }} onClick={() => go(-1)}>
         ‹
       </button>
@@ -266,6 +277,9 @@ function VenueSlider({ hue, labels, galleryUrls }: { hue: number; labels: string
           />
         ))}
       </div>
+      {lightboxOpen && photos && (
+        <ImageLightbox images={photos} index={idx} onClose={() => setLightboxOpen(false)} onNavigate={setIdx} />
+      )}
     </div>
   );
 }

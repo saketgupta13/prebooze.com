@@ -29,6 +29,7 @@ import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { useIsMobile } from '../lib/useIsMobile';
 import Poster, { categoryEmoji } from '../components/Poster';
 import TeaserReel from '../components/TeaserReel';
+import ImageLightbox from '../components/ImageLightbox';
 import { PageLoader } from '../components/Loader';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
@@ -133,6 +134,7 @@ export default function EventDetail() {
   const taggedPromoters = promoterPool.filter((p) => allowedPromoterSlugs.includes(p.slug));
   const [qty, setQty] = useState<Record<string, number>>({});
   const [expanded, setExpanded] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [ticketBoxOpen, setTicketBoxOpen] = useState(false);
   // Collapsible "single Book ticket button" is a mobile-only pattern — on
   // desktop the ticket box stays exactly what it always was, a normal
@@ -431,16 +433,30 @@ export default function EventDetail() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
                   {event.galleryUrls.map((url, i) => (
-                    <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setGalleryIndex(i)}
+                      style={{ padding: 0, border: 0, background: 'none', cursor: 'pointer', font: 'inherit' }}
+                    >
                       <img
                         src={url}
                         alt={`${event.title} photo ${i + 1}`}
                         loading="lazy"
-                        style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)' }}
+                        style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)', display: 'block' }}
                       />
-                    </a>
+                    </button>
                   ))}
                 </div>
+                {galleryIndex !== null && (
+                  <ImageLightbox
+                    images={event.galleryUrls}
+                    index={galleryIndex}
+                    onClose={() => setGalleryIndex(null)}
+                    onNavigate={setGalleryIndex}
+                    alt={(i) => `${event.title} photo ${i + 1}`}
+                  />
+                )}
               </section>
             )}
 
