@@ -357,16 +357,23 @@ export class OrganizerService {
     return this.saveEvent(org.id, org.brandName, input);
   }
 
+  /** All validation runs first, against the full incoming `tiers` array,
+   * before a single write is queued — then every create/update/delete
+   * lands as one `$transaction`. Previously this validated and deleted
+   * tier-by-tier inline: a later tier failing validation (e.g. cover
+   * charge exceeding price) still left earlier deletes/writes in this
+   * same call already committed, since none of it was atomic — a rejected
+   * request could silently wipe out real, unrelated tiers. */
   private async syncTiers(eventId: string, tiers: TierInput[]) {
     const existing = await this.prisma.ticketTier.findMany({ where: { eventId } });
     const keepIds = new Set(tiers.filter((t) => t.id).map((t) => t.id));
 
-    for (const t of existing) {
-      if (keepIds.has(t.id)) continue;
+    const toRemove = existing.filter((t) => !keepIds.has(t.id));
+    for (const t of toRemove) {
       if (t.sold > 0) throw new BadRequestException(`Can't remove "${t.name}" — it already has ${t.sold} sold`);
-      await this.prisma.ticketTier.delete({ where: { id: t.id } });
     }
 
+    const ops: Prisma.PrismaPromise<unknown>[] = [];
     for (const t of tiers) {
       if (!t.name?.trim()) throw new BadRequestException('Every ticket tier needs a name');
       const price = Math.max(0, Math.round(t.price));
@@ -386,11 +393,14 @@ export class OrganizerService {
         if (common.quantity < found.sold) {
           throw new BadRequestException(`"${found.name}" already sold ${found.sold} — can't reduce quantity below that`);
         }
-        await this.prisma.ticketTier.update({ where: { id: found.id }, data: common });
+        ops.push(this.prisma.ticketTier.update({ where: { id: found.id }, data: common }));
       } else {
-        await this.prisma.ticketTier.create({ data: { eventId, ...common } });
+        ops.push(this.prisma.ticketTier.create({ data: { eventId, ...common } }));
       }
     }
+    for (const t of toRemove) ops.push(this.prisma.ticketTier.delete({ where: { id: t.id } }));
+
+    if (ops.length) await this.prisma.$transaction(ops);
   }
 
   async attendees(userId: string, eventId: string) {

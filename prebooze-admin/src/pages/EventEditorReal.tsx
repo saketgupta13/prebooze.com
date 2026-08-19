@@ -44,15 +44,18 @@ const TABS: { key: EditorTab; label: string }[] = [
   { key: 'seo', label: '7 · SEO' },
 ];
 
-interface TierDraft { id?: string; name: string; price: string; quantity: string; description: string; includes: string[]; sold?: number; }
+interface TierDraft { id?: string; name: string; price: string; quantity: string; description: string; includes: string[]; sold?: number; coverCharge: string; coverChargeNote: string; }
 
-const emptyTier = (): TierDraft => ({ name: 'General', price: '450', quantity: '200', description: '', includes: ['Entry'] });
+const emptyTier = (): TierDraft => ({ name: 'General', price: '450', quantity: '200', description: '', includes: ['Entry'], coverCharge: '', coverChargeNote: '' });
 
 /** Real, single event editor — replaces the old mock EventEditor.tsx.
  * Backs the whole real create/edit flow via OrganizerService.adminUpsertEvent.
- * A brand-new event must be saved once (Basics/Tickets/Rules/Lineup/SEO) to
- * get a real id before poster upload, commission, and approve/reject become
- * available — those all require an id that only exists after the first save. */
+ * Poster/gallery/teaser/social images all upload immediately (RealImageUpload
+ * hits the generic media endpoint, no event id needed) and are held in local
+ * state until the main Save button submits them along with everything else.
+ * A brand-new event must be saved once to get a real id before commission
+ * and approve/reject become available — those genuinely require an id that
+ * only exists after the first save. */
 export default function EventEditorReal() {
   const { id } = useParams();
   const isCreate = !id;
@@ -116,6 +119,7 @@ export default function EventEditorReal() {
   // Only applies for promoters with Paid commission on (commissionPromoters).
   const [revenueShare, setRevenueShare] = useState<Record<string, string>>({});
   const [seo, setSeo] = useState(emptySeo());
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [teaserVideoUrl, setTeaserVideoUrl] = useState('');
   const [socialPostUrl, setSocialPostUrl] = useState('');
@@ -152,7 +156,7 @@ export default function EventEditorReal() {
               setAgeLimit(found.ageLimit ?? '18+');
               setTiers(
                 found.tiers.length
-                  ? found.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), description: t.description ?? '', includes: t.includes ?? [], sold: t.sold }))
+                  ? found.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), description: t.description ?? '', includes: t.includes ?? [], sold: t.sold, coverCharge: t.coverCharge ? String(t.coverCharge) : '', coverChargeNote: t.coverChargeNote ?? '' }))
                   : [emptyTier()],
               );
               setConditions((found.conditions ?? []).join('\n'));
@@ -174,6 +178,7 @@ export default function EventEditorReal() {
               setRevenueShare(Object.fromEntries(Object.entries(found.promoterConfig?.revenueShare ?? {}).map(([slug, pct]) => [slug, String(pct)])));
               setCommissionPromoters(Object.entries(found.promoterConfig?.revenueShare ?? {}).filter(([, pct]) => pct > 0).map(([slug]) => slug));
               setSeo(found.seo ? { ...found.seo, keywords: Array.isArray(found.seo.keywords) ? found.seo.keywords.join(', ') : found.seo.keywords } : emptySeo());
+              setPosterUrl(found.posterUrl ?? null);
               setGalleryUrls(found.galleryUrls ?? []);
               setTeaserVideoUrl(found.teaserVideoUrl ?? '');
               setSocialPostUrl(found.socialBanners?.postUrl ?? '');
@@ -226,6 +231,7 @@ export default function EventEditorReal() {
           .filter(([, pct]) => pct > 0)
       ),
     },
+    posterUrl,
     galleryUrls,
     teaserVideoUrl: teaserVideoUrl || null,
     socialBanners: { postUrl: socialPostUrl || undefined, storyUrl: socialStoryUrl || undefined },
@@ -236,6 +242,8 @@ export default function EventEditorReal() {
       quantity: parseInt(t.quantity, 10) || 0,
       description: t.description || undefined,
       includes: t.includes,
+      coverCharge: parseInt(t.coverCharge, 10) || 0,
+      coverChargeNote: t.coverChargeNote.trim() || undefined,
     })),
   });
 
@@ -289,11 +297,6 @@ export default function EventEditorReal() {
     if (!existing) return;
     try { setExisting(await liveEvents.setSalesPaused(existing.id, !existing.salesPaused)); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed'); }
   };
-  const setPoster = async (url: string) => {
-    if (!existing) return;
-    try { setExisting(await liveEvents.setPoster(existing.id, url)); setMsg('Poster saved ✓'); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed'); }
-  };
-
   const patchTier = (i: number, p: Partial<TierDraft>) => setTiers((prev) => prev.map((t, x) => (x === i ? { ...t, ...p } : t)));
   const patchRule = (i: number, p: Partial<RuleDraft>) => setRules((prev) => prev.map((r, x) => (x === i ? { ...r, ...p } : r)));
 
@@ -464,6 +467,22 @@ export default function EventEditorReal() {
                 <label>Ticket description — shown under this tier on the event page</label>
                 <input className="input" value={t.description} onChange={(e) => patchTier(i, { description: e.target.value })} placeholder="e.g. Best value — entry, welcome drink and access to both stages" />
               </div>
+              <div className="field" style={{ flex: 1, minWidth: 140 }}>
+                <label>Cover charge ₹ (optional)</label>
+                <input className="input" inputMode="numeric" value={t.coverCharge} onChange={(e) => patchTier(i, { coverCharge: e.target.value.replace(/\D/g, '') })} placeholder="e.g. 1000" />
+              </div>
+              <div className="field" style={{ flex: 1, minWidth: 140 }}>
+                <label>Redeemable for (optional)</label>
+                <input className="input" value={t.coverChargeNote} onChange={(e) => patchTier(i, { coverChargeNote: e.target.value })} placeholder="e.g. food & drinks at the venue" />
+              </div>
+              {t.coverCharge.trim() && +t.coverCharge > (+t.price || 0) && (
+                <div className="tiny" style={{ color: 'var(--red)', flexBasis: '100%' }}>Cover charge can't exceed the ticket price</div>
+              )}
+              {t.coverCharge.trim() && +t.coverCharge > 0 && !(+t.coverCharge > (+t.price || 0)) && (
+                <div className="tiny muted" style={{ flexBasis: '100%' }}>
+                  Guests see this ticket includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote.trim() ? ` (${t.coverChargeNote.trim()})` : ''}.
+                </div>
+              )}
               <div className="field" style={{ flexBasis: '100%' }}>
                 <label>What's included</label>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -489,11 +508,8 @@ export default function EventEditorReal() {
         <div className="stack" style={{ gap: 16 }}>
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <b>Poster</b>
-            {existing ? (
-              <RealImageUpload value={existing.posterUrl} onChange={setPoster} height={200} width={160} label="⬆ poster 3:4" />
-            ) : (
-              <div className="tiny muted">Save the event once (Basics tab) to get a real event id before uploading a poster.</div>
-            )}
+            <RealImageUpload value={posterUrl} onChange={setPosterUrl} height={200} width={160} label="⬆ poster 3:4" />
+            <div className="tiny hint">Saved along with the rest of the form — click {isCreate ? 'Create event' : 'Save changes'} below once you've uploaded it.</div>
           </div>
 
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
