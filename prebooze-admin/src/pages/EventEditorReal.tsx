@@ -556,10 +556,10 @@ export default function EventEditorReal() {
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <b>Teaser reel (optional)</b>
             <RealVideoUpload value={teaserVideoUrl || null} onChange={setTeaserVideoUrl} label="⬆ teaser video · 9:16" />
-            <div className="tiny hint">Upload a file, or paste a direct video link below instead.</div>
+            <div className="tiny hint">Upload a file, or paste a link below instead — Instagram Reel, YouTube, or a direct video file all work.</div>
             <input
               className="input"
-              placeholder="https://... direct .mp4 link"
+              placeholder="https://instagram.com/reel/... or youtube.com/... or a direct .mp4 link"
               value={teaserVideoUrl}
               onChange={(e) => setTeaserVideoUrl(e.target.value)}
             />

@@ -28,7 +28,7 @@ import { trackMeta } from '../lib/meta';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { useIsMobile } from '../lib/useIsMobile';
 import Poster, { categoryEmoji } from '../components/Poster';
-import ReelCard from '../components/ReelCard';
+import TeaserReel from '../components/TeaserReel';
 import { PageLoader } from '../components/Loader';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
@@ -419,9 +419,7 @@ export default function EventDetail() {
                 <div className="section-hd">
                   <h2>Teaser</h2>
                 </div>
-                <div style={{ width: '100%', maxWidth: 260 }}>
-                  <ReelCard reel={{ id: event.id, title: event.title, hue: event.posterHue, videoUrl: event.teaserVideoUrl, posterUrl: null }} />
-                </div>
+                <TeaserReel url={event.teaserVideoUrl} title={event.title} hue={event.posterHue} />
               </section>
             )}
 

@@ -338,7 +338,7 @@ export default function CreateHostedEvent() {
           <RealVideoUploadBox value={teaserVideoUrl} onChange={setTeaserVideoUrl} upload={venuePartner.upload} label="⬆ teaser video · 9:16" />
           <input
             className="input"
-            placeholder="or paste a direct video link (.mp4)"
+            placeholder="or paste a link — Instagram Reel, YouTube, or a direct video file"
             value={teaserVideoUrl ?? ''}
             onChange={(e) => setTeaserVideoUrl(e.target.value || null)}
             style={{ marginTop: 8 }}
