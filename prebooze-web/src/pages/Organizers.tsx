@@ -7,6 +7,7 @@ import { isBackendEnabled } from '../api/client';
 import type { Organizer, Event } from '../types';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import DirectoryCard from '../components/DirectoryCard';
+import { cityHome, organizerPath } from '../lib/urls';
 
 /** Public directory of verified organizers in the selected city. */
 export default function Organizers() {
@@ -42,7 +43,7 @@ export default function Organizers() {
     <main className="page">
       <div className="container">
         <div className="breadcrumb">
-          <Link to="/">Home</Link> / Organizers
+          <Link to={cityHome(city)}>Home</Link> / Organizers
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Organizers in {city} 🎧</h1>
         <p className="muted" style={{ marginBottom: 18 }}>
@@ -58,7 +59,7 @@ export default function Organizers() {
             return (
               <DirectoryCard
                 key={o.id}
-                to={`/organizers/${o.id}`}
+                to={organizerPath(o.city, o.id)}
                 hue={o.logoHue}
                 avatarText="🎧"
                 avatarImage={o.logoUrl}

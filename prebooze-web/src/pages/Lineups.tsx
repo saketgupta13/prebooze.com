@@ -7,6 +7,7 @@ import { isBackendEnabled } from '../api/client';
 import type { LineupProfile } from '../types';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import DirectoryCard from '../components/DirectoryCard';
+import { cityHome, lineupPath } from '../lib/urls';
 
 /** Public directory of line-up artists — DJs, bands, comedians and more. */
 export default function Lineups() {
@@ -34,7 +35,7 @@ export default function Lineups() {
     <main className="page">
       <div className="container">
         <div className="breadcrumb">
-          <Link to="/">Home</Link> / Line-ups
+          <Link to={cityHome(city)}>Home</Link> / Line-ups
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Line-ups in {city} 🎤</h1>
         <p className="muted" style={{ marginBottom: 18 }}>
@@ -56,7 +57,7 @@ export default function Lineups() {
             return (
               <DirectoryCard
                 key={l.slug}
-                to={`/lineup/${l.slug}`}
+                to={lineupPath(l.city, l.slug)}
                 hue={l.hue}
                 avatarText={l.emoji}
                 avatarImage={l.logoUrl}

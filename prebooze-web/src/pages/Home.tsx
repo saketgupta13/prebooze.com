@@ -10,6 +10,7 @@ import { isBackendEnabled } from '../api/client';
 import type { CmsTestimonial, Event, Organizer, PromoterProfile, LineupProfile, Person, Venue } from '../types';
 import { personFollowKey } from '../lib/social';
 import { featuredRefs, featuredFirst } from '../lib/featured';
+import { organizerPath, promoterPath, lineupPath, venuePath, cityBrowse, cityOrganizers, cityPromoters, cityLineups, cityVenues, cityPeople as cityPeoplePath } from '../lib/urls';
 import EventCard from '../components/EventCard';
 import DirectoryCard from '../components/DirectoryCard';
 import DirectoryCardSkeleton from '../components/DirectoryCardSkeleton';
@@ -366,7 +367,7 @@ export default function Home() {
           })).filter((c) => c.n > 0);
           if (tiles.length === 0) return null;
           const cells = tiles.map((c) => (
-            <Link key={c.name} to={`/browse?cat=${encodeURIComponent(c.name)}`} className="citypick-cell" style={{ textDecoration: 'none', minWidth: 130 }}>
+            <Link key={c.name} to={`${cityBrowse(city)}?cat=${encodeURIComponent(c.name)}`} className="citypick-cell" style={{ textDecoration: 'none', minWidth: 130 }}>
               <span className="ic">{c.icon}</span>
               <span className="nm">{c.name}</span>
               <span className="ct">{c.n} event{c.n === 1 ? '' : 's'}</span>
@@ -386,7 +387,7 @@ export default function Home() {
         {/* Top selling events */}
         <div className="section-hd">
           <h2>Top selling events in {city}</h2>
-          <Link to="/browse">See all →</Link>
+          <Link to={cityBrowse(city)}>See all →</Link>
         </div>
         <div className="chip-row" style={{ marginBottom: 18 }}>
           {categoryChips.map((c) => (
@@ -406,7 +407,7 @@ export default function Home() {
         )}
         {events.length > 4 && events.length <= eventLimit && (
           <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <Link to="/browse" className="btn btn-ghost">Browse all events →</Link>
+            <Link to={cityBrowse(city)} className="btn btn-ghost">Browse all events →</Link>
           </div>
         )}
 
@@ -422,7 +423,7 @@ export default function Home() {
         <section className="section">
           <div className="section-hd">
             <h2>Going out in {city} 🔥</h2>
-            <Link to="/people">See all people →</Link>
+            <Link to={cityPeoplePath(city)}>See all people →</Link>
           </div>
           <div className="card" style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex' }}>
@@ -436,7 +437,7 @@ export default function Home() {
               <div className="bold">{cityPeople.length}+ people going out in {city}</div>
               <div className="tiny muted-2">Follow them to see which parties they’re hitting — before the tickets go.</div>
             </div>
-            <Link to="/people" className="btn btn-pri btn-sm">Find your people →</Link>
+            <Link to={cityPeoplePath(city)} className="btn btn-pri btn-sm">Find your people →</Link>
           </div>
           <Slider slideWidth={244}>
             {cityPeople.map((p) => (
@@ -473,7 +474,7 @@ export default function Home() {
         <section className="section">
           <div className="section-hd">
             <h2>Top organizers in {city}</h2>
-            <Link to="/organizers">See all →</Link>
+            <Link to={cityOrganizers(city)}>See all →</Link>
           </div>
           <Slider slideWidth={244}>
             {orgLoading
@@ -481,7 +482,7 @@ export default function Home() {
               : topOrganizers.map((o) => {
                   const live = published.filter((e) => (e.organizer?.id ?? e.organizerId) === o.id).length;
                   return (
-                    <DirectoryCard key={o.id} to={`/organizers/${o.id}`} hue={o.logoHue} avatarText="🎧" avatarImage={o.logoUrl} name={o.brandName} verified={o.verified} meta={`${o.city} · ★ ${o.rating}`} bio={o.about} featured={orgFeat.has(o.id)}
+                    <DirectoryCard key={o.id} to={organizerPath(o.city, o.id)} hue={o.logoHue} avatarText="🎧" avatarImage={o.logoUrl} name={o.brandName} verified={o.verified} meta={`${o.city} · ★ ${o.rating}`} bio={o.about} featured={orgFeat.has(o.id)}
                       stats={<><b>{o.eventsHosted}</b> events · <b>{live}</b> live · <b>{netFollowers(o.id, o.followers).toLocaleString('en-IN')}</b> followers</>}
                       action={followBtn(o.id, user?.isOrganizer && user.orgUsername?.toLowerCase() === o.username.toLowerCase())} />
                   );
@@ -495,13 +496,13 @@ export default function Home() {
         <section className="section">
           <div className="section-hd">
             <h2>Top promoters in {city} 📣</h2>
-            <Link to="/promoters">See all →</Link>
+            <Link to={cityPromoters(city)}>See all →</Link>
           </div>
           <Slider slideWidth={244}>
             {promoLoading
               ? Array.from({ length: 4 }, (_, i) => <DirectoryCardSkeleton key={i} />)
               : topPromoters.map((p) => (
-                  <DirectoryCard key={p.slug} to={`/promoter/${p.slug}`} hue={p.hue} avatarText="📣" avatarImage={p.logoUrl} name={p.name} verified={p.verified} meta={`${p.city} · ${netFollowers('promoter:' + p.slug, p.followers).toLocaleString('en-IN')} followers`} bio={p.bio} featured={promoFeat.has(p.slug)}
+                  <DirectoryCard key={p.slug} to={promoterPath(p.city, p.slug)} hue={p.hue} avatarText="📣" avatarImage={p.logoUrl} name={p.name} verified={p.verified} meta={`${p.city} · ${netFollowers('promoter:' + p.slug, p.followers).toLocaleString('en-IN')} followers`} bio={p.bio} featured={promoFeat.has(p.slug)}
                     stats={<><span className={p.showRate >= 70 ? 'accent bold' : 'bold'}>{p.showRate}%</span> show-rate · <b>{p.guestsBrought.toLocaleString('en-IN')}</b> brought</>}
                     action={followBtn('promoter:' + p.slug, user?.isPromoter && user.promoterUsername?.toLowerCase() === p.slug.toLowerCase())} />
                 ))}
@@ -514,13 +515,13 @@ export default function Home() {
         <section className="section">
           <div className="section-hd">
             <h2>Top line-ups in {city} 🎤</h2>
-            <Link to="/lineups">See all →</Link>
+            <Link to={cityLineups(city)}>See all →</Link>
           </div>
           <Slider slideWidth={244}>
             {lineupLoading
               ? Array.from({ length: 4 }, (_, i) => <DirectoryCardSkeleton key={i} />)
               : topLineups.map((l) => (
-                  <DirectoryCard key={l.slug} to={`/lineup/${l.slug}`} hue={l.hue} avatarText={l.emoji} avatarImage={l.logoUrl} name={l.name} verified={l.verified} meta={`${l.category} · ${l.city}`} bio={l.bio} featured={lineFeat.has(l.slug)}
+                  <DirectoryCard key={l.slug} to={lineupPath(l.city, l.slug)} hue={l.hue} avatarText={l.emoji} avatarImage={l.logoUrl} name={l.name} verified={l.verified} meta={`${l.category} · ${l.city}`} bio={l.bio} featured={lineFeat.has(l.slug)}
                     stats={<><b>{netFollowers('lineup:' + l.slug, l.followers).toLocaleString('en-IN')}</b> followers · <b>{l.eventsPlayed}</b> shows</>}
                     action={followBtn('lineup:' + l.slug, user?.isLineup && user.lineupUsername?.toLowerCase() === l.slug.toLowerCase())} />
                 ))}
@@ -533,7 +534,7 @@ export default function Home() {
         <section className="section">
           <div className="section-hd">
             <h2>Top venues in {city}</h2>
-            <Link to="/venues">See all →</Link>
+            <Link to={cityVenues(city)}>See all →</Link>
           </div>
           <Slider slideWidth={260}>
             {venueLoading
@@ -541,7 +542,7 @@ export default function Home() {
               : topVenues.map((v) => {
                   const count = published.filter((e) => (e.venue?.id ?? e.venueId) === v.id).length;
                   return (
-                    <Link key={v.id} to={`/venues/${v.id}`} className="ecard" style={{ position: 'relative' }}>
+                    <Link key={v.id} to={venuePath(v.city, v.id)} className="ecard" style={{ position: 'relative' }}>
                       <Poster hue={v.photoHue} emoji="🏛" label={v.galleryUrls?.[0] ? undefined : 'venue photo'} imageUrl={v.galleryUrls?.[0]} variant="landscape" alt={v.name} />
                       {v.logoUrl && <img src={v.logoUrl} alt="" width={38} height={38} loading="lazy" decoding="async" className="ecard-logo" />}
                       <div>

@@ -6,6 +6,7 @@ import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Event } from '../types';
 import { useSeo } from '../lib/useSeo';
+import { cityHome, cityBrowse } from '../lib/urls';
 
 /** Browse-by-category directory — categories + sub-categories with live
  * counts. Category/sub-category names now come from the real, admin-managed
@@ -42,7 +43,7 @@ export default function Categories() {
     <main className="page">
       <div className="container">
         <div className="breadcrumb">
-          <Link to="/">Home</Link> / Browse by category
+          <Link to={cityHome(city)}>Home</Link> / Browse by category
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Browse by category 🗂️</h1>
         <p className="muted" style={{ marginBottom: 22 }}>
@@ -55,7 +56,7 @@ export default function Categories() {
             const total = catCount(c.name);
             return (
               <div key={c.name} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-                <Link to={`/browse?cat=${encodeURIComponent(c.name)}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <Link to={`${cityBrowse(city)}?cat=${encodeURIComponent(c.name)}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontSize: 34 }}>{c.icon}</span>
                     <div>
@@ -73,7 +74,7 @@ export default function Categories() {
                     return (
                       <Link
                         key={s}
-                        to={`/browse?cat=${encodeURIComponent(c.name)}&sub=${encodeURIComponent(s)}`}
+                        to={`${cityBrowse(city)}?cat=${encodeURIComponent(c.name)}&sub=${encodeURIComponent(s)}`}
                         className="kv"
                         style={{ textDecoration: 'none', color: 'inherit' }}
                       >
@@ -83,7 +84,7 @@ export default function Categories() {
                     );
                   })}
                 </div>
-                <Link to={`/browse?cat=${encodeURIComponent(c.name)}`} className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 12 }}>
+                <Link to={`${cityBrowse(city)}?cat=${encodeURIComponent(c.name)}`} className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 12 }}>
                   Browse {c.name.toLowerCase()} →
                 </Link>
               </div>

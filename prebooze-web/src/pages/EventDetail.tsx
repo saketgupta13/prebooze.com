@@ -23,6 +23,8 @@ import { stripHtml } from '../lib/richtext';
 import { useSeo } from '../lib/useSeo';
 import { useJsonLd } from '../lib/useJsonLd';
 import { buildEventSchema, buildBreadcrumbSchema } from '../lib/schema';
+import { useCityReconcile } from '../lib/useCityReconcile';
+import { eventCity, eventPath, cityHome, cityBrowse } from '../lib/urls';
 import { track } from '../lib/track';
 import { trackMeta } from '../lib/meta';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
@@ -108,14 +110,16 @@ export default function EventDetail() {
   // page's convention (OrganizerProfile/PromoterProfile/LineupProfile/
   // VenueDetail all do the same for their own mock fallback).
   const event = liveEvent ?? (isBackendEnabled() ? undefined : mockEvent);
+  const eventCityName = event ? eventCity(event) : undefined;
+  useCityReconcile(eventCityName, event && eventCityName ? eventPath(eventCityName, event.slug) : undefined);
   useSeo(event?.seo, event?.title, event?.posterUrl);
   useJsonLd(event ? buildEventSchema(event) : null);
   useJsonLd(
-    event
+    event && eventCityName
       ? buildBreadcrumbSchema([
-          { name: 'Home', path: '/' },
-          { name: 'Events', path: '/browse' },
-          { name: event.title, path: `/events/${event.slug}` },
+          { name: 'Home', path: cityHome(eventCityName) },
+          { name: 'Events', path: cityBrowse(eventCityName) },
+          { name: event.title, path: eventPath(eventCityName, event.slug) },
         ])
       : null,
   );
@@ -305,7 +309,7 @@ export default function EventDetail() {
                       {t}
                     </span>
                   ))}
-                  <ShareButton path={`/events/${event.slug}`} text={`${event.title} 🎟️ — book on Prebooze:`} />
+                  <ShareButton path={eventCityName ? eventPath(eventCityName, event.slug) : `/events/${event.slug}`} text={`${event.title} 🎟️ — book on Prebooze:`} />
                   {event.socialBanners?.storyUrl && (
                     <a href={event.socialBanners.storyUrl} download className="chip small" style={{ textDecoration: 'none' }}>
                       ⬇ Story image

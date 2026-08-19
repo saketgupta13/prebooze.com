@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
+import { useApp } from '../store/AppContext';
+import { cityBrowse, cityCategories, cityVenues, cityOrganizers, cityPromoters, cityLineups } from '../lib/urls';
 
 // Admin only ever types "instagram.com/prebooze"-style handles, not always
 // the full "https://…" — a bare domain in an <a href> is a relative URL
@@ -14,6 +16,7 @@ const withScheme = (url: string) => {
 
 export default function Footer() {
   const { socials, footerCopyright, logoUrl } = usePlatformInfo();
+  const { city } = useApp();
   const socialList = [
     { label: 'Instagram', url: socials.instagram },
     { label: 'Facebook', url: socials.facebook },
@@ -30,12 +33,12 @@ export default function Footer() {
         <div className="ftr-cols">
           <div>
             <h3>Explore</h3>
-            <Link to="/browse">Events</Link>
-            <Link to="/categories">Browse by category</Link>
-            <Link to="/venues">Venues</Link>
-            <Link to="/organizers">Organizers</Link>
-            <Link to="/promoters">Promoters</Link>
-            <Link to="/lineups">Line-ups</Link>
+            <Link to={cityBrowse(city)}>Events</Link>
+            <Link to={cityCategories(city)}>Browse by category</Link>
+            <Link to={cityVenues(city)}>Venues</Link>
+            <Link to={cityOrganizers(city)}>Organizers</Link>
+            <Link to={cityPromoters(city)}>Promoters</Link>
+            <Link to={cityLineups(city)}>Line-ups</Link>
             <Link to="/blog">Blog</Link>
           </div>
           <div>

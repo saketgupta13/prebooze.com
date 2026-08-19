@@ -16,6 +16,8 @@ import { useSeo } from '../lib/useSeo';
 import { useEntitySeo } from '../lib/useEntitySeo';
 import { useJsonLd } from '../lib/useJsonLd';
 import { buildPromoterSchema, buildBreadcrumbSchema } from '../lib/schema';
+import { useCityReconcile } from '../lib/useCityReconcile';
+import { promoterPath, cityHome, cityPromoters } from '../lib/urls';
 
 /** Public promoter profile — followable, shows the events they're promoting. */
 export default function PromoterProfile() {
@@ -38,15 +40,16 @@ export default function PromoterProfile() {
   }, [slug]);
 
   const promoter = livePromoter ?? (isBackendEnabled() ? undefined : promoterBySlug(slug ?? ''));
+  useCityReconcile(promoter?.city, promoter ? promoterPath(promoter.city, promoter.slug) : undefined);
   const liveSeo = useEntitySeo('promoter', slug);
   useSeo(liveSeo, promoter?.name);
   useJsonLd(promoter ? buildPromoterSchema(promoter) : null);
   useJsonLd(
     promoter
       ? buildBreadcrumbSchema([
-          { name: 'Home', path: '/' },
-          { name: 'Promoters', path: '/promoters' },
-          { name: promoter.name, path: `/promoter/${promoter.slug}` },
+          { name: 'Home', path: cityHome(promoter.city) },
+          { name: 'Promoters', path: cityPromoters(promoter.city) },
+          { name: promoter.name, path: promoterPath(promoter.city, promoter.slug) },
         ])
       : null,
   );
@@ -101,7 +104,7 @@ export default function PromoterProfile() {
                 {isFollowing ? 'Following ✓' : '+ Follow'}
               </button>
             )}
-            <ShareButton path={`/promoter/${promoter.slug}`} />
+            <ShareButton path={promoterPath(promoter.city, promoter.slug)} />
           </div>
         </div>
 

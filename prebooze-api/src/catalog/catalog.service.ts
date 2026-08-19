@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { toCitySlug } from '../common/city-slug';
 
 type FeaturedType = 'event' | 'organizer' | 'promoter' | 'lineup' | 'venue';
 
@@ -521,16 +522,20 @@ export class CatalogService {
     if (!q.trim()) return [];
     const like = { contains: q, mode: 'insensitive' as const };
     const [events, venues, organizers, lineups] = await Promise.all([
-      this.prisma.event.findMany({ where: { status: 'approved', title: like }, take: 5, select: { title: true, slug: true } }),
-      this.prisma.venue.findMany({ where: { name: like }, take: 5, select: { name: true, id: true } }),
-      this.prisma.organizer.findMany({ where: { brandName: like }, take: 5, select: { brandName: true, id: true } }),
-      this.prisma.lineup.findMany({ where: { name: like }, take: 5, select: { name: true, slug: true } }),
+      this.prisma.event.findMany({ where: { status: 'approved', title: like }, take: 5, select: { title: true, slug: true, privateCity: true, venue: { select: { city: true } } } }),
+      this.prisma.venue.findMany({ where: { name: like }, take: 5, select: { name: true, id: true, city: true } }),
+      this.prisma.organizer.findMany({ where: { brandName: like }, take: 5, select: { brandName: true, id: true, city: true } }),
+      this.prisma.lineup.findMany({ where: { name: like }, take: 5, select: { name: true, slug: true, city: true } }),
     ]);
     return [
-      ...events.map((e) => ({ label: e.title, type: 'Event', to: `/events/${e.slug}` })),
-      ...venues.map((v) => ({ label: v.name, type: 'Venue', to: `/venues/${v.id}` })),
-      ...organizers.map((o) => ({ label: o.brandName, type: 'Organizer', to: `/organizers/${o.id}` })),
-      ...lineups.map((l) => ({ label: l.name, type: 'Artist', to: `/lineup/${l.slug}` })),
+      // Skips the (schema-invariant-violating, shouldn't-happen) case of an
+      // event with neither a venue nor a privateCity — no city to link to.
+      ...events
+        .filter((e) => e.venue?.city ?? e.privateCity)
+        .map((e) => ({ label: e.title, type: 'Event', to: `/${toCitySlug((e.venue?.city ?? e.privateCity)!)}/events/${e.slug}` })),
+      ...venues.map((v) => ({ label: v.name, type: 'Venue', to: `/${toCitySlug(v.city)}/venues/${v.id}` })),
+      ...organizers.map((o) => ({ label: o.brandName, type: 'Organizer', to: `/${toCitySlug(o.city)}/organizers/${o.id}` })),
+      ...lineups.map((l) => ({ label: l.name, type: 'Artist', to: `/${toCitySlug(l.city)}/lineup/${l.slug}` })),
     ].slice(0, 7);
   }
 

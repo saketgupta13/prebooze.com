@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { toCitySlug } from '../common/city-slug';
 
 const TOP_CITY_LIMIT = 12; // matches prebooze-admin's toggleTopCity guard exactly
 
@@ -40,6 +41,16 @@ export class LocationsService {
     const cityName = name.trim();
     const existing = await this.prisma.city.findUnique({ where: { name: cityName } });
     if (existing) return this.prisma.city.update({ where: { name: cityName }, data: { stateId } });
+    // City.name is the primary key with no dedicated slug/URL-safety field
+    // — two differently-cased or -punctuated names (e.g. "Bengaluru" vs
+    // "bengaluru") would otherwise collide on the same /city-prefixed URL
+    // once city-scoped routing reads this list, silently making one of
+    // them unreachable by its own slug.
+    const slug = toCitySlug(cityName);
+    const all = await this.prisma.city.findMany({ select: { name: true } });
+    if (all.some((c) => toCitySlug(c.name) === slug)) {
+      throw new BadRequestException(`A city with the same URL slug ("${slug}") already exists`);
+    }
     return this.prisma.city.create({ data: { name: cityName, icon: null, stateId } });
   }
 

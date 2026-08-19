@@ -7,6 +7,8 @@ import { isBackendEnabled } from '../api/client';
 import CityPicker from './CityPicker';
 import { existingRole } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
+import { useCityList } from '../lib/useCityList';
+import { toCitySlug, cityHome, cityBrowse, cityVenues, eventPath, venuePath, lineupPath, organizerPath } from '../lib/urls';
 
 type Suggestion = { label: string; type: string; to: string };
 
@@ -29,7 +31,7 @@ function Caret() {
  * and are passed down, so both instances share one debounced fetch instead
  * of duplicating network calls. */
 function SearchBox({
-  className, q, setQ, suggestions, trending, navigate, submitSearch,
+  className, q, setQ, suggestions, trending, navigate, submitSearch, city,
 }: {
   className: string;
   q: string;
@@ -38,6 +40,7 @@ function SearchBox({
   trending: string[];
   navigate: ReturnType<typeof useNavigate>;
   submitSearch: (e: React.FormEvent) => void;
+  city: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLFormElement>(null);
@@ -69,7 +72,7 @@ function SearchBox({
                   type="button"
                   key={t}
                   className="ss-opt"
-                  onMouseDown={(e) => { e.preventDefault(); setQ(t); setOpen(false); navigate('/browse?q=' + encodeURIComponent(t)); }}
+                  onMouseDown={(e) => { e.preventDefault(); setQ(t); setOpen(false); navigate(cityBrowse(city) + '?q=' + encodeURIComponent(t)); }}
                 >
                   🔎 {t}
                 </button>
@@ -111,6 +114,7 @@ export default function Header() {
   const [cityOpen, setCityOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [q, setQ] = useState('');
+  const { cities } = useCityList();
 
   // live suggestions across events, venues, artists and organizers — real
   // GET /search (debounced) when a backend is configured; the local mock
@@ -134,17 +138,18 @@ export default function Header() {
     const s = q.trim().toLowerCase();
     if (!s) return [];
     const out: { label: string; type: string; to: string }[] = [];
-    EVENTS.filter((e) => e.status === 'approved' && e.title.toLowerCase().includes(s)).forEach((e) =>
-      out.push({ label: e.title, type: 'Event', to: `/events/${e.slug}` })
-    );
+    EVENTS.filter((e) => e.status === 'approved' && e.title.toLowerCase().includes(s)).forEach((e) => {
+      const c = e.venue?.city ?? e.privateCity;
+      if (c) out.push({ label: e.title, type: 'Event', to: eventPath(c, e.slug) });
+    });
     VENUES.filter((v) => v.name.toLowerCase().includes(s)).forEach((v) =>
-      out.push({ label: v.name, type: 'Venue', to: `/venues/${v.id}` })
+      out.push({ label: v.name, type: 'Venue', to: venuePath(v.city, v.id) })
     );
     LINEUPS.filter((l) => l.name.toLowerCase().includes(s)).forEach((l) =>
-      out.push({ label: l.name, type: 'Artist', to: `/lineup/${l.slug}` })
+      out.push({ label: l.name, type: 'Artist', to: lineupPath(l.city, l.slug) })
     );
     ORGANIZERS.filter((o) => o.brandName.toLowerCase().includes(s)).forEach((o) =>
-      out.push({ label: o.brandName, type: 'Organizer', to: `/organizers/${o.id}` })
+      out.push({ label: o.brandName, type: 'Organizer', to: organizerPath(o.city, o.id) })
     );
     return out.slice(0, 7);
   }, [q, liveSuggestions]);
@@ -168,26 +173,35 @@ export default function Header() {
   // permission prompt on page load is what Lighthouse flags as reading as
   // suspicious, so opening the modal is as far as this goes on its own.
   useEffect(() => {
-    if (location.pathname !== '/') return;
+    // "The homepage" is now either the bare '/' (pre-redirect, or offline
+    // mode) or a real city's home page ('/hyderabad') — checking for exact
+    // '/' alone would mean this basically never fires for real traffic,
+    // since a real visit almost always lands on the city-prefixed home
+    // page, not the bare root. Validated against the real city list (not
+    // just "one path segment") so this doesn't also fire on other
+    // single-segment routes like /login or /wallet.
+    const [first, ...rest] = location.pathname.split('/').filter(Boolean);
+    const isHome = !first || (rest.length === 0 && (cities ?? []).some((c) => toCitySlug(c.name) === first));
+    if (!isHome) return;
     if (!localStorage.getItem('pb_city_manual') && !localStorage.getItem('pb_geo_done')) {
       localStorage.setItem('pb_geo_done', '1');
       setCityOpen(true);
     }
-  }, [location.pathname]);
+  }, [location.pathname, cities]);
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/browse' + (q ? `?q=${encodeURIComponent(q)}` : ''));
+    navigate(cityBrowse(city) + (q ? `?q=${encodeURIComponent(q)}` : ''));
   };
 
   return (
     <header className="hdr">
       <div className="container hdr-in">
-        <Link to="/" className="hdr-logo">
+        <Link to={cityHome(city)} className="hdr-logo">
           <img src={logoUrl || '/prebooze-logo.png'} alt="Prebooze" width={203} height={42} fetchPriority="high" />
         </Link>
 
-        <SearchBox className="hdr-search" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} />
+        <SearchBox className="hdr-search" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} city={city} />
 
         <button className="hdr-city" onClick={() => setCityOpen(true)}>
           📍 {city} <Caret />
@@ -197,8 +211,8 @@ export default function Header() {
         <span className="hdr-spacer" />
 
         <nav className="hdr-links">
-          <Link to="/browse">Events</Link>
-          <Link to="/venues">Venues</Link>
+          <Link to={cityBrowse(city)}>Events</Link>
+          <Link to={cityVenues(city)}>Venues</Link>
           {!heldRole && <Link to="/host">Host with us</Link>}
           {user && !heldRole && <Link to="/bookings">My Bookings</Link>}
         </nav>
@@ -298,7 +312,7 @@ export default function Header() {
           this shows at (see index.css), so search stays reachable on
           mobile instead of just vanishing with the desktop nav links. */}
       <div className="container hdr-search-mobile-row">
-        <SearchBox className="hdr-search hdr-search-mobile" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} />
+        <SearchBox className="hdr-search hdr-search-mobile" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} city={city} />
       </div>
     </header>
   );

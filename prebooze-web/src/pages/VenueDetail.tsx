@@ -16,6 +16,8 @@ import { useSeo } from '../lib/useSeo';
 import { useEntitySeo } from '../lib/useEntitySeo';
 import { useJsonLd } from '../lib/useJsonLd';
 import { buildVenueSchema, buildBreadcrumbSchema } from '../lib/schema';
+import { useCityReconcile } from '../lib/useCityReconcile';
+import { venuePath, cityHome, cityVenues } from '../lib/urls';
 import { formatLocation } from '../lib/formatLocation';
 
 export default function VenueDetail() {
@@ -38,15 +40,16 @@ export default function VenueDetail() {
   }, [id]);
 
   const venue = liveVenue ?? (isBackendEnabled() ? undefined : VENUES.find((v) => v.id === id));
+  useCityReconcile(venue?.city, venue ? venuePath(venue.city, venue.id) : undefined);
   const liveSeo = useEntitySeo('venue', id);
   useSeo(liveSeo, venue?.name, venue?.logoUrl);
   useJsonLd(venue ? buildVenueSchema(venue) : null);
   useJsonLd(
     venue
       ? buildBreadcrumbSchema([
-          { name: 'Home', path: '/' },
-          { name: 'Venues', path: '/venues' },
-          { name: venue.name, path: `/venues/${venue.id}` },
+          { name: 'Home', path: cityHome(venue.city) },
+          { name: 'Venues', path: cityVenues(venue.city) },
+          { name: venue.name, path: venuePath(venue.city, venue.id) },
         ])
       : null,
   );
@@ -134,7 +137,7 @@ export default function VenueDetail() {
                 {isFollowing ? 'Following ✓' : '+ Follow'}
               </button>
             )}
-            <ShareButton path={`/venues/${venue.id}`} />
+            <ShareButton path={venuePath(venue.city, venue.id)} />
           </div>
         </div>
 

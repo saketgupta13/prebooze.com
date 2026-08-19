@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CatalogService } from '../catalog/catalog.service';
 import { PrismaService } from '../prisma.service';
+import { toCitySlug } from '../common/city-slug';
 
 const SITE = 'https://prebooze.com';
 // Same fallback the client-side useSeo() uses (see prebooze-web/src/lib/useSeo.ts)
@@ -42,11 +43,12 @@ export class ShareService {
 
   async event(slug: string): Promise<ShareData> {
     const e = await this.catalog.event(slug);
+    const city = e.venue?.city ?? e.privateCity;
     return {
       title: e.title,
       description: truncate(stripHtml(e.description || ''), 200) || DEFAULT_DESCRIPTION,
       image: e.posterUrl || DEFAULT_IMAGE,
-      url: `${SITE}/events/${slug}`,
+      url: city ? `${SITE}/${toCitySlug(city)}/events/${slug}` : `${SITE}/events/${slug}`,
     };
   }
 
@@ -56,7 +58,7 @@ export class ShareService {
       title: v.name,
       description: truncate(stripHtml(v.about || ''), 200) || DEFAULT_DESCRIPTION,
       image: v.logoUrl || DEFAULT_IMAGE,
-      url: `${SITE}/venues/${id}`,
+      url: `${SITE}/${toCitySlug(v.city)}/venues/${id}`,
     };
   }
 
@@ -66,7 +68,7 @@ export class ShareService {
       title: o.brandName,
       description: truncate(stripHtml(o.about || ''), 200) || DEFAULT_DESCRIPTION,
       image: o.logoUrl || DEFAULT_IMAGE,
-      url: `${SITE}/organizers/${id}`,
+      url: `${SITE}/${toCitySlug(o.city)}/organizers/${id}`,
     };
   }
 
@@ -79,7 +81,7 @@ export class ShareService {
       title: p.name,
       description: truncate(stripHtml(p.bio || ''), 200) || DEFAULT_DESCRIPTION,
       image: DEFAULT_IMAGE,
-      url: `${SITE}/promoter/${slug}`,
+      url: `${SITE}/${toCitySlug(p.city)}/promoter/${slug}`,
     };
   }
 
@@ -89,7 +91,7 @@ export class ShareService {
       title: l.name,
       description: truncate(stripHtml(l.bio || ''), 200) || DEFAULT_DESCRIPTION,
       image: l.logoUrl || DEFAULT_IMAGE,
-      url: `${SITE}/lineup/${slug}`,
+      url: `${SITE}/${toCitySlug(l.city)}/lineup/${slug}`,
     };
   }
 

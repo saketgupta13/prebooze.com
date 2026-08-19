@@ -1,10 +1,12 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { Suspense, lazy, useEffect } from 'react';
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { useApp } from './store/AppContext';
 import { usePlatformInfo } from './lib/usePlatformInfo';
 import { useJsonLd } from './lib/useJsonLd';
 import { buildOrganizationSchema } from './lib/schema';
+import { useCityList } from './lib/useCityList';
+import { toCitySlug, cityHome, SITE_ORIGIN } from './lib/urls';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
@@ -117,6 +119,70 @@ const VenueLedger = lazy(() => import('./pages/venue/VenueLedger'));
 const VenueWithdraw = lazy(() => import('./pages/venue/VenueWithdraw'));
 const NotFound = lazy(() => import('./pages/static/NotFound'));
 
+/** The 13 city-scoped discovery routes, declared once and rendered twice
+ * below — nested under /:city (the real, canonical shape) and again at the
+ * bare top level (back-compat for already-indexed/bookmarked unprefixed
+ * links, see LegacyCityRedirect and each entity page's useCityReconcile). */
+type CityRouteEntry =
+  | { kind: 'listing'; path: string; Component: ComponentType }
+  | { kind: 'entity'; path: string; Component: ComponentType };
+
+const CITY_ROUTES: CityRouteEntry[] = [
+  { kind: 'listing', path: '', Component: Home },
+  { kind: 'listing', path: 'browse', Component: Browse },
+  { kind: 'listing', path: 'categories', Component: Categories },
+  { kind: 'entity', path: 'events/:slug', Component: EventDetail },
+  { kind: 'listing', path: 'venues', Component: Venues },
+  { kind: 'entity', path: 'venues/:id', Component: VenueDetail },
+  { kind: 'listing', path: 'organizers', Component: Organizers },
+  { kind: 'entity', path: 'organizers/:id', Component: OrganizerProfile },
+  { kind: 'listing', path: 'promoters', Component: Promoters },
+  { kind: 'entity', path: 'promoter/:slug', Component: PromoterProfile },
+  { kind: 'listing', path: 'lineups', Component: Lineups },
+  { kind: 'entity', path: 'lineup/:slug', Component: LineupProfile },
+  { kind: 'listing', path: 'people', Component: People },
+];
+
+/** Resolves the URL's :city segment against the real, admin-managed city
+ * list and keeps AppContext's `city` state in sync with it — the single
+ * mechanism that makes every city-scoped page's existing
+ * catalog.events({city})/venues(city)/etc calls filter correctly, with zero
+ * changes needed to those pages themselves. */
+function CityScope() {
+  const { city: citySlugParam } = useParams<{ city: string }>();
+  const { city: contextCity, setCity } = useApp();
+  const { cities } = useCityList();
+  const match = cities?.find((c) => toCitySlug(c.name) === citySlugParam);
+
+  useEffect(() => {
+    if (match && match.name !== contextCity) setCity(match.name);
+  }, [match, contextCity, setCity]);
+
+  if (cities === null) return <PageLoader />;
+  // A real, non-empty city list that genuinely doesn't contain this slug
+  // means an invalid/typo'd city segment — bounce to a known-good one. An
+  // empty list (fetch failed, or offline mode with none seeded) can't
+  // distinguish "invalid" from "we just don't know yet," so render through
+  // rather than risk redirecting back to a city that will never resolve.
+  if (cities.length > 0 && !match) return <Navigate to={cityHome(contextCity)} replace />;
+
+  return <Outlet />;
+}
+
+/** Bare/legacy listing URLs (already-indexed or bookmarked before city
+ * prefixes existed) redirect to the visitor's last-known/default city —
+ * no data fetch needed, `city` is already synchronously available.
+ * Entity pages (events/:slug, venues/:id, etc.) deliberately do NOT use
+ * this — they render the real page directly and let useCityReconcile
+ * redirect based on the entity's OWN city once it loads, not the
+ * visitor's browsing city (see each entity page's useCityReconcile call). */
+function LegacyCityRedirect({ subpath }: { subpath: string }) {
+  const { city } = useApp();
+  const location = useLocation();
+  const to = `${cityHome(city)}${subpath ? '/' + subpath : ''}${location.search}`;
+  return <Navigate to={to} replace />;
+}
+
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useApp();
   const location = useLocation();
@@ -131,8 +197,6 @@ function ScrollToTop() {
   }, [pathname]);
   return null;
 }
-
-const SITE_ORIGIN = 'https://prebooze.com';
 
 /** Keeps <link rel="canonical"> in sync with the real route on every
  * navigation — index.html's copy was a single static tag (the homepage
@@ -198,17 +262,28 @@ export default function App() {
       <ChunkErrorBoundary>
       <Suspense fallback={<PageLoader />}>
       <Routes>
-        {/* Guest — discovery */}
-        <Route path="/" element={<Home />} />
-        <Route path="/browse" element={<Browse />} />
-        <Route path="/categories" element={<Categories />} />
-        <Route path="/events/:slug" element={<EventDetail />} />
-        <Route path="/venues" element={<Venues />} />
-        <Route path="/venues/:id" element={<VenueDetail />} />
-        <Route path="/organizers" element={<Organizers />} />
-        <Route path="/organizers/:id" element={<OrganizerProfile />} />
-        <Route path="/promoters" element={<Promoters />} />
-        <Route path="/people" element={<People />} />
+        {/* Guest — discovery, city-scoped (canonical /:city/... shape) */}
+        <Route path="/:city" element={<CityScope />}>
+          {CITY_ROUTES.map((r) =>
+            r.path === '' ? (
+              <Route key="home" index element={<r.Component />} />
+            ) : (
+              <Route key={r.path} path={r.path} element={<r.Component />} />
+            )
+          )}
+        </Route>
+
+        {/* Guest — discovery, bare/legacy unprefixed shape (back-compat for
+            already-indexed/bookmarked links — see LegacyCityRedirect and
+            useCityReconcile) */}
+        {CITY_ROUTES.map((r) =>
+          r.kind === 'entity' ? (
+            <Route key={'legacy-' + r.path} path={'/' + r.path} element={<r.Component />} />
+          ) : (
+            <Route key={'legacy-' + r.path} path={r.path ? '/' + r.path : '/'} element={<LegacyCityRedirect subpath={r.path} />} />
+          )
+        )}
+
         <Route path="/u/:username" element={<PersonProfile />} />
         <Route path="/testimonials" element={<Testimonials />} />
         <Route path="/r/:code" element={<ReferralLanding />} />
@@ -247,11 +322,8 @@ export default function App() {
             </RequireAuth>
           }
         />
-        <Route path="/lineups" element={<Lineups />} />
         <Route path="/lineup/onboarding" element={<LineupOnboarding />} />
-        <Route path="/lineup/:slug" element={<LineupProfile />} />
         <Route path="/promoter/onboarding" element={<PromoterOnboarding />} />
-        <Route path="/promoter/:slug" element={<PromoterProfile />} />
         <Route path="/p/:eventSlug/:promoterSlug" element={<GuestLanding />} />
         <Route path="/pass/:id" element={<GuestPass />} />
         <Route path="/vip/:id" element={<VipPass />} />

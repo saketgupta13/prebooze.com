@@ -8,6 +8,7 @@ import { isBackendEnabled } from '../api/client';
 import DirectoryCard from '../components/DirectoryCard';
 import DirectoryCardSkeleton from '../components/DirectoryCardSkeleton';
 import type { Person } from '../types';
+import { cityHome, eventPath } from '../lib/urls';
 
 /** Directory of followable guests — the social graph behind "Who's going".
  * Real, opt-in guests only (User.discoverable) — PEOPLE mock stays only as
@@ -51,7 +52,7 @@ export default function People() {
     <main className="page">
       <div className="container">
         <div className="breadcrumb">
-          <Link to="/">Home</Link> / People
+          <Link to={cityHome(city)}>Home</Link> / People
         </div>
 
         <div className="card" style={{ marginBottom: 18, padding: '22px 24px', background: 'rgba(155,225,61,.05)' }}>
@@ -109,7 +110,12 @@ export default function People() {
                         <span className="tag" style={{ borderColor: 'var(--accent)', color: 'var(--accent)', fontWeight: 700 }}>🔥 {common} in common</span>
                       )}
                       {going.slice(0, common > 0 ? 1 : 2).map((e) => (
-                        <Link key={e.id} to={`/events/${e.slug}`} className="tag" style={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🎟 {e.title}</Link>
+                        // Person.going only carries {id, slug, title} — no
+                        // city — so this links via the visitor's current
+                        // browsing city; EventDetail's useCityReconcile
+                        // self-corrects to the event's real city on load
+                        // if that guess was wrong, same as any legacy link.
+                        <Link key={e.id} to={eventPath(city, e.slug)} className="tag" style={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🎟 {e.title}</Link>
                       ))}
                     </div>
                   )}

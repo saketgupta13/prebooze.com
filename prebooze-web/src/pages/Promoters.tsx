@@ -7,6 +7,7 @@ import { isBackendEnabled } from '../api/client';
 import type { PromoterProfile } from '../types';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import DirectoryCard from '../components/DirectoryCard';
+import { cityHome, promoterPath } from '../lib/urls';
 
 /** Public directory of promoters in the selected city, ranked by show-up rate. */
 export default function Promoters() {
@@ -39,7 +40,7 @@ export default function Promoters() {
     <main className="page">
       <div className="container">
         <div className="breadcrumb">
-          <Link to="/">Home</Link> / Promoters
+          <Link to={cityHome(city)}>Home</Link> / Promoters
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Promoters in {city} 📣</h1>
         <p className="muted" style={{ marginBottom: 18 }}>
@@ -55,7 +56,7 @@ export default function Promoters() {
             return (
               <DirectoryCard
                 key={p.slug}
-                to={`/promoter/${p.slug}`}
+                to={promoterPath(p.city, p.slug)}
                 hue={p.hue}
                 avatarText="📣"
                 avatarImage={p.logoUrl}

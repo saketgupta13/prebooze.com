@@ -15,6 +15,8 @@ import { useSeo } from '../lib/useSeo';
 import { useEntitySeo } from '../lib/useEntitySeo';
 import { useJsonLd } from '../lib/useJsonLd';
 import { buildOrganizerSchema, buildBreadcrumbSchema } from '../lib/schema';
+import { useCityReconcile } from '../lib/useCityReconcile';
+import { organizerPath, cityHome, cityOrganizers } from '../lib/urls';
 import { formatLocation } from '../lib/formatLocation';
 
 export default function OrganizerProfile() {
@@ -39,15 +41,16 @@ export default function OrganizerProfile() {
   }, [id]);
 
   const org = liveOrg ?? (isBackendEnabled() ? undefined : ORGANIZERS.find((o) => o.id === id));
+  useCityReconcile(org?.city, org ? organizerPath(org.city, org.id) : undefined);
   const liveSeo = useEntitySeo('organizer', id);
   useSeo(liveSeo, org?.brandName, org?.logoUrl);
   useJsonLd(org ? buildOrganizerSchema(org) : null);
   useJsonLd(
     org
       ? buildBreadcrumbSchema([
-          { name: 'Home', path: '/' },
-          { name: 'Organizers', path: '/organizers' },
-          { name: org.brandName, path: `/organizers/${org.id}` },
+          { name: 'Home', path: cityHome(org.city) },
+          { name: 'Organizers', path: cityOrganizers(org.city) },
+          { name: org.brandName, path: organizerPath(org.city, org.id) },
         ])
       : null,
   );
@@ -122,7 +125,7 @@ export default function OrganizerProfile() {
                 {isFollowing ? 'Following ✓' : '+ Follow'}
               </button>
             )}
-            <ShareButton path={`/organizers/${org.id}`} />
+            <ShareButton path={organizerPath(org.city, org.id)} />
           </div>
         </div>
 

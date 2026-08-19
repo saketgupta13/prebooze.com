@@ -1,8 +1,7 @@
 import type { Event, Venue, Organizer, PromoterProfile, LineupProfile, CmsBlog } from '../types';
 import type { PlatformInfo } from '../api';
 import { stripHtml } from './richtext';
-
-const SITE_ORIGIN = 'https://prebooze.com';
+import { SITE_ORIGIN, absoluteUrl, eventCity, eventPath, venuePath, organizerPath, promoterPath, lineupPath } from './urls';
 
 /** Schema.org Event — what unlocks Google's dedicated event rich results
  * (event cards/carousels in search, sometimes a full "Things to do"
@@ -14,7 +13,8 @@ export function buildEventSchema(event: Event) {
   const venue = event.venue;
   const start = new Date(event.date);
   const end = new Date(start.getTime() + event.durationHrs * 60 * 60 * 1000);
-  const url = `${SITE_ORIGIN}/events/${event.slug}`;
+  const city = eventCity(event);
+  const url = city ? absoluteUrl(eventPath(city, event.slug)) : `${SITE_ORIGIN}/events/${event.slug}`;
 
   const location = venue
     ? {
@@ -64,7 +64,7 @@ export function buildEventSchema(event: Event) {
     location,
     offers: offers.length ? offers : undefined,
     organizer: event.organizer
-      ? { '@type': 'Organization', name: event.organizer.brandName, url: `${SITE_ORIGIN}/organizers/${event.organizer.id}` }
+      ? { '@type': 'Organization', name: event.organizer.brandName, url: absoluteUrl(organizerPath(event.organizer.city, event.organizer.id)) }
       : undefined,
   };
 }
@@ -112,7 +112,7 @@ export function buildVenueSchema(venue: Venue) {
     '@type': 'LocalBusiness',
     name: venue.name,
     description: stripHtml(venue.about),
-    url: `${SITE_ORIGIN}/venues/${venue.id}`,
+    url: absoluteUrl(venuePath(venue.city, venue.id)),
     image: venue.logoUrl || venue.galleryUrls?.[0] || undefined,
     address: {
       '@type': 'PostalAddress',
@@ -138,7 +138,7 @@ export function buildOrganizerSchema(organizer: Organizer) {
     '@type': 'Organization',
     name: organizer.brandName,
     description: stripHtml(organizer.about),
-    url: `${SITE_ORIGIN}/organizers/${organizer.id}`,
+    url: absoluteUrl(organizerPath(organizer.city, organizer.id)),
     logo: organizer.logoUrl || undefined,
     address: {
       '@type': 'PostalAddress',
@@ -164,7 +164,7 @@ export function buildPromoterSchema(promoter: PromoterProfile) {
     '@type': 'Organization',
     name: promoter.name,
     description: stripHtml(promoter.bio),
-    url: `${SITE_ORIGIN}/promoter/${promoter.slug}`,
+    url: absoluteUrl(promoterPath(promoter.city, promoter.slug)),
     logo: promoter.logoUrl || undefined,
     ...(sameAs.length ? { sameAs } : {}),
   };
@@ -182,7 +182,7 @@ export function buildLineupSchema(lineup: LineupProfile) {
     '@type': 'PerformingGroup',
     name: lineup.name,
     description: stripHtml(lineup.bio),
-    url: `${SITE_ORIGIN}/lineup/${lineup.slug}`,
+    url: absoluteUrl(lineupPath(lineup.city, lineup.slug)),
     image: lineup.logoUrl || undefined,
     address: {
       '@type': 'PostalAddress',

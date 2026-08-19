@@ -4,10 +4,15 @@ import { fmtDate, fmtTime, minPrice } from '../data/mock';
 import { useApp } from '../store/AppContext';
 import { goingCount } from '../lib/social';
 import { isFeatured } from '../lib/featured';
+import { eventCity, eventPath } from '../lib/urls';
 import Poster, { categoryEmoji } from './Poster';
 
 export default function EventCard({ event }: { event: Event }) {
-  const { featured, wishlist, toggleWishlist } = useApp();
+  const { featured, wishlist, toggleWishlist, city } = useApp();
+  // Falls back to the currently-browsed city only in the (shouldn't-happen)
+  // case an event has neither a venue nor privateCity set — every real
+  // event has exactly one of the two per the schema's own invariant.
+  const linkCity = eventCity(event) ?? city;
   // An event that's already happened can't be booked regardless of how
   // much inventory technically remains — reuses the same "sold out" pill
   // rather than a separate label, since both mean the same thing to a
@@ -18,7 +23,7 @@ export default function EventCard({ event }: { event: Event }) {
   const feat = isFeatured(featured, 'event', event.id);
   const saved = wishlist.includes(event.id);
   return (
-    <Link to={`/events/${event.slug}`} className="ecard" style={{ position: 'relative', ...(feat ? { borderColor: 'var(--accent)' } : {}) }}>
+    <Link to={eventPath(linkCity, event.slug)} className="ecard" style={{ position: 'relative', ...(feat ? { borderColor: 'var(--accent)' } : {}) }}>
       {feat && <span className="badge badge-accent" style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, zIndex: 2 }}>★ Featured</span>}
       <button
         aria-label={saved ? 'Remove from wishlist' : 'Add to wishlist'}

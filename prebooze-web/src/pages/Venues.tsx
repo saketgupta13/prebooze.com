@@ -6,6 +6,7 @@ import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Venue, Event } from '../types';
 import Poster from '../components/Poster';
+import { venuePath } from '../lib/urls';
 
 const TYPE_PLACEHOLDER = 'Venue type';
 // Offline fallback only — real vocabulary comes from GET /venue-types
@@ -84,7 +85,7 @@ export default function Venues() {
             const count = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter((e) => e.venueId === v.id && e.status === 'approved').length;
             const fav = favVenues.includes(v.id);
             return (
-              <Link key={v.id} to={`/venues/${v.id}`} className="ecard" style={{ position: 'relative' }}>
+              <Link key={v.id} to={venuePath(v.city, v.id)} className="ecard" style={{ position: 'relative' }}>
                 <button
                   aria-label={fav ? 'Remove favourite' : 'Add favourite'}
                   title={fav ? 'Remove favourite' : 'Favourite this venue'}

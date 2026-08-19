@@ -16,6 +16,8 @@ import { useSeo } from '../lib/useSeo';
 import { useEntitySeo } from '../lib/useEntitySeo';
 import { useJsonLd } from '../lib/useJsonLd';
 import { buildLineupSchema, buildBreadcrumbSchema } from '../lib/schema';
+import { useCityReconcile } from '../lib/useCityReconcile';
+import { lineupPath, cityHome, cityLineups } from '../lib/urls';
 
 /** Public line-up profile — artists, DJs, sponsors and promoters guests can follow. */
 export default function LineupProfile() {
@@ -38,15 +40,16 @@ export default function LineupProfile() {
   }, [slug]);
 
   const lineup = liveLineup ?? (isBackendEnabled() ? undefined : lineupBySlug(slug ?? ''));
+  useCityReconcile(lineup?.city, lineup ? lineupPath(lineup.city, lineup.slug) : undefined);
   const liveSeo = useEntitySeo('lineup', slug);
   useSeo(liveSeo, lineup?.name, lineup?.logoUrl);
   useJsonLd(lineup ? buildLineupSchema(lineup) : null);
   useJsonLd(
     lineup
       ? buildBreadcrumbSchema([
-          { name: 'Home', path: '/' },
-          { name: 'Line-ups', path: '/lineups' },
-          { name: lineup.name, path: `/lineup/${lineup.slug}` },
+          { name: 'Home', path: cityHome(lineup.city) },
+          { name: 'Line-ups', path: cityLineups(lineup.city) },
+          { name: lineup.name, path: lineupPath(lineup.city, lineup.slug) },
         ])
       : null,
   );
@@ -107,7 +110,7 @@ export default function LineupProfile() {
                 {isFollowing ? 'Following ✓' : '+ Follow'}
               </button>
             )}
-            <ShareButton path={`/lineup/${slug}`} />
+            <ShareButton path={lineupPath(lineup.city, lineup.slug)} />
           </div>
         </div>
 

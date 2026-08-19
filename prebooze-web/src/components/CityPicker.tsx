@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, TOP_CITIES, venueById } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
+import { toCitySlug } from '../lib/urls';
 
 interface CityRow { name: string; icon?: string; top: boolean; events: number }
 
@@ -12,6 +14,8 @@ export default function CityPicker({ open, onClose }: { open: boolean; onClose: 
   const [q, setQ] = useState('');
   const [detecting, setDetecting] = useState(false);
   const [geoMsg, setGeoMsg] = useState('');
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // Real, admin-managed city list (Admin > Locations) — icon/top/enabled and
   // a real per-city event count straight from GET /cities. Previously this
@@ -42,14 +46,32 @@ export default function CityPicker({ open, onClose }: { open: boolean; onClose: 
   const eventCounts = useMemo(() => new Map(cityRows.map((c) => [c.name, c.events])), [cityRows]);
   const filtered = allCities.filter((c) => c.toLowerCase().includes(q.toLowerCase()));
 
+  // Swaps the URL's city segment to match the new pick, but only when the
+  // current page actually has one — CityPicker is mounted in Header, a
+  // sibling of <Routes> rather than a descendant of the matched route, so
+  // useParams() here would always be {} regardless of the real route;
+  // checking the path's first segment against the live city list is what
+  // actually answers "is this page city-scoped." A non-city-scoped page
+  // (e.g. /wallet) keeps today's behavior — state-only, no navigation.
+  const navigateToCity = useCallback(
+    (c: string) => {
+      const [first, ...rest] = location.pathname.split('/').filter(Boolean);
+      const isCityScoped = first && cityRows.some((row) => toCitySlug(row.name) === first);
+      if (!isCityScoped) return;
+      navigate(`/${toCitySlug(c)}${rest.length ? '/' + rest.join('/') : ''}${location.search}`);
+    },
+    [location, navigate, cityRows]
+  );
+
   const pick = useCallback(
     (c: string) => {
       setCity(c);
       localStorage.setItem('pb_city_manual', '1');
       setQ('');
       onClose();
+      navigateToCity(c);
     },
-    [setCity, onClose]
+    [setCity, onClose, navigateToCity]
   );
 
   // Only ever called from the "Detect my location" button below — Lighthouse
@@ -76,6 +98,7 @@ export default function CityPicker({ open, onClose }: { open: boolean; onClose: 
             setCity(match);
             setGeoMsg(`📍 Detected ${match}`);
             onClose();
+            navigateToCity(match);
           } else {
             setGeoMsg(detected ? `No events in ${detected} yet — pick a city` : 'Couldn’t detect your city');
           }
@@ -90,7 +113,7 @@ export default function CityPicker({ open, onClose }: { open: boolean; onClose: 
       },
       { timeout: 8000 }
     );
-  }, [allCities, eventCounts, setCity, onClose]);
+  }, [allCities, eventCounts, setCity, onClose, navigateToCity]);
 
   if (!open) return null;
 
