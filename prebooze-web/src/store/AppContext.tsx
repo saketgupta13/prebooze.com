@@ -8,7 +8,7 @@ import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTea
 import { isBackendEnabled, setToken, clearToken, getToken } from '../api/client';
 import { track } from '../lib/track';
 import { pushEvent } from '../lib/gtm';
-import { trackMeta } from '../lib/meta';
+import { trackMeta, setAdvancedMatching } from '../lib/meta';
 
 export interface GuestReview {
   id: string;
@@ -580,6 +580,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (isBackendEnabled()) {
           const { token, user: apiUser, isNew } = await auth.verifyOtp(pendingRequestId, code);
           track('otp_verified');
+          // Deliberate Advanced Matching: a real WhatsApp OTP verification is
+          // a genuine consent moment, so re-init the pixel with the verified
+          // phone here for every login (new or returning) — improves match
+          // quality for every Meta event tracked afterward in this session,
+          // not just CompleteRegistration below.
+          setAdvancedMatching(apiUser.phone);
           // GA4 standard events — isNew distinguishes a first-time signup
           // from a returning login, same distinction the rest of the app
           // already makes off this same verifyOtp() response.
