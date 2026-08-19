@@ -44,7 +44,9 @@ export default function Promoters() {
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Promoters in {city} 📣</h1>
         <p className="muted" style={{ marginBottom: 18 }}>
-          Follow the crews with the best guest lists — free entry before the cutoff, always.
+          Promoters run free-entry guest lists for select events in {city} — sign up through their link before
+          the cutoff and skip the ticket price entirely. Follow a promoter to see which parties they're running
+          next and get notified before their lists fill up.
         </p>
 
         {loading && <div className="tiny muted">Loading…</div>}

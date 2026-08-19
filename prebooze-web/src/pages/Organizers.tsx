@@ -47,7 +47,10 @@ export default function Organizers() {
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Organizers in {city} 🎧</h1>
         <p className="muted" style={{ marginBottom: 18 }}>
-          Verified event brands — concerts, comedy, festivals and warehouse parties near you.
+          Every organizer listed here is KYC-verified before their first event goes live — no fake listings, no
+          last-minute cancellations from an unverified host. Browse concerts, comedy nights, festivals and club
+          events from real, accountable event brands in {city}, and follow the ones whose lineups you don't
+          want to miss.
         </p>
 
         {loading && <div className="tiny muted">Loading…</div>}

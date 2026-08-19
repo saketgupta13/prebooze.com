@@ -75,9 +75,13 @@ export default function Venues() {
           </select>
         </div>
 
-        <h1 style={{ fontSize: 21, marginBottom: 18 }}>
+        <h1 style={{ fontSize: 21, marginBottom: 4 }}>
           {venues.length} venue{venues.length === 1 ? '' : 's'} in <span className="accent">{city}</span>
         </h1>
+        <p className="muted" style={{ marginBottom: 18 }}>
+          From rooftop bars to warehouse clubs, every venue listed here hosts real, bookable events in {city}.
+          Browse by type and capacity, check what's coming up, and follow a venue to hear about its next event first.
+        </p>
         {loading && <div className="tiny muted" style={{ marginBottom: 12 }}>Loading…</div>}
 
         <div className="grid-3">

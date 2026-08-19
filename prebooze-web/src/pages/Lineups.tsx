@@ -39,7 +39,8 @@ export default function Lineups() {
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Line-ups in {city} 🎤</h1>
         <p className="muted" style={{ marginBottom: 18 }}>
-          Follow the artists, DJs and acts you love — catch them before their next set sells out.
+          DJs, bands, comedians and performers with upcoming shows in {city} — each profile links straight to
+          the events they're playing, so you can follow an act and catch their next set before it sells out.
         </p>
 
         <div className="chip-row" style={{ marginBottom: 18 }}>

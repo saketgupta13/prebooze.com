@@ -47,7 +47,9 @@ export default function Categories() {
         </div>
         <h1 style={{ fontSize: 26, marginBottom: 4 }}>Browse by category 🗂️</h1>
         <p className="muted" style={{ marginBottom: 22 }}>
-          Every kind of night out in <span className="accent bold">{city}</span> — pick a lane.
+          From live concerts and stand-up comedy to festivals and late-night club sets, every event in{' '}
+          <span className="accent bold">{city}</span> is organized into a category and sub-category so you can
+          jump straight to the kind of night you're after.
         </p>
 
         {categoriesLoading && <div className="tiny muted" style={{ marginBottom: 14 }}>Loading…</div>}
