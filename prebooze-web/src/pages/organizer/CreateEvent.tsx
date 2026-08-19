@@ -304,6 +304,7 @@ export default function CreateEvent() {
 
   const venue = venues.find((v) => v.id === venueId);
   const cityForSeo = venue?.city ?? (privateAddress ? privateCity : '');
+  const venuePhotosToAdd = (venue?.galleryUrls ?? []).filter((u) => !galleryUrls.includes(u));
   const setTier = (i: number, patch: Partial<TierDraft>) =>
     setTiers((prev) => prev.map((t, x) => (x === i ? { ...t, ...patch } : t)));
 
@@ -519,6 +520,16 @@ export default function CreateEvent() {
           </div>
           <div className="field">
             <span>Gallery photos (optional, up to 6)</span>
+            {!!venuePhotosToAdd.length && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ alignSelf: 'flex-start', marginBottom: 8 }}
+                onClick={() => setGalleryUrls((prev) => [...prev, ...venuePhotosToAdd].slice(0, 6))}
+              >
+                + Use {venue!.name}'s photos ({venuePhotosToAdd.length})
+              </button>
+            )}
             <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={organizer.upload} />
           </div>
           <div className="field">

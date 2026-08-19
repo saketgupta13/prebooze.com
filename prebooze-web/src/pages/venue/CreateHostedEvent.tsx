@@ -65,6 +65,11 @@ export default function CreateHostedEvent() {
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [teaserVideoUrl, setTeaserVideoUrl] = useState<string | null>(null);
+  // This event is always hosted at the venue's own address (see the
+  // no-venue-picker note below), so "the venue" for gallery-reuse purposes
+  // is just this venue's own listing — fetched once, not derived from a
+  // selection like the organizer flow's venuePicker.
+  const [ownVenueGallery, setOwnVenueGallery] = useState<string[]>([]);
 
   const [tiers, setTiers] = useState<TierDraft[]>(DEFAULT_TIERS);
 
@@ -112,12 +117,14 @@ export default function CreateHostedEvent() {
       venuePartner.collaboratorOptions(),
       catalog.categories(),
       editId ? venuePartner.hostedEvents().then((evs) => evs.find((e) => e.id === editId)) : Promise.resolve(undefined),
+      venuePartner.myListing().catch(() => null),
     ])
-      .then(([ls, ps, orgs, cats, ev]) => {
+      .then(([ls, ps, orgs, cats, ev, listing]) => {
         setLineups(ls);
         setPromoters(ps);
         setCollaborators(orgs);
         setCategories(cats);
+        setOwnVenueGallery(listing?.galleryUrls ?? []);
         const subsForCat = (cat: string) => cats.find((c) => c.name === cat)?.subs ?? [];
         if (!ev) setSubCategory(subsForCat(category)[0] ?? '');
         if (ev) {
@@ -240,6 +247,8 @@ export default function CreateHostedEvent() {
     }
   };
 
+  const venuePhotosToAdd = ownVenueGallery.filter((u) => !galleryUrls.includes(u));
+
   if (!ready) return <Loader />;
 
   return (
@@ -331,6 +340,16 @@ export default function CreateHostedEvent() {
         </div>
         <div className="field">
           <span>Gallery photos (optional, up to 6)</span>
+          {!!venuePhotosToAdd.length && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              style={{ alignSelf: 'flex-start', marginBottom: 8 }}
+              onClick={() => setGalleryUrls((prev) => [...prev, ...venuePhotosToAdd].slice(0, 6))}
+            >
+              + Use your venue's photos ({venuePhotosToAdd.length})
+            </button>
+          )}
           <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={venuePartner.upload} />
         </div>
         <div className="field">

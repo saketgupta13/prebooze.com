@@ -200,6 +200,8 @@ export default function EventEditorReal() {
   if (gate) return gate;
 
   const canSave = title.trim() && (privateAddress ? privateLoc.city && privateLocality.trim() : venueId) && organizerId && (isCreate ? dateTime.trim() : true);
+  const selectedVenue = venues.find((v) => v.id === venueId);
+  const venuePhotosToAdd = selectedVenue ? selectedVenue.galleryUrls.filter((u) => !galleryUrls.includes(u)) : [];
 
   const buildInput = (): Omit<LiveEventInput, 'id'> => ({
     organizerId,
@@ -531,7 +533,18 @@ export default function EventEditorReal() {
           </div>
 
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <b>Gallery photos (optional, up to 6)</b>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <b>Gallery photos (optional, up to 6)</b>
+              {!!venuePhotosToAdd.length && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setGalleryUrls((prev) => [...prev, ...venuePhotosToAdd].slice(0, 6))}
+                >
+                  + Use {selectedVenue!.name}'s photos ({venuePhotosToAdd.length})
+                </button>
+              )}
+            </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {galleryUrls.map((url, i) => (
                 <div key={i} style={{ position: 'relative' }}>
