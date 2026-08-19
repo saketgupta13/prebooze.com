@@ -1,26 +1,54 @@
 import ReelCard from './ReelCard';
 import { classifyVideoLink, instagramEmbedUrl, youtubeEmbedUrl } from '../lib/videoLink';
 
-/** Instagram's official embed.js widget needs a cross-origin postMessage
- * round-trip to resize itself, which is flaky outside a real logged-in
- * browser session (can silently render nothing, with no JS-visible error to
- * react to) — so this iframes Instagram's own canonical embed page directly
- * at a fixed size instead, the same way the YouTube case below does.
- * Whether Instagram actually renders the reel inside that iframe isn't
- * something we can detect (cross-origin — no access to the frame's
- * content), so the "open on Instagram" link stays visible underneath rather
- * than only appearing on a failure we can't reliably observe. */
+/** Instagram's public embed has no chrome-free mode — the iframe always
+ * carries their own post card (profile header, likes/comments row), by
+ * design, for attribution. Rather than let that white, Instagram-styled
+ * card float directly on this page's dark background (looks like a foreign
+ * element dropped in place), it sits inside our own dark, rounded frame —
+ * reads as a deliberate module, the same way a printed photo sits in a
+ * mat and frame instead of loose on the wall. Uses Instagram's own
+ * canonical embed page directly (skipping their embed.js widget, which
+ * needs a cross-origin postMessage round-trip to resize and is flaky
+ * outside a real logged-in browser session) at a fixed size instead, the
+ * same way the YouTube case below does. */
 function InstagramEmbed({ url, title }: { url: string; title: string }) {
   const embedSrc = instagramEmbedUrl(url);
+  if (!embedSrc) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
+        View reel on Instagram ↗
+      </a>
+    );
+  }
   return (
-    <div style={{ width: '100%', maxWidth: 328, display: 'flex', flexDirection: 'column', gap: 6 }}>
-      {embedSrc && (
-        <div style={{ width: '100%', aspectRatio: '9 / 16', borderRadius: 12, overflow: 'hidden', background: 'var(--surface-2)' }}>
-          <iframe src={embedSrc} title={title} style={{ width: '100%', height: '100%', border: 0 }} allow="autoplay; encrypted-media" />
-        </div>
-      )}
-      <a href={url} target="_blank" rel="noopener noreferrer" className={embedSrc ? 'tiny muted' : 'btn btn-ghost btn-sm'}>
-        {embedSrc ? 'Open on Instagram ↗' : 'View reel on Instagram ↗'}
+    <div
+      style={{
+        width: '100%',
+        maxWidth: 300,
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-m)',
+        padding: 10,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+      }}
+    >
+      {/* Not locked to the 9:16 video aspect ratio like the direct-file/
+          YouTube cases — Instagram's card includes its header and
+          like/comment row above and below the video, so a strict video-only
+          box would clip that content. This height comfortably fits a
+          typical reel's card without an internal scrollbar for most posts. */}
+      <div style={{ width: '100%', height: 540, borderRadius: 8, overflow: 'hidden', background: 'var(--surface-2)' }}>
+        <iframe src={embedSrc} title={title} style={{ width: '100%', height: '100%', border: 0 }} allow="autoplay; encrypted-media" />
+      </div>
+      {/* Whether Instagram actually rendered the reel inside that iframe
+          isn't something we can detect (cross-origin — no access to the
+          frame's content), so this stays visible either way rather than
+          only appearing on a failure we can't reliably observe. */}
+      <a href={url} target="_blank" rel="noopener noreferrer" className="tiny muted" style={{ textAlign: 'center' }}>
+        Open on Instagram ↗
       </a>
     </div>
   );
