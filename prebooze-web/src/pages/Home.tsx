@@ -15,6 +15,7 @@ import DirectoryCard from '../components/DirectoryCard';
 import DirectoryCardSkeleton from '../components/DirectoryCardSkeleton';
 import Slider from '../components/Slider';
 import Poster from '../components/Poster';
+import ReelCard from '../components/ReelCard';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
 import { useSeo } from '../lib/useSeo';
@@ -90,45 +91,6 @@ const HOW: Record<'guests' | 'organizers' | 'promoters' | 'lineups' | 'venues', 
     ],
   },
 };
-
-/** Poster-first, tap-to-play — a reel's actual video only starts
- * downloading once a guest taps it, instead of every reel in the slider
- * autoplaying (and fetching its full video) the instant the homepage
- * loads. posterUrl is a real server-generated first-frame JPEG (see
- * StorageService.processVideo); reels published before that existed fall
- * back to a tap-to-load play button with no image. */
-function ReelCard({ reel }: { reel: { id: string; title: string; hue: number; videoUrl: string | null; posterUrl: string | null } }) {
-  const [playing, setPlaying] = useState(false);
-
-  if (!reel.videoUrl) return <Poster hue={reel.hue} emoji="▶" label={reel.title} variant="reel" />;
-
-  if (playing) {
-    return (
-      <video
-        className="poster reel"
-        src={reel.videoUrl}
-        poster={reel.posterUrl ?? undefined}
-        autoPlay
-        muted
-        loop
-        playsInline
-        title={reel.title}
-      />
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className="poster reel reel-cover"
-      onClick={() => setPlaying(true)}
-      aria-label={`Play ${reel.title}`}
-      style={reel.posterUrl ? { backgroundImage: `url(${reel.posterUrl})` } : undefined}
-    >
-      <span className="reel-play">▶</span>
-    </button>
-  );
-}
 
 function EventCardSkeleton() {
   return (

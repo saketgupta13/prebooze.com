@@ -14,9 +14,24 @@ export class CatalogController {
     return this.catalog.events({ ...q, includePast: q.includePast === 'true' });
   }
 
+  /** `preview` is a short-lived, event-scoped token issued by
+   * OrganizerService.adminPreviewLink (Admin > Events > "Preview") — decoded
+   * here rather than behind a guard, same "public route, an optional token
+   * just relaxes what it returns" shape as people()/person() below. An
+   * invalid/expired/wrong-event token just falls back to the normal
+   * approved-only visibility, never widens it further than that one event. */
   @Get('events/:slug')
-  event(@Param('slug') slug: string) {
-    return this.catalog.event(slug);
+  async event(@Param('slug') slug: string, @Query('preview') preview?: string) {
+    let previewEventId: string | undefined;
+    if (preview) {
+      try {
+        const payload = await this.jwt.verifyAsync(preview);
+        if (payload.purpose === 'event-preview' && payload.eventId) previewEventId = payload.eventId;
+      } catch {
+        // invalid/expired preview token — falls back to approved-only
+      }
+    }
+    return this.catalog.event(slug, previewEventId);
   }
 
   @Get('venues')

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ClipboardEvent } from 'react';
 
 const INLINE_BTN: { cmd: string; label: string; title: string }[] = [
   { cmd: 'bold', label: 'B', title: 'Bold' },
@@ -100,6 +101,22 @@ export default function WysiwygEditor({ value, onChange, minHeight = 160 }: {
     onChange(ref.current.innerHTML);
   };
 
+  // Pasting from an external page/doc brings its own inline styles along
+  // for the ride (background colors, fonts, absolute font sizes) — the
+  // browser's default paste inserts the clipboard's HTML fragment as-is,
+  // and this editor has no CSS scoping that would contain it. Forcing a
+  // plain-text paste (still perfectly usable — this toolbar's own
+  // bold/italic/list/heading commands work as normal afterward) is what
+  // every mainstream editor does specifically to prevent this, since
+  // there's no reliable middle ground between "keep everything" and "keep
+  // nothing" when the source page's styles are arbitrary and unknown.
+  const onPaste = (e: ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+    handleInput();
+  };
+
   const addLink = () => {
     const url = window.prompt('Link URL');
     if (url) exec('createLink', url);
@@ -172,6 +189,7 @@ export default function WysiwygEditor({ value, onChange, minHeight = 160 }: {
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
+        onPaste={onPaste}
         onKeyUp={refreshActive}
         onMouseUp={refreshActive}
         onFocus={refreshActive}

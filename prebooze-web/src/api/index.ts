@@ -130,7 +130,7 @@ export const leadDraft = {
 // ---------- discovery ----------
 export const catalog = {
   events: (q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string; includePast?: boolean }) => apiFetch<Event[]>('/events', { query: q }),
-  event: (slug: string) => apiFetch<Event>(`/events/${slug}`),
+  event: (slug: string, preview?: string) => apiFetch<Event>(`/events/${slug}`, { query: { preview } }),
   venues: (city?: string) => apiFetch<Venue[]>('/venues', { query: { city } }),
   venue: (id: string) => apiFetch<Venue>(`/venues/${id}`),
   venueSeo: (id: string) => apiFetch<{ title: string; description: string; keywords: string }>(`/venues/${id}/seo`),

@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import type { Prisma } from '@prisma/client';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
@@ -69,6 +70,7 @@ export class OrganizerService {
     private guestListSvc: GuestListService,
     private liveMonitorSvc: LiveMonitorService,
     private orgAccess: OrgAccessService,
+    private jwt: JwtService,
   ) {}
 
   /** Any team member (any role) can call this for basic org display context
@@ -947,6 +949,21 @@ export class OrganizerService {
       }).catch(() => {});
     }
     return updated;
+  }
+
+  /** Lets a staffer see a pending/draft event exactly as it'll look once
+   * approved, without actually approving it first — CatalogService.event()
+   * otherwise 404s anything that isn't `approved` for everyone, guest and
+   * staff alike (that route has no auth at all). Short-lived and scoped to
+   * this one event id only (not a general "see any event" bypass) —
+   * verified by CatalogController against the real event it resolves,
+   * not just decoded and trusted. */
+  async adminPreviewLink(eventId: string) {
+    const event = await this.prisma.event.findUnique({ where: { id: eventId }, select: { slug: true } });
+    if (!event) throw new NotFoundException('Event not found');
+    const token = await this.jwt.signAsync({ eventId, purpose: 'event-preview' }, { expiresIn: '2h' });
+    const base = (process.env.WEB_APP_URL ?? '').replace(/\/$/, '');
+    return { url: `${base}/events/${event.slug}?preview=${token}` };
   }
 
   // ---------- admin: per-event commission + payout flag (Reports slice) ----------

@@ -142,13 +142,15 @@ export class CatalogService {
    * though nobody can book it anymore; the booking UI itself is what
    * disables purchasing for a finished event, not a 404 here. Draft/
    * pending/rejected events still 404 for anyone who isn't meant to see
-   * them at all, regardless of date. */
-  async event(slug: string) {
+   * them at all, regardless of date — unless `previewEventId` (a staff
+   * preview token CatalogController already verified) names this exact
+   * event, letting a staffer see it exactly as it'll look once approved. */
+  async event(slug: string, previewEventId?: string) {
     const event = await this.prisma.event.findUnique({
       where: { slug },
       select: PUBLIC_EVENT_SELECT,
     });
-    if (!event || event.status !== 'approved') {
+    if (!event || (event.status !== 'approved' && event.id !== previewEventId)) {
       throw new NotFoundException('Event not found');
     }
     const recentActivity = await this.recentBookingActivity(event.id);

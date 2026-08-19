@@ -297,6 +297,19 @@ export default function EventEditorReal() {
     if (!existing) return;
     try { setExisting(await liveEvents.setSalesPaused(existing.id, !existing.salesPaused)); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed'); }
   };
+  const [previewing, setPreviewing] = useState(false);
+  const preview = async () => {
+    if (!existing) return;
+    setPreviewing(true);
+    try {
+      const { url } = await liveEvents.previewLink(existing.id);
+      window.open(url, '_blank', 'noopener');
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to build preview link');
+    } finally {
+      setPreviewing(false);
+    }
+  };
   const patchTier = (i: number, p: Partial<TierDraft>) => setTiers((prev) => prev.map((t, x) => (x === i ? { ...t, ...p } : t)));
   const patchRule = (i: number, p: Partial<RuleDraft>) => setRules((prev) => prev.map((r, x) => (x === i ? { ...r, ...p } : r)));
 
@@ -308,6 +321,11 @@ export default function EventEditorReal() {
         <Link to="/events" style={{ fontSize: 13 }}>← Events</Link>
         <h1 className="display" style={{ fontSize: 18 }}>{isCreate ? 'Create event' : title}</h1>
         {existing && <span className="tag">{existing.status}</span>}
+        {existing && (
+          <button className="btn btn-ghost btn-sm" disabled={previewing} onClick={preview}>
+            {previewing ? 'Opening…' : 'Preview ↗'}
+          </button>
+        )}
         <div style={{ flex: 1 }} />
         <span className="tiny muted">signed in as {session.staffName || 'staff'}</span>
         <button className="btn btn-ghost btn-sm" onClick={session.logout}>Sign out</button>
@@ -538,6 +556,13 @@ export default function EventEditorReal() {
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <b>Teaser reel (optional)</b>
             <RealVideoUpload value={teaserVideoUrl || null} onChange={setTeaserVideoUrl} label="⬆ teaser video · 9:16" />
+            <div className="tiny hint">Upload a file, or paste a direct video link below instead.</div>
+            <input
+              className="input"
+              placeholder="https://... direct .mp4 link"
+              value={teaserVideoUrl}
+              onChange={(e) => setTeaserVideoUrl(e.target.value)}
+            />
             <div className="tiny hint">Optional — a short vertical clip, plays on the guest event page.</div>
           </div>
 
@@ -561,7 +586,7 @@ export default function EventEditorReal() {
       {tab === 'rules' && (
         <div className="stack" style={{ gap: 14 }}>
           <div className="field">
-            <label>Event conditions (one per line — bullets on the guest page)</label>
+            <label>Know before you go (one per line — bullets on the guest page)</label>
             <textarea className="input" style={{ minHeight: 120, resize: 'vertical' }} value={conditions} onChange={(e) => setConditions(e.target.value)} placeholder={'Photo ID required\nNo re-entry'} />
           </div>
           <div>

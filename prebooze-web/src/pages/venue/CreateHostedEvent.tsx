@@ -8,6 +8,7 @@ import SearchableSelect from '../../components/SearchableSelect';
 import { RealUploadBox, RealGalleryUploadBox, RealVideoUploadBox } from '../../components/RealUploadBox';
 import { venuePartner, catalog, type VenueCollaboratorOption } from '../../api';
 import { ApiError } from '../../api/client';
+import { stripHtml } from '../../lib/richtext';
 
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
 
@@ -221,7 +222,7 @@ export default function CreateHostedEvent() {
     })),
     seo: {
       title: seoTitle || `${title} | tickets`,
-      description: seoDesc || description.slice(0, 160),
+      description: seoDesc || stripHtml(description).slice(0, 160),
       slug,
       keywords: [],
     },
@@ -335,6 +336,13 @@ export default function CreateHostedEvent() {
         <div className="field">
           <span>Teaser reel (optional)</span>
           <RealVideoUploadBox value={teaserVideoUrl} onChange={setTeaserVideoUrl} upload={venuePartner.upload} label="⬆ teaser video · 9:16" />
+          <input
+            className="input"
+            placeholder="or paste a direct video link (.mp4)"
+            value={teaserVideoUrl ?? ''}
+            onChange={(e) => setTeaserVideoUrl(e.target.value || null)}
+            style={{ marginTop: 8 }}
+          />
         </div>
       </div>
 

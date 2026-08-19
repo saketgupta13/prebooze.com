@@ -264,6 +264,12 @@ export class AdminEventsController {
   setPoster(@Param('id') id: string, @Body('posterUrl') posterUrl: string | null) {
     return this.organizer.adminSetPoster(id, posterUrl);
   }
+
+  @Get(':id/preview-link')
+  @RequirePermission('Events & approvals', 'view')
+  previewLink(@Param('id') id: string) {
+    return this.organizer.adminPreviewLink(id);
+  }
 }
 
 /** Public VIP/guest-list pass fetch — same "no auth, fetch by id" shape as

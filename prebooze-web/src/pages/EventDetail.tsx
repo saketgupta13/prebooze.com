@@ -28,6 +28,7 @@ import { trackMeta } from '../lib/meta';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { useIsMobile } from '../lib/useIsMobile';
 import Poster, { categoryEmoji } from '../components/Poster';
+import ReelCard from '../components/ReelCard';
 import { PageLoader } from '../components/Loader';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
@@ -60,6 +61,8 @@ export default function EventDetail() {
   // an organizer that has real reviews, before liveReviews caught up.
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
+  const previewToken = params.get('preview') ?? undefined;
+
   useEffect(() => {
     if (!isBackendEnabled() || !slug) return;
     // Guards against a stale response landing after a newer one (or after
@@ -70,7 +73,7 @@ export default function EventDetail() {
     let cancelled = false;
     setLoaded(false);
     catalog
-      .event(slug)
+      .event(slug, previewToken)
       .then((e) => {
         if (cancelled) return;
         setLiveEvent(e);
@@ -84,7 +87,7 @@ export default function EventDetail() {
       .finally(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [slug, previewToken]);
 
   // Event.lineup is a free-form {name, role}[] JSON blob, not a real
   // relation — lineupByName (the mock lookup below) only ever matched the
@@ -261,6 +264,11 @@ export default function EventDetail() {
   return (
     <main className={`page ${isMobile ? 'event-detail-page-mobile' : ''}`}>
       <div className="container">
+        {previewToken && event.status !== 'approved' && (
+          <div style={{ background: 'var(--accent)', color: '#fff', padding: '10px 16px', borderRadius: 8, marginBottom: 16, fontWeight: 600 }}>
+            Preview mode — this event is {event.status} and isn't visible to guests yet.
+          </div>
+        )}
         <div className="breadcrumb">
           <Link to="/browse">Events</Link> / {event.title}
         </div>
@@ -403,19 +411,17 @@ export default function EventDetail() {
           </div>
 
           <div className="detail-rest">
-            {/* Teaser reel */}
+            {/* Teaser reel — same poster-first tap-to-play card as the
+                homepage's "Live reels" strip, so a guest sees one
+                consistent reel UX site-wide. */}
             {event.teaserVideoUrl && (
               <section className="section">
                 <div className="section-hd">
                   <h2>Teaser</h2>
                 </div>
-                <video
-                  src={event.teaserVideoUrl}
-                  controls
-                  muted
-                  playsInline
-                  style={{ width: '100%', maxWidth: 260, aspectRatio: '9 / 16', borderRadius: 12, background: 'var(--surface-2)', display: 'block' }}
-                />
+                <div style={{ width: '100%', maxWidth: 260 }}>
+                  <ReelCard reel={{ id: event.id, title: event.title, hue: event.posterHue, videoUrl: event.teaserVideoUrl, posterUrl: null }} />
+                </div>
               </section>
             )}
 
@@ -444,7 +450,7 @@ export default function EventDetail() {
             {event.conditions.length > 0 && (
               <section className="section">
                 <div className="section-hd">
-                  <h2>Event conditions</h2>
+                  <h2>Know before you go</h2>
                 </div>
                 <ul style={{ paddingLeft: 20, color: 'var(--muted)', fontSize: 14, display: 'grid', gap: 6 }}>
                   {event.conditions.map((c) => (

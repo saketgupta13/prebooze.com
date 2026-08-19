@@ -253,6 +253,7 @@ export const liveEvents = {
   setPaidOut: (id: string, paidOut: boolean) => liveFetch<LiveEvent>(`/admin/events/${id}/paid-out`, { method: 'PATCH', body: { paidOut } }),
   setSalesPaused: (id: string, paused: boolean) => liveFetch<LiveEvent>(`/admin/events/${id}/pause-sales`, { method: 'PATCH', body: { paused } }),
   setPoster: (id: string, posterUrl: string | null) => liveFetch<LiveEvent>(`/admin/events/${id}/poster`, { method: 'PATCH', body: { posterUrl } }),
+  previewLink: (id: string) => liveFetch<{ url: string }>(`/admin/events/${id}/preview-link`),
 };
 
 export const liveMedia = {

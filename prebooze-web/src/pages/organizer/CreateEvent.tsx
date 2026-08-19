@@ -11,6 +11,7 @@ import SearchableSelect from '../../components/SearchableSelect';
 import { RealUploadBox, RealGalleryUploadBox, RealVideoUploadBox } from '../../components/RealUploadBox';
 import { organizer, catalog } from '../../api';
 import { ApiError } from '../../api/client';
+import { stripHtml } from '../../lib/richtext';
 
 const STEPS = ['1 Basics', '2 Media', '3 Tickets', '4 Rules & line-up', '5 Promoters', '6 SEO & publish'];
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
@@ -267,7 +268,7 @@ export default function CreateEvent() {
     })),
     seo: {
       title: seoTitle || `${title} | tickets`,
-      description: seoDesc || description.slice(0, 160),
+      description: seoDesc || stripHtml(description).slice(0, 160),
       slug,
       keywords: seoKeywords.split(',').map((s) => s.trim()).filter(Boolean),
     },
@@ -523,6 +524,13 @@ export default function CreateEvent() {
           <div className="field">
             <span>Teaser reel (optional)</span>
             <RealVideoUploadBox value={teaserVideoUrl} onChange={setTeaserVideoUrl} upload={organizer.upload} label="⬆ teaser video · 9:16" />
+            <input
+              className="input"
+              placeholder="or paste a direct video link (.mp4)"
+              value={teaserVideoUrl ?? ''}
+              onChange={(e) => setTeaserVideoUrl(e.target.value || null)}
+              style={{ marginTop: 8 }}
+            />
           </div>
           <div className="form-row">
             <div className="field">
@@ -889,7 +897,7 @@ export default function CreateEvent() {
               {seoTitle || `${title || 'Your event'} | ${cityForSeo} tickets`}
             </div>
             <div style={{ color: '#4fd394', fontSize: 12 }}>prebooze.com/events/{slug || 'your-event'}</div>
-            <div className="muted small">{seoDesc || description.slice(0, 140) || 'Meta description preview…'}</div>
+            <div className="muted small">{seoDesc || stripHtml(description).slice(0, 140) || 'Meta description preview…'}</div>
           </div>
 
           <Accordion title="What happens after submit?">
