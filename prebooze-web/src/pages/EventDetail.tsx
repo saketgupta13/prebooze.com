@@ -413,50 +413,17 @@ export default function EventDetail() {
           </div>
 
           <div className="detail-rest">
-            {/* Teaser reel — same poster-first tap-to-play card as the
-                homepage's "Live reels" strip, so a guest sees one
-                consistent reel UX site-wide. */}
-            {event.teaserVideoUrl && (
+            {/* Event rules */}
+            {event.rules.length > 0 && (
               <section className="section">
                 <div className="section-hd">
-                  <h2>Teaser</h2>
+                  <h2>Event rules</h2>
                 </div>
-                <TeaserReel url={event.teaserVideoUrl} title={event.title} hue={event.posterHue} />
-              </section>
-            )}
-
-            {/* Gallery */}
-            {!!event.galleryUrls?.length && (
-              <section className="section">
-                <div className="section-hd">
-                  <h2>Gallery</h2>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
-                  {event.galleryUrls.map((url, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setGalleryIndex(i)}
-                      style={{ padding: 0, border: 0, background: 'none', cursor: 'pointer', font: 'inherit' }}
-                    >
-                      <img
-                        src={url}
-                        alt={`${event.title} photo ${i + 1}`}
-                        loading="lazy"
-                        style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)', display: 'block' }}
-                      />
-                    </button>
-                  ))}
-                </div>
-                {galleryIndex !== null && (
-                  <ImageLightbox
-                    images={event.galleryUrls}
-                    index={galleryIndex}
-                    onClose={() => setGalleryIndex(null)}
-                    onNavigate={setGalleryIndex}
-                    alt={(i) => `${event.title} photo ${i + 1}`}
-                  />
-                )}
+                {event.rules.map((r, i) => (
+                  <Accordion key={r.title} title={r.title} defaultOpen={i === 0}>
+                    {r.body}
+                  </Accordion>
+                ))}
               </section>
             )}
 
@@ -471,20 +438,6 @@ export default function EventDetail() {
                     <li key={c}>{c}</li>
                   ))}
                 </ul>
-              </section>
-            )}
-
-            {/* Event rules */}
-            {event.rules.length > 0 && (
-              <section className="section">
-                <div className="section-hd">
-                  <h2>Event rules</h2>
-                </div>
-                {event.rules.map((r, i) => (
-                  <Accordion key={r.title} title={r.title} defaultOpen={i === 0}>
-                    {r.body}
-                  </Accordion>
-                ))}
               </section>
             )}
 
@@ -521,6 +474,56 @@ export default function EventDetail() {
                     );
                   })}
                 </div>
+              </section>
+            )}
+
+            {/* Teaser reel — same poster-first tap-to-play card as the
+                homepage's "Live reels" strip, so a guest sees one
+                consistent reel UX site-wide. */}
+            {event.teaserVideoUrl && (
+              <section className="section">
+                <div className="section-hd">
+                  <h2>Teaser</h2>
+                </div>
+                <TeaserReel url={event.teaserVideoUrl} title={event.title} hue={event.posterHue} />
+              </section>
+            )}
+
+            {/* Gallery — auto-fit (not auto-fill) so a handful of photos
+                stretch to fill this wide column's full width instead of
+                staying pinned to their minmax floor with a row of empty
+                reserved-but-unused grid tracks beside them. */}
+            {!!event.galleryUrls?.length && (
+              <section className="section">
+                <div className="section-hd">
+                  <h2>Gallery</h2>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+                  {event.galleryUrls.map((url, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setGalleryIndex(i)}
+                      style={{ padding: 0, border: 0, background: 'none', cursor: 'pointer', font: 'inherit' }}
+                    >
+                      <img
+                        src={url}
+                        alt={`${event.title} photo ${i + 1}`}
+                        loading="lazy"
+                        style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)', display: 'block' }}
+                      />
+                    </button>
+                  ))}
+                </div>
+                {galleryIndex !== null && (
+                  <ImageLightbox
+                    images={event.galleryUrls}
+                    index={galleryIndex}
+                    onClose={() => setGalleryIndex(null)}
+                    onNavigate={setGalleryIndex}
+                    alt={(i) => `${event.title} photo ${i + 1}`}
+                  />
+                )}
               </section>
             )}
 
