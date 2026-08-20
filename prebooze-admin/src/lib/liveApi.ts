@@ -219,7 +219,10 @@ export interface LiveEvent {
 }
 export interface LiveEventInput {
   id?: string;
-  organizerId: string;
+  // Optional only when editing an event that's already legitimately
+  // venue-hosted (Event.hostedByVenue, no organizer by design) — required
+  // for a new event or any organizer-run one.
+  organizerId?: string;
   title: string;
   description?: string;
   category?: string;

@@ -244,7 +244,7 @@ export class OrganizerService {
    * upsertEvent and AdminEventsController's admin "god mode" create/edit
    * (see adminUpsertEvent below) — same merge-not-replace semantics either
    * way, just a different source of truth for organizerId/ownership. */
-  private async saveEvent(organizerId: string, organizerBrandName: string, input: EventInput) {
+  private async saveEvent(organizerId: string | null, organizerBrandName: string, input: EventInput) {
     if (!input.title?.trim()) throw new BadRequestException('title is required');
 
     let eventId = input.id;
@@ -351,12 +351,23 @@ export class OrganizerService {
    * (commission/paid-out/pause-sales/poster) existed before this. Unlike
    * the organizer path, there's no ownership check — admin can create or
    * edit any organizer's event directly, same "god mode" reasoning as the
-   * rest of the directory CRUD slice. */
-  async adminUpsertEvent(input: EventInput & { organizerId: string }) {
-    if (!input.organizerId) throw new BadRequestException('organizerId is required');
-    const org = await this.prisma.organizer.findUnique({ where: { id: input.organizerId } });
-    if (!org) throw new BadRequestException('Unknown organizer');
-    return this.saveEvent(org.id, org.brandName, input);
+   * rest of the directory CRUD slice.
+   *
+   * organizerId is only optional when editing an event that's already
+   * legitimately venue-hosted (Event.hostedByVenue, no organizer by
+   * design — see VenueHostedEvents) — admin can still touch its title,
+   * copy, tickets etc. without being forced to misrepresent it as
+   * organizer-run by picking one. Creating a new event, or editing any
+   * organizer-run one, still requires a real organizerId. */
+  async adminUpsertEvent(input: EventInput & { organizerId?: string }) {
+    if (input.organizerId) {
+      const org = await this.prisma.organizer.findUnique({ where: { id: input.organizerId } });
+      if (!org) throw new BadRequestException('Unknown organizer');
+      return this.saveEvent(org.id, org.brandName, input);
+    }
+    const existing = input.id ? await this.prisma.event.findUnique({ where: { id: input.id }, select: { hostedByVenue: true } }) : null;
+    if (!existing?.hostedByVenue) throw new BadRequestException('organizerId is required');
+    return this.saveEvent(null, 'the venue', input);
   }
 
   /** All validation runs first, against the full incoming `tiers` array,

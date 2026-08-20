@@ -199,12 +199,16 @@ export default function EventEditorReal() {
   const gate = useLiveGate(isCreate ? 'Create event (live)' : `Edit event (live)`, session);
   if (gate) return gate;
 
-  const canSave = title.trim() && (privateAddress ? privateLoc.city && privateLocality.trim() : venueId) && organizerId && (isCreate ? dateTime.trim() : true);
+  // Organizer is only optional when editing an event that's already
+  // legitimately venue-hosted (existing.hostedByVenue) — creating a new
+  // event, or editing an organizer-run one, still needs one picked.
+  const requiresOrganizer = isCreate || !existing?.hostedByVenue;
+  const canSave = title.trim() && (privateAddress ? privateLoc.city && privateLocality.trim() : venueId) && (!requiresOrganizer || organizerId) && (isCreate ? dateTime.trim() : true);
   const selectedVenue = venues.find((v) => v.id === venueId);
   const venuePhotosToAdd = selectedVenue ? selectedVenue.galleryUrls.filter((u) => !galleryUrls.includes(u)) : [];
 
   const buildInput = (): Omit<LiveEventInput, 'id'> => ({
-    organizerId,
+    organizerId: organizerId || undefined,
     title: title.trim(),
     description,
     category,
@@ -251,7 +255,7 @@ export default function EventEditorReal() {
 
   const save = async () => {
     if (!canSave) {
-      setErr('Title, a venue (or city + locality for a private event), organizer (and date, for a new event) are required');
+      setErr(`Title, a venue (or city + locality for a private event)${requiresOrganizer ? ', organizer' : ''} (and date, for a new event) are required`);
       setTab('basics');
       return;
     }
@@ -359,8 +363,8 @@ export default function EventEditorReal() {
       )}
       {existing?.hostedByVenue && (
         <div className="card" style={{ borderColor: 'var(--amber, #d99a2b)', color: 'var(--amber, #d99a2b)' }}>
-          🎪 This event is hosted by <b>{existing.venue?.name ?? 'a venue'}</b>, not a regular organizer. Approve/reject/commission/paid-out above are safe to use as normal, but the full "Save" form below requires
-          picking an organizer — only use it if you actually mean to attach this event to one.
+          🎪 This event is hosted by <b>{existing.venue?.name ?? 'a venue'}</b>, not a regular organizer. The "Save" form below works without picking one — only select an organizer if you actually mean to attach a
+          collaborating organizer to this event.
         </div>
       )}
 
