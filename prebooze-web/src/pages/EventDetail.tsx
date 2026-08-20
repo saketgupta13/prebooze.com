@@ -16,7 +16,7 @@ import { catalog, social, bookings as bookingsApi } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Event, LineupProfile, PromoterProfile, WaitlistEntry } from '../types';
 import type { GuestReview } from '../store/AppContext';
-import { goingCount, myStatus } from '../lib/social';
+import { goingCount, myStatus, showGoing } from '../lib/social';
 import { eventLocation } from '../lib/venue';
 import { existingRole, roleLabel } from '../lib/roles';
 import { stripHtml } from '../lib/richtext';
@@ -296,7 +296,7 @@ export default function EventDetail() {
                     )}
                   </span>
                   <span>⏱ {event.durationHrs} hrs</span>
-                  {going > 0 && (
+                  {showGoing(event) && (
                     <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
                       🔥 {going.toLocaleString('en-IN')} going
                       {event.recentActivity && ` · ${event.recentActivity.count} booked ${event.recentActivity.window === 'today' ? 'today' : 'this week'}`}
@@ -379,7 +379,9 @@ export default function EventDetail() {
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
                     <div style={{ minWidth: 0 }}>
-                      <div className="bold small">{going > 0 ? `${going.toLocaleString('en-IN')} going` : 'Be the first to go 👀'}</div>
+                      <div className="bold small">
+                        {showGoing(event) ? `${going.toLocaleString('en-IN')} going` : going === 0 ? 'Be the first to go 👀' : 'Guests are already going 👀'}
+                      </div>
                     </div>
                     <div style={{ flex: 1 }} />
                     {status === 'going' ? (

@@ -550,15 +550,25 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   padding-left: 3px; /* optically center the ▶ glyph */
 }
 
-.ecard { display: flex; flex-direction: column; gap: 8px; }
+.ecard { display: flex; flex-direction: column; gap: 8px; height: 100%; }
 .ecard:hover .poster { border-color: var(--muted-2); }
 .ecard-logo {
   position: absolute; left: 10px; top: 10px; width: 38px; height: 38px;
   border-radius: 50%; border: 2px solid var(--bg); object-fit: cover; z-index: 2;
 }
-.ecard h3 { font-size: 15px; }
+/* Wraps everything under the poster so its content can stretch — the price/
+   button row anchors to the bottom via margin-top:auto, keeping "Book now"
+   flush with the card edge regardless of how much the title wraps or
+   whether the going-count line is present above it. */
+.ecard-body { display: flex; flex-direction: column; flex: 1; }
+.ecard h3 {
+  font-size: 15px; line-height: 1.3; margin: 0;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; min-height: 2.6em;
+}
 .ecard .meta { font-size: 12.5px; color: var(--muted); }
-.ecard .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ecard .going { font-size: 12px; min-height: 17px; margin: 2px 0 4px; color: var(--muted-2); }
+.ecard .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 6px; }
 .ecard .price { font-size: 13px; font-weight: 700; color: var(--accent); }
 
 .section { margin: 34px 0; }

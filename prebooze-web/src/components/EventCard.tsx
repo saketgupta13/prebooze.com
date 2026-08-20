@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import type { Event } from '../types';
 import { fmtDate, fmtTime, minPrice } from '../data/mock';
 import { useApp } from '../store/AppContext';
-import { goingCount } from '../lib/social';
+import { goingCount, showGoing } from '../lib/social';
 import { isFeatured } from '../lib/featured';
 import { eventCity, eventPath } from '../lib/urls';
 import Poster, { categoryEmoji } from './Poster';
@@ -34,16 +34,14 @@ export default function EventCard({ event }: { event: Event }) {
         {saved ? '❤️' : '🤍'}
       </button>
       <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} label="Poster 3:4" imageUrl={event.posterUrl} alt={event.title} />
-      <div>
+      <div className="ecard-body">
         <h3>{event.title}</h3>
         <div className="meta">
           {fmtDate(event.date)}, {fmtTime(event.date)} · {event.durationHrs} hrs
         </div>
-        {going > 0 && (
-          <div className="tiny" style={{ margin: '2px 0 4px', color: 'var(--muted-2)' }}>
-            🔥 {going.toLocaleString('en-IN')} going
-          </div>
-        )}
+        <div className="going">
+          {showGoing(event) && <>🔥 {going.toLocaleString('en-IN')} going</>}
+        </div>
         <div className="row">
           <span className="price">from ₹{minPrice(event)}</span>
           <span className={`btn btn-sm ${soldOut ? 'btn-ghost' : 'btn-pri'}`}>

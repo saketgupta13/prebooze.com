@@ -13,6 +13,14 @@ export function goingCount(event: Event): number {
   return event.tiers.reduce((a, t) => a + t.sold, 0);
 }
 
+/** Hide the "N going" social-proof number for events that haven't earned
+ * it yet — a low count reads as "nobody wants this" and discourages
+ * booking, so it only shows once sales hit half of total capacity. */
+export function showGoing(event: Event): boolean {
+  const cap = event.tiers.reduce((a, t) => a + t.quantity, 0);
+  return cap > 0 && goingCount(event) / cap >= 0.5;
+}
+
 /** The current user's own relationship to an event. */
 export function myStatus(
   eventId: string,

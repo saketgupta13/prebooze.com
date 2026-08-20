@@ -130,6 +130,8 @@ function TestimonialSkeleton() {
   );
 }
 
+const HOME_EVENT_LIMIT = 8;
+
 const JOIN = [
   { icon: '🎤', title: 'Host events', desc: 'List your event, sell tickets, scan QR at the gate — payouts weekly.', cta: 'Host with us →', to: '/host' },
   { icon: '📣', title: 'Become a promoter', desc: 'Run guest lists with your own affiliate links and earn per head.', cta: 'Start promoting →', to: '/promoter/onboarding' },
@@ -150,7 +152,6 @@ export default function Home() {
   const [howTab, setHowTab] = useState<'guests' | 'organizers' | 'promoters' | 'lineups' | 'venues'>('guests');
   const [dismissed, setDismissed] = useState(false);
   const [heroIdx, setHeroIdx] = useState(0);
-  const [eventLimit, setEventLimit] = useState(4);
 
   // auto-advance the hero every 5s
   useEffect(() => {
@@ -397,15 +398,10 @@ export default function Home() {
         <div className="grid-4">
           {eventsLoading
             ? Array.from({ length: 8 }, (_, i) => <EventCardSkeleton key={i} />)
-            : events.slice(0, eventLimit).map((e) => <EventCard key={e.id} event={e} />)}
+            : events.slice(0, HOME_EVENT_LIMIT).map((e) => <EventCard key={e.id} event={e} />)}
         </div>
         {!eventsLoading && events.length === 0 && <div className="empty">No events in {city} yet.</div>}
-        {events.length > eventLimit && (
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <button className="btn btn-ghost" onClick={() => setEventLimit((n) => n + 8)}>Show more events ▾</button>
-          </div>
-        )}
-        {events.length > 4 && events.length <= eventLimit && (
+        {events.length > HOME_EVENT_LIMIT && (
           <div style={{ textAlign: 'center', marginTop: 16 }}>
             <Link to={cityBrowse(city)} className="btn btn-ghost">Browse all events →</Link>
           </div>
