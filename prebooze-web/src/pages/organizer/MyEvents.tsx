@@ -31,6 +31,7 @@ const STATUS_BADGE: Record<EventStatus, { cls: string; label: string }> = {
 export default function MyEvents() {
   const { featured, requestFeatured, toast, city } = useApp();
   const [tab, setTab] = useState<'all' | EventStatus>('all');
+  const [scope, setScope] = useState<'upcoming' | 'past'>('upcoming');
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -55,7 +56,11 @@ export default function MyEvents() {
     toast(`Payment of ₹${FEATURED_PRICING.perEvent.toLocaleString('en-IN')} received — "${e.title}" sent for featured review ✓`);
   };
 
-  const list = tab === 'all' ? events : events.filter((e) => e.status === tab);
+  const now = Date.now();
+  const byStatus = tab === 'all' ? events : events.filter((e) => e.status === tab);
+  const list = byStatus
+    .filter((e) => (scope === 'upcoming' ? new Date(e.date).getTime() >= now : new Date(e.date).getTime() < now))
+    .sort((a, b) => (scope === 'upcoming' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date)));
 
   return (
     <div>
@@ -76,11 +81,15 @@ export default function MyEvents() {
           );
         })}
       </div>
+      <div className="tabs" style={{ marginBottom: 14 }}>
+        <button className={scope === 'upcoming' ? 'on' : ''} onClick={() => setScope('upcoming')}>Upcoming</button>
+        <button className={scope === 'past' ? 'on' : ''} onClick={() => setScope('past')}>Past</button>
+      </div>
 
       <div className="card">
         {loading && <div className="empty">Loading…</div>}
         {err && <div className="danger-text small">✕ {err}</div>}
-        {!loading && !err && list.length === 0 && <div className="empty">Nothing here yet.</div>}
+        {!loading && !err && list.length === 0 && <div className="empty">No {scope} events{tab !== 'all' ? ` in ${tab}` : ''}.</div>}
         {list.map((e) => {
           const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
           const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
