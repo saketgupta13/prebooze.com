@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fmtDate, fmtTime } from '../../data/mock';
+import { useApp } from '../../store/AppContext';
 import { promoter as promoterApi, type PromoterMe, type PromoterTeamMember } from '../../api';
 import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
 import type { Event } from '../../types';
 import type { PromoterGuest } from '../../store/AppContext';
 import { copyToClipboard } from '../../lib/clipboard';
+import { absoluteUrl, cityBrowse, eventCity, eventPath } from '../../lib/urls';
 
 type Mode = 'guestlist' | 'commission';
 
 /** Events this promoter is approved to promote — organizer-enabled events whose
  * allow-list includes this promoter. */
 export default function PromoterPromotions() {
+  const { city } = useApp();
   const [me, setMe] = useState<PromoterMe | null>(null);
   const [promotions, setPromotions] = useState<Event[]>([]);
   const [guestsByEvent, setGuestsByEvent] = useState<Record<string, PromoterGuest[]>>({});
@@ -65,7 +68,7 @@ export default function PromoterPromotions() {
             (you're signed in as <b>@{mySlug || 'unknown'}</b> — an organizer must allow this handle)
           </div>
           <div style={{ marginTop: 16 }}>
-            <Link to="/browse" className="btn btn-ghost">Browse events in your city →</Link>
+            <Link to={cityBrowse(city)} className="btn btn-ghost">Browse events in your city →</Link>
           </div>
         </div>
       </div>
@@ -126,7 +129,7 @@ export default function PromoterPromotions() {
           // actually feeds the revenue-share markup (see EventDetail.tsx's
           // ?ref= capture + BookingsService.priceHold). The free-entry link
           // never touches a real ticket purchase, so it can't earn this.
-          const ticketLink = `${window.location.origin}/events/${e.slug}?ref=${mySlug}`;
+          const ticketLink = `${absoluteUrl(eventPath(eventCity(e) ?? city, e.slug))}?ref=${mySlug}`;
           const guestListOn = (cfg.guestListPromoters ?? cfg.allowedPromoters ?? []).includes(mySlug);
           const commissionOn = revSharePct > 0;
           const mine = guestsByEvent[e.id] ?? [];
@@ -266,7 +269,7 @@ export default function PromoterPromotions() {
                 </>
               )}
 
-              <Link to={`/events/${e.slug}`} className="btn btn-ghost btn-sm" style={{ marginTop: 10, display: 'inline-block' }}>View event →</Link>
+              <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="btn btn-ghost btn-sm" style={{ marginTop: 10, display: 'inline-block' }}>View event →</Link>
             </div>
           );
         })}

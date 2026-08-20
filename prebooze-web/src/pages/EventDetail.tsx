@@ -24,7 +24,7 @@ import { useSeo } from '../lib/useSeo';
 import { useJsonLd } from '../lib/useJsonLd';
 import { buildEventSchema, buildBreadcrumbSchema } from '../lib/schema';
 import { useCityReconcile } from '../lib/useCityReconcile';
-import { eventCity, eventPath, cityHome, cityBrowse, organizerPath, venuePath } from '../lib/urls';
+import { eventCity, eventPath, cityHome, cityBrowse, organizerPath, venuePath, lineupPath, promoterPath } from '../lib/urls';
 import { track } from '../lib/track';
 import { trackMeta } from '../lib/meta';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
@@ -219,7 +219,7 @@ export default function EventDetail() {
           <p className="muted" style={{ margin: '10px 0 20px' }}>
             It may have ended or been unpublished.
           </p>
-          <Link to="/browse" className="btn btn-pri">
+          <Link to={cityBrowse(city)} className="btn btn-pri">
             Browse events
           </Link>
         </div>
@@ -276,7 +276,7 @@ export default function EventDetail() {
           </div>
         )}
         <div className="breadcrumb">
-          <Link to="/browse">Events</Link> / {event.title}
+          <Link to={cityBrowse(eventCityName ?? city)}>Events</Link> / {event.title}
         </div>
 
         <div className="detail-grid">
@@ -290,7 +290,7 @@ export default function EventDetail() {
                   <span>📅 {fmtDate(event.date)}, {fmtTime(event.date)}</span>
                   <span>
                     📍 {venue ? (
-                      <><Link to={`/venues/${venue.id}`} className="link">{venue.name}</Link>, {venue.city}</>
+                      <><Link to={venuePath(venue.city, venue.id)} className="link">{venue.name}</Link>, {venue.city}</>
                     ) : (
                       eventLocation(event)
                     )}
@@ -470,7 +470,7 @@ export default function EventDetail() {
                       </>
                     );
                     return profile ? (
-                      <Link key={l.name} to={`/lineup/${profile.slug}`} className="lineup-item" style={{ borderColor: 'var(--border-3)' }}>
+                      <Link key={l.name} to={lineupPath(profile.city, profile.slug)} className="lineup-item" style={{ borderColor: 'var(--border-3)' }}>
                         {inner}
                       </Link>
                     ) : (
@@ -539,7 +539,7 @@ export default function EventDetail() {
                 </div>
                 <div className="lineup">
                   {taggedPromoters.map((p) => (
-                    <Link key={p.slug} to={`/promoter/${p.slug}`} className="lineup-item" style={{ borderColor: 'var(--border-3)' }}>
+                    <Link key={p.slug} to={promoterPath(p.city, p.slug)} className="lineup-item" style={{ borderColor: 'var(--border-3)' }}>
                       <span className="avatar">📣</span>
                       <span className="who">
                         <span className="n" style={{ display: 'block' }}>
@@ -578,7 +578,7 @@ export default function EventDetail() {
                     </div>
                   ))}
                   {liveEvent && !reviewsLoading && reviews.length === 0 && <div className="tiny muted">No reviews yet.</div>}
-                  <Link to={`/organizers/${organizer.id}`} className="link small bold">
+                  <Link to={organizerPath(organizer.city, organizer.id)} className="link small bold">
                     Read all reviews →
                   </Link>
                 </div>
@@ -731,7 +731,7 @@ export default function EventDetail() {
           <section className="section">
             <div className="section-hd">
               <h2>Recommended events in {city}</h2>
-              <Link to="/browse">See all →</Link>
+              <Link to={cityBrowse(city)}>See all →</Link>
             </div>
             <div className="grid-4">
               {recommended.map((e) => (

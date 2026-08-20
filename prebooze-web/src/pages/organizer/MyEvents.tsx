@@ -6,6 +6,7 @@ import { findFeatured } from '../../lib/featured';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event, EventStatus } from '../../types';
+import { eventCity, eventPath } from '../../lib/urls';
 import Poster, { categoryEmoji } from '../../components/Poster';
 
 const TABS: { key: 'all' | EventStatus; label: string }[] = [
@@ -28,7 +29,7 @@ const STATUS_BADGE: Record<EventStatus, { cls: string; label: string }> = {
  * mock store. "+ Create event"/"✎ Edit" open CreateEvent.tsx, which saves via
  * the same real POST /organizer/events endpoint this list reads from. */
 export default function MyEvents() {
-  const { featured, requestFeatured, toast } = useApp();
+  const { featured, requestFeatured, toast, city } = useApp();
   const [tab, setTab] = useState<'all' | EventStatus>('all');
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +124,7 @@ export default function MyEvents() {
               <Link to={`/organizer/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval">
                 ✎ Edit
               </Link>
-              <Link to={`/events/${e.slug}`} className="icon-round" title="View as guest">
+              <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="icon-round" title="View as guest">
                 ⋮
               </Link>
             </div>

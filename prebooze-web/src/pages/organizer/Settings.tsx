@@ -8,6 +8,7 @@ import Loader from '../../components/Loader';
 import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 import type { Organizer, PaymentProfile } from '../../types';
+import { organizerPath } from '../../lib/urls';
 
 const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
 
@@ -105,7 +106,7 @@ export default function Settings() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
         <h1 style={{ fontSize: 24, marginBottom: 18 }}>Settings</h1>
-        <Link to={`/organizers/${org.id}`} className="link small bold">View public profile ↗</Link>
+        <Link to={organizerPath(org.city, org.id)} className="link small bold">View public profile ↗</Link>
       </div>
       {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
       <div style={{ marginBottom: 16 }}>

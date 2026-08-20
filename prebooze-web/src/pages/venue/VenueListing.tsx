@@ -9,6 +9,7 @@ import LocationPicker, { emptyLocation, type LocationValue } from '../../compone
 import { venuePartner, catalog } from '../../api';
 import { ApiError, isBackendEnabled } from '../../api/client';
 import type { Venue } from '../../types';
+import { venuePath } from '../../lib/urls';
 
 // Offline fallback only — see the live fetch below.
 const VENUE_TYPES_FALLBACK = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
@@ -136,7 +137,7 @@ export default function VenueListing() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
         <h1 style={{ fontSize: 24 }}>My listing</h1>
-        <Link to={`/venues/${venue.id}`} className="link small bold">View public page ↗</Link>
+        <Link to={venuePath(venue.city, venue.id)} className="link small bold">View public page ↗</Link>
       </div>
       <p className="muted small" style={{ margin: '4px 0 16px' }}>
         This is exactly what guests see in the directory and what organizers see when picking a venue.

@@ -6,6 +6,7 @@ import { ApiError } from '../../api/client';
 import type { Event } from '../../types';
 import Loader from '../../components/Loader';
 import PromoteCard from '../../components/PromoteCard';
+import { promoterPath } from '../../lib/urls';
 
 export default function PromoterDashboard() {
   const [me, setMe] = useState<PromoterMe | null>(null);
@@ -145,7 +146,7 @@ export default function PromoterDashboard() {
             <h3>Your public profile</h3>
             <p className="muted small" style={{ marginTop: 4 }}>guests can follow you and get your lists first</p>
           </div>
-          <Link to={`/promoter/${me.slug}`} className="btn btn-ghost btn-sm">View / share →</Link>
+          <Link to={promoterPath(me.city || 'Hyderabad', me.slug)} className="btn btn-ghost btn-sm">View / share →</Link>
         </div>
       </div>
     </div>

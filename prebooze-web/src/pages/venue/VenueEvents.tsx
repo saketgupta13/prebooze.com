@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fmtDate, fmtTime } from '../../data/mock';
+import { useApp } from '../../store/AppContext';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event } from '../../types';
+import { eventCity, eventPath } from '../../lib/urls';
 
 /** Every event hosted at this venue — real GET /venue/events (already scoped
  * to approved events at this venue, organizer embedded). */
 export default function VenueEvents() {
+  const { city } = useApp();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +64,7 @@ export default function VenueEvents() {
               🎟 {sold}/{total} sold
               {sold >= total && total > 0 && <span className="accent bold"> · sold out</span>}
             </div>
-            <Link to={`/events/${e.slug}`} className="btn btn-ghost btn-sm">View event →</Link>
+            <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="btn btn-ghost btn-sm">View event →</Link>
           </div>
         );
       })}

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fmtDate } from '../../data/mock';
+import { useApp } from '../../store/AppContext';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event, EventStatus } from '../../types';
 import { categoryEmoji } from '../../components/Poster';
 import Loader from '../../components/Loader';
+import { eventCity, eventPath } from '../../lib/urls';
 
 const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -28,6 +30,7 @@ const STATUS_BADGE: Record<EventStatus, { cls: string; label: string }> = {
  * duplicated saveHostedEvent (see VenueEventInput doc comment) — nothing
  * here touches the organizer's own event list or its code path. */
 export default function VenueHostedEvents() {
+  const { city } = useApp();
   const [tab, setTab] = useState<'all' | EventStatus>('all');
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,7 +97,7 @@ export default function VenueHostedEvents() {
               </div>
               <span className={`badge ${badge.cls}`}>{badge.label}</span>
               <Link to={`/venue/hosting/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval">✎ Edit</Link>
-              {e.status === 'approved' && <Link to={`/events/${e.slug}`} className="icon-round" title="View as guest">⋮</Link>}
+              {e.status === 'approved' && <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="icon-round" title="View as guest">⋮</Link>}
             </div>
           );
         })}

@@ -17,12 +17,12 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 import { useJsonLd } from '../lib/useJsonLd';
 import { buildVenueSchema, buildBreadcrumbSchema } from '../lib/schema';
 import { useCityReconcile } from '../lib/useCityReconcile';
-import { venuePath, cityHome, cityVenues } from '../lib/urls';
+import { venuePath, cityHome, cityVenues, cityBrowse } from '../lib/urls';
 import { formatLocation } from '../lib/formatLocation';
 
 export default function VenueDetail() {
   const { id } = useParams();
-  const { user, following, toggleFollow, favVenues, toggleFavVenue, netFollowers } = useApp();
+  const { user, following, toggleFollow, favVenues, toggleFavVenue, netFollowers, city } = useApp();
 
   // Single-entity fetches (GET /venues/:id + GET /events?venueId=) — see
   // the same note in OrganizerProfile.tsx for why this replaced fetching
@@ -63,7 +63,7 @@ export default function VenueDetail() {
       <main className="page">
         <div className="container center" style={{ padding: '80px 0' }}>
           <h1>Venue not found</h1>
-          <Link to="/venues" className="btn btn-pri" style={{ marginTop: 18 }}>
+          <Link to={cityVenues(city)} className="btn btn-pri" style={{ marginTop: 18 }}>
             All venues
           </Link>
         </div>
@@ -200,7 +200,7 @@ export default function VenueDetail() {
             <h2>
               Upcoming at {venue.name} ({upcoming.length})
             </h2>
-            <Link to="/browse">See all events →</Link>
+            <Link to={cityBrowse(venue.city)}>See all events →</Link>
           </div>
           {upcoming.length ? (
             <div className="grid-4">

@@ -2,11 +2,12 @@ import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { REFERRAL_CONFIG } from '../data/mock';
+import { cityBrowse } from '../lib/urls';
 
 /** Public referral landing — /r/:code. Saves the code so signup attributes the friend. */
 export default function ReferralLanding() {
   const { code } = useParams();
-  const { user } = useApp();
+  const { user, city } = useApp();
 
   useEffect(() => {
     if (code) localStorage.setItem('pb_pending_ref', JSON.stringify(code));
@@ -29,7 +30,7 @@ export default function ReferralLanding() {
               <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: '10px 12px', fontSize: 13, marginBottom: 14 }}>
                 You're already signed in — referral rewards are for new accounts only.
               </div>
-              <Link to="/browse" className="btn btn-pri btn-lg">Browse events →</Link>
+              <Link to={cityBrowse(city)} className="btn btn-pri btn-lg">Browse events →</Link>
             </>
           ) : (
             <>

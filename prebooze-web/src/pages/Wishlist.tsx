@@ -7,13 +7,14 @@ import { isBackendEnabled } from '../api/client';
 import type { Event, Venue } from '../types';
 import EventCard from '../components/EventCard';
 import Poster from '../components/Poster';
+import { cityBrowse, cityVenues, venuePath } from '../lib/urls';
 
 /** Saved events — the guest's wishlist. Wishlist/favourite membership itself
  * is still local-only (see AppContext) — this just makes sure a real event
  * or venue the guest saved actually resolves to something instead of
  * silently vanishing because it isn't in the local mock seed. */
 export default function Wishlist() {
-  const { wishlist, myEvents, favVenues, toggleFavVenue } = useApp();
+  const { wishlist, myEvents, favVenues, toggleFavVenue, city } = useApp();
 
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
   const [liveVenues, setLiveVenues] = useState<Venue[] | null>(null);
@@ -48,7 +49,7 @@ export default function Wishlist() {
           <div className="tiny muted">Loading…</div>
         ) : saved.length === 0 ? (
           <div className="empty">
-            Nothing saved yet. <Link to="/browse" className="link">Browse events →</Link>
+            Nothing saved yet. <Link to={cityBrowse(city)} className="link">Browse events →</Link>
           </div>
         ) : (
           <div className="grid-4">
@@ -58,7 +59,7 @@ export default function Wishlist() {
 
         <div className="section-hd" style={{ marginTop: 34 }}>
           <h2>Favourite venues ({favVenues.length}) 🏛</h2>
-          <Link to="/venues">Browse venues →</Link>
+          <Link to={cityVenues(city)}>Browse venues →</Link>
         </div>
         {loading ? (
           <div className="tiny muted">Loading…</div>
@@ -71,7 +72,7 @@ export default function Wishlist() {
               if (!v) return null;
               const count = (liveEvents ?? (isBackendEnabled() ? [] : EVENTS)).filter((e) => (e.venue?.id ?? e.venueId) === v.id && e.status === 'approved').length;
               return (
-                <Link key={id} to={`/venues/${v.id}`} className="ecard" style={{ position: 'relative' }}>
+                <Link key={id} to={venuePath(v.city, v.id)} className="ecard" style={{ position: 'relative' }}>
                   <button
                     aria-label="Remove favourite"
                     title="Remove favourite"

@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeo } from '../../lib/useSeo';
+import { useApp } from '../../store/AppContext';
+import { cityHome, cityBrowse } from '../../lib/urls';
 
 /** The SPA's catch-all used to silently redirect any unmatched path to
  * home — real for a person clicking a stale link, but wrong for search
@@ -13,6 +15,7 @@ import { useSeo } from '../../lib/useSeo';
  * workaround (a "soft 404") — cleared again on unmount so it never leaks
  * onto whatever real page gets visited next. */
 export default function NotFound() {
+  const { city } = useApp();
   useSeo(null, 'Page not found');
 
   useEffect(() => {
@@ -38,8 +41,8 @@ export default function NotFound() {
           That link's outdated, or the page moved. Let's get you back on track.
         </p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-          <Link to="/" className="btn btn-pri">Go home</Link>
-          <Link to="/browse" className="btn btn-ghost">Browse events</Link>
+          <Link to={cityHome(city)} className="btn btn-pri">Go home</Link>
+          <Link to={cityBrowse(city)} className="btn btn-ghost">Browse events</Link>
         </div>
       </div>
     </main>

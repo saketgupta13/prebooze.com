@@ -11,6 +11,7 @@ import { track } from '../lib/track';
 import { pushEvent } from '../lib/gtm';
 import { trackMeta } from '../lib/meta';
 import { eventLocation } from '../lib/venue';
+import { cityBrowse, eventCity, eventPath } from '../lib/urls';
 
 const ABSORBED_NOTE: Record<string, string> = {
   Organizer: 'absorbed by the organizer',
@@ -42,7 +43,7 @@ export default function Checkout() {
   const {
     user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, setHold, clearHold,
     captureCart, setCartStatus, promoterRefByEvent, clearPromoterRefForEvent, promoterViaByEvent, walletBalance, spendWallet, payMethods,
-    setDefaultPayMethod, refreshWallet,
+    setDefaultPayMethod, refreshWallet, city,
   } = useApp();
   const navigate = useNavigate();
   const { feeLabel, absorbedBy, bookingFee, socials } = usePlatformInfo();
@@ -335,7 +336,7 @@ export default function Checkout() {
           <p className="muted" style={{ margin: '10px 0 20px' }}>
             Pick an event and select tickets first.
           </p>
-          <Link to="/browse" className="btn btn-pri">
+          <Link to={cityBrowse(city)} className="btn btn-pri">
             Browse events
           </Link>
         </div>
@@ -355,7 +356,7 @@ export default function Checkout() {
               style={{ marginTop: 8 }}
               onClick={() => {
                 setSelection(null);
-                navigate(`/events/${event.slug}`);
+                navigate(eventPath(eventCity(event) ?? city, event.slug));
               }}
             >
               Pick tickets again →
@@ -383,7 +384,7 @@ export default function Checkout() {
               onClick={() => {
                 setSelection(null);
                 clearHold();
-                navigate(`/events/${slug}`);
+                navigate(eventPath(eventCity(event) ?? city, slug));
               }}
             >
               Pick tickets again →
@@ -625,7 +626,7 @@ export default function Checkout() {
     <main className="page">
       <div className="container">
         <div className="breadcrumb">
-          <Link to={`/events/${event.slug}`}>← {event.title}</Link> / Checkout · step 2 of 2 ·{' '}
+          <Link to={eventPath(eventCity(event) ?? city, event.slug)}>← {event.title}</Link> / Checkout · step 2 of 2 ·{' '}
           <span className="accent">🔒 secure checkout</span>
         </div>
         <h1 style={{ fontSize: 24, marginBottom: 16 }}>Checkout</h1>

@@ -8,6 +8,7 @@ import { instagramHandle } from '../../lib/social';
 import { usePlatformInfo } from '../../lib/usePlatformInfo';
 import QRCode from '../../components/QRCode';
 import Loader from '../../components/Loader';
+import { eventCity, eventPath } from '../../lib/urls';
 
 /** The guest's free-entry pass — a QR that rotates every few seconds (screenshot-proof)
  * and is only valid before the cutoff. After the cutoff it flips to a paid-ticket CTA.
@@ -134,7 +135,7 @@ export default function GuestPass() {
               {cutoff && ` at ${cutoff.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`}. You can
               still grab a ticket and come in.
             </p>
-            <Link to={`/events/${event.slug}?ref=${pass.promoterSlug}`} className="btn btn-pri btn-lg">
+            <Link to={`${eventPath(eventCity(event) ?? 'Hyderabad', event.slug)}?ref=${pass.promoterSlug}`} className="btn btn-pri btn-lg">
               Get a ticket — from ₹{minPrice(event)} →
             </Link>
           </div>

@@ -6,6 +6,7 @@ import Loader from '../../components/Loader';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event, Venue } from '../../types';
+import { eventCity, eventPath, venuePath } from '../../lib/urls';
 
 /** Real venue overview — GET /venue/listing + GET /venue/events. */
 export default function VenueDashboard() {
@@ -79,7 +80,7 @@ export default function VenueDashboard() {
         ))}
         <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
           <Link to="/venue/listing" className="btn btn-pri btn-sm">Edit my listing →</Link>
-          <Link to={`/venues/${venue.id}`} className="btn btn-ghost btn-sm">View public page ↗</Link>
+          <Link to={venuePath(venue.city, venue.id)} className="btn btn-ghost btn-sm">View public page ↗</Link>
         </div>
       </div>
 
@@ -97,7 +98,7 @@ export default function VenueDashboard() {
                 <div className="bold small">{e.title}</div>
                 <div className="tiny muted-2">{fmtDate(e.date)} · {fmtTime(e.date)} · {e.category}</div>
               </div>
-              <Link to={`/events/${e.slug}`} className="btn btn-ghost btn-sm">View →</Link>
+              <Link to={eventPath(eventCity(e) ?? venue.city, e.slug)} className="btn btn-ghost btn-sm">View →</Link>
             </div>
           ))
         )}

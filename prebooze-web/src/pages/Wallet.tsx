@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { fmtMoney } from '../data/mock';
+import { cityBrowse } from '../lib/urls';
 
 const TX_META: Record<string, { icon: string; label: string }> = {
   referral_welcome: { icon: '🎁', label: 'Welcome credit' },
@@ -11,7 +12,7 @@ const TX_META: Record<string, { icon: string; label: string }> = {
 
 /** Prebooze wallet — store credits from referrals & refunds, spent at checkout. */
 export default function Wallet() {
-  const { walletTxs, walletBalance } = useApp();
+  const { walletTxs, walletBalance, city } = useApp();
 
   return (
     <main className="page">
@@ -26,7 +27,7 @@ export default function Wallet() {
           <div className="small muted">auto-applies at checkout · earned from referrals &amp; refunds</div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 14, flexWrap: 'wrap' }}>
             <Link to="/refer" className="btn btn-pri btn-sm">🎁 Refer & earn more →</Link>
-            <Link to="/browse" className="btn btn-ghost btn-sm">Spend on events →</Link>
+            <Link to={cityBrowse(city)} className="btn btn-ghost btn-sm">Spend on events →</Link>
           </div>
         </div>
 

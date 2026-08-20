@@ -10,6 +10,7 @@ import { useSeo } from '../lib/useSeo';
 import { stripHtml } from '../lib/richtext';
 import { eventLocation } from '../lib/venue';
 import type { Event, Person, PersonDetail } from '../types';
+import { cityPeople, eventCity, eventPath } from '../lib/urls';
 
 function Avatar({ hue, name, imageUrl, size = 30 }: { hue: number; name: string; imageUrl?: string; size?: number }) {
   if (imageUrl) {
@@ -87,7 +88,7 @@ function PeopleCard({ title, people, empty, onClose, limit }: { title: string; p
  * viewer-relative computation needed for those two. */
 export default function PersonProfile() {
   const { username } = useParams();
-  const { following, bookings, interested, toggleFollow } = useApp();
+  const { following, bookings, interested, toggleFollow, city: browsingCity } = useApp();
   const [person, setPerson] = useState<PersonDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -112,7 +113,7 @@ export default function PersonProfile() {
         <div className="container center" style={{ padding: '80px 0' }}>
           <h1>Person not found</h1>
           {err && <p className="muted small" style={{ marginTop: 8 }}>{err}</p>}
-          <Link to="/people" className="btn btn-pri" style={{ marginTop: 18 }}>Browse people</Link>
+          <Link to={cityPeople(browsingCity)} className="btn btn-pri" style={{ marginTop: 18 }}>Browse people</Link>
         </div>
       </main>
     );
@@ -133,7 +134,7 @@ export default function PersonProfile() {
   const EventRow = ({ event }: { event: Event }) => {
     const mine = myEventIds.has(event.id);
     return (
-      <Link to={`/events/${event.slug}`} className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}>
+      <Link to={eventPath(eventCity(event) ?? browsingCity, event.slug)} className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="bold small">
             {event.title} {mine && <span className="badge badge-accent" style={{ fontSize: 10 }}>you too</span>}
@@ -160,7 +161,7 @@ export default function PersonProfile() {
     <main className="page">
       <div className="container">
         <div className="breadcrumb">
-          <Link to="/people">People</Link> / {person.name}
+          <Link to={cityPeople(person.city)}>People</Link> / {person.name}
         </div>
 
         {/* Header */}

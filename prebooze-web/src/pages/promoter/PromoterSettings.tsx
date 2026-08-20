@@ -8,6 +8,7 @@ import WysiwygEditor from '../../components/WysiwygEditor';
 import Loader from '../../components/Loader';
 import { RealUploadBox } from '../../components/RealUploadBox';
 import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
+import { promoterPath } from '../../lib/urls';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -229,7 +230,7 @@ export default function PromoterSettings() {
       </div>
 
       <div className="tiny muted-2" style={{ marginTop: 14 }}>
-        Public profile: <Link to={`/promoter/${me.slug}`} className="link">/promoter/{me.slug}</Link>
+        Public profile: <Link to={promoterPath(me.city || 'Hyderabad', me.slug)} className="link">/promoter/{me.slug}</Link>
       </div>
     </div>
   );

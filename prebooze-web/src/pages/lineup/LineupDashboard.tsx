@@ -6,6 +6,7 @@ import Loader from '../../components/Loader';
 import { lineup as lineupApi } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event, LineupProfile } from '../../types';
+import { eventCity, eventPath, lineupPath } from '../../lib/urls';
 
 /** Real line-up overview — GET /lineup/me + GET /lineup/events. Reaching
  * this page at all means LineupLayout.tsx already confirmed the role is
@@ -60,7 +61,7 @@ export default function LineupDashboard() {
           <h3>Profile</h3>
           <div style={{ display: 'flex', gap: 8 }}>
             <Link to="/artist/profile" className="btn btn-pri btn-sm">Edit profile →</Link>
-            <Link to={`/lineup/${profile.slug}`} className="btn btn-ghost btn-sm">View public profile ↗</Link>
+            <Link to={lineupPath(profile.city, profile.slug)} className="btn btn-ghost btn-sm">View public profile ↗</Link>
           </div>
         </div>
         <div className="kv"><span className="k">Username</span><span>@{profile.slug}</span></div>
@@ -79,7 +80,7 @@ export default function LineupDashboard() {
                   <div className="bold small">{e.title} {e.myRole && <span className="muted" style={{ fontWeight: 400 }}>· {e.myRole}</span>}</div>
                   <div className="tiny muted-2">{fmtDate(e.date)} · {fmtTime(e.date)} · {e.venue?.name}, {e.venue?.city}</div>
                 </div>
-                <Link to={`/events/${e.slug}`} className="btn btn-ghost btn-sm">View →</Link>
+                <Link to={eventPath(eventCity(e) ?? profile.city, e.slug)} className="btn btn-ghost btn-sm">View →</Link>
               </div>
             ))}
             {past.length > 0 && (

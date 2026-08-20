@@ -194,7 +194,7 @@ export default function LineupProfile() {
                 </div>
                 <div className="grid-3">
                   {more.map((l) => (
-                    <Link key={l.slug} to={`/lineup/${l.slug}`} className="card" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <Link key={l.slug} to={lineupPath(l.city, l.slug)} className="card" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                       <div style={{ width: 46, flexShrink: 0 }}>
                         {l.logoUrl ? (
                           <img src={l.logoUrl} alt={l.name} loading="lazy" decoding="async" style={{ width: 46, height: 46, borderRadius: 8, objectFit: 'cover' }} />

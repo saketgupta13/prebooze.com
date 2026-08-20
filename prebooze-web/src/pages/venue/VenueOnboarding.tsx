@@ -14,6 +14,7 @@ import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
 import { useDraftLead } from '../../lib/useDraftLead';
+import { cityVenues } from '../../lib/urls';
 
 // Offline/dev-mode fallback only — the real, admin-managed list (Admin >
 // Content > Venue types) is fetched below and used whenever a backend is
@@ -175,7 +176,7 @@ export default function VenueOnboarding() {
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/venue" className="btn btn-pri">Go to my venue dashboard →</Link>
-            <Link to="/venues" className="btn btn-ghost">See the venue directory</Link>
+            <Link to={cityVenues(loc.city)} className="btn btn-ghost">See the venue directory</Link>
           </div>
         </div>
       </main>

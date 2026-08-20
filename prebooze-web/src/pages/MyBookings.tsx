@@ -9,6 +9,7 @@ import QRCode from '../components/QRCode';
 import { downloadTicket } from '../lib/ticket';
 import { downloadIcs } from '../lib/calendar';
 import { eventLocation } from '../lib/venue';
+import { cityBrowse } from '../lib/urls';
 
 const REFUND_BADGE: Record<string, { cls: string; label: string }> = {
   refunded: { cls: 'badge-accent', label: 'Refunded ↩' },
@@ -17,7 +18,7 @@ const REFUND_BADGE: Record<string, { cls: string; label: string }> = {
 };
 
 export default function MyBookings() {
-  const { bookings, refundBooking, myEvents, refreshWallet, toast } = useApp();
+  const { bookings, refundBooking, myEvents, refreshWallet, toast, city } = useApp();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refundingId, setRefundingId] = useState<string | null>(null);
@@ -100,7 +101,7 @@ export default function MyBookings() {
         ) : list.length === 0 ? (
           <div className="empty">
             No {tab} bookings yet.{' '}
-            <Link to="/browse" className="link">
+            <Link to={cityBrowse(city)} className="link">
               Browse events →
             </Link>
           </div>

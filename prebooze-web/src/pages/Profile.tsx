@@ -6,9 +6,10 @@ import { catalog, bookings as bookingsApi } from '../api';
 import type { Booking, Organizer, Venue } from '../types';
 import Poster from '../components/Poster';
 import ShareButton from '../components/ShareButton';
+import { cityBrowse, cityVenues, organizerPath, venuePath } from '../lib/urls';
 
 export default function Profile() {
-  const { user, following, toggleFollow, setAttendanceVisibility, toggleDiscoverable, followers, followersLoading, favVenues, toggleFavVenue, wishlist } = useApp();
+  const { user, following, toggleFollow, setAttendanceVisibility, toggleDiscoverable, followers, followersLoading, favVenues, toggleFavVenue, wishlist, city } = useApp();
 
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(true);
@@ -182,7 +183,7 @@ export default function Profile() {
             )}
             {followedOrgs.map((o) => (
               <div key={o.id} className="kv">
-                <Link to={`/organizers/${o.id}`} className="k bold" style={{ color: 'var(--text)' }}>
+                <Link to={organizerPath(o.city, o.id)} className="k bold" style={{ color: 'var(--text)' }}>
                   {o.brandName} {o.verified && <span className="verified">✓</span>}
                 </Link>
                 <button className="btn btn-ghost btn-sm" onClick={() => toggleFollow(o.id)}>
@@ -198,11 +199,11 @@ export default function Profile() {
               <Link to="/wishlist" className="link tiny bold">❤️ Wishlist ({wishlist.length}) →</Link>
             </div>
             {favVenueDetails.length === 0 ? (
-              <div className="muted small">Tap 🤍 on any <Link to="/venues" className="link">venue</Link> to save it here.</div>
+              <div className="muted small">Tap 🤍 on any <Link to={cityVenues(city)} className="link">venue</Link> to save it here.</div>
             ) : (
               favVenueDetails.map((v) => (
                 <div key={v.id} className="kv" style={{ alignItems: 'center' }}>
-                  <Link to={`/venues/${v.id}`} className="k bold" style={{ color: 'var(--text)' }}>
+                  <Link to={venuePath(v.city, v.id)} className="k bold" style={{ color: 'var(--text)' }}>
                     🏛 {v.name} <span className="muted" style={{ fontWeight: 400 }}>· {v.city}</span>
                   </Link>
                   <button className="btn btn-ghost btn-sm" onClick={() => toggleFavVenue(v.id)}>❤️ Saved</button>
@@ -247,7 +248,7 @@ export default function Profile() {
             ) : upcoming.length === 0 ? (
               <div className="empty">
                 Nothing booked yet —{' '}
-                <Link to="/browse" className="link">
+                <Link to={cityBrowse(city)} className="link">
                   find your next night out →
                 </Link>
               </div>

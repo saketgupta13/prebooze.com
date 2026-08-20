@@ -10,10 +10,11 @@ import { downloadTicket } from '../lib/ticket';
 import { downloadIcs } from '../lib/calendar';
 import { eventLocation } from '../lib/venue';
 import { copyToClipboard } from '../lib/clipboard';
+import { cityBrowse } from '../lib/urls';
 
 export default function Confirmation() {
   const { id } = useParams();
-  const { bookings, myEvents, user, setAttendanceVisibility } = useApp();
+  const { bookings, myEvents, user, setAttendanceVisibility, city } = useApp();
   const [copied, setCopied] = useState(false);
   const [copyErr, setCopyErr] = useState('');
 
@@ -142,7 +143,7 @@ export default function Confirmation() {
           </div>
         )}
 
-        <Link to="/browse" className="link bold small" style={{ display: 'inline-block', marginTop: 18 }}>
+        <Link to={cityBrowse(city)} className="link bold small" style={{ display: 'inline-block', marginTop: 18 }}>
           Browse more events →
         </Link>
       </div>
