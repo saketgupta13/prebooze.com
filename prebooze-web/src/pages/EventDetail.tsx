@@ -24,7 +24,7 @@ import { useSeo } from '../lib/useSeo';
 import { useJsonLd } from '../lib/useJsonLd';
 import { buildEventSchema, buildBreadcrumbSchema } from '../lib/schema';
 import { useCityReconcile } from '../lib/useCityReconcile';
-import { eventCity, eventPath, cityHome, cityBrowse } from '../lib/urls';
+import { eventCity, eventPath, cityHome, cityBrowse, organizerPath, venuePath } from '../lib/urls';
 import { track } from '../lib/track';
 import { trackMeta } from '../lib/meta';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
@@ -327,7 +327,7 @@ export default function EventDetail() {
                 <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>
                   {organizer && (
                     <Link
-                      to={`/organizers/${organizer.id}`}
+                      to={organizerPath(organizer.city, organizer.id)}
                       className="evrow"
                       style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
                     >
@@ -349,7 +349,7 @@ export default function EventDetail() {
 
                   {venue ? (
                     <Link
-                      to={`/venues/${venue.id}`}
+                      to={venuePath(venue.city, venue.id)}
                       className="evrow"
                       style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
                     >
