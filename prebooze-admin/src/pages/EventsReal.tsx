@@ -14,6 +14,8 @@ const STATUS_TABS: { key: 'all' | LiveEvent['status']; label: string }[] = [
   { key: 'draft', label: 'Draft' },
 ];
 
+const isPastEvent = (e: LiveEvent) => new Date(e.date).getTime() < Date.now();
+
 /** Real event list — merges the old mock Events.tsx (filters/search) and
  * EventsLive.tsx (real approve/reject/commission) into one real page. No
  * delete button: the backend has no real delete-event endpoint. */
@@ -24,6 +26,10 @@ export default function EventsReal() {
 
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [tab, setTab] = useState<'all' | LiveEvent['status']>('all');
+  // A pending event always needs a decision regardless of its date, so it's
+  // exempt from this and shows under either scope — only approved/rejected/
+  // draft (which pile up indefinitely otherwise, unlike pending) respect it.
+  const [scope, setScope] = useState<'live' | 'past'>('live');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState(ANY);
   const [venue, setVenue] = useState(ANY);
@@ -45,8 +51,10 @@ export default function EventsReal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  const inScope = (e: LiveEvent) => e.status === 'pending' || (scope === 'live' ? !isPastEvent(e) : isPastEvent(e));
+
   const list = useMemo(() => {
-    let l = tab === 'all' ? events : events.filter((e) => e.status === tab);
+    let l = (tab === 'all' ? events : events.filter((e) => e.status === tab)).filter(inScope);
     if (category !== ANY) l = l.filter((e) => e.category === category);
     if (venue !== ANY) l = l.filter((e) => e.venue?.name === venue);
     if (organizer !== ANY) l = l.filter((e) => (e.organizer?.brandName ?? e.venue?.name ?? '') === organizer);
@@ -55,8 +63,12 @@ export default function EventsReal() {
       const q = query.toLowerCase();
       l = l.filter((e) => e.title.toLowerCase().includes(q) || (e.organizer?.brandName ?? e.venue?.name ?? '').toLowerCase().includes(q));
     }
-    return l;
-  }, [events, tab, category, venue, organizer, city, query]);
+    // Soonest-first when scanning what's live, most-recent-first when
+    // looking back — createdAt-asc (the API's own order) puts old
+    // submissions first either way, which is the opposite of useful here.
+    return [...l].sort((a, b) => (scope === 'live' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, tab, scope, category, venue, organizer, city, query]);
 
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
@@ -93,11 +105,18 @@ export default function EventsReal() {
       {loading && <div className="tiny muted">Loading…</div>}
 
       <div className="tabs">
-        {STATUS_TABS.map((t) => (
-          <button key={t.key} className={tab === t.key ? 'on' : ''} onClick={() => setTab(t.key)}>
-            {t.label} ({t.key === 'all' ? events.length : events.filter((e) => e.status === t.key).length})
-          </button>
-        ))}
+        {STATUS_TABS.map((t) => {
+          const count = (t.key === 'all' ? events : events.filter((e) => e.status === t.key)).filter(inScope).length;
+          return (
+            <button key={t.key} className={tab === t.key ? 'on' : ''} onClick={() => setTab(t.key)}>
+              {t.label} ({count})
+            </button>
+          );
+        })}
+      </div>
+      <div className="tabs">
+        <button className={scope === 'live' ? 'on' : ''} onClick={() => setScope('live')}>Live</button>
+        <button className={scope === 'past' ? 'on' : ''} onClick={() => setScope('past')}>Past</button>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
