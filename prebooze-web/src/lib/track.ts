@@ -31,7 +31,8 @@ interface Attribution {
   utmCampaign?: string;
   landingPath?: string;
   // Meta's {{site_source_name}} dynamic param — resolves to "fb"/"ig" at
-  // click time, appended as site_source on ad destination URLs.
+  // click time. Live campaigns append it as fb_platform; site_source kept
+  // as a fallback in case an older/different campaign URL used that name.
   siteSource?: string;
 }
 
@@ -56,7 +57,7 @@ function attribution(): Attribution {
     utmSource: params.get('utm_source') ?? undefined,
     utmMedium: params.get('utm_medium') ?? undefined,
     utmCampaign: params.get('utm_campaign') ?? undefined,
-    siteSource: params.get('site_source') ?? undefined,
+    siteSource: params.get('fb_platform') ?? params.get('site_source') ?? undefined,
     landingPath: window.location.pathname,
   };
   localStorage.setItem(ATTR_KEY, JSON.stringify(attr));

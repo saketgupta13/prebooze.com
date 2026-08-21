@@ -424,7 +424,7 @@ export default function Checkout() {
   };
 
   const afterBookingSuccess = (id: string) => {
-    track('booking_completed', { eventId: event?.id });
+    track('booking_completed', { eventId: event?.id, meta: { bookingId: id } });
     // GA4's standard "purchase" event — using its recommended param shape
     // (transaction_id/value/currency/items) instead of a custom event name
     // is what unlocks GA4's built-in Ecommerce reports for this instead of
