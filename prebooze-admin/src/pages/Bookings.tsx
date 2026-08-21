@@ -38,6 +38,7 @@ export default function Bookings() {
   const [params, setParams] = useSearchParams();
   const filter = (params.get('status') as FilterKey) ?? 'all';
   const [query, setQuery] = useState(params.get('q') ?? '');
+  const [scope, setScope] = useState<'live' | 'past'>('live');
 
   const [bookings, setBookings] = useState<LiveBooking[]>([]);
   const [carts, setCarts] = useState<LiveCart[]>([]);
@@ -89,8 +90,11 @@ export default function Bookings() {
       if (b.status === 'confirmed' || b.status === 'refund_requested') cur.revenue += b.total;
       m.set(b.event.id, cur);
     });
-    return [...m.entries()].sort((a, b) => a[1].date.localeCompare(b[1].date));
-  }, [bookings]);
+    const now = Date.now();
+    return [...m.entries()]
+      .filter(([, v]) => (scope === 'live' ? new Date(v.date).getTime() >= now : new Date(v.date).getTime() < now))
+      .sort((a, b) => (scope === 'live' ? a[1].date.localeCompare(b[1].date) : b[1].date.localeCompare(a[1].date)));
+  }, [bookings, scope]);
 
   const cartsByEvent = useMemo(() => {
     const m = new Map<string, { title: string; count: number; value: number }>();
@@ -151,6 +155,10 @@ export default function Bookings() {
 
       {showingSummary ? (
         <div className="tblwrap">
+          <div className="tabs" style={{ padding: '10px 16px 0' }}>
+            <button className={scope === 'live' ? 'on' : ''} onClick={() => setScope('live')}>Live</button>
+            <button className={scope === 'past' ? 'on' : ''} onClick={() => setScope('past')}>Past</button>
+          </div>
           <div className="thead" style={{ minWidth: 480 }}>
             <span style={{ flex: 2 }}>Event</span>
             <span style={{ flex: 1 }}>Date</span>
@@ -165,7 +173,7 @@ export default function Bookings() {
               <span style={{ flex: 1 }} className="green">₹{fmt(v.revenue)}</span>
             </div>
           ))}
-          {eventsSummary.length === 0 && !loading && <div className="trow muted">No bookings yet.</div>}
+          {eventsSummary.length === 0 && !loading && <div className="trow muted">No {scope} events with bookings.</div>}
         </div>
       ) : (
         <>
