@@ -573,6 +573,7 @@ export interface CmsBlogSummary {
 export interface CmsBlog extends CmsBlogSummary {
   content: string | null;
   createdAt: string;
+  seo?: { title?: string; description?: string; keywords?: string | string[] } | null;
 }
 
 export interface CmsPolicySummary {

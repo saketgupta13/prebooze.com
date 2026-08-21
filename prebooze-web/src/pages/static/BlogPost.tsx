@@ -27,7 +27,7 @@ export default function BlogPost() {
   const [post, setPost] = useState<CmsBlog | null>(null);
   const [more, setMore] = useState<CmsBlogSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  useSeo(null, post?.title);
+  useSeo(post?.seo, post?.title, post?.bannerUrl);
   useJsonLd(post ? buildBlogPostSchema(post) : null);
   useJsonLd(
     post
