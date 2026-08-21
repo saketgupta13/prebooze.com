@@ -30,6 +30,10 @@ export default function AbandonedCarts() {
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [eventF, setEventF] = useState('all');
   const [query, setQuery] = useState('');
+  // A cart for an event that's already happened can't be recovered — nobody
+  // can still buy that ticket — so Live/Past scopes on the event's own
+  // date, same as Events/Bookings elsewhere in admin.
+  const [scope, setScope] = useState<'live' | 'past'>('live');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
@@ -53,16 +57,28 @@ export default function AbandonedCarts() {
   }, [token]);
 
   const eventTitle = (id: string) => events.find((e) => e.id === id)?.title ?? id;
+  const eventDate = (id: string) => events.find((e) => e.id === id)?.date;
+
+  const scoped = useMemo(() => {
+    const now = Date.now();
+    return carts.filter((c) => {
+      const date = eventDate(c.eventId);
+      if (!date) return true; // unknown event — don't hide it in either scope
+      const isPast = new Date(date).getTime() < now;
+      return scope === 'live' ? !isPast : isPast;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carts, events, scope]);
 
   const filtered = useMemo(() => {
-    let l = carts;
+    let l = scoped;
     if (eventF !== 'all') l = l.filter((c) => c.eventId === eventF);
     if (query.trim()) {
       const q = query.toLowerCase();
       l = l.filter((c) => c.guest.toLowerCase().includes(q) || c.phone.includes(q));
     }
     return l;
-  }, [carts, eventF, query]);
+  }, [scoped, eventF, query]);
 
   const unremindedIds = filtered.filter((c) => !c.reminded).map((c) => c.id);
 
@@ -106,14 +122,14 @@ export default function AbandonedCarts() {
 
   const byEvent = useMemo(() => {
     const m = new Map<string, { count: number; value: number }>();
-    carts.forEach((c) => {
+    scoped.forEach((c) => {
       const cur = m.get(c.eventId) ?? { count: 0, value: 0 };
       cur.count += 1;
       cur.value += c.amount;
       m.set(c.eventId, cur);
     });
     return [...m.entries()].sort((a, b) => b[1].value - a[1].value);
-  }, [carts]);
+  }, [scoped]);
 
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
@@ -148,6 +164,11 @@ export default function AbandonedCarts() {
         </button>
       </div>
 
+      <div className="tabs">
+        <button className={scope === 'live' ? 'on' : ''} onClick={() => setScope('live')}>Live</button>
+        <button className={scope === 'past' ? 'on' : ''} onClick={() => setScope('past')}>Past</button>
+      </div>
+
       {stats && (
         <div className="kpi-grid">
           <Kpi label="Open carts" value={fmt(stats.openCount)} />
@@ -161,7 +182,7 @@ export default function AbandonedCarts() {
       <div className="card">
         <div className="display" style={{ fontWeight: 700, marginBottom: 10 }}>By event</div>
         {byEvent.length === 0 ? (
-          <div className="muted small">No open abandoned carts.</div>
+          <div className="muted small">No {scope} abandoned carts.</div>
         ) : (
           <div className="stack" style={{ gap: 8 }}>
             {byEvent.map(([id, v]) => {
@@ -235,7 +256,7 @@ export default function AbandonedCarts() {
           </div>
           );
         })}
-        {filtered.length === 0 && !loading && <div className="trow muted">No abandoned carts match.</div>}
+        {filtered.length === 0 && !loading && <div className="trow muted">No {scope} abandoned carts match.</div>}
       </div>
       <div className="tiny hint">
         recovery is a real WhatsApp + email reminder (no discount) · organizers pay nothing to recover — this is platform oversight
