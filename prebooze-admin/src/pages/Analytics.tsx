@@ -180,6 +180,8 @@ export default function Analytics() {
       { header: ['Payment failure reason', 'Count'], rows: report.paymentFailures.map((f) => [f.reason, f.count]) },
       { header: ['Visitor state', 'Sessions'], rows: report.regions.map((r) => [r.label, r.sessions]) },
       { header: ['Ad platform', 'Sessions'], rows: report.adPlatforms.map((a) => [a.label, a.sessions]) },
+      { header: ['Ad platform', 'Bookings', 'Revenue (₹)'], rows: report.revenueByAdPlatform.map((b) => [b.label, b.bookings, b.revenue]) },
+      { header: ['Campaign', 'Bookings', 'Revenue (₹)'], rows: report.revenueByCampaign.map((b) => [b.label, b.bookings, b.revenue]) },
     ]);
   };
 
@@ -527,6 +529,52 @@ export default function Analytics() {
                 <span style={{ flex: 1.6, fontWeight: 700 }}>{t.tierName}</span>
                 <span style={{ flex: 0.8 }}>{t.qty.toLocaleString('en-IN')}</span>
                 <span style={{ flex: 1 }}>{inr(t.revenue)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {report && report.revenueByAdPlatform.length > 0 && (
+        <div className="card">
+          <div className="display" style={{ fontWeight: 700, marginBottom: 4 }}>Revenue by ad platform</div>
+          <p className="tiny muted" style={{ marginBottom: 10 }}>Which real bookings came from Facebook vs Instagram vs Messenger — "Unattributed" is a manual booking, or a sale from before this tracking existed.</p>
+          <div className="tblwrap">
+            <div className="thead" style={{ minWidth: 420 }}>
+              <span style={{ flex: 1.6 }}>Platform</span>
+              <span style={{ flex: 0.8 }}>Bookings</span>
+              <span style={{ flex: 1 }}>Revenue</span>
+              <span style={{ flex: 0.8 }}>% of revenue</span>
+            </div>
+            {report.revenueByAdPlatform.map((b) => (
+              <div key={b.label} className="trow" style={{ minWidth: 420 }}>
+                <span style={{ flex: 1.6, fontWeight: 700 }}>{b.label}</span>
+                <span style={{ flex: 0.8 }}>{b.bookings.toLocaleString('en-IN')}</span>
+                <span style={{ flex: 1 }}>{inr(b.revenue)}</span>
+                <span style={{ flex: 0.8 }}>{report.revenue.totalRevenue ? Math.round((b.revenue / report.revenue.totalRevenue) * 100) : 0}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {report && report.revenueByCampaign.length > 0 && (
+        <div className="card">
+          <div className="display" style={{ fontWeight: 700, marginBottom: 4 }}>Revenue by campaign</div>
+          <p className="tiny muted" style={{ marginBottom: 10 }}>Real bookings grouped by utm_campaign.</p>
+          <div className="tblwrap">
+            <div className="thead" style={{ minWidth: 420 }}>
+              <span style={{ flex: 1.6 }}>Campaign</span>
+              <span style={{ flex: 0.8 }}>Bookings</span>
+              <span style={{ flex: 1 }}>Revenue</span>
+              <span style={{ flex: 0.8 }}>% of revenue</span>
+            </div>
+            {report.revenueByCampaign.map((b) => (
+              <div key={b.label} className="trow" style={{ minWidth: 420 }}>
+                <span style={{ flex: 1.6, fontWeight: 700 }}>{b.label}</span>
+                <span style={{ flex: 0.8 }}>{b.bookings.toLocaleString('en-IN')}</span>
+                <span style={{ flex: 1 }}>{inr(b.revenue)}</span>
+                <span style={{ flex: 0.8 }}>{report.revenue.totalRevenue ? Math.round((b.revenue / report.revenue.totalRevenue) * 100) : 0}%</span>
               </div>
             ))}
           </div>

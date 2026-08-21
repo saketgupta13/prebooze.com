@@ -641,6 +641,11 @@ export interface AnalyticsTicketTierSale {
   qty: number;
   revenue: number;
 }
+export interface AnalyticsRevenueBucket {
+  label: string;
+  bookings: number;
+  revenue: number;
+}
 export interface LiveAnalytics {
   stages: FunnelStageCount[];
   totalEvents: number;
@@ -660,6 +665,8 @@ export interface LiveAnalytics {
   revenue: AnalyticsRevenue;
   promoterAttribution: AnalyticsPromoterAttribution[];
   ticketTierSales: AnalyticsTicketTierSale[];
+  revenueByAdPlatform: AnalyticsRevenueBucket[];
+  revenueByCampaign: AnalyticsRevenueBucket[];
 }
 export interface AnalyticsRealtime {
   since: string;

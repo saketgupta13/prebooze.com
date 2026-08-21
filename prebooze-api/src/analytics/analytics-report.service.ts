@@ -261,19 +261,54 @@ export class AnalyticsReportService {
       .map(([reason, count]) => ({ reason, count }))
       .sort((a, b) => b.count - a.count);
 
+    // Which real sale came from which ad/campaign — the booking_completed
+    // row for a given sale carries both the real Booking.id (meta.bookingId,
+    // see Checkout.tsx's afterBookingSuccess) and that same session's own
+    // attribution fields, so no extra query or join table is needed: read
+    // both off the one row. A confirmed booking with no matching row here
+    // (a manual admin booking, or anything from before this field existed)
+    // falls back to "Unattributed" below rather than being silently dropped
+    // — same "don't let revenue go quietly inconsistent" reasoning as the
+    // visitor-geo scoping above.
+    const bookingCampaign = new Map<string, string>();
+    const bookingAdPlatform = new Map<string, string>();
+    for (const r of rows) {
+      if (r.type !== 'booking_completed') continue;
+      const bookingId = metaStr(r.meta, 'bookingId');
+      if (!bookingId) continue;
+      if (r.utmCampaign) bookingCampaign.set(bookingId, r.utmCampaign);
+      if (r.siteSource) bookingAdPlatform.set(bookingId, siteSourceLabel(r.siteSource));
+    }
+
     // Real money — Booking rows in the exact same scope/date window as the
     // funnel above (eventId/city/organizer + from/to + visitor geo via
     // userId, see visitorUserIds above), joined against Promoter and
     // TicketTier for display names.
     const bookings = await this.prisma.booking.findMany({
       where: { ...eventScopeWhere, ...dateWhere, ...(visitorUserIds ? { userId: { in: visitorUserIds } } : {}) },
-      select: { total: true, status: true, createdAt: true, promoterRef: true, promoterCommission: true, tierBreakdown: true },
+      select: { id: true, total: true, status: true, createdAt: true, promoterRef: true, promoterCommission: true, tierBreakdown: true },
     });
     const confirmedBookings = bookings.filter((b) => b.status === 'confirmed');
     const totalRevenue = confirmedBookings.reduce((s, b) => s + b.total, 0);
     const refundedAmount = bookings.filter((b) => b.status === 'refunded').reduce((s, b) => s + b.total, 0);
     const bookingCount = confirmedBookings.length;
     const avgOrderValue = bookingCount ? Math.round(totalRevenue / bookingCount) : 0;
+
+    const aggByLabel = (getLabel: (b: (typeof confirmedBookings)[number]) => string) => {
+      const agg = new Map<string, { bookings: number; revenue: number }>();
+      for (const b of confirmedBookings) {
+        const label = getLabel(b);
+        const cur = agg.get(label) ?? { bookings: 0, revenue: 0 };
+        cur.bookings += 1;
+        cur.revenue += b.total;
+        agg.set(label, cur);
+      }
+      return [...agg.entries()]
+        .map(([label, v]) => ({ label, bookings: v.bookings, revenue: v.revenue }))
+        .sort((a, b) => b.revenue - a.revenue);
+    };
+    const revenueByAdPlatform = aggByLabel((b) => bookingAdPlatform.get(b.id) ?? 'Unattributed');
+    const revenueByCampaign = aggByLabel((b) => bookingCampaign.get(b.id) ?? 'Unattributed');
 
     const promoterAgg = new Map<string, { bookings: number; revenue: number; commission: number }>();
     for (const b of confirmedBookings) {
@@ -376,6 +411,7 @@ export class AnalyticsReportService {
       campaigns, geographies, regions, adPlatforms, visitorType, heatmap, paymentFailures,
       revenue: { totalRevenue, refundedAmount, bookingCount, avgOrderValue },
       promoterAttribution, ticketTierSales,
+      revenueByAdPlatform, revenueByCampaign,
     };
   }
 
