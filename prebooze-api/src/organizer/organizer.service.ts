@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import type { Prisma } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
@@ -10,6 +10,7 @@ import { NotificationsService } from '../admin/notifications.service';
 import { GuestListService } from '../admin/guestlist.service';
 import { LiveMonitorService } from '../admin/live-monitor.service';
 import { OrgAccessService } from './org-access.service';
+import { toCitySlug } from '../common/city-slug';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService — a cart still `active` past this is abandoned
 
@@ -62,6 +63,8 @@ function slugifyBase(s: string): string {
 
 @Injectable()
 export class OrganizerService {
+  private readonly log = new Logger('Organizer');
+
   constructor(
     private prisma: PrismaService,
     private wa: WhatsappService,
@@ -1011,14 +1014,19 @@ export class OrganizerService {
 
   async remindCart(userId: string, id: string) {
     const org = await this.orgAccess.require(userId, 'Events & wizard', 'edit');
-    const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: true } });
+    const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: { include: { venue: true } } } });
     if (!cart) throw new NotFoundException('Cart not found');
     if (cart.event.organizerId !== org.id) throw new ForbiddenException();
 
     await this.prisma.cart.update({ where: { id }, data: { remindedAt: new Date() } });
+    const city = cart.event.venue?.city ?? cart.event.privateCity;
+    const eventUrl = `${process.env.WEB_APP_URL ?? ''}${city ? `/${toCitySlug(city)}` : ''}/events/${cart.event.slug}`;
+    // remindedAt above is set unconditionally (this cart won't be nudged
+    // again even if the send below fails), so a failure needs a clear log
+    // line here rather than disappearing into a silent .catch(() => {}).
     await this.wa
-      .send(cart.user.phone, 'cart_reminder', [cart.user.name || 'there', cart.event.title, `${process.env.WEB_APP_URL ?? ''}/events/${cart.event.slug}`])
-      .catch(() => {});
+      .send(cart.user.phone, 'cart_reminder', [cart.user.name || 'there', cart.event.title, eventUrl])
+      .catch((err) => this.log.warn(`Cart reminder WhatsApp to cart ${id} failed: ${(err as Error).message}`));
     return { ok: true };
   }
 }

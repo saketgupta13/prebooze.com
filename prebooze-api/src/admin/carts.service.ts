@@ -1,12 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
+import { toCitySlug } from '../common/city-slug';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService/OrganizerService — a cart still `active` past this is abandoned
 
 @Injectable()
 export class CartsService {
+  private readonly log = new Logger('Carts');
+
   constructor(
     private prisma: PrismaService,
     private wa: WhatsappService,
@@ -57,16 +60,21 @@ export class CartsService {
   }
 
   async remind(id: string) {
-    const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: true } });
+    const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: { include: { venue: true } } } });
     if (!cart) throw new NotFoundException('Cart not found');
     await this.prisma.cart.update({ where: { id }, data: { remindedAt: new Date() } });
-    const eventUrl = `${process.env.WEB_APP_URL ?? ''}/events/${cart.event.slug}`;
+    const city = cart.event.venue?.city ?? cart.event.privateCity;
+    const eventUrl = `${process.env.WEB_APP_URL ?? ''}${city ? `/${toCitySlug(city)}` : ''}/events/${cart.event.slug}`;
+    // remindedAt above is set unconditionally (never re-nudge the same cart
+    // even if this send fails) — that means a failure here is otherwise
+    // invisible with no way to retry, so it's worth a clear log line rather
+    // than the silent .catch(() => {}) this used to be.
     await this.wa
       .send(cart.user.phone, 'cart_reminder', [cart.user.name || 'there', cart.event.title, eventUrl])
-      .catch(() => {});
+      .catch((err) => this.log.warn(`Cart reminder WhatsApp to cart ${id} failed: ${(err as Error).message}`));
     await this.email.sendTemplate(cart.user.email, 'cart_reminder', {
       name: cart.user.name, eventTitle: cart.event.title, eventUrl,
-    }).catch(() => {});
+    }).catch((err) => this.log.warn(`Cart reminder email to cart ${id} failed: ${(err as Error).message}`));
     return { ok: true };
   }
 
@@ -93,7 +101,9 @@ export class CartsService {
       where: { status: 'active', remindedAt: null, createdAt: { lt: cutoff } },
       select: { id: true },
     });
-    for (const c of carts) await this.remind(c.id).catch(() => {});
+    for (const c of carts) {
+      await this.remind(c.id).catch((err) => this.log.warn(`Auto-nudge for cart ${c.id} failed: ${(err as Error).message}`));
+    }
     return { sent: carts.length };
   }
 }
