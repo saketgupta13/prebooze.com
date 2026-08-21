@@ -72,6 +72,7 @@ export default function App() {
         <Route path="/events/:id/guestlist" element={<GuestList />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/bookings/new" element={<ManualBooking />} />
+        <Route path="/bookings/event/:eventId" element={<Bookings />} />
         <Route path="/bookings/:id" element={<BookingDetail />} />
         <Route path="/abandoned" element={<AbandonedCarts />} />
         <Route path="/featured" element={<Featured />} />

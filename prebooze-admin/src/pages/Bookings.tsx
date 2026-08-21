@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { SearchBox, Tag } from '../components/ui';
 import { downloadCsv } from '../lib/csv';
 import { liveBookings, liveCarts, LiveApiError, type LiveBooking, type LiveCart } from '../lib/liveApi';
@@ -34,6 +34,7 @@ export default function Bookings() {
   const session = useLiveSession();
   const { token } = session;
   const navigate = useNavigate();
+  const { eventId } = useParams();
   const [params, setParams] = useSearchParams();
   const filter = (params.get('status') as FilterKey) ?? 'all';
   const [query, setQuery] = useState(params.get('q') ?? '');
@@ -60,15 +61,36 @@ export default function Bookings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  // Landing on plain /bookings with no search and no explicit "view all"
+  // shows the event-grouped summary first (name/date/count/revenue) rather
+  // than every booking ever made flattened into one table — typing a
+  // search or clicking into a specific event both fall through to the same
+  // underlying booking-list view below, just scoped differently.
+  const showingSummary = !eventId && !query.trim() && params.get('view') !== 'all';
+
   const list = useMemo(() => {
-    let l = bookings;
+    let l = eventId ? bookings.filter((b) => b.event.id === eventId) : bookings;
     if (filter !== 'all') l = l.filter((b) => b.status === filter);
     if (query.trim()) {
       const q = query.toLowerCase();
       l = l.filter((b) => b.id.toLowerCase().includes(q) || b.mainGuest.toLowerCase().includes(q) || b.whatsapp.includes(q));
     }
     return l;
-  }, [bookings, filter, query]);
+  }, [bookings, eventId, filter, query]);
+
+  const scopedEvent = eventId ? bookings.find((b) => b.event.id === eventId)?.event : undefined;
+
+  const eventsSummary = useMemo(() => {
+    const m = new Map<string, { title: string; date: string; count: number; qty: number; revenue: number }>();
+    bookings.forEach((b) => {
+      const cur = m.get(b.event.id) ?? { title: b.event.title, date: b.event.date, count: 0, qty: 0, revenue: 0 };
+      cur.count += 1;
+      cur.qty += b.qty;
+      if (b.status === 'confirmed' || b.status === 'refund_requested') cur.revenue += b.total;
+      m.set(b.event.id, cur);
+    });
+    return [...m.entries()].sort((a, b) => a[1].date.localeCompare(b[1].date));
+  }, [bookings]);
 
   const cartsByEvent = useMemo(() => {
     const m = new Map<string, { title: string; count: number; value: number }>();
@@ -100,17 +122,23 @@ export default function Bookings() {
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       {loading && <div className="tiny muted">Loading…</div>}
 
+      {eventId && <Link to="/bookings" style={{ fontSize: 13 }}>← All events</Link>}
       <div className="page-hd">
-        <h1 className="page-title">Bookings</h1>
+        <h1 className="page-title">{eventId ? (scopedEvent?.title ?? 'Bookings') : 'Bookings'}</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-ghost" onClick={exportCsv}>⬇ Export CSV</button>
+          {!showingSummary && <button className="btn btn-ghost" onClick={exportCsv}>⬇ Export CSV</button>}
           <Link to="/bookings/new" className="btn btn-pri">+ Manual booking</Link>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <SearchBox value={query} onChange={setQuery} placeholder="booking id / phone / name…" style={{ flex: 1, minWidth: 180 }} />
-        {FILTERS.map((f) => (
+        {!eventId && !query.trim() && (
+          <Link to={showingSummary ? '/bookings?view=all' : '/bookings'} className={`chip ${!showingSummary ? 'on' : ''}`}>
+            {showingSummary ? '📋 All bookings' : '← Back to events'}
+          </Link>
+        )}
+        {!showingSummary && FILTERS.map((f) => (
           <button
             key={f.key}
             className={`chip ${filter === f.key ? 'on' : ''}`}
@@ -121,31 +149,53 @@ export default function Bookings() {
         ))}
       </div>
 
-      <div className="tblwrap">
-        <div className="thead" style={{ minWidth: 560 }}>
-          <span style={{ flex: 1 }}>#ID</span>
-          <span style={{ flex: 1.6 }}>Guest</span>
-          <span style={{ flex: 1.8 }}>Event</span>
-          <span style={{ flex: 1 }}>Qty · Amount</span>
-          <span style={{ flex: 1 }}>Status</span>
-        </div>
-        {list.map((b) => (
-          <div
-            key={b.id}
-            className="trow clickable"
-            style={{ minWidth: 560, background: b.status === 'refund_requested' ? 'rgba(255,107,94,.06)' : undefined }}
-            onClick={() => navigate(`/bookings/${encodeURIComponent(b.id)}`)}
-          >
-            <span style={{ flex: 1, fontWeight: 700 }}>{b.id}</span>
-            <span style={{ flex: 1.6 }}>{b.mainGuest} · {b.whatsapp}</span>
-            <span style={{ flex: 1.8 }} className="muted">{b.event.title}</span>
-            <span style={{ flex: 1 }}>{b.qty} · ₹{fmt(b.total)}</span>
-            <span style={{ flex: 1 }}><Tag {...STATUS_TAG[b.status]} /></span>
+      {showingSummary ? (
+        <div className="tblwrap">
+          <div className="thead" style={{ minWidth: 480 }}>
+            <span style={{ flex: 2 }}>Event</span>
+            <span style={{ flex: 1 }}>Date</span>
+            <span style={{ flex: 1 }}>Bookings</span>
+            <span style={{ flex: 1 }}>Revenue</span>
           </div>
-        ))}
-        {list.length === 0 && !loading && <div className="trow muted">No bookings match.</div>}
-      </div>
-      <div className="tiny hint">Click a row for the fee breakdown, QR resend and refund actions.</div>
+          {eventsSummary.map(([id, v]) => (
+            <div key={id} className="trow clickable" style={{ minWidth: 480 }} onClick={() => navigate(`/bookings/event/${encodeURIComponent(id)}`)}>
+              <span style={{ flex: 2, fontWeight: 700 }}>{v.title}</span>
+              <span style={{ flex: 1 }} className="muted small">{new Date(v.date).toLocaleDateString('en-IN')}</span>
+              <span style={{ flex: 1 }}>{v.count} · {v.qty} tix</span>
+              <span style={{ flex: 1 }} className="green">₹{fmt(v.revenue)}</span>
+            </div>
+          ))}
+          {eventsSummary.length === 0 && !loading && <div className="trow muted">No bookings yet.</div>}
+        </div>
+      ) : (
+        <>
+          <div className="tblwrap">
+            <div className="thead" style={{ minWidth: 560 }}>
+              <span style={{ flex: 1 }}>#ID</span>
+              <span style={{ flex: 1.6 }}>Guest</span>
+              <span style={{ flex: 1.8 }}>Event</span>
+              <span style={{ flex: 1 }}>Qty · Amount</span>
+              <span style={{ flex: 1 }}>Status</span>
+            </div>
+            {list.map((b) => (
+              <div
+                key={b.id}
+                className="trow clickable"
+                style={{ minWidth: 560, background: b.status === 'refund_requested' ? 'rgba(255,107,94,.06)' : undefined }}
+                onClick={() => navigate(`/bookings/${encodeURIComponent(b.id)}`)}
+              >
+                <span style={{ flex: 1, fontWeight: 700 }}>{b.id}</span>
+                <span style={{ flex: 1.6 }}>{b.mainGuest} · {b.whatsapp}</span>
+                <span style={{ flex: 1.8 }} className="muted">{b.event.title}</span>
+                <span style={{ flex: 1 }}>{b.qty} · ₹{fmt(b.total)}</span>
+                <span style={{ flex: 1 }}><Tag {...STATUS_TAG[b.status]} /></span>
+              </div>
+            ))}
+            {list.length === 0 && !loading && <div className="trow muted">No bookings match.</div>}
+          </div>
+          <div className="tiny hint">Click a row for the fee breakdown, QR resend and refund actions.</div>
+        </>
+      )}
 
       {/* Abandoned carts — event-wise */}
       {cartsByEvent.length > 0 && (

@@ -342,7 +342,7 @@ export interface LiveBooking {
   adminNote: string | null;
   guests: { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
   user: { name: string; phone: string };
-  event: { title: string };
+  event: { id: string; title: string; date: string };
   qrToken: string;
   promoter: { id: string; name: string; slug: string } | null;
   promoterCommission: number;

@@ -728,7 +728,7 @@ export class BookingsService {
   async adminList(status?: string, userId?: string) {
     return this.prisma.booking.findMany({
       where: { ...(status ? { status: status as never } : {}), ...(userId ? { userId } : {}) },
-      include: { user: { select: { name: true, phone: true } }, event: { select: { title: true } } },
+      include: { user: { select: { name: true, phone: true } }, event: { select: { id: true, title: true, date: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
