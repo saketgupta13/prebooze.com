@@ -32,4 +32,10 @@ export class AdminCustomersController {
   setBlocked(@Param('id') id: string, @Body('blocked') blocked: boolean) {
     return this.customers.setBlocked(id, blocked);
   }
+
+  @Patch(':id/phone')
+  @RequirePermission('Customers', 'edit')
+  updatePhone(@Param('id') id: string, @Body('phone') phone: string) {
+    return this.customers.updatePhone(id, phone);
+  }
 }

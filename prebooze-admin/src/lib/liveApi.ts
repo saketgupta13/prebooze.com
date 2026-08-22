@@ -402,6 +402,7 @@ export const liveCustomers = {
   create: (body: { name: string; phone: string; email?: string; city?: string; gender?: string; verified?: boolean }) =>
     liveFetch<LiveCustomer>('/admin/customers', { body }),
   setBlocked: (id: string, blocked: boolean) => liveFetch<{ ok: true }>(`/admin/customers/${id}/block`, { method: 'PATCH', body: { blocked } }),
+  updatePhone: (id: string, phone: string) => liveFetch<LiveCustomerDetail>(`/admin/customers/${id}/phone`, { method: 'PATCH', body: { phone } }),
 };
 
 export interface LiveOrganizer {

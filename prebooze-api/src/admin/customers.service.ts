@@ -136,4 +136,22 @@ export class CustomersService {
     await this.prisma.user.update({ where: { id }, data: { blocked } });
     return { ok: true };
   }
+
+  /** Admin "god mode" login-number change — the only self-serve path
+   * (ChangePhoneNumber.tsx, POST /me/phone/request-change+confirm) requires
+   * being logged in already, which is exactly the wall a genuinely
+   * locked-out account (lost access to their old number, or an org/venue
+   * changing hands) hits. Same trust level as every other admin directory
+   * edit (no OTP round-trip) — staff vouching is the verification, same
+   * reasoning as create() above marking phoneVerified on a staff-entered
+   * number. Doesn't touch phoneVerified either way; whatever it was stays. */
+  async updatePhone(id: string, rawPhone: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Customer not found');
+    const phone = normalizePhone(rawPhone);
+    if (phone === user.phone) return user;
+    const taken = await this.prisma.user.findUnique({ where: { phone } });
+    if (taken) throw new BadRequestException('That number is already registered to another account');
+    return this.prisma.user.update({ where: { id }, data: { phone } });
+  }
 }
