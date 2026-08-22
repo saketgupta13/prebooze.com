@@ -33,6 +33,7 @@ export default function VenueOrgSettings() {
   const [facebook, setFacebook] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [contactPersonPhone, setContactPersonPhone] = useState('');
+  const [profileCount, setProfileCount] = useState<number | null>(null);
 
   useEffect(() => {
     venuePartner
@@ -50,6 +51,7 @@ export default function VenueOrgSettings() {
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
+    venuePartner.paymentProfiles().then((p) => setProfileCount(p.length)).catch(() => setProfileCount(0));
   }, []);
 
   const saveProfile = async () => {
@@ -155,11 +157,12 @@ export default function VenueOrgSettings() {
 
         <div className="evrow" style={{ flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="bold small">Payout bank details</div>
+            <div className="bold small">Payment profiles</div>
             <div className="tiny muted">
-              {venue.bankLast4 ? `On file · •••• ${venue.bankLast4}` : 'Not on file yet — set during your hosting approval'}
+              {profileCount === null ? 'Loading…' : profileCount > 0 ? `${profileCount} on file` : 'No payment profile yet — required before withdrawing'}
             </div>
           </div>
+          <Link to="/venue/hosting/settings/payment-profiles" className="btn btn-ghost btn-sm">Manage →</Link>
         </div>
 
         <div className="evrow">

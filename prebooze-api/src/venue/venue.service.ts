@@ -816,18 +816,25 @@ export class VenueService {
   }
 
   /** Self-service withdraw off the hosting ledger — same shape as
-   * OrganizerService.withdraw: a debit ledger row, settled manually by our
-   * team from here (no real transfer rail), owner notified on their bank
-   * account on file. */
+   * OrganizerService.withdraw: requires a default VenuePaymentProfile
+   * (nowhere real to send the money without one), a debit ledger row
+   * snapshotting exactly which account it went to, settled manually by our
+   * team from here (no real transfer rail), owner notified on file. */
   async withdraw(userId: string, amount: number) {
     const venue = await this.venueAccess.require(userId, 'Payouts & withdrawals', 'edit');
+    const profile = await this.prisma.venuePaymentProfile.findFirst({ where: { venueId: venue.id, isDefault: true } });
+    if (!profile) throw new BadRequestException('Add a payment profile (Settings → Payment profiles) before withdrawing');
     if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Enter a valid amount');
     const agg = await this.prisma.venueLedgerTx.aggregate({ where: { venueId: venue.id }, _sum: { amount: true } });
     const balance = agg._sum.amount ?? 0;
     if (amount > balance) throw new BadRequestException('More than your available balance');
 
     await this.prisma.venueLedgerTx.create({
-      data: { venueId: venue.id, type: 'withdrawal', amount: -amount, note: 'Withdrawal to bank' },
+      data: {
+        venueId: venue.id, type: 'withdrawal', amount: -amount, note: 'Withdrawal to bank',
+        paymentProfileId: profile.id, payoutBankLast4: profile.bankLast4,
+        payoutAccountHolderName: profile.accountHolderName, payoutIfsc: profile.ifsc,
+      },
     });
 
     const user = venue.userId ? await this.prisma.user.findUnique({ where: { id: venue.userId } }) : null;
@@ -837,6 +844,119 @@ export class VenueService {
         name: user.name, amount: money(amount), role: 'venue',
       }).catch(() => {});
     }
+    return { ok: true };
+  }
+
+  // ---------- payment profiles (bank accounts to withdraw hosting revenue
+  // to) — exact mirror of OrganizerService's own, venueId-scoped ----------
+  async listPaymentProfiles(userId: string) {
+    const venue = await this.venueAccess.require(userId, 'Payouts & withdrawals', 'view');
+    return this.prisma.venuePaymentProfile.findMany({ where: { venueId: venue.id }, orderBy: { createdAt: 'asc' } });
+  }
+
+  private validatePaymentProfileInput(data: {
+    legalName?: string | null; businessAddress?: string | null; country?: string | null; state?: string | null; city?: string | null; pincode?: string | null;
+    bankAccountNumber?: string | null; accountHolderName?: string | null; ifsc?: string | null; branch?: string | null;
+    pan?: string | null; gstin?: string | null; noGst?: boolean | null;
+  }) {
+    if (!data.legalName?.trim()) throw new BadRequestException('Company/Firm/LLP/Individual name is required');
+    if (!data.businessAddress?.trim()) throw new BadRequestException('Business address is required');
+    if (!data.bankAccountNumber?.trim() || !data.accountHolderName?.trim() || !data.ifsc?.trim()) {
+      throw new BadRequestException('Full bank account details are required');
+    }
+    if (!data.pan?.trim()) throw new BadRequestException('PAN is required');
+    if (!data.noGst && !data.gstin?.trim()) throw new BadRequestException('GSTIN is required, or tick "I don\'t have a GSTIN"');
+  }
+
+  async createPaymentProfile(userId: string, data: {
+    legalName: string; businessAddress: string; country?: string; state?: string; city?: string; pincode?: string;
+    bankAccountNumber: string; accountHolderName: string; ifsc: string; branch?: string;
+    pan: string; gstin?: string; noGst?: boolean;
+  }) {
+    const venue = await this.venueAccess.require(userId, 'Payouts & withdrawals', 'edit');
+    this.validatePaymentProfileInput(data);
+    const bankAccountNumber = data.bankAccountNumber.trim();
+    const isFirst = (await this.prisma.venuePaymentProfile.count({ where: { venueId: venue.id } })) === 0;
+    return this.prisma.venuePaymentProfile.create({
+      data: {
+        venueId: venue.id,
+        isDefault: isFirst,
+        legalName: data.legalName.trim(),
+        businessAddress: data.businessAddress.trim(),
+        country: data.country?.trim(),
+        state: data.state?.trim(),
+        city: data.city?.trim(),
+        pincode: data.pincode?.trim(),
+        bankAccountNumber,
+        bankLast4: bankAccountNumber.slice(-4),
+        accountHolderName: data.accountHolderName.trim(),
+        ifsc: data.ifsc.trim().toUpperCase(),
+        branch: data.branch?.trim(),
+        pan: data.pan.trim().toUpperCase(),
+        gstin: data.noGst ? null : data.gstin?.trim().toUpperCase(),
+        noGst: !!data.noGst,
+      },
+    });
+  }
+
+  private async ownedPaymentProfile(venueId: string, id: string) {
+    const profile = await this.prisma.venuePaymentProfile.findUnique({ where: { id } });
+    if (!profile || profile.venueId !== venueId) throw new NotFoundException('Payment profile not found');
+    return profile;
+  }
+
+  async updatePaymentProfile(userId: string, id: string, data: {
+    legalName?: string; businessAddress?: string; country?: string; state?: string; city?: string; pincode?: string;
+    bankAccountNumber?: string; accountHolderName?: string; ifsc?: string; branch?: string;
+    pan?: string; gstin?: string; noGst?: boolean;
+  }) {
+    const venue = await this.venueAccess.require(userId, 'Payouts & withdrawals', 'edit');
+    const existing = await this.ownedPaymentProfile(venue.id, id);
+    const merged = { ...existing, ...data };
+    this.validatePaymentProfileInput(merged);
+    const bankAccountNumber = data.bankAccountNumber?.trim() ?? existing.bankAccountNumber;
+    return this.prisma.venuePaymentProfile.update({
+      where: { id },
+      data: {
+        legalName: data.legalName?.trim(),
+        businessAddress: data.businessAddress?.trim(),
+        country: data.country?.trim(),
+        state: data.state?.trim(),
+        city: data.city?.trim(),
+        pincode: data.pincode?.trim(),
+        bankAccountNumber,
+        bankLast4: bankAccountNumber.slice(-4),
+        accountHolderName: data.accountHolderName?.trim(),
+        ifsc: data.ifsc?.trim().toUpperCase(),
+        branch: data.branch?.trim(),
+        pan: data.pan?.trim().toUpperCase(),
+        gstin: data.noGst ? null : data.gstin?.trim().toUpperCase(),
+        noGst: data.noGst,
+      },
+    });
+  }
+
+  /** Deleting the current default auto-promotes the next-oldest remaining
+   * profile, so withdraw() never has to special-case "default just got
+   * deleted" — same precedent as OrganizerService.deletePaymentProfile. */
+  async deletePaymentProfile(userId: string, id: string) {
+    const venue = await this.venueAccess.require(userId, 'Payouts & withdrawals', 'edit');
+    const target = await this.ownedPaymentProfile(venue.id, id);
+    await this.prisma.venuePaymentProfile.delete({ where: { id } });
+    if (target.isDefault) {
+      const next = await this.prisma.venuePaymentProfile.findFirst({ where: { venueId: venue.id }, orderBy: { createdAt: 'asc' } });
+      if (next) await this.prisma.venuePaymentProfile.update({ where: { id: next.id }, data: { isDefault: true } });
+    }
+    return { ok: true };
+  }
+
+  async setDefaultPaymentProfile(userId: string, id: string) {
+    const venue = await this.venueAccess.require(userId, 'Payouts & withdrawals', 'edit');
+    await this.ownedPaymentProfile(venue.id, id);
+    await this.prisma.$transaction([
+      this.prisma.venuePaymentProfile.updateMany({ where: { venueId: venue.id, isDefault: true }, data: { isDefault: false } }),
+      this.prisma.venuePaymentProfile.update({ where: { id }, data: { isDefault: true } }),
+    ]);
     return { ok: true };
   }
 

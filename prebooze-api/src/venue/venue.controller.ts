@@ -183,6 +183,32 @@ export class VenueController {
     return this.venue.coupons(req.user.sub);
   }
 
+  // ---------- payment profiles ----------
+  @Get('hosting/payment-profiles')
+  listPaymentProfiles(@Req() req: AuthedReq) {
+    return this.venue.listPaymentProfiles(req.user.sub);
+  }
+
+  @Post('hosting/payment-profiles')
+  createPaymentProfile(@Req() req: AuthedReq, @Body() body: Parameters<VenueService['createPaymentProfile']>[1]) {
+    return this.venue.createPaymentProfile(req.user.sub, body);
+  }
+
+  @Patch('hosting/payment-profiles/:id')
+  updatePaymentProfile(@Req() req: AuthedReq, @Param('id') id: string, @Body() body: Parameters<VenueService['updatePaymentProfile']>[2]) {
+    return this.venue.updatePaymentProfile(req.user.sub, id, body);
+  }
+
+  @Delete('hosting/payment-profiles/:id')
+  deletePaymentProfile(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.venue.deletePaymentProfile(req.user.sub, id);
+  }
+
+  @Post('hosting/payment-profiles/:id/default')
+  setDefaultPaymentProfile(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.venue.setDefaultPaymentProfile(req.user.sub, id);
+  }
+
   @Post('hosting/coupons')
   upsertCoupon(@Req() req: AuthedReq, @Body() body: Parameters<VenueService['upsertCoupon']>[1]) {
     return this.venue.upsertCoupon(req.user.sub, body);

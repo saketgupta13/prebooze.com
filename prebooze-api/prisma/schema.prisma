@@ -297,18 +297,9 @@ model Venue {
   // own OrgRole/OrgStaff exactly (see VenueAccessService), only ever
   // reachable once hostingEnabled since there's nothing to delegate access
   // to before that.
-  roles VenueRole[]
-  staff VenueStaff[]
-
-  // Payout bank details — same plaintext-on-admin-view precedent as
-  // Organizer.bankLast4/bankAccountNumber/etc (no field-level encryption
-  // anywhere in this schema). Only meaningful once hostingEnabled — a
-  // venue that never hosts never needs these, hence fully optional.
-  bankLast4         String?
-  bankName          String?
-  bankAccountNumber String?
-  accountHolderName String?
-  ifsc              String?
+  roles           VenueRole[]
+  staff           VenueStaff[]
+  paymentProfiles VenuePaymentProfile[]
 
   lead Lead?
 
@@ -363,6 +354,44 @@ model VenueLedgerTx {
   eventTitle String?
   note       String?
   createdAt  DateTime @default(now())
+
+  // Same denormalized-payout-snapshot precedent as OrganizerLedgerTx — a
+  // later edit or deletion of the profile must never change the historical
+  // record of where a past payout went. Only set for type:'withdrawal'.
+  paymentProfileId        String?
+  payoutBankLast4         String?
+  payoutAccountHolderName String?
+  payoutIfsc              String?
+}
+
+// Bank accounts a venue can withdraw its hosting revenue to — plural,
+// self-serve, no admin review, exact mirror of Organizer's own
+// PaymentProfile. withdraw() always pays out to whichever is isDefault.
+model VenuePaymentProfile {
+  id        String  @id @default(cuid())
+  venueId   String
+  venue     Venue   @relation(fields: [venueId], references: [id])
+  isDefault Boolean @default(false)
+
+  legalName       String
+  businessAddress String
+  country         String?
+  state           String?
+  city            String?
+  pincode         String?
+
+  bankAccountNumber String
+  bankLast4         String
+  accountHolderName String
+  ifsc              String
+  branch            String?
+
+  pan   String
+  gstin String?
+  noGst Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Real venue reviews — same shape as OrgReview, previously the one elevated

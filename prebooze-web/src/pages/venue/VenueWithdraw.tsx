@@ -4,15 +4,16 @@ import { fmtMoney } from '../../data/mock';
 import Loader from '../../components/Loader';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
-import type { Venue } from '../../types';
 
 /** Withdraw available hosting balance — real POST /venue/hosting/withdraw.
  * Same shape as organizer/Withdraw.tsx: settlement itself is manual on our
- * side, so this doesn't claim an instant transfer mode. */
+ * side, so this doesn't claim an instant transfer mode. Pays out to
+ * whichever payment profile is default — same source of truth the backend
+ * itself checks. */
 export default function VenueWithdraw() {
   const navigate = useNavigate();
   const [balance, setBalance] = useState(0);
-  const [venue, setVenue] = useState<Venue | null>(null);
+  const [defaultBankLast4, setDefaultBankLast4] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState('0');
   const [confirming, setConfirming] = useState(false);
@@ -20,8 +21,12 @@ export default function VenueWithdraw() {
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    Promise.all([venuePartner.myLedger(), venuePartner.myListing()])
-      .then(([l, v]) => { setBalance(l.balance); setAmount(String(l.balance)); setVenue(v); })
+    Promise.all([venuePartner.myLedger(), venuePartner.paymentProfiles()])
+      .then(([l, profiles]) => {
+        setBalance(l.balance);
+        setAmount(String(l.balance));
+        setDefaultBankLast4(profiles.find((p) => p.isDefault)?.bankLast4 ?? null);
+      })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   }, []);
@@ -58,7 +63,7 @@ export default function VenueWithdraw() {
         </div>
         <div className="kv">
           <span className="k">Payout account</span>
-          <span>{venue?.bankLast4 ? <>•••• {venue.bankLast4} <span className="verified">✓</span></> : 'No bank on file — add one in Settings'}</span>
+          <span>{defaultBankLast4 ? <>•••• {defaultBankLast4} <span className="verified">✓</span></> : 'No payment profile on file — add one in Settings'}</span>
         </div>
         <div className="field" style={{ marginTop: 12 }}>
           <span>Amount to withdraw</span>
@@ -80,7 +85,7 @@ export default function VenueWithdraw() {
         ) : (
           <div className="card" style={{ background: 'var(--surface-2)', padding: 14 }}>
             <div className="small" style={{ marginBottom: 10 }}>
-              Request a withdrawal of <b>{fmtMoney(amt)}</b> to {venue?.bankLast4 ? `•••• ${venue.bankLast4}` : 'your account on file'}? Our team processes it from here.
+              Request a withdrawal of <b>{fmtMoney(amt)}</b> to {defaultBankLast4 ? `•••• ${defaultBankLast4}` : 'your account on file'}? Our team processes it from here.
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-pri" style={{ flex: 1 }} disabled={submitting} onClick={confirm}>

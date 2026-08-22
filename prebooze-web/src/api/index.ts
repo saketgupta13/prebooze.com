@@ -722,6 +722,27 @@ export interface VenueCollaboratorOption {
   username: string;
   city: string;
 }
+export interface VenuePaymentProfile {
+  id: string;
+  venueId: string;
+  isDefault: boolean;
+  legalName: string;
+  businessAddress: string;
+  country?: string | null;
+  state?: string | null;
+  city?: string | null;
+  pincode?: string | null;
+  bankAccountNumber: string;
+  bankLast4: string;
+  accountHolderName: string;
+  ifsc: string;
+  branch?: string | null;
+  pan: string;
+  gstin?: string | null;
+  noGst: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 // ---------- venue partner ----------
 export const venuePartner = {
@@ -783,6 +804,21 @@ export const venuePartner = {
     >('/venue/hosting/promoters'),
   coupons: () => apiFetch<Coupon[]>('/venue/hosting/coupons'),
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/venue/hosting/coupons', { body: c }),
+  // ---- payment profiles (bank accounts to withdraw hosting revenue to) —
+  // self-serve, no admin review, plural. Mirrors organizer.paymentProfiles.
+  paymentProfiles: () => apiFetch<VenuePaymentProfile[]>('/venue/hosting/payment-profiles'),
+  createPaymentProfile: (data: {
+    legalName: string; businessAddress: string; country?: string; state?: string; city?: string; pincode?: string;
+    bankAccountNumber: string; accountHolderName: string; ifsc: string; branch?: string;
+    pan: string; gstin?: string; noGst?: boolean;
+  }) => apiFetch<VenuePaymentProfile>('/venue/hosting/payment-profiles', { body: data }),
+  updatePaymentProfile: (id: string, data: Partial<{
+    legalName: string; businessAddress: string; country: string; state: string; city: string; pincode: string;
+    bankAccountNumber: string; accountHolderName: string; ifsc: string; branch: string;
+    pan: string; gstin: string; noGst: boolean;
+  }>) => apiFetch<VenuePaymentProfile>(`/venue/hosting/payment-profiles/${id}`, { method: 'PATCH', body: data }),
+  deletePaymentProfile: (id: string) => apiFetch<{ ok: true }>(`/venue/hosting/payment-profiles/${id}`, { method: 'DELETE' }),
+  setDefaultPaymentProfile: (id: string) => apiFetch<{ ok: true }>(`/venue/hosting/payment-profiles/${id}/default`, { method: 'POST' }),
   live: (eventId: string) => apiFetch<OrgLiveMonitor>(`/venue/hosting/events/${eventId}/live`),
   manualCheckIn: (eventId: string, name: string, count?: number) => apiFetch<unknown>(`/venue/hosting/events/${eventId}/check-in`, { body: { name, count } }),
   setSalesPaused: (eventId: string, paused: boolean) => apiFetch<Event>(`/venue/hosting/events/${eventId}/pause-sales`, { method: 'PATCH', body: { paused } }),

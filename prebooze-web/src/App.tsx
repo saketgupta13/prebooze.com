@@ -128,6 +128,7 @@ const VenuePromoters = lazy(() => import('./pages/venue/VenuePromoters'));
 const VenueCoupons = lazy(() => import('./pages/venue/VenueCoupons'));
 const VenueTeamRoles = lazy(() => import('./pages/venue/VenueTeamRoles'));
 const VenueOrgSettings = lazy(() => import('./pages/venue/VenueOrgSettings'));
+const VenuePaymentProfiles = lazy(() => import('./pages/venue/VenuePaymentProfiles'));
 const NotFound = lazy(() => import('./pages/static/NotFound'));
 
 /** The 13 city-scoped discovery routes, declared once and rendered twice
@@ -486,6 +487,7 @@ export default function App() {
           <Route path="coupons" element={<VenueCoupons />} />
           <Route path="team" element={<VenueTeamRoles />} />
           <Route path="settings" element={<VenueOrgSettings />} />
+          <Route path="settings/payment-profiles" element={<VenuePaymentProfiles />} />
           <Route path="ledger" element={<VenueLedger />} />
           <Route path="ledger/withdraw" element={<VenueWithdraw />} />
         </Route>
