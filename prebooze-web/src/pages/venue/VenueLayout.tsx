@@ -8,6 +8,7 @@ const NAV = [
   { to: '/venue', label: '▦ Dashboard', end: true },
   { to: '/venue/listing', label: '🏛 My listing' },
   { to: '/venue/events', label: '📅 Events here' },
+  { to: '/venue/reviews', label: '★ Reviews' },
   { to: '/venue/billing', label: '⭐ Featured & billing' },
   { to: '/venue/settings', label: '⚙ Settings' },
 ];
@@ -18,6 +19,13 @@ const NAV = [
 // then only show all new option otherwise nothing to show" from the plan.
 const HOSTING_ENABLED_NAV = [
   { to: '/venue/hosting/events', label: '🎟 Events I host' },
+  { to: '/venue/hosting/scanner', label: '📷 Scanner' },
+  { to: '/venue/hosting/attendees', label: '🎫 Attendees' },
+  { to: '/venue/hosting/guest-list', label: '📋 Guest list' },
+  { to: '/venue/hosting/live', label: '📡 Live monitor' },
+  { to: '/venue/hosting/carts', label: '🛒 Abandoned carts' },
+  { to: '/venue/hosting/promoters', label: '📣 Promoters' },
+  { to: '/venue/hosting/coupons', label: '🏷 Promo codes' },
   { to: '/venue/hosting/ledger', label: '💰 Hosting ledger' },
 ];
 

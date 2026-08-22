@@ -20,7 +20,7 @@ import Leads from './pages/Leads';
 import Organizers from './pages/Organizers';
 import OrganizerDetail from './pages/OrganizerDetail';
 import AddOrganizer from './pages/AddOrganizer';
-import { AddVenue, VenueDetail, Venues } from './pages/Venues';
+import { AddVenue, VenueDetail, Venues, VenueHostingRequests } from './pages/Venues';
 import Payments from './pages/Payments';
 import PromoterPayouts from './pages/PromoterPayouts';
 import Promos from './pages/Promos';
@@ -98,6 +98,7 @@ export default function App() {
         <Route path="/careers" element={<CareersAdmin />} />
         <Route path="/reels" element={<Reels />} />
         <Route path="/venues" element={<Venues />} />
+        <Route path="/venue-hosting" element={<VenueHostingRequests />} />
         <Route path="/venues/new" element={<AddVenue />} />
         <Route path="/venues/:id" element={<VenueDetail />} />
         <Route path="/venues/:id/edit" element={<EditVenue />} />

@@ -1,5 +1,6 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
+import { toCitySlug } from '../common/city-slug';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
@@ -10,6 +11,8 @@ import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { LeadsService } from '../admin/leads.service';
+import { GuestListService } from '../admin/guestlist.service';
+import { LiveMonitorService } from '../admin/live-monitor.service';
 
 interface OnboardInput {
   name?: string;
@@ -80,8 +83,12 @@ function slugifyBase(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'event';
 }
 
+const HOLD_TTL_MS = 8 * 60 * 1000; // matches OrganizerService/HoldsService — a cart still `active` past this is abandoned
+
 @Injectable()
 export class VenueService {
+  private readonly log = new Logger('Venue');
+
   constructor(
     private prisma: PrismaService,
     private subscriptions: SubscriptionsService,
@@ -91,6 +98,8 @@ export class VenueService {
     private email: EmailService,
     private meta: MetaConversionsService,
     private leads: LeadsService,
+    private guestListSvc: GuestListService,
+    private liveMonitorSvc: LiveMonitorService,
   ) {}
 
   // ---------- subscription (Razorpay-billed venue plans) ----------
@@ -340,6 +349,328 @@ export class VenueService {
       where: { venueId: venue.id, hostedByVenue: true },
       include: { tiers: true, organizer: { select: { id: true, brandName: true, username: true, verified: true } } },
       orderBy: { date: 'desc' },
+    });
+  }
+
+  /** Same "is this my event" gate organizer.service.ts's private myEvent()
+   * does, mirrored for venue-hosted events instead of organizer-owned ones
+   * — every gate-ops method below (attendees, guest list, live monitor)
+   * needs it before touching an event. Requires hostingEnabled too, same
+   * as hostedEvents() above — there's nothing to gate ops on for a venue
+   * that was never actually granted hosting. */
+  private async myHostedEvent(userId: string, eventId: string) {
+    const venue = await this.myVenue(userId);
+    this.requireHostingEnabled(venue);
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event || event.venueId !== venue.id || !event.hostedByVenue) throw new ForbiddenException('Not your event');
+    return event;
+  }
+
+  /** Mirrors OrganizerService.attendees() exactly, scoped to this venue's
+   * own hosted events instead of an organizer's. */
+  async attendees(userId: string, eventId: string) {
+    await this.myHostedEvent(userId, eventId);
+    const bookings = await this.prisma.booking.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
+    return bookings.flatMap((b) => {
+      const guests = b.guests as { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
+      return guests.map((g, i) => ({
+        bookingId: b.id,
+        bookingStatus: b.status,
+        tierName: b.tierName,
+        name: g.name,
+        isMainGuest: i === 0,
+        gender: g.gender,
+        whatsapp: g.whatsapp ?? b.whatsapp,
+        checkedIn: b.checkedIn,
+        coverCharge: b.coverCharge,
+        total: b.total,
+        paymentMethod: b.paymentId ? 'Online' : b.paymentMethod ?? '—',
+      }));
+    });
+  }
+
+  // ---------- gate ops: guest list (mirrors OrganizerService, reuses the
+  // same AdminGuestListService — GuestListEntry has no organizer/venue FK
+  // at all, just eventId, so the shared CRUD needs no changes) ----------
+  async guestList(userId: string, eventId: string) {
+    await this.myHostedEvent(userId, eventId);
+    return this.guestListSvc.list(eventId);
+  }
+
+  async addGuestListEntry(userId: string, eventId: string, body: Parameters<GuestListService['add']>[2]) {
+    const venue = await this.myVenue(userId);
+    await this.myHostedEvent(userId, eventId);
+    return this.guestListSvc.add(eventId, venue.name, body);
+  }
+
+  async toggleGuestArrived(userId: string, entryId: string) {
+    const entry = await this.prisma.guestListEntry.findUnique({ where: { id: entryId } });
+    if (!entry) throw new NotFoundException('Guest list entry not found');
+    await this.myHostedEvent(userId, entry.eventId);
+    return this.guestListSvc.toggleArrived(entryId);
+  }
+
+  async removeGuestListEntry(userId: string, entryId: string) {
+    const entry = await this.prisma.guestListEntry.findUnique({ where: { id: entryId } });
+    if (!entry) throw new NotFoundException('Guest list entry not found');
+    await this.myHostedEvent(userId, entry.eventId);
+    return this.guestListSvc.remove(entryId);
+  }
+
+  async promoterGuests(userId: string, eventId: string) {
+    await this.myHostedEvent(userId, eventId);
+    return this.prisma.promoterGuest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
+  }
+
+  // ---------- gate ops: live monitor (mirrors OrganizerService, reuses
+  // the same AdminLiveMonitorService) ----------
+  async live(userId: string, eventId: string) {
+    await this.myHostedEvent(userId, eventId);
+    return this.liveMonitorSvc.live(eventId);
+  }
+
+  async manualCheckIn(userId: string, eventId: string, name: string, count?: number) {
+    await this.myHostedEvent(userId, eventId);
+    return this.liveMonitorSvc.manualCheckIn(eventId, name, count);
+  }
+
+  async setHostedSalesPaused(userId: string, eventId: string, paused: boolean) {
+    await this.myHostedEvent(userId, eventId);
+    return this.prisma.event.update({ where: { id: eventId }, data: { salesPaused: paused } });
+  }
+
+  /** Mirrors OrganizerService.carts() exactly — Cart has no organizer/venue
+   * FK either, purely event-derived, same "only the latest attempt per
+   * user+event counts" dedup and abandoned-if-still-active-past-cutoff
+   * logic. */
+  async carts(userId: string) {
+    const venue = await this.myVenue(userId);
+    this.requireHostingEnabled(venue);
+    const eventIds = (await this.prisma.event.findMany({ where: { venueId: venue.id, hostedByVenue: true }, select: { id: true } })).map((e) => e.id);
+    if (!eventIds.length) return [];
+
+    const cutoff = new Date(Date.now() - HOLD_TTL_MS);
+    const rows = await this.prisma.cart.findMany({
+      where: { eventId: { in: eventIds } },
+      include: { user: true, event: { include: { tiers: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const seen = new Set<string>();
+    const abandoned: typeof rows = [];
+    for (const c of rows) {
+      const key = `${c.userId}:${c.eventId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (c.status === 'active' && c.createdAt < cutoff) abandoned.push(c);
+    }
+
+    return abandoned.map((c) => {
+      const qtyMap = c.qtyMap as Record<string, number>;
+      const tierSummary = Object.entries(qtyMap)
+        .map(([tierId, n]) => {
+          const t = c.event.tiers.find((tier) => tier.id === tierId);
+          return t ? `${n}× ${t.name}` : null;
+        })
+        .filter(Boolean)
+        .join(', ');
+      return {
+        id: c.id,
+        userPhone: c.user.phone,
+        userName: c.user.name || 'Guest',
+        eventId: c.eventId,
+        eventTitle: c.event.title,
+        qty: Object.values(qtyMap).reduce((a, n) => a + n, 0),
+        qtyMap,
+        tierSummary,
+        subtotal: c.subtotal,
+        total: c.total,
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt.toISOString(),
+        status: 'abandoned' as const,
+        remindedAt: c.remindedAt?.toISOString(),
+      };
+    });
+  }
+
+  /** Mirrors OrganizerService.remindCart() exactly, including the
+   * city-prefixed event link and the same "log rather than silently
+   * swallow" failure handling. */
+  async remindCart(userId: string, id: string) {
+    const venue = await this.myVenue(userId);
+    const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: { include: { venue: true } } } });
+    if (!cart) throw new NotFoundException('Cart not found');
+    if (cart.event.venueId !== venue.id || !cart.event.hostedByVenue) throw new ForbiddenException();
+
+    await this.prisma.cart.update({ where: { id }, data: { remindedAt: new Date() } });
+    const city = cart.event.venue?.city ?? cart.event.privateCity;
+    const eventUrl = `${process.env.WEB_APP_URL ?? ''}${city ? `/${toCitySlug(city)}` : ''}/events/${cart.event.slug}`;
+    await this.wa
+      .send(cart.user.phone, 'cart_reminder', [cart.user.name || 'there', cart.event.title, eventUrl])
+      .catch((err) => this.log.warn(`Cart reminder WhatsApp to cart ${id} failed: ${(err as Error).message}`));
+    return { ok: true };
+  }
+
+  /** Venue-hosted equivalent of OrganizerService.promoters() — same
+   * per-head + commission roll-up per promoter, scoped to events this venue
+   * hosts itself instead of an organizer's own. */
+  async promoters(userId: string) {
+    const venue = await this.myVenue(userId);
+    this.requireHostingEnabled(venue);
+    const events = await this.prisma.event.findMany({
+      where: { venueId: venue.id, hostedByVenue: true },
+      select: { id: true, title: true, date: true, promoterConfig: true },
+    });
+    const eventIds = events.map((e) => e.id);
+    const eventById = new Map(events.map((e) => [e.id, e]));
+    if (!eventIds.length) return [];
+
+    const allowedSlugs = new Set<string>();
+    for (const e of events) {
+      const cfg = e.promoterConfig as unknown as { allowedPromoters?: string[] } | null;
+      (cfg?.allowedPromoters ?? []).forEach((s) => allowedSlugs.add(s));
+    }
+    if (!allowedSlugs.size) return [];
+
+    const [arrivedGuests, bookings, promoters] = await Promise.all([
+      this.prisma.promoterGuest.findMany({ where: { eventId: { in: eventIds }, arrived: true }, select: { eventId: true, promoterSlug: true } }),
+      this.prisma.booking.findMany({ where: { eventId: { in: eventIds }, status: 'confirmed', promoterCommission: { gt: 0 } }, select: { eventId: true, promoterRef: true, promoterCommission: true } }),
+      this.prisma.promoter.findMany({
+        where: { slug: { in: [...allowedSlugs] } },
+        select: {
+          id: true, slug: true, name: true, city: true, bio: true, contact: true, verified: true,
+          bankName: true, bankAccountNumber: true, bankLast4: true, accountHolderName: true, ifsc: true,
+        },
+      }),
+    ]);
+    const promoterBySlug = new Map(promoters.map((p) => [p.slug, p]));
+
+    const settlements = await this.prisma.promoterEventSettlement.findMany({
+      where: { eventId: { in: eventIds }, promoterId: { in: promoters.map((p) => p.id) } },
+    });
+
+    const perPromoter = new Map<string, { perHead: number; commission: number; events: Set<string> }>();
+    const ensure = (promoterId: string) => {
+      let row = perPromoter.get(promoterId);
+      if (!row) {
+        row = { perHead: 0, commission: 0, events: new Set() };
+        perPromoter.set(promoterId, row);
+      }
+      return row;
+    };
+
+    for (const g of arrivedGuests) {
+      const cfg = eventById.get(g.eventId)?.promoterConfig as unknown as
+        { enabled?: boolean; perHeadPayout?: boolean; perHeadAmount?: number; allowedPromoters?: string[]; guestListPromoters?: string[] } | null;
+      const glp = cfg?.guestListPromoters ?? cfg?.allowedPromoters ?? [];
+      if (!cfg?.enabled || !cfg.perHeadPayout || !glp.includes(g.promoterSlug)) continue;
+      const promoter = promoterBySlug.get(g.promoterSlug);
+      if (!promoter) continue;
+      const row = ensure(promoter.id);
+      row.perHead += cfg.perHeadAmount ?? 0;
+      row.events.add(g.eventId);
+    }
+    for (const b of bookings) {
+      if (!b.promoterRef) continue;
+      const promoter = promoterBySlug.get(b.promoterRef);
+      if (!promoter) continue;
+      const row = ensure(promoter.id);
+      row.commission += b.promoterCommission;
+      row.events.add(b.eventId);
+    }
+
+    return promoters
+      .map((p) => {
+        const agg = perPromoter.get(p.id) ?? { perHead: 0, commission: 0, events: new Set<string>() };
+        const receivedEventIds = new Set(settlements.filter((s) => s.promoterId === p.id && s.status === 'received').map((s) => s.eventId));
+        const pendingEvents = [...agg.events].filter((id) => !receivedEventIds.has(id)).length;
+        return {
+          promoterId: p.id, promoterSlug: p.slug, promoterName: p.name, city: p.city, bio: p.bio, contact: p.contact, verified: p.verified,
+          bankName: p.bankName, bankAccountNumber: p.bankAccountNumber, bankLast4: p.bankLast4, accountHolderName: p.accountHolderName, ifsc: p.ifsc,
+          eventCount: agg.events.size, totalOwed: agg.perHead + agg.commission, pendingEvents,
+        };
+      })
+      .sort((a, b) => b.totalOwed - a.totalOwed);
+  }
+
+  // ---------- coupons (venue-hosted events only) ----------
+  /** Venue-hosted equivalent of OrganizerService.coupons()/upsertCoupon() —
+   * same shape, scoped by Coupon.venueId instead of organizerId. eventScope
+   * validation checks against this venue's own hosted events. */
+  async coupons(userId: string) {
+    const venue = await this.myVenue(userId);
+    this.requireHostingEnabled(venue);
+    return this.prisma.coupon.findMany({ where: { venueId: venue.id }, orderBy: { validTill: 'desc' } });
+  }
+
+  async upsertCoupon(
+    userId: string,
+    body: {
+      id?: string;
+      code?: string;
+      type?: 'percent' | 'flat';
+      value?: number;
+      maxDiscount?: number;
+      usageLimit?: number;
+      perUserLimit?: number;
+      eventScope?: string;
+      validTill?: string;
+      firstTimeOnly?: boolean;
+      status?: 'active' | 'paused';
+      gender?: string;
+      description?: string;
+    },
+  ) {
+    const venue = await this.myVenue(userId);
+    this.requireHostingEnabled(venue);
+
+    if (body.eventScope && body.eventScope !== 'all') {
+      const owns = await this.prisma.event.findFirst({ where: { venueId: venue.id, hostedByVenue: true, title: body.eventScope } });
+      if (!owns) throw new BadRequestException(`You don't have a hosted event titled "${body.eventScope}"`);
+    }
+
+    if (body.id) {
+      const existing = await this.prisma.coupon.findUnique({ where: { id: body.id } });
+      if (!existing) throw new NotFoundException('Coupon not found');
+      if (existing.venueId !== venue.id) throw new ForbiddenException();
+      return this.prisma.coupon.update({
+        where: { id: body.id },
+        data: {
+          type: body.type,
+          value: body.value,
+          maxDiscount: body.maxDiscount,
+          usageLimit: body.usageLimit,
+          perUserLimit: body.perUserLimit,
+          eventScope: body.eventScope,
+          validTill: body.validTill ? new Date(body.validTill) : undefined,
+          firstTimeOnly: body.firstTimeOnly,
+          status: body.status,
+          gender: body.gender,
+          description: body.description,
+        },
+      });
+    }
+
+    if (!body.code?.trim()) throw new BadRequestException('code is required');
+    const code = body.code.trim().toUpperCase();
+    if (await this.prisma.coupon.findUnique({ where: { code } })) throw new BadRequestException('This code is already in use');
+
+    return this.prisma.coupon.create({
+      data: {
+        code,
+        type: body.type ?? 'flat',
+        value: body.value ?? 0,
+        maxDiscount: body.maxDiscount,
+        usageLimit: body.usageLimit ?? 100,
+        perUserLimit: body.perUserLimit ?? 1,
+        eventScope: body.eventScope ?? 'all',
+        validTill: body.validTill ? new Date(body.validTill) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        firstTimeOnly: !!body.firstTimeOnly,
+        status: body.status ?? 'active',
+        gender: body.gender ?? 'all',
+        description: body.description,
+        venueId: venue.id,
+      },
     });
   }
 

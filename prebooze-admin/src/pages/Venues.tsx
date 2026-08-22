@@ -112,8 +112,12 @@ function SocialLinksEditor({ value, onChange }: { value: { instagram?: string; f
  * dashboard (VenueService.requestHosting), then sits here until admin has
  * actually talked to them (not every venue knows Prebooze's hosting rules).
  * "Contacted ✓" is enforced server-side too (approveHostingRequest throws
- * if contactedAt is unset) — this checkbox isn't just cosmetic. */
-function HostingRequestsQueue() {
+ * if contactedAt is unset) — this checkbox isn't just cosmetic. Its own
+ * nav item/page (not buried inside Venues) since it used to only render
+ * when there was a pending request — easy to miss entirely otherwise. */
+export function VenueHostingRequests() {
+  const session = useLiveSession();
+  const { token } = session;
   const [requests, setRequests] = useState<LiveVenueHostingRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -126,7 +130,10 @@ function HostingRequestsQueue() {
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load hosting requests'))
       .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token]);
+
+  const gate = useLiveGate('Venue hosting', session);
+  if (gate) return gate;
 
   const pending = requests.filter((r) => r.status === 'pending');
   const reviewed = requests.filter((r) => r.status !== 'pending').slice(0, 5);
@@ -166,17 +173,20 @@ function HostingRequestsQueue() {
     }
   };
 
-  if (!loading && pending.length === 0 && reviewed.length === 0) return null;
-
   return (
-    <div className="card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div className="display" style={{ fontWeight: 700 }}>🏟 Venue hosting requests</div>
+    <div className="stack fade" style={{ maxWidth: 900 }}>
+      <LiveHeaderBar title="Venue hosting" session={session} />
+      <div className="page-hd">
+        <h1 className="page-title">Venue hosting requests</h1>
         {pending.length > 0 && <Tag label={`${pending.length} pending`} cls="tag-amber" />}
       </div>
-      {err && <div className="tiny red">{err}</div>}
-      <div className="tiny muted">Call/message the venue to walk them through hosting rules before approving — tick "Contacted" first.</div>
+      {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
+      {loading && <div className="tiny muted">Loading…</div>}
+      <p className="tiny muted">Call/message the venue to walk them through hosting rules before approving — tick "Contacted" first.</p>
 
+      {!loading && pending.length === 0 && (
+        <div className="card muted small">No pending hosting requests right now.</div>
+      )}
       {pending.map((r) => (
         <div key={r.id} className="card" style={{ padding: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 180 }}>
@@ -207,8 +217,9 @@ function HostingRequestsQueue() {
       ))}
 
       {reviewed.length > 0 && (
-        <div className="tiny muted" style={{ borderTop: '1px solid rgba(139,195,74,.15)', paddingTop: 8 }}>
-          Recently reviewed: {reviewed.map((r) => `${r.venue.name} (${r.status})`).join(' · ')}
+        <div className="card">
+          <div className="display" style={{ fontWeight: 700, marginBottom: 8 }}>Recently reviewed</div>
+          <div className="tiny muted">{reviewed.map((r) => `${r.venue.name} (${r.status})`).join(' · ')}</div>
         </div>
       )}
     </div>
@@ -257,8 +268,6 @@ export function Venues() {
         <h1 className="page-title">Venues</h1>
         <Link to="/venues/new" className="btn btn-pri">+ Add venue</Link>
       </div>
-
-      <HostingRequestsQueue />
 
       <CityFilterDropdown value={city} onChange={setCity} cities={cities} />
 

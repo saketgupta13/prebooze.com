@@ -290,6 +290,7 @@ model Venue {
   hostingRequestedAt DateTime?
   hostingRequests    VenueHostingRequest[]
   ledger             VenueLedgerTx[]
+  coupons            Coupon[]
 
   // Payout bank details — same plaintext-on-admin-view precedent as
   // Organizer.bankLast4/bankAccountNumber/etc (no field-level encryption
@@ -1208,6 +1209,12 @@ model Coupon {
   // platform — enforced in BookingsService.priceHold, not just here.
   organizerId String?
   organizer   Organizer? @relation(fields: [organizerId], references: [id])
+
+  // Same idea as organizerId, for a venue's own coupon on an event it hosts
+  // itself (Event.hostedByVenue) — enforced in BookingsService.priceHold
+  // alongside the organizerId check, never both set on the same coupon.
+  venueId String?
+  venue   Venue?  @relation(fields: [venueId], references: [id])
 
   // Admin API "Promo codes" slice — prebooze-admin's Promo type turned out
   // to be the same concept as a platform-wide Coupon (organizerId null),

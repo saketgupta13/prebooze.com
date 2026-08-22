@@ -158,9 +158,13 @@ export class BookingsService {
       if (!couponRow) throw new BadRequestException('Invalid coupon code');
       if (couponRow.status !== 'active') throw new BadRequestException('This coupon is no longer active');
       if (couponRow.validTill < new Date()) throw new BadRequestException('This coupon has expired');
-      // an organizer's own coupon only ever applies to their events — "all"
-      // scopes to all of *that organizer's* events, not the whole platform
+      // an organizer's own coupon only ever applies to their events, and a
+      // venue's own coupon only ever applies to events it hosts itself —
+      // "all" scopes to all of *that owner's* events, not the whole platform
       if (couponRow.organizerId && couponRow.organizerId !== event.organizerId) {
+        throw new BadRequestException('This coupon does not apply to this event');
+      }
+      if (couponRow.venueId && (!event.hostedByVenue || couponRow.venueId !== event.venueId)) {
         throw new BadRequestException('This coupon does not apply to this event');
       }
       if (couponRow.eventScope !== 'all' && couponRow.eventScope !== event.title) {
@@ -218,7 +222,13 @@ export class BookingsService {
         status: 'active',
         validTill: { gt: new Date() },
         AND: [
-          { OR: [{ organizerId: null }, ...(event.organizerId ? [{ organizerId: event.organizerId }] : [])] },
+          {
+            OR: [
+              { organizerId: null, venueId: null },
+              ...(event.organizerId ? [{ organizerId: event.organizerId }] : []),
+              ...(event.hostedByVenue && event.venueId ? [{ venueId: event.venueId }] : []),
+            ],
+          },
           { OR: [{ eventScope: 'all' }, { eventScope: event.title }] },
         ],
       },
@@ -780,7 +790,9 @@ export class BookingsService {
    * ownership check at all: any authenticated JWT holder who got hold of a
    * valid token could check in a booking on any organizer's event. Now it's
    * scoped the same way every other gate-ops endpoint is (see
-   * OrganizerService.myEvent) — must be the organizer who owns the event. */
+   * OrganizerService.myEvent) — must be the organizer who owns the event, OR
+   * — for a venue-hosted event (Event.hostedByVenue) — the venue that hosts
+   * it, via the same User.venueId lookup VenueService.myVenue uses. */
   async checkIn(qrToken: string, scannerUserId: string) {
     let payload: { bookingId: string };
     try {
@@ -795,8 +807,14 @@ export class BookingsService {
       throw new NotFoundException('Booking not found');
     }
     const scannerOrg = await this.prisma.organizer.findUnique({ where: { userId: scannerUserId } });
-    if (!scannerOrg || scannerOrg.id !== booking.event.organizerId) {
-      await this.logCheckIn({ ok: false, reason: 'scanned by an organizer who does not own this event', eventId: booking.eventId, bookingId: booking.id });
+    const isOrganizerOwner = !!scannerOrg && scannerOrg.id === booking.event.organizerId;
+    let isVenueOwner = false;
+    if (!isOrganizerOwner && booking.event.hostedByVenue && booking.event.venueId) {
+      const scannerUser = await this.prisma.user.findUnique({ where: { id: scannerUserId } });
+      isVenueOwner = !!scannerUser?.venueId && scannerUser.venueId === booking.event.venueId;
+    }
+    if (!isOrganizerOwner && !isVenueOwner) {
+      await this.logCheckIn({ ok: false, reason: 'scanned by an organizer/venue who does not own this event', eventId: booking.eventId, bookingId: booking.id });
       throw new ForbiddenException('This ticket is for a different event than the one you manage');
     }
     if (booking.status !== 'confirmed') {

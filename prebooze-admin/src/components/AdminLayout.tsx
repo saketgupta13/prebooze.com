@@ -27,6 +27,7 @@ const MAIN_NAV = [
   { to: '/featured', icon: '⭐', label: 'Featured' },
   { to: '/referrals', icon: '🎁', label: 'Refer & earn' },
   { to: '/venues', icon: '📍', label: 'Venues' },
+  { to: '/venue-hosting', icon: '🏟', label: 'Venue hosting' },
   { to: '/locations', icon: '🌍', label: 'Locations' },
   { to: '/lineups', icon: '🎤', label: 'Line-ups' },
   { to: '/payments', icon: '💰', label: 'Payments' },

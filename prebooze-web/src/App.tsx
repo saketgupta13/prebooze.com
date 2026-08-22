@@ -109,6 +109,7 @@ const VenueLayout = lazy(() => import('./pages/venue/VenueLayout'));
 const VenueDashboard = lazy(() => import('./pages/venue/VenueDashboard'));
 const VenueListing = lazy(() => import('./pages/venue/VenueListing'));
 const VenueEvents = lazy(() => import('./pages/venue/VenueEvents'));
+const VenueReviews = lazy(() => import('./pages/venue/VenueReviews'));
 const VenueSettings = lazy(() => import('./pages/venue/VenueSettings'));
 const VenueVerification = lazy(() => import('./pages/venue/VenueVerification'));
 const VenueBilling = lazy(() => import('./pages/venue/VenueBilling'));
@@ -117,6 +118,13 @@ const VenueHostedEvents = lazy(() => import('./pages/venue/VenueHostedEvents'));
 const CreateHostedEvent = lazy(() => import('./pages/venue/CreateHostedEvent'));
 const VenueLedger = lazy(() => import('./pages/venue/VenueLedger'));
 const VenueWithdraw = lazy(() => import('./pages/venue/VenueWithdraw'));
+const VenueAttendees = lazy(() => import('./pages/venue/VenueAttendees'));
+const VenueGuestList = lazy(() => import('./pages/venue/VenueGuestList'));
+const VenueLiveMonitor = lazy(() => import('./pages/venue/VenueLiveMonitor'));
+const VenueAbandonedCarts = lazy(() => import('./pages/venue/VenueAbandonedCarts'));
+const VenueScanner = lazy(() => import('./pages/venue/VenueScanner'));
+const VenuePromoters = lazy(() => import('./pages/venue/VenuePromoters'));
+const VenueCoupons = lazy(() => import('./pages/venue/VenueCoupons'));
 const NotFound = lazy(() => import('./pages/static/NotFound'));
 
 /** The 13 city-scoped discovery routes, declared once and rendered twice
@@ -456,6 +464,7 @@ export default function App() {
           <Route index element={<VenueDashboard />} />
           <Route path="listing" element={<VenueListing />} />
           <Route path="events" element={<VenueEvents />} />
+          <Route path="reviews" element={<VenueReviews />} />
           <Route path="billing" element={<VenueBilling />} />
           <Route path="settings" element={<VenueSettings />} />
           <Route path="settings/verification" element={<VenueVerification />} />
@@ -463,6 +472,13 @@ export default function App() {
           <Route path="hosting/events" element={<VenueHostedEvents />} />
           <Route path="hosting/events/create" element={<CreateHostedEvent />} />
           <Route path="hosting/events/:id/edit" element={<CreateHostedEvent />} />
+          <Route path="hosting/attendees" element={<VenueAttendees />} />
+          <Route path="hosting/guest-list" element={<VenueGuestList />} />
+          <Route path="hosting/live" element={<VenueLiveMonitor />} />
+          <Route path="hosting/carts" element={<VenueAbandonedCarts />} />
+          <Route path="hosting/scanner" element={<VenueScanner />} />
+          <Route path="hosting/promoters" element={<VenuePromoters />} />
+          <Route path="hosting/coupons" element={<VenueCoupons />} />
           <Route path="hosting/ledger" element={<VenueLedger />} />
           <Route path="hosting/ledger/withdraw" element={<VenueWithdraw />} />
         </Route>

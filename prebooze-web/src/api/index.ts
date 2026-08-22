@@ -761,4 +761,29 @@ export const venuePartner = {
   myLedger: () => apiFetch<{ balance: number; transactions: VenueLedgerTx[] }>('/venue/hosting/ledger'),
   withdraw: (amount: number) => apiFetch<{ ok: true }>('/venue/hosting/withdraw', { body: { amount } }),
   collaboratorOptions: () => apiFetch<VenueCollaboratorOption[]>('/venue/hosting/collaborator-options'),
+  // ---- gate ops for hosted events — mirrors the organizer.* versions
+  // above exactly, same real shapes, just scoped to this venue's own
+  // hosted events instead of an organizer's ----
+  attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/venue/hosting/events/${eventId}/attendees`),
+  abandonedCarts: () => apiFetch<CartRecord[]>('/venue/hosting/carts'),
+  remindCart: (id: string) => apiFetch<void>(`/venue/hosting/carts/${id}/remind`, { method: 'POST' }),
+  guestList: (eventId: string) => apiFetch<{ entries: OrgGuestListEntry[]; namesCount: number; totalHeads: number; arrived: number }>(`/venue/hosting/events/${eventId}/guest-list`),
+  addGuestListEntry: (eventId: string, body: { name: string; phone: string; plusOnes?: number; companions?: { name: string; phone: string }[] }) =>
+    apiFetch<OrgGuestListEntry>(`/venue/hosting/events/${eventId}/guest-list`, { body }),
+  toggleGuestArrived: (id: string) => apiFetch<OrgGuestListEntry>(`/venue/hosting/guest-list/${id}/toggle-arrived`, { method: 'POST' }),
+  removeGuestListEntry: (id: string) => apiFetch<{ ok: true }>(`/venue/hosting/guest-list/${id}`, { method: 'DELETE' }),
+  promoterGuests: (eventId: string) => apiFetch<OrgPromoterGuest[]>(`/venue/hosting/events/${eventId}/promoter-guests`),
+  promoters: () =>
+    apiFetch<
+      {
+        promoterId: string; promoterSlug: string; promoterName: string; city: string; bio: string; contact: string | null; verified: boolean;
+        bankName: string | null; bankAccountNumber: string | null; bankLast4: string | null; accountHolderName: string | null; ifsc: string | null;
+        eventCount: number; totalOwed: number; pendingEvents: number;
+      }[]
+    >('/venue/hosting/promoters'),
+  coupons: () => apiFetch<Coupon[]>('/venue/hosting/coupons'),
+  upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/venue/hosting/coupons', { body: c }),
+  live: (eventId: string) => apiFetch<OrgLiveMonitor>(`/venue/hosting/events/${eventId}/live`),
+  manualCheckIn: (eventId: string, name: string, count?: number) => apiFetch<unknown>(`/venue/hosting/events/${eventId}/check-in`, { body: { name, count } }),
+  setSalesPaused: (eventId: string, paused: boolean) => apiFetch<Event>(`/venue/hosting/events/${eventId}/pause-sales`, { method: 'PATCH', body: { paused } }),
 };

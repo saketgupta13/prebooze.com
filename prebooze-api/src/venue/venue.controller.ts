@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { VenueService } from './venue.service';
@@ -126,6 +126,81 @@ export class VenueController {
   @Get('hosting/collaborator-options')
   collaboratorOptions() {
     return this.venue.collaboratorOptions();
+  }
+
+  // ---------- gate ops: attendees, guest list, promoter guests, live
+  // monitor, carts — mirrors OrganizerController's own routes exactly,
+  // scoped under hosting/ since these only ever apply to this venue's own
+  // hosted events, not events booked here by an organizer ----------
+
+  @Get('hosting/events/:id/attendees')
+  attendees(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.venue.attendees(req.user.sub, id);
+  }
+
+  @Get('hosting/carts')
+  carts(@Req() req: AuthedReq) {
+    return this.venue.carts(req.user.sub);
+  }
+
+  @Post('hosting/carts/:id/remind')
+  remindCart(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.venue.remindCart(req.user.sub, id);
+  }
+
+  @Get('hosting/events/:id/guest-list')
+  guestList(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.venue.guestList(req.user.sub, id);
+  }
+
+  @Post('hosting/events/:id/guest-list')
+  addGuestListEntry(@Req() req: AuthedReq, @Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.venue.addGuestListEntry(req.user.sub, id, body);
+  }
+
+  @Post('hosting/guest-list/:id/toggle-arrived')
+  toggleGuestArrived(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.venue.toggleGuestArrived(req.user.sub, id);
+  }
+
+  @Delete('hosting/guest-list/:id')
+  removeGuestListEntry(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.venue.removeGuestListEntry(req.user.sub, id);
+  }
+
+  @Get('hosting/events/:id/promoter-guests')
+  promoterGuests(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.venue.promoterGuests(req.user.sub, id);
+  }
+
+  @Get('hosting/promoters')
+  promoters(@Req() req: AuthedReq) {
+    return this.venue.promoters(req.user.sub);
+  }
+
+  @Get('hosting/coupons')
+  coupons(@Req() req: AuthedReq) {
+    return this.venue.coupons(req.user.sub);
+  }
+
+  @Post('hosting/coupons')
+  upsertCoupon(@Req() req: AuthedReq, @Body() body: Parameters<VenueService['upsertCoupon']>[1]) {
+    return this.venue.upsertCoupon(req.user.sub, body);
+  }
+
+  @Get('hosting/events/:id/live')
+  live(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.venue.live(req.user.sub, id);
+  }
+
+  @Post('hosting/events/:id/check-in')
+  manualCheckIn(@Req() req: AuthedReq, @Param('id') id: string, @Body('name') name: string, @Body('count') count?: number) {
+    return this.venue.manualCheckIn(req.user.sub, id, name, count);
+  }
+
+  @Patch('hosting/events/:id/pause-sales')
+  setSalesPaused(@Req() req: AuthedReq, @Param('id') id: string, @Body('paused') paused: boolean) {
+    return this.venue.setHostedSalesPaused(req.user.sub, id, paused);
   }
 }
 
