@@ -4,7 +4,7 @@ import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayM
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } from '../data/mock';
 import { notify } from '../lib/notify';
-import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTeamApi, bookings as bookingsApi, wallet as walletApi, support as supportApi, careers as careersApi, type OrgTeamAccess } from '../api';
+import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTeamApi, venueTeam as venueTeamApi, bookings as bookingsApi, wallet as walletApi, support as supportApi, careers as careersApi, type OrgTeamAccess, type VenueTeamAccess } from '../api';
 import { isBackendEnabled, setToken, clearToken, getToken } from '../api/client';
 import { track } from '../lib/track';
 import { pushEvent } from '../lib/gtm';
@@ -210,6 +210,11 @@ interface AppState {
    * (the fetch is async; orgTeamAccess is null on the very first render
    * regardless of whether they're staff). */
   orgTeamAccessLoaded: boolean;
+  /** Same idea as orgTeamAccess, for an invited member of a venue's hosting
+   * team (VenueOrgLayout's equivalent of the organizer TeamConsole). See
+   * venueTeam.mine(). */
+  venueTeamAccess: VenueTeamAccess | null;
+  venueTeamAccessLoaded: boolean;
 }
 
 const Ctx = createContext<AppState>(null as unknown as AppState);
@@ -347,6 +352,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [pendingRequestId, setPendingRequestId] = useState('');
   const [orgTeamAccess, setOrgTeamAccess] = useState<OrgTeamAccess | null>(null);
   const [orgTeamAccessLoaded, setOrgTeamAccessLoaded] = useState(() => !isBackendEnabled() || !getToken());
+  const [venueTeamAccess, setVenueTeamAccess] = useState<VenueTeamAccess | null>(null);
+  const [venueTeamAccessLoaded, setVenueTeamAccessLoaded] = useState(() => !isBackendEnabled() || !getToken());
   const [myVenues, setMyVenues] = useState<Venue[]>(() => {
     const v = load<Venue[]>('pb_myvenues', []);
     v.forEach(registerVenue);
@@ -454,6 +461,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .then(setOrgTeamAccess)
       .catch(() => {})
       .finally(() => setOrgTeamAccessLoaded(true));
+    venueTeamApi
+      .mine()
+      .then(setVenueTeamAccess)
+      .catch(() => {})
+      .finally(() => setVenueTeamAccessLoaded(true));
   }, []);
   useEffect(() => {
     localStorage.setItem('pb_city', JSON.stringify(city));
@@ -607,6 +619,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const access = await orgTeamApi.mine().catch(() => null);
           setOrgTeamAccess(access);
           setOrgTeamAccessLoaded(true);
+          const venueAccess = await venueTeamApi.mine().catch(() => null);
+          setVenueTeamAccess(venueAccess);
+          setVenueTeamAccessLoaded(true);
           if (isNew) {
             const pendingRef = load<string | null>('pb_pending_ref', null);
             if (pendingRef) {
@@ -736,6 +751,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setOrgTeamAccess(null);
         setOrgTeamAccessLoaded(true);
+        setVenueTeamAccess(null);
+        setVenueTeamAccessLoaded(true);
         setFollowing([]);
         setFollowers([]);
         setFollowerDeltas({});
@@ -1066,8 +1083,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast,
       orgTeamAccess,
       orgTeamAccessLoaded,
+      venueTeamAccess,
+      venueTeamAccessLoaded,
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, pendingRequestId, myVenues, promoterRefByEvent, promoterViaByEvent, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, pendingRequestId, myVenues, promoterRefByEvent, promoterViaByEvent, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded, venueTeamAccess, venueTeamAccessLoaded]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

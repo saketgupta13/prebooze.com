@@ -13,6 +13,7 @@ import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { LeadsService } from '../admin/leads.service';
 import { GuestListService } from '../admin/guestlist.service';
 import { LiveMonitorService } from '../admin/live-monitor.service';
+import { VenueAccessService } from './venue-access.service';
 
 interface OnboardInput {
   name?: string;
@@ -100,6 +101,7 @@ export class VenueService {
     private leads: LeadsService,
     private guestListSvc: GuestListService,
     private liveMonitorSvc: LiveMonitorService,
+    private venueAccess: VenueAccessService,
   ) {}
 
   // ---------- subscription (Razorpay-billed venue plans) ----------
@@ -305,10 +307,6 @@ export class VenueService {
   // changes what events()/myListing()/onboard() above already do.
   // ============================================================
 
-  private requireHostingEnabled(venue: { hostingEnabled: boolean }) {
-    if (!venue.hostingEnabled) throw new ForbiddenException('Event hosting isn’t enabled for your venue yet');
-  }
-
   /** What the venue's own dashboard needs to decide what to show: nothing
    * (never asked), a pending/rejected request, or fully enabled. */
   async hostingStatus(userId: string) {
@@ -343,8 +341,7 @@ export class VenueService {
    * organizer), this is the venue managing its own drafts/pending/live
    * events, the same visibility an organizer has over their own events. */
   async hostedEvents(userId: string) {
-    const venue = await this.myVenue(userId);
-    this.requireHostingEnabled(venue);
+    const venue = await this.venueAccess.require(userId, 'Events & wizard', 'view');
     return this.prisma.event.findMany({
       where: { venueId: venue.id, hostedByVenue: true },
       include: { tiers: true, organizer: { select: { id: true, brandName: true, username: true, verified: true } } },
@@ -355,12 +352,10 @@ export class VenueService {
   /** Same "is this my event" gate organizer.service.ts's private myEvent()
    * does, mirrored for venue-hosted events instead of organizer-owned ones
    * — every gate-ops method below (attendees, guest list, live monitor)
-   * needs it before touching an event. Requires hostingEnabled too, same
-   * as hostedEvents() above — there's nothing to gate ops on for a venue
-   * that was never actually granted hosting. */
-  private async myHostedEvent(userId: string, eventId: string) {
-    const venue = await this.myVenue(userId);
-    this.requireHostingEnabled(venue);
+   * needs it before touching an event. Takes an already-resolved venue
+   * (from venueAccess.require, which already asserted hostingEnabled + the
+   * right permission) rather than resolving one itself. */
+  private async myHostedEvent(venue: { id: string }, eventId: string) {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event || event.venueId !== venue.id || !event.hostedByVenue) throw new ForbiddenException('Not your event');
     return event;
@@ -369,7 +364,8 @@ export class VenueService {
   /** Mirrors OrganizerService.attendees() exactly, scoped to this venue's
    * own hosted events instead of an organizer's. */
   async attendees(userId: string, eventId: string) {
-    await this.myHostedEvent(userId, eventId);
+    const venue = await this.venueAccess.require(userId, 'Attendees & check-in', 'view');
+    await this.myHostedEvent(venue, eventId);
     const bookings = await this.prisma.booking.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
     return bookings.flatMap((b) => {
       const guests = b.guests as { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
@@ -393,49 +389,56 @@ export class VenueService {
   // same AdminGuestListService — GuestListEntry has no organizer/venue FK
   // at all, just eventId, so the shared CRUD needs no changes) ----------
   async guestList(userId: string, eventId: string) {
-    await this.myHostedEvent(userId, eventId);
+    const venue = await this.venueAccess.require(userId, 'Guest list', 'view');
+    await this.myHostedEvent(venue, eventId);
     return this.guestListSvc.list(eventId);
   }
 
   async addGuestListEntry(userId: string, eventId: string, body: Parameters<GuestListService['add']>[2]) {
-    const venue = await this.myVenue(userId);
-    await this.myHostedEvent(userId, eventId);
+    const venue = await this.venueAccess.require(userId, 'Guest list', 'edit');
+    await this.myHostedEvent(venue, eventId);
     return this.guestListSvc.add(eventId, venue.name, body);
   }
 
   async toggleGuestArrived(userId: string, entryId: string) {
+    const venue = await this.venueAccess.require(userId, 'Guest list', 'edit');
     const entry = await this.prisma.guestListEntry.findUnique({ where: { id: entryId } });
     if (!entry) throw new NotFoundException('Guest list entry not found');
-    await this.myHostedEvent(userId, entry.eventId);
+    await this.myHostedEvent(venue, entry.eventId);
     return this.guestListSvc.toggleArrived(entryId);
   }
 
   async removeGuestListEntry(userId: string, entryId: string) {
+    const venue = await this.venueAccess.require(userId, 'Guest list', 'edit');
     const entry = await this.prisma.guestListEntry.findUnique({ where: { id: entryId } });
     if (!entry) throw new NotFoundException('Guest list entry not found');
-    await this.myHostedEvent(userId, entry.eventId);
+    await this.myHostedEvent(venue, entry.eventId);
     return this.guestListSvc.remove(entryId);
   }
 
   async promoterGuests(userId: string, eventId: string) {
-    await this.myHostedEvent(userId, eventId);
+    const venue = await this.venueAccess.require(userId, 'Guest list', 'view');
+    await this.myHostedEvent(venue, eventId);
     return this.prisma.promoterGuest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
   }
 
   // ---------- gate ops: live monitor (mirrors OrganizerService, reuses
   // the same AdminLiveMonitorService) ----------
   async live(userId: string, eventId: string) {
-    await this.myHostedEvent(userId, eventId);
+    const venue = await this.venueAccess.require(userId, 'Attendees & check-in', 'view');
+    await this.myHostedEvent(venue, eventId);
     return this.liveMonitorSvc.live(eventId);
   }
 
   async manualCheckIn(userId: string, eventId: string, name: string, count?: number) {
-    await this.myHostedEvent(userId, eventId);
+    const venue = await this.venueAccess.require(userId, 'Attendees & check-in', 'edit');
+    await this.myHostedEvent(venue, eventId);
     return this.liveMonitorSvc.manualCheckIn(eventId, name, count);
   }
 
   async setHostedSalesPaused(userId: string, eventId: string, paused: boolean) {
-    await this.myHostedEvent(userId, eventId);
+    const venue = await this.venueAccess.require(userId, 'Events & wizard', 'edit');
+    await this.myHostedEvent(venue, eventId);
     return this.prisma.event.update({ where: { id: eventId }, data: { salesPaused: paused } });
   }
 
@@ -444,8 +447,7 @@ export class VenueService {
    * user+event counts" dedup and abandoned-if-still-active-past-cutoff
    * logic. */
   async carts(userId: string) {
-    const venue = await this.myVenue(userId);
-    this.requireHostingEnabled(venue);
+    const venue = await this.venueAccess.require(userId, 'Events & wizard', 'view');
     const eventIds = (await this.prisma.event.findMany({ where: { venueId: venue.id, hostedByVenue: true }, select: { id: true } })).map((e) => e.id);
     if (!eventIds.length) return [];
 
@@ -497,7 +499,7 @@ export class VenueService {
    * city-prefixed event link and the same "log rather than silently
    * swallow" failure handling. */
   async remindCart(userId: string, id: string) {
-    const venue = await this.myVenue(userId);
+    const venue = await this.venueAccess.require(userId, 'Events & wizard', 'edit');
     const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: { include: { venue: true } } } });
     if (!cart) throw new NotFoundException('Cart not found');
     if (cart.event.venueId !== venue.id || !cart.event.hostedByVenue) throw new ForbiddenException();
@@ -515,8 +517,7 @@ export class VenueService {
    * per-head + commission roll-up per promoter, scoped to events this venue
    * hosts itself instead of an organizer's own. */
   async promoters(userId: string) {
-    const venue = await this.myVenue(userId);
-    this.requireHostingEnabled(venue);
+    const venue = await this.venueAccess.require(userId, 'Payouts & withdrawals', 'view');
     const events = await this.prisma.event.findMany({
       where: { venueId: venue.id, hostedByVenue: true },
       select: { id: true, title: true, date: true, promoterConfig: true },
@@ -598,8 +599,7 @@ export class VenueService {
    * same shape, scoped by Coupon.venueId instead of organizerId. eventScope
    * validation checks against this venue's own hosted events. */
   async coupons(userId: string) {
-    const venue = await this.myVenue(userId);
-    this.requireHostingEnabled(venue);
+    const venue = await this.venueAccess.require(userId, 'Coupons', 'view');
     return this.prisma.coupon.findMany({ where: { venueId: venue.id }, orderBy: { validTill: 'desc' } });
   }
 
@@ -621,8 +621,7 @@ export class VenueService {
       description?: string;
     },
   ) {
-    const venue = await this.myVenue(userId);
-    this.requireHostingEnabled(venue);
+    const venue = await this.venueAccess.require(userId, 'Coupons', 'edit');
 
     if (body.eventScope && body.eventScope !== 'all') {
       const owns = await this.prisma.event.findFirst({ where: { venueId: venue.id, hostedByVenue: true, title: body.eventScope } });
@@ -692,8 +691,7 @@ export class VenueService {
    * No consent is required from the picked organizer (matches how an
    * organizer already tags any venue today, now symmetric). */
   async saveHostedEvent(userId: string, input: VenueEventInput) {
-    const venue = await this.myVenue(userId);
-    this.requireHostingEnabled(venue);
+    const venue = await this.venueAccess.require(userId, 'Events & wizard', 'edit');
     if (!input.title?.trim()) throw new BadRequestException('title is required');
 
     let eventId = input.id;
@@ -809,8 +807,7 @@ export class VenueService {
    * one hosted event has sold a ticket (see BookingsService's ledger
    * crediting). */
   async myLedger(userId: string) {
-    const venue = await this.myVenue(userId);
-    this.requireHostingEnabled(venue);
+    const venue = await this.venueAccess.require(userId, 'Payouts & withdrawals', 'view');
     const [transactions, agg] = await Promise.all([
       this.prisma.venueLedgerTx.findMany({ where: { venueId: venue.id }, orderBy: { createdAt: 'desc' }, take: 200 }),
       this.prisma.venueLedgerTx.aggregate({ where: { venueId: venue.id }, _sum: { amount: true } }),
@@ -823,8 +820,7 @@ export class VenueService {
    * team from here (no real transfer rail), owner notified on their bank
    * account on file. */
   async withdraw(userId: string, amount: number) {
-    const venue = await this.myVenue(userId);
-    this.requireHostingEnabled(venue);
+    const venue = await this.venueAccess.require(userId, 'Payouts & withdrawals', 'edit');
     if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Enter a valid amount');
     const agg = await this.prisma.venueLedgerTx.aggregate({ where: { venueId: venue.id }, _sum: { amount: true } });
     const balance = agg._sum.amount ?? 0;

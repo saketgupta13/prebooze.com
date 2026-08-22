@@ -147,7 +147,8 @@ model User {
   lineupProfile       Lineup? // set once this user's lineup KYC is approved
   venueProfile        Venue? // set once this user's venue onboarding submission creates the row (not at approval — see Venue.userId)
   helpTickets         HelpTicket[]
-  orgStaffMemberships OrgStaff[] // organizer team invites this phone has accepted (possibly more than one org)
+  orgStaffMemberships   OrgStaff[] // organizer team invites this phone has accepted (possibly more than one org)
+  venueStaffMemberships VenueStaff[] // venue hosting-team invites this phone has accepted (possibly more than one venue)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -291,6 +292,13 @@ model Venue {
   hostingRequests    VenueHostingRequest[]
   ledger             VenueLedgerTx[]
   coupons            Coupon[]
+
+  // Real team/role delegation for the Organizer panel — mirrors Organizer's
+  // own OrgRole/OrgStaff exactly (see VenueAccessService), only ever
+  // reachable once hostingEnabled since there's nothing to delegate access
+  // to before that.
+  roles VenueRole[]
+  staff VenueStaff[]
 
   // Payout bank details — same plaintext-on-admin-view precedent as
   // Organizer.bankLast4/bankAccountNumber/etc (no field-level encryption
@@ -1457,6 +1465,43 @@ model OrgStaff {
   updatedAt DateTime @updatedAt
 
   @@unique([organizerId, phone])
+  @@index([userId])
+}
+
+// Venue's own team/permissions system for the Organizer panel (venue-hosted
+// events) — exact same shape as OrgRole/OrgStaff above, just venue-scoped.
+// Deliberately doesn't exist for the venue's own listing panel (venue
+// listing management stays single-owner, an earlier explicit call) — only
+// the hosting/Organizer-panel side gets delegation, resolved by
+// VenueAccessService.
+model VenueRole {
+  id          String   @id @default(cuid())
+  venueId     String
+  venue       Venue    @relation(fields: [venueId], references: [id])
+  name        String
+  permissions Json // Record<module, {view: bool, edit: bool}>
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([venueId, name])
+}
+
+model VenueStaff {
+  id       String  @id @default(cuid())
+  venueId  String
+  venue    Venue   @relation(fields: [venueId], references: [id])
+  name     String
+  phone    String?
+  roleName String
+  scan     Boolean @default(false) // gate-scanner access, independent of the role matrix
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([venueId, phone])
   @@index([userId])
 }
 

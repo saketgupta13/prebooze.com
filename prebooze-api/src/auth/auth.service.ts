@@ -179,6 +179,8 @@ export class AuthService {
     // before the invitee has ever logged in at all, so there's no User row
     // to link at invite time. Idempotent no-op once already linked.
     await this.prisma.orgStaff.updateMany({ where: { phone: user.phone, userId: null }, data: { userId: user.id } });
+    // Same idea, for a venue's own hosting-team invites (VenueTeamService.addStaff).
+    await this.prisma.venueStaff.updateMany({ where: { phone: user.phone, userId: null }, data: { userId: user.id } });
 
     const token = await this.jwt.signAsync({ sub: user.id, phone: user.phone });
     // Server-side mirror of the browser Pixel's CompleteRegistration event

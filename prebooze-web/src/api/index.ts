@@ -787,3 +787,36 @@ export const venuePartner = {
   manualCheckIn: (eventId: string, name: string, count?: number) => apiFetch<unknown>(`/venue/hosting/events/${eventId}/check-in`, { body: { name, count } }),
   setSalesPaused: (eventId: string, paused: boolean) => apiFetch<Event>(`/venue/hosting/events/${eventId}/pause-sales`, { method: 'PATCH', body: { paused } }),
 };
+
+// ---------- venue hosting team & roles — mirrors orgTeam/orgRoles exactly,
+// scoped to the venue's Organizer panel instead of an organizer ----------
+export interface VenueStaffMember {
+  id: string;
+  name: string;
+  phone: string | null;
+  roleName: string;
+  scan: boolean;
+  createdAt: string;
+}
+export interface VenueTeamAccess {
+  venueId: string;
+  venueBrand: string;
+  venueLogoUrl: string | null;
+  roleName: string;
+  permissions: OrgModulePerms;
+  scan: boolean;
+}
+export const venueTeam = {
+  mine: () => apiFetch<VenueTeamAccess | null>('/venue/team/mine'),
+  listStaff: () => apiFetch<VenueStaffMember[]>('/venue/team'),
+  addStaff: (body: { name: string; phone: string; email?: string; roleName?: string; scan?: boolean }) => apiFetch<VenueStaffMember>('/venue/team', { body }),
+  updateStaffRole: (id: string, roleName: string) => apiFetch<VenueStaffMember>(`/venue/team/${id}/role`, { body: { roleName } }),
+  removeStaff: (id: string) => apiFetch<{ ok: true }>(`/venue/team/${id}`, { method: 'DELETE' }),
+};
+export const venueRoles = {
+  list: () => apiFetch<Record<string, OrgModulePerms>>('/venue/roles'),
+  add: (name: string) => apiFetch<unknown>('/venue/roles', { body: { name } }),
+  setPerm: (name: string, module: string, key: OrgPermKey, value: boolean) =>
+    apiFetch<unknown>(`/venue/roles/${encodeURIComponent(name)}/perm`, { body: { module, key, value } }),
+  remove: (name: string) => apiFetch<{ ok: true }>(`/venue/roles/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+};

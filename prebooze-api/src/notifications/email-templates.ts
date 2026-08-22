@@ -238,6 +238,15 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     tokens: ['name', 'orgBrand', 'roleName', 'phone'],
   },
   {
+    id: 'venue_team_invite', name: 'Venue team invite', category: 'Roles',
+    trigger: 'A venue invites a team member to their hosting console (VenueTeamService.addStaff)',
+    preheader: "You've been added to a Prebooze team",
+    defaultSubject: '{{venueBrand}} added you to their Prebooze team ✓',
+    defaultBody: `<p>Hey {{name}},</p><p><b>{{venueBrand}}</b> added you to their team on Prebooze as <b>{{roleName}}</b>. Log in with your phone number ({{phone}}) to get started — you'll see exactly what your role gives you access to.</p>`,
+    cta: { label: 'Log in →', urlTemplate: '{{webUrl}}/login' },
+    tokens: ['name', 'venueBrand', 'roleName', 'phone'],
+  },
+  {
     id: 'lead_onboarding_invite', name: 'Lead onboarding invite', category: 'Roles',
     trigger: 'Staff sends the role-appropriate onboarding link to a sales lead — organizer, venue, promoter, or line-up (LeadsService.sendOnboardingLink)',
     preheader: 'Get listed on Prebooze',

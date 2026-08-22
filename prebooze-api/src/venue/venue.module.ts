@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { VenueController, AdminVenueHostingController } from './venue.controller';
 import { VenueService } from './venue.service';
+import { VenueAccessService } from './venue-access.service';
+import { VenueTeamService } from './venue-team.service';
+import { VenueTeamController, VenueRolesController } from './venue-team.controller';
 import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { EmailService } from '../notifications/email';
@@ -20,11 +23,11 @@ import { GuestListService } from '../admin/guestlist.service';
 import { LiveMonitorService } from '../admin/live-monitor.service';
 
 @Module({
-  controllers: [VenueController, AdminVenueHostingController],
+  controllers: [VenueController, AdminVenueHostingController, VenueTeamController, VenueRolesController],
   providers: [
     VenueService, PrismaService, JwtAuthGuard, EmailService, WhatsappService, StaffAlertsService, RazorpayService,
     SubscriptionsService, StorageService, InvoicesService, WalletService, NotificationsService, StaffAuthGuard, PermissionGuard,
-    MetaConversionsService, LeadsService, GuestListService, LiveMonitorService,
+    MetaConversionsService, LeadsService, GuestListService, LiveMonitorService, VenueAccessService, VenueTeamService,
   ],
 })
 export class VenueModule {}

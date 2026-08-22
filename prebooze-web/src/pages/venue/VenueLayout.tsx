@@ -19,10 +19,15 @@ const NAV = [
  * and the events it might host are different concerns with different
  * audiences, and merging them read as confusing in practice. */
 export default function VenueLayout() {
-  const { user } = useApp();
+  const { user, venueTeamAccess } = useApp();
 
   if (!user) return <Navigate to="/login" state={{ from: '/venue' }} replace />;
   if (!user.isVenue) {
+    // An invited hosting-team member has no access to the venue's own
+    // panel (single-owner, unchanged) — send them to the one panel that
+    // is theirs instead of the onboarding screen meant for a brand-new
+    // applicant.
+    if (venueTeamAccess) return <Navigate to="/venue/hosting" replace />;
     if (user.pendingRole === 'venue' && user.roleStatus === 'pending') return <PendingReview role="venue" />;
     if (user.pendingRole === 'venue' && user.roleStatus === 'rejected') return <RejectedReview role="venue" reason={user.roleRejectionReason} />;
     return <Navigate to="/venue/onboarding" replace />;
