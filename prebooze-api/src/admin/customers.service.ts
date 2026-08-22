@@ -154,4 +154,63 @@ export class CustomersService {
     if (taken) throw new BadRequestException('That number is already registered to another account');
     return this.prisma.user.update({ where: { id }, data: { phone } });
   }
+
+  /** Support-ticket edit of a guest's own profile fields — the same set
+   * self-serve EditProfile.tsx exposes, staff correcting it on the
+   * customer's behalf (a typo'd name, wrong city, missing DOB the guest
+   * asked support to add). Deliberately not the login number (updatePhone
+   * above, separate action) or role/verification flags (their own
+   * dedicated endpoints). */
+  async update(id: string, patch: {
+    name?: string; email?: string; city?: string; state?: string; country?: string; pincode?: string;
+    dob?: string; gender?: string; profession?: string; languages?: string; bio?: string;
+  }) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Customer not found');
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        name: patch.name?.trim(),
+        email: patch.email?.trim(),
+        city: patch.city?.trim(),
+        state: patch.state?.trim(),
+        country: patch.country?.trim(),
+        pincode: patch.pincode?.trim(),
+        dob: patch.dob?.trim(),
+        gender: patch.gender,
+        profession: patch.profession?.trim(),
+        languages: patch.languages?.trim(),
+        bio: patch.bio?.trim(),
+      },
+    });
+  }
+
+  /** Real hard delete — deliberately narrow, unlike every other directory
+   * entity on this platform (no admin delete exists for organizers/venues/
+   * etc. at all — see DirectoryService's own doc comment). A User row is
+   * referenced by 15+ tables (bookings, wallet, referrals, funnel events,
+   * every role's own directory row...); deleting one with any real history
+   * would either violate a foreign key or silently orphan/cascade real
+   * business records. Only safe for what this is actually meant to clean
+   * up — a duplicate/test/spam signup with zero real activity. Anyone with
+   * a booking or an elevated role gets a clear rejection pointing at
+   * setBlocked instead, which already covers "stop this account from
+   * doing anything" without destroying data. */
+  async remove(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Customer not found');
+    if (user.role || user.roleStatus) {
+      throw new BadRequestException('This account has an organizer/venue/promoter/lineup role — remove that role first, or use Block instead');
+    }
+    const bookingCount = await this.prisma.booking.count({ where: { userId: id } });
+    if (bookingCount > 0) {
+      throw new BadRequestException(`This customer has ${bookingCount} real booking(s) on file — can't delete an account with booking history, use Block instead`);
+    }
+    try {
+      await this.prisma.user.delete({ where: { id } });
+    } catch {
+      throw new BadRequestException('This account still has other real data attached (e.g. wallet activity, a referral) — use Block instead');
+    }
+    return { ok: true };
+  }
 }

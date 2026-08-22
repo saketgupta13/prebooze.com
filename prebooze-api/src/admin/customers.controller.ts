@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { CustomersService } from './customers.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
@@ -37,5 +37,17 @@ export class AdminCustomersController {
   @RequirePermission('Customers', 'edit')
   updatePhone(@Param('id') id: string, @Body('phone') phone: string) {
     return this.customers.updatePhone(id, phone);
+  }
+
+  @Patch(':id')
+  @RequirePermission('Customers', 'edit')
+  update(@Param('id') id: string, @Body() body: Parameters<CustomersService['update']>[1]) {
+    return this.customers.update(id, body);
+  }
+
+  @Delete(':id')
+  @RequirePermission('Customers', 'edit')
+  remove(@Param('id') id: string) {
+    return this.customers.remove(id);
   }
 }
