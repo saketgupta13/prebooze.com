@@ -749,7 +749,7 @@ export const venuePartner = {
   subscription: subscriptionApi('venue'),
   // ---- hosting (opt-in, admin-gated — see VenueService doc comments) ----
   hostingStatus: () => apiFetch<{ hostingEnabled: boolean; request: VenueHostingRequest | null }>('/venue/hosting'),
-  requestHosting: () => apiFetch<VenueHostingRequest>('/venue/hosting/request'),
+  requestHosting: () => apiFetch<VenueHostingRequest>('/venue/hosting/request', { method: 'POST' }),
   hostedEvents: () => apiFetch<Event[]>('/venue/hosting/events'),
   upsertHostedEvent: (e: {
     id?: string; title: string; description?: string; category?: string; subCategory?: string; ageLimit?: string;
