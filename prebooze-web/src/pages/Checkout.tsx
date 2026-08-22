@@ -169,7 +169,7 @@ export default function Checkout() {
   // (see BookingsService.create) — so a non-empty profile name means this
   // guest has already been through checkout before and we already have
   // their details, no need to ask again for the main attendee.
-  const knownGuest = Boolean(user?.name?.trim() && user?.phone?.trim());
+  const knownGuest = Boolean(user?.name?.trim() && user?.phone?.trim() && user?.gender);
   const [editMain, setEditMain] = useState(false);
   const showMainFields = !knownGuest || editMain;
   const [guestNames, setGuestNames] = useState<string[]>([]);
@@ -596,6 +596,10 @@ export default function Checkout() {
       failAttendee('Main attendee name and WhatsApp number are required');
       return;
     }
+    if (!gender) {
+      failAttendee('Main attendee gender is required');
+      return;
+    }
     // Extra guests' name + gender are required (WhatsApp number stays
     // optional) — the organizer's own guest list needs a real name per
     // ticket, not just a headcount.
@@ -725,7 +729,7 @@ export default function Checkout() {
                   </div>
                   <div className="form-row">
                     <div className="field">
-                      <span>Gender</span>
+                      <span>Gender *</span>
                       <select value={gender} onChange={(e) => setGender(e.target.value)}>
                         <option value="">Select…</option>
                         <option>Female</option>

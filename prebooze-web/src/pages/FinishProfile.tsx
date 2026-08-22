@@ -21,6 +21,8 @@ export default function FinishProfile() {
   const navigate = useNavigate();
 
   const [name] = useState(user?.name ?? '');
+  const [dob, setDob] = useState(user?.dob ?? '');
+  const [gender, setGender] = useState(user?.gender ?? '');
   const [username, setUsername] = useState(user?.username ?? '');
   const [profession, setProfession] = useState(user?.profession ?? '');
   const [languages, setLanguages] = useState(user?.languages ?? '');
@@ -39,6 +41,8 @@ export default function FinishProfile() {
     e.preventDefault();
     setErr('');
     if (!photo) return setErr('A profile photo is required');
+    if (!dob.trim()) return setErr('Date of birth is required');
+    if (!gender) return setErr('Gender is required');
     if (!username.trim()) return setErr('Username is required');
     if (!loc.city.trim()) return setErr('City is required');
     if (!loc.state.trim()) return setErr('State is required');
@@ -52,6 +56,7 @@ export default function FinishProfile() {
     setSaving(true);
     try {
       const updated = await auth.updateMe({
+        dob: dob.trim(), gender,
         username: username.trim(), profession: profession.trim(), languages: languages.trim(), bio: bio.trim(),
         city: loc.city, state: loc.state, country: loc.country, pincode: loc.pincode,
         interests, avatarUrl: photo, socialLinks,
@@ -123,6 +128,22 @@ export default function FinishProfile() {
             <div className="field">
               <span>Username *</span>
               <input required value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@username" />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="field">
+              <span>Date of birth *</span>
+              <input required type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+            </div>
+            <div className="field">
+              <span>Gender *</span>
+              <select required value={gender} onChange={(e) => setGender(e.target.value)}>
+                <option value="">Select…</option>
+                <option>Female</option>
+                <option>Male</option>
+                <option>Non-binary</option>
+                <option>Prefer not to say</option>
+              </select>
             </div>
           </div>
           <LocationPicker value={loc} onChange={setLoc} />
