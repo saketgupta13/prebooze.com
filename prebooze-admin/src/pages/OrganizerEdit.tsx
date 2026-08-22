@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { LiveLocationPicker, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import WysiwygEditor from '../components/WysiwygEditor';
+import RealImageUpload from '../components/RealImageUpload';
 import { liveOrganizers, LiveApiError, type LiveOrganizer, type LivePaymentProfile } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
@@ -42,6 +43,7 @@ export default function OrganizerEdit() {
   const [socialLinks, setSocialLinks] = useState<{ instagram?: string; facebook?: string; other?: string[] } | null>(null);
   const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
   const [seo, setSeo] = useState<Seo>(emptySeo());
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -59,6 +61,7 @@ export default function OrganizerEdit() {
           setSocialLinks(o.socialLinks ?? null);
           setLoc({ country: o.country ?? 'India', state: o.state ?? '', city: o.city });
           setSeo((o.seo as Seo | null) ?? emptySeo());
+          setLogoUrl(o.logoUrl ?? null);
           liveOrganizers.paymentProfiles(o.id).then(setProfiles).catch(() => {});
         }
       })
@@ -97,6 +100,7 @@ export default function OrganizerEdit() {
         city: loc.city, state: loc.state || undefined, country: loc.country || undefined,
         socialLinks: socialLinks ?? undefined,
         seo,
+        logoUrl,
       });
       navigate(`/organizers/${org.id}`);
     } catch (e2) {
@@ -115,6 +119,10 @@ export default function OrganizerEdit() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="display" style={{ fontWeight: 700 }}>Business profile</div>
+        <div className="field">
+          <label>Logo</label>
+          <RealImageUpload value={logoUrl} onChange={setLogoUrl} height={90} width={90} label="⬆ upload logo" />
+        </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <div className="field" style={{ flex: 1 }}>
             <label>Organizer / brand name</label>

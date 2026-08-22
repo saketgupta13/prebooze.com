@@ -51,9 +51,27 @@ export class DirectoryService {
   }
 
   async updateOrganizer(id: string, patch: Record<string, unknown>) {
-    if (!(await this.prisma.organizer.findUnique({ where: { id } }))) throw new NotFoundException('Organizer not found');
+    const existing = await this.prisma.organizer.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Organizer not found');
     const data = sanitizePatch(patch, ORGANIZER_EDITABLE) as Record<string, unknown>;
-    return this.prisma.organizer.update({ where: { id }, data: data as never });
+    const updated = await this.prisma.organizer.update({ where: { id }, data: data as never });
+    // User carries a denormalized copy of brand/logo for its own header/
+    // dashboard (avoids a join on every request) — organizer.service.ts's
+    // own self-serve updateMe already keeps this in sync when the organizer
+    // edits their own profile; this admin path edits the same Organizer row
+    // and needs the same sync, or an admin-set logo/name silently never
+    // shows up for the organizer themselves until they separately save
+    // their own profile.
+    if (existing.userId && ('brandName' in data || 'logoUrl' in data)) {
+      await this.prisma.user.update({
+        where: { id: existing.userId },
+        data: {
+          orgBrand: 'brandName' in data ? (data.brandName as string) : undefined,
+          orgLogoUrl: 'logoUrl' in data ? (data.logoUrl as string | null) : undefined,
+        },
+      });
+    }
+    return updated;
   }
 
   async setOrganizerVerified(id: string, verified: boolean) {
@@ -269,7 +287,7 @@ export class DirectoryService {
 // computed/relational fields (events, followers, ledger, etc.) stay out of
 // client control.
 const ORGANIZER_EDITABLE = [
-  'brandName', 'city', 'state', 'country', 'pincode', 'about', 'contact', 'contactPerson', 'phone', 'eventTypes', 'socialLinks', 'seo',
+  'brandName', 'city', 'state', 'country', 'pincode', 'about', 'contact', 'contactPerson', 'phone', 'eventTypes', 'socialLinks', 'seo', 'logoUrl',
 ];
 // PAN/GSTIN/bank moved off Organizer entirely — see PaymentProfile and
 // updateOrganizerPaymentProfile above.
