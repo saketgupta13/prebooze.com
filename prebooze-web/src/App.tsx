@@ -106,6 +106,7 @@ const GuestPass = lazy(() => import('./pages/promoter/GuestPass'));
 const VipPass = lazy(() => import('./pages/organizer/VipPass'));
 const VenueOnboarding = lazy(() => import('./pages/venue/VenueOnboarding'));
 const VenueLayout = lazy(() => import('./pages/venue/VenueLayout'));
+const VenueOrgLayout = lazy(() => import('./pages/venue/VenueOrgLayout'));
 const VenueDashboard = lazy(() => import('./pages/venue/VenueDashboard'));
 const VenueListing = lazy(() => import('./pages/venue/VenueListing'));
 const VenueEvents = lazy(() => import('./pages/venue/VenueEvents'));
@@ -468,19 +469,21 @@ export default function App() {
           <Route path="billing" element={<VenueBilling />} />
           <Route path="settings" element={<VenueSettings />} />
           <Route path="settings/verification" element={<VenueVerification />} />
-          <Route path="hosting" element={<VenueHosting />} />
-          <Route path="hosting/events" element={<VenueHostedEvents />} />
-          <Route path="hosting/events/create" element={<CreateHostedEvent />} />
-          <Route path="hosting/events/:id/edit" element={<CreateHostedEvent />} />
-          <Route path="hosting/attendees" element={<VenueAttendees />} />
-          <Route path="hosting/guest-list" element={<VenueGuestList />} />
-          <Route path="hosting/live" element={<VenueLiveMonitor />} />
-          <Route path="hosting/carts" element={<VenueAbandonedCarts />} />
-          <Route path="hosting/scanner" element={<VenueScanner />} />
-          <Route path="hosting/promoters" element={<VenuePromoters />} />
-          <Route path="hosting/coupons" element={<VenueCoupons />} />
-          <Route path="hosting/ledger" element={<VenueLedger />} />
-          <Route path="hosting/ledger/withdraw" element={<VenueWithdraw />} />
+        </Route>
+        <Route path="/venue/hosting" element={<VenueOrgLayout />}>
+          <Route index element={<VenueHosting />} />
+          <Route path="events" element={<VenueHostedEvents />} />
+          <Route path="events/create" element={<CreateHostedEvent />} />
+          <Route path="events/:id/edit" element={<CreateHostedEvent />} />
+          <Route path="attendees" element={<VenueAttendees />} />
+          <Route path="guest-list" element={<VenueGuestList />} />
+          <Route path="live" element={<VenueLiveMonitor />} />
+          <Route path="carts" element={<VenueAbandonedCarts />} />
+          <Route path="scanner" element={<VenueScanner />} />
+          <Route path="promoters" element={<VenuePromoters />} />
+          <Route path="coupons" element={<VenueCoupons />} />
+          <Route path="ledger" element={<VenueLedger />} />
+          <Route path="ledger/withdraw" element={<VenueWithdraw />} />
         </Route>
 
         {/* Company / static */}

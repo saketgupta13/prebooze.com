@@ -7,13 +7,13 @@ import { ApiError } from '../../api/client';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-/** Venue hosting opt-in + status + guide — nothing about hosting shows
- * anywhere else in the venue console until this flips to "enabled" (see
- * VenueLayout's conditional nav). Requesting doesn't unlock anything by
- * itself: it creates a VenueHostingRequest that sits in the admin queue
- * until someone on our team has actually talked the venue through the
- * hosting rules (see VenueService.approveHostingRequest's contactedAt
- * gate) — most venues don't know these rules going in. */
+/** Venue hosting opt-in + status + guide — this page is the entire Organizer
+ * panel (VenueOrgLayout) until hostingEnabled flips true, at which point
+ * that panel's real console nav appears alongside it. Requesting doesn't
+ * unlock anything by itself: it creates a VenueHostingRequest that sits in
+ * the admin queue until someone on our team has actually talked the venue
+ * through the hosting rules (see VenueService.approveHostingRequest's
+ * contactedAt gate) — most venues don't know these rules going in. */
 export default function VenueHosting() {
   const [hostingEnabled, setHostingEnabled] = useState(false);
   const [request, setRequest] = useState<VenueHostingRequest | null>(null);
