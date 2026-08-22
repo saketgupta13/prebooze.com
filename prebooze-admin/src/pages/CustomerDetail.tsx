@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CUSTOMER_STATUS, Kpi, Tag } from '../components/ui';
+import { CUSTOMER_STATUS, Kpi, Tag, LiveLocationPicker } from '../components/ui';
 import { liveCustomers, liveBookings, LiveApiError, type LiveCustomerDetail, type LiveBooking } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
@@ -203,18 +203,6 @@ export default function CustomerDetail() {
                 </select>
               </div>
               <div className="field">
-                <label>City</label>
-                <input className="input" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
-              </div>
-              <div className="field">
-                <label>State</label>
-                <input className="input" value={form.state} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} />
-              </div>
-              <div className="field">
-                <label>Country</label>
-                <input className="input" value={form.country} onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))} />
-              </div>
-              <div className="field">
                 <label>Pincode</label>
                 <input className="input" value={form.pincode} onChange={(e) => setForm((f) => ({ ...f, pincode: e.target.value }))} />
               </div>
@@ -227,6 +215,10 @@ export default function CustomerDetail() {
                 <input className="input" value={form.languages} onChange={(e) => setForm((f) => ({ ...f, languages: e.target.value }))} />
               </div>
             </div>
+            <LiveLocationPicker
+              value={{ country: form.country, state: form.state, city: form.city }}
+              onChange={(v) => setForm((f) => ({ ...f, ...v }))}
+            />
             <div className="field">
               <label>Bio</label>
               <textarea className="input" rows={3} value={form.bio} onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))} />
