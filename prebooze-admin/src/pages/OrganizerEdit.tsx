@@ -4,7 +4,8 @@ import { LiveLocationPicker, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import WysiwygEditor from '../components/WysiwygEditor';
 import RealImageUpload from '../components/RealImageUpload';
-import { liveOrganizers, LiveApiError, type LiveOrganizer, type LivePaymentProfile } from '../lib/liveApi';
+import AdminChangePhone from '../components/AdminChangePhone';
+import { liveOrganizers, liveCustomers, LiveApiError, type LiveOrganizer, type LivePaymentProfile } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
 import type { Seo } from '../types';
@@ -44,6 +45,7 @@ export default function OrganizerEdit() {
   const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
   const [seo, setSeo] = useState<Seo>(emptySeo());
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [loginPhone, setLoginPhone] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -63,6 +65,7 @@ export default function OrganizerEdit() {
           setSeo((o.seo as Seo | null) ?? emptySeo());
           setLogoUrl(o.logoUrl ?? null);
           liveOrganizers.paymentProfiles(o.id).then(setProfiles).catch(() => {});
+          if (o.userId) liveCustomers.get(o.userId).then((c) => setLoginPhone(c.phone)).catch(() => {});
         }
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
@@ -163,6 +166,13 @@ export default function OrganizerEdit() {
           <SocialLinksEditor value={socialLinks} onChange={setSocialLinks} />
         </div>
       </div>
+
+      {org.userId && (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="display" style={{ fontWeight: 700 }}>Account access</div>
+          <AdminChangePhone userId={org.userId} currentPhone={loginPhone} />
+        </div>
+      )}
 
       <PaymentProfilesCard organizerId={org.id} profiles={profiles} onChange={setProfiles} />
 

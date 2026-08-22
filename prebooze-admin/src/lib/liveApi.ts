@@ -407,6 +407,7 @@ export const liveCustomers = {
 
 export interface LiveOrganizer {
   id: string; brandName: string; username: string; verified: boolean; city: string;
+  userId: string | null;
   state: string | null; country: string | null; pincode: string | null; since: string;
   rating: number; reviewCount: number; eventsHosted: number; followers: number; following: number;
   about: string; logoHue: number; logoUrl: string | null; contact: string; contactPerson: string | null; phone: string | null;
@@ -438,6 +439,7 @@ export interface LiveLineup {
 }
 export interface LiveVenue {
   id: string; name: string; verified: boolean; type: string; locality: string; city: string;
+  userId: string | null;
   state: string | null; country: string | null; pincode: string | null; pendingCity: string | null;
   address: string;
   capacity: number; rating: number; followers: number; amenities: string[]; about: string; timings: string | null;

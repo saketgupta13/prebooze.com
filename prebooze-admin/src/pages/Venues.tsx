@@ -7,7 +7,8 @@ import SeoFields, { emptySeo } from '../components/SeoFields';
 import MapEmbed from '../components/MapEmbed';
 import RealImageUpload, { RealGalleryUpload } from '../components/RealImageUpload';
 import WysiwygEditor from '../components/WysiwygEditor';
-import { liveVenues, liveEvents, liveVenueTypes, liveVenueHosting, LiveApiError, type LiveVenue, type LiveEvent, type LiveVenueType, type LiveVenueHostingRequest } from '../lib/liveApi';
+import AdminChangePhone from '../components/AdminChangePhone';
+import { liveVenues, liveEvents, liveVenueTypes, liveVenueHosting, liveCustomers, LiveApiError, type LiveVenue, type LiveEvent, type LiveVenueType, type LiveVenueHostingRequest } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import PlansAndSubscribers from '../components/PlansAndSubscribers';
@@ -522,6 +523,7 @@ export function EditVenue() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [cityBusy, setCityBusy] = useState(false);
+  const [loginPhone, setLoginPhone] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -532,6 +534,7 @@ export function EditVenue() {
         const v = venues.find((x) => x.id === id);
         setVenue(v ?? null);
         if (v) {
+          if (v.userId) liveCustomers.get(v.userId).then((c) => setLoginPhone(c.phone)).catch(() => {});
           setName(v.name);
           setAddress(v.address);
           setCapacity(String(v.capacity));
@@ -721,6 +724,14 @@ export function EditVenue() {
         <input type="checkbox" checked={verified} onChange={() => setVerified((v) => !v)} style={{ accentColor: 'var(--green)' }} />
         Verified venue ✓ (license/permit docs on file)
       </label>
+
+      {venue.userId && (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="display" style={{ fontWeight: 700 }}>Account access</div>
+          <AdminChangePhone userId={venue.userId} currentPhone={loginPhone} />
+        </div>
+      )}
+
       <SeoFields
         seo={seo}
         onChange={setSeo}

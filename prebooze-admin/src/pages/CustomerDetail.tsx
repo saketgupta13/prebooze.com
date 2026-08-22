@@ -32,10 +32,6 @@ export default function CustomerDetail() {
   const [bookings, setBookings] = useState<LiveBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const [changingPhone, setChangingPhone] = useState(false);
-  const [newPhone, setNewPhone] = useState('');
-  const [phoneSaving, setPhoneSaving] = useState(false);
-  const [phoneErr, setPhoneErr] = useState('');
 
   const load = () => {
     if (!id) return;
@@ -85,22 +81,6 @@ export default function CustomerDetail() {
     }
   };
 
-  const savePhone = async () => {
-    if (!newPhone.trim()) return;
-    setPhoneSaving(true);
-    setPhoneErr('');
-    try {
-      await liveCustomers.updatePhone(customer.id, newPhone.trim());
-      setChangingPhone(false);
-      setNewPhone('');
-      load();
-    } catch (e) {
-      setPhoneErr(e instanceof LiveApiError ? e.message : 'Failed to update number');
-    } finally {
-      setPhoneSaving(false);
-    }
-  };
-
   const totalPaid = history.filter((b) => b.status !== 'refunded').reduce((a, b) => a + b.total, 0);
 
   return (
@@ -126,37 +106,11 @@ export default function CustomerDetail() {
           {customer.status === 'blocked' ? 'Unblock customer' : 'Block customer'}
         </button>
       </div>
-      <div className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <span>
-          {customer.city || '—'} · {customer.gender || '—'}
-          {customer.phone && <> · {customer.phone}</>}
-          {customer.email && <> · {customer.email}</>}
-        </span>
-        {!changingPhone && (
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setChangingPhone(true); setNewPhone(''); setPhoneErr(''); }}>
-            Change login number
-          </button>
-        )}
+      <div className="small muted">
+        {customer.city || '—'} · {customer.gender || '—'}
+        {customer.phone && <> · {customer.phone}</>}
+        {customer.email && <> · {customer.email}</>}
       </div>
-
-      {changingPhone && (
-        <div className="card" style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360 }}>
-          <div className="tiny hint">
-            No OTP round-trip — this directly changes what number they log in with, same trust level as any other admin edit here. Use it when the account is genuinely locked out of its old number (a self-serve change happens from their own Settings once they can log in).
-          </div>
-          <div className="field">
-            <label>New login number</label>
-            <input className="input" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="10-digit number" inputMode="tel" autoFocus />
-          </div>
-          {phoneErr && <div className="tiny" style={{ color: 'var(--red)' }}>{phoneErr}</div>}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="btn btn-pri btn-sm" disabled={phoneSaving || !newPhone.trim()} onClick={savePhone}>
-              {phoneSaving ? 'Saving…' : 'Save new number'}
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm" disabled={phoneSaving} onClick={() => setChangingPhone(false)}>Cancel</button>
-          </div>
-        </div>
-      )}
 
       <div className="kpi-grid">
         <Kpi label="Bookings" value={customer.bookings || history.length} />
