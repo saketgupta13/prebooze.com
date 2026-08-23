@@ -1390,6 +1390,30 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
      for it instead of just covering whatever happens to be there. */
   .event-detail-page-mobile { padding-bottom: 76px; }
 }
+/* .hdr-logo's <img> and .hdr-city both have default flex-shrink:1 with
+   nothing else constraining their minimum size — measured on a real narrow
+   phone, the flex algorithm crushed the logo down to 8px wide (fixed
+   height:42, width:auto with no floor) while .hdr-city's wrappable text
+   just line-wrapped instead of shrinking, making it look comically
+   oversized (53px tall) next to a nearly-invisible logo. flex-shrink:0
+   stops both from being squeezed at all; the size/content reductions below
+   are what actually make room for that without the row overflowing —
+   .hdr-city-name/.hdr-user-name (their name-label spans, see Header.tsx)
+   drop out entirely, leaving icon+caret only, since the full label doesn't
+   fit any real phone width once the logo and avatar both need real space too. */
+@media (max-width: 480px) {
+  .hdr-logo { flex-shrink: 0; }
+  .hdr-logo img { height: 28px; }
+  .hdr-city {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .hdr-city-name { display: none; }
+  .hdr-user { flex-shrink: 0; }
+  .hdr-user-name { display: none; }
+}
 @media (max-width: 560px) {
   .grid-4, .grid-3, .grid-2, .reels { grid-template-columns: repeat(2, 1fr); }
   /* Venue detail's map + amenities cards (.grid-2) sit side by side on

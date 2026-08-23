@@ -204,7 +204,7 @@ export default function Header() {
         <SearchBox className="hdr-search" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} city={city} />
 
         <button className="hdr-city" onClick={() => setCityOpen(true)}>
-          📍 {city} <Caret />
+          📍 <span className="hdr-city-name">{city}</span> <Caret />
         </button>
         <CityPicker open={cityOpen} onClose={() => setCityOpen(false)} />
 
@@ -232,7 +232,7 @@ export default function Header() {
             ) : (
               <span className="avatar">👤</span>
             )}
-            {displayName.split(' ')[0]} <Caret />
+            <span className="hdr-user-name">{displayName.split(' ')[0]}</span> <Caret />
             {menuOpen && (
               <div className="menu" onClick={(e) => e.stopPropagation()}>
                 {/* Any elevated role (organizer/promoter/lineup/venue) is a
