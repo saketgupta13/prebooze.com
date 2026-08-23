@@ -1028,6 +1028,75 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
 .org-side a:hover { color: var(--text); background: var(--surface-2); }
 .org-side a.on { background: rgba(155, 225, 61, 0.12); color: var(--accent); }
 
+/* Organizer panel mobile nav (VenueOrgLayout only — its 12 items don't fit
+   the shared .org-side horizontal-scroll strip every other console still
+   uses, so this is a separate opt-in pattern, not a change to .org-side
+   itself). Bottom tab bar for the first few always-relevant items + a
+   "More" button opening a right-side slide-in drawer with a dimmed scrim
+   behind it — same Drawer shape prebooze-admin already uses (fixed width,
+   not a full-screen takeover), not a bottom sheet. */
+.org-mobile-tabbar {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  z-index: 30;
+  justify-content: space-around;
+}
+.org-mobile-tabbar a,
+.org-mobile-tabbar button {
+  background: none;
+  border: none;
+  font: inherit;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 4px 6px;
+}
+.org-mobile-tabbar a.on { color: var(--accent); font-weight: 700; }
+.org-mobile-tabbar .ico { font-size: 16px; }
+
+.org-drawer-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 40; }
+.org-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(320px, 88vw);
+  background: var(--surface);
+  border-left: 1px solid var(--border-2);
+  z-index: 41;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  animation: orgDrawerIn 0.2s ease;
+}
+@keyframes orgDrawerIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.org-drawer a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 11px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.org-drawer a.on { background: rgba(155, 225, 61, 0.12); color: var(--accent); }
+
 .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-m); padding: 16px 18px; }
 .kpi .l { font-size: 12.5px; color: var(--muted); font-weight: 600; }
@@ -1255,6 +1324,9 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   .org-side { position: static; display: flex; overflow-x: auto; padding: 8px; }
   .org-side .cap { display: none; }
   .org-side a { white-space: nowrap; }
+  .org-side-desktop-only { display: none; }
+  .org-mobile-tabbar { display: flex; }
+  .org-mobile-content { padding-bottom: 76px; }
   .detail-head { flex-direction: column; }
   .detail-head .poster { width: 100%; max-width: 340px; }
   /* .ftr-base is a single nowrap flex row (logo, copyright, spacer, 4

@@ -25,6 +25,13 @@ const NAV: { to: string; label: string; end?: boolean; module?: string }[] = [
   { to: '/venue/hosting/settings', label: '⚙ Settings', module: 'Settings & team' },
 ];
 
+// How many of navItems (in NAV order) get a permanent bottom-tab slot on
+// mobile — the rest live in the "More" drawer. Whatever a given viewer can
+// actually see (owner: everything; staff: their permission-filtered list)
+// naturally fills these first, so this never hardcodes a route a staff
+// member might not have access to.
+const PINNED_COUNT = 4;
+
 export default function VenueOrgLayout() {
   const { user, venueTeamAccess, venueTeamAccessLoaded } = useApp();
   const [hostingEnabled, setHostingEnabled] = useState(false);
@@ -60,7 +67,7 @@ export default function VenueOrgLayout() {
   return (
     <main className="page">
       <div className="container org-layout">
-        <aside className="org-side">
+        <aside className="org-side org-side-desktop-only">
           <div className="cap">ORGANIZER</div>
           {hostingEnabled ? (
             NAV.map((n) => (
@@ -74,10 +81,11 @@ export default function VenueOrgLayout() {
             </div>
           )}
         </aside>
-        <div style={{ minWidth: 0 }}>
+        <div className={hostingEnabled ? 'org-mobile-content' : undefined} style={{ minWidth: 0 }}>
           <Outlet />
         </div>
       </div>
+      {hostingEnabled && <MobileOrgNav navItems={NAV} />}
     </main>
   );
 }
@@ -89,7 +97,7 @@ function TeamConsole({ access }: { access: NonNullable<ReturnType<typeof useApp>
   return (
     <main className="page">
       <div className="container org-layout">
-        <aside className="org-side">
+        <aside className="org-side org-side-desktop-only">
           <div className="cap">ORGANIZER</div>
           <div className="tiny muted" style={{ padding: '0 4px 10px', lineHeight: 1.5 }}>
             Managing <b>{access.venueBrand}</b> as <b>{access.roleName}</b>
@@ -100,10 +108,60 @@ function TeamConsole({ access }: { access: NonNullable<ReturnType<typeof useApp>
             </NavLink>
           ))}
         </aside>
-        <div style={{ minWidth: 0 }}>
+        <div className="org-mobile-content" style={{ minWidth: 0 }}>
           <Outlet />
         </div>
       </div>
+      <MobileOrgNav navItems={visibleNav} />
     </main>
+  );
+}
+
+/** Mobile-only bottom tab bar + "More" drawer — hidden entirely on desktop
+ * (CSS, see .org-mobile-tabbar), where the real .org-side sidebar above
+ * already shows everything. The drawer is a fixed-width right-side panel
+ * with a dimmed scrim behind it (same shape as prebooze-admin's own
+ * Drawer/MoreMenu), not a bottom sheet that covers the screen. */
+function MobileOrgNav({ navItems }: { navItems: typeof NAV }) {
+  const [open, setOpen] = useState(false);
+  const pinned = navItems.slice(0, PINNED_COUNT);
+  const rest = navItems.slice(PINNED_COUNT);
+
+  return (
+    <>
+      <nav className="org-mobile-tabbar">
+        {pinned.map((n) => {
+          const [ico, ...labelParts] = n.label.split(' ');
+          return (
+            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
+              <span className="ico">{ico}</span>
+              {labelParts.join(' ')}
+            </NavLink>
+          );
+        })}
+        {rest.length > 0 && (
+          <button onClick={() => setOpen(true)}>
+            <span className="ico">⋯</span>
+            More
+          </button>
+        )}
+      </nav>
+      {open && (
+        <>
+          <div className="org-drawer-overlay" onClick={() => setOpen(false)} />
+          <div className="org-drawer">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <span className="cap" style={{ padding: 0 }}>MORE</span>
+              <span onClick={() => setOpen(false)} style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: 18, lineHeight: 1 }}>✕</span>
+            </div>
+            {rest.map((n) => (
+              <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => (isActive ? 'on' : '')}>
+                {n.label}
+              </NavLink>
+            ))}
+          </div>
+        </>
+      )}
+    </>
   );
 }
