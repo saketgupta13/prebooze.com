@@ -302,6 +302,7 @@ export interface PersonDetail {
   followers: Person[];
   following: Person[];
   going: Event[];
+  past: Event[];
   interested: Event[];
 }
 

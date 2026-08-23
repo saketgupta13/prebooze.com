@@ -127,6 +127,7 @@ export default function PersonProfile() {
 
   const myEventIds = new Set([...bookings.filter((b) => b.status !== 'cancelled').map((b) => b.eventId), ...interested]);
   const going = person.going;
+  const past = person.past;
   const interestedIn = person.interested;
   const proofNames = proof.slice(0, 2).map((p) => p.name.split(' ')[0]).join(', ');
   const toggle = (which: 'followers' | 'following') => setOpenList((cur) => (cur === which ? null : which));
@@ -213,6 +214,10 @@ export default function PersonProfile() {
             <div className="card">
               <h3 style={{ marginBottom: 10 }}>Going <span className="badge badge-accent">{going.length}</span></h3>
               {going.length === 0 ? <div className="muted small">Nothing booked yet.</div> : going.map((e) => <EventRow key={e.id} event={e} />)}
+            </div>
+            <div className="card">
+              <h3 style={{ marginBottom: 10 }}>Past events <span className="badge">{past.length}</span></h3>
+              {past.length === 0 ? <div className="muted small">No past events yet.</div> : past.map((e) => <EventRow key={e.id} event={e} />)}
             </div>
             <div className="card">
               <h3 style={{ marginBottom: 10 }}>Interested <span className="badge badge-pending">{interestedIn.length}</span></h3>

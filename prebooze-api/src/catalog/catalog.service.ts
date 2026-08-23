@@ -406,6 +406,7 @@ export class CatalogService {
     }
 
     let going: unknown[] = [];
+    let past: unknown[] = [];
     let interested: unknown[] = [];
     const goingEvents = new Map<string, Record<string, unknown>>();
     if (canSeeAttendance) {
@@ -428,12 +429,19 @@ export class CatalogService {
       });
       for (const b of ownBookings) goingEvents.set(b.event.id, b.event as never);
     }
-    going = [...goingEvents.values()].filter((e) => !CatalogService.isEventOver(e as never));
+    // Same confirmed-booking events, split by whether they've already
+    // happened — "going" was the only list until now, which meant anyone
+    // whose bookings were all for events that already ended (the common
+    // case for a guest who's been on the platform a while) showed a
+    // completely empty profile despite having real booking history.
+    const allEvents = [...goingEvents.values()];
+    going = allEvents.filter((e) => !CatalogService.isEventOver(e as never));
+    past = allEvents.filter((e) => CatalogService.isEventOver(e as never));
 
     return {
       id: user.id, name: user.name || 'Guest', username: user.username || user.id, city: user.city,
       bio: user.bio || undefined, avatarUrl: user.avatarUrl ?? undefined, avatarHue: hueFromId(user.id),
-      verified: user.idVerified, followers, following, going, interested,
+      verified: user.idVerified, followers, following, going, past, interested,
     };
   }
 
