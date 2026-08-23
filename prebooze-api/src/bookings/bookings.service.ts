@@ -14,6 +14,7 @@ import { REFERRAL_REFERRER_REWARD, uniqueReferralCodeFor } from '../referrals/re
 import { NotificationsService } from '../admin/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { normalizePhone } from '../auth/auth.service';
+import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from '../auth/guest-username';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { LeadsService } from '../admin/leads.service';
@@ -346,8 +347,13 @@ export class BookingsService {
       // First real booking is the moment a guest's identity is confirmed —
       // backfill their blank profile name from it rather than leaving
       // User.name empty forever (checkout never wrote this back before).
+      // Same moment their username can move on from the phone-digit
+      // placeholder (uniqueUsername, verifyOtp) to a real name-based one —
+      // only if they haven't already customized it themselves.
       if (!buyer.name?.trim()) {
-        await tx.user.update({ where: { id: userId }, data: { name: input.mainGuest.trim() } });
+        const newName = input.mainGuest.trim();
+        const newUsername = PLACEHOLDER_USERNAME.test(buyer.username) ? await uniqueUsernameFromName(tx, newName, userId) : undefined;
+        await tx.user.update({ where: { id: userId }, data: { name: newName, ...(newUsername ? { username: newUsername } : {}) } });
       }
 
       if (walletCreditUsed > 0) {

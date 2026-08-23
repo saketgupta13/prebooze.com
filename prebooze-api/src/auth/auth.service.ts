@@ -8,6 +8,7 @@ import { REDIS } from '../redis.provider';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { uniqueReferralCodeFor } from '../referrals/referral.constants';
+import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from './guest-username';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
 
 const OTP_TTL_S = 300; // 5 minutes
@@ -306,6 +307,15 @@ export class AuthService {
       'bio', 'socials', 'socialLinks', 'interests', 'attendanceVisibility', 'autoRenew', 'avatarUrl',
     ];
     for (const k of allowed) if (k in patch) data[k] = patch[k];
+
+    // A guest's very first username (uniqueUsername, verifyOtp) is only ever
+    // a phone-digit placeholder — name isn't known yet at that point. The
+    // real, name-based one gets set here instead, the first time a real name
+    // lands and the caller didn't also pick a username in the same save.
+    // Never touches a username the guest already customized themselves.
+    if (typeof data.name === 'string' && data.name.trim() && !('username' in data) && PLACEHOLDER_USERNAME.test(current.username)) {
+      data.username = await uniqueUsernameFromName(this.prisma, data.name.trim(), userId);
+    }
 
     // Every guest now has a username from the moment they sign up (see
     // uniqueUsername in verifyOtp) — it's used for /u/:username, so two
