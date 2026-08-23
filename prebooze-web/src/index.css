@@ -1147,6 +1147,13 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   border-bottom: 1px dashed var(--border-dash);
 }
 .evrow:last-child { border-bottom: none; }
+/* Wraps an .evrow's trailing badges/buttons (status badge, Feature, Edit,
+   view icon…) so they can move to their own line on mobile instead of
+   forcing the row's flexible middle column to shrink to zero width — that
+   0-width collapse was the real cause of the poster/title looking broken
+   and overlapping on narrow screens (the middle text block has no min-width
+   floor, so it absorbed 100% of the overflow instead of the row wrapping). */
+.evrow-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .evrow .thumb {
   width: 52px;
   height: 66px;
@@ -1329,6 +1336,8 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   .org-side-desktop-only { display: none; }
   .org-mobile-tabbar { display: flex; }
   .org-mobile-content { padding-bottom: 76px; }
+  .evrow { flex-wrap: wrap; row-gap: 8px; }
+  .evrow-actions { flex-basis: 100%; justify-content: flex-end; }
   .detail-head { flex-direction: column; }
   .detail-head .poster { width: 100%; max-width: 340px; }
   /* .ftr-base is a single nowrap flex row (logo, copyright, spacer, 4

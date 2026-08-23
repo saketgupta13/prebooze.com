@@ -27,7 +27,11 @@ const STATUS_BADGE: Record<EventStatus, { cls: string; label: string }> = {
 /** Real event list (GET /organizer/events) — commission is admin-set and
  * read-only (see BACKEND.md), so an honest display needs real data, not the
  * mock store. "+ Create event"/"✎ Edit" open CreateEvent.tsx, which saves via
- * the same real POST /organizer/events endpoint this list reads from. */
+ * the same real POST /organizer/events endpoint this list reads from. Same
+ * poster-forward card grid as the public guest-facing Browse.tsx (EventCard/
+ * .grid-4/.ecard), not a compact list row — a real event poster is the most
+ * useful way to tell your own events apart at a glance, same as it is for a
+ * guest browsing. */
 export default function MyEvents() {
   const { featured, requestFeatured, toast, city } = useApp();
   const [tab, setTab] = useState<'all' | EventStatus>('all');
@@ -81,65 +85,68 @@ export default function MyEvents() {
           );
         })}
       </div>
-      <div className="tabs" style={{ marginBottom: 14 }}>
+      <div className="tabs" style={{ marginBottom: 18 }}>
         <button className={scope === 'upcoming' ? 'on' : ''} onClick={() => setScope('upcoming')}>Upcoming</button>
         <button className={scope === 'past' ? 'on' : ''} onClick={() => setScope('past')}>Past</button>
       </div>
 
-      <div className="card">
-        {loading && <div className="empty">Loading…</div>}
-        {err && <div className="danger-text small">✕ {err}</div>}
-        {!loading && !err && list.length === 0 && <div className="empty">No {scope} events{tab !== 'all' ? ` in ${tab}` : ''}.</div>}
-        {list.map((e) => {
-          const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
-          const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
-          const badge = STATUS_BADGE[e.status];
-          const feat = findFeatured(featured, 'event', e.id);
-          return (
-            <div key={e.id} className="evrow">
-              <Poster className="thumb" hue={e.posterHue} emoji={categoryEmoji(e.category)} imageUrl={e.posterUrl} alt={e.title} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="bold small">{e.title}</div>
-                <div className="tiny muted">
-                  {e.status === 'rejected' ? (
-                    <>
-                      reason: {e.rejectionReason ?? 'guideline issue'} ·{' '}
-                      <Link to="/organizer/events/create" className="link">
-                        fix & resubmit
-                      </Link>
-                    </>
-                  ) : e.status === 'draft' ? (
-                    'draft · last edited recently'
-                  ) : e.status === 'pending' ? (
-                    `${fmtDate(e.date)} · submitted for review`
-                  ) : (
-                    `${fmtDate(e.date)} · ${sold.toLocaleString()}/${cap.toLocaleString()} sold`
+      {loading && <div className="empty">Loading…</div>}
+      {err && <div className="danger-text small">✕ {err}</div>}
+      {!loading && !err && list.length === 0 && <div className="empty">No {scope} events{tab !== 'all' ? ` in ${tab}` : ''}.</div>}
+
+      {list.length > 0 && (
+        <div className="grid-4">
+          {list.map((e) => {
+            const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
+            const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
+            const badge = STATUS_BADGE[e.status];
+            const feat = findFeatured(featured, 'event', e.id);
+            return (
+              <div key={e.id} className="ecard" style={{ position: 'relative' }}>
+                <span className={`badge ${badge.cls}`} style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, fontSize: 10 }}>{badge.label}</span>
+                <Poster hue={e.posterHue} emoji={categoryEmoji(e.category)} imageUrl={e.posterUrl} alt={e.title} />
+                <div className="ecard-body">
+                  <h3>{e.title}</h3>
+                  <div className="meta">
+                    {e.status === 'rejected' ? (
+                      <>reason: {e.rejectionReason ?? 'guideline issue'}</>
+                    ) : e.status === 'draft' ? (
+                      'draft · last edited recently'
+                    ) : e.status === 'pending' ? (
+                      `${fmtDate(e.date)} · submitted for review`
+                    ) : (
+                      `${fmtDate(e.date)} · ${sold.toLocaleString()}/${cap.toLocaleString()} sold`
+                    )}
+                  </div>
+                  {e.status === 'rejected' && (
+                    <Link to="/organizer/events/create" className="link tiny">fix & resubmit</Link>
                   )}
-                  {e.commission != null && <> · platform commission {e.commission}%</>}
+                  <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                    {e.status === 'approved' && (
+                      feat?.status === 'active' ? (
+                        <span className="badge badge-accent" title={`Featured until ${fmtDate(feat.expiresAt)}`}>★ Featured</span>
+                      ) : feat?.status === 'pending' ? (
+                        <span className="badge badge-pending">★ Pending ◌</span>
+                      ) : (
+                        <button className="btn btn-ghost btn-sm" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} title={`Feature on the home page — ₹${FEATURED_PRICING.perEvent}`} onClick={() => featureEvent(e)}>
+                          ★ Feature
+                        </button>
+                      )
+                    )}
+                    <span style={{ flex: 1 }} />
+                    <Link to={`/organizer/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval">
+                      ✎ Edit
+                    </Link>
+                    <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="icon-round" title="View as guest">
+                      ⋮
+                    </Link>
+                  </div>
                 </div>
               </div>
-              <span className={`badge ${badge.cls}`}>{badge.label}</span>
-              {e.status === 'approved' && (
-                feat?.status === 'active' ? (
-                  <span className="badge badge-accent" title={`Featured until ${fmtDate(feat.expiresAt)}`}>★ Featured</span>
-                ) : feat?.status === 'pending' ? (
-                  <span className="badge badge-pending">★ Pending ◌</span>
-                ) : (
-                  <button className="btn btn-ghost btn-sm" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} title={`Feature on the home page — ₹${FEATURED_PRICING.perEvent}`} onClick={() => featureEvent(e)}>
-                    ★ Feature
-                  </button>
-                )
-              )}
-              <Link to={`/organizer/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval">
-                ✎ Edit
-              </Link>
-              <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="icon-round" title="View as guest">
-                ⋮
-              </Link>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

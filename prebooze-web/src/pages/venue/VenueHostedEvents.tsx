@@ -5,7 +5,7 @@ import { useApp } from '../../store/AppContext';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event, EventStatus } from '../../types';
-import { categoryEmoji } from '../../components/Poster';
+import Poster, { categoryEmoji } from '../../components/Poster';
 import Loader from '../../components/Loader';
 import { eventCity, eventPath } from '../../lib/urls';
 
@@ -25,10 +25,11 @@ const STATUS_BADGE: Record<EventStatus, { cls: string; label: string }> = {
 };
 
 /** Events this venue hosts itself (Event.hostedByVenue) — GET
- * /venue/hosting/events. Mirrors organizer/MyEvents.tsx; a separate,
+ * /venue/hosting/events. Mirrors organizer/MyEvents.tsx, including the same
+ * poster-forward card grid the public guest-facing Browse.tsx uses
+ * (EventCard/.grid-4/.ecard) instead of a compact list row — a separate,
  * parallel page rather than a shared one, same reasoning as the backend's
- * duplicated saveHostedEvent (see VenueEventInput doc comment) — nothing
- * here touches the organizer's own event list or its code path. */
+ * duplicated saveHostedEvent (see VenueEventInput doc comment). */
 export default function VenueHostedEvents() {
   const { city } = useApp();
   const [tab, setTab] = useState<'all' | EventStatus>('all');
@@ -69,48 +70,52 @@ export default function VenueHostedEvents() {
           );
         })}
       </div>
-      <div className="tabs" style={{ marginBottom: 14 }}>
+      <div className="tabs" style={{ marginBottom: 18 }}>
         <button className={scope === 'upcoming' ? 'on' : ''} onClick={() => setScope('upcoming')}>Upcoming</button>
         <button className={scope === 'past' ? 'on' : ''} onClick={() => setScope('past')}>Past</button>
       </div>
 
-      <div className="card">
-        {err && <div className="danger-text small">✕ {err}</div>}
-        {!err && list.length === 0 && <div className="empty">No {scope} events{tab !== 'all' ? ` in ${tab}` : ''}.</div>}
-        {list.map((e) => {
-          const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
-          const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
-          const badge = STATUS_BADGE[e.status];
-          return (
-            <div key={e.id} className="evrow">
-              <div
-                className="thumb"
-                style={{ background: `radial-gradient(ellipse at 30% 25%, hsla(${e.posterHue},70%,55%,.3), transparent 60%), var(--surface-2)` }}
-              >
-                {categoryEmoji(e.category)}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="bold small">{e.title}</div>
-                <div className="tiny muted">
-                  {e.status === 'rejected' ? (
-                    <>reason: {e.rejectionReason ?? 'guideline issue'} · <Link to={`/venue/hosting/events/${e.id}/edit`} className="link">fix & resubmit</Link></>
-                  ) : e.status === 'draft' ? (
-                    'draft · last edited recently'
-                  ) : e.status === 'pending' ? (
-                    `${fmtDate(e.date)} · submitted for review`
-                  ) : (
-                    `${fmtDate(e.date)} · ${sold.toLocaleString()}/${cap.toLocaleString()} sold`
+      {err && <div className="danger-text small">✕ {err}</div>}
+      {!err && list.length === 0 && <div className="empty">No {scope} events{tab !== 'all' ? ` in ${tab}` : ''}.</div>}
+
+      {list.length > 0 && (
+        <div className="grid-4">
+          {list.map((e) => {
+            const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
+            const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
+            const badge = STATUS_BADGE[e.status];
+            return (
+              <div key={e.id} className="ecard" style={{ position: 'relative' }}>
+                <span className={`badge ${badge.cls}`} style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, fontSize: 10 }}>{badge.label}</span>
+                <Poster hue={e.posterHue} emoji={categoryEmoji(e.category)} imageUrl={e.posterUrl} alt={e.title} />
+                <div className="ecard-body">
+                  <h3>{e.title}</h3>
+                  <div className="meta">
+                    {e.status === 'rejected' ? (
+                      <>reason: {e.rejectionReason ?? 'guideline issue'}</>
+                    ) : e.status === 'draft' ? (
+                      'draft · last edited recently'
+                    ) : e.status === 'pending' ? (
+                      `${fmtDate(e.date)} · submitted for review`
+                    ) : (
+                      `${fmtDate(e.date)} · ${sold.toLocaleString()}/${cap.toLocaleString()} sold`
+                    )}
+                    {e.organizer && <> · with {e.organizer.brandName}</>}
+                  </div>
+                  {e.status === 'rejected' && (
+                    <Link to={`/venue/hosting/events/${e.id}/edit`} className="link tiny">fix & resubmit</Link>
                   )}
-                  {e.organizer && <> · with {e.organizer.brandName}</>}
+                  <div className="row" style={{ gap: 6 }}>
+                    <span style={{ flex: 1 }} />
+                    <Link to={`/venue/hosting/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval">✎ Edit</Link>
+                    {e.status === 'approved' && <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="icon-round" title="View as guest">⋮</Link>}
+                  </div>
                 </div>
               </div>
-              <span className={`badge ${badge.cls}`}>{badge.label}</span>
-              <Link to={`/venue/hosting/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval">✎ Edit</Link>
-              {e.status === 'approved' && <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="icon-round" title="View as guest">⋮</Link>}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

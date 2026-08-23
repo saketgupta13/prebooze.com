@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fmtMoney } from '../../data/mock';
-import { organizer } from '../../api';
+import { organizer, type OrgLedgerTx } from '../../api';
 import { ApiError } from '../../api/client';
 import type { CartRecord } from '../../store/AppContext';
 import type { Event } from '../../types';
@@ -14,24 +14,36 @@ const ago = (iso: string) => {
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
 };
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+interface EventTxGroup {
+  eventId: string;
+  eventTitle: string;
+  net: number;
+  transactions: OrgLedgerTx[];
+}
 
 /** Real abandoned-cart recovery — GET /organizer/carts (already filtered to
  * genuinely-abandoned carts server-side) + POST /organizer/carts/:id/remind,
  * which sends a real WhatsApp cart_reminder. The old mock's "In progress"
  * and "Recovered after nudge" KPIs are dropped — the real cart model has no
  * "recovered" state to count (a completed cart just stops showing up here),
- * so those numbers had nothing real to compute from. */
+ * so those numbers had nothing real to compute from. Real transaction
+ * history (GET /organizer/payouts' ledger, same data Payouts.tsx reads),
+ * grouped by event, sits below so a real sale/refund can be seen next to
+ * that event's abandoned carts — converted vs. abandoned, side by side. */
 export default function OrgAbandonedCarts() {
   const [events, setEvents] = useState<Event[]>([]);
   const [carts, setCarts] = useState<CartRecord[]>([]);
+  const [ledger, setLedger] = useState<OrgLedgerTx[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [eventF, setEventF] = useState('all');
   const [reminding, setReminding] = useState<string | null>(null);
 
   const load = () => {
-    Promise.all([organizer.events(), organizer.abandonedCarts()])
-      .then(([evs, cs]) => { setEvents(evs); setCarts(cs); })
+    Promise.all([organizer.events(), organizer.abandonedCarts(), organizer.payouts()])
+      .then(([evs, cs, p]) => { setEvents(evs); setCarts(cs); setLedger(p.ledger); })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   };
@@ -39,6 +51,24 @@ export default function OrgAbandonedCarts() {
 
   const mine = carts.filter((c) => eventF === 'all' || c.eventId === eventF).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const recoverable = mine.reduce((a, c) => a + c.total, 0);
+
+  const txGroups: EventTxGroup[] = (() => {
+    const byEvent = new Map<string, EventTxGroup>();
+    for (const t of ledger) {
+      if (!t.eventId || t.type === 'withdrawal') continue;
+      if (eventF !== 'all' && t.eventId !== eventF) continue;
+      let g = byEvent.get(t.eventId);
+      if (!g) {
+        g = { eventId: t.eventId, eventTitle: t.eventTitle ?? 'Event', net: 0, transactions: [] };
+        byEvent.set(t.eventId, g);
+      }
+      g.transactions.push(t);
+      g.net += t.amount;
+    }
+    return [...byEvent.values()]
+      .map((g) => ({ ...g, transactions: g.transactions.sort((a, b) => b.createdAt.localeCompare(a.createdAt)) }))
+      .sort((a, b) => (b.transactions[0]?.createdAt ?? '').localeCompare(a.transactions[0]?.createdAt ?? ''));
+  })();
 
   const remind = async (id: string) => {
     setReminding(id);
@@ -72,7 +102,7 @@ export default function OrgAbandonedCarts() {
         <div className="kpi"><div className="l">Recoverable</div><div className="v accent">{fmtMoney(recoverable)}</div></div>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: 18 }}>
         <p className="tiny muted-2" style={{ marginBottom: 12 }}>
           These guests reached checkout but didn't pay before their hold lapsed — you already have their WhatsApp. A
           nudge often brings them back.
@@ -114,9 +144,42 @@ export default function OrgAbandonedCarts() {
           </>
         )}
       </div>
-      <div className="tiny muted-2" style={{ marginTop: 10 }}>
+      <div className="tiny muted-2" style={{ marginBottom: 24 }}>
         recovery nudges are reminder + deep link only (no discount)
       </div>
+
+      <h2 style={{ fontSize: 18, marginBottom: 4 }}>Transaction history</h2>
+      <p className="tiny muted-2" style={{ marginBottom: 14 }}>
+        Real sales &amp; refunds per event — see who actually converted next to who abandoned above.
+      </p>
+      {!loading && txGroups.length === 0 && (
+        <div className="card muted small">No sales yet{eventF !== 'all' ? ' for this event' : ''}.</div>
+      )}
+      {txGroups.map((g) => (
+        <div key={g.eventId} className="card tbl-wrap" style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+            <h3 style={{ fontSize: 14 }}>{g.eventTitle}</h3>
+            <span className="small bold">{fmtMoney(g.net)} net</span>
+          </div>
+          <table className="tbl">
+            <thead>
+              <tr><th>Date</th><th>Type</th><th>Amount</th></tr>
+            </thead>
+            <tbody>
+              {g.transactions.map((t) => (
+                <tr key={t.id}>
+                  <td>{fmtDate(t.createdAt)}</td>
+                  <td>
+                    {t.type === 'sale' && <span className="badge badge-ok">Sale</span>}
+                    {t.type === 'refund' && <span className="badge badge-danger">Refund</span>}
+                  </td>
+                  <td className={t.amount < 0 ? 'danger-text' : ''}>{t.amount < 0 ? '-' : ''}{fmtMoney(Math.abs(t.amount))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
     </div>
   );
 }
