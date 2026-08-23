@@ -97,7 +97,7 @@ model User {
   // header show it without a second fetch on every page.
   venueLogoUrl     String?
 
-  attendanceVisibility AttendanceVisibility @default(off)
+  attendanceVisibility AttendanceVisibility @default(public)
   // Opt-in for appearing in the real "People" directory (/people, and the
   // homepage's "Going out in {city}" strip) — off by default since guests
   // are private individuals, unlike organizer/venue business profiles which
