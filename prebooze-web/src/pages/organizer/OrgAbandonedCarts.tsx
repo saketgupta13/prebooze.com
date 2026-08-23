@@ -102,7 +102,7 @@ export default function OrgAbandonedCarts() {
         <div className="kpi"><div className="l">Recoverable</div><div className="v accent">{fmtMoney(recoverable)}</div></div>
       </div>
 
-      <div className="card" style={{ marginBottom: 18 }}>
+      <div className="card tbl-wrap" style={{ marginBottom: 18 }}>
         <p className="tiny muted-2" style={{ marginBottom: 12 }}>
           These guests reached checkout but didn't pay before their hold lapsed — you already have their WhatsApp. A
           nudge often brings them back.
@@ -111,37 +111,41 @@ export default function OrgAbandonedCarts() {
         {!loading && mine.length === 0 ? (
           <div className="muted small">No abandoned carts right now — nice. They'll appear here when a guest leaves checkout without paying.</div>
         ) : (
-          <>
-            {mine.length > 0 && (
-              <div className="evrow" style={{ fontWeight: 700, fontSize: 12, color: 'var(--muted)' }}>
-                <span style={{ flex: 1.4 }}>Guest</span>
-                <span style={{ flex: 1.6 }}>Event · tickets</span>
-                <span style={{ flex: 0.8, textAlign: 'right' }}>Value</span>
-                <span style={{ flex: 0.8 }}>Left</span>
-                <span style={{ flex: 1.4 }} />
-              </div>
-            )}
-            {mine.map((c) => (
-              <div key={c.id} className="evrow">
-                <div style={{ flex: 1.4, minWidth: 0 }}>
-                  <div className="bold small">{c.userName}</div>
-                  <div className="tiny muted-2">{c.userPhone}</div>
-                </div>
-                <div style={{ flex: 1.6, minWidth: 0 }}>
-                  <div className="small">{c.eventTitle}</div>
-                  <div className="tiny muted-2">{c.tierSummary}</div>
-                </div>
-                <span style={{ flex: 0.8, textAlign: 'right' }} className="bold small">{fmtMoney(c.total)}</span>
-                <span style={{ flex: 0.8 }} className="tiny muted-2">{ago(c.updatedAt)}</span>
-                <div style={{ flex: 1.4, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
-                  {c.remindedAt && <span className="badge badge-accent" style={{ fontSize: 10 }}>reminded {ago(c.remindedAt)}</span>}
-                  <button className="btn btn-whatsapp btn-sm" disabled={reminding === c.id} onClick={() => remind(c.id)}>
-                    {reminding === c.id ? 'Sending…' : c.remindedAt ? '↻ Remind again' : '💬 Send reminder'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Guest</th>
+                <th>Event · tickets</th>
+                <th>Value</th>
+                <th>Left</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {mine.map((c) => (
+                <tr key={c.id}>
+                  <td>
+                    <div className="bold small">{c.userName}</div>
+                    <div className="tiny muted-2">{c.userPhone}</div>
+                  </td>
+                  <td>
+                    <div className="small">{c.eventTitle}</div>
+                    <div className="tiny muted-2">{c.tierSummary}</div>
+                  </td>
+                  <td className="bold small">{fmtMoney(c.total)}</td>
+                  <td className="tiny muted-2">{ago(c.updatedAt)}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+                      {c.remindedAt && <span className="badge badge-accent" style={{ fontSize: 10 }}>reminded {ago(c.remindedAt)}</span>}
+                      <button className="btn btn-whatsapp btn-sm" disabled={reminding === c.id} onClick={() => remind(c.id)}>
+                        {reminding === c.id ? 'Sending…' : c.remindedAt ? '↻ Remind again' : '💬 Send reminder'}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
       <div className="tiny muted-2" style={{ marginBottom: 24 }}>
