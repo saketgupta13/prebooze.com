@@ -362,8 +362,13 @@ textarea { resize: vertical; min-height: 84px; }
 }
 /* Mobile search row — hidden on desktop (the inline .hdr-search already
    covers it there); shown below the header at the same breakpoint the
-   inline one hides at. See the @media block for both halves of the swap. */
-.hdr-search-mobile-row { display: none; padding: 8px 0 10px; }
+   inline one hides at. See the @media block for both halves of the swap.
+   This element is also .container (see Header.tsx) — padding-top/bottom
+   only, not the padding shorthand, which would zero out .container's own
+   left/right padding (same specificity, later in the cascade) and leave
+   the search box and city button flush against the screen edges with no
+   margin at all. */
+.hdr-search-mobile-row { display: none; padding-top: 8px; padding-bottom: 10px; }
 /* flex:1 (not width:100%) — this row also holds .hdr-city-mobile now
    (see the ≤960px rule below), so the search box shares the row with it
    instead of claiming the full width and pushing it off. */
