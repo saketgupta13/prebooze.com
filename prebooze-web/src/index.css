@@ -1064,7 +1064,9 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
 .org-mobile-tabbar a.on { color: var(--accent); font-weight: 700; }
 .org-mobile-tabbar .ico { font-size: 16px; }
 
-.org-drawer-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 40; }
+/* Above .hdr's z-index:50 (sticky header) — otherwise the header overlaps
+   the top of the drawer on scroll and blocks its close button. */
+.org-drawer-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 60; }
 .org-drawer {
   position: fixed;
   top: 0;
@@ -1073,7 +1075,7 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   width: min(320px, 88vw);
   background: var(--surface);
   border-left: 1px solid var(--border-2);
-  z-index: 41;
+  z-index: 61;
   padding: 16px;
   display: flex;
   flex-direction: column;
