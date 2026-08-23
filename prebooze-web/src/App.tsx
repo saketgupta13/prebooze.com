@@ -114,7 +114,7 @@ const VenueReviews = lazy(() => import('./pages/venue/VenueReviews'));
 const VenueSettings = lazy(() => import('./pages/venue/VenueSettings'));
 const VenueVerification = lazy(() => import('./pages/venue/VenueVerification'));
 const VenueBilling = lazy(() => import('./pages/venue/VenueBilling'));
-const VenueHosting = lazy(() => import('./pages/venue/VenueHosting'));
+const VenueOrgDashboard = lazy(() => import('./pages/venue/VenueOrgDashboard'));
 const VenueHostedEvents = lazy(() => import('./pages/venue/VenueHostedEvents'));
 const CreateHostedEvent = lazy(() => import('./pages/venue/CreateHostedEvent'));
 const VenueLedger = lazy(() => import('./pages/venue/VenueLedger'));
@@ -474,7 +474,7 @@ export default function App() {
           <Route path="settings/verification" element={<VenueVerification />} />
         </Route>
         <Route path="/venue/hosting" element={<VenueOrgLayout />}>
-          <Route index element={<VenueHosting />} />
+          <Route index element={<VenueOrgDashboard />} />
           <Route path="events" element={<VenueHostedEvents />} />
           <Route path="events/create" element={<CreateHostedEvent />} />
           <Route path="events/:id/edit" element={<CreateHostedEvent />} />
