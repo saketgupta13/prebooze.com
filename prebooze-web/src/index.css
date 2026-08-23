@@ -1352,6 +1352,13 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   .org-mobile-tabbar { display: flex; }
   .org-mobile-content { padding-bottom: 76px; }
   .evrow { flex-wrap: wrap; row-gap: 8px; }
+  /* Same crush as .evrow, different shape: a 5-button status-filter row
+     (.tabs, e.g. All/Approved/Pending/Rejected/Drafts on MyEvents.tsx and
+     its VenueHostedEvents.tsx mirror) has no wrap by default, so it just
+     forces the whole page 50px wider than a real phone viewport instead
+     of shrinking or wrapping. Wrapping only ever kicks in when a row
+     doesn't already fit — harmless for .tabs rows with fewer buttons. */
+  .tabs { flex-wrap: wrap; row-gap: 6px; }
   .evrow-actions { flex-basis: 100%; justify-content: flex-end; }
   .detail-head { flex-direction: column; }
   .detail-head .poster { width: 100%; max-width: 340px; }
@@ -1411,8 +1418,13 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   }
   /* The fixed bottom bar/sheet would otherwise sit on top of the page's
      own last bit of content (Recommended events) — reserve real space
-     for it instead of just covering whatever happens to be there. */
-  .event-detail-page-mobile { padding-bottom: 76px; }
+     for it instead of just covering whatever happens to be there. 76px
+     undershot the bar's real height (measured 94px: padding + button +
+     safe-area) by 18px, so the last bit of content still sat behind it —
+     .share-menu's own bottom:104px already accounted for the same real
+     height when it was positioned, this just brings the page padding in
+     line with that. */
+  .event-detail-page-mobile { padding-bottom: 100px; }
 }
 /* .hdr-logo's <img> had default flex-shrink:1 with nothing constraining
    its minimum size — measured on a real narrow phone, the flex algorithm
