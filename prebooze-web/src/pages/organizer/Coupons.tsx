@@ -178,7 +178,7 @@ export default function Coupons() {
             <span>Audience — gender</span>
             <div className="chip-row">
               {GENDERS.map((g) => (
-                <button type="button" key={g.key} className={`chip ${gender === g.key ? 'on' : ''}`} onClick={() => setGender(g.key)}>
+                <button type="button" key={g.key} className={`chip chip-tap ${gender === g.key ? 'on' : ''}`} onClick={() => setGender(g.key)}>
                   {g.label}{gender === g.key ? ' ✓' : ''}
                 </button>
               ))}

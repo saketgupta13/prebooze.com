@@ -644,7 +644,7 @@ export default function CreateEvent() {
                 {INCLUDE_OPTIONS.map((opt) => (
                   <button
                     key={opt}
-                    className={`chip ${t.includes.includes(opt) ? 'on' : ''}`}
+                    className={`chip chip-tap ${t.includes.includes(opt) ? 'on' : ''}`}
                     style={{ fontSize: 12, padding: '4px 11px' }}
                     onClick={() =>
                       setTier(i, {

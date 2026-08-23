@@ -408,7 +408,7 @@ export default function CreateHostedEvent() {
             )}
             <div className="chip-row">
               {INCLUDE_OPTIONS.map((opt) => (
-                <button key={opt} className={`chip ${t.includes.includes(opt) ? 'on' : ''}`} style={{ fontSize: 12, padding: '4px 11px' }}
+                <button key={opt} className={`chip chip-tap ${t.includes.includes(opt) ? 'on' : ''}`} style={{ fontSize: 12, padding: '4px 11px' }}
                   onClick={() => setTier(i, { includes: t.includes.includes(opt) ? t.includes.filter((x) => x !== opt) : [...t.includes, opt] })}>
                   {opt}{t.includes.includes(opt) ? ' ✓' : ''}
                 </button>

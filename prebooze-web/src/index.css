@@ -201,6 +201,15 @@ h1, h2, h3, h4 {
   color: var(--on-accent);
 }
 .chip.static { cursor: default; }
+/* Opt-in only — .chip itself is used across dozens of unrelated pages
+   (interest pickers, category filters, etc.), so a global tap-target
+   bump there would be a much bigger blast radius than the ~4 usages
+   (coupon gender-audience chips, ticket-tier "includes" chips) that
+   actually measured under the ~36px guideline on mobile. Works fine
+   alongside a chip's own inline padding/font-size override (the
+   ticket-tier chips use a smaller one to fit many per row) since this
+   only sets a floor, not the box's horizontal sizing. */
+.chip-tap { min-height: 36px; }
 
 .badge {
   display: inline-flex;
