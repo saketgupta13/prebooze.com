@@ -364,7 +364,10 @@ textarea { resize: vertical; min-height: 84px; }
    covers it there); shown below the header at the same breakpoint the
    inline one hides at. See the @media block for both halves of the swap. */
 .hdr-search-mobile-row { display: none; padding: 8px 0 10px; }
-.hdr-search-mobile { width: 100%; min-width: 0; max-width: none; }
+/* flex:1 (not width:100%) — this row also holds .hdr-city-mobile now
+   (see the ≤960px rule below), so the search box shares the row with it
+   instead of claiming the full width and pushing it off. */
+.hdr-search-mobile { flex: 1; min-width: 0; max-width: none; }
 .hdr-city {
   display: flex;
   align-items: center;
@@ -1347,7 +1350,16 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   .ftr-base { flex-wrap: wrap; justify-content: center; text-align: center; row-gap: 10px; }
   .ftr-spacer { display: none; }
   .hdr-search:not(.hdr-search-mobile) { display: none; }
-  .hdr-search-mobile-row { display: block; }
+  /* .hdr-city (the top row's original) moves down into this row too —
+     see the rule right after this block and Header.tsx, which renders a
+     second .hdr-city-mobile instance here. The top row is cramped with
+     the logo and account button already competing for space; this row
+     has nothing else in it once search takes its share, so the city
+     name can stay fully visible ("📍 Hyderabad ▾") here instead of
+     shrinking to an icon-only button up top. */
+  .hdr-search-mobile-row { display: flex; align-items: center; gap: 10px; }
+  .hdr-in > .hdr-city { display: none; }
+  .hdr-city-mobile { display: flex; flex-shrink: 0; white-space: nowrap; }
   .hdr-links { display: none; }
   .kpis { grid-template-columns: 1fr; }
   .hero { padding: 34px 22px; }
@@ -1390,29 +1402,23 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
      for it instead of just covering whatever happens to be there. */
   .event-detail-page-mobile { padding-bottom: 76px; }
 }
-/* .hdr-logo's <img> and .hdr-city both have default flex-shrink:1 with
-   nothing else constraining their minimum size — measured on a real narrow
-   phone, the flex algorithm crushed the logo down to 8px wide (fixed
-   height:42, width:auto with no floor) while .hdr-city's wrappable text
-   just line-wrapped instead of shrinking, making it look comically
-   oversized (53px tall) next to a nearly-invisible logo. flex-shrink:0
-   stops both from being squeezed at all; the size/content reductions below
-   are what actually make room for that without the row overflowing —
-   .hdr-city-name/.hdr-user-name (their name-label spans, see Header.tsx)
-   drop out entirely, leaving icon+caret only, since the full label doesn't
-   fit any real phone width once the logo and avatar both need real space too. */
-@media (max-width: 480px) {
+/* .hdr-logo's <img> had default flex-shrink:1 with nothing constraining
+   its minimum size — measured on a real narrow phone, the flex algorithm
+   crushed it down to 8px wide (fixed height:42, width:auto has no floor)
+   once .hdr-city was competing for the same row for space. Now that
+   .hdr-city has moved to the search row below on mobile (see the ≤960px
+   rule above and Header.tsx), the top row only has the logo, spacer, and
+   account button — .hdr-user-name (their first name next to the avatar)
+   still doesn't fit alongside a full-size logo on the narrowest phones,
+   so that's the one thing still dropped here; the logo itself needs at
+   most a mild trim as a safety margin, not the aggressive crush before. */
+@media (max-width: 960px) {
   .hdr-logo { flex-shrink: 0; }
-  .hdr-logo img { height: 28px; }
-  .hdr-city {
-    flex-shrink: 0;
-    white-space: nowrap;
-    padding: 6px 8px;
-    font-size: 12px;
-  }
-  .hdr-city-name { display: none; }
   .hdr-user { flex-shrink: 0; }
   .hdr-user-name { display: none; }
+}
+@media (max-width: 400px) {
+  .hdr-logo img { height: 36px; }
 }
 @media (max-width: 560px) {
   .grid-4, .grid-3, .grid-2, .reels { grid-template-columns: repeat(2, 1fr); }

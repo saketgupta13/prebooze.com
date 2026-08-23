@@ -204,7 +204,7 @@ export default function Header() {
         <SearchBox className="hdr-search" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} city={city} />
 
         <button className="hdr-city" onClick={() => setCityOpen(true)}>
-          📍 <span className="hdr-city-name">{city}</span> <Caret />
+          📍 {city} <Caret />
         </button>
         <CityPicker open={cityOpen} onClose={() => setCityOpen(false)} />
 
@@ -315,9 +315,17 @@ export default function Header() {
 
       {/* Mobile-only search row — .hdr-search hides at the same breakpoint
           this shows at (see index.css), so search stays reachable on
-          mobile instead of just vanishing with the desktop nav links. */}
+          mobile instead of just vanishing with the desktop nav links.
+          .hdr-city moves down here too on mobile (hidden in its usual spot
+          above, see index.css) — the top row is already tight with the
+          logo and account button competing for space, but this row has
+          nothing else in it, so the city name can stay fully visible
+          here instead of shrinking to an icon-only button up top. */}
       <div className="container hdr-search-mobile-row">
         <SearchBox className="hdr-search hdr-search-mobile" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} city={city} />
+        <button className="hdr-city hdr-city-mobile" onClick={() => setCityOpen(true)}>
+          📍 {city} <Caret />
+        </button>
       </div>
     </header>
   );
