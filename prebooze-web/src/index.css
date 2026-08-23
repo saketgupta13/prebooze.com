@@ -701,7 +701,14 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
 .hero-dots button.on::after { background: var(--accent); width: 22px; }
 @media (max-width: 680px) {
   .hero-slide { min-height: 236px; }
-  .hero-slide .hero-inner { padding: 26px 24px; }
+  /* .hero-dots is absolutely positioned bottom:14px, 28px tall — it
+     occupies the bottom 42px of .hero-slide regardless of the slide's
+     own height. .hero-inner's content (CTA is its last child) sat right
+     at a plain 26px bottom padding, 9px inside that band — real overlap,
+     not just visually tight. 48px clears it with a few px to spare; the
+     slide isn't a fixed height (min-height only), so it grows to fit the
+     extra padding instead of clipping anything. */
+  .hero-slide .hero-inner { padding: 26px 24px 48px; }
   .hero-slide .hero-inner h1 { font-size: 23px; }
   /* .btn-lg keeps its desktop padding/font everywhere else — only the hero
      CTA looked oversized crammed into the shrunk mobile slide. */
