@@ -1028,12 +1028,13 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
 .org-side a:hover { color: var(--text); background: var(--surface-2); }
 .org-side a.on { background: rgba(155, 225, 61, 0.12); color: var(--accent); }
 
-/* Organizer panel mobile nav (VenueOrgLayout only — its 12 items don't fit
-   the shared .org-side horizontal-scroll strip every other console still
-   uses, so this is a separate opt-in pattern, not a change to .org-side
-   itself). Bottom tab bar for the first few always-relevant items + a
-   "More" button opening a right-side slide-in drawer with a dimmed scrim
-   behind it — same Drawer shape prebooze-admin already uses (fixed width,
+/* Long-nav consoles' mobile nav (VenueOrgLayout's 12 items, OrganizerLayout's
+   14 — both opt in via the org-mobile-* classes below; every shorter
+   console keeps the shared .org-side horizontal-scroll strip untouched, so
+   this is an addition, not a change to .org-side itself). Bottom tab bar
+   for the first few always-relevant items + a "More" button opening a
+   right-side slide-in drawer with a dimmed scrim behind it — same Drawer
+   shape prebooze-admin already uses (fixed width,
    not a full-screen takeover), not a bottom sheet. */
 .org-mobile-tabbar {
   display: none;
