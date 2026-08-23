@@ -388,20 +388,47 @@ export class CatalogService {
     const isFollowedByViewer = viewerId ? followerIds.includes(viewerId) : false;
     const canSeeAttendance = user.attendanceVisibility === 'public' || (user.attendanceVisibility === 'followers' && isFollowedByViewer);
 
+    // An organizer/venue viewing this profile already knows this person has
+    // a confirmed booking for one of *their own* events — that's not new
+    // information attendanceVisibility is meant to protect (they saw it on
+    // their own Attendees list before ever clicking through here), so that
+    // one event still shows in "going" regardless of the privacy setting.
+    // Doesn't touch any other event this person is attending.
+    let viewerOrgId: string | undefined;
+    let viewerVenueId: string | undefined;
+    if (viewerId) {
+      const [org, viewerUser] = await Promise.all([
+        this.prisma.organizer.findUnique({ where: { userId: viewerId } }),
+        this.prisma.user.findUnique({ where: { id: viewerId }, select: { venueId: true } }),
+      ]);
+      viewerOrgId = org?.id;
+      viewerVenueId = viewerUser?.venueId ?? undefined;
+    }
+
     let going: unknown[] = [];
     let interested: unknown[] = [];
+    const goingEvents = new Map<string, Record<string, unknown>>();
     if (canSeeAttendance) {
-      const [bookings, interests] = await Promise.all([
-        this.prisma.booking.findMany({ where: { userId: user.id, status: 'confirmed' }, include: { event: { select: PUBLIC_EVENT_SELECT } } }),
-        this.prisma.eventInterest.findMany({ where: { userId: user.id } }),
-      ]);
-      going = bookings.map((b) => b.event).filter((e) => !CatalogService.isEventOver(e as never));
+      const bookings = await this.prisma.booking.findMany({ where: { userId: user.id, status: 'confirmed' }, include: { event: { select: PUBLIC_EVENT_SELECT } } });
+      for (const b of bookings) goingEvents.set(b.event.id, b.event as never);
+      const interests = await this.prisma.eventInterest.findMany({ where: { userId: user.id } });
       const interestedEvents = await this.prisma.event.findMany({
         where: { id: { in: interests.map((i) => i.eventId) }, status: 'approved' },
         select: PUBLIC_EVENT_SELECT,
       });
       interested = interestedEvents.filter((e) => !CatalogService.isEventOver(e as never));
     }
+    if (viewerOrgId || viewerVenueId) {
+      const ownBookings = await this.prisma.booking.findMany({
+        where: {
+          userId: user.id, status: 'confirmed',
+          event: { OR: [...(viewerOrgId ? [{ organizerId: viewerOrgId }] : []), ...(viewerVenueId ? [{ hostedByVenue: true, venueId: viewerVenueId }] : [])] },
+        },
+        include: { event: { select: PUBLIC_EVENT_SELECT } },
+      });
+      for (const b of ownBookings) goingEvents.set(b.event.id, b.event as never);
+    }
+    going = [...goingEvents.values()].filter((e) => !CatalogService.isEventOver(e as never));
 
     return {
       id: user.id, name: user.name || 'Guest', username: user.username || user.id, city: user.city,
