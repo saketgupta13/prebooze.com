@@ -183,10 +183,10 @@ export default function LineupOnboarding() {
             <WysiwygEditor value={bio} onChange={setBio} minHeight={80} />
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>
+            <button type="button" className="btn btn-ghost" style={{ flexShrink: 0 }} onClick={() => navigate(-1)}>
               ← Back
             </button>
-            <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!step1Valid || submitting}>
+            <button className="btn btn-pri btn-lg" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }} disabled={!step1Valid || submitting}>
               {submitting ? 'Setting up…' : 'Join the roster →'}
             </button>
           </div>

@@ -183,10 +183,10 @@ export default function Onboarding() {
 
           {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
           <div style={{ display: 'flex', gap: 10 }}>
-            <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>
+            <button type="button" className="btn btn-ghost" style={{ flexShrink: 0 }} onClick={() => navigate(-1)}>
               ← Back
             </button>
-            <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!valid || submitting}>
+            <button className="btn btn-pri btn-lg" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }} disabled={!valid || submitting}>
               {submitting ? 'Setting up…' : 'Create my organizer account →'}
             </button>
           </div>
