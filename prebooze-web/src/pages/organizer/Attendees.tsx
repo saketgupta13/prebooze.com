@@ -131,7 +131,14 @@ export default function Attendees() {
               return (
                 <tr key={r.bookingId + r.name + i}>
                   <td className="bold">
-                    {r.name} <span className="muted-2">· {r.bookingId}</span>
+                    {r.username ? (
+                      <Link to={`/u/${r.username}`} className="link" title="View their profile — events they're going to">
+                        {r.name}
+                      </Link>
+                    ) : (
+                      r.name
+                    )}{' '}
+                    <span className="muted-2">· {r.bookingId}</span>
                   </td>
                   <td className="muted">{r.whatsapp}</td>
                   <td>{r.tierName}</td>

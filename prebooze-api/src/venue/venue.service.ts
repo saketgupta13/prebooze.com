@@ -366,7 +366,11 @@ export class VenueService {
   async attendees(userId: string, eventId: string) {
     const venue = await this.venueAccess.require(userId, 'Attendees & check-in', 'view');
     await this.myHostedEvent(venue, eventId);
-    const bookings = await this.prisma.booking.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
+    const bookings = await this.prisma.booking.findMany({
+      where: { eventId },
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { username: true, avatarUrl: true } } },
+    });
     return bookings.flatMap((b) => {
       const guests = b.guests as { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
       return guests.map((g, i) => ({
@@ -375,6 +379,11 @@ export class VenueService {
         tierName: b.tierName,
         name: g.name,
         isMainGuest: i === 0,
+        // Only the main guest (the buyer, b.userId) maps to a real account —
+        // +1s are free-text names with no account of their own. Same
+        // reasoning as OrganizerService.attendees.
+        username: i === 0 ? b.user.username ?? undefined : undefined,
+        avatarUrl: i === 0 ? b.user.avatarUrl ?? undefined : undefined,
         gender: g.gender,
         whatsapp: g.whatsapp ?? b.whatsapp,
         checkedIn: b.checkedIn,

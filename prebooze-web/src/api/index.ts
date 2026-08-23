@@ -438,6 +438,10 @@ export interface OrgAttendee {
   tierName: string;
   name: string;
   isMainGuest: boolean;
+  // Only ever set for the main guest (the real buyer account) — +1s are
+  // free-text names with no account, so they never link anywhere.
+  username?: string;
+  avatarUrl?: string;
   gender?: string;
   whatsapp: string;
   checkedIn: boolean;

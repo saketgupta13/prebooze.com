@@ -425,7 +425,11 @@ export class OrganizerService {
     if (!event) throw new NotFoundException('Event not found');
     if (event.organizerId !== org.id) throw new ForbiddenException();
 
-    const bookings = await this.prisma.booking.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
+    const bookings = await this.prisma.booking.findMany({
+      where: { eventId },
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { username: true, avatarUrl: true, discoverable: true } } },
+    });
     return bookings.flatMap((b) => {
       // Check-in happens once per booking (one QR, scanned at the gate for
       // the whole party) — the real BookingsService.checkIn only ever flips
@@ -445,6 +449,18 @@ export class OrganizerService {
         // booking's search results under the buyer's name regardless of
         // which guest's name actually matched the search.
         isMainGuest: i === 0,
+        // Only the main guest maps to a real Prebooze account (the buyer,
+        // b.userId) — +1s are free-text names typed at checkout with no
+        // account of their own, so they never get a profile link.
+        // discoverable:false hides them from GET /people's browse listing
+        // but never blocks a direct /u/:username visit (same "findable vs
+        // reachable" split PersonProfile.tsx's own attendanceVisibility
+        // check already enforces on the profile content itself) — omitting
+        // the username here as well would just make an event's own
+        // organizer/venue unable to identify their own paying customer,
+        // which isn't what discoverable is for.
+        username: i === 0 ? b.user.username ?? undefined : undefined,
+        avatarUrl: i === 0 ? b.user.avatarUrl ?? undefined : undefined,
         gender: g.gender,
         whatsapp: g.whatsapp ?? b.whatsapp,
         checkedIn: b.checkedIn,
