@@ -4,7 +4,6 @@ import { useApp } from '../../store/AppContext';
 import PendingReview, { RejectedReview } from '../../components/PendingReview';
 import { PageLoader } from '../../components/Loader';
 import { venuePartner } from '../../api';
-import PanelSwitcher from './PanelSwitcher';
 
 // `module` is the exact VenueRole permission-matrix key that gates this nav
 // item's visibility for an invited team member (see VenueTeamRoles.tsx's
@@ -62,7 +61,6 @@ export default function VenueOrgLayout() {
     <main className="page">
       <div className="container org-layout">
         <aside className="org-side">
-          <PanelSwitcher active="organizer" />
           <div className="cap">ORGANIZER</div>
           {hostingEnabled ? (
             NAV.map((n) => (
@@ -92,7 +90,6 @@ function TeamConsole({ access }: { access: NonNullable<ReturnType<typeof useApp>
     <main className="page">
       <div className="container org-layout">
         <aside className="org-side">
-          <PanelSwitcher active="organizer" />
           <div className="cap">ORGANIZER</div>
           <div className="tiny muted" style={{ padding: '0 4px 10px', lineHeight: 1.5 }}>
             Managing <b>{access.venueBrand}</b> as <b>{access.roleName}</b>

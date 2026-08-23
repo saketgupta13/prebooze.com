@@ -101,7 +101,7 @@ function SearchBox({
 }
 
 export default function Header() {
-  const { user, city, logout, orgTeamAccess } = useApp();
+  const { user, city, logout, orgTeamAccess, venueTeamAccess } = useApp();
   const { logoUrl } = usePlatformInfo();
   const heldRole = existingRole(user);
   // A role account's display name lives on its brand field, not user.name —
@@ -280,7 +280,12 @@ export default function Header() {
                 )}
                 {user.isVenue && (
                   <Link to="/venue" onClick={() => setMenuOpen(false)}>
-                    🏛 Venue console
+                    🏛 Venue panel
+                  </Link>
+                )}
+                {(user.isVenue || venueTeamAccess) && (
+                  <Link to="/venue/hosting" onClick={() => setMenuOpen(false)}>
+                    🎪 {venueTeamAccess && !user.isVenue ? `Team console — ${venueTeamAccess.venueBrand}` : 'Organizer panel'}
                   </Link>
                 )}
                 {!heldRole && (

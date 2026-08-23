@@ -1,7 +1,6 @@
 import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import PendingReview, { RejectedReview } from '../../components/PendingReview';
-import PanelSwitcher from './PanelSwitcher';
 
 const NAV = [
   { to: '/venue', label: '▦ Dashboard', end: true },
@@ -13,11 +12,12 @@ const NAV = [
 ];
 
 /** The venue's own identity/listing panel — nothing about hosting events
- * lives here any more (see VenueOrgLayout for that, a fully separate panel
- * reachable via the switcher below). Keeping these two panels structurally
- * separate, rather than one merged sidebar, is a deliberate call: a venue
- * and the events it might host are different concerns with different
- * audiences, and merging them read as confusing in practice. */
+ * lives here any more (see VenueOrgLayout for that, a fully separate panel).
+ * Keeping these two panels structurally separate, rather than one merged
+ * sidebar, is a deliberate call: a venue and the events it might host are
+ * different concerns with different audiences, and merging them read as
+ * confusing in practice. Switching between the two panels lives in the
+ * account dropdown menu (Header.tsx), not a sidebar/header control here. */
 export default function VenueLayout() {
   const { user, venueTeamAccess } = useApp();
 
@@ -37,7 +37,6 @@ export default function VenueLayout() {
     <main className="page">
       <div className="container org-layout">
         <aside className="org-side">
-          <PanelSwitcher active="venue" />
           <div className="cap">VENUE</div>
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
