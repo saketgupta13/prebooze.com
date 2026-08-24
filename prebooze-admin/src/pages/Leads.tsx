@@ -30,8 +30,35 @@ function timeAgo(iso: string) {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
 }
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+// Follow-ups now carry a real time, not just a date (see the separate
+// date/time inputs below) — shows it whenever it's not the bare midnight
+// default a date-only value would have produced before this.
+function fmtDateTime(iso: string) {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  const isMidnight = d.getHours() === 0 && d.getMinutes() === 0;
+  if (isMidnight) return date;
+  return `${date}, ${d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`;
+}
+// Splits a lead's stored followUpAt back into the separate date/time
+// values the two form inputs need, in the browser's own local time — the
+// ISO string from the API is UTC, so this can't just slice(0,16) the way
+// the old date-only slice(0,10) could (that happened to work only because
+// a bare date has no timezone to get wrong). See the load() usage below,
+// which splits this on "T" into the two fields.
+function toDatetimeLocal(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+// Date and time are separate inputs in the form (see the "Follow up on"
+// field below) — combines them back into the one string the API expects.
+// No date means no follow-up at all, same as before; a date with no time
+// still works fine on its own (new Date("2026-08-30") is valid, just
+// midnight local), so time is optional even once a date's picked.
+function combineDateTime(date: string, time: string): string {
+  if (!date) return '';
+  return time ? `${date}T${time}` : date;
 }
 function isOverdue(lead: Lead) {
   return Boolean(lead.followUpAt) && new Date(lead.followUpAt as string).getTime() < Date.now() && !['Signed up', 'Declined'].includes(lead.stage);
@@ -65,7 +92,7 @@ function hitSub(h: DirHit) {
 
 const emptyForm = {
   name: '', role: 'organizer' as LeadRole, source: LEAD_SOURCES[0] as string, contact: '', alternateContact: '', email: '', contactPerson: '',
-  country: '', state: '', city: '', eventType: '', assignedToId: '', followUpAt: '',
+  country: '', state: '', city: '', eventType: '', assignedToId: '', followUpDate: '', followUpTime: '',
 };
 
 /** Sales pipeline across every outreach channel — organizer, venue,
@@ -148,7 +175,9 @@ export default function Leads() {
       city: lead.city ?? '',
       eventType: lead.eventType ?? '',
       assignedToId: lead.assignedToId ?? '',
-      followUpAt: lead.followUpAt ? lead.followUpAt.slice(0, 10) : '',
+      ...(lead.followUpAt
+        ? (([d, t]) => ({ followUpDate: d, followUpTime: t }))(toDatetimeLocal(lead.followUpAt).split('T'))
+        : { followUpDate: '', followUpTime: '' }),
     });
     setActivityText('');
     setDirQuery('');
@@ -186,7 +215,7 @@ export default function Leads() {
         city: form.city || undefined,
         eventType: form.eventType || undefined,
         assignedToId: form.assignedToId || undefined,
-        followUpAt: form.followUpAt || undefined,
+        followUpAt: combineDateTime(form.followUpDate, form.followUpTime) || undefined,
       });
       close();
       load();
@@ -211,7 +240,7 @@ export default function Leads() {
         city: form.city,
         eventType: form.eventType,
         assignedToId: form.assignedToId || null,
-        followUpAt: form.followUpAt || null,
+        followUpAt: combineDateTime(form.followUpDate, form.followUpTime) || null,
       });
       load();
     } catch (e) {
@@ -434,7 +463,7 @@ export default function Leads() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span className="tiny muted">{lead.assignedToId ? staffName(lead.assignedToId) : '—'}</span>
                       {lead.followUpAt && (
-                        <span className={`tiny ${isOverdue(lead) ? 'red' : 'muted'}`}>📅 {fmtDate(lead.followUpAt)}</span>
+                        <span className={`tiny ${isOverdue(lead) ? 'red' : 'muted'}`}>📅 {fmtDateTime(lead.followUpAt)}</span>
                       )}
                     </div>
                   </div>
@@ -509,7 +538,10 @@ export default function Leads() {
           </div>
           <div className="field">
             <label>Follow up on</label>
-            <input className="input" type="date" value={form.followUpAt} onChange={(e) => setForm({ ...form, followUpAt: e.target.value })} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input className="input" type="date" style={{ flex: 1 }} value={form.followUpDate} onChange={(e) => setForm({ ...form, followUpDate: e.target.value })} />
+              <input className="input" type="time" style={{ flex: 1 }} value={form.followUpTime} onChange={(e) => setForm({ ...form, followUpTime: e.target.value })} disabled={!form.followUpDate} />
+            </div>
           </div>
 
           {drawer === 'create' ? (
