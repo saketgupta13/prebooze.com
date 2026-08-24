@@ -101,7 +101,15 @@ export default function Leads() {
   const load = () => {
     setLoading(true);
     setErr('');
-    Promise.all([liveLeads.list(), liveStaff.list(), liveMe.get()])
+    // liveStaff.list() is Owner-only server-side (staff management isn't
+    // part of the delegatable permission matrix at all) — a non-Owner with
+    // real Leads access hitting that 403 used to reject this whole
+    // Promise.all and silently blank the entire page, including their own
+    // leads, which *did* load fine. It's only used here for the "assigned
+    // to" name label (staffName() already falls back to '' when a staff
+    // member isn't found), so a caught failure just means that label goes
+    // blank instead of the whole board disappearing.
+    Promise.all([liveLeads.list(), liveStaff.list().catch(() => []), liveMe.get()])
       .then(([l, s, m]) => {
         setLeads(l);
         setStaff(s);
