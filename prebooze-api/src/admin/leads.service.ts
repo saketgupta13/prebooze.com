@@ -122,8 +122,15 @@ export class LeadsService {
 
   async list(staffId?: string) {
     const scope = await this.scopeFor(staffId);
+    // A non-empty leadRoleScope is what marks someone as a scoped sales rep
+    // (vs. an Owner or a non-scoped role, who still see every lead in every
+    // pipeline as before). For that group, the pipeline-role filter alone
+    // isn't enough — seeing every organizer/venue lead in the whole system,
+    // not just the ones actually handed to them, defeats the point of
+    // assigning leads out to specific people. Scoped down to their own
+    // assignedToId too.
     return this.prisma.lead.findMany({
-      where: scope.length ? { role: { in: scope } } : undefined,
+      where: scope.length ? { role: { in: scope }, assignedToId: staffId } : undefined,
       include: { ...LEAD_INCLUDE, activities: { orderBy: { createdAt: 'desc' }, take: 1 } },
       orderBy: { updatedAt: 'desc' },
     });
