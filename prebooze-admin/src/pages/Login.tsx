@@ -28,7 +28,14 @@ const COPY: Record<Role, { heading: string; sub: string; placeholder: string; bu
 export default function Login() {
   const { session, login } = useAdmin();
   const navigate = useNavigate();
-  const [role, setRole] = useState<Role>('admin');
+  // Staff invite emails link here with ?tab=staff (see staff_invite's CTA in
+  // email-templates.ts) so a newly-invited staffer lands on "Staff sign in"
+  // instead of "Admin sign in" — the two tabs submit through the exact same
+  // login call either way, but showing "Full access to the Prebooze control
+  // center" copy to someone who isn't an Owner read as the page being
+  // broken/wrong for them even though the form itself worked.
+  const [role, setRole] = useState<Role>(() => (new URLSearchParams(window.location.search).get('tab') === 'staff' ? 'staff' : 'admin'));
+  const [showPw, setShowPw] = useState(false);
   const live = useLiveSession();
   const { logoUrl } = useBranding();
 
@@ -89,13 +96,28 @@ export default function Login() {
             </div>
             <div className="field">
               <label>Password</label>
-              <input
-                className="input"
-                type="password"
-                value={live.password}
-                onChange={(e) => live.setPassword(e.target.value)}
-                placeholder="••••••••"
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  className="input"
+                  type={showPw ? 'text' : 'password'}
+                  value={live.password}
+                  onChange={(e) => live.setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  style={{ paddingRight: 40 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  aria-label={showPw ? 'Hide password' : 'Show password'}
+                  style={{
+                    position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', padding: 8,
+                    color: 'var(--muted)', fontSize: 15, lineHeight: 1,
+                  }}
+                >
+                  {showPw ? '🙈' : '👁'}
+                </button>
+              </div>
             </div>
             {live.loginErr && <div className="small red">{live.loginErr}</div>}
             <button type="submit" className="btn btn-pri" style={{ padding: 11, fontSize: 13.5 }}>

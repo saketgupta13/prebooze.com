@@ -366,7 +366,7 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     preheader: 'Your staff login is ready',
     defaultSubject: "You've been added to the Prebooze admin panel",
     defaultBody: `<p>Hey {{name}},</p><p>You've been added as <b>{{roleName}}</b> on the Prebooze admin panel. Sign in with this temporary password, then change it from your profile:</p><p style="background:rgba(139,195,74,.08);border:1px solid rgba(139,195,74,.25);border-radius:8px;padding:10px 12px;font-family:monospace;font-size:15px;letter-spacing:1px;">{{tempPassword}}</p>`,
-    cta: { label: 'Sign in →', urlTemplate: '{{adminUrl}}/login' },
+    cta: { label: 'Sign in →', urlTemplate: '{{adminUrl}}/login?tab=staff' },
     tokens: ['name', 'roleName', 'tempPassword'],
   },
   {

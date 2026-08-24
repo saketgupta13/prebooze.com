@@ -221,7 +221,14 @@ export default function AdminLayout() {
       <header className="topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <img src={logoUrl || '/logo.png'} alt="Prebooze" />
-          <span className="role-tag">{session.role === 'staff' ? 'STAFF' : 'ADMIN'}</span>
+          {/* staffMeta.roleName is the real, specific role (Manager, Sales,
+              Finance, ...) from the backend — session.role is only ever
+              'admin' or 'staff', whichever login tab was used, the same
+              regardless of which real role someone has. Falls back to that
+              generic tag while staffMeta is still loading/unavailable. */}
+          <span className="role-tag" title="Your role — see Staff & roles for what it can access">
+            {staffMeta?.roleName || (session.role === 'staff' ? 'STAFF' : 'ADMIN')}
+          </span>
         </div>
         <div ref={searchWrapRef} className="search-box hide-mobile" style={{ flex: 1, maxWidth: 420, position: 'relative' }}>
           <span style={{ opacity: 0.6 }}>🔍</span>

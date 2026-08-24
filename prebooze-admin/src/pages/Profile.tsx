@@ -21,6 +21,7 @@ export default function Profile() {
   const [email, setEmail] = useState(session?.email ?? '');
   const [curPw, setCurPw] = useState('');
   const [newPw, setNewPw] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [pwErr, setPwErr] = useState('');
   const [savingPw, setSavingPw] = useState(false);
 
@@ -118,13 +119,17 @@ export default function Profile() {
         <div style={{ display: 'flex', gap: 8 }}>
           <div className="field" style={{ flex: 1 }}>
             <label>Current password</label>
-            <input className="input" type="password" value={curPw} onChange={(e) => setCurPw(e.target.value)} placeholder="••••••••" />
+            <input className="input" type={showPw ? 'text' : 'password'} value={curPw} onChange={(e) => setCurPw(e.target.value)} placeholder="••••••••" />
           </div>
           <div className="field" style={{ flex: 1 }}>
             <label>New password (min 8 chars)</label>
-            <input className="input" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="••••••••" />
+            <input className="input" type={showPw ? 'text' : 'password'} value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="••••••••" />
           </div>
         </div>
+        <label className="tiny muted" style={{ display: 'flex', alignItems: 'center', gap: 6, width: 'fit-content', cursor: 'pointer' }}>
+          <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} style={{ accentColor: 'var(--green)' }} />
+          Show passwords
+        </label>
         {pwErr && <div className="tiny" style={{ color: 'var(--red)' }}>{pwErr}</div>}
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button type="submit" className="btn btn-ghost btn-sm" disabled={savingPw}>

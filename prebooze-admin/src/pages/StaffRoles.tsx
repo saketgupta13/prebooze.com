@@ -25,6 +25,7 @@ export default function StaffRoles() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [lastTempPassword, setLastTempPassword] = useState<{ email: string; password: string } | null>(null);
+  const [pwCopied, setPwCopied] = useState(false);
 
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -69,6 +70,7 @@ export default function StaffRoles() {
         phone: invitePhone.trim() || undefined,
       });
       setLastTempPassword({ email: created.email, password: created.tempPassword });
+      setPwCopied(false);
       setInviteEmail('');
       setInvitePhone('');
       setShowInvite(false);
@@ -163,7 +165,38 @@ export default function StaffRoles() {
       {loading && <div className="tiny muted">Loading…</div>}
       {lastTempPassword && (
         <div className="card" style={{ borderColor: 'var(--accent)' }}>
-          Invited <b>{lastTempPassword.email}</b> — temp password: <code>{lastTempPassword.password}</code> (also emailed)
+          <div className="tiny muted" style={{ marginBottom: 8 }}>
+            Invited <b>{lastTempPassword.email}</b> (also emailed) — temporary password:
+          </div>
+          {/* A password sitting inline in a sentence (the old layout) is easy
+              to mis-select when copying by hand — grabbing a leading/trailing
+              space or nearby words along with it, which then silently breaks
+              login. Isolated on its own line, selectable as a single unit,
+              with a real clipboard-API copy button so nobody has to
+              select-and-copy by hand at all. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <code
+              style={{
+                fontSize: 15, fontWeight: 700, letterSpacing: 0.5,
+                padding: '8px 12px', background: 'rgba(139,195,74,.08)',
+                border: '1px solid rgba(139,195,74,.25)', borderRadius: 8,
+                userSelect: 'all',
+              }}
+            >
+              {lastTempPassword.password}
+            </code>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                navigator.clipboard.writeText(lastTempPassword.password);
+                setPwCopied(true);
+                window.setTimeout(() => setPwCopied(false), 2000);
+              }}
+            >
+              {pwCopied ? '✓ Copied' : 'Copy'}
+            </button>
+          </div>
         </div>
       )}
 

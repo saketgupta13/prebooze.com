@@ -205,6 +205,8 @@ h1.display, .display {
   font: 700 10px/1 'Space Grotesk', sans-serif;
   color: var(--red);
   letter-spacing: 0.6px;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 .avatar {
   width: 32px;
