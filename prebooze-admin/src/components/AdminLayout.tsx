@@ -105,6 +105,7 @@ const NAV_MODULE: Record<string, string> = {
   '/featured': 'Featured',
   '/referrals': 'Payments & payouts',
   '/venues': 'Venues',
+  '/venue-hosting': 'Venues',
   '/locations': 'Locations',
   '/lineups': 'Lineups',
   '/payments': 'Payments & payouts',
