@@ -533,7 +533,7 @@ export default function EventEditorReal() {
               )}
               {+t.price === 0 && t.freeCutoff && +t.lateFeePrice > 0 && (
                 <div className="tiny muted" style={{ flexBasis: '100%' }}>
-                  Free until {t.freeCutoff}, then a 15-min grace period — entry during grace isn't guaranteed by Prebooze, it's the organizer's call — then guests pay ₹{t.lateFeePrice} to book.
+                  Free until {t.freeCutoff}, then new bookings are ₹{t.lateFeePrice}. Guests who already booked free and run up to 15 min late — letting them in is the organizer's call at the door, Prebooze doesn't guarantee it.
                 </div>
               )}
               {+t.price === 0 && t.freeCutoff && !(+t.lateFeePrice > 0) && (

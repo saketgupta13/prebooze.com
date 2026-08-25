@@ -1,15 +1,20 @@
 import type { TicketTier } from '../types';
 
 /** Time-limited free entry — mirrors prebooze-api's
- * common/ticket-tier-pricing.ts exactly (same formula, same 15-min grace).
- * This file is display-only: it decides what label/price to *show*, never
- * what to actually charge — the real amount always comes from the
- * server-authoritative quote() call, matching how the app already never
- * trusts a client-computed price for money. */
+ * common/ticket-tier-pricing.ts exactly. Selling switches from free to
+ * `lateFeePrice` the instant the cutoff passes — there's no grace period
+ * on the *price*. The 15-minute grace (GRACE_MINUTES) is a gate/door
+ * concept only, purely informational here: guests who already hold a free
+ * ticket bought before the cutoff may still be let in up to 15 min late,
+ * entirely at the organizer's discretion — it has no bearing on what a
+ * *new* booking costs. This file is display-only: it decides what label/
+ * price to *show*, never what to actually charge — the real amount always
+ * comes from the server-authoritative quote() call, matching how the app
+ * already never trusts a client-computed price for money. */
 
-const GRACE_MINUTES = 15;
+export const GRACE_MINUTES = 15;
 
-export type TierWindowState = 'always' | 'free' | 'grace' | 'closed';
+export type TierWindowState = 'always' | 'free' | 'closed';
 
 // Prebooze is India-only — "20:00" on a tier always means 8 PM IST, a
 // fixed UTC+5:30 offset (India has no DST). Must NOT use Date's local
@@ -33,18 +38,14 @@ export function tierCutoffDate(eventDate: string, freeCutoff: string): Date {
   return new Date(cutoffIst.getTime() - IST_OFFSET_MIN * 60000);
 }
 
+/** Purely informational (see file doc comment) — not used by pricing. */
 export function tierGraceEndDate(eventDate: string, freeCutoff: string): Date {
   return new Date(tierCutoffDate(eventDate, freeCutoff).getTime() + GRACE_MINUTES * 60 * 1000);
 }
 
 export function tierWindowState(tier: TicketTier, eventDate: string): TierWindowState {
   if (tier.price !== 0 || !tier.freeCutoff) return 'always';
-  const cutoff = tierCutoffDate(eventDate, tier.freeCutoff);
-  const graceEnd = tierGraceEndDate(eventDate, tier.freeCutoff);
-  const now = Date.now();
-  if (now < cutoff.getTime()) return 'free';
-  if (now < graceEnd.getTime()) return 'grace';
-  return 'closed';
+  return Date.now() < tierCutoffDate(eventDate, tier.freeCutoff).getTime() ? 'free' : 'closed';
 }
 
 /** Display price only — see file doc comment. */
@@ -76,15 +77,7 @@ function fmtHM(d: Date): string {
 /** null when there's nothing worth saying (no freeCutoff, or the window's
  * already closed and it's just a normal paid tier at that point). */
 export function tierWindowCaption(tier: TicketTier, eventDate: string): string | null {
-  if (!tier.freeCutoff) return null;
-  const state = tierWindowState(tier, eventDate);
-  if (state === 'free') {
-    const cutoff = fmtHM(tierCutoffDate(eventDate, tier.freeCutoff));
-    return `Free until ${cutoff}, then a 15-min grace period — entry during grace isn't guaranteed by Prebooze, it's the organizer's call.`;
-  }
-  if (state === 'grace') {
-    const graceEnd = fmtHM(tierGraceEndDate(eventDate, tier.freeCutoff));
-    return `Grace period, until ${graceEnd} — entry not guaranteed. ₹${tier.lateFeePrice} after.`;
-  }
-  return null;
+  if (!tier.freeCutoff || tierWindowState(tier, eventDate) !== 'free') return null;
+  const cutoff = fmtHM(tierCutoffDate(eventDate, tier.freeCutoff));
+  return `Free until ${cutoff} — bookings after that are ₹${tier.lateFeePrice}. Already booked and running up to ${GRACE_MINUTES} min late? Entry then is at the organizer's discretion, not guaranteed by Prebooze.`;
 }
