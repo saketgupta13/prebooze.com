@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { Event } from '../types';
-import { fmtDate, fmtTime } from '../data/mock';
+import { fmtDate, fmtTime, isEventOver } from '../data/mock';
 import { useApp } from '../store/AppContext';
 import { goingCount, showGoing } from '../lib/social';
 import { isFeatured } from '../lib/featured';
@@ -19,7 +19,7 @@ export default function EventCard({ event }: { event: Event }) {
   // much inventory technically remains — reuses the same "sold out" pill
   // rather than a separate label, since both mean the same thing to a
   // guest: no button here will get you a ticket.
-  const eventOver = new Date(event.date).getTime() < Date.now();
+  const eventOver = isEventOver(event);
   const soldOut = eventOver || event.tiers.every((t) => t.sold >= t.quantity);
   const going = goingCount(event);
   const feat = isFeatured(featured, 'event', event.id);

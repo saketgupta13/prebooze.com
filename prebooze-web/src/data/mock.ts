@@ -602,6 +602,14 @@ export const eventById = (id: string) => EVENTS.find((e) => e.id === id);
 export const minPrice = (e: Event) =>
   Math.min(...e.tiers.filter((t) => t.sold < t.quantity).map((t) => t.price), ...e.tiers.map((t) => t.price));
 
+// Same formula as prebooze-api's CatalogService.isEventOver — an event
+// isn't "over" the instant it starts, only once it's actually finished
+// (date + durationHrs). Using just `date` here was a real bug: any event
+// currently in progress showed guests "Sold out" instead of letting them
+// still book.
+export const isEventOver = (e: { date: string; durationHrs: number }) =>
+  new Date(e.date).getTime() + e.durationHrs * 3600000 < Date.now();
+
 export const fmtDate = (isoStr: string) =>
   new Date(isoStr).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 

@@ -11,6 +11,7 @@ import {
   fmtTime,
   organizerById,
   venueById,
+  isEventOver,
 } from '../data/mock';
 import { catalog, social, bookings as bookingsApi } from '../api';
 import { isBackendEnabled } from '../api/client';
@@ -254,7 +255,7 @@ export default function EventDetail() {
   // Distinct from allSoldOut — this event has already happened, so no
   // cancellation is ever going to free up a spot. The waitlist flow below
   // (allSoldOut branch) only makes sense for a still-upcoming event.
-  const eventOver = new Date(event.date).getTime() < Date.now();
+  const eventOver = isEventOver(event);
   const queue = liveWaitlist ?? waitlists[event.id] ?? [];
   const myEntry = user ? queue.find((w) => w.phone === user.phone) : undefined;
   const myPosition = myEntry ? queue.filter((w) => w.status === 'waiting').findIndex((w) => w.phone === user?.phone) + 1 : 0;
