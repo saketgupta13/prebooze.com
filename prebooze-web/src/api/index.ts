@@ -171,6 +171,7 @@ export interface OrgReview {
   rating: number;
   text: string;
   organizerId: string;
+  eventTitle?: string;
   date: string;
 }
 export interface VenueReview {
@@ -183,7 +184,7 @@ export interface VenueReview {
 }
 export const socialReviews = {
   organizer: (id: string) => apiFetch<OrgReview[]>(`/organizers/${id}/reviews`),
-  addOrganizerReview: (id: string, rating: number, text: string) => apiFetch<OrgReview>(`/organizers/${id}/reviews`, { body: { rating, text } }),
+  addOrganizerReview: (id: string, rating: number, text: string, eventId?: string) => apiFetch<OrgReview>(`/organizers/${id}/reviews`, { body: { rating, text, eventId } }),
   venue: (id: string) => apiFetch<VenueReview[]>(`/venues/${id}/reviews`),
   addVenueReview: (id: string, rating: number, text: string) => apiFetch<VenueReview>(`/venues/${id}/reviews`, { body: { rating, text } }),
 };

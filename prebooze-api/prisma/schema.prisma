@@ -1389,6 +1389,12 @@ model OrgReview {
   rating      Int
   text        String
   createdAt   DateTime @default(now())
+  // Which specific event this review is about — nullable since a review
+  // written from the organizer's public profile (not via a review-reminder
+  // deep link) has no particular event in context. eventTitle is denormalized
+  // so a review still reads correctly if the event is ever renamed/removed.
+  eventId     String?
+  eventTitle  String?
 }
 
 // ============================================================================

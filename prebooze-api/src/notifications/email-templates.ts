@@ -142,8 +142,8 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     preheader: 'How was it? Leave a quick review',
     defaultSubject: 'How was {{eventTitle}}?',
     defaultBody: `<p>Hey {{name}},</p><p>Hope <b>{{eventTitle}}</b> by {{organizerName}} was a good one. Got a minute to rate it and leave a review? It helps other guests decide, and helps {{organizerName}} know what worked.</p>`,
-    cta: { label: 'Write a review →', urlTemplate: '{{webUrl}}/organizers/{{organizerId}}' },
-    tokens: ['name', 'eventTitle', 'organizerName', 'organizerId'],
+    cta: { label: 'Write a review →', urlTemplate: '{{webUrl}}/organizers/{{organizerId}}?event={{eventId}}' },
+    tokens: ['name', 'eventTitle', 'organizerName', 'organizerId', 'eventId'],
   },
   {
     id: 'referral_welcome', name: 'Referral welcome credit', category: 'Guest',

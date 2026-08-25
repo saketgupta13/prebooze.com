@@ -911,9 +911,14 @@ export class BookingsService {
       const hoursSinceEnd = (Date.now() - endsAt) / (60 * 60 * 1000);
       if (hoursSinceEnd < 24 || hoursSinceEnd > 72) continue; // ask once, a day-to-three-days after it actually ended
 
-      const data = { name: b.user.name || b.mainGuest, eventTitle: b.event.title, organizerName: b.event.organizer.brandName, organizerId: b.event.organizer.id };
+      const data = { name: b.user.name || b.mainGuest, eventTitle: b.event.title, organizerName: b.event.organizer.brandName, organizerId: b.event.organizer.id, eventId: b.event.id };
       await this.email.sendTemplate(b.user.email, 'review_request', data).catch(() => {});
-      await this.wa.send(b.user.phone, 'review_reminder', [data.eventTitle, data.organizerName]).catch(() => {});
+      // Suffix carries both organizer + event so a guest who's attended
+      // several of the same organizer's events gets a review link scoped
+      // to *this* one, not a generic "which event do you mean" landing.
+      await this.wa.send(b.user.phone, 'review_reminder', [data.eventTitle, data.organizerName], [
+        { type: 'button', sub_type: 'url', index: 0, parameters: [{ type: 'text', text: `${data.organizerId}?event=${encodeURIComponent(data.eventId)}` }] },
+      ]).catch(() => {});
       await this.prisma.booking.update({ where: { id: b.id }, data: { reviewReminderSentAt: new Date() } });
       remindedCount++;
     }

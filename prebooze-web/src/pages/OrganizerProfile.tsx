@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, ORGANIZERS, fmtCount } from '../data/mock';
 import { catalog } from '../api';
@@ -22,6 +22,16 @@ import { formatLocation } from '../lib/formatLocation';
 export default function OrganizerProfile() {
   const { id } = useParams();
   const { user, following, toggleFollow, netFollowers } = useApp();
+
+  // A review-reminder deep link (?event=<id>, see BookingsService.remindForReview)
+  // scopes the write-a-review form to a specific event rather than a generic
+  // "which event do you mean" prompt — matters once a guest has attended more
+  // than one of this organizer's events. Its title is looked up below from
+  // orgEvents once that's fetched — no separate call needed since a
+  // by-organizerId events fetch already includes past events (see
+  // CatalogService.events' showPast).
+  const [searchParams] = useSearchParams();
+  const reviewEventId = searchParams.get('event') ?? undefined;
 
   // Single-entity fetches (GET /organizers/:id + GET /events?organizerId=)
   // — this used to fetch every organizer and every event in the whole
@@ -75,6 +85,7 @@ export default function OrganizerProfile() {
   // liveEvents is already server-scoped to this organizer (GET /events?
   // organizerId=) — only the mock fallback still needs the client-side filter.
   const orgEvents = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => (e.organizer?.id ?? e.organizerId) === org.id && e.status === 'approved'));
+  const reviewEventTitle = reviewEventId ? orgEvents.find((e) => e.id === reviewEventId)?.title : undefined;
   const now = Date.now();
   const upcoming = orgEvents.filter((e) => new Date(e.date).getTime() >= now);
   const past = orgEvents.filter((e) => new Date(e.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date));
@@ -196,7 +207,13 @@ export default function OrganizerProfile() {
               )}
             </section>
 
-            <ReviewsSection targetType="organizer" targetId={org.id} prompt="How was the event / organizer?" />
+            <ReviewsSection
+              targetType="organizer"
+              targetId={org.id}
+              prompt="How was the event / organizer?"
+              preselectedEventId={reviewEventId}
+              preselectedEventTitle={reviewEventTitle}
+            />
           </div>
         </div>
       </div>

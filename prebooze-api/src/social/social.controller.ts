@@ -92,8 +92,9 @@ export class SocialController {
     @Param('id') id: string,
     @Body('rating') rating: number,
     @Body('text') text: string,
+    @Body('eventId') eventId?: string,
   ) {
-    return this.social.addReview(req.user.sub, id, rating, text);
+    return this.social.addReview(req.user.sub, id, rating, text, eventId);
   }
 
   @Get('venues/:id/reviews')

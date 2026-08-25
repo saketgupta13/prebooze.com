@@ -164,14 +164,33 @@ export class SocialService {
       rating: r.rating,
       text: r.text,
       organizerId: r.organizerId,
+      eventTitle: r.eventTitle ?? undefined,
       date: formatReviewDate(r.createdAt),
     }));
   }
 
-  async addReview(userId: string, organizerId: string, rating: number, text: string) {
+  /** `eventId` is optional — a review written from the organizer's public
+   * profile (not via a review-reminder deep link) has no particular event
+   * in context. When given, the event's title is looked up server-side
+   * (never trusting a client-supplied title) and denormalized onto the
+   * row so the review still reads correctly if the event is later renamed
+   * or removed; an eventId for an event that doesn't belong to this
+   * organizer is silently dropped rather than trusted as-is. */
+  async addReview(userId: string, organizerId: string, rating: number, text: string, eventId?: string) {
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new BadRequestException('rating must be 1-5');
     if (!text?.trim()) throw new BadRequestException('text is required');
-    const row = await this.prisma.orgReview.create({ data: { userId, organizerId, rating, text } });
+
+    let matchedEventId: string | undefined;
+    let eventTitle: string | undefined;
+    if (eventId) {
+      const event = await this.prisma.event.findFirst({ where: { id: eventId, organizerId } });
+      if (event) {
+        matchedEventId = event.id;
+        eventTitle = event.title;
+      }
+    }
+
+    const row = await this.prisma.orgReview.create({ data: { userId, organizerId, rating, text, eventId: matchedEventId, eventTitle } });
 
     // Organizer.rating/reviewCount are display-only aggregates shown on the
     // public profile (OrganizerProfile.tsx) and OrgReviews.tsx's own KPI
@@ -192,6 +211,7 @@ export class SocialService {
       rating,
       text,
       organizerId,
+      eventTitle,
       date: formatReviewDate(row.createdAt),
     };
   }

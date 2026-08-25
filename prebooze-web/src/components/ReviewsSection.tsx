@@ -16,10 +16,17 @@ export default function ReviewsSection({
   targetType,
   targetId,
   prompt,
+  preselectedEventId,
+  preselectedEventTitle,
 }: {
   targetType: ReviewTargetType;
   targetId: string;
   prompt: string;
+  /** From a review-reminder deep link (?event=<id>) — scopes the write-a-review
+   * form to that specific event instead of a generic organizer-wide review.
+   * Organizer-only for now; venue/promoter/lineup have no such reminder yet. */
+  preselectedEventId?: string;
+  preselectedEventTitle?: string;
 }) {
   const { user, reviews, addReview, toast } = useApp();
   const isRealTarget = (targetType === 'organizer' || targetType === 'venue') && isBackendEnabled();
@@ -51,7 +58,7 @@ export default function ReviewsSection({
     try {
       const created = targetType === 'venue'
         ? await socialReviews.addVenueReview(targetId, rating, text)
-        : await socialReviews.addOrganizerReview(targetId, rating, text);
+        : await socialReviews.addOrganizerReview(targetId, rating, text, preselectedEventId);
       setLiveReviews((prev) => [created, ...(prev ?? [])]);
       toast('Review posted ✓');
     } catch (e) {
@@ -78,11 +85,18 @@ export default function ReviewsSection({
             <span className="muted small">No reviews yet — be the first</span>
           )}
         </div>
-        <ReviewForm loggedIn={!!user} busy={posting} onSubmit={submit} prompt={prompt} />
+        <ReviewForm
+          loggedIn={!!user}
+          busy={posting}
+          onSubmit={submit}
+          prompt={prompt}
+          autoOpen={!!preselectedEventId}
+          scopedEventTitle={preselectedEventTitle}
+        />
         {all.map((r) => (
           <div key={r.id} className="review">
             <span className="bold">{r.author}</span> · <Stars rating={r.rating} /> ·{' '}
-            <span className="muted-2">{'eventTitle' in r ? (r.eventTitle ?? r.date) : r.date}</span>
+            <span className="muted-2">{'eventTitle' in r && r.eventTitle ? `${r.eventTitle} · ${r.date}` : r.date}</span>
             <div className="muted">“{r.text}”</div>
           </div>
         ))}
@@ -92,11 +106,27 @@ export default function ReviewsSection({
   );
 }
 
-/** Inline write-a-review form (star pick + text). */
-function ReviewForm({ onSubmit, loggedIn, busy, prompt }: { onSubmit: (rating: number, text: string) => void; loggedIn: boolean; busy?: boolean; prompt: string }) {
+/** Inline write-a-review form (star pick + text). `autoOpen`/`scopedEventTitle`
+ * come from a review-reminder deep link — opens straight to the form and
+ * shows which event it's about, instead of a generic organizer-wide review. */
+function ReviewForm({
+  onSubmit,
+  loggedIn,
+  busy,
+  prompt,
+  autoOpen,
+  scopedEventTitle,
+}: {
+  onSubmit: (rating: number, text: string) => void;
+  loggedIn: boolean;
+  busy?: boolean;
+  prompt: string;
+  autoOpen?: boolean;
+  scopedEventTitle?: string;
+}) {
   const [rating, setRating] = useState(0);
   const [text, setText] = useState('');
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!!autoOpen);
   if (!open) {
     return (
       <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }} onClick={() => setOpen(true)}>
@@ -117,6 +147,11 @@ function ReviewForm({ onSubmit, loggedIn, busy, prompt }: { onSubmit: (rating: n
         setText('');
       }}
     >
+      {autoOpen && (
+        <div className="tiny muted" style={{ marginBottom: 8 }}>
+          Reviewing{scopedEventTitle ? <>: <b>{scopedEventTitle}</b></> : ' the event you attended'}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button key={n} type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, filter: n <= rating ? 'none' : 'grayscale(1) opacity(.45)' }} onClick={() => setRating(n)} aria-label={`${n} star`}>
