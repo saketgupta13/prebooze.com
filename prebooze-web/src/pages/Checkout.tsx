@@ -825,7 +825,10 @@ export default function Checkout() {
               )}
             </div>
 
-            {/* Coupon */}
+            {/* Coupon — pointless on a genuinely free cart (nothing to
+                discount, no fee either), so it's skipped entirely rather
+                than showing an empty gesture at checkout. */}
+            {finalSubtotal > 0 && (
             <div className="card" style={{ marginBottom: 18 }}>
               <h3 style={{ marginBottom: 14 }}>Apply coupon</h3>
               <div className="form-row">
@@ -879,8 +882,10 @@ export default function Checkout() {
                 </div>
               )}
             </div>
+            )}
 
-            {/* Payment */}
+            {/* Payment — skipped on a genuinely free cart, nothing to pay for */}
+            {finalSubtotal > 0 && (
             <div className="card">
               <h3 style={{ marginBottom: 14 }}>Pay with</h3>
               {[
@@ -899,6 +904,7 @@ export default function Checkout() {
                 </label>
               ))}
             </div>
+            )}
           </div>
 
           {/* Order summary */}
@@ -954,10 +960,12 @@ export default function Checkout() {
               <span>{quotePending ? 'Calculating…' : formatPrice(finalTotal)}</span>
             </div>
             <button className="btn btn-pri btn-block btn-lg" onClick={pay} disabled={paying || (liveEvent ? !holdId : false) || quoting || quotePending}>
-              {paying ? 'Processing…' : quotePending ? 'Calculating…' : finalTotal === 0 ? 'Get free ticket' : `Pay ₹${finalTotal}`}
+              {paying ? 'Processing…' : quotePending ? 'Calculating…' : finalTotal === 0 ? 'Confirm booking' : `Pay ₹${finalTotal}`}
             </button>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-              🔒 secured by Razorpay · <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link>
+              {finalSubtotal > 0
+                ? <>🔒 secured by Razorpay · <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link></>
+                : <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link>}
             </div>
             {socials.whatsapp && (
               <div className="tiny muted-2 center" style={{ marginTop: 4 }}>
