@@ -115,7 +115,7 @@ export default function GuestPass() {
                     {countdownLabel(cutoff)}
                   </div>
                   <div className="tiny muted-2">
-                    at {cutoff.toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
+                    at {cutoff.toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
                   </div>
                 </div>
               )}
@@ -134,7 +134,7 @@ export default function GuestPass() {
             <h1 style={{ fontSize: 22, marginTop: 8 }}>Free window closed</h1>
             <p className="muted" style={{ margin: '10px 0 18px' }}>
               Free entry for <b>{event.title}</b> closed
-              {cutoff && ` at ${cutoff.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`}. You can
+              {cutoff && ` at ${cutoff.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })}`}. You can
               still grab a ticket and come in.
             </p>
             <Link to={`${eventPath(eventCity(event) ?? 'Hyderabad', event.slug)}?ref=${pass.promoterSlug}`} className="btn btn-pri btn-lg">

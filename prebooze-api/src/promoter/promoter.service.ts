@@ -39,16 +39,29 @@ function guestListEnabled(cfg: PromoterConfig | null | undefined, slug: string):
 
 const norm = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
 
+// Prebooze is India-only — "01:00" on a promoter config always means 1 AM
+// IST, a fixed UTC+5:30 offset (India has no DST). Must NOT use Date's
+// local setHours()/getHours(): this same formula also runs in every
+// guest's browser (lib/promoterPass.ts), in whatever timezone their
+// device happens to be set to — confirmed via a real cross-timezone test
+// (same bug, same fix, in the sibling ticket-tier free-entry feature —
+// see common/ticket-tier-pricing.ts) that a non-UTC browser computes a
+// cutoff hours away from what the UTC server intends. Date.UTC()/getUTC*
+// are timezone-independent, so the IST offset is applied explicitly and
+// by hand instead, giving server and every guest's browser the same answer.
+const IST_OFFSET_MIN = 5.5 * 60;
+
 /** Free-entry cutoff as an absolute datetime — same formula as
  * prebooze-web's lib/promoterPass.ts cutoffDate(). */
 function cutoffDate(event: { date: Date; promoterConfig: unknown }): Date | null {
   const cfg = event.promoterConfig as PromoterConfig | null;
   if (!cfg?.enabled || !cfg.cutoff) return null;
+  const startIstMs = event.date.getTime() + IST_OFFSET_MIN * 60000;
+  const startIst = new Date(startIstMs);
   const [h, m] = cfg.cutoff.split(':').map(Number);
-  const c = new Date(event.date);
-  c.setHours(h, m, 0, 0);
-  if (c.getTime() < event.date.getTime()) c.setDate(c.getDate() + 1);
-  return c;
+  const cIst = new Date(Date.UTC(startIst.getUTCFullYear(), startIst.getUTCMonth(), startIst.getUTCDate(), h, m, 0, 0));
+  if (cIst.getTime() < startIst.getTime()) cIst.setUTCDate(cIst.getUTCDate() + 1);
+  return new Date(cIst.getTime() - IST_OFFSET_MIN * 60000);
 }
 
 @Injectable()

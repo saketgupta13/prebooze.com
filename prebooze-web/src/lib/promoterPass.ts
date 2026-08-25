@@ -1,17 +1,29 @@
 import type { Event } from '../types';
 
+// Prebooze is India-only — "01:00" on a promoter config always means 1 AM
+// IST, a fixed UTC+5:30 offset (India has no DST). Must NOT use Date's
+// local setHours()/getHours(): this same code runs in every guest's
+// browser, in whatever timezone their device happens to be set to —
+// confirmed via a real cross-timezone test (same bug, same fix, in the
+// sibling ticket-tier free-entry feature — see lib/ticketTierPricing.ts)
+// that a browser outside IST computes a cutoff hours away from what an
+// IST-assuming interpretation intends. Date.UTC()/getUTC* are timezone-
+// independent, so the IST offset is applied explicitly and by hand instead.
+const IST_OFFSET_MIN = 5.5 * 60;
+
 /** Free-entry cutoff as an absolute datetime. "Free before HH:MM" on the event's
  * night — if the cutoff clock time is earlier than the event start, it's the next
- * calendar day (e.g. an 8 PM gig with "free before 1 AM" = 1 AM the following morning). */
+ * calendar day (e.g. an 8 PM gig with "free before 1 AM" = 1 AM the following morning).
+ * IST-anchored (see IST_OFFSET_MIN above) rather than local-time-based. */
 export function cutoffDate(event: Event): Date | null {
   const cfg = event.promoterConfig;
   if (!cfg?.enabled || !cfg.cutoff) return null;
-  const start = new Date(event.date);
+  const startIstMs = new Date(event.date).getTime() + IST_OFFSET_MIN * 60000;
+  const startIst = new Date(startIstMs);
   const [h, m] = cfg.cutoff.split(':').map(Number);
-  const c = new Date(start);
-  c.setHours(h, m, 0, 0);
-  if (c.getTime() < start.getTime()) c.setDate(c.getDate() + 1);
-  return c;
+  const cIst = new Date(Date.UTC(startIst.getUTCFullYear(), startIst.getUTCMonth(), startIst.getUTCDate(), h, m, 0, 0));
+  if (cIst.getTime() < startIst.getTime()) cIst.setUTCDate(cIst.getUTCDate() + 1);
+  return new Date(cIst.getTime() - IST_OFFSET_MIN * 60000);
 }
 
 export function isPassValid(event: Event): boolean {
