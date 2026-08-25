@@ -48,6 +48,12 @@ function layout(preheader: string, bodyHtml: string, cta?: { label: string; url:
 
 export const money = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
+// A ₹0 booking (a free ticket tier) reads as broken pricing in a "Paid: ₹0"
+// line — use only for guest-facing "what did you pay" copy, not financial/
+// ledger contexts (payouts, commission, refunds) where the real ₹0 is the
+// correct, expected value to show.
+export const moneyOrFree = (n: number) => (n === 0 ? 'Free' : money(n));
+
 export const KYC_ROLE_LABEL: Record<string, string> = {
   organizer: 'organizer', promoter: 'promoter', lineup: 'line-up/artist', venue: 'venue partner',
 };

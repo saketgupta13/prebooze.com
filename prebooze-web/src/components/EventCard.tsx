@@ -43,7 +43,7 @@ export default function EventCard({ event }: { event: Event }) {
           {showGoing(event) && <>🔥 {going.toLocaleString('en-IN')} going</>}
         </div>
         <div className="row">
-          <span className="price">from ₹{minPrice(event)}</span>
+          <span className="price">{minPrice(event) === 0 ? 'Free' : `from ₹${minPrice(event)}`}</span>
           <span className={`btn btn-sm ${soldOut ? 'btn-ghost' : 'btn-pri'}`}>
             {soldOut ? 'Sold out' : 'Book now'}
           </span>

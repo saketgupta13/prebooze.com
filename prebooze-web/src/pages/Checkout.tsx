@@ -12,6 +12,7 @@ import { pushEvent } from '../lib/gtm';
 import { trackMeta } from '../lib/meta';
 import { eventLocation } from '../lib/venue';
 import { cityBrowse, eventCity, eventPath } from '../lib/urls';
+import { formatPrice } from '../lib/formatPrice';
 
 const ABSORBED_NOTE: Record<string, string> = {
   Organizer: 'absorbed by the organizer',
@@ -906,7 +907,7 @@ export default function Checkout() {
                 <span className="k">
                   {l.qty} × {l.tier.name}
                 </span>
-                <span>₹{l.qty * l.tier.price}</span>
+                <span>{formatPrice(l.qty * l.tier.price)}</span>
               </div>
             ))}
             {promoterMarkupApplies && (
@@ -945,10 +946,10 @@ export default function Checkout() {
             )}
             <div className="total-row">
               <span>Total</span>
-              <span>{quotePending ? 'Calculating…' : `₹${finalTotal}`}</span>
+              <span>{quotePending ? 'Calculating…' : formatPrice(finalTotal)}</span>
             </div>
             <button className="btn btn-pri btn-block btn-lg" onClick={pay} disabled={paying || (liveEvent ? !holdId : false) || quoting || quotePending}>
-              {paying ? 'Processing…' : quotePending ? 'Calculating…' : `Pay ₹${finalTotal}`}
+              {paying ? 'Processing…' : quotePending ? 'Calculating…' : finalTotal === 0 ? 'Get free ticket' : `Pay ₹${finalTotal}`}
             </button>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
               🔒 secured by Razorpay · <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link>

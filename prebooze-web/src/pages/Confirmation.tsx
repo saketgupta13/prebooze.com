@@ -11,6 +11,7 @@ import { downloadIcs } from '../lib/calendar';
 import { eventLocation } from '../lib/venue';
 import { copyToClipboard } from '../lib/clipboard';
 import { cityBrowse } from '../lib/urls';
+import { formatPrice } from '../lib/formatPrice';
 
 export default function Confirmation() {
   const { id } = useParams();
@@ -75,7 +76,8 @@ export default function Confirmation() {
         <div className="confirm-tick">✓</div>
         <h1 style={{ fontSize: 28 }}>You're going! 🎉</h1>
         <p className="muted" style={{ margin: '8px 0 22px' }}>
-          Ticket sent to WhatsApp {booking.whatsapp} · paid ₹{booking.total} via Razorpay
+          Ticket sent to WhatsApp {booking.whatsapp}
+          {booking.total > 0 ? ` · paid ${formatPrice(booking.total)} via Razorpay` : ' · Free entry'}
         </p>
 
         <div className="card card-shadow" style={{ textAlign: 'center' }}>

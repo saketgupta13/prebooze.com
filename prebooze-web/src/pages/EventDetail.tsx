@@ -28,6 +28,7 @@ import { eventCity, eventPath, cityHome, cityBrowse, organizerPath, venuePath, l
 import { track } from '../lib/track';
 import { trackMeta } from '../lib/meta';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
+import { formatPrice } from '../lib/formatPrice';
 import { useIsMobile } from '../lib/useIsMobile';
 import Poster, { categoryEmoji } from '../components/Poster';
 import TeaserReel from '../components/TeaserReel';
@@ -611,7 +612,7 @@ export default function EventDetail() {
             )}
             {!showFullTicketBox ? (
               <button className="btn btn-pri btn-block btn-lg" onClick={() => setTicketBoxOpen(true)}>
-                {eventOver ? '😔 Sold out' : allSoldOut ? '😔 Sold out — join the waitlist' : `🎟 Book ticket — from ₹${minPrice} →`}
+                {eventOver ? '😔 Sold out' : allSoldOut ? '😔 Sold out — join the waitlist' : `🎟 Book ticket — ${minPrice === 0 ? 'Free' : `from ₹${minPrice}`} →`}
               </button>
             ) : (
               <>
@@ -628,7 +629,7 @@ export default function EventDetail() {
                 <div key={t.id} className="tier-row">
                   <div className="tier-info">
                     <div className="name">
-                      {t.name} — ₹{t.price}
+                      {t.name} — {formatPrice(t.price)}
                       {!soldOut && left <= 25 && (
                         <span className="danger-text tiny"> · {left} left</span>
                       )}

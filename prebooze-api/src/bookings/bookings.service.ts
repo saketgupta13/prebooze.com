@@ -7,7 +7,7 @@ import { HoldsService } from './holds.service';
 import { RazorpayService } from '../payments/razorpay.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
-import { money } from '../notifications/email-templates';
+import { money, moneyOrFree } from '../notifications/email-templates';
 import { ticketPdfBuffer } from '../notifications/ticket-pdf';
 import { WalletService } from '../wallet/wallet.service';
 import { REFERRAL_REFERRER_REWARD, uniqueReferralCodeFor } from '../referrals/referral.constants';
@@ -423,7 +423,7 @@ export class BookingsService {
     const ticketVenue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
     const ticketPdf = await ticketPdfBuffer(booking, event, ticketVenue).catch(() => null);
     await this.email.sendTemplate(user.email, 'booking_confirmed', {
-      name: input.mainGuest.trim(), eventTitle: event.title, qty: String(qty), bookingId: id, total: money(total),
+      name: input.mainGuest.trim(), eventTitle: event.title, qty: String(qty), bookingId: id, total: moneyOrFree(total),
     }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined).catch(() => {});
 
     // ---- invoice: no GST — Prebooze isn't GST-registered, so this is a
@@ -585,7 +585,7 @@ export class BookingsService {
       const venue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
       const ticketPdf = await ticketPdfBuffer(booking, event, venue).catch(() => null);
       await this.email.sendTemplate(buyer.email, 'booking_confirmed', {
-        name: input.guestName.trim(), eventTitle: event.title, qty: String(input.qty), bookingId: id, total: money(total),
+        name: input.guestName.trim(), eventTitle: event.title, qty: String(input.qty), bookingId: id, total: moneyOrFree(total),
       }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined).catch(() => {});
     }
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true, organizer: true } } } });
@@ -779,7 +779,7 @@ export class BookingsService {
     const ticketVenue = booking.event.venueId ? await this.prisma.venue.findUnique({ where: { id: booking.event.venueId } }) : null;
     const ticketPdf = await ticketPdfBuffer(booking, booking.event, ticketVenue).catch(() => null);
     await this.email.sendTemplate(booking.user.email, 'booking_confirmed', {
-      name: booking.mainGuest, eventTitle: booking.event.title, qty: String(booking.qty), bookingId: id, total: money(booking.total),
+      name: booking.mainGuest, eventTitle: booking.event.title, qty: String(booking.qty), bookingId: id, total: moneyOrFree(booking.total),
     }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined);
     return { ok: true };
   }
