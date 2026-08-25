@@ -135,7 +135,11 @@ export class BookingsService {
 
     const qty = lines.reduce((a, l) => a + l.qty, 0);
     const baseSubtotal = lines.reduce((a, l) => a + l.qty * effectiveTierPrice(l.tier, event.date), 0);
-    const fee = Math.round(qty * (settings?.bookingFee ?? FALLBACK_FEE_PER_TICKET));
+    // A free ticket doesn't get charged the platform's per-ticket booking
+    // fee — only tickets with a real, nonzero price do. A cart mixing free
+    // and paid tiers only pays the fee on the paid ones.
+    const paidQty = lines.reduce((a, l) => a + (effectiveTierPrice(l.tier, event.date) > 0 ? l.qty : 0), 0);
+    const fee = Math.round(paidQty * (settings?.bookingFee ?? FALLBACK_FEE_PER_TICKET));
 
     // ---- promoter revenue-share markup — only when this hold carries a
     // ?ref= attributed to an allowed promoter who has a nonzero rate set for
@@ -525,9 +529,11 @@ export class BookingsService {
       }));
 
     const isComp = input.method.toLowerCase().includes('comp');
-    const subtotal = isComp ? 0 : effectiveTierPrice(tier, event.date) * input.qty;
+    const tierPrice = effectiveTierPrice(tier, event.date);
+    const subtotal = isComp ? 0 : tierPrice * input.qty;
     const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
-    const fee = isComp ? 0 : Math.round(input.qty * (settings?.bookingFee ?? FALLBACK_FEE_PER_TICKET));
+    // Same as priceHold() — no booking fee on a free ticket.
+    const fee = isComp || tierPrice === 0 ? 0 : Math.round(input.qty * (settings?.bookingFee ?? FALLBACK_FEE_PER_TICKET));
     const total = subtotal + fee;
 
     const id = '#TKT-' + randomInt(10000, 99999);

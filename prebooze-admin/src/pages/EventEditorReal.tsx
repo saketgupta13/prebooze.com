@@ -522,7 +522,16 @@ export default function EventEditorReal() {
               {+t.price === 0 && (
                 <div className="field" style={{ flex: 1, minWidth: 140 }}>
                   <label>Free until (optional)</label>
-                  <input className="input" type="time" value={t.freeCutoff} onChange={(e) => patchTier(i, { freeCutoff: e.target.value })} />
+                  <input
+                    className="input"
+                    type="time"
+                    value={t.freeCutoff}
+                    onChange={(e) => patchTier(i, { freeCutoff: e.target.value })}
+                    // Safari can be inconsistent about firing onChange while
+                    // a native time input is still being filled in segment
+                    // by segment — re-sync on blur so the value isn't lost.
+                    onBlur={(e) => patchTier(i, { freeCutoff: e.target.value })}
+                  />
                 </div>
               )}
               {+t.price === 0 && t.freeCutoff && (

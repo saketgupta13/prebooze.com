@@ -663,7 +663,15 @@ export default function CreateEvent() {
                 <div className="form-row" style={{ marginBottom: 6 }}>
                   <div className="field">
                     <span>Free until (optional)</span>
-                    <input type="time" value={t.freeCutoff} onChange={(e) => setTier(i, { freeCutoff: e.target.value })} />
+                    <input
+                      type="time"
+                      value={t.freeCutoff}
+                      onChange={(e) => setTier(i, { freeCutoff: e.target.value })}
+                      // Safari can be inconsistent about firing onChange while
+                      // a native time input is still being filled in segment
+                      // by segment — re-sync on blur so the value isn't lost.
+                      onBlur={(e) => setTier(i, { freeCutoff: e.target.value })}
+                    />
                   </div>
                   {t.freeCutoff && (
                     <div className="field">
