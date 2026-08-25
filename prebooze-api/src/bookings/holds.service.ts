@@ -4,6 +4,7 @@ import type Redis from 'ioredis';
 import type { Prisma } from '@prisma/client';
 import { REDIS } from '../redis.provider';
 import { PrismaService } from '../prisma.service';
+import { effectiveTierPrice } from '../common/ticket-tier-pricing';
 
 const HOLD_TTL_S = 8 * 60; // 8 minutes, matches prebooze-web's CART_HOLD_MINUTES
 
@@ -38,7 +39,7 @@ export class HoldsService {
       const tier = event.tiers.find((t) => t.id === tierId);
       if (!tier) throw new BadRequestException(`Unknown ticket tier ${tierId}`);
       if (tier.sold + n > tier.quantity) throw new BadRequestException(`Not enough "${tier.name}" tickets left`);
-      subtotal += tier.price * n;
+      subtotal += effectiveTierPrice(tier, event.date) * n;
     }
 
     const holdId = randomBytes(16).toString('hex');

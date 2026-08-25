@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { fmtDate, fmtTime, minPrice } from '../../data/mock';
+import { fmtDate, fmtTime } from '../../data/mock';
 import { promoter as promoterApi, type PromoterPass } from '../../api';
 import { cutoffDate, countdownLabel, isPassValid } from '../../lib/promoterPass';
 import { eventLocation } from '../../lib/venue';
@@ -10,6 +10,7 @@ import QRCode from '../../components/QRCode';
 import Loader from '../../components/Loader';
 import { eventCity, eventPath } from '../../lib/urls';
 import { formatFromPrice } from '../../lib/formatPrice';
+import { displayMinPrice, hasCurrentlyPaidTier } from '../../lib/ticketTierPricing';
 
 /** The guest's free-entry pass — a QR that rotates every few seconds (screenshot-proof)
  * and is only valid before the cutoff. After the cutoff it flips to a paid-ticket CTA.
@@ -137,7 +138,7 @@ export default function GuestPass() {
               still grab a ticket and come in.
             </p>
             <Link to={`${eventPath(eventCity(event) ?? 'Hyderabad', event.slug)}?ref=${pass.promoterSlug}`} className="btn btn-pri btn-lg">
-              Get a ticket — {formatFromPrice(minPrice(event), event.tiers.some((t) => t.price > 0))} →
+              Get a ticket — {formatFromPrice(displayMinPrice(event.tiers, event.date), hasCurrentlyPaidTier(event.tiers, event.date))} →
             </Link>
           </div>
         )}

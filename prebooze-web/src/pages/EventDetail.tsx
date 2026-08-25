@@ -29,6 +29,7 @@ import { track } from '../lib/track';
 import { trackMeta } from '../lib/meta';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { formatPrice, formatFromPrice } from '../lib/formatPrice';
+import { displayTierPrice, displayMinPrice, hasCurrentlyPaidTier, tierWindowCaption } from '../lib/ticketTierPricing';
 import { useIsMobile } from '../lib/useIsMobile';
 import Poster, { categoryEmoji } from '../components/Poster';
 import TeaserReel from '../components/TeaserReel';
@@ -205,7 +206,7 @@ export default function EventDetail() {
 
   const total = useMemo(() => {
     if (!event) return 0;
-    return event.tiers.reduce((sum, t) => sum + (qty[t.id] ?? 0) * t.price, 0);
+    return event.tiers.reduce((sum, t) => sum + (qty[t.id] ?? 0) * displayTierPrice(t, event.date), 0);
   }, [qty, event]);
 
   if (!loaded) {
@@ -240,7 +241,7 @@ export default function EventDetail() {
     (user?.isLineup && user.lineupName && event.lineup.some((l) => l.name.toLowerCase() === user.lineupName!.toLowerCase()))
   );
   const ticketCount = Object.values(qty).reduce((a, b) => a + b, 0);
-  const minPrice = Math.min(...event.tiers.map((t) => t.price));
+  const minPrice = displayMinPrice(event.tiers, event.date);
   // Gated on isBackendEnabled() (not just liveEvent truthiness) to match
   // every other detail page's mock-fallback convention.
   const recommended = liveEvent ? liveRecommended : (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved' && e.id !== event.id).slice(0, 4));
@@ -612,7 +613,7 @@ export default function EventDetail() {
             )}
             {!showFullTicketBox ? (
               <button className="btn btn-pri btn-block btn-lg" onClick={() => setTicketBoxOpen(true)}>
-                {eventOver ? '😔 Sold out' : allSoldOut ? '😔 Sold out — join the waitlist' : `🎟 Book ticket — ${formatFromPrice(minPrice, event.tiers.some((t) => t.price > 0))} →`}
+                {eventOver ? '😔 Sold out' : allSoldOut ? '😔 Sold out — join the waitlist' : `🎟 Book ticket — ${formatFromPrice(minPrice, hasCurrentlyPaidTier(event.tiers, event.date))} →`}
               </button>
             ) : (
               <>
@@ -629,7 +630,7 @@ export default function EventDetail() {
                 <div key={t.id} className="tier-row">
                   <div className="tier-info">
                     <div className="name">
-                      {t.name} — {formatPrice(t.price)}
+                      {t.name} — {formatPrice(displayTierPrice(t, event.date))}
                       {!soldOut && left <= 25 && (
                         <span className="danger-text tiny"> · {left} left</span>
                       )}
@@ -638,6 +639,9 @@ export default function EventDetail() {
                       <div className="includes">✓ {t.includes.join(' · ✓ ')}</div>
                     )}
                     {t.description && <div className="includes" style={{ marginTop: 2 }}>{t.description}</div>}
+                    {tierWindowCaption(t, event.date) && (
+                      <div className="tiny muted" style={{ marginTop: 2 }}>{tierWindowCaption(t, event.date)}</div>
+                    )}
                     {!!t.coverCharge && (
                       <div className="tiny accent" style={{ marginTop: 2 }}>
                         🍹 Includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote ? ` (${t.coverChargeNote})` : ''}

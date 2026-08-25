@@ -13,6 +13,7 @@ import { WalletService } from '../wallet/wallet.service';
 import { REFERRAL_REFERRER_REWARD, uniqueReferralCodeFor } from '../referrals/referral.constants';
 import { NotificationsService } from '../admin/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
+import { effectiveTierPrice } from '../common/ticket-tier-pricing';
 import { normalizePhone } from '../auth/auth.service';
 import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from '../auth/guest-username';
 import { StaffAlertsService } from '../notifications/staff-alerts';
@@ -133,7 +134,7 @@ export class BookingsService {
     if (!lines.length) throw new BadRequestException('No tickets selected');
 
     const qty = lines.reduce((a, l) => a + l.qty, 0);
-    const baseSubtotal = lines.reduce((a, l) => a + l.qty * l.tier.price, 0);
+    const baseSubtotal = lines.reduce((a, l) => a + l.qty * effectiveTierPrice(l.tier, event.date), 0);
     const fee = Math.round(qty * (settings?.bookingFee ?? FALLBACK_FEE_PER_TICKET));
 
     // ---- promoter revenue-share markup — only when this hold carries a
@@ -524,7 +525,7 @@ export class BookingsService {
       }));
 
     const isComp = input.method.toLowerCase().includes('comp');
-    const subtotal = isComp ? 0 : tier.price * input.qty;
+    const subtotal = isComp ? 0 : effectiveTierPrice(tier, event.date) * input.qty;
     const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
     const fee = isComp ? 0 : Math.round(input.qty * (settings?.bookingFee ?? FALLBACK_FEE_PER_TICKET));
     const total = subtotal + fee;

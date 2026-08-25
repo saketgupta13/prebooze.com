@@ -12,6 +12,12 @@ export interface TicketTier {
   // informational; Prebooze doesn't track in-app redemption.
   coverCharge?: number;
   coverChargeNote?: string;
+  // Time-limited free entry — only meaningful when price is 0. See
+  // lib/ticketTierPricing.ts for the effective-price/window-state
+  // calculation (mirrors PromoterConfig.cutoff's formula). Both undefined =
+  // an ordinary tier, unaffected by any of this.
+  freeCutoff?: string; // "HH:MM" on the event's own night
+  lateFeePrice?: number; // charged once freeCutoff + grace has passed
 }
 
 export interface LineupItem {

@@ -1056,6 +1056,18 @@ model TicketTier {
   // VenueService.syncHostedTiers), 0 = no cover charge on this tier.
   coverCharge     Int     @default(0)
   coverChargeNote String?
+
+  // Time-limited free entry — only meaningful when price is 0. "HH:MM" on
+  // the event's own night (same absolute-datetime formula as PromoterConfig.
+  // cutoff/lib/promoterPass.ts's cutoffDate()), plus a fixed 15-min grace
+  // period baked into the effective-price calculation (see ticketTierPrice.ts
+  // on both sides), not stored here. Both null = an ordinary tier with no
+  // time-based pricing at all — every existing tier before this feature.
+  // lateFeePrice is required together with freeCutoff (enforced at save
+  // time, not by the schema) — a cutoff with no fallback price would leave
+  // the tier's post-window price undefined.
+  freeCutoff   String?
+  lateFeePrice Int?
 }
 
 model Featured {

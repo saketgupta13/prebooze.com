@@ -44,9 +44,9 @@ const TABS: { key: EditorTab; label: string }[] = [
   { key: 'seo', label: '7 · SEO' },
 ];
 
-interface TierDraft { id?: string; name: string; price: string; quantity: string; description: string; includes: string[]; sold?: number; coverCharge: string; coverChargeNote: string; }
+interface TierDraft { id?: string; name: string; price: string; quantity: string; description: string; includes: string[]; sold?: number; coverCharge: string; coverChargeNote: string; freeCutoff: string; lateFeePrice: string; }
 
-const emptyTier = (): TierDraft => ({ name: 'General', price: '450', quantity: '200', description: '', includes: ['Entry'], coverCharge: '', coverChargeNote: '' });
+const emptyTier = (): TierDraft => ({ name: 'General', price: '450', quantity: '200', description: '', includes: ['Entry'], coverCharge: '', coverChargeNote: '', freeCutoff: '', lateFeePrice: '' });
 
 /** Real, single event editor — replaces the old mock EventEditor.tsx.
  * Backs the whole real create/edit flow via OrganizerService.adminUpsertEvent.
@@ -157,7 +157,7 @@ export default function EventEditorReal() {
               setAgeLimit(found.ageLimit ?? '18+');
               setTiers(
                 found.tiers.length
-                  ? found.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), description: t.description ?? '', includes: t.includes ?? [], sold: t.sold, coverCharge: t.coverCharge ? String(t.coverCharge) : '', coverChargeNote: t.coverChargeNote ?? '' }))
+                  ? found.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), description: t.description ?? '', includes: t.includes ?? [], sold: t.sold, coverCharge: t.coverCharge ? String(t.coverCharge) : '', coverChargeNote: t.coverChargeNote ?? '', freeCutoff: t.freeCutoff ?? '', lateFeePrice: t.lateFeePrice != null ? String(t.lateFeePrice) : '' }))
                   : [emptyTier()],
               );
               setConditions((found.conditions ?? []).join('\n'));
@@ -204,7 +204,8 @@ export default function EventEditorReal() {
   // legitimately venue-hosted (existing.hostedByVenue) — creating a new
   // event, or editing an organizer-run one, still needs one picked.
   const requiresOrganizer = isCreate || !existing?.hostedByVenue;
-  const canSave = title.trim() && (privateAddress ? privateLoc.city && privateLocality.trim() : venueId) && (!requiresOrganizer || organizerId) && (isCreate ? dateTime.trim() : true);
+  const tiersValid = tiers.every((t) => !t.freeCutoff || +t.lateFeePrice > 0);
+  const canSave = title.trim() && (privateAddress ? privateLoc.city && privateLocality.trim() : venueId) && (!requiresOrganizer || organizerId) && (isCreate ? dateTime.trim() : true) && tiersValid;
   const selectedVenue = venues.find((v) => v.id === venueId);
   const venuePhotosToAdd = selectedVenue ? selectedVenue.galleryUrls.filter((u) => !galleryUrls.includes(u)) : [];
 
@@ -251,6 +252,8 @@ export default function EventEditorReal() {
       includes: t.includes,
       coverCharge: parseInt(t.coverCharge, 10) || 0,
       coverChargeNote: t.coverChargeNote.trim() || undefined,
+      freeCutoff: (parseInt(t.price, 10) || 0) === 0 && t.freeCutoff.trim() ? t.freeCutoff.trim() : undefined,
+      lateFeePrice: (parseInt(t.price, 10) || 0) === 0 && t.freeCutoff.trim() && t.lateFeePrice.trim() ? parseInt(t.lateFeePrice, 10) : undefined,
     })),
   });
 
@@ -515,6 +518,26 @@ export default function EventEditorReal() {
                 <div className="tiny muted" style={{ flexBasis: '100%' }}>
                   Guests see this ticket includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote.trim() ? ` (${t.coverChargeNote.trim()})` : ''}.
                 </div>
+              )}
+              {+t.price === 0 && (
+                <div className="field" style={{ flex: 1, minWidth: 140 }}>
+                  <label>Free until (optional)</label>
+                  <input className="input" type="time" value={t.freeCutoff} onChange={(e) => patchTier(i, { freeCutoff: e.target.value })} />
+                </div>
+              )}
+              {+t.price === 0 && t.freeCutoff && (
+                <div className="field" style={{ flex: 1, minWidth: 140 }}>
+                  <label>Price after grace period ₹</label>
+                  <input className="input" inputMode="numeric" value={t.lateFeePrice} onChange={(e) => patchTier(i, { lateFeePrice: e.target.value.replace(/\D/g, '') })} placeholder="e.g. 200" />
+                </div>
+              )}
+              {+t.price === 0 && t.freeCutoff && +t.lateFeePrice > 0 && (
+                <div className="tiny muted" style={{ flexBasis: '100%' }}>
+                  Free until {t.freeCutoff}, then a 15-min grace period — entry during grace isn't guaranteed by Prebooze, it's the organizer's call — then guests pay ₹{t.lateFeePrice} to book.
+                </div>
+              )}
+              {+t.price === 0 && t.freeCutoff && !(+t.lateFeePrice > 0) && (
+                <div className="tiny" style={{ color: 'var(--red)', flexBasis: '100%' }}>Set a price after the grace period, or clear the cutoff time</div>
               )}
               <div className="field" style={{ flexBasis: '100%' }}>
                 <label>What's included</label>

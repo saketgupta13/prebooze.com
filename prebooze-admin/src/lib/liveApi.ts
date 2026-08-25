@@ -169,6 +169,8 @@ export interface LiveTicketTier {
   sold: number;
   coverCharge: number;
   coverChargeNote: string | null;
+  freeCutoff: string | null;
+  lateFeePrice: number | null;
 }
 export interface LiveSeo { title: string; description: string; keywords: string; }
 export interface LiveLineupItem { name: string; role: string; }
@@ -244,7 +246,7 @@ export interface LiveEventInput {
   galleryUrls?: string[];
   teaserVideoUrl?: string | null;
   socialBanners?: { postUrl?: string; storyUrl?: string };
-  tiers?: { id?: string; name: string; price: number; quantity: number; description?: string; includes?: string[]; coverCharge?: number; coverChargeNote?: string }[];
+  tiers?: { id?: string; name: string; price: number; quantity: number; description?: string; includes?: string[]; coverCharge?: number; coverChargeNote?: string; freeCutoff?: string; lateFeePrice?: number }[];
 }
 export const liveEvents = {
   list: (status?: string) => liveFetch<LiveEvent[]>('/admin/events' + (status ? `?status=${status}` : '')),

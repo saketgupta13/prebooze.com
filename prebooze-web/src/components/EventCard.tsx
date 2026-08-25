@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
 import type { Event } from '../types';
-import { fmtDate, fmtTime, minPrice } from '../data/mock';
+import { fmtDate, fmtTime } from '../data/mock';
 import { useApp } from '../store/AppContext';
 import { goingCount, showGoing } from '../lib/social';
 import { isFeatured } from '../lib/featured';
 import { eventCity, eventPath } from '../lib/urls';
 import { formatFromPrice } from '../lib/formatPrice';
+import { displayMinPrice, hasCurrentlyPaidTier } from '../lib/ticketTierPricing';
 import Poster, { categoryEmoji } from './Poster';
 
 export default function EventCard({ event }: { event: Event }) {
@@ -44,7 +45,7 @@ export default function EventCard({ event }: { event: Event }) {
           {showGoing(event) && <>🔥 {going.toLocaleString('en-IN')} going</>}
         </div>
         <div className="row">
-          <span className="price">{formatFromPrice(minPrice(event), event.tiers.some((t) => t.price > 0))}</span>
+          <span className="price">{formatFromPrice(displayMinPrice(event.tiers, event.date), hasCurrentlyPaidTier(event.tiers, event.date))}</span>
           <span className={`btn btn-sm ${soldOut ? 'btn-ghost' : 'btn-pri'}`}>
             {soldOut ? 'Sold out' : 'Book now'}
           </span>

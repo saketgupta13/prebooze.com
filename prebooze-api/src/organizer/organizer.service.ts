@@ -23,6 +23,8 @@ interface TierInput {
   description?: string;
   coverCharge?: number;
   coverChargeNote?: string;
+  freeCutoff?: string;
+  lateFeePrice?: number;
 }
 
 export interface EventInput {
@@ -395,6 +397,12 @@ export class OrganizerService {
       const price = Math.max(0, Math.round(t.price));
       const coverCharge = Math.max(0, Math.round(t.coverCharge ?? 0));
       if (coverCharge > price) throw new BadRequestException(`"${t.name}"'s cover charge can't exceed its ticket price`);
+      // Time-limited free entry only makes sense on a ₹0 tier, and a
+      // cutoff with no fallback price would leave the post-window price
+      // undefined — both silently dropped rather than erroring, matching
+      // how the create/edit forms already clear them client-side too.
+      const freeCutoff = price === 0 ? t.freeCutoff : undefined;
+      const lateFeePrice = freeCutoff && t.lateFeePrice && t.lateFeePrice > 0 ? Math.round(t.lateFeePrice) : undefined;
       const common = {
         name: t.name.trim(),
         price,
@@ -403,6 +411,12 @@ export class OrganizerService {
         description: t.description,
         coverCharge,
         coverChargeNote: t.coverChargeNote,
+        // null, not undefined — this is an update()-shared object, and
+        // Prisma treats an undefined field as "leave unchanged," which
+        // would leave a stale cutoff/late-price on a tier whose price (or
+        // cutoff) was just changed away from qualifying for either.
+        freeCutoff: lateFeePrice ? freeCutoff : null,
+        lateFeePrice: lateFeePrice ?? null,
       };
       const found = t.id ? existing.find((e) => e.id === t.id) : undefined;
       if (found) {

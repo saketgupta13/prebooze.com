@@ -13,6 +13,7 @@ import { trackMeta } from '../lib/meta';
 import { eventLocation } from '../lib/venue';
 import { cityBrowse, eventCity, eventPath } from '../lib/urls';
 import { formatPrice } from '../lib/formatPrice';
+import { displayTierPrice } from '../lib/ticketTierPricing';
 
 const ABSORBED_NOTE: Record<string, string> = {
   Organizer: 'absorbed by the organizer',
@@ -196,7 +197,7 @@ export default function Checkout() {
   }, [event, selection]);
 
   const ticketCount = lines.reduce((a, l) => a + l.qty, 0);
-  const subtotal = lines.reduce((a, l) => a + l.qty * l.tier.price, 0);
+  const subtotal = lines.reduce((a, l) => a + l.qty * displayTierPrice(l.tier, event?.date ?? ''), 0);
   const fee = Math.round(ticketCount * bookingFee);
 
   const discount = useMemo(() => {
@@ -437,7 +438,7 @@ export default function Checkout() {
       items: lines.map((l) => ({
         item_id: l.tier.id,
         item_name: event ? `${event.title} — ${l.tier.name}` : l.tier.name,
-        price: l.tier.price,
+        price: event ? displayTierPrice(l.tier, event.date) : l.tier.price,
         quantity: l.qty,
       })),
     });
@@ -907,7 +908,7 @@ export default function Checkout() {
                 <span className="k">
                   {l.qty} × {l.tier.name}
                 </span>
-                <span>{formatPrice(l.qty * l.tier.price)}</span>
+                <span>{formatPrice(l.qty * displayTierPrice(l.tier, event.date))}</span>
               </div>
             ))}
             {promoterMarkupApplies && (

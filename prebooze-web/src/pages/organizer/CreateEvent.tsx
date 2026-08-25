@@ -25,9 +25,14 @@ interface TierDraft {
   description: string;
   coverCharge: string;
   coverChargeNote: string;
+  // Time-limited free entry — only meaningful when price is '0'. See
+  // prebooze-web/src/lib/ticketTierPricing.ts for the effective-price
+  // calculation guests see; empty strings = an ordinary tier, unaffected.
+  freeCutoff: string;
+  lateFeePrice: string;
 }
 
-const DEFAULT_TIERS: TierDraft[] = [{ name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '', coverCharge: '', coverChargeNote: '' }];
+const DEFAULT_TIERS: TierDraft[] = [{ name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '', coverCharge: '', coverChargeNote: '', freeCutoff: '', lateFeePrice: '' }];
 
 interface RuleDraft { title: string; body: string }
 const DEFAULT_RULES: RuleDraft[] = [
@@ -183,7 +188,7 @@ export default function CreateEvent() {
           setTeaserVideoUrl(ev.teaserVideoUrl ?? null);
           setSocialPostUrl(ev.socialBanners?.postUrl ?? '');
           setSocialStoryUrl(ev.socialBanners?.storyUrl ?? '');
-          setTiers(ev.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), includes: t.includes, description: t.description ?? '', coverCharge: t.coverCharge ? String(t.coverCharge) : '', coverChargeNote: t.coverChargeNote ?? '' })));
+          setTiers(ev.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), includes: t.includes, description: t.description ?? '', coverCharge: t.coverCharge ? String(t.coverCharge) : '', coverChargeNote: t.coverChargeNote ?? '', freeCutoff: t.freeCutoff ?? '', lateFeePrice: t.lateFeePrice != null ? String(t.lateFeePrice) : '' })));
           setConditions(ev.conditions.join('\n'));
           setRules(ev.rules.length ? ev.rules.map((r) => ({ title: r.title, body: r.body })) : DEFAULT_RULES);
           setLineupSel(ev.lineup);
@@ -234,7 +239,7 @@ export default function CreateEvent() {
   );
 
   const step1Valid = title.trim() && date && (privateAddress ? privateCity.trim() && privateLocality.trim() : venueId);
-  const tiersValid = tiers.length > 0 && tiers.every((t) => t.name.trim() && +t.price >= 0 && +t.quantity > 0);
+  const tiersValid = tiers.length > 0 && tiers.every((t) => t.name.trim() && +t.price >= 0 && +t.quantity > 0 && (!t.freeCutoff || (+t.lateFeePrice > 0)));
 
   const buildPayload = (status: 'draft' | 'pending') => ({
     id: editing?.id,
@@ -266,6 +271,11 @@ export default function CreateEvent() {
       description: t.description.trim() || undefined,
       coverCharge: t.coverCharge.trim() ? +t.coverCharge : undefined,
       coverChargeNote: t.coverChargeNote.trim() || undefined,
+      // Only meaningful (and only ever persisted) for a ₹0 tier — clears
+      // automatically if the tier's price is later changed off 0, so a
+      // stale cutoff/late-price can't linger on a now-paid tier.
+      freeCutoff: +t.price === 0 && t.freeCutoff.trim() ? t.freeCutoff.trim() : undefined,
+      lateFeePrice: +t.price === 0 && t.freeCutoff.trim() && t.lateFeePrice.trim() ? +t.lateFeePrice : undefined,
     })),
     seo: {
       title: seoTitle || `${title} | tickets`,
@@ -649,6 +659,35 @@ export default function CreateEvent() {
                   Guests see this ticket includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote.trim() ? ` (${t.coverChargeNote.trim()})` : ''}.
                 </div>
               )}
+              {+t.price === 0 && (
+                <div className="form-row" style={{ marginBottom: 6 }}>
+                  <div className="field">
+                    <span>Free until (optional)</span>
+                    <input type="time" value={t.freeCutoff} onChange={(e) => setTier(i, { freeCutoff: e.target.value })} />
+                  </div>
+                  {t.freeCutoff && (
+                    <div className="field">
+                      <span>Price after grace period ₹</span>
+                      <input
+                        value={t.lateFeePrice}
+                        onChange={(e) => setTier(i, { lateFeePrice: e.target.value })}
+                        inputMode="numeric"
+                        placeholder="e.g. 200"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+              {+t.price === 0 && t.freeCutoff && +t.lateFeePrice > 0 && (
+                <div className="tiny muted" style={{ marginBottom: 6 }}>
+                  Free until {t.freeCutoff}, then a 15-min grace period — entry during grace isn't guaranteed by Prebooze, it's the organizer's call — then guests pay ₹{t.lateFeePrice} to book.
+                </div>
+              )}
+              {+t.price === 0 && t.freeCutoff && !(+t.lateFeePrice > 0) && (
+                <div className="tiny danger-text" style={{ marginBottom: 6 }}>
+                  Set a price after the grace period, or clear the cutoff time
+                </div>
+              )}
               <div className="chip-row">
                 {Array.from(new Set([...INCLUDE_OPTIONS, ...t.includes])).map((opt) => (
                   <button
@@ -692,7 +731,7 @@ export default function CreateEvent() {
             <button
               className="chip"
               onClick={() =>
-                setTiers((prev) => [...prev, { name: 'VIP', price: '79', quantity: '50', includes: ['Entry', 'Lounge access'], description: '', coverCharge: '', coverChargeNote: '' }])
+                setTiers((prev) => [...prev, { name: 'VIP', price: '79', quantity: '50', includes: ['Entry', 'Lounge access'], description: '', coverCharge: '', coverChargeNote: '', freeCutoff: '', lateFeePrice: '' }])
               }
             >
               + Add tier

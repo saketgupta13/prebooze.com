@@ -21,8 +21,10 @@ interface TierDraft {
   description: string;
   coverCharge: string;
   coverChargeNote: string;
+  freeCutoff: string;
+  lateFeePrice: string;
 }
-const DEFAULT_TIERS: TierDraft[] = [{ name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '', coverCharge: '', coverChargeNote: '' }];
+const DEFAULT_TIERS: TierDraft[] = [{ name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '', coverCharge: '', coverChargeNote: '', freeCutoff: '', lateFeePrice: '' }];
 
 interface RuleDraft { title: string; body: string }
 const DEFAULT_RULES: RuleDraft[] = [
@@ -143,7 +145,7 @@ export default function CreateHostedEvent() {
           setPosterUrl(ev.posterUrl ?? null);
           setGalleryUrls(ev.galleryUrls ?? []);
           setTeaserVideoUrl(ev.teaserVideoUrl ?? null);
-          setTiers(ev.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), includes: t.includes, description: t.description ?? '', coverCharge: t.coverCharge ? String(t.coverCharge) : '', coverChargeNote: t.coverChargeNote ?? '' })));
+          setTiers(ev.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), includes: t.includes, description: t.description ?? '', coverCharge: t.coverCharge ? String(t.coverCharge) : '', coverChargeNote: t.coverChargeNote ?? '', freeCutoff: t.freeCutoff ?? '', lateFeePrice: t.lateFeePrice != null ? String(t.lateFeePrice) : '' })));
           setConditions(ev.conditions.join('\n'));
           setRules(ev.rules.length ? ev.rules.map((r) => ({ title: r.title, body: r.body })) : DEFAULT_RULES);
           setLineupSel(ev.lineup);
@@ -189,7 +191,7 @@ export default function CreateHostedEvent() {
   );
 
   const step1Valid = Boolean(title.trim() && date);
-  const tiersValid = tiers.length > 0 && tiers.every((t) => t.name.trim() && +t.price >= 0 && +t.quantity > 0);
+  const tiersValid = tiers.length > 0 && tiers.every((t) => t.name.trim() && +t.price >= 0 && +t.quantity > 0 && (!t.freeCutoff || (+t.lateFeePrice > 0)));
   const canSubmit = step1Valid && tiersValid;
 
   const buildPayload = (status: 'draft' | 'pending') => ({
@@ -235,6 +237,8 @@ export default function CreateHostedEvent() {
       description: t.description.trim() || undefined,
       coverCharge: t.coverCharge.trim() ? +t.coverCharge : undefined,
       coverChargeNote: t.coverChargeNote.trim() || undefined,
+      freeCutoff: +t.price === 0 && t.freeCutoff.trim() ? t.freeCutoff.trim() : undefined,
+      lateFeePrice: +t.price === 0 && t.freeCutoff.trim() && t.lateFeePrice.trim() ? +t.lateFeePrice : undefined,
     })),
     seo: {
       title: seoTitle || `${title} | tickets`,
@@ -415,6 +419,28 @@ export default function CreateHostedEvent() {
                 Guests see this ticket includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote.trim() ? ` (${t.coverChargeNote.trim()})` : ''}.
               </div>
             )}
+            {+t.price === 0 && (
+              <div className="form-row" style={{ marginBottom: 6 }}>
+                <div className="field">
+                  <span>Free until (optional)</span>
+                  <input type="time" value={t.freeCutoff} onChange={(e) => setTier(i, { freeCutoff: e.target.value })} />
+                </div>
+                {t.freeCutoff && (
+                  <div className="field">
+                    <span>Price after grace period ₹</span>
+                    <input value={t.lateFeePrice} onChange={(e) => setTier(i, { lateFeePrice: e.target.value })} inputMode="numeric" placeholder="e.g. 200" />
+                  </div>
+                )}
+              </div>
+            )}
+            {+t.price === 0 && t.freeCutoff && +t.lateFeePrice > 0 && (
+              <div className="tiny muted" style={{ marginBottom: 6 }}>
+                Free until {t.freeCutoff}, then a 15-min grace period — entry during grace isn't guaranteed by Prebooze, it's the organizer's call — then guests pay ₹{t.lateFeePrice} to book.
+              </div>
+            )}
+            {+t.price === 0 && t.freeCutoff && !(+t.lateFeePrice > 0) && (
+              <div className="tiny danger-text" style={{ marginBottom: 6 }}>Set a price after the grace period, or clear the cutoff time</div>
+            )}
             <div className="chip-row">
               {Array.from(new Set([...INCLUDE_OPTIONS, ...t.includes])).map((opt) => (
                 <button key={opt} className={`chip chip-tap ${t.includes.includes(opt) ? 'on' : ''}`} style={{ fontSize: 12, padding: '4px 11px' }}
@@ -436,7 +462,7 @@ export default function CreateHostedEvent() {
           </div>
         ))}
         <div className="chip-row" style={{ marginBottom: 6 }}>
-          <button className="chip" onClick={() => setTiers((prev) => [...prev, { name: 'VIP', price: '79', quantity: '50', includes: ['Entry', 'Lounge access'], description: '', coverCharge: '', coverChargeNote: '' }])}>+ Add tier</button>
+          <button className="chip" onClick={() => setTiers((prev) => [...prev, { name: 'VIP', price: '79', quantity: '50', includes: ['Entry', 'Lounge access'], description: '', coverCharge: '', coverChargeNote: '', freeCutoff: '', lateFeePrice: '' }])}>+ Add tier</button>
         </div>
       </div>
 
