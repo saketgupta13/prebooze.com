@@ -29,7 +29,8 @@ import { track } from '../lib/track';
 import { trackMeta } from '../lib/meta';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { formatPrice, formatFromPrice } from '../lib/formatPrice';
-import { displayTierPrice, displayMinPrice, hasCurrentlyPaidTier, tierWindowCaption } from '../lib/ticketTierPricing';
+import { displayTierPrice, displayMinPrice, hasCurrentlyPaidTier, tierWindowCaption, tierCountdownLabel } from '../lib/ticketTierPricing';
+import { useTicker } from '../lib/useTicker';
 import { useIsMobile } from '../lib/useIsMobile';
 import Poster, { categoryEmoji } from '../components/Poster';
 import TeaserReel from '../components/TeaserReel';
@@ -142,6 +143,7 @@ export default function EventDetail() {
   const [expanded, setExpanded] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [ticketBoxOpen, setTicketBoxOpen] = useState(false);
+  useTicker(); // keeps free-entry countdowns below from going stale (5-min tick)
   // Collapsible "single Book ticket button" is a mobile-only pattern — on
   // desktop the ticket box stays exactly what it always was, a normal
   // sticky sidebar showing the full tier list.
@@ -639,6 +641,11 @@ export default function EventDetail() {
                       <div className="includes">✓ {t.includes.join(' · ✓ ')}</div>
                     )}
                     {t.description && <div className="includes" style={{ marginTop: 2 }}>{t.description}</div>}
+                    {tierCountdownLabel(t, event.date) && (
+                      <div className="tiny accent" style={{ marginTop: 2, fontWeight: 700 }}>
+                        ⏳ {tierCountdownLabel(t, event.date)} left at this price
+                      </div>
+                    )}
                     {tierWindowCaption(t, event.date) && (
                       <div className="tiny muted" style={{ marginTop: 2 }}>{tierWindowCaption(t, event.date)}</div>
                     )}

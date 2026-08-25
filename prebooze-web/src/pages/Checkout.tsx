@@ -13,7 +13,8 @@ import { trackMeta } from '../lib/meta';
 import { eventLocation } from '../lib/venue';
 import { cityBrowse, eventCity, eventPath } from '../lib/urls';
 import { formatPrice } from '../lib/formatPrice';
-import { displayTierPrice } from '../lib/ticketTierPricing';
+import { displayTierPrice, tierCountdownLabel } from '../lib/ticketTierPricing';
+import { useTicker } from '../lib/useTicker';
 
 const ABSORBED_NOTE: Record<string, string> = {
   Organizer: 'absorbed by the organizer',
@@ -177,6 +178,7 @@ export default function Checkout() {
   const [guestNames, setGuestNames] = useState<string[]>([]);
   const [guestGenders, setGuestGenders] = useState<string[]>([]);
   const [guestPhones, setGuestPhones] = useState<string[]>([]);
+  useTicker(); // keeps free-entry countdowns below from going stale (5-min tick)
   const [couponInput, setCouponInput] = useState('');
   const [couponMsg, setCouponMsg] = useState<{ ok: boolean; text: string } | null>(null);
   // Separate from couponMsg — pay() used to shove attendee-field validation
@@ -914,11 +916,18 @@ export default function Checkout() {
               {fmtDate(event.date)} · {fmtTime(event.date)} · {eventLocation(event, venue)}
             </div>
             {lines.map((l) => (
-              <div key={l.tier.id} className="kv">
-                <span className="k">
-                  {l.qty} × {l.tier.name}
-                </span>
-                <span>{formatPrice(l.qty * displayTierPrice(l.tier, event.date))}</span>
+              <div key={l.tier.id}>
+                <div className="kv">
+                  <span className="k">
+                    {l.qty} × {l.tier.name}
+                  </span>
+                  <span>{formatPrice(l.qty * displayTierPrice(l.tier, event.date))}</span>
+                </div>
+                {tierCountdownLabel(l.tier, event.date) && (
+                  <div className="tiny accent" style={{ marginBottom: 4, fontWeight: 700 }}>
+                    ⏳ {tierCountdownLabel(l.tier, event.date)} left at this price
+                  </div>
+                )}
               </div>
             ))}
             {promoterMarkupApplies && (

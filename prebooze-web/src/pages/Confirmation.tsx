@@ -12,6 +12,8 @@ import { eventLocation } from '../lib/venue';
 import { copyToClipboard } from '../lib/clipboard';
 import { cityBrowse } from '../lib/urls';
 import { formatPrice } from '../lib/formatPrice';
+import { tierGraceEndDate, formatCountdownDHM } from '../lib/ticketTierPricing';
+import { useTicker } from '../lib/useTicker';
 
 export default function Confirmation() {
   const { id } = useParams();
@@ -24,6 +26,7 @@ export default function Confirmation() {
     if (!isBackendEnabled()) return;
     bookingsApi.list().then(setLiveBookings).catch(() => setLiveBookings([]));
   }, []);
+  useTicker(); // keeps the free-entry countdown below from going stale (5-min tick)
 
   const loading = isBackendEnabled() && liveBookings === null;
   const booking = (liveBookings ?? bookings).find((b) => b.id === decodeURIComponent(id ?? ''));
@@ -55,6 +58,13 @@ export default function Confirmation() {
   }
 
   const venue = event.venue ?? (event.venueId ? venueById(event.venueId) : undefined);
+  // Only for a free ticket bought under an active time-limited-entry tier —
+  // reminds the guest of the real deadline (cutoff + grace) for the door to
+  // still honor a free ticket, same guest-pass-style countdown as
+  // GuestPass.tsx uses for the exact same "arrive before this" purpose.
+  const bookedTier = event.tiers?.find((t) => t.id === booking.tierId);
+  const graceEnd = bookedTier?.freeCutoff ? tierGraceEndDate(event.date, bookedTier.freeCutoff) : null;
+  const showGateCountdown = graceEnd && Date.now() < graceEnd.getTime();
   const shareUrl = `${window.location.origin}/events/${event.slug}`;
   const visibility = user?.attendanceVisibility ?? 'off';
   const copy = async () => {
@@ -98,6 +108,25 @@ export default function Confirmation() {
             value={booking.qrToken || booking.id}
             caption={`Scan at entry — valid for ${booking.qty} guest${booking.qty > 1 ? 's' : ''}`}
           />
+          {showGateCountdown && graceEnd && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: '10px 14px',
+                borderRadius: 10,
+                border: '1.5px solid var(--accent)',
+                background: 'rgba(155,225,61,.08)',
+              }}
+            >
+              <div className="tiny muted-2">Free entry honored for</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }} className="accent">
+                {formatCountdownDHM(graceEnd.getTime())}
+              </div>
+              <div className="tiny muted-2">
+                arrive by {graceEnd.toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })} — after that it's the venue's call, not guaranteed by Prebooze
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
             <button className="btn btn-pri" onClick={() => downloadTicket(booking, event, venue)}>
               ⬇ Download ticket

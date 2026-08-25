@@ -74,6 +74,25 @@ function fmtHM(d: Date): string {
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true, timeZone: 'Asia/Kolkata' });
 }
 
+/** Always shows all three units (0d 0h 5m, not just "5m") — a live ticker
+ * (see lib/useTicker.ts) re-renders the caller every second so this stays
+ * current without a page reload. */
+export function formatCountdownDHM(targetMs: number, nowMs: number = Date.now()): string {
+  const ms = Math.max(0, targetMs - nowMs);
+  const totalMinutes = Math.floor(ms / 60000);
+  const d = Math.floor(totalMinutes / 1440);
+  const h = Math.floor((totalMinutes % 1440) / 60);
+  const m = totalMinutes % 60;
+  return `${d}d ${h}h ${m}m`;
+}
+
+/** null when there's nothing to count down — no freeCutoff, or the window's
+ * already closed (it's just a normal paid tier at that point). */
+export function tierCountdownLabel(tier: TicketTier, eventDate: string): string | null {
+  if (!tier.freeCutoff || tierWindowState(tier, eventDate) !== 'free') return null;
+  return formatCountdownDHM(tierCutoffDate(eventDate, tier.freeCutoff).getTime());
+}
+
 /** null when there's nothing worth saying (no freeCutoff, or the window's
  * already closed and it's just a normal paid tier at that point). */
 export function tierWindowCaption(tier: TicketTier, eventDate: string): string | null {
