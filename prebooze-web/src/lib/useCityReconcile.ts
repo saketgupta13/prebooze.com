@@ -36,6 +36,9 @@ export function useCityReconcile(entityCityName: string | undefined, correctPath
     }
     tag.setAttribute('href', absoluteUrl(correctPath));
 
-    navigate(correctPath, { replace: true });
+    // Preserve any query string (e.g. a review-reminder's ?event=, utm
+    // params) — this redirect only corrects the path's city segment, it
+    // isn't meant to drop whatever the visitor arrived with.
+    navigate({ pathname: correctPath, search: window.location.search }, { replace: true });
   }, [entityCityName, correctPath, urlCitySlug, navigate]);
 }
