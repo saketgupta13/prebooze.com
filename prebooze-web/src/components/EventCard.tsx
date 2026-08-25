@@ -5,6 +5,7 @@ import { useApp } from '../store/AppContext';
 import { goingCount, showGoing } from '../lib/social';
 import { isFeatured } from '../lib/featured';
 import { eventCity, eventPath } from '../lib/urls';
+import { formatFromPrice } from '../lib/formatPrice';
 import Poster, { categoryEmoji } from './Poster';
 
 export default function EventCard({ event }: { event: Event }) {
@@ -43,7 +44,7 @@ export default function EventCard({ event }: { event: Event }) {
           {showGoing(event) && <>🔥 {going.toLocaleString('en-IN')} going</>}
         </div>
         <div className="row">
-          <span className="price">{minPrice(event) === 0 ? 'Free' : `from ₹${minPrice(event)}`}</span>
+          <span className="price">{formatFromPrice(minPrice(event), event.tiers.some((t) => t.price > 0))}</span>
           <span className={`btn btn-sm ${soldOut ? 'btn-ghost' : 'btn-pri'}`}>
             {soldOut ? 'Sold out' : 'Book now'}
           </span>

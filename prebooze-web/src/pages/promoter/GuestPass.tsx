@@ -9,7 +9,7 @@ import { usePlatformInfo } from '../../lib/usePlatformInfo';
 import QRCode from '../../components/QRCode';
 import Loader from '../../components/Loader';
 import { eventCity, eventPath } from '../../lib/urls';
-import { formatPrice } from '../../lib/formatPrice';
+import { formatFromPrice } from '../../lib/formatPrice';
 
 /** The guest's free-entry pass — a QR that rotates every few seconds (screenshot-proof)
  * and is only valid before the cutoff. After the cutoff it flips to a paid-ticket CTA.
@@ -137,7 +137,7 @@ export default function GuestPass() {
               still grab a ticket and come in.
             </p>
             <Link to={`${eventPath(eventCity(event) ?? 'Hyderabad', event.slug)}?ref=${pass.promoterSlug}`} className="btn btn-pri btn-lg">
-              Get a ticket — {minPrice(event) === 0 ? formatPrice(0) : `from ₹${minPrice(event)}`} →
+              Get a ticket — {formatFromPrice(minPrice(event), event.tiers.some((t) => t.price > 0))} →
             </Link>
           </div>
         )}
