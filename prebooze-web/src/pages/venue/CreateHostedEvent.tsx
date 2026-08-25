@@ -72,6 +72,7 @@ export default function CreateHostedEvent() {
   const [ownVenueGallery, setOwnVenueGallery] = useState<string[]>([]);
 
   const [tiers, setTiers] = useState<TierDraft[]>(DEFAULT_TIERS);
+  const [customIncludeInputs, setCustomIncludeInputs] = useState<Record<number, string>>({});
 
   const [conditions, setConditions] = useState('Photo ID required\nNo re-entry');
   const [rules, setRules] = useState<RuleDraft[]>(DEFAULT_RULES);
@@ -173,6 +174,14 @@ export default function CreateHostedEvent() {
     setLineupSel((prev) => (prev.some((x) => x.name === l.name) ? prev.filter((x) => x.name !== l.name) : [...prev, l]));
   const setRule = (i: number, patch: Partial<RuleDraft>) => setRules((prev) => prev.map((r, x) => (x === i ? { ...r, ...patch } : r)));
   const setTier = (i: number, patch: Partial<TierDraft>) => setTiers((prev) => prev.map((t, x) => (x === i ? { ...t, ...patch } : t)));
+
+  const addCustomInclude = (i: number) => {
+    const val = (customIncludeInputs[i] ?? '').trim();
+    if (!val) return;
+    const t = tiers[i];
+    if (!t.includes.includes(val)) setTier(i, { includes: [...t.includes, val] });
+    setCustomIncludeInputs((prev) => ({ ...prev, [i]: '' }));
+  };
 
   const slug = useMemo(
     () => (seoSlug || title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
@@ -407,12 +416,22 @@ export default function CreateHostedEvent() {
               </div>
             )}
             <div className="chip-row">
-              {INCLUDE_OPTIONS.map((opt) => (
+              {Array.from(new Set([...INCLUDE_OPTIONS, ...t.includes])).map((opt) => (
                 <button key={opt} className={`chip chip-tap ${t.includes.includes(opt) ? 'on' : ''}`} style={{ fontSize: 12, padding: '4px 11px' }}
                   onClick={() => setTier(i, { includes: t.includes.includes(opt) ? t.includes.filter((x) => x !== opt) : [...t.includes, opt] })}>
                   {opt}{t.includes.includes(opt) ? ' ✓' : ''}
                 </button>
               ))}
+            </div>
+            <div className="chip-row" style={{ marginTop: 6 }}>
+              <input
+                value={customIncludeInputs[i] ?? ''}
+                onChange={(e) => setCustomIncludeInputs((prev) => ({ ...prev, [i]: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomInclude(i); } }}
+                placeholder="Add custom…"
+                style={{ fontSize: 12, padding: '4px 10px', flex: 1, minWidth: 100 }}
+              />
+              <button type="button" className="chip chip-tap" style={{ fontSize: 12, padding: '4px 11px' }} onClick={() => addCustomInclude(i)}>+ Add</button>
             </div>
           </div>
         ))}
@@ -426,7 +445,7 @@ export default function CreateHostedEvent() {
           <span>Event conditions (one per line — shown as bullets)</span>
           <textarea value={conditions} onChange={(e) => setConditions(e.target.value)} />
         </div>
-        <h3 style={{ margin: '6px 0 10px' }}>Party rules</h3>
+        <h3 style={{ margin: '6px 0 10px' }}>Event rules</h3>
         {rules.map((r, i) => (
           <div key={i} className="form-row" style={{ alignItems: 'center' }}>
             <div className="field" style={{ flex: '0 0 160px' }}>

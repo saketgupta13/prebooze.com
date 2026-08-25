@@ -88,6 +88,7 @@ export default function CreateEvent() {
 
   // Step 2 — tickets
   const [tiers, setTiers] = useState<TierDraft[]>(DEFAULT_TIERS);
+  const [customIncludeInputs, setCustomIncludeInputs] = useState<Record<number, string>>({});
 
   // Step 3 — rules & lineup
   const [conditions, setConditions] = useState('Photo ID required\nNo re-entry');
@@ -307,6 +308,14 @@ export default function CreateEvent() {
   const venuePhotosToAdd = (venue?.galleryUrls ?? []).filter((u) => !galleryUrls.includes(u));
   const setTier = (i: number, patch: Partial<TierDraft>) =>
     setTiers((prev) => prev.map((t, x) => (x === i ? { ...t, ...patch } : t)));
+
+  const addCustomInclude = (i: number) => {
+    const val = (customIncludeInputs[i] ?? '').trim();
+    if (!val) return;
+    const t = tiers[i];
+    if (!t.includes.includes(val)) setTier(i, { includes: [...t.includes, val] });
+    setCustomIncludeInputs((prev) => ({ ...prev, [i]: '' }));
+  };
 
   if (!ready) return <Loader />;
 
@@ -641,7 +650,7 @@ export default function CreateEvent() {
                 </div>
               )}
               <div className="chip-row">
-                {INCLUDE_OPTIONS.map((opt) => (
+                {Array.from(new Set([...INCLUDE_OPTIONS, ...t.includes])).map((opt) => (
                   <button
                     key={opt}
                     className={`chip chip-tap ${t.includes.includes(opt) ? 'on' : ''}`}
@@ -658,6 +667,23 @@ export default function CreateEvent() {
                     {t.includes.includes(opt) ? ' ✓' : ''}
                   </button>
                 ))}
+              </div>
+              <div className="chip-row" style={{ marginTop: 6 }}>
+                <input
+                  value={customIncludeInputs[i] ?? ''}
+                  onChange={(e) => setCustomIncludeInputs((prev) => ({ ...prev, [i]: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addCustomInclude(i);
+                    }
+                  }}
+                  placeholder="Add custom…"
+                  style={{ fontSize: 12, padding: '4px 10px', flex: 1, minWidth: 100 }}
+                />
+                <button type="button" className="chip chip-tap" style={{ fontSize: 12, padding: '4px 11px' }} onClick={() => addCustomInclude(i)}>
+                  + Add
+                </button>
               </div>
             </div>
           ))}
@@ -690,7 +716,7 @@ export default function CreateEvent() {
             <span>Event conditions (one per line — shown as bullets)</span>
             <textarea value={conditions} onChange={(e) => setConditions(e.target.value)} />
           </div>
-          <h3 style={{ margin: '6px 0 10px' }}>Party rules (accordions on event page)</h3>
+          <h3 style={{ margin: '6px 0 10px' }}>Event rules (accordions on event page)</h3>
           {rules.map((r, i) => (
             <div key={i} className="form-row" style={{ alignItems: 'center' }}>
               <div className="field" style={{ flex: '0 0 160px' }}>

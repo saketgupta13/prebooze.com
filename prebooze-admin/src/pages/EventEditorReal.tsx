@@ -93,6 +93,7 @@ export default function EventEditorReal() {
   const [durationHrs, setDurationHrs] = useState('4');
   const [ageLimit, setAgeLimit] = useState('18+');
   const [tiers, setTiers] = useState<TierDraft[]>([emptyTier()]);
+  const [customIncludeInputs, setCustomIncludeInputs] = useState<Record<number, string>>({});
   const [conditions, setConditions] = useState('');
   const [rules, setRules] = useState<RuleDraft[]>(DEFAULT_RULES);
   const [commission, setCommissionState] = useState('10');
@@ -317,6 +318,14 @@ export default function EventEditorReal() {
     }
   };
   const patchTier = (i: number, p: Partial<TierDraft>) => setTiers((prev) => prev.map((t, x) => (x === i ? { ...t, ...p } : t)));
+
+  const addCustomInclude = (i: number) => {
+    const val = (customIncludeInputs[i] ?? '').trim();
+    if (!val) return;
+    const t = tiers[i];
+    if (!t.includes.includes(val)) patchTier(i, { includes: [...t.includes, val] });
+    setCustomIncludeInputs((prev) => ({ ...prev, [i]: '' }));
+  };
   const patchRule = (i: number, p: Partial<RuleDraft>) => setRules((prev) => prev.map((r, x) => (x === i ? { ...r, ...p } : r)));
 
   if (loading) return <div className="stack fade"><div className="tiny muted">Loading…</div></div>;
@@ -510,7 +519,7 @@ export default function EventEditorReal() {
               <div className="field" style={{ flexBasis: '100%' }}>
                 <label>What's included</label>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {INCLUDE_OPTIONS.map((opt) => (
+                  {Array.from(new Set([...INCLUDE_OPTIONS, ...t.includes])).map((opt) => (
                     <button
                       key={opt}
                       type="button"
@@ -520,6 +529,17 @@ export default function EventEditorReal() {
                       {opt}{t.includes.includes(opt) ? ' ✓' : ''}
                     </button>
                   ))}
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  <input
+                    className="input"
+                    value={customIncludeInputs[i] ?? ''}
+                    onChange={(e) => setCustomIncludeInputs((prev) => ({ ...prev, [i]: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomInclude(i); } }}
+                    placeholder="Add custom…"
+                    style={{ fontSize: 12, padding: '4px 10px', flex: 1, minWidth: 100 }}
+                  />
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => addCustomInclude(i)}>+ Add</button>
                 </div>
               </div>
             </div>
@@ -607,7 +627,7 @@ export default function EventEditorReal() {
             <textarea className="input" style={{ minHeight: 120, resize: 'vertical' }} value={conditions} onChange={(e) => setConditions(e.target.value)} placeholder={'Photo ID required\nNo re-entry'} />
           </div>
           <div>
-            <b style={{ fontSize: 13 }}>Party rules (accordions on the event page)</b>
+            <b style={{ fontSize: 13 }}>Event rules (accordions on the event page)</b>
             <div className="stack" style={{ gap: 8, marginTop: 8 }}>
               {rules.map((r, i) => (
                 <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
