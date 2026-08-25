@@ -11,15 +11,26 @@ const GRACE_MINUTES = 15;
 
 export type TierWindowState = 'always' | 'free' | 'grace' | 'closed';
 
+// Prebooze is India-only — "20:00" on a tier always means 8 PM IST, a
+// fixed UTC+5:30 offset (India has no DST). Must NOT use Date's local
+// setHours()/getHours(): this same code runs in every guest's browser,
+// in whatever timezone their device happens to be set to (confirmed via
+// a real cross-timezone test — a browser in a non-IST zone computed a
+// cutoff hours away from what the IST-assuming server computed for the
+// exact same "HH:MM"). Date.UTC()/getUTC* are timezone-independent, so
+// the IST offset is applied explicitly and by hand instead.
+const IST_OFFSET_MIN = 5.5 * 60;
+
 /** Same "HH:MM on event night, next day if earlier than start" formula as
- * lib/promoterPass.ts's cutoffDate(). */
+ * lib/promoterPass.ts's cutoffDate() — but IST-anchored (see
+ * IST_OFFSET_MIN above) rather than local-time-based. */
 export function tierCutoffDate(eventDate: string, freeCutoff: string): Date {
-  const start = new Date(eventDate);
+  const eventIstMs = new Date(eventDate).getTime() + IST_OFFSET_MIN * 60000;
+  const eventIst = new Date(eventIstMs);
   const [h, m] = freeCutoff.split(':').map(Number);
-  const c = new Date(start);
-  c.setHours(h, m, 0, 0);
-  if (c.getTime() < start.getTime()) c.setDate(c.getDate() + 1);
-  return c;
+  const cutoffIst = new Date(Date.UTC(eventIst.getUTCFullYear(), eventIst.getUTCMonth(), eventIst.getUTCDate(), h, m, 0, 0));
+  if (cutoffIst.getTime() < eventIst.getTime()) cutoffIst.setUTCDate(cutoffIst.getUTCDate() + 1);
+  return new Date(cutoffIst.getTime() - IST_OFFSET_MIN * 60000);
 }
 
 export function tierGraceEndDate(eventDate: string, freeCutoff: string): Date {
@@ -54,8 +65,12 @@ export function hasCurrentlyPaidTier(tiers: TicketTier[], eventDate: string): bo
   return tiers.some((t) => displayTierPrice(t, eventDate) > 0);
 }
 
+// Always shown in IST regardless of the guest's own device timezone — the
+// cutoff was typed by the organizer as an IST wall-clock time, so a guest
+// viewing from outside India should still see the same "8:00 PM" the
+// organizer meant, not their own local equivalent.
 function fmtHM(d: Date): string {
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true, timeZone: 'Asia/Kolkata' });
 }
 
 /** null when there's nothing worth saying (no freeCutoff, or the window's

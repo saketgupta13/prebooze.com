@@ -16,14 +16,27 @@ export interface TierPricingInput {
 
 export type TierWindowState = 'always' | 'free' | 'grace' | 'closed';
 
+// Prebooze is India-only — "20:00" on an organizer's tier always means
+// 8 PM IST, a fixed UTC+5:30 offset (India has no DST). Must NOT use
+// Date's local setHours()/getHours() here: this same code runs on the
+// server (UTC) and in every guest's browser (whatever timezone their
+// device is set to) — local-time math would make "20:00" resolve to a
+// different absolute instant on each side, silently shifting the real
+// cutoff by hours depending on who's computing it. Date.UTC()/getUTC*
+// are timezone-independent, so the IST offset is applied explicitly and
+// by hand instead, giving every caller everywhere the same answer.
+const IST_OFFSET_MIN = 5.5 * 60;
+
 /** Same "HH:MM on event night, next day if earlier than start" formula as
- * lib/promoterPass.ts's cutoffDate() / promoter.service.ts's cutoffDate(). */
+ * lib/promoterPass.ts's cutoffDate() / promoter.service.ts's cutoffDate() —
+ * but IST-anchored (see IST_OFFSET_MIN above) rather than local-time-based. */
 export function tierCutoffDate(eventDate: Date, freeCutoff: string): Date {
+  const eventIstMs = eventDate.getTime() + IST_OFFSET_MIN * 60000;
+  const eventIst = new Date(eventIstMs);
   const [h, m] = freeCutoff.split(':').map(Number);
-  const c = new Date(eventDate);
-  c.setHours(h, m, 0, 0);
-  if (c.getTime() < eventDate.getTime()) c.setDate(c.getDate() + 1);
-  return c;
+  const cutoffIst = new Date(Date.UTC(eventIst.getUTCFullYear(), eventIst.getUTCMonth(), eventIst.getUTCDate(), h, m, 0, 0));
+  if (cutoffIst.getTime() < eventIst.getTime()) cutoffIst.setUTCDate(cutoffIst.getUTCDate() + 1);
+  return new Date(cutoffIst.getTime() - IST_OFFSET_MIN * 60000);
 }
 
 export function tierGraceEndDate(eventDate: Date, freeCutoff: string): Date {
