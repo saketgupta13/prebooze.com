@@ -12,6 +12,13 @@ const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService/OrganizerService — 
 // output shape ("+91 XXXXXXXXXX").
 const TEST_PHONE_NUMBERS = ['+91 9579573727', '+91 8788003601'];
 
+// Same formula as CatalogService.isEventOver — a cart for an event that's
+// already finished isn't a recoverable abandonment, there's nothing left
+// to nudge the guest back to book.
+function isEventOver(e: { date: Date; durationHrs: number }): boolean {
+  return new Date(e.date.getTime() + e.durationHrs * 3600000) < new Date();
+}
+
 @Injectable()
 export class CartsService {
   private readonly log = new Logger('Carts');
@@ -29,10 +36,10 @@ export class CartsService {
   async list(eventId?: string) {
     const carts = await this.prisma.cart.findMany({
       where: { status: 'active', user: { phone: { notIn: TEST_PHONE_NUMBERS } }, ...(eventId ? { eventId } : {}) },
-      include: { user: { select: { name: true, phone: true } }, event: { select: { title: true } } },
+      include: { user: { select: { name: true, phone: true } }, event: { select: { title: true, date: true, durationHrs: true } } },
       orderBy: { createdAt: 'desc' },
     });
-    return carts.map((c) => ({
+    return carts.filter((c) => !isEventOver(c.event)).map((c) => ({
       id: c.id,
       guest: c.user.name || c.user.phone,
       phone: c.user.phone,
@@ -49,10 +56,14 @@ export class CartsService {
    * booking (BookingsService.create flips status to 'completed'); there's
    * no separate "abandoned" status, every non-completed cart is still live. */
   async stats() {
-    const [open, completed] = await Promise.all([
-      this.prisma.cart.findMany({ where: { status: 'active', user: { phone: { notIn: TEST_PHONE_NUMBERS } } }, select: { total: true } }),
+    const [openRows, completed] = await Promise.all([
+      this.prisma.cart.findMany({
+        where: { status: 'active', user: { phone: { notIn: TEST_PHONE_NUMBERS } } },
+        select: { total: true, event: { select: { date: true, durationHrs: true } } },
+      }),
       this.prisma.cart.findMany({ where: { status: 'completed', user: { phone: { notIn: TEST_PHONE_NUMBERS } } }, select: { total: true } }),
     ]);
+    const open = openRows.filter((c) => !isEventOver(c.event));
     const recoverable = open.reduce((a, c) => a + c.total, 0);
     const recoveredValue = completed.reduce((a, c) => a + c.total, 0);
     const totalSeen = open.length + completed.length;
@@ -103,10 +114,12 @@ export class CartsService {
    * got a manual reminder isn't double-nudged). Driven by CronService. */
   async sendAutoNudges() {
     const cutoff = new Date(Date.now() - HOLD_TTL_MS);
-    const carts = await this.prisma.cart.findMany({
+    const rows = await this.prisma.cart.findMany({
       where: { status: 'active', remindedAt: null, createdAt: { lt: cutoff }, user: { phone: { notIn: TEST_PHONE_NUMBERS } } },
-      select: { id: true },
+      select: { id: true, event: { select: { date: true, durationHrs: true } } },
     });
+    // No point nudging a guest back to book an event that's already over.
+    const carts = rows.filter((c) => !isEventOver(c.event));
     for (const c of carts) {
       await this.remind(c.id).catch((err) => this.log.warn(`Auto-nudge for cart ${c.id} failed: ${(err as Error).message}`));
     }
