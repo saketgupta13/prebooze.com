@@ -13,8 +13,8 @@ export class AdminCartsController {
 
   @Get()
   @RequirePermission(MODULE, 'view')
-  list(@Query('eventId') eventId?: string) {
-    return this.carts.list(eventId);
+  list(@Query('eventId') eventId?: string, @Query('past') past?: string) {
+    return this.carts.list(eventId, past === 'true');
   }
 
   @Get('stats')

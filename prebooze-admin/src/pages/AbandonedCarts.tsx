@@ -41,7 +41,7 @@ export default function AbandonedCarts() {
   const load = () => {
     setLoading(true);
     setErr('');
-    Promise.all([liveCarts.list(), liveCarts.stats(), liveEvents.list()])
+    Promise.all([liveCarts.list(undefined, scope === 'past'), liveCarts.stats(), liveEvents.list()])
       .then(([c, s, e]) => {
         setCarts(c);
         setStats(s);
@@ -54,21 +54,13 @@ export default function AbandonedCarts() {
   useEffect(() => {
     if (token) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, scope]);
 
   const eventTitle = (id: string) => events.find((e) => e.id === id)?.title ?? id;
-  const eventDate = (id: string) => events.find((e) => e.id === id)?.date;
 
-  const scoped = useMemo(() => {
-    const now = Date.now();
-    return carts.filter((c) => {
-      const date = eventDate(c.eventId);
-      if (!date) return true; // unknown event — don't hide it in either scope
-      const isPast = new Date(date).getTime() < now;
-      return scope === 'live' ? !isPast : isPast;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carts, events, scope]);
+  // The live/past split now happens server-side (CartsService.list's `past`
+  // param) — carts is already scoped to whichever tab is active.
+  const scoped = carts;
 
   const filtered = useMemo(() => {
     let l = scoped;

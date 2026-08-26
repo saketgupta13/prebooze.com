@@ -33,13 +33,18 @@ export class CartsService {
    * OrganizerService.remindCart(), which is scoped to one organizer's own
    * events. Admin oversight, same "closes the loop" reasoning as the rest
    * of this mega-domain. */
-  async list(eventId?: string) {
+  /** `past` splits the same underlying list into two tabs on the admin
+   * side — a cart for an event that's already happened isn't actionable
+   * the way a current one is (nothing left to nudge the guest back to),
+   * but it's still worth being able to look at rather than only ever
+   * hard-deleting it from view. */
+  async list(eventId?: string, past = false) {
     const carts = await this.prisma.cart.findMany({
       where: { status: 'active', user: { phone: { notIn: TEST_PHONE_NUMBERS } }, ...(eventId ? { eventId } : {}) },
       include: { user: { select: { name: true, phone: true } }, event: { select: { title: true, date: true, durationHrs: true } } },
       orderBy: { createdAt: 'desc' },
     });
-    return carts.filter((c) => !isEventOver(c.event)).map((c) => ({
+    return carts.filter((c) => isEventOver(c.event) === past).map((c) => ({
       id: c.id,
       guest: c.user.name || c.user.phone,
       phone: c.user.phone,

@@ -1210,7 +1210,13 @@ export const liveGuestList = {
 export interface LiveCart { id: string; guest: string; phone: string; eventId: string; eventTitle: string; amount: number; reminded: boolean; createdAt: string; }
 export interface LiveCartStats { openCount: number; recoverable: number; recoveredCount: number; recoveredValue: number; recoveryRate: number; }
 export const liveCarts = {
-  list: (eventId?: string) => liveFetch<LiveCart[]>('/admin/carts' + (eventId ? `?eventId=${eventId}` : '')),
+  list: (eventId?: string, past?: boolean) => {
+    const params = new URLSearchParams();
+    if (eventId) params.set('eventId', eventId);
+    if (past) params.set('past', 'true');
+    const qs = params.toString();
+    return liveFetch<LiveCart[]>('/admin/carts' + (qs ? `?${qs}` : ''));
+  },
   stats: () => liveFetch<LiveCartStats>('/admin/carts/stats'),
   remind: (id: string) => liveFetch<{ ok: true }>(`/admin/carts/${id}/remind`, { method: 'POST' }),
   bulkRemind: (ids: string[]) => liveFetch<{ ok: true; count: number }>('/admin/carts/bulk-remind', { body: { ids } }),

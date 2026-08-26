@@ -62,6 +62,16 @@ export default function Checkout() {
 
   const event = liveEvent ?? (selection ? (eventById(selection.eventId) ?? myEvents.find((e) => e.id === selection.eventId)) : undefined);
 
+  // Real duplicate-booking catch: a real guest booked the same free tier
+  // for the same event twice, 18 minutes apart, under the identical name —
+  // almost certainly not on purpose. Surfaces what this account already
+  // has for this exact event so it's a decision, not a silent repeat.
+  const [myEventBookings, setMyEventBookings] = useState<Booking[]>([]);
+  useEffect(() => {
+    if (!event || !isBackendEnabled()) return;
+    bookings.list().then((all) => setMyEventBookings(all.filter((b) => b.eventId === event.id && b.status === 'confirmed'))).catch(() => {});
+  }, [event?.id]);
+
   // ---- available promo codes for this event — event-specific organizer
   // codes plus platform-wide ones (Coupon.organizerId null), same
   // eligibility rules the real apply already enforces (BookingsService.
@@ -679,6 +689,23 @@ export default function Checkout() {
             {/* Attendee details */}
             <div id="attendee-details" className="card" style={{ marginBottom: 18 }}>
               <h3 style={{ marginBottom: 14 }}>Attendee details</h3>
+              {myEventBookings.length > 0 && (() => {
+                const dup = myEventBookings.find((b) => b.mainGuest.trim().toLowerCase() === name.trim().toLowerCase());
+                const existing = dup ?? myEventBookings[0];
+                return (
+                  <div
+                    className="dashed-box"
+                    style={{
+                      marginBottom: 14, padding: '10px 12px', borderRadius: 10, fontSize: 12.5,
+                      border: `1.5px dashed ${dup ? 'var(--danger)' : 'var(--border-dash)'}`,
+                    }}
+                  >
+                    {dup
+                      ? <>⚠ You already booked this event as <b>{existing.mainGuest}</b> — {existing.tierName}, Booking {existing.id}. Still want another ticket for the same person?</>
+                      : <>✓ You already have a booking for this event ({existing.tierName}, {existing.mainGuest}, Booking {existing.id}). This new one will be for <b>{name.trim() || 'the attendee below'}</b>.</>}
+                  </div>
+                );
+              })()}
               {!showMainFields ? (
                 <>
                   <div className="field" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, width: '100%' }}>
