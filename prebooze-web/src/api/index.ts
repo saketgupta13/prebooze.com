@@ -214,6 +214,10 @@ export interface AvailableCoupon {
 export interface CreateBookingInput {
   holdId: string;
   mainGuest: string;
+  // Real 2026-08-27 bug: Checkout.tsx collected and required this but
+  // never actually sent it — confirmed against production data, every
+  // extra guest had gender saved, the main attendee never did.
+  mainGuestGender?: string;
   whatsapp: string;
   guests?: { name: string; gender?: string; whatsapp?: string }[];
   couponCode?: string;

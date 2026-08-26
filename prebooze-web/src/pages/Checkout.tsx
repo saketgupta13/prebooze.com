@@ -515,6 +515,7 @@ export default function Checkout() {
         bookings.create({
           holdId,
           mainGuest: name.trim(),
+          mainGuestGender: gender || undefined,
           whatsapp: whatsapp.trim(),
           guests: guestsPayload,
           couponCode: appliedCode ?? undefined,
@@ -535,6 +536,7 @@ export default function Checkout() {
         bookings.prepare({
           holdId,
           mainGuest: name.trim(),
+          mainGuestGender: gender || undefined,
           whatsapp: whatsapp.trim(),
           guests: guestsPayload,
           couponCode: appliedCode ?? undefined,
