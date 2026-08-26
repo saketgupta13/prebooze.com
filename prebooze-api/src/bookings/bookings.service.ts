@@ -14,6 +14,7 @@ import { REFERRAL_REFERRER_REWARD, uniqueReferralCodeFor } from '../referrals/re
 import { NotificationsService } from '../admin/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { effectiveTierPrice } from '../common/ticket-tier-pricing';
+import { partySizeFromTierName } from '../common/party-size';
 import { normalizePhone } from '../auth/auth.service';
 import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from '../auth/guest-username';
 import { StaffAlertsService } from '../notifications/staff-alerts';
@@ -282,6 +283,17 @@ export class BookingsService {
     const { event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies, fee, discount, couponRow, walletCreditUsed, total } =
       await this.priceHold(userId, input.holdId, input.couponCode, input.walletCredit, input.promoterRef);
 
+    // A tier like "Couple" or "Group of 5" admits more than one person per
+    // ticket — the guest list must have a name for every one of them, not
+    // just one per ticket unit, or a Couple booking silently loses track of
+    // who the second person is (real incident: two Couple bookings for the
+    // same event both only recorded the buyer's own name).
+    const expectedHeadcount = lines.reduce((a, l) => a + l.qty * partySizeFromTierName(l.tier.name), 0);
+    const providedHeadcount = 1 + (input.guests ?? []).length;
+    if (providedHeadcount !== expectedHeadcount) {
+      throw new BadRequestException(`This booking needs a name for all ${expectedHeadcount} attendee${expectedHeadcount > 1 ? 's' : ''} — got ${providedHeadcount}`);
+    }
+
     // ---- payment ----
     let paymentId: string | null = null;
     if (total > 0) {
@@ -537,9 +549,10 @@ export class BookingsService {
     const total = subtotal + fee;
 
     const id = '#TKT-' + randomInt(10000, 99999);
+    const partySize = partySizeFromTierName(tier.name);
     const guests = [
       { name: input.guestName.trim(), checkedIn: false, gender: input.gender },
-      ...(input.others ?? []).slice(0, input.qty - 1).filter((o) => o.name?.trim()).map((o) => ({ name: o.name.trim(), checkedIn: false, gender: o.gender, whatsapp: o.whatsapp })),
+      ...(input.others ?? []).slice(0, input.qty * partySize - 1).filter((o) => o.name?.trim()).map((o) => ({ name: o.name.trim(), checkedIn: false, gender: o.gender, whatsapp: o.whatsapp })),
     ];
     const qrToken = await this.jwt.signAsync({ bookingId: id }, { expiresIn: '30d' });
 

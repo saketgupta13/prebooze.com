@@ -2,7 +2,7 @@ import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import type { Booking, Event, Venue } from '@prisma/client';
 
-type TicketBooking = Pick<Booking, 'id' | 'qrToken' | 'tierName' | 'mainGuest' | 'qty'>;
+type TicketBooking = Pick<Booking, 'id' | 'qrToken' | 'tierName' | 'mainGuest' | 'qty' | 'guests'>;
 
 const GREEN = '#8bc34a';
 const DARK = '#14150f';
@@ -17,6 +17,9 @@ const MUTED = '#9a9d8c';
  * email PDF, My Bookings page). */
 export async function ticketPdfBuffer(booking: TicketBooking, event: Event, venue: Venue | null): Promise<Buffer> {
   const qrDataUrl = await QRCode.toDataURL(booking.qrToken || booking.id, { errorCorrectionLevel: 'H', margin: 1 });
+  // Headcount, not ticket count — a "Couple"/"Group of N" tier's `qty` is
+  // ticket units, but `guests` is one entry per actual person admitted.
+  const headcount = Array.isArray(booking.guests) ? booking.guests.length : booking.qty;
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: [320, 480], margin: 0 });
@@ -43,7 +46,7 @@ export async function ticketPdfBuffer(booking: TicketBooking, event: Event, venu
     y += 14;
     doc.text(booking.tierName, 24, y, { width: 272 });
     y += 14;
-    doc.text(`${booking.mainGuest} · ${booking.qty} guest${booking.qty > 1 ? 's' : ''}`, 24, y, { width: 272 });
+    doc.text(`${booking.mainGuest} · ${headcount} guest${headcount > 1 ? 's' : ''}`, 24, y, { width: 272 });
     y += 22;
 
     doc.moveTo(24, y).lineTo(296, y).dash(4, { space: 4 }).strokeColor('#3a3d30').stroke();
@@ -59,7 +62,7 @@ export async function ticketPdfBuffer(booking: TicketBooking, event: Event, venu
     y += 14;
     doc.fillColor(GREEN).fontSize(13).font('Helvetica-Bold').text(booking.id, 24, y, { width: 272, align: 'center' });
     y += 20;
-    doc.fillColor(MUTED).fontSize(8).font('Helvetica').text(`Scan at entry · valid for ${booking.qty} guest${booking.qty > 1 ? 's' : ''} · carry a photo ID`, 24, y, { width: 272, align: 'center' });
+    doc.fillColor(MUTED).fontSize(8).font('Helvetica').text(`Scan at entry · valid for ${headcount} guest${headcount > 1 ? 's' : ''} · carry a photo ID`, 24, y, { width: 272, align: 'center' });
     y += 12;
     doc.text('prebooze.com', 24, y, { width: 272, align: 'center' });
 
