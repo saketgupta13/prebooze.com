@@ -9,6 +9,7 @@ import ChangePhoneNumber from '../components/ChangePhoneNumber';
 import { auth } from '../api';
 import { ApiError } from '../api/client';
 import { SOCIAL_PLATFORMS, type SocialLinks } from '../types';
+import { ageFromDob } from '../lib/ageGate';
 
 export default function EditProfile() {
   const { user, updateUser } = useApp();
@@ -37,6 +38,13 @@ export default function EditProfile() {
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  // Live from whatever's currently typed in the dob field above — falls
+  // back to the stored value (which may have come from checkout's age
+  // confirmation, not a dob at all) once that field is blank. Never itself
+  // editable; age.ts's backend equivalent is what actually locks this in
+  // on save.
+  const displayAge = (form.dob.trim() ? ageFromDob(form.dob.trim()) : null) ?? user.age;
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +99,7 @@ export default function EditProfile() {
             <div className="field">
               <span>Date of birth</span>
               <input type="date" value={form.dob} onChange={set('dob')} />
+              {displayAge != null && <div className="tiny muted" style={{ marginTop: 4 }}>Age {displayAge}</div>}
             </div>
             <div className="field">
               <span>Gender</span>

@@ -8,6 +8,7 @@ import { RealUploadBox } from '../components/RealUploadBox';
 import { auth } from '../api';
 import { ApiError } from '../api/client';
 import { SOCIAL_PLATFORMS, type SocialLinks } from '../types';
+import { ageFromDob } from '../lib/ageGate';
 
 /** Soft-required "finish your profile" step — everything ProfileCompletion.tsx
  * used to force before a guest's first booking, moved here instead. Getting
@@ -134,6 +135,9 @@ export default function FinishProfile() {
             <div className="field">
               <span>Date of birth *</span>
               <input required type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+              {dob.trim() && ageFromDob(dob.trim()) != null && (
+                <div className="tiny muted" style={{ marginTop: 4 }}>Age {ageFromDob(dob.trim())}</div>
+              )}
             </div>
             <div className="field">
               <span>Gender *</span>
