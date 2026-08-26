@@ -4,6 +4,7 @@ import { fmt } from '../store/data';
 import { liveEvents, liveSettings, liveManualBooking, LiveApiError, type LiveEvent } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
+import { partySizeFromTierName } from '../lib/partySize';
 
 const TITLE = 'Manual booking';
 
@@ -57,6 +58,10 @@ export default function ManualBooking() {
   const tier = event?.tiers[Math.min(tierIdx, (event?.tiers.length ?? 1) - 1)];
   const left = tier ? tier.quantity - tier.sold : 0;
   const isComp = method === 'Comp (free)';
+  // A "Couple"/"Group of N" tier admits more people than its own qty — read
+  // straight off the tier's own name, same as the guest checkout does.
+  const partySize = tier ? partySizeFromTierName(tier.name) : 1;
+  const totalSlots = qty * partySize;
 
   const totals = useMemo(() => {
     if (!tier || isComp) return { subtotal: 0, fees: 0, total: 0 };
@@ -83,7 +88,7 @@ export default function ManualBooking() {
     if (qty > left) { setErr(`Only ${left} tickets left in ${tier.name}`); return; }
 
     const extra = others
-      .slice(0, qty - 1)
+      .slice(0, totalSlots - 1)
       .filter((o) => o.name.trim())
       .map((o) => ({ name: o.name.trim(), gender: o.gender === '—' ? undefined : o.gender, whatsapp: o.whatsapp.trim() || undefined }));
 
@@ -211,8 +216,8 @@ export default function ManualBooking() {
             <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91" inputMode="tel" />
           </div>
         </div>
-        {qty > 1 &&
-          Array.from({ length: qty - 1 }, (_, i) => (
+        {totalSlots > 1 &&
+          Array.from({ length: totalSlots - 1 }, (_, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px dashed rgba(139,195,74,.2)', paddingTop: 8 }}>
               <div className="field" style={{ flex: 1.4, minWidth: 140 }}>
                 <label>Guest {i + 2} name</label>
@@ -233,7 +238,10 @@ export default function ManualBooking() {
               </div>
             </div>
           ))}
-        <div className="tiny hint">gender is checked by gender-targeted promo codes · each guest's WhatsApp gets the group QR</div>
+        <div className="tiny hint">
+          {partySize > 1 && `"${tier?.name}" admits ${partySize} people per ticket — `}
+          gender is checked by gender-targeted promo codes · each guest's WhatsApp gets the group QR
+        </div>
       </div>
 
       {tier && (
