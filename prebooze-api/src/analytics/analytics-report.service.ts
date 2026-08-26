@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { FUNNEL_TYPES } from './track.service';
-import { istDateKey } from '../common/ist-date';
+import { istDateKey, istDayStart, istDayEnd } from '../common/ist-date';
 
 const SEARCH_HOSTS = ['google.', 'bing.', 'yahoo.', 'duckduckgo.', 'baidu.', 'yandex.'];
 const SOCIAL_HOSTS = ['facebook.', 'instagram.', 'twitter.', 'x.com', 't.co', 'linkedin.', 'whatsapp.', 'pinterest.', 'reddit.', 'youtube.', 'snapchat.', 'tiktok.'];
@@ -121,12 +121,16 @@ export class AnalyticsReportService {
     visitorState?: string; visitorCity?: string; eventScope?: string;
   }) {
     const scopedEventIds = await this.resolveEventIds(params.city, params.organizerId, params.eventScope);
+    // `from`/`to` are bare "YYYY-MM-DD" IST calendar days (Analytics.tsx's
+    // date pickers) — a bare date-only string parses as *UTC* midnight per
+    // spec, 5.5h off from where an IST day actually starts/ends, so these
+    // need the explicit IST-anchored boundaries, not a naive `new Date(...)`.
     const dateWhere =
       params.from || params.to
         ? {
             createdAt: {
-              ...(params.from ? { gte: new Date(params.from) } : {}),
-              ...(params.to ? { lte: new Date(params.to) } : {}),
+              ...(params.from ? { gte: istDayStart(params.from) } : {}),
+              ...(params.to ? { lte: istDayEnd(params.to) } : {}),
             },
           }
         : {};
@@ -224,7 +228,7 @@ export class AnalyticsReportService {
     const firstTouches = sessionIds.length
       ? await this.prisma.funnelEvent.groupBy({ by: ['sessionId'], where: { sessionId: { in: sessionIds } }, _min: { createdAt: true } })
       : [];
-    const rangeStart = params.from ? new Date(params.from) : new Date(0);
+    const rangeStart = params.from ? istDayStart(params.from) : new Date(0);
     let newCount = 0;
     let returningCount = 0;
     for (const f of firstTouches) {

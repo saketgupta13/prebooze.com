@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { BookingStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
-import { istDateKey } from '../common/ist-date';
+import { istDateKey, istDayStart, istDayEnd } from '../common/ist-date';
 
 // Statuses that still hold inventory / haven't had their revenue reversed —
 // mirrors the same set BookingsService treats as "not yet given back" (see
@@ -274,20 +274,18 @@ export class ReportsService {
  * later that same day. Bumped to the last instant of that day so the
  * selected end date is fully inclusive, same as the old mock's
  * `${to}T23:59:59` convention. */
+// Correction to the comment this replaced: checked empirically (server
+// clock + a real Booking row) — the VPS runs UTC and createdAt values are
+// genuine UTC instants, not IST wall-clock mislabeled as UTC. `from`/`to`
+// are bare "YYYY-MM-DD" IST calendar days (what the admin's date pickers
+// send — see Analytics.tsx/Reports.tsx's own local-date fix), so the
+// boundaries need to mean IST midnight-to-midnight, not UTC's — a bare
+// date-only string parses as *UTC* midnight per spec, which starts 5.5h
+// late and, symmetrically, would have ended 5.5h into the next IST day.
 function dateRangeWhere(from?: string, to?: string): Prisma.DateTimeFilter | undefined {
   if (!from && !to) return undefined;
   return {
-    ...(from ? { gte: new Date(from) } : {}),
-    // Explicit `Z` — a bare `T23:59:59.999` (no zone) parses as the
-    // server's *local* time, not UTC. On an IST server that silently
-    // clips the last ~5.5 hours of the selected day off the query, which
-    // is exactly wide enough to exclude same-day sales for anyone booking
-    // in the evening IST (most of Prebooze's real traffic). `timestamp
-    // without time zone` columns are stored/read as naive-but-UTC-labeled
-    // by Prisma (Postgres itself just holds whatever wall-clock value the
-    // writing session had — see BookingsService et al., all written under
-    // Asia/Kolkata), so the filter boundary needs the same explicit UTC
-    // labeling to actually line up with what's in the column.
-    ...(to ? { lte: new Date(`${to}T23:59:59.999Z`) } : {}),
+    ...(from ? { gte: istDayStart(from) } : {}),
+    ...(to ? { lte: istDayEnd(to) } : {}),
   };
 }
