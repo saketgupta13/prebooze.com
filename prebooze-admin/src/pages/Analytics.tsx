@@ -114,10 +114,11 @@ export default function Analytics() {
     liveAnalytics
       .get({
         from: effectiveFrom,
-        // Explicit Z — a bare "T23:59:59" has no timezone, so JS parses it
-        // as the *server's* local time; an unambiguous UTC boundary is
-        // required either way.
-        to: effectiveTo ? `${effectiveTo}T23:59:59Z` : undefined,
+        // Bare "YYYY-MM-DD" — the backend (AnalyticsReportService.get)
+        // now parses this as a full IST calendar day itself (istDayStart/
+        // istDayEnd), so appending a time/zone suffix here would double up
+        // with that and produce a malformed date string.
+        to: effectiveTo || undefined,
         eventId: effectiveEventId || undefined,
         city: city || undefined,
         organizerId: organizerId || undefined,
