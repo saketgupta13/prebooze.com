@@ -1202,7 +1202,15 @@ model Booking {
   // splits are computed against.
   promoterVia        String?
   walletCreditUsed   Int           @default(0)
-  paymentId          String? // Razorpay payment id (or dev-stub id — see RazorpayService)
+  // @unique (nullable — Postgres allows many NULLs) is the hard backstop
+  // against a real double-booking: the client's own post-payment call and
+  // the webhook-based reconciliation fallback (BookingsService.
+  // reconcilePayment) can race for the same real payment. Whichever
+  // transaction commits first wins; the loser hits this constraint and is
+  // treated as "already booked," not a real failure. See the 2026-08-27
+  // incident this closes (payment captured, booking never created because
+  // the guest's browser tab died mid-UPI-app-switch).
+  paymentId          String?       @unique // Razorpay payment id (or dev-stub id — see RazorpayService)
   refundedTo         RefundMethod?
 
   // Manual/admin booking creation slice — null means "the normal guest
@@ -1435,6 +1443,15 @@ model Cart {
   total      Int
   status     String    @default("active") // active | completed
   remindedAt DateTime?
+  // The guest's attendee-details form (mainGuest/whatsapp/guests) plus
+  // coupon/wallet/promoter/payMethod choices, snapshotted the instant they
+  // click Pay (BookingsService.prepare) — before Razorpay opens, so it
+  // survives even if the browser never comes back (UPI app-switch killing
+  // the tab). The webhook-driven fallback (BookingsService.reconcilePayment)
+  // reads this to finish a booking whose client-side confirmation never
+  // arrived. Null for anything that never reached Pay, or a free/mock
+  // checkout that has no Razorpay leg to reconcile.
+  bookingPayload Json?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 }

@@ -300,6 +300,103 @@ export class BookingsService {
     }
   }
 
+  /** Snapshots the guest's attendee-details/coupon/wallet/promoter/
+   * payMethod choices onto their Cart row the instant they click Pay —
+   * before Razorpay even opens. Purely a safety net for reconcilePayment()
+   * below; never blocks or fails the real checkout if this write doesn't
+   * land. See the 2026-08-27 incident (payment captured, no booking ever
+   * created, guest's browser tab died mid-UPI-app-switch) this exists to
+   * close for good. */
+  async prepare(userId: string, input: {
+    holdId: string;
+    mainGuest: string;
+    whatsapp: string;
+    guests?: { name: string; gender?: string; whatsapp?: string }[];
+    couponCode?: string;
+    walletCredit?: number;
+    promoterRef?: string;
+    promoterVia?: string;
+    payMethodId?: string;
+  }) {
+    await this.prisma.cart
+      .updateMany({
+        where: { holdId: input.holdId, userId },
+        data: {
+          bookingPayload: {
+            mainGuest: input.mainGuest,
+            whatsapp: input.whatsapp,
+            guests: input.guests ?? [],
+            couponCode: input.couponCode ?? null,
+            walletCredit: input.walletCredit ?? 0,
+            promoterRef: input.promoterRef ?? null,
+            promoterVia: input.promoterVia ?? null,
+            payMethodId: input.payMethodId ?? null,
+          } as unknown as Prisma.InputJsonValue,
+        },
+      })
+      .catch(() => {});
+    return { ok: true };
+  }
+
+  /** Razorpay webhook fallback for `payment.captured` (RazorpayWebhookController)
+   * — closes the gap where a real payment gets captured but the guest's own
+   * browser never comes back to finish create() (most commonly: a UPI
+   * app-switch backgrounds/kills the tab mid-payment). Idempotent against
+   * the client's own successful call via Booking.paymentId's unique
+   * constraint — whichever path lands first wins, the other silently no-ops. */
+  async reconcilePayment(paymentId: string, orderId: string, amountPaise: number) {
+    const existing = await this.prisma.booking.findUnique({ where: { paymentId } });
+    if (existing) return; // client's own call (or an earlier webhook delivery) already handled this
+
+    const order = await this.razorpay.getOrder(orderId);
+    const holdId = order?.receipt ?? null;
+    const cart = holdId ? await this.prisma.cart.findUnique({ where: { holdId } }) : null;
+    const payload = cart?.bookingPayload as {
+      mainGuest: string; whatsapp: string; guests: { name: string; gender?: string; whatsapp?: string }[];
+      couponCode: string | null; walletCredit: number; promoterRef: string | null; promoterVia: string | null; payMethodId: string | null;
+    } | null;
+
+    if (!cart || !payload) {
+      // We genuinely don't know who this guest is or what they meant to
+      // book (prepare() never landed, or ran before this feature shipped)
+      // — can't safely fabricate a name/tier, so this needs a human, same
+      // as how the Gagandeep Singh incident got resolved manually.
+      await this.staffAlerts
+        .alert(`⚠ Razorpay captured payment ${paymentId} (₹${(amountPaise / 100).toFixed(2)}, order ${orderId}) with no matching booking and no recoverable cart. Check the Razorpay dashboard and reach out to the guest directly.`)
+        .catch(() => {});
+      return;
+    }
+
+    try {
+      await this.holds.reopen(holdId!, cart.userId, cart.eventId, cart.qtyMap as Record<string, number>);
+      const signature = this.razorpay.signPayment(orderId, paymentId);
+      const booking = await this.create(cart.userId, {
+        holdId: holdId!,
+        mainGuest: payload.mainGuest,
+        whatsapp: payload.whatsapp,
+        guests: payload.guests,
+        couponCode: payload.couponCode ?? undefined,
+        walletCredit: payload.walletCredit,
+        promoterRef: payload.promoterRef ?? undefined,
+        promoterVia: payload.promoterVia ?? undefined,
+        payMethodId: payload.payMethodId ?? undefined,
+        razorpay: { orderId, paymentId, signature },
+      });
+      await this.staffAlerts
+        .alert(`✓ Auto-recovered a booking via the payment webhook — ${payload.mainGuest}'s own confirmation never arrived (likely a UPI app-switch killing the browser tab) but payment ${paymentId} was real, so Booking ${booking.id} was created automatically.`)
+        .catch(() => {});
+    } catch (e) {
+      // A P2002 on Booking.paymentId means the client's own call landed in
+      // the same moment this ran — genuinely not a failure, just a race
+      // this constraint exists to resolve safely. Anything else (sold out
+      // in the meantime, event no longer on sale, etc.) needs a human.
+      if ((e as { code?: string })?.code === 'P2002') return;
+      await this.staffAlerts
+        .alert(`⚠ Razorpay captured payment ${paymentId} (₹${(amountPaise / 100).toFixed(2)}, guest ${payload.mainGuest} / ${payload.whatsapp}) but auto-creating the booking failed: ${(e as Error).message}. Needs manual recovery.`)
+        .catch(() => {});
+    }
+  }
+
   async create(userId: string, input: CreateBookingInput, reqMeta?: { ip?: string; userAgent?: string }) {
     const buyer = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (buyer.blocked) throw new ForbiddenException('This account is blocked from booking — contact support');

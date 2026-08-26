@@ -44,6 +44,34 @@ export class RazorpayService {
     return expected === signature;
   }
 
+  /** The exact same HMAC verifyPaymentSignature checks — used by the
+   * webhook reconciliation path (BookingsService.reconcilePayment) to hand
+   * BookingsService.create a legitimately-valid signature for a payment
+   * we already know is real (the webhook call itself was authenticated via
+   * verifyWebhookSignature, a different secret) rather than special-casing
+   * create()'s trusted verification step. */
+  signPayment(orderId: string, paymentId: string): string {
+    if (!this.live) return 'dev-signed';
+    return createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+      .update(`${orderId}|${paymentId}`)
+      .digest('hex');
+  }
+
+  /** `receipt` on a fetched order is whatever createOrder() was given as its
+   * second argument — in quote()'s case, the cart holdId. The webhook only
+   * hands back an order_id, so this is how reconcilePayment() finds its way
+   * back to the Cart row (and the bookingPayload snapshot on it) that a
+   * given payment belongs to. */
+  async getOrder(orderId: string): Promise<{ receipt: string | null } | null> {
+    if (!this.live) return orderId.startsWith('order_dev_') ? { receipt: null } : null;
+    const res = await fetch(`https://api.razorpay.com/v1/orders/${orderId}`, {
+      headers: { Authorization: this.authHeader() },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { receipt: data.receipt ?? null };
+  }
+
   async refund(paymentId: string, amountPaise: number): Promise<{ refundId: string }> {
     if (!this.live || paymentId.startsWith('pay_dev_')) {
       const refundId = `rfnd_dev_${randomBytes(8).toString('hex')}`;

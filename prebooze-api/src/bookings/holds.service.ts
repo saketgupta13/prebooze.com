@@ -55,6 +55,31 @@ export class HoldsService {
     return { holdId, expiresAt: new Date(Date.now() + HOLD_TTL_S * 1000).toISOString() };
   }
 
+  /** Re-establishes a hold under its ORIGINAL holdId — used by the webhook
+   * reconciliation fallback (BookingsService.reconcilePayment), where the
+   * hold's 8-min TTL has almost certainly expired by the time a delayed
+   * webhook fires, but the payment it priced is real and already captured.
+   * Same inventory guard as create(), just against an id that already has
+   * a Cart row (and, for this path, a bookingPayload snapshot on it) —
+   * deliberately does NOT create a new Cart row, so create()'s own
+   * tx.cart.updateMany(...) resolves that same existing row instead of
+   * leaving it stranded as a second, still-"active" cart. */
+  async reopen(holdId: string, userId: string, eventId: string, qty: Record<string, number>) {
+    const event = await this.prisma.event.findUnique({ where: { id: eventId }, include: { tiers: true } });
+    if (!event || event.status !== 'approved') throw new NotFoundException('Event not found');
+    if (new Date(event.date.getTime() + event.durationHrs * 3600000) < new Date()) {
+      throw new BadRequestException('This event has already happened — tickets are no longer on sale');
+    }
+    for (const [tierId, n] of Object.entries(qty)) {
+      if (n <= 0) continue;
+      const tier = event.tiers.find((t) => t.id === tierId);
+      if (!tier) throw new BadRequestException(`Unknown ticket tier ${tierId}`);
+      if (tier.sold + n > tier.quantity) throw new BadRequestException(`Not enough "${tier.name}" tickets left`);
+    }
+    const data: HoldData = { eventId, qty, userId };
+    await this.redis.set(`hold:${holdId}`, JSON.stringify(data), 'EX', HOLD_TTL_S);
+  }
+
   async get(holdId: string): Promise<HoldData> {
     const raw = await this.redis.get(`hold:${holdId}`);
     if (!raw) throw new BadRequestException('This cart hold has expired — please select tickets again');

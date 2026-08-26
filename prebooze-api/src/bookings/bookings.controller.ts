@@ -39,6 +39,17 @@ export class BookingsController {
     return this.bookings.quote(req.user.sub, body.holdId, body.couponCode, body.walletCredit, body.promoterRef);
   }
 
+  /** Called right before the Razorpay checkout widget opens — snapshots the
+   * attendee-details form onto the cart so a payment that captures without
+   * the guest's browser ever coming back can still be turned into a real
+   * booking (see BookingsService.reconcilePayment). Fire-and-forget on the
+   * frontend; never blocks or fails the real payment. */
+  @Post('bookings/prepare')
+  @UseGuards(JwtAuthGuard)
+  prepare(@Req() req: AuthedReq, @Body() body: Parameters<BookingsService['prepare']>[1]) {
+    return this.bookings.prepare(req.user.sub, body);
+  }
+
   @Post('bookings')
   @UseGuards(JwtAuthGuard)
   create(@Req() req: AuthedReqWithMeta, @Body() body: CreateBookingInput) {

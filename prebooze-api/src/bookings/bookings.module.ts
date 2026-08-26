@@ -22,5 +22,8 @@ import { LeadsService } from '../admin/leads.service';
 @Module({
   controllers: [BookingsController, AdminBookingsController],
   providers: [BookingsService, HoldsService, RazorpayService, WhatsappService, EmailService, PrismaService, redisProvider, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService, InvoicesService, StaffAlertsService, WalletService, MetaConversionsService, LeadsService],
+  // RazorpayWebhookController (SubscriptionsModule) calls
+  // BookingsService.reconcilePayment for the payment.captured fallback.
+  exports: [BookingsService],
 })
 export class BookingsModule {}
