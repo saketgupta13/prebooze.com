@@ -11,6 +11,11 @@ class RequestOtpDto {
 class VerifyOtpDto {
   @IsString() @IsNotEmpty() requestId!: string;
   @IsString() @IsNotEmpty() code!: string;
+  // Required unless the phone already has a name on file (AuthService.
+  // verifyOtp enforces this — the DTO can't tell which case it is without
+  // a DB lookup) — see requestOtp's `existingName` for how the OTP screen
+  // pre-fills this for a returning guest instead of asking again.
+  @IsString() @IsOptional() name?: string;
   // Only meaningful for a brand-new signup (see AuthService.verifyOtp) —
   // the frontend already knows its own cookie-consent choice at this
   // point, so a new User row can be created with the real value instead
@@ -36,7 +41,7 @@ export class AuthController {
     @Req() req: { headers: { 'user-agent'?: string; 'x-forwarded-for'?: string }; socket?: { remoteAddress?: string } },
   ) {
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
-    return this.auth.verifyOtp(dto.requestId, dto.code, { ip, userAgent: req.headers['user-agent'], marketingConsent: dto.marketingConsent });
+    return this.auth.verifyOtp(dto.requestId, dto.code, dto.name, { ip, userAgent: req.headers['user-agent'], marketingConsent: dto.marketingConsent });
   }
 
   @Post('auth/logout')

@@ -137,11 +137,17 @@ export class AuthService {
       throw new BadRequestException("Couldn't send your code right now — please try again shortly");
     }
 
+    // A phone that already has a name on file gets it back here so the OTP
+    // screen can prefill the (now required) name field instead of making a
+    // returning guest retype what we already know.
+    const known = await this.prisma.user.findUnique({ where: { phone }, select: { name: true } });
+
     // In dev (no live WhatsApp) return the code so the flow is testable end-to-end.
-    return this.wa.live ? { requestId } : { requestId, devCode: code };
+    const base = this.wa.live ? { requestId } : { requestId, devCode: code };
+    return known?.name ? { ...base, existingName: known.name } : base;
   }
 
-  async verifyOtp(requestId: string, code: string, reqMeta?: { ip?: string; userAgent?: string; marketingConsent?: boolean }) {
+  async verifyOtp(requestId: string, code: string, name?: string, reqMeta?: { ip?: string; userAgent?: string; marketingConsent?: boolean }) {
     const key = `otp:${requestId}`;
     const raw = await this.redis.get(key);
     if (!raw) throw new UnauthorizedException('OTP expired — request a new one');
@@ -160,6 +166,15 @@ export class AuthService {
     await this.redis.del(key);
 
     const existing = await this.prisma.user.findUnique({ where: { phone: rec.phone } });
+    // A name is now required at the point of verification itself (moved off
+    // Checkout, where it used to be the only place one ever got captured —
+    // see prebooze-web/src/pages/Checkout.tsx's own comment on that). Only
+    // enforced for an account that doesn't already have one on file, so a
+    // returning guest's OTP screen — pre-filled from requestOtp's
+    // `existingName` — never re-blocks on this.
+    if (!existing?.name && !name?.trim()) {
+      throw new BadRequestException('Your name is required to continue');
+    }
     const user =
       existing ??
       // marketingConsent set once, here, from the frontend's already-known
@@ -169,11 +184,19 @@ export class AuthService {
       (await this.prisma.user.create({
         data: {
           phone: rec.phone,
+          name: name!.trim(),
           referralCode: await uniqueReferralCodeFor(this.prisma, rec.phone),
           username: await this.uniqueUsername(rec.phone),
           marketingConsent: reqMeta?.marketingConsent ?? false,
         },
       }));
+    // Existing account that never got a name (one of the pre-this-change
+    // signups) — backfill it now that the OTP screen collected one, same
+    // as the old Checkout-only backfill used to do.
+    if (existing && !existing.name && name?.trim()) {
+      await this.prisma.user.update({ where: { id: existing.id }, data: { name: name.trim() } });
+      existing.name = name.trim();
+    }
 
     // Lazily link any organizer team invites sent to this phone before this
     // login — invites are created by phone (OrgTeamService.addStaff), often
