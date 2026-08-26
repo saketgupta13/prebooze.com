@@ -106,7 +106,7 @@ export default function Confirmation() {
           )}
           <QRCode
             value={booking.qrToken || booking.id}
-            caption={`Scan at entry — valid for ${booking.qty} guest${booking.qty > 1 ? 's' : ''}`}
+            caption={`Scan at entry — valid for ${booking.guests.length} guest${booking.guests.length > 1 ? 's' : ''}`}
           />
           {showGateCountdown && graceEnd && (
             <div

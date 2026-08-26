@@ -15,6 +15,7 @@ import { cityBrowse, eventCity, eventPath } from '../lib/urls';
 import { formatPrice } from '../lib/formatPrice';
 import { displayTierPrice, tierCountdownLabel } from '../lib/ticketTierPricing';
 import { useTicker } from '../lib/useTicker';
+import { partySizeFromTierName } from '../lib/partySize';
 
 const ABSORBED_NOTE: Record<string, string> = {
   Organizer: 'absorbed by the organizer',
@@ -209,6 +210,18 @@ export default function Checkout() {
   }, [event, selection]);
 
   const ticketCount = lines.reduce((a, l) => a + l.qty, 0);
+  // A tier like "Couple" or "Group of 5" admits more than one person per
+  // ticket unit — one slot per actual attendee, not per ticket, so the
+  // form asks for every real person's name instead of just the buyer's.
+  const attendeeSlots = useMemo(
+    () =>
+      lines.flatMap((l) => {
+        const per = partySizeFromTierName(l.tier.name);
+        return Array.from({ length: l.qty * per }, () => l.tier.name);
+      }),
+    [lines]
+  );
+  const extraSlots = attendeeSlots.slice(1);
   const subtotal = lines.reduce((a, l) => a + l.qty * displayTierPrice(l.tier, event?.date ?? ''), 0);
   // No booking fee on a free ticket — matches priceHold()'s server-side
   // calculation, which is what actually charges. This is a display-only
@@ -490,8 +503,8 @@ export default function Checkout() {
       const q = quote ?? (await bookings.quote(holdId, appliedCode ?? undefined, useCredit ? effectiveWalletBalance : 0));
       // Skipped guest slots (name left blank) aren't sent at all, rather than
       // padding the booking's guest list with empty placeholder entries.
-      const guestsPayload = ticketCount > 1
-        ? Array.from({ length: ticketCount - 1 }, (_, i) => ({
+      const guestsPayload = extraSlots.length > 0
+        ? extraSlots.map((_, i) => ({
             name: (guestNames[i] ?? '').trim(),
             gender: guestGenders[i] || undefined,
             whatsapp: (guestPhones[i] ?? '').trim(),
@@ -566,7 +579,7 @@ export default function Checkout() {
       const id = '#TKT-' + Math.floor(10000 + Math.random() * 89999);
       const guests = [
         { name: name.trim(), checkedIn: false, gender: gender || undefined, whatsapp: whatsapp.trim() },
-        ...Array.from({ length: ticketCount - 1 }, (_, i) => ({
+        ...extraSlots.map((_, i) => ({
           name: (guestNames[i] ?? '').trim(),
           checkedIn: false,
           gender: guestGenders[i] || undefined,
@@ -620,13 +633,12 @@ export default function Checkout() {
     }
     // Extra guests' name + gender are required (WhatsApp number stays
     // optional) — the organizer's own guest list needs a real name per
-    // ticket, not just a headcount.
-    if (ticketCount > 1) {
-      for (let i = 0; i < ticketCount - 1; i++) {
-        if (!(guestNames[i] ?? '').trim() || !guestGenders[i]) {
-          failAttendee(`Guest ${i + 2}'s name and gender are required`);
-          return;
-        }
+    // attendee, not just a headcount (a "Couple"/"Group of N" ticket admits
+    // more people than its own qty).
+    for (let i = 0; i < extraSlots.length; i++) {
+      if (!(guestNames[i] ?? '').trim() || !guestGenders[i]) {
+        failAttendee(`Guest ${i + 2}'s name and gender are required`);
+        return;
       }
     }
     // Email is optional too — only the emailed PDF depends on it (WhatsApp
@@ -780,15 +792,16 @@ export default function Checkout() {
                   </div>
                 </>
               )}
-              {ticketCount > 1 && (
+              {extraSlots.length > 0 && (
                 <>
                   <div className="small muted" style={{ marginBottom: 12 }}>
-                    Name and gender are required for each guest — you'll show one QR for the whole group at the door.
+                    Name and gender are required for each guest — a Couple/Group tier needs a name per person, not
+                    per ticket. You'll show one QR for the whole group at the door.
                   </div>
-                  {Array.from({ length: ticketCount - 1 }, (_, i) => (
+                  {extraSlots.map((tierName, i) => (
                     <div key={i} className="form-row">
                       <div className="field">
-                        <span>Guest {i + 2} name *</span>
+                        <span>Guest {i + 2} name * <span className="tiny muted">({tierName})</span></span>
                         <input
                           value={guestNames[i] ?? ''}
                           onChange={(e) =>
