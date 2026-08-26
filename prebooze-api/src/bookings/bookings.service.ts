@@ -189,6 +189,15 @@ export class BookingsService {
       if (couponRow.eventScope !== 'all' && couponRow.eventScope !== event.title) {
         throw new BadRequestException('This coupon does not apply to this event');
       }
+      // A personally-earned coupon (e.g. the profile-completion reward) is
+      // only ever redeemable by the guest it was issued to — real bug
+      // this closes: it wasn't checked at all, so anyone who came across
+      // another guest's code (it was also showing up in everyone's
+      // available-coupons list — see availableCoupons' matching fix) could
+      // actually redeem their reward.
+      if (couponRow.userId && couponRow.userId !== userId) {
+        throw new BadRequestException('This coupon isn\'t valid for your account');
+      }
       if (couponRow.gender !== 'all') {
         const buyer = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
         if (buyer.gender.toLowerCase() !== couponRow.gender.toLowerCase()) {
@@ -249,6 +258,10 @@ export class BookingsService {
             ],
           },
           { OR: [{ eventScope: 'all' }, { eventScope: event.title }] },
+          // A personally-earned coupon (userId set — e.g. the
+          // profile-completion reward) only ever shows to the guest it was
+          // issued to, same as it's only ever redeemable by them below.
+          { OR: [{ userId: null }, { userId }] },
         ],
       },
       orderBy: { value: 'desc' },

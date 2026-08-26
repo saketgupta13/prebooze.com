@@ -135,6 +135,7 @@ model User {
   profileRewardClaimedAt DateTime?
   profileRewardCode      String?
 
+  coupons             Coupon[]
   kycSubmissions      KycSubmission[]
   bookings            Booking[]
   walletTxs           WalletTx[]
@@ -1279,6 +1280,16 @@ model Coupon {
   // alongside the organizerId check, never both set on the same coupon.
   venueId String?
   venue   Venue?  @relation(fields: [venueId], references: [id])
+
+  // Set only on a personally-earned reward (AuthService.
+  // claimProfileCompletionReward) — a real bug found 2026-08-27:
+  // availableCoupons() and priceHold() both treated organizerId/venueId
+  // null as "platform-wide, anyone can use it," which included these
+  // one-person rewards — every guest saw and could actually redeem every
+  // *other* guest's earned code, not just their own. Null for a genuine
+  // platform-wide/organizer/venue coupon meant for anyone.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
 
   // Admin API "Promo codes" slice — prebooze-admin's Promo type turned out
   // to be the same concept as a platform-wide Coupon (organizerId null),

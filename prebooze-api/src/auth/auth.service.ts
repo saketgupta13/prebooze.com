@@ -422,6 +422,26 @@ export class AuthService {
 
     const code = await this.uniqueCouponCode();
     const validTill = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // 15 days
+
+    // Atomic claim, checked *before* anything is created or sent — the
+    // `if (user.profileRewardClaimedAt)` read above is a stale snapshot, so
+    // two near-simultaneous calls (a flaky-network retry, a fast double-tap
+    // before the button's disabled state lands) could both pass it as false
+    // and each mint + WhatsApp/email their own coupon: a real guest ending
+    // up with several different codes for one reward. Whichever request's
+    // update lands first wins this race; the loser discovers that via
+    // res.count === 0 and falls back to the winner's real code instead of
+    // creating a second one.
+    const claim = await this.prisma.user.updateMany({
+      where: { id: userId, profileRewardClaimedAt: null },
+      data: { profileRewardClaimedAt: new Date(), profileRewardCode: code },
+    });
+    if (claim.count === 0) {
+      const winner = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      const existing = await this.prisma.coupon.findUnique({ where: { code: winner.profileRewardCode ?? '' } });
+      return { code: winner.profileRewardCode, maxDiscount: existing?.maxDiscount ?? 100, validTill: existing?.validTill ?? null, alreadyClaimed: true };
+    }
+
     await this.prisma.coupon.create({
       data: {
         code,
@@ -434,10 +454,10 @@ export class AuthService {
         validTill,
         firstTimeOnly: false,
         status: 'active',
-        organizerId: null, // platform-wide — same as any other admin-issued promo, funded out of the booking fee, not the organizer's payout
+        organizerId: null, // platform-wide in the org/venue sense — funded out of the booking fee, not any one organizer's payout
+        userId, // but personally-earned — see the userId doc comment on Coupon for the ownership bug this closes
       },
     });
-    await this.prisma.user.update({ where: { id: userId }, data: { profileRewardClaimedAt: new Date(), profileRewardCode: code } });
 
     const validTillLabel = validTill.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
     await this.wa.send(user.phone, 'profile_reward', [user.name || 'there', code, validTillLabel]).catch(() => {});
