@@ -4,6 +4,7 @@ import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { REFERRAL_REFEREE_WELCOME } from './referral.constants';
+import { missingProfileFields } from '../auth/profile-completeness';
 
 @Injectable()
 export class ReferralsService {
@@ -41,6 +42,16 @@ export class ReferralsService {
     const referrer = await this.prisma.user.findUnique({ where: { referralCode: code.toUpperCase() } });
     if (!referrer) throw new BadRequestException('Invalid referral code');
     if (referrer.id === userId) throw new BadRequestException("You can't refer yourself");
+    // A referral link is only "on" once its owner has actually finished
+    // their own profile — same completeness definition the reward nudge and
+    // claimProfileCompletionReward already use. Caller (AppContext's
+    // loginWithOtp) already swallows a claim() failure silently, same as
+    // the "already used a code" case just above, so a friend referred by an
+    // incomplete profile just quietly gets no welcome credit rather than a
+    // visible error.
+    if (missingProfileFields(referrer).length > 0) {
+      throw new BadRequestException("This referral link isn't active yet — its owner needs to finish their profile first");
+    }
 
     const existing = await this.prisma.referral.findUnique({ where: { refereeId: userId } });
     if (existing) throw new BadRequestException('This number has already used a referral code');
