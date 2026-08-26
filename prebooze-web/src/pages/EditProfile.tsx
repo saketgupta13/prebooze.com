@@ -133,8 +133,7 @@ export default function EditProfile() {
           </div>
           <div className="field">
             <span>Social links</span>
-            {/* Grid, not .form-row — see the identical note in
-                ProfileCompletion.tsx's copy of this same field. */}
+            {/* Grid, not .form-row — more than two platforms would wrap awkwardly in a row. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
               {SOCIAL_PLATFORMS.map((p) => (
                 <div className="field" key={p.key}>

@@ -10,13 +10,18 @@ import { ApiError } from '../api/client';
 import { SOCIAL_PLATFORMS, type SocialLinks } from '../types';
 import { ageFromDob } from '../lib/ageGate';
 
-/** Soft-required "finish your profile" step — everything ProfileCompletion.tsx
- * used to force before a guest's first booking, moved here instead. Getting
- * to this page (a dismissible nudge, see Confirmation.tsx/Profile.tsx) and
- * leaving it are both entirely optional; the fields *within* it are still
- * required once someone actually opens it and hits Save, same validation the
- * old mandatory gate had. Completing it awards a one-time 10%-off coupon —
- * see AuthService.claimProfileCompletionReward. */
+/** Soft-required "finish your profile" step — everything the old mandatory
+ * pre-booking gate used to force, moved here instead (that gate — a
+ * whole-app takeover requiring name/DOB/gender before anything else could
+ * render — was removed 2026-08-15 after real data showed 61% of new guests
+ * verified OTP and never came back to it, every one with zero activity
+ * afterward; its unused implementation, ProfileCompletion.tsx/
+ * CompleteProfileGate.tsx, was deleted 2026-08-27). Getting to this page (a
+ * dismissible nudge, see Confirmation.tsx/Profile.tsx) and leaving it are
+ * both entirely optional; the fields *within* it are still required once
+ * someone actually opens it and hits Save, same validation the old
+ * mandatory gate had. Completing it awards a one-time 10%-off coupon — see
+ * AuthService.claimProfileCompletionReward. */
 export default function FinishProfile() {
   const { user, updateUser } = useApp();
   const navigate = useNavigate();

@@ -12,7 +12,6 @@ import Footer from './components/Footer';
 import Toast from './components/Toast';
 import CookieConsent from './components/CookieConsent';
 import ComingSoonGate from './components/ComingSoonGate';
-import ProfileCompletion from './pages/auth/ProfileCompletion';
 import SalesPausedBanner from './components/SalesPausedBanner';
 import { PageLoader } from './components/Loader';
 import ChunkErrorBoundary from './components/ChunkErrorBoundary';
@@ -343,14 +342,6 @@ export default function App() {
         {/* Guest — auth & identity */}
         <Route path="/login" element={<Login />} />
         <Route path="/verify-otp" element={<Otp />} />
-        <Route
-          path="/complete-profile"
-          element={
-            <RequireAuth>
-              <ProfileCompletion />
-            </RequireAuth>
-          }
-        />
         <Route
           path="/finish-profile"
           element={
