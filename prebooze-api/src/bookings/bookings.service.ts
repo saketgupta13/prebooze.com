@@ -15,6 +15,7 @@ import { NotificationsService } from '../admin/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { effectiveTierPrice } from '../common/ticket-tier-pricing';
 import { partySizeFromTierName } from '../common/party-size';
+import { requiredAgeFor } from '../common/age-gate';
 import { normalizePhone } from '../auth/auth.service';
 import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from '../auth/guest-username';
 import { missingProfileFields } from '../auth/profile-completeness';
@@ -33,6 +34,10 @@ export interface CreateBookingInput {
   // against production data: every extra guest had gender saved, the main
   // attendee never did). Real 2026-08-27 finding, not a guest behavior gap.
   mainGuestGender?: string;
+  // Self-declared, only ever asked at checkout when the event is 18+/21+
+  // and the account doesn't already have a qualifying age on file (see
+  // requiredAgeFor/BookingsService.create's age gate).
+  age?: number;
   whatsapp: string;
   guests?: { name: string; gender?: string; whatsapp?: string }[]; // extra guests beyond the main one
   couponCode?: string;
@@ -317,6 +322,7 @@ export class BookingsService {
     holdId: string;
     mainGuest: string;
     mainGuestGender?: string;
+    age?: number;
     whatsapp: string;
     guests?: { name: string; gender?: string; whatsapp?: string }[];
     couponCode?: string;
@@ -332,6 +338,7 @@ export class BookingsService {
           bookingPayload: {
             mainGuest: input.mainGuest,
             mainGuestGender: input.mainGuestGender ?? null,
+            age: input.age ?? null,
             whatsapp: input.whatsapp,
             guests: input.guests ?? [],
             couponCode: input.couponCode ?? null,
@@ -360,7 +367,7 @@ export class BookingsService {
     const holdId = order?.receipt ?? null;
     const cart = holdId ? await this.prisma.cart.findUnique({ where: { holdId } }) : null;
     const payload = cart?.bookingPayload as {
-      mainGuest: string; mainGuestGender: string | null; whatsapp: string; guests: { name: string; gender?: string; whatsapp?: string }[];
+      mainGuest: string; mainGuestGender: string | null; age: number | null; whatsapp: string; guests: { name: string; gender?: string; whatsapp?: string }[];
       couponCode: string | null; walletCredit: number; promoterRef: string | null; promoterVia: string | null; payMethodId: string | null;
     } | null;
 
@@ -382,6 +389,7 @@ export class BookingsService {
         holdId: holdId!,
         mainGuest: payload.mainGuest,
         mainGuestGender: payload.mainGuestGender ?? undefined,
+        age: payload.age ?? undefined,
         whatsapp: payload.whatsapp,
         guests: payload.guests,
         couponCode: payload.couponCode ?? undefined,
@@ -423,6 +431,19 @@ export class BookingsService {
     const providedHeadcount = 1 + (input.guests ?? []).length;
     if (providedHeadcount !== expectedHeadcount) {
       throw new BadRequestException(`This booking needs a name for all ${expectedHeadcount} attendee${expectedHeadcount > 1 ? 's' : ''} — got ${providedHeadcount}`);
+    }
+
+    // Age gate — only for an 18+/21+ event (requiredAge is null otherwise,
+    // no-op for the overwhelming majority of bookings). A previously-cleared
+    // age (e.g. confirmed 25 once) never needs re-asking. A stored age that
+    // no longer clears *this* event's bar (confirmed 19 once, now booking a
+    // 21+) gets re-asked rather than silently trusted or permanently
+    // blocked — people's age only goes up, so re-confirming is always safe
+    // and catches an honest typo the first time around.
+    const requiredAge = requiredAgeFor(event.ageLimit);
+    if (requiredAge !== null && (buyer.age ?? 0) < requiredAge) {
+      if (input.age === undefined) throw new BadRequestException(`This event is ${event.ageLimit} — confirm your age to continue`);
+      if (input.age < requiredAge) throw new BadRequestException(`This event is ${event.ageLimit} — you don't meet the age requirement`);
     }
 
     // ---- payment ----
@@ -502,11 +523,18 @@ export class BookingsService {
       // reached the profile" gap name/city already had.
       const nameUpdate = !buyer.name?.trim() ? { name: input.mainGuest.trim() } : {};
       const genderUpdate = !buyer.gender?.trim() && input.mainGuestGender ? { gender: input.mainGuestGender } : {};
+      // Always trust a freshly-provided age over whatever's stored — it
+      // only ever gets sent when the stored one didn't clear this event's
+      // bar (or there wasn't one), so the fresh answer is strictly the more
+      // current/correct one. A dob-derived age (AuthService.updateMe) is
+      // never overwritten by this in practice — a qualifying stored age
+      // never triggers the checkout re-ask that produces input.age.
+      const ageUpdate = input.age !== undefined ? { age: input.age } : {};
       const newUsername = !buyer.name?.trim() && PLACEHOLDER_USERNAME.test(buyer.username)
         ? await uniqueUsernameFromName(tx, input.mainGuest.trim(), userId)
         : undefined;
-      if (Object.keys(nameUpdate).length || Object.keys(genderUpdate).length || newUsername) {
-        await tx.user.update({ where: { id: userId }, data: { ...nameUpdate, ...genderUpdate, ...(newUsername ? { username: newUsername } : {}) } });
+      if (Object.keys(nameUpdate).length || Object.keys(genderUpdate).length || Object.keys(ageUpdate).length || newUsername) {
+        await tx.user.update({ where: { id: userId }, data: { ...nameUpdate, ...genderUpdate, ...ageUpdate, ...(newUsername ? { username: newUsername } : {}) } });
       }
 
       if (walletCreditUsed > 0) {
@@ -673,6 +701,11 @@ export class BookingsService {
     guestName: string;
     phone: string;
     gender?: string;
+    // Not enforced here the way it is for guest self-checkout — staff
+    // recording a real walk-up/phone order is already the real-world
+    // verification (same trust level customers.service.ts's manual create()
+    // already documents for phoneVerified). Purely a backfill if given.
+    age?: number;
     others?: { name: string; gender?: string; whatsapp?: string }[];
     method: string;
   }) {
@@ -689,7 +722,7 @@ export class BookingsService {
     const buyer =
       (await this.prisma.user.findUnique({ where: { phone } })) ??
       (await this.prisma.user.create({
-        data: { phone, name: input.guestName.trim(), gender: input.gender, referralCode: await uniqueReferralCodeFor(this.prisma, phone) },
+        data: { phone, name: input.guestName.trim(), gender: input.gender, age: input.age, referralCode: await uniqueReferralCodeFor(this.prisma, phone) },
       }));
 
     const isComp = input.method.toLowerCase().includes('comp');
@@ -742,11 +775,12 @@ export class BookingsService {
       // before staff recorded one for them here.
       const nameUpdate = !buyer.name?.trim() ? { name: input.guestName.trim() } : {};
       const genderUpdate = !buyer.gender?.trim() && input.gender ? { gender: input.gender } : {};
+      const ageUpdate = !buyer.age && input.age !== undefined ? { age: input.age } : {};
       const newUsername = !buyer.name?.trim() && PLACEHOLDER_USERNAME.test(buyer.username)
         ? await uniqueUsernameFromName(tx, input.guestName.trim(), buyer.id)
         : undefined;
-      if (Object.keys(nameUpdate).length || Object.keys(genderUpdate).length || newUsername) {
-        await tx.user.update({ where: { id: buyer.id }, data: { ...nameUpdate, ...genderUpdate, ...(newUsername ? { username: newUsername } : {}) } });
+      if (Object.keys(nameUpdate).length || Object.keys(genderUpdate).length || Object.keys(ageUpdate).length || newUsername) {
+        await tx.user.update({ where: { id: buyer.id }, data: { ...nameUpdate, ...genderUpdate, ...ageUpdate, ...(newUsername ? { username: newUsername } : {}) } });
       }
 
       const commission = this.commissionFor(subtotal, event.commission);

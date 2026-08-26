@@ -50,6 +50,13 @@ model User {
   country     String?
   pincode     String?
   dob         String   @default("")
+  // Never directly editable — either self-declared once at checkout for an
+  // 18+/21+ event (BookingsService.create's age gate), or auto-computed and
+  // overwritten the moment a real dob gets saved (AuthService.updateMe),
+  // which is always the more authoritative source once it exists. A stored
+  // age that no longer clears a *later* event's higher bar (18+ then 21+)
+  // gets re-asked at checkout rather than silently trusted forever.
+  age         Int?
   gender      String   @default("")
   profession  String   @default("")
   languages   String   @default("")

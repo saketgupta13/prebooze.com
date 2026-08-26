@@ -84,6 +84,7 @@ export class CustomersService {
       country: user.country || undefined,
       pincode: user.pincode || undefined,
       dob: user.dob || undefined,
+      age: user.age ?? undefined,
       gender: user.gender || undefined,
       profession: user.profession || undefined,
       languages: user.languages || undefined,

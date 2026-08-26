@@ -10,6 +10,7 @@ import { EmailService } from '../notifications/email';
 import { uniqueReferralCodeFor } from '../referrals/referral.constants';
 import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from './guest-username';
 import { missingProfileFields } from './profile-completeness';
+import { ageFromDob } from '../common/age-gate';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
 
 const OTP_TTL_S = 300; // 5 minutes
@@ -38,6 +39,7 @@ export function toApiUser(u: User) {
     pincode: u.pincode ?? undefined,
     avatarUrl: u.avatarUrl ?? undefined,
     dob: u.dob,
+    age: u.age ?? undefined,
     gender: u.gender,
     profession: u.profession,
     languages: u.languages,
@@ -357,6 +359,15 @@ export class AuthService {
     // Never touches a username the guest already customized themselves.
     if (typeof data.name === 'string' && data.name.trim() && !('username' in data) && PLACEHOLDER_USERNAME.test(current.username)) {
       data.username = await uniqueUsernameFromName(this.prisma, data.name.trim(), userId);
+    }
+
+    // `age` is never client-settable directly (not in `allowed` above) —
+    // this is the one path that ever writes it, and a real dob always wins
+    // over whatever got self-declared at checkout (BookingsService.create's
+    // age gate), since it's the more authoritative source once it exists.
+    if (typeof data.dob === 'string' && data.dob.trim()) {
+      const computed = ageFromDob(data.dob.trim());
+      if (computed !== null) data.age = computed;
     }
 
     // Every guest now has a username from the moment they sign up (see
