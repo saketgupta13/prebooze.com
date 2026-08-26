@@ -10,13 +10,13 @@ import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, Wal
 
 // ---------- auth ----------
 export const auth = {
-  requestOtp: (phone: string) => apiFetch<{ requestId: string }>('/auth/otp', { body: { phone } }),
-  verifyOtp: (requestId: string, code: string) =>
+  requestOtp: (phone: string) => apiFetch<{ requestId: string; devCode?: string; existingName?: string }>('/auth/otp', { body: { phone } }),
+  verifyOtp: (requestId: string, code: string, name?: string) =>
     apiFetch<{ token: string; user: User; isNew: boolean }>('/auth/verify', {
       // Only matters for a brand-new signup (see AuthService.verifyOtp) —
       // lets a new User row get created with the real cookie choice
       // instead of always defaulting to false.
-      body: { requestId, code, marketingConsent: localStorage.getItem('pb_cookie_consent') === 'accepted' },
+      body: { requestId, code, name, marketingConsent: localStorage.getItem('pb_cookie_consent') === 'accepted' },
     }),
   me: () => apiFetch<User>('/me'),
   updateMe: (patch: Partial<User>) => apiFetch<User>('/me', { method: 'PATCH', body: patch }),

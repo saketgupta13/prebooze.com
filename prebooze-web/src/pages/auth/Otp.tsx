@@ -5,15 +5,23 @@ import { ApiError } from '../../api/client';
 import { usePlatformInfo } from '../../lib/usePlatformInfo';
 
 export default function Otp() {
-  const { pendingPhone, loginWithOtp, requestOtp } = useApp();
+  const { pendingPhone, pendingExistingName, loginWithOtp, requestOtp } = useApp();
   const { logoUrl } = usePlatformInfo();
   const navigate = useNavigate();
   const location = useLocation();
   const [digits, setDigits] = useState(['', '', '', '']);
+  const [name, setName] = useState(pendingExistingName);
   const [timer, setTimer] = useState(24);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const refs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Covers "Resend code" (same mounted page, a fresh requestOtp call can
+  // update pendingExistingName without a remount) — the useState initializer
+  // above already handles the normal Login → Otp navigation.
+  useEffect(() => {
+    if (pendingExistingName) setName(pendingExistingName);
+  }, [pendingExistingName]);
 
   useEffect(() => {
     if (timer <= 0) return;
@@ -49,16 +57,20 @@ export default function Otp() {
   const verify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (digits.some((d) => !d)) return;
+    if (!name.trim()) {
+      setErr('Your name is required to continue');
+      return;
+    }
     setErr('');
     setBusy(true);
     try {
-      const result = await loginWithOtp(digits.join(''));
+      const result = await loginWithOtp(digits.join(''), name.trim());
       const from = (location.state as { from?: string } | null)?.from;
-      // Straight to whatever they came for (checkout, an event, home) —
-      // no forced name/DOB/gender detour. That used to cost real bookings:
-      // verified real users overwhelmingly never came back to a separate
-      // "complete your profile" step, checkout out on this same page. See
-      // Checkout.tsx's own attendee-details card, which already asks.
+      // Straight to whatever they came for (checkout, an event, home) — no
+      // forced DOB/gender/photo detour, still a real regression once (see
+      // 2026-08-15). Name is the one exception: it's collected right here,
+      // on this same screen, rather than as a separate step — see the
+      // required name field above.
       navigate(from ?? (result.isTeamMember ? '/organizer' : '/'));
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Invalid code — please try again');
@@ -112,6 +124,11 @@ export default function Otp() {
             ))}
           </div>
 
+          <div className="field" style={{ marginBottom: 4 }}>
+            <span>Your name *</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
+          </div>
+
           {err && (
             <div className="danger-text small" style={{ marginBottom: 12 }}>
               ✕ {err}
@@ -139,7 +156,7 @@ export default function Otp() {
             </Link>
           </div>
 
-          <button className="btn btn-pri btn-block btn-lg" disabled={busy || digits.some((d) => !d)}>
+          <button className="btn btn-pri btn-block btn-lg" disabled={busy || digits.some((d) => !d) || !name.trim()}>
             {busy ? 'Verifying…' : 'Verify & continue'}
           </button>
         </form>

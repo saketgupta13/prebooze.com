@@ -103,6 +103,10 @@ interface AppState {
   coupons: Coupon[];
   following: string[];
   pendingPhone: string;
+  // Set from requestOtp's `existingName` when this phone already has a name
+  // on file — lets the OTP screen pre-fill the (required) name field for a
+  // returning guest instead of asking them to retype it.
+  pendingExistingName: string;
   setCity: (c: string) => void;
   setPendingPhone: (p: string) => void;
   requestOtp: (phone: string) => Promise<void>;
@@ -112,7 +116,7 @@ interface AppState {
    * way an organizer-onboarding signup already skips it, but that decision
    * has to be made the instant OTP verification resolves, before any
    * re-render could pick up orgTeamAccess from context. */
-  loginWithOtp: (code: string) => Promise<{ status: 'new' | 'existing'; isTeamMember: boolean }>;
+  loginWithOtp: (code: string, name?: string) => Promise<{ status: 'new' | 'existing'; isTeamMember: boolean }>;
   updateUser: (patch: Partial<User>) => void;
   setAttendanceVisibility: (v: 'off' | 'followers' | 'public') => void;
   toggleDiscoverable: () => void;
@@ -350,6 +354,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [liveHelpTickets, setLiveHelpTickets] = useState<HelpTicket[] | null>(null);
   const [pendingPhone, setPendingPhone] = useState('');
   const [pendingRequestId, setPendingRequestId] = useState('');
+  const [pendingExistingName, setPendingExistingName] = useState('');
   const [orgTeamAccess, setOrgTeamAccess] = useState<OrgTeamAccess | null>(null);
   const [orgTeamAccessLoaded, setOrgTeamAccessLoaded] = useState(() => !isBackendEnabled() || !getToken());
   const [venueTeamAccess, setVenueTeamAccess] = useState<VenueTeamAccess | null>(null);
@@ -579,6 +584,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       coupons,
       following,
       pendingPhone,
+      pendingExistingName,
       setCity,
       setPendingPhone,
       requestOtp: async (phone) => {
@@ -586,11 +592,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!isBackendEnabled()) return;
         const res = await auth.requestOtp(phone);
         setPendingRequestId(res.requestId);
+        setPendingExistingName(res.existingName ?? '');
         track('otp_requested');
       },
-      loginWithOtp: async (code) => {
+      loginWithOtp: async (code, name) => {
         if (isBackendEnabled()) {
-          const { token, user: apiUser, isNew } = await auth.verifyOtp(pendingRequestId, code);
+          const { token, user: apiUser, isNew } = await auth.verifyOtp(pendingRequestId, code, name);
           track('otp_verified');
           // Deliberate Advanced Matching: a real WhatsApp OTP verification is
           // a genuine consent moment, so re-init the pixel with the verified
@@ -661,7 +668,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         const fresh: User = {
           phone: pendingPhone,
-          name: '',
+          name: name?.trim() ?? '',
           username: '',
           email: '',
           city,
@@ -1086,7 +1093,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       venueTeamAccess,
       venueTeamAccessLoaded,
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, pendingRequestId, myVenues, promoterRefByEvent, promoterViaByEvent, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded, venueTeamAccess, venueTeamAccessLoaded]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, pendingExistingName, pendingRequestId, myVenues, promoterRefByEvent, promoterViaByEvent, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded, venueTeamAccess, venueTeamAccessLoaded]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
