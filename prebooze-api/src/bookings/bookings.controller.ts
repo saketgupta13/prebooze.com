@@ -129,4 +129,10 @@ export class AdminBookingsController {
   setNote(@Param('id') id: string, @Body('note') note: string) {
     return this.bookings.adminSetNote(decodeURIComponent(id), note ?? '');
   }
+
+  @Post(':id/guests')
+  @RequirePermission('Bookings', 'edit')
+  setGuests(@Param('id') id: string, @Body('guests') guests: { name: string; gender?: string; whatsapp?: string }[]) {
+    return this.bookings.adminSetGuests(decodeURIComponent(id), guests ?? []);
+  }
 }

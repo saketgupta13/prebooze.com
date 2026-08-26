@@ -810,6 +810,36 @@ export class BookingsService {
     return { ok: true };
   }
 
+  /** Staff-editable guest list — for a booking that only ever captured the
+   * main attendee's name (e.g. a Couple/Group ticket booked before the
+   * per-attendee name requirement existed, or a guest who confirmed the
+   * other names on a call after the fact). The main attendee (index 0,
+   * mainGuest) is never touched here; `extraGuests` fully replaces
+   * everything after it. Same array a booking's QR caption, ticket PDF and
+   * organizer/venue attendee lists already read `guests.length`/`guests`
+   * from, so this is the one place that needs editing — nothing else to
+   * "sync" separately. Existing extra guests keep their checked-in state
+   * when their name is unchanged at the same position; anything genuinely
+   * new starts unchecked. */
+  async adminSetGuests(id: string, extraGuests: { name: string; gender?: string; whatsapp?: string }[]) {
+    const booking = await this.prisma.booking.findUnique({ where: { id } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    const existing = (booking.guests as unknown as { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[]) ?? [];
+    const mainEntry = existing[0] ?? { name: booking.mainGuest, checkedIn: false };
+    const guests = [
+      mainEntry,
+      ...extraGuests
+        .filter((g) => g.name?.trim())
+        .map((g, i) => {
+          const prev = existing[i + 1];
+          const checkedIn = !!prev && prev.name.trim().toLowerCase() === g.name.trim().toLowerCase() && !!prev.checkedIn;
+          return { name: g.name.trim(), checkedIn, gender: g.gender || undefined, whatsapp: g.whatsapp?.trim() || undefined };
+        }),
+    ];
+    await this.prisma.booking.update({ where: { id }, data: { guests: guests as unknown as Prisma.InputJsonValue } });
+    return { ok: true, guests };
+  }
+
   /** `scannerUserId` is whoever is operating the scanner (the organizer's
    * own JWT — same auth mechanism as a guest's, since an approved organizer
    * is still just a User row with role='organizer'). Previously this had no
