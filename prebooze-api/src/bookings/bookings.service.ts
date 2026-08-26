@@ -438,6 +438,21 @@ export class BookingsService {
     // waitlist_offer already use.
     await this.wa.send(input.whatsapp, 'booking_confirmed', [input.mainGuest.trim(), event.title, String(qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`, String(total)]).catch(() => {});
     const ticketVenue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
+    // A guest's profile city/state/country is often blank — never asked for
+    // at signup, the same gap name used to have. The event they're actually
+    // booking is real evidence of where they go out, so backfill from its
+    // venue (or privateCity when there's no registered venue) rather than
+    // leaving it blank forever. Never overwrites an already-set value.
+    if (!buyer.city && (ticketVenue?.city || event.privateCity)) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          city: ticketVenue?.city ?? event.privateCity ?? '',
+          state: buyer.state ?? ticketVenue?.state ?? undefined,
+          country: buyer.country ?? ticketVenue?.country ?? undefined,
+        },
+      }).catch(() => {});
+    }
     const ticketPdf = await ticketPdfBuffer(booking, event, ticketVenue).catch(() => null);
     await this.email.sendTemplate(user.email, 'booking_confirmed', {
       name: input.mainGuest.trim(), eventTitle: event.title, qty: String(qty), bookingId: id, total: moneyOrFree(total),
@@ -601,8 +616,21 @@ export class BookingsService {
     });
 
     await this.wa.send(phone, 'booking_confirmed', [input.guestName.trim(), event.title, String(input.qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`, String(total)]).catch(() => {});
+    const venue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
+    // Same backfill as the guest checkout path (BookingsService.create) —
+    // a staff-recorded walk-up/comp is just as real a signal of where this
+    // guest goes out.
+    if (!buyer.city && (venue?.city || event.privateCity)) {
+      await this.prisma.user.update({
+        where: { id: buyer.id },
+        data: {
+          city: venue?.city ?? event.privateCity ?? '',
+          state: buyer.state ?? venue?.state ?? undefined,
+          country: buyer.country ?? venue?.country ?? undefined,
+        },
+      }).catch(() => {});
+    }
     if (buyer.email) {
-      const venue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
       const ticketPdf = await ticketPdfBuffer(booking, event, venue).catch(() => null);
       await this.email.sendTemplate(buyer.email, 'booking_confirmed', {
         name: input.guestName.trim(), eventTitle: event.title, qty: String(input.qty), bookingId: id, total: moneyOrFree(total),
