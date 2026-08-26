@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import type { Invoice } from '@prisma/client';
+import { istDateKey } from '../common/ist-date';
 
 const GREEN = '#8bc34a';
 const MUTED = '#666666';
@@ -24,7 +25,7 @@ export function invoicePdfBuffer(inv: Invoice): Promise<Buffer> {
 
     doc.fontSize(10).fillColor('#000');
     doc.text(`Invoice No.: ${inv.number}`, 350, 50, { align: 'right', width: 195 });
-    doc.text(`Date: ${inv.issuedAt.toISOString().slice(0, 10)}`, 350, 65, { align: 'right', width: 195 });
+    doc.text(`Date: ${istDateKey(inv.issuedAt)}`, 350, 65, { align: 'right', width: 195 });
     doc.text(`Status: ${inv.status === 'issued' ? 'Issued' : 'Void'}`, 350, 80, { align: 'right', width: 195 });
 
     doc.moveTo(50, 105).lineTo(545, 105).strokeColor('#ddd').stroke();

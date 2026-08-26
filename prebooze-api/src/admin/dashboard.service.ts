@@ -3,6 +3,7 @@ import type { BookingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { ReportsService } from './reports.service';
 import { leadPhoneKeySet, phoneKey } from './lead-phone-match.util';
+import { istDateKey } from '../common/ist-date';
 
 const LIVE_BOOKING_STATUSES: BookingStatus[] = ['confirmed', 'refund_requested'];
 
@@ -114,12 +115,12 @@ export class DashboardService {
     const trend: { date: string; gross: number }[] = [];
     for (let i = days - 1; i >= 0; i--) {
       const day = new Date(now.getTime() - i * 86400000);
-      const key = day.toISOString().slice(0, 10);
+      const key = istDateKey(day);
       trend.push({ date: key, gross: 0 });
     }
     const trendIndex = new Map(trend.map((t, i) => [t.date, i]));
     for (const b of recentBookings) {
-      const key = b.createdAt.toISOString().slice(0, 10);
+      const key = istDateKey(b.createdAt);
       const i = trendIndex.get(key);
       if (i !== undefined) trend[i].gross += b.subtotal;
     }

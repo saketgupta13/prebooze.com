@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { FUNNEL_TYPES } from './track.service';
+import { istDateKey } from '../common/ist-date';
 
 const SEARCH_HOSTS = ['google.', 'bing.', 'yahoo.', 'duckduckgo.', 'baidu.', 'yandex.'];
 const SOCIAL_HOSTS = ['facebook.', 'instagram.', 'twitter.', 'x.com', 't.co', 'linkedin.', 'whatsapp.', 'pinterest.', 'reddit.', 'youtube.', 'snapchat.', 'tiktok.'];
@@ -354,7 +355,7 @@ export class AnalyticsReportService {
     // and bottom (completed) stages, plus real confirmed-booking revenue
     // for that same day, the numbers that actually matter for a trend
     // line: traffic in, conversions out, money made.
-    const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+    const dayKey = istDateKey;
     const dailyMap = new Map<string, { viewed: Set<string>; completed: Set<string>; revenue: number }>();
     for (const r of rows) {
       if (r.type !== 'event_viewed' && r.type !== 'booking_completed') continue;

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { BookingStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { istDateKey } from '../common/ist-date';
 
 // Statuses that still hold inventory / haven't had their revenue reversed —
 // mirrors the same set BookingsService treats as "not yet given back" (see
@@ -170,7 +171,7 @@ export class ReportsService {
 
     const byDay = new Map<string, { grossSales: number; commission: number; bookingFees: number }>();
     for (const r of rows) {
-      const key = r.createdAt.toISOString().slice(0, 10);
+      const key = istDateKey(r.createdAt);
       const cur = byDay.get(key) ?? { grossSales: 0, commission: 0, bookingFees: 0 };
       cur.grossSales += r.subtotal;
       cur.commission += r.event.commission != null ? (r.subtotal * r.event.commission) / 100 : 0;
