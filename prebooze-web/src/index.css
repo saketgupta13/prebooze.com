@@ -243,6 +243,12 @@ h1, h2, h3, h4 {
 .field > span { font-size: 13px; font-weight: 600; color: var(--muted); }
 input, select, textarea {
   width: 100%;
+  /* Flex children default to min-width: auto, sized to their intrinsic
+     content — harmless for text inputs, but iOS Safari's native
+     type="date" control has a wide intrinsic width that ignores the
+     width: 100% above entirely, overflowing its .field (a flex column)
+     off the right edge of the screen on mobile. */
+  min-width: 0;
   background: var(--surface);
   border: 1.5px solid var(--border-2);
   border-radius: var(--radius-s);

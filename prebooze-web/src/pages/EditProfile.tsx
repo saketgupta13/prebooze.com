@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { INTEREST_TAGS } from '../data/mock';
@@ -6,7 +6,8 @@ import WysiwygEditor from '../components/WysiwygEditor';
 import { RealUploadBox } from '../components/RealUploadBox';
 import LocationPicker from '../components/LocationPicker';
 import ChangePhoneNumber from '../components/ChangePhoneNumber';
-import { auth } from '../api';
+import { auth, catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
 import { ApiError } from '../api/client';
 import { SOCIAL_PLATFORMS, type SocialLinks } from '../types';
 import { ageFromDob } from '../lib/ageGate';
@@ -31,6 +32,18 @@ export default function EditProfile() {
     country: user?.country ?? 'India', state: user?.state ?? '', city: user?.city ?? '', pincode: user?.pincode ?? '',
   });
   const [photo, setPhoto] = useState(user?.avatarUrl ?? '');
+  const [showAllSocials, setShowAllSocials] = useState(false);
+  // Real, admin-managed categories (EventCategory — the same tree the
+  // event browse filters and both event editors' pickers already use)
+  // instead of a hardcoded frontend list — a category admin adds shows up
+  // here too, with nothing to redeploy. INTEREST_TAGS is only the
+  // offline/mock-mode fallback.
+  const [liveCategories, setLiveCategories] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.categories().then((cats) => setLiveCategories(cats.map((c) => c.name))).catch(() => setLiveCategories([]));
+  }, []);
+  const interestTags = liveCategories ?? (isBackendEnabled() ? [] : INTEREST_TAGS);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [usernameErr, setUsernameErr] = useState('');
@@ -46,6 +59,15 @@ export default function EditProfile() {
   // editable; age.ts's backend equivalent is what actually locks this in
   // on save.
   const displayAge = (form.dob.trim() ? ageFromDob(form.dob.trim()) : null) ?? user.age;
+
+  // Instagram (always) plus anything already filled in (so a previously-
+  // saved Facebook link, say, never silently disappears) — the rest stay
+  // collapsed behind "+ Add another" instead of dumping all 7 platforms on
+  // screen at once.
+  const visiblePlatforms = SOCIAL_PLATFORMS.filter(
+    (p, i) => i === 0 || showAllSocials || (socialLinks[p.key] ?? '').trim()
+  );
+  const hiddenPlatformCount = SOCIAL_PLATFORMS.length - visiblePlatforms.length;
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,7 +175,7 @@ export default function EditProfile() {
             <span>Social links</span>
             {/* Grid, not .form-row — more than two platforms would wrap awkwardly in a row. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-              {SOCIAL_PLATFORMS.map((p) => (
+              {visiblePlatforms.map((p) => (
                 <div className="field" key={p.key}>
                   <span className="tiny muted-2">{p.label}</span>
                   <input
@@ -164,12 +186,17 @@ export default function EditProfile() {
                 </div>
               ))}
             </div>
+            {hiddenPlatformCount > 0 && (
+              <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 10, width: 'fit-content' }} onClick={() => setShowAllSocials(true)}>
+                + Add another social link
+              </button>
+            )}
           </div>
 
           <div className="field">
             <span>Interests</span>
             <div className="chip-row">
-              {INTEREST_TAGS.map((t) => (
+              {interestTags.map((t) => (
                 <button
                   type="button"
                   key={t}

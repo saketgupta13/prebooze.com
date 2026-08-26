@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { INTEREST_TAGS } from '../data/mock';
 import LocationPicker, { emptyLocation } from '../components/LocationPicker';
 import WysiwygEditor from '../components/WysiwygEditor';
 import { RealUploadBox } from '../components/RealUploadBox';
-import { auth } from '../api';
+import { auth, catalog } from '../api';
+import { isBackendEnabled } from '../api/client';
 import { ApiError } from '../api/client';
 import { SOCIAL_PLATFORMS, type SocialLinks } from '../types';
 import { ageFromDob } from '../lib/ageGate';
@@ -37,6 +38,20 @@ export default function FinishProfile() {
   const [interests, setInterests] = useState<string[]>(user?.interests ?? []);
   const [loc, setLoc] = useState({ ...emptyLocation(), city: user?.city ?? '', state: user?.state ?? '', pincode: user?.pincode ?? '' });
   const [photo, setPhoto] = useState(user?.avatarUrl ?? '');
+  const [showAllSocials, setShowAllSocials] = useState(false);
+  // Real, admin-managed categories (EventCategory), same as
+  // EditProfile.tsx's identical fix — INTEREST_TAGS is only the
+  // offline/mock-mode fallback.
+  const [liveCategories, setLiveCategories] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.categories().then((cats) => setLiveCategories(cats.map((c) => c.name))).catch(() => setLiveCategories([]));
+  }, []);
+  const interestTags = liveCategories ?? (isBackendEnabled() ? [] : INTEREST_TAGS);
+  const visiblePlatforms = SOCIAL_PLATFORMS.filter(
+    (p, i) => i === 0 || showAllSocials || (socialLinks[p.key] ?? '').trim()
+  );
+  const hiddenPlatformCount = SOCIAL_PLATFORMS.length - visiblePlatforms.length;
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [usernameErr, setUsernameErr] = useState('');
@@ -194,7 +209,7 @@ export default function FinishProfile() {
             <span>Social links * (add at least one — as many as you like)</span>
             {/* Grid, not .form-row — see the identical note in EditProfile.tsx's copy of this same field. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-              {SOCIAL_PLATFORMS.map((p) => (
+              {visiblePlatforms.map((p) => (
                 <div className="field" key={p.key}>
                   <span className="tiny muted-2">{p.label}</span>
                   <input
@@ -205,12 +220,17 @@ export default function FinishProfile() {
                 </div>
               ))}
             </div>
+            {hiddenPlatformCount > 0 && (
+              <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 10, width: 'fit-content' }} onClick={() => setShowAllSocials(true)}>
+                + Add another social link
+              </button>
+            )}
           </div>
 
           <div className="field">
             <span>Interests * (pick at least one)</span>
             <div className="chip-row">
-              {INTEREST_TAGS.map((t) => (
+              {interestTags.map((t) => (
                 <button
                   type="button"
                   key={t}
