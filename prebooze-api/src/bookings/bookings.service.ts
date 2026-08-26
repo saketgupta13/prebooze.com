@@ -721,6 +721,17 @@ export class BookingsService {
         },
       });
 
+      // Same backfill as the guest checkout path (BookingsService.create) —
+      // an EXISTING account found by phone (the branch below only sets a
+      // name for a brand-new one) can still have a blank name, e.g. a
+      // guest who verified OTP but never finished a booking themselves
+      // before staff recorded one for them here.
+      if (!buyer.name?.trim()) {
+        const newName = input.guestName.trim();
+        const newUsername = PLACEHOLDER_USERNAME.test(buyer.username) ? await uniqueUsernameFromName(tx, newName, buyer.id) : undefined;
+        await tx.user.update({ where: { id: buyer.id }, data: { name: newName, ...(newUsername ? { username: newUsername } : {}) } });
+      }
+
       const commission = this.commissionFor(subtotal, event.commission);
       if (subtotal > 0) {
         if (event.hostedByVenue && event.venueId) {
