@@ -6,6 +6,12 @@ import { toCitySlug } from '../common/city-slug';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService/OrganizerService — a cart still `active` past this is abandoned
 
+// Real phone numbers the team itself uses for testing (OTP checks, booking
+// flow QA, etc.) — never real guests, so they shouldn't ever get a real
+// "you forgot your cart" WhatsApp/email. Exact strings match normalizePhone's
+// output shape ("+91 XXXXXXXXXX").
+const TEST_PHONE_NUMBERS = ['+91 9579573727', '+91 8788003601'];
+
 @Injectable()
 export class CartsService {
   private readonly log = new Logger('Carts');
@@ -22,7 +28,7 @@ export class CartsService {
    * of this mega-domain. */
   async list(eventId?: string) {
     const carts = await this.prisma.cart.findMany({
-      where: { status: 'active', ...(eventId ? { eventId } : {}) },
+      where: { status: 'active', user: { phone: { notIn: TEST_PHONE_NUMBERS } }, ...(eventId ? { eventId } : {}) },
       include: { user: { select: { name: true, phone: true } }, event: { select: { title: true } } },
       orderBy: { createdAt: 'desc' },
     });
@@ -44,8 +50,8 @@ export class CartsService {
    * no separate "abandoned" status, every non-completed cart is still live. */
   async stats() {
     const [open, completed] = await Promise.all([
-      this.prisma.cart.findMany({ where: { status: 'active' }, select: { total: true } }),
-      this.prisma.cart.findMany({ where: { status: 'completed' }, select: { total: true } }),
+      this.prisma.cart.findMany({ where: { status: 'active', user: { phone: { notIn: TEST_PHONE_NUMBERS } } }, select: { total: true } }),
+      this.prisma.cart.findMany({ where: { status: 'completed', user: { phone: { notIn: TEST_PHONE_NUMBERS } } }, select: { total: true } }),
     ]);
     const recoverable = open.reduce((a, c) => a + c.total, 0);
     const recoveredValue = completed.reduce((a, c) => a + c.total, 0);
@@ -98,7 +104,7 @@ export class CartsService {
   async sendAutoNudges() {
     const cutoff = new Date(Date.now() - HOLD_TTL_MS);
     const carts = await this.prisma.cart.findMany({
-      where: { status: 'active', remindedAt: null, createdAt: { lt: cutoff } },
+      where: { status: 'active', remindedAt: null, createdAt: { lt: cutoff }, user: { phone: { notIn: TEST_PHONE_NUMBERS } } },
       select: { id: true },
     });
     for (const c of carts) {
