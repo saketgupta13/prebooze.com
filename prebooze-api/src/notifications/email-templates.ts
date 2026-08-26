@@ -181,9 +181,9 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     trigger: 'A booking confirms and the guest hasn\'t finished their profile / claimed the reward yet — repeats on every booking until they do',
     preheader: 'Two minutes now, 10% off your next one',
     defaultSubject: '🎁 Finish your profile — 10% off your next booking',
-    defaultBody: `<p>Hey {{name}},</p><p>Your ticket for <b>{{eventTitle}}</b> is booked 🎉 While you're here — finishing your Prebooze profile (photo, city, a bit about you) takes about two minutes and unlocks <b>10% off (up to ₹100)</b> your next booking.</p>`,
+    defaultBody: `<p>Hey {{name}},</p><p>Your ticket for <b>{{eventTitle}}</b> is booked 🎉 While you're here — finishing your Prebooze profile (photo, city, a bit about you) takes about two minutes and unlocks <b>10% off (up to ₹100)</b> your next booking.</p><p>Bonus: <a href="{{webUrl}}/r/{{referralCode}}">invite a friend</a> and earn ₹100 credit the first time they book.</p>`,
     cta: { label: 'Finish my profile →', urlTemplate: '{{webUrl}}/finish-profile' },
-    tokens: ['name', 'eventTitle'],
+    tokens: ['name', 'eventTitle', 'referralCode'],
   },
   {
     id: 'help_ticket', name: 'Support ticket received', category: 'Guest',

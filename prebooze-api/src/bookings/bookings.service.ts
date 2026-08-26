@@ -289,9 +289,14 @@ export class BookingsService {
   private async maybeNudgeProfileReward(userId: string, eventTitle: string) {
     const u = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!u || u.profileRewardClaimedAt || missingProfileFields(u).length === 0) return;
-    await this.wa.send(u.phone, 'profile_reward_nudge', [u.name || 'there', eventTitle]).catch(() => {});
+    // Same referral link ReferEarn.tsx builds client-side (`{origin}/r/{code}`)
+    // — riding along on this nudge rather than a separate send, since a
+    // guest who's already reading about one reward is a reasonable moment
+    // to mention the other.
+    const referralLink = `${process.env.WEB_APP_URL || 'https://prebooze.com'}/r/${u.referralCode ?? ''}`;
+    await this.wa.send(u.phone, 'profile_reward_nudge', [u.name || 'there', eventTitle, referralLink]).catch(() => {});
     if (u.email) {
-      await this.email.sendTemplate(u.email, 'profile_reward_nudge', { name: u.name, eventTitle }).catch(() => {});
+      await this.email.sendTemplate(u.email, 'profile_reward_nudge', { name: u.name, eventTitle, referralCode: u.referralCode ?? '' }).catch(() => {});
     }
   }
 
