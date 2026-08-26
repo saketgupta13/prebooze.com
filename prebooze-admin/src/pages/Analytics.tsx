@@ -15,8 +15,15 @@ const REALTIME_POLL_MS = 15000;
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
+// This runs entirely in the admin's own browser — the local calendar date
+// IS what "Today" should mean here, unlike server-side code where "local"
+// is ambiguous. toISOString() converts to UTC first, so anytime before
+// 5:30 AM IST this silently returned yesterday's date instead.
 function toDateInput(d: Date) {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function daysAgo(n: number) {
@@ -32,13 +39,13 @@ const RANGE_PRESETS: Record<string, () => { from: string; to: string }> = {
   'Last 30 days': () => ({ from: daysAgo(29), to: TODAY() }),
   'This month': () => {
     const now = new Date();
-    return { from: toDateInput(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))), to: TODAY() };
+    return { from: toDateInput(new Date(now.getFullYear(), now.getMonth(), 1)), to: TODAY() };
   },
   'Last month': () => {
     const now = new Date();
-    const firstOfThisMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastOfPrevMonth = new Date(firstOfThisMonth.getTime() - 24 * 60 * 60 * 1000);
-    const firstOfPrevMonth = new Date(Date.UTC(lastOfPrevMonth.getUTCFullYear(), lastOfPrevMonth.getUTCMonth(), 1));
+    const firstOfPrevMonth = new Date(lastOfPrevMonth.getFullYear(), lastOfPrevMonth.getMonth(), 1);
     return { from: toDateInput(firstOfPrevMonth), to: toDateInput(lastOfPrevMonth) };
   },
 };

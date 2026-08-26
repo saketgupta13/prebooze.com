@@ -66,7 +66,11 @@ export default function Finance() {
       ['Total expenses', '', '', expenses],
       ['Net profit', '', '', income - expenses],
     ];
-    downloadCsv(`prebooze-ledger-${filter}-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+    // Local calendar date, not UTC (toISOString() converts first — see
+    // Analytics.tsx's identical fix) — this runs in the admin's own browser.
+    const today = new Date();
+    const todayLabel = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    downloadCsv(`prebooze-ledger-${filter}-${todayLabel}.csv`, rows);
   };
 
   const submit = async (e: React.FormEvent) => {

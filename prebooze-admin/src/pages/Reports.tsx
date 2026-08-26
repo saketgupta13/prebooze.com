@@ -36,8 +36,14 @@ function Line({ label, value, bold, red, indent, delta }: { label: string; value
   );
 }
 
+// Runs in the admin's own browser — local calendar date, not UTC (see
+// Analytics.tsx's identical fix): toISOString() converts to UTC first, so
+// anytime before 5:30 AM IST this silently returned yesterday's date.
 function toDateInput(d: Date) {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function deltaPct(cur: number, prev: number): string | undefined {

@@ -115,7 +115,11 @@ export default function Bookings() {
       ['ID', 'Guest', 'Phone', 'Event', 'Qty', 'Amount', 'Status'],
       ...list.map((b) => [b.id, b.mainGuest, b.whatsapp, b.event.title, b.qty, b.total, b.status]),
     ];
-    downloadCsv(`prebooze-bookings-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+    // Local calendar date, not UTC (toISOString() converts first — see
+    // Analytics.tsx's identical fix) — this runs in the admin's own browser.
+    const today = new Date();
+    const todayLabel = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    downloadCsv(`prebooze-bookings-${todayLabel}.csv`, rows);
   };
 
   const cartsTotalValue = carts.reduce((a, c) => a + c.amount, 0);
