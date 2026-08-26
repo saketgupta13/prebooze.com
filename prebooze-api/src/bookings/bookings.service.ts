@@ -27,6 +27,12 @@ const FALLBACK_FEE_PER_TICKET = 1.5; // ₹ — used only if PlatformSettings ro
 export interface CreateBookingInput {
   holdId: string;
   mainGuest: string;
+  // Checkout.tsx collects and requires this for the main attendee same as
+  // every extra guest — was validated client-side but never actually sent
+  // here, so it silently never landed on a single real booking (confirmed
+  // against production data: every extra guest had gender saved, the main
+  // attendee never did). Real 2026-08-27 finding, not a guest behavior gap.
+  mainGuestGender?: string;
   whatsapp: string;
   guests?: { name: string; gender?: string; whatsapp?: string }[]; // extra guests beyond the main one
   couponCode?: string;
@@ -310,6 +316,7 @@ export class BookingsService {
   async prepare(userId: string, input: {
     holdId: string;
     mainGuest: string;
+    mainGuestGender?: string;
     whatsapp: string;
     guests?: { name: string; gender?: string; whatsapp?: string }[];
     couponCode?: string;
@@ -324,6 +331,7 @@ export class BookingsService {
         data: {
           bookingPayload: {
             mainGuest: input.mainGuest,
+            mainGuestGender: input.mainGuestGender ?? null,
             whatsapp: input.whatsapp,
             guests: input.guests ?? [],
             couponCode: input.couponCode ?? null,
@@ -352,7 +360,7 @@ export class BookingsService {
     const holdId = order?.receipt ?? null;
     const cart = holdId ? await this.prisma.cart.findUnique({ where: { holdId } }) : null;
     const payload = cart?.bookingPayload as {
-      mainGuest: string; whatsapp: string; guests: { name: string; gender?: string; whatsapp?: string }[];
+      mainGuest: string; mainGuestGender: string | null; whatsapp: string; guests: { name: string; gender?: string; whatsapp?: string }[];
       couponCode: string | null; walletCredit: number; promoterRef: string | null; promoterVia: string | null; payMethodId: string | null;
     } | null;
 
@@ -373,6 +381,7 @@ export class BookingsService {
       const booking = await this.create(cart.userId, {
         holdId: holdId!,
         mainGuest: payload.mainGuest,
+        mainGuestGender: payload.mainGuestGender ?? undefined,
         whatsapp: payload.whatsapp,
         guests: payload.guests,
         couponCode: payload.couponCode ?? undefined,
@@ -438,7 +447,7 @@ export class BookingsService {
 
     const id = '#TKT-' + randomInt(10000, 99999);
     const guests = [
-      { name: input.mainGuest.trim(), checkedIn: false },
+      { name: input.mainGuest.trim(), checkedIn: false, gender: input.mainGuestGender },
       ...(input.guests ?? []).map((g) => ({ name: g.name.trim(), checkedIn: false, gender: g.gender, whatsapp: g.whatsapp })),
     ];
     const tierBreakdown = Object.fromEntries(lines.map((l) => [l.tier.id, l.qty]));
@@ -488,11 +497,16 @@ export class BookingsService {
       // User.name empty forever (checkout never wrote this back before).
       // Same moment their username can move on from the phone-digit
       // placeholder (uniqueUsername, verifyOtp) to a real name-based one —
-      // only if they haven't already customized it themselves.
-      if (!buyer.name?.trim()) {
-        const newName = input.mainGuest.trim();
-        const newUsername = PLACEHOLDER_USERNAME.test(buyer.username) ? await uniqueUsernameFromName(tx, newName, userId) : undefined;
-        await tx.user.update({ where: { id: userId }, data: { name: newName, ...(newUsername ? { username: newUsername } : {}) } });
+      // only if they haven't already customized it themselves. Gender rides
+      // along the same way — same "was captured on the booking but never
+      // reached the profile" gap name/city already had.
+      const nameUpdate = !buyer.name?.trim() ? { name: input.mainGuest.trim() } : {};
+      const genderUpdate = !buyer.gender?.trim() && input.mainGuestGender ? { gender: input.mainGuestGender } : {};
+      const newUsername = !buyer.name?.trim() && PLACEHOLDER_USERNAME.test(buyer.username)
+        ? await uniqueUsernameFromName(tx, input.mainGuest.trim(), userId)
+        : undefined;
+      if (Object.keys(nameUpdate).length || Object.keys(genderUpdate).length || newUsername) {
+        await tx.user.update({ where: { id: userId }, data: { ...nameUpdate, ...genderUpdate, ...(newUsername ? { username: newUsername } : {}) } });
       }
 
       if (walletCreditUsed > 0) {
@@ -675,7 +689,7 @@ export class BookingsService {
     const buyer =
       (await this.prisma.user.findUnique({ where: { phone } })) ??
       (await this.prisma.user.create({
-        data: { phone, name: input.guestName.trim(), referralCode: await uniqueReferralCodeFor(this.prisma, phone) },
+        data: { phone, name: input.guestName.trim(), gender: input.gender, referralCode: await uniqueReferralCodeFor(this.prisma, phone) },
       }));
 
     const isComp = input.method.toLowerCase().includes('comp');
@@ -722,14 +736,17 @@ export class BookingsService {
       });
 
       // Same backfill as the guest checkout path (BookingsService.create) —
-      // an EXISTING account found by phone (the branch below only sets a
-      // name for a brand-new one) can still have a blank name, e.g. a
-      // guest who verified OTP but never finished a booking themselves
+      // an EXISTING account found by phone (the branch above only sets a
+      // name/gender for a brand-new one) can still have a blank name, e.g.
+      // a guest who verified OTP but never finished a booking themselves
       // before staff recorded one for them here.
-      if (!buyer.name?.trim()) {
-        const newName = input.guestName.trim();
-        const newUsername = PLACEHOLDER_USERNAME.test(buyer.username) ? await uniqueUsernameFromName(tx, newName, buyer.id) : undefined;
-        await tx.user.update({ where: { id: buyer.id }, data: { name: newName, ...(newUsername ? { username: newUsername } : {}) } });
+      const nameUpdate = !buyer.name?.trim() ? { name: input.guestName.trim() } : {};
+      const genderUpdate = !buyer.gender?.trim() && input.gender ? { gender: input.gender } : {};
+      const newUsername = !buyer.name?.trim() && PLACEHOLDER_USERNAME.test(buyer.username)
+        ? await uniqueUsernameFromName(tx, input.guestName.trim(), buyer.id)
+        : undefined;
+      if (Object.keys(nameUpdate).length || Object.keys(genderUpdate).length || newUsername) {
+        await tx.user.update({ where: { id: buyer.id }, data: { ...nameUpdate, ...genderUpdate, ...(newUsername ? { username: newUsername } : {}) } });
       }
 
       const commission = this.commissionFor(subtotal, event.commission);
