@@ -163,18 +163,21 @@ export class AuthService {
       await this.redis.set(key, JSON.stringify(rec), 'EX', Math.max(ttl, 1));
       throw new UnauthorizedException('Incorrect code');
     }
-    await this.redis.del(key);
-
     const existing = await this.prisma.user.findUnique({ where: { phone: rec.phone } });
     // A name is now required at the point of verification itself (moved off
     // Checkout, where it used to be the only place one ever got captured —
     // see prebooze-web/src/pages/Checkout.tsx's own comment on that). Only
     // enforced for an account that doesn't already have one on file, so a
     // returning guest's OTP screen — pre-filled from requestOtp's
-    // `existingName` — never re-blocks on this.
+    // `existingName` — never re-blocks on this. Checked *before* the OTP is
+    // consumed below — a guest who got the code right but left the name
+    // blank should be able to just resubmit with a name, not burn the code
+    // and have to wait for a whole new WhatsApp send.
     if (!existing?.name && !name?.trim()) {
       throw new BadRequestException('Your name is required to continue');
     }
+    await this.redis.del(key);
+
     const user =
       existing ??
       // marketingConsent set once, here, from the frontend's already-known
