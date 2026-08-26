@@ -48,6 +48,10 @@ export default function BookingDetail() {
   const [note, setNote] = useState('');
   const [noteSaved, setNoteSaved] = useState(false);
   const [otherBookings, setOtherBookings] = useState<LiveBooking[] | null>(null);
+  const [editGuests, setEditGuests] = useState<{ name: string; gender: string; whatsapp: string }[]>([]);
+  const [guestsSaving, setGuestsSaving] = useState(false);
+  const [guestsSaved, setGuestsSaved] = useState(false);
+  const [guestsErr, setGuestsErr] = useState('');
 
   const load = () => {
     if (!id) return;
@@ -55,7 +59,11 @@ export default function BookingDetail() {
     setErr('');
     liveBookings
       .get(id)
-      .then((b) => { setBooking(b); setNote(b.adminNote ?? ''); })
+      .then((b) => {
+        setBooking(b);
+        setNote(b.adminNote ?? '');
+        setEditGuests(b.guests.slice(1).map((g) => ({ name: g.name, gender: g.gender ?? '', whatsapp: g.whatsapp ?? '' })));
+      })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   };
@@ -114,6 +122,32 @@ export default function BookingDetail() {
       setEmailSent(true);
     } catch (e) {
       setEmailErr(e instanceof LiveApiError ? e.message : 'Failed to resend email');
+    }
+  };
+
+  const savedGuestNames = booking.guests.slice(1).map((g) => g.name);
+  const guestsDirty =
+    editGuests.map((g) => g.name.trim()).filter(Boolean).length !== savedGuestNames.length ||
+    editGuests.some((g, i) => g.name.trim() !== savedGuestNames[i]);
+
+  const setGuestField = (i: number, patch: Partial<{ name: string; gender: string; whatsapp: string }>) =>
+    setEditGuests((prev) => prev.map((g, gi) => (gi === i ? { ...g, ...patch } : g)));
+
+  const saveGuests = async () => {
+    setGuestsErr('');
+    setGuestsSaving(true);
+    try {
+      await liveBookings.setGuests(
+        booking.id,
+        editGuests.filter((g) => g.name.trim()).map((g) => ({ name: g.name.trim(), gender: g.gender || undefined, whatsapp: g.whatsapp.trim() || undefined }))
+      );
+      setGuestsSaved(true);
+      setTimeout(() => setGuestsSaved(false), 2000);
+      load();
+    } catch (e) {
+      setGuestsErr(e instanceof LiveApiError ? e.message : 'Failed to save guest list');
+    } finally {
+      setGuestsSaving(false);
     }
   };
 
@@ -191,25 +225,76 @@ export default function BookingDetail() {
         <div className="display" style={{ fontWeight: 700 }}>
           Guests on this booking ({booking.guests.length}) · {booking.guests.filter((g) => g.checkedIn).length} checked in
         </div>
-        <div className="stack" style={{ gap: 4 }}>
-          {booking.guests.map((g, i) => (
-            <div
-              key={g.name + i}
-              style={{
-                display: 'flex', gap: 8, alignItems: 'center',
-                border: '1px solid rgba(139,195,74,.2)', borderRadius: 6, padding: '6px 9px', fontSize: 12,
-              }}
-            >
-              <span className="muted">{i + 1}.</span>
-              <span style={{ flex: 1, fontWeight: 700 }}>
-                {g.name} {i === 0 && <span className="tiny muted" style={{ fontWeight: 400 }}>(main)</span>}
-              </span>
-              <span className="muted">{(i === 0 ? g.whatsapp ?? booking.whatsapp : g.whatsapp) ?? 'no phone on file'}</span>
-              <Tag {...(g.checkedIn ? { label: 'Checked in', cls: 'tag-green' } : { label: 'Not checked in', cls: 'tag-dim' })} />
-            </div>
-          ))}
+        <div style={{
+          display: 'flex', gap: 8, alignItems: 'center',
+          border: '1px solid rgba(139,195,74,.2)', borderRadius: 6, padding: '6px 9px', fontSize: 12,
+        }}>
+          <span className="muted">1.</span>
+          <span style={{ flex: 1, fontWeight: 700 }}>
+            {booking.mainGuest} <span className="tiny muted" style={{ fontWeight: 400 }}>(main)</span>
+          </span>
+          <span className="muted">{booking.guests[0]?.whatsapp ?? booking.whatsapp}</span>
+          <Tag {...(booking.guests[0]?.checkedIn ? { label: 'Checked in', cls: 'tag-green' } : { label: 'Not checked in', cls: 'tag-dim' })} />
         </div>
-        <div className="tiny hint">full name and mobile number for every attendee — never masked for admin</div>
+        {editGuests.map((g, i) => {
+          const saved = booking.guests[i + 1];
+          return (
+            <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="muted tiny" style={{ width: 14 }}>{i + 2}.</span>
+              <input
+                className="input"
+                style={{ flex: 1.3, minWidth: 130, fontSize: 12, padding: '5px 8px' }}
+                value={g.name}
+                onChange={(e) => setGuestField(i, { name: e.target.value })}
+                placeholder="Guest full name"
+              />
+              <select
+                className="input"
+                style={{ width: 90, fontSize: 12, padding: '5px 8px' }}
+                value={g.gender}
+                onChange={(e) => setGuestField(i, { gender: e.target.value })}
+              >
+                <option value="">Gender —</option>
+                <option>Female</option>
+                <option>Male</option>
+                <option>Non-binary</option>
+                <option>Prefer not to say</option>
+              </select>
+              <input
+                className="input"
+                style={{ flex: 1, minWidth: 110, fontSize: 12, padding: '5px 8px' }}
+                value={g.whatsapp}
+                onChange={(e) => setGuestField(i, { whatsapp: e.target.value })}
+                placeholder="WhatsApp (optional)"
+              />
+              {saved && (
+                <Tag {...(saved.checkedIn ? { label: 'Checked in', cls: 'tag-green' } : { label: 'Not checked in', cls: 'tag-dim' })} />
+              )}
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setEditGuests((prev) => prev.filter((_, gi) => gi !== i))}
+              >
+                Remove
+              </button>
+            </div>
+          );
+        })}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => setEditGuests((prev) => [...prev, { name: '', gender: '', whatsapp: '' }])}
+          >
+            + Add guest
+          </button>
+          <button className="btn btn-pri btn-sm" onClick={saveGuests} disabled={!guestsDirty || guestsSaving}>
+            {guestsSaving ? 'Saving…' : 'Save guest list'}
+          </button>
+          {guestsSaved && <span className="tiny muted">Saved — QR now covers {booking.guests.length} guest{booking.guests.length > 1 ? 's' : ''} ✓</span>}
+          {guestsErr && <span className="tiny" style={{ color: 'var(--red)' }}>{guestsErr}</span>}
+        </div>
+        <div className="tiny hint">full name and mobile number for every attendee — never masked for admin. Adding a guest here updates the QR's headcount and the ticket PDF too.</div>
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

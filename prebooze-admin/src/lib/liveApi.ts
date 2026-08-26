@@ -363,6 +363,11 @@ export const liveBookings = {
   declineRefund: (id: string) => liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/decline`, { method: 'POST' }),
   resendEmail: (id: string) => liveFetch<{ ok: true }>(`/admin/bookings/${encodeURIComponent(id)}/resend-email`, { method: 'POST' }),
   setNote: (id: string, note: string) => liveFetch<{ ok: true }>(`/admin/bookings/${encodeURIComponent(id)}/note`, { method: 'POST', body: { note } }),
+  // Replaces everything after the main attendee (index 0, untouched) —
+  // e.g. filling in the second person's name on a Couple ticket that was
+  // booked before per-attendee names were required.
+  setGuests: (id: string, guests: { name: string; gender?: string; whatsapp?: string }[]) =>
+    liveFetch<{ ok: true; guests: LiveBooking['guests'] }>(`/admin/bookings/${encodeURIComponent(id)}/guests`, { method: 'POST', body: { guests } }),
 };
 
 export interface LiveCustomer {
