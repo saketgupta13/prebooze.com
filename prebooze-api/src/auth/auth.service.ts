@@ -190,16 +190,31 @@ export class AuthService {
           phone: rec.phone,
           name: name!.trim(),
           referralCode: await uniqueReferralCodeFor(this.prisma, rec.phone),
-          username: await this.uniqueUsername(rec.phone),
+          // Real name is already known at this exact point now (unlike
+          // before, when it only ever showed up much later at checkout) —
+          // no reason to hand out a phone-digit placeholder (uniqueUsername)
+          // just to have create()/updateMe()'s own backfill swap it out
+          // later; nothing triggers that backfill for an account whose name
+          // was never blank to begin with, so a placeholder here would
+          // otherwise be permanent. No row id yet to exclude from the
+          // collision check — '' can never match a real cuid, so this is a
+          // legitimate no-exclusion call.
+          username: await uniqueUsernameFromName(this.prisma, name!.trim(), ''),
           marketingConsent: reqMeta?.marketingConsent ?? false,
         },
       }));
     // Existing account that never got a name (one of the pre-this-change
     // signups) — backfill it now that the OTP screen collected one, same
-    // as the old Checkout-only backfill used to do.
+    // as the old Checkout-only backfill used to do. Username too, same
+    // "only ever touch the placeholder, never a guest's own choice" guard
+    // create()/updateMe()/adminCreate() all already use.
     if (existing && !existing.name && name?.trim()) {
-      await this.prisma.user.update({ where: { id: existing.id }, data: { name: name.trim() } });
+      const newUsername = PLACEHOLDER_USERNAME.test(existing.username)
+        ? await uniqueUsernameFromName(this.prisma, name.trim(), existing.id)
+        : undefined;
+      await this.prisma.user.update({ where: { id: existing.id }, data: { name: name.trim(), ...(newUsername ? { username: newUsername } : {}) } });
       existing.name = name.trim();
+      if (newUsername) existing.username = newUsername;
     }
 
     // Lazily link any organizer team invites sent to this phone before this
