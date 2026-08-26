@@ -17,6 +17,7 @@ import { effectiveTierPrice } from '../common/ticket-tier-pricing';
 import { partySizeFromTierName } from '../common/party-size';
 import { normalizePhone } from '../auth/auth.service';
 import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from '../auth/guest-username';
+import { missingProfileFields } from '../auth/profile-completeness';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { LeadsService } from '../admin/leads.service';
@@ -275,6 +276,25 @@ export class BookingsService {
     };
   }
 
+  /** Nudges a guest toward the profile-completion reward (AuthService.
+   * claimProfileCompletionReward) right alongside a booking confirmation —
+   * the reward already exists but was pull-only (FinishProfile.tsx), so
+   * nobody ever heard about it unless they happened to visit that page.
+   * Fresh DB read (not the caller's in-memory `user`) since a booking may
+   * have just backfilled city/state/country a few lines earlier — checking
+   * against a stale copy would nudge someone about a field that's already
+   * filled. Repeats on every booking, not just the first, until the guest
+   * either finishes the profile or claims the reward — same reasoning as
+   * cart_reminder repeating per abandoned cart rather than a one-shot. */
+  private async maybeNudgeProfileReward(userId: string, eventTitle: string) {
+    const u = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!u || u.profileRewardClaimedAt || missingProfileFields(u).length === 0) return;
+    await this.wa.send(u.phone, 'profile_reward_nudge', [u.name || 'there', eventTitle]).catch(() => {});
+    if (u.email) {
+      await this.email.sendTemplate(u.email, 'profile_reward_nudge', { name: u.name, eventTitle }).catch(() => {});
+    }
+  }
+
   async create(userId: string, input: CreateBookingInput, reqMeta?: { ip?: string; userAgent?: string }) {
     const buyer = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (buyer.blocked) throw new ForbiddenException('This account is blocked from booking — contact support');
@@ -457,6 +477,7 @@ export class BookingsService {
     await this.email.sendTemplate(user.email, 'booking_confirmed', {
       name: input.mainGuest.trim(), eventTitle: event.title, qty: String(qty), bookingId: id, total: moneyOrFree(total),
     }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined).catch(() => {});
+    await this.maybeNudgeProfileReward(userId, event.title).catch(() => {});
 
     // ---- invoice: no GST — Prebooze isn't GST-registered, so this is a
     // plain invoice, never a "Tax Invoice" (see invoice-pdf.ts) ----
@@ -636,6 +657,7 @@ export class BookingsService {
         name: input.guestName.trim(), eventTitle: event.title, qty: String(input.qty), bookingId: id, total: moneyOrFree(total),
       }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined).catch(() => {});
     }
+    await this.maybeNudgeProfileReward(buyer.id, event.title).catch(() => {});
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true, organizer: true } } } });
   }
 

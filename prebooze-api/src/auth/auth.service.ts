@@ -9,6 +9,7 @@ import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { uniqueReferralCodeFor } from '../referrals/referral.constants';
 import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from './guest-username';
+import { missingProfileFields } from './profile-completeness';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
 
 const OTP_TTL_S = 300; // 5 minutes
@@ -390,17 +391,7 @@ export class AuthService {
       return { code: user.profileRewardCode, maxDiscount: existing?.maxDiscount ?? 100, validTill: existing?.validTill ?? null, alreadyClaimed: true };
     }
 
-    const missing: string[] = [];
-    if (!user.avatarUrl) missing.push('profile photo');
-    if (!user.username.trim()) missing.push('username');
-    if (!user.city.trim()) missing.push('city');
-    if (!user.state?.trim()) missing.push('state');
-    if (!user.country?.trim()) missing.push('country');
-    if (!user.profession.trim()) missing.push('profession');
-    if (!user.languages.trim()) missing.push('languages');
-    if (!user.bio.trim()) missing.push('bio');
-    if (!Object.values(user.socialLinks as Record<string, string>).some((v) => v?.trim())) missing.push('a social link');
-    if (user.interests.length === 0) missing.push('an interest');
+    const missing = missingProfileFields(user);
     if (missing.length) throw new BadRequestException(`Finish these first: ${missing.join(', ')}`);
 
     const code = await this.uniqueCouponCode();
