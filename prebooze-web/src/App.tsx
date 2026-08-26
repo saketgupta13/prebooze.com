@@ -350,6 +350,11 @@ export default function App() {
             </RequireAuth>
           }
         />
+        {/* /complete-profile was the old mandatory pre-booking gate's route
+            (removed 2026-08-15, its component deleted 2026-08-27) — an old
+            bookmark/link to it lands on today's real equivalent, the
+            profile-completion reward, instead of just bouncing to home. */}
+        <Route path="/complete-profile" element={<Navigate to="/finish-profile" replace />} />
         <Route
           path="/verify-id"
           element={

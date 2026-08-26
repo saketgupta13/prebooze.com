@@ -39,6 +39,7 @@ export default function FinishProfile() {
   const [photo, setPhoto] = useState(user?.avatarUrl ?? '');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [usernameErr, setUsernameErr] = useState('');
   const [reward, setReward] = useState<{ code: string; maxDiscount: number; validTill: string } | null>(null);
 
   if (!user) return null;
@@ -46,6 +47,7 @@ export default function FinishProfile() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
+    setUsernameErr('');
     if (!photo) return setErr('A profile photo is required');
     if (!dob.trim()) return setErr('Date of birth is required');
     if (!gender) return setErr('Gender is required');
@@ -72,7 +74,17 @@ export default function FinishProfile() {
       updateUser({ profileRewardClaimedAt: new Date().toISOString(), profileRewardCode: claimed.code });
       setReward(claimed);
     } catch (e2) {
-      setErr(e2 instanceof ApiError ? e2.message : 'Failed to save profile');
+      const msg = e2 instanceof ApiError ? e2.message : 'Failed to save profile';
+      // The backend's real error ("That username is already taken") is
+      // specific enough to tie straight to the field instead of a generic
+      // banner up top that a guest scrolling a long form could easily miss
+      // — same reasoning Checkout.tsx's failAttendee already applies.
+      if (/username/i.test(msg)) {
+        setUsernameErr(msg);
+        document.getElementById('username-field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        setErr(msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -133,7 +145,15 @@ export default function FinishProfile() {
             </div>
             <div className="field">
               <span>Username *</span>
-              <input required value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@username" />
+              <input
+                id="username-field"
+                required
+                value={username}
+                onChange={(e) => { setUsername(e.target.value); setUsernameErr(''); }}
+                placeholder="@username"
+                style={usernameErr ? { borderColor: 'var(--danger)' } : undefined}
+              />
+              {usernameErr && <div className="tiny danger-text" style={{ marginTop: 4 }}>✕ {usernameErr} — please choose a different one</div>}
             </div>
           </div>
           <div className="form-row">

@@ -33,6 +33,7 @@ export default function EditProfile() {
   const [photo, setPhoto] = useState(user?.avatarUrl ?? '');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [usernameErr, setUsernameErr] = useState('');
 
   if (!user) return null;
 
@@ -49,6 +50,7 @@ export default function EditProfile() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
+    setUsernameErr('');
     setSaving(true);
     try {
       const updated = await auth.updateMe({
@@ -59,7 +61,16 @@ export default function EditProfile() {
       updateUser(updated);
       navigate('/profile');
     } catch (e2) {
-      setErr(e2 instanceof ApiError ? e2.message : 'Failed to save profile');
+      const msg = e2 instanceof ApiError ? e2.message : 'Failed to save profile';
+      // Same reasoning as FinishProfile.tsx's identical fix — tie a
+      // username-taken error straight to the field instead of a generic
+      // banner up top a guest scrolling this long form could easily miss.
+      if (/username/i.test(msg)) {
+        setUsernameErr(msg);
+        document.getElementById('username-field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        setErr(msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -92,7 +103,14 @@ export default function EditProfile() {
             </div>
             <div className="field">
               <span>Username</span>
-              <input value={form.username} onChange={set('username')} placeholder="@username" />
+              <input
+                id="username-field"
+                value={form.username}
+                onChange={(e) => { set('username')(e); setUsernameErr(''); }}
+                placeholder="@username"
+                style={usernameErr ? { borderColor: 'var(--danger)' } : undefined}
+              />
+              {usernameErr && <div className="tiny danger-text" style={{ marginTop: 4 }}>✕ {usernameErr} — please choose a different one</div>}
             </div>
           </div>
           <div className="form-row">
