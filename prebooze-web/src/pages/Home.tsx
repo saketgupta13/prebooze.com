@@ -7,7 +7,7 @@ import {
 } from '../data/mock';
 import { catalog, content } from '../api';
 import { isBackendEnabled } from '../api/client';
-import type { CmsTestimonial, Event, Organizer, PromoterProfile, LineupProfile, Person, Venue } from '../types';
+import type { CmsTestimonial, CmsBlogSummary, Event, Organizer, PromoterProfile, LineupProfile, Person, Venue } from '../types';
 import { personFollowKey } from '../lib/social';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import { organizerPath, promoterPath, lineupPath, venuePath, cityBrowse, cityOrganizers, cityPromoters, cityLineups, cityVenues, cityPeople as cityPeoplePath } from '../lib/urls';
@@ -20,6 +20,16 @@ import ReelCard from '../components/ReelCard';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
 import { useSeo } from '../lib/useSeo';
+
+// Same hue-from-id + date format as pages/static/Blog.tsx — kept local
+// rather than shared since it's a two-line pure function, not worth a
+// lib file for.
+const blogHueFromId = (id: string) => {
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+};
+const fmtBlogDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 const HERO = [
   { hue: 95, emoji: '🎉', badge: 'Featured', title: "Your city's events, one tap away", text: 'Concerts, comedy, festivals and warehouse parties — instant WhatsApp tickets, QR entry, zero fakes.', cta: 'Explore events →', to: '/browse' },
@@ -204,6 +214,16 @@ export default function Home() {
   // be presenting fake reviews as real ones, so this gets a genuine
   // skeleton (below) instead of a mock-data fallback.
   const testimonialsLoading = isBackendEnabled() && liveTestimonials === null;
+  const [liveBlogPosts, setLiveBlogPosts] = useState<CmsBlogSummary[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    content.blogs().then(setLiveBlogPosts).catch(() => setLiveBlogPosts([]));
+  }, []);
+  // Same "real content only, no fake fallback" rule pages/static/Blog.tsx
+  // already applies — while loading (or if nothing's published yet) the
+  // section just doesn't render, no skeleton/fabricated post needed for
+  // what's a supplementary homepage section, not a core one.
+  const blogPosts = (liveBlogPosts ?? []).slice(0, 6);
   const categoriesLoading = isBackendEnabled() && liveCategories === null;
   const categoryTree = liveCategories ?? (isBackendEnabled() ? [] : CATEGORY_TREE);
   // This unconditionally fell through to the mock CATEGORIES chip set
@@ -608,6 +628,29 @@ export default function Home() {
                     <div className="small bold">{t.author} <span className="muted-2" style={{ fontWeight: 400 }}>· {t.location}</span></div>
                   </div>
                 ))}
+          </Slider>
+        </section>
+        )}
+
+        {/* From the blog */}
+        {blogPosts.length > 0 && (
+        <section className="section">
+          <div className="section-hd">
+            <h2>From the blog 📰</h2>
+            <Link to="/blog">Read all posts →</Link>
+          </div>
+          <Slider slideWidth={280}>
+            {blogPosts.map((p) => (
+              <Link key={p.id} to={`/blog/${p.id}`} className="ecard">
+                <Poster hue={blogHueFromId(p.id)} emoji="📰" label="cover 16:9" variant="landscape" imageUrl={p.bannerUrl} alt={p.title} />
+                <div>
+                  {p.category && <span className="tag" style={{ marginBottom: 6 }}>{p.category}</span>}
+                  <h3 style={{ margin: '6px 0 4px' }}>{p.title}</h3>
+                  <div className="meta">{p.meta.slice(0, 90)}{p.meta.length > 90 ? '…' : ''}</div>
+                  <div className="meta" style={{ marginTop: 6 }}>{fmtBlogDate(p.updatedAt)}</div>
+                </div>
+              </Link>
+            ))}
           </Slider>
         </section>
         )}
