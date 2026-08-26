@@ -218,6 +218,9 @@ export interface CreateBookingInput {
   // never actually sent it — confirmed against production data, every
   // extra guest had gender saved, the main attendee never did.
   mainGuestGender?: string;
+  // Only ever sent when the event is 18+/21+ and the account doesn't
+  // already have a qualifying age on file — see requiredAgeFor.
+  age?: number;
   whatsapp: string;
   guests?: { name: string; gender?: string; whatsapp?: string }[];
   couponCode?: string;

@@ -16,6 +16,7 @@ import { formatPrice } from '../lib/formatPrice';
 import { displayTierPrice, tierCountdownLabel } from '../lib/ticketTierPricing';
 import { useTicker } from '../lib/useTicker';
 import { partySizeFromTierName } from '../lib/partySize';
+import { requiredAgeFor } from '../lib/ageGate';
 
 const ABSORBED_NOTE: Record<string, string> = {
   Organizer: 'absorbed by the organizer',
@@ -144,6 +145,7 @@ export default function Checkout() {
 
   const [name, setName] = useState(user?.name ?? '');
   const [gender, setGender] = useState(user?.gender ?? '');
+  const [ageInput, setAgeInput] = useState('');
   const [whatsapp, setWhatsapp] = useState(user?.phone ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
@@ -184,6 +186,13 @@ export default function Checkout() {
   // guest has already been through checkout before and we already have
   // their details, no need to ask again for the main attendee.
   const knownGuest = Boolean(user?.name?.trim() && user?.phone?.trim() && user?.gender);
+  // Independent of knownGuest — a returning guest with a full profile can
+  // still need this the first time they book an 18+/21+ event, and a
+  // previously-confirmed age that already clears the bar never re-asks
+  // (age only goes up). Backend re-derives and enforces this same check —
+  // this is convenience, not the actual gate.
+  const requiredAge = event ? requiredAgeFor(event.ageLimit) : null;
+  const needsAgeConfirm = requiredAge !== null && (!user?.age || user.age < requiredAge);
   const [editMain, setEditMain] = useState(false);
   const showMainFields = !knownGuest || editMain;
   const [guestNames, setGuestNames] = useState<string[]>([]);
@@ -510,12 +519,16 @@ export default function Checkout() {
             whatsapp: (guestPhones[i] ?? '').trim(),
           })).filter((g) => g.name)
         : undefined;
+      // pay()'s validation already confirmed ageInput is a valid, qualifying
+      // number whenever needsAgeConfirm is true — safe to parse again here.
+      const confirmedAge = needsAgeConfirm ? parseInt(ageInput, 10) : undefined;
 
       const finishCreate = (razorpay?: { orderId: string; paymentId: string; signature: string }) =>
         bookings.create({
           holdId,
           mainGuest: name.trim(),
           mainGuestGender: gender || undefined,
+          age: confirmedAge,
           whatsapp: whatsapp.trim(),
           guests: guestsPayload,
           couponCode: appliedCode ?? undefined,
@@ -537,6 +550,7 @@ export default function Checkout() {
           holdId,
           mainGuest: name.trim(),
           mainGuestGender: gender || undefined,
+          age: confirmedAge,
           whatsapp: whatsapp.trim(),
           guests: guestsPayload,
           couponCode: appliedCode ?? undefined,
@@ -649,6 +663,19 @@ export default function Checkout() {
     if (!gender) {
       failAttendee('Main attendee gender is required');
       return;
+    }
+    // payLive/payMock independently re-derive this same value from ageInput
+    // once they run — this is just the gate stopping submission here.
+    if (needsAgeConfirm) {
+      const n = parseInt(ageInput, 10);
+      if (!ageInput.trim() || Number.isNaN(n) || n <= 0) {
+        failAttendee('Please confirm your age to continue');
+        return;
+      }
+      if (requiredAge !== null && n < requiredAge) {
+        failAttendee(`This event is ${event.ageLimit} — you don't meet the age requirement`);
+        return;
+      }
     }
     // Extra guests' name + gender are required (WhatsApp number stays
     // optional) — the organizer's own guest list needs a real name per
@@ -810,6 +837,21 @@ export default function Checkout() {
                     </div>
                   </div>
                 </>
+              )}
+              {needsAgeConfirm && (
+                <div className="field">
+                  <span>Confirm your age *</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={ageInput}
+                    onChange={(e) => setAgeInput(e.target.value)}
+                    placeholder="Age"
+                  />
+                  <div className="tiny muted" style={{ marginTop: 4 }}>
+                    This event is {event.ageLimit} — {user?.age ? `your profile shows ${user.age}, please reconfirm` : "we need to confirm you meet the age requirement"}.
+                  </div>
+                </div>
               )}
               {extraSlots.length > 0 && (
                 <>

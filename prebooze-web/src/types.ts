@@ -449,6 +449,10 @@ export interface User {
   pincode?: string;
   avatarUrl?: string;
   dob: string;
+  // Never directly editable — self-declared at checkout for an 18+/21+
+  // event, or auto-computed the moment a real dob is saved (which always
+  // wins once it exists). Absent until either of those happens.
+  age?: number;
   gender: string;
   profession: string;
   languages: string;
