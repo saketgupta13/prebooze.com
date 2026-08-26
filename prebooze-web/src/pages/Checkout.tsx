@@ -526,6 +526,23 @@ export default function Checkout() {
         });
 
       if (q.total > 0 && q.razorpayOrderId && q.razorpayKeyId) {
+        // Fire-and-forget — a UPI app-switch can background/kill this tab
+        // for long enough that it never comes back to run the `handler`
+        // below, even though Razorpay genuinely captured the payment. This
+        // snapshot is what lets the payment webhook finish the booking
+        // anyway. Never awaited/blocking: if it fails, the real payment
+        // flow below is completely unaffected.
+        bookings.prepare({
+          holdId,
+          mainGuest: name.trim(),
+          whatsapp: whatsapp.trim(),
+          guests: guestsPayload,
+          couponCode: appliedCode ?? undefined,
+          walletCredit: useCredit ? effectiveWalletBalance : 0,
+          promoterRef: event?.id ? promoterRefByEvent[event.id] : undefined,
+          promoterVia: event?.id ? promoterViaByEvent[event.id] : undefined,
+          payMethodId: (livePayMethods ?? []).some((m) => m.id === payMethod) ? payMethod : undefined,
+        }).catch(() => {});
         await loadRazorpayScript();
         const Razorpay = (window as unknown as { Razorpay: new (opts: Record<string, unknown>) => { open: () => void; on: (evt: string, cb: (e: unknown) => void) => void } }).Razorpay;
         const rzp = new Razorpay({

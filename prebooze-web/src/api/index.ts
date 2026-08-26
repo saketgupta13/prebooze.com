@@ -228,6 +228,13 @@ export const bookings = {
   availableCoupons: (eventId: string) => apiFetch<AvailableCoupon[]>('/bookings/coupons', { query: { eventId } }),
   quote: (holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string) =>
     apiFetch<BookingQuote>('/bookings/quote', { body: { holdId, couponCode, walletCredit, promoterRef } }),
+  // Fire-and-forget snapshot of the attendee-details form, sent right
+  // before the Razorpay widget opens — lets the payment webhook finish the
+  // booking if this browser tab never comes back (a real incident: a UPI
+  // app-switch backgrounded/killed the tab mid-payment, Razorpay captured
+  // the money, but the booking never got created). Never blocks or fails
+  // the real checkout — see Checkout.tsx's own .catch(() => {}) on this call.
+  prepare: (input: Omit<CreateBookingInput, 'razorpay'>) => apiFetch<{ ok: true }>('/bookings/prepare', { body: input }),
   create: (input: CreateBookingInput) => apiFetch<Booking>('/bookings', { body: input }),
   list: () => apiFetch<Booking[]>('/bookings'),
   // booking ids contain a literal "#" (e.g. "#TKT-12345"), which the URL
