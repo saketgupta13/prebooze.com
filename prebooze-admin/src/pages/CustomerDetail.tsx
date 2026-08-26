@@ -231,6 +231,7 @@ export default function CustomerDetail() {
         ) : (
           <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10, fontSize: 13 }}>
             <div><span className="muted tiny">Date of birth</span><div>{customer.dob || '—'}</div></div>
+            <div><span className="muted tiny">Age</span><div>{customer.age ?? '—'}</div></div>
             <div><span className="muted tiny">Gender</span><div>{customer.gender || '—'}</div></div>
             <div><span className="muted tiny">Profession</span><div>{customer.profession || '—'}</div></div>
             <div><span className="muted tiny">Languages</span><div>{customer.languages || '—'}</div></div>
