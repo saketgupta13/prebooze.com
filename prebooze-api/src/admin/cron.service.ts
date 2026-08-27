@@ -164,4 +164,31 @@ export class CronService {
     const { sent } = await this.carts.sendAutoNudges();
     if (sent) this.log.log(`Cart auto-nudge: WhatsApp+email reminder sent to ${sent} abandoned cart(s)`);
   }
+
+  /** Daily — real 2026-08-28 finding: booking #TKT-99421's real Razorpay
+   * refund failed on 2026-08-14, staffAlerts.alert() fired exactly once at
+   * that moment, and it sat completely unresolved for two weeks — the
+   * guest was never actually paid back, and nobody noticed because a
+   * single WhatsApp ping is trivial to miss and nothing ever reminded
+   * anyone again. This re-surfaces every booking whose refundFailedAt is
+   * still set, every day, with a day-count that makes it harder to ignore
+   * the longer it sits — both a persistent admin bell notification per
+   * booking and a daily WhatsApp nag, until BookingsService.retryRefund
+   * actually clears it. */
+  @Cron('0 9 * * *')
+  async stuckRefundTick() {
+    const stuck = await this.prisma.booking.findMany({ where: { refundFailedAt: { not: null } } });
+    for (const b of stuck) {
+      const days = Math.floor((Date.now() - b.refundFailedAt!.getTime()) / (24 * 60 * 60 * 1000));
+      await this.notifications
+        .notify('⚠', `Refund still stuck for ${days} day${days === 1 ? '' : 's'} — booking ${b.id} (₹${b.total}) — retry in Booking detail`, `/admin/bookings/${encodeURIComponent(b.id)}`)
+        .catch(() => {});
+    }
+    if (stuck.length) {
+      await this.staffAlerts
+        .alert(`⚠ ${stuck.length} refund${stuck.length === 1 ? '' : 's'} still stuck and unresolved (real money not yet back with the guest) — check the admin bell for which ones.`)
+        .catch(() => {});
+      this.log.warn(`Stuck refund tick: ${stuck.length} still unresolved`);
+    }
+  }
 }
