@@ -343,6 +343,10 @@ export interface LiveBooking {
   // — only the actual payout to the guest didn't happen). Null for a
   // normal successful refund.
   refundFailedAt: string | null;
+  // Only present once a refund's actually been attempted — what
+  // retryRefund() will send, net of Razorpay/WhatsApp deductions. Not the
+  // same as `total`.
+  pendingRefundAmount?: number;
   createdAt: string;
   checkedIn: boolean;
   checkedInAt: string | null;

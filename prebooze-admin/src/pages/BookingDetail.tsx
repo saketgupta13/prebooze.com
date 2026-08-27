@@ -390,7 +390,7 @@ export default function BookingDetail() {
           </div>
           <div className="tiny muted">
             The seat was already freed and the organizer's ledger already reversed — that part is correct. The actual
-            ₹{fmt(booking.total)} payout to the guest's card/UPI/bank never went through
+            ₹{fmt(booking.pendingRefundAmount ?? booking.total)} payout to the guest's card/UPI/bank never went through
             (failed {fmtDateTime(booking.refundFailedAt)}). Retrying only re-attempts the payment, nothing else.
           </div>
           <button className="btn btn-pri btn-sm" onClick={retryRefund} disabled={retryingRefund}>

@@ -24,6 +24,8 @@ import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { LeadsService } from '../admin/leads.service';
 
 const FALLBACK_FEE_PCT = 3; // % — used only if PlatformSettings row is somehow missing
+const RAZORPAY_FEE_PCT = 2.36; // confirmed against real live payments 2026-08-27
+const WHATSAPP_MSG_COST = 0.145; // ₹ — AiSensy utility-template rate
 
 export interface CreateBookingInput {
   holdId: string;
@@ -78,6 +80,24 @@ export class BookingsService {
    * opted into a platform cut on. */
   private commissionFor(subtotal: number, commissionPct: number | null): number {
     return commissionPct ? Math.round((subtotal * commissionPct) / 100) : 0;
+  }
+
+  /** What the guest actually receives on a refund is booking.total minus
+   * this — real costs a refund causes that Prebooze doesn't get back.
+   * Real 2026-08-28 finding: Razorpay keeps its own processing fee (~2.36%,
+   * confirmed against a live refunded payment — the fee stayed deducted
+   * after the refund went through) even on a full refund, for both
+   * refund-to-source (a real Razorpay refund call) and refund-to-wallet
+   * (no Razorpay call happens, but the fee was already lost at the
+   * original sale's settlement regardless of what the guest later chooses).
+   * A cancellation also sends real WhatsApp messages beyond the original
+   * booking confirmation — 1 for wallet (refund_wallet) or 2 for
+   * refund-to-source (refund_requested at cancel time + refund_source at
+   * approval) — same per-message cost used to size the booking fee itself. */
+  private refundDeductionFor(booking: { total: number; paymentId: string | null }, refundTo: 'wallet' | 'source'): number {
+    const razorpayFee = booking.paymentId ? booking.total * (RAZORPAY_FEE_PCT / 100) : 0;
+    const msgCount = refundTo === 'source' ? 2 : 1;
+    return Math.round(razorpayFee + msgCount * WHATSAPP_MSG_COST);
   }
 
   /** The organizer-configured revenue-share % for this promoter on this
@@ -882,9 +902,12 @@ export class BookingsService {
     if (refundTo === 'source') {
       await this.prisma.booking.update({ where: { id }, data: { status: 'refund_requested', refundedTo: 'source' } });
       const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-      await this.wa.send(user.phone, 'refund_requested', [id, String(booking.total)]).catch(() => {});
+      // Told upfront what they'll actually get, not the gross total —
+      // matches what finalizeRefund() actually sends on approval.
+      const expected = Math.max(0, booking.total - this.refundDeductionFor(booking, 'source'));
+      await this.wa.send(user.phone, 'refund_requested', [id, String(expected)]).catch(() => {});
       await this.email.sendTemplate(user.email, 'refund_requested', {
-        name: user.name, bookingId: id, amount: money(booking.total),
+        name: user.name, bookingId: id, amount: money(expected),
       }).catch(() => {});
       await this.notifications.notify('↩', `Refund requested — booking ${id} · ₹${booking.total}`, '/admin/bookings?status=refund_requested');
       await this.staffAlerts.alert(`↩ Refund requested — booking ${id} · ₹${booking.total} · ${user.name}`).catch(() => {});
@@ -915,6 +938,10 @@ export class BookingsService {
 
   private async finalizeRefund(booking: Booking, refundTo: 'wallet' | 'source') {
     const { id, userId } = booking;
+    // What the guest actually gets back — not booking.total. See
+    // refundDeductionFor's doc comment for what this withholds and why.
+    const deduction = this.refundDeductionFor(booking, refundTo);
+    const refundAmount = Math.max(0, booking.total - deduction);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.booking.update({ where: { id }, data: { status: 'refunded', refundedTo: refundTo } });
@@ -927,7 +954,7 @@ export class BookingsService {
 
       if (refundTo === 'wallet') {
         await tx.walletTx.create({
-          data: { userId, type: 'refund', amount: booking.total, note: `Instant refund — booking ${id}` },
+          data: { userId, type: 'refund', amount: refundAmount, note: `Instant refund — booking ${id}` },
         });
       }
 
@@ -954,21 +981,22 @@ export class BookingsService {
         }
       }
 
-      // reverse the platform's own income the same way — the refund gives
-      // back booking.total in full, fee + commission included. Recorded as
-      // a separate "Refund losses" expense (aggregated per event, same as
-      // the income side) rather than netted directly against the income
-      // categories, so gross income and gross refunds both stay visible.
+      // reverse the platform's own income the same way — but only net of
+      // `deduction`, since that portion was never actually given back to
+      // the guest. Recorded as a separate "Refund losses" expense
+      // (aggregated per event, same as the income side) rather than netted
+      // directly against the income categories, so gross income and gross
+      // refunds both stay visible.
       if (event) {
-        await this.postEventLedger(tx, booking.eventId, event.title, 'Refund losses', 'expense', booking.fee + commission);
+        await this.postEventLedger(tx, booking.eventId, event.title, 'Refund losses', 'expense', Math.max(0, booking.fee + commission - deduction));
       }
     });
 
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (refundTo === 'wallet') {
-      await this.wa.send(user.phone, 'refund_wallet', [id, String(booking.total)]).catch(() => {});
+      await this.wa.send(user.phone, 'refund_wallet', [id, String(refundAmount)]).catch(() => {});
       await this.email.sendTemplate(user.email, 'refund_processed', {
-        name: user.name, bookingId: id, amount: money(booking.total),
+        name: user.name, bookingId: id, amount: money(refundAmount),
         refundNote: 'to your Prebooze wallet — ready to use instantly.',
       }).catch(() => {});
     } else {
@@ -981,16 +1009,16 @@ export class BookingsService {
       let refundSucceeded = false;
       if (booking.paymentId) {
         try {
-          await this.razorpay.refund(booking.paymentId, booking.total * 100);
+          await this.razorpay.refund(booking.paymentId, refundAmount * 100);
           refundSucceeded = true;
         } catch {
           // fall through — refundSucceeded stays false
         }
       }
       if (refundSucceeded) {
-        await this.wa.send(user.phone, 'refund_source', [id, String(booking.total)]).catch(() => {});
+        await this.wa.send(user.phone, 'refund_source', [id, String(refundAmount)]).catch(() => {});
         await this.email.sendTemplate(user.email, 'refund_processed', {
-          name: user.name, bookingId: id, amount: money(booking.total),
+          name: user.name, bookingId: id, amount: money(refundAmount),
           refundNote: 'to your original payment method — usually 5–7 business days to reflect.',
         }).catch(() => {});
       } else {
@@ -998,7 +1026,7 @@ export class BookingsService {
         // a human to retry (BookingsService.retryRefund) instead.
         await this.prisma.booking.update({ where: { id }, data: { refundFailedAt: new Date() } });
         await this.staffAlerts
-          .alert(`⚠ Refund to original payment method FAILED for booking ${id} (₹${booking.total}, ${user.name}) — payment ${booking.paymentId ?? 'none on file'}. The booking is marked refunded (seat already freed) but the guest has NOT actually been paid back. Retry from Booking detail.`)
+          .alert(`⚠ Refund to original payment method FAILED for booking ${id} (₹${refundAmount}, ${user.name}) — payment ${booking.paymentId ?? 'none on file'}. The booking is marked refunded (seat already freed) but the guest has NOT actually been paid back. Retry from Booking detail.`)
           .catch(() => {});
       }
     }
@@ -1041,13 +1069,17 @@ export class BookingsService {
     if (!booking.refundFailedAt) throw new BadRequestException("This refund didn't fail — nothing to retry");
     if (!booking.paymentId) throw new BadRequestException('No payment on file for this booking — this refund must be issued manually outside Razorpay');
 
-    await this.razorpay.refund(booking.paymentId, booking.total * 100);
+    // Same deduction finalizeRefund() already applied the first time —
+    // recomputed here rather than stored, since it's deterministic off
+    // booking.total/paymentId and this only ever retries a 'source' refund.
+    const refundAmount = Math.max(0, booking.total - this.refundDeductionFor(booking, 'source'));
+    await this.razorpay.refund(booking.paymentId, refundAmount * 100);
     await this.prisma.booking.update({ where: { id }, data: { refundFailedAt: null } });
 
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: booking.userId } });
-    await this.wa.send(user.phone, 'refund_source', [id, String(booking.total)]).catch(() => {});
+    await this.wa.send(user.phone, 'refund_source', [id, String(refundAmount)]).catch(() => {});
     await this.email.sendTemplate(user.email, 'refund_processed', {
-      name: user.name, bookingId: id, amount: money(booking.total),
+      name: user.name, bookingId: id, amount: money(refundAmount),
       refundNote: 'to your original payment method — usually 5–7 business days to reflect.',
     }).catch(() => {});
     return { ok: true };
@@ -1076,7 +1108,12 @@ export class BookingsService {
     const promoter = booking.promoterRef
       ? await this.prisma.promoter.findUnique({ where: { slug: booking.promoterRef }, select: { id: true, name: true, slug: true } })
       : null;
-    return { ...booking, promoter };
+    // Only meaningful once a refund's been attempted — what retryRefund()
+    // will actually send is booking.total minus refundDeductionFor's cut,
+    // not the gross total. Surfaced so a failed-refund banner shows staff
+    // the real pending amount instead of the pre-deduction figure.
+    const pendingRefundAmount = booking.refundFailedAt ? Math.max(0, booking.total - this.refundDeductionFor(booking, 'source')) : undefined;
+    return { ...booking, promoter, pendingRefundAmount };
   }
 
   /** Staff-triggered — the real Prebooze-branded email + PDF ticket, same

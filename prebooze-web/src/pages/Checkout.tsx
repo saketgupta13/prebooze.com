@@ -1071,7 +1071,11 @@ export default function Checkout() {
               </>
             )}
             <div className="kv">
-              <span className="k">{feeLabel} <span className="muted" style={{ fontSize: 11 }}>({ABSORBED_NOTE[absorbedBy] ?? ABSORBED_NOTE.Guest})</span></span>
+              <span className="k">
+                {feeLabel}{' '}
+                <span className="muted" style={{ fontSize: 11 }}>({ABSORBED_NOTE[absorbedBy] ?? ABSORBED_NOTE.Guest})</span>{' '}
+                <span className="muted" style={{ fontSize: 11, cursor: 'help' }} title="Covers secure payment processing and booking notifications for this order">ⓘ</span>
+              </span>
               <span>₹{finalFee}</span>
             </div>
             {finalDiscount > 0 && (
