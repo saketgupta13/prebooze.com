@@ -29,12 +29,19 @@ export class RazorpayWebhookController {
   ) {}
 
   @Post('razorpay')
-  async handle(@Req() req: RawBodyRequest<Request>, @Headers('x-razorpay-signature') signature: string, @Body() body: { event?: string; payload?: unknown }) {
-    const raw = req.rawBody?.toString('utf8') ?? JSON.stringify(body);
+  async handle(@Req() req: RawBodyRequest<Request>, @Headers('x-razorpay-signature') signature: string, @Body() body: { event?: string; payload?: unknown } | undefined) {
+    // Real bug found 2026-08-27: Razorpay's dashboard sends an empty
+    // connectivity-check request before actually saving a new webhook —
+    // both rawBody and body are then undefined/empty, and
+    // JSON.stringify(undefined) returns the literal value undefined (not
+    // a string), which crashed createHmac().update() with a 500. Razorpay's
+    // dashboard surfaced that back as an opaque "json request could not be
+    // decoded" error, blocking the webhook from ever being saved.
+    const raw = req.rawBody?.toString('utf8') ?? (body ? JSON.stringify(body) : '');
     if (!this.razorpay.verifyWebhookSignature(raw, signature ?? '')) {
       throw new UnauthorizedException('Invalid webhook signature');
     }
-    if (body.event) {
+    if (body?.event) {
       await this.subs.handleWebhookEvent(body.event, body.payload);
       await this.featured.handleWebhookEvent(body.event, body.payload);
       // Closes the "no Razorpay webhook handler for one-time payments" gap
