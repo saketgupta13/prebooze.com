@@ -23,7 +23,7 @@ import { StaffAlertsService } from '../notifications/staff-alerts';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { LeadsService } from '../admin/leads.service';
 
-const FALLBACK_FEE_PER_TICKET = 1.5; // ₹ — used only if PlatformSettings row is somehow missing
+const FALLBACK_FEE_PCT = 3; // % — used only if PlatformSettings row is somehow missing
 
 export interface CreateBookingInput {
   holdId: string;
@@ -148,11 +148,6 @@ export class BookingsService {
 
     const qty = lines.reduce((a, l) => a + l.qty, 0);
     const baseSubtotal = lines.reduce((a, l) => a + l.qty * effectiveTierPrice(l.tier, event.date), 0);
-    // A free ticket doesn't get charged the platform's per-ticket booking
-    // fee — only tickets with a real, nonzero price do. A cart mixing free
-    // and paid tiers only pays the fee on the paid ones.
-    const paidQty = lines.reduce((a, l) => a + (effectiveTierPrice(l.tier, event.date) > 0 ? l.qty : 0), 0);
-    const fee = Math.round(paidQty * (settings?.bookingFee ?? FALLBACK_FEE_PER_TICKET));
 
     // ---- promoter revenue-share markup — only when this hold carries a
     // ?ref= attributed to an allowed promoter who has a nonzero rate set for
@@ -222,6 +217,17 @@ export class BookingsService {
       const raw = couponRow.type === 'percent' ? (subtotal * couponRow.value) / 100 : couponRow.value;
       discount = Math.min(Math.round(raw), couponRow.maxDiscount ?? raw, subtotal);
     }
+
+    // ---- booking fee — % of the discounted subtotal, not the raw one, so
+    // it tracks what's actually going to be charged (a fully-discounted
+    // free ticket correctly gets a ₹0 fee, same as it always has). Costed
+    // to cover Razorpay's real cut (~2.42% grossed-up) plus the WhatsApp
+    // confirmation (~₹0.15) — see PlatformSettings.bookingFee's doc comment
+    // for the full reasoning. Ignores wallet credit deliberately: credit is
+    // a guest choice applied after this point, and basing the fee on
+    // pre-credit value is the simpler, still-fair approximation rather than
+    // a fully circular fee-depends-on-credit-depends-on-fee formula.
+    const fee = Math.round(((subtotal - discount) * (settings?.bookingFee ?? FALLBACK_FEE_PCT)) / 100);
 
     // ---- wallet credit ----
     const balance = await this.walletBalance(userId);
@@ -743,8 +749,8 @@ export class BookingsService {
     const tierPrice = effectiveTierPrice(tier, event.date);
     const subtotal = isComp ? 0 : tierPrice * input.qty;
     const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
-    // Same as priceHold() — no booking fee on a free ticket.
-    const fee = isComp || tierPrice === 0 ? 0 : Math.round(input.qty * (settings?.bookingFee ?? FALLBACK_FEE_PER_TICKET));
+    // Same as priceHold() — % of subtotal, no booking fee on a free ticket.
+    const fee = isComp || tierPrice === 0 ? 0 : Math.round((subtotal * (settings?.bookingFee ?? FALLBACK_FEE_PCT)) / 100);
     const total = subtotal + fee;
 
     const id = '#TKT-' + randomInt(10000, 99999);

@@ -884,7 +884,14 @@ model CheckInLog {
  */
 model PlatformSettings {
   id         String @id @default("main")
-  bookingFee Float  @default(1.5) // ₹ per ticket — matches the pre-existing FEE_PER_TICKET constant exactly
+  // % of the discounted subtotal, not a flat ₹ amount — changed 2026-08-28.
+  // Set to cost-recover the two costs that actually scale with a real
+  // transaction (Razorpay's ~2.42% grossed-up cut + the ~₹0.15 WhatsApp
+  // confirmation) with a small rounding buffer. Deliberately excludes fixed
+  // monthly costs (hosting, AiSensy subscription) — at current volume those
+  // would need ~₹123/ticket to fully recover, wildly disproportionate to
+  // ticket prices; treated as general overhead instead.
+  bookingFee Float  @default(3)
   gstPct     Int    @default(18)
 
   // Branding — admin-uploaded overrides for the wordmark logo (guest site

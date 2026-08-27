@@ -232,11 +232,6 @@ export default function Checkout() {
   );
   const extraSlots = attendeeSlots.slice(1);
   const subtotal = lines.reduce((a, l) => a + l.qty * displayTierPrice(l.tier, event?.date ?? ''), 0);
-  // No booking fee on a free ticket — matches priceHold()'s server-side
-  // calculation, which is what actually charges. This is a display-only
-  // estimate shown while the real quote() call is still resolving.
-  const paidTicketCount = lines.reduce((a, l) => a + (displayTierPrice(l.tier, event?.date ?? '') > 0 ? l.qty : 0), 0);
-  const fee = Math.round(paidTicketCount * bookingFee);
 
   const discount = useMemo(() => {
     if (!appliedCode) return 0;
@@ -245,6 +240,11 @@ export default function Checkout() {
     const raw = c.type === 'percent' ? (subtotal * c.value) / 100 : c.value;
     return Math.min(Math.round(raw), c.maxDiscount ?? raw, subtotal);
   }, [appliedCode, coupons, subtotal]);
+  // bookingFee is a % of the discounted subtotal now, not a flat ₹ per
+  // ticket — matches priceHold()'s server-side calculation, which is what
+  // actually charges. This is a display-only estimate shown while the real
+  // quote() call is still resolving.
+  const fee = Math.round(((subtotal - discount) * bookingFee) / 100);
 
   const [useCredit, setUseCredit] = useState(true);
   const effectiveWalletBalance = liveEvent ? liveWalletBalance : walletBalance;

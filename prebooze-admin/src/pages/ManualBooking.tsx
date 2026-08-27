@@ -66,7 +66,7 @@ export default function ManualBooking() {
   const totals = useMemo(() => {
     if (!tier || isComp) return { subtotal: 0, fees: 0, total: 0 };
     const subtotal = tier.price * qty;
-    const fees = Math.round(bookingFee * qty);
+    const fees = Math.round((subtotal * bookingFee) / 100);
     return { subtotal, fees, total: subtotal + fees };
   }, [tier, qty, isComp, bookingFee]);
 

@@ -125,8 +125,8 @@ export default function SettingsLive() {
         <div className="display" style={{ fontWeight: 700 }}>Booking &amp; fees</div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <div className="field" style={{ width: 120 }}>
-            <label>Booking fee ₹</label>
-            <input className="input" inputMode="numeric" value={settings.bookingFee} onChange={(e) => set('bookingFee', parseFloat(e.target.value) || 0)} />
+            <label>Booking fee %</label>
+            <input className="input" inputMode="decimal" value={settings.bookingFee} onChange={(e) => set('bookingFee', parseFloat(e.target.value) || 0)} />
           </div>
           <div className="field" style={{ flex: 1, minWidth: 140 }}>
             <label>Fee label</label>
@@ -140,6 +140,9 @@ export default function SettingsLive() {
               <option value="Split">Split</option>
             </select>
           </div>
+        </div>
+        <div className="tiny hint">
+          % of the discounted ticket price, not a flat ₹ amount — sized to cover Razorpay's cut plus the WhatsApp confirmation cost.
         </div>
         <div className="tiny hint">
           Prebooze isn't GST-registered, so no GST is charged or shown anywhere — invoices print as a plain "Invoice".
