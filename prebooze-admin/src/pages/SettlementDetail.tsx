@@ -85,23 +85,44 @@ export default function SettlementDetail() {
           {/* Details */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div className="display" style={{ fontWeight: 700, fontSize: 14 }}>Details</div>
-            <div className="kv"><span className="k muted">Settlement ID</span><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{data.settlement.id} <CopyChip value={data.settlement.id} /></span></div>
-            <div className="kv"><span className="k muted">UTR number</span><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{data.settlement.utr ?? '—'} {data.settlement.utr && <CopyChip value={data.settlement.utr} />}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="muted">Settlement ID</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{data.settlement.id} <CopyChip value={data.settlement.id} /></span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="muted">UTR number</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{data.settlement.utr ?? '—'} {data.settlement.utr && <CopyChip value={data.settlement.utr} />}</span>
+            </div>
           </div>
 
           {/* Amount Breakup — same structure/order Razorpay's own dashboard uses */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div className="display" style={{ fontWeight: 700, fontSize: 14 }}>Amount Breakup</div>
 
-            <div className="kv"><span className="k" style={{ fontWeight: 700 }}>Gross Settlements</span><span className="green" style={{ fontWeight: 700 }}>₹{fmt(data.grossTotal)}</span></div>
-            <div className="kv" style={{ paddingLeft: 14 }}><span className="k muted tiny">Payment</span><span className="tiny">₹{fmt(data.grossTotal)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 700 }}>Gross Settlements</span>
+              <span className="green" style={{ fontWeight: 700 }}>₹{fmt(data.grossTotal)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 14 }}>
+              <span className="muted tiny">Payment</span>
+              <span className="tiny">₹{fmt(data.grossTotal)}</span>
+            </div>
 
-            <div className="kv" style={{ marginTop: 4 }}><span className="k" style={{ fontWeight: 700 }}>Deductions</span><span className="red" style={{ fontWeight: 700 }}>₹{fmt(data.feeTotal)}</span></div>
-            <div className="kv" style={{ paddingLeft: 14 }}><span className="k muted tiny">Goods and services tax (GST)</span><span className="tiny">₹{fmt(data.gstCutTotal)}</span></div>
-            <div className="kv" style={{ paddingLeft: 14 }}><span className="k muted tiny">Platform fee charged on payments</span><span className="tiny">₹{fmt(data.razorpayCutTotal)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+              <span style={{ fontWeight: 700 }}>Deductions</span>
+              <span className="red" style={{ fontWeight: 700 }}>₹{fmt(data.feeTotal)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 14 }}>
+              <span className="muted tiny">Goods and services tax (GST)</span>
+              <span className="tiny">₹{fmt(data.gstCutTotal)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 14 }}>
+              <span className="muted tiny">Platform fee charged on payments</span>
+              <span className="tiny">₹{fmt(data.razorpayCutTotal)}</span>
+            </div>
 
-            <div className="kv" style={{ marginTop: 4, paddingTop: 10, borderTop: '1px solid var(--border, #eee)' }}>
-              <span className="k" style={{ fontWeight: 800 }}>Net Settlements</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, paddingTop: 10, borderTop: '1px solid var(--border, #eee)' }}>
+              <span style={{ fontWeight: 800 }}>Net Settlements</span>
               <span className="green" style={{ fontWeight: 800 }}>₹{fmt(net)}</span>
             </div>
           </div>
