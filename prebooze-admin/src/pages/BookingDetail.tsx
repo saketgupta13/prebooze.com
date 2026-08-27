@@ -47,6 +47,7 @@ export default function BookingDetail() {
   const [showTicket, setShowTicket] = useState(false);
   const [note, setNote] = useState('');
   const [noteSaved, setNoteSaved] = useState(false);
+  const [retryingRefund, setRetryingRefund] = useState(false);
   const [otherBookings, setOtherBookings] = useState<LiveBooking[] | null>(null);
   const [editGuests, setEditGuests] = useState<{ name: string; gender: string; whatsapp: string }[]>([]);
   const [guestsSaving, setGuestsSaving] = useState(false);
@@ -112,6 +113,22 @@ export default function BookingDetail() {
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to decline refund');
+    }
+  };
+
+  const retryRefund = async () => {
+    setRetryingRefund(true);
+    setErr('');
+    try {
+      await liveBookings.retryRefund(booking.id);
+      load();
+    } catch (e) {
+      // Real error this time, not a silent failure — the whole point of
+      // this button — so it's worth surfacing clearly, not just the
+      // generic err banner other actions on this page use.
+      setErr(`Refund retry failed again: ${e instanceof LiveApiError ? e.message : 'unknown error'} — check the Razorpay dashboard directly before trying once more.`);
+    } finally {
+      setRetryingRefund(false);
     }
   };
 
@@ -363,6 +380,22 @@ export default function BookingDetail() {
               Decline
             </button>
           </div>
+        </div>
+      )}
+
+      {booking.refundFailedAt && (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10, borderColor: 'var(--red)' }}>
+          <div style={{ color: 'var(--red)', fontSize: 12.5, fontWeight: 700 }}>
+            ⚠ Refund to original payment method failed
+          </div>
+          <div className="tiny muted">
+            The seat was already freed and the organizer's ledger already reversed — that part is correct. The actual
+            ₹{fmt(booking.total)} payout to the guest's card/UPI/bank never went through
+            (failed {fmtDateTime(booking.refundFailedAt)}). Retrying only re-attempts the payment, nothing else.
+          </div>
+          <button className="btn btn-pri btn-sm" onClick={retryRefund} disabled={retryingRefund}>
+            {retryingRefund ? 'Retrying…' : 'Retry refund'}
+          </button>
         </div>
       )}
 
