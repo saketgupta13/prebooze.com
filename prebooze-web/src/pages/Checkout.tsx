@@ -675,6 +675,13 @@ export default function Checkout() {
   };
 
   const pay = () => {
+    // Belt-and-suspenders — the page already swaps to the "hold expired"
+    // screen and unmounts this button once `expired` flips true, but that's
+    // gated on a 1s timer tick; this catches the sliver of time in between.
+    if (expired) {
+      setCouponMsg({ ok: false, text: 'Your hold just expired — please pick tickets again' });
+      return;
+    }
     setAttendeeErr('');
     if (!name.trim() || !whatsapp.trim()) {
       failAttendee('Main attendee name and WhatsApp number are required');
