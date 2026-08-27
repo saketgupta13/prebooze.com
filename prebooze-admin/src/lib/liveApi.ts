@@ -883,12 +883,32 @@ export interface LiveSettlement {
   utr: string | null;
   settledAt: string;
 }
+export interface LiveSettlementPayment {
+  paymentId: string;
+  amount: number;
+  razorpayCut: number;
+  gstCut: number;
+  net: number;
+  paidAt: string;
+  bookingId: string | null;
+  guestName: string | null;
+  eventTitle: string | null;
+}
+export interface LiveSettlementDetail {
+  settlement: LiveSettlement;
+  payments: LiveSettlementPayment[];
+  grossTotal: number;
+  razorpayCutTotal: number;
+  gstCutTotal: number;
+  feeTotal: number;
+}
 export const liveSettlements = {
   // Cached data only — synced daily by CronService.settlementSyncTick, not
   // fetched live from Razorpay on every page load (a full backfill re-sync
   // would be a slow first request, and there's no reason to re-hit their
   // API more often than settlements actually change).
   list: () => liveFetch<{ settlements: LiveSettlement[]; total: number }>('/admin/settlements'),
+  detail: (id: string) => liveFetch<LiveSettlementDetail>(`/admin/settlements/${encodeURIComponent(id)}`),
 };
 
 export const PERM_MODULES = [

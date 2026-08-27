@@ -2022,6 +2022,24 @@ model RazorpaySettlement {
   fetchedAt DateTime @default(now())
 }
 
+// Exact per-payment line items within a settlement — from Razorpay's
+// Settlement Reconciliation report (`/v1/settlements/recon/combined`), not
+// a date-range approximation. `id` is the real Razorpay payment id
+// (`entity_id`/pay_...), unique per payment regardless of which settlement
+// it landed in. `fee` is the total Razorpay deduction (GST-inclusive, same
+// convention as RazorpayService.getPaymentFee); `tax` is just the GST
+// portion of that fee — Razorpay's own cut is `fee - tax`.
+model RazorpaySettlementItem {
+  id           String @id
+  settlementId String
+  amount       Int // ₹, gross payment amount
+  fee          Int // ₹, total Razorpay deduction (GST-inclusive)
+  tax          Int // ₹, GST portion of `fee`
+  paidAt       DateTime // the payment's own created_at, not settledAt
+
+  @@index([settlementId])
+}
+
 // ============================================================================
 // Email templates — admin-editable overrides. `id` is normally the fixed
 // template key (e.g. "booking_confirmed") the code already defines a

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { SettlementsService } from './settlements.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
@@ -15,5 +15,11 @@ export class AdminSettlementsController {
   @RequirePermission(MODULE, 'view')
   list() {
     return this.settlements.list();
+  }
+
+  @Get(':id')
+  @RequirePermission(MODULE, 'view')
+  detail(@Param('id') id: string) {
+    return this.settlements.detail(id);
   }
 }

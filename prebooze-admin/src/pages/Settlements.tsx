@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Kpi, Tag } from '../components/ui';
 import { downloadCsv } from '../lib/csv';
 import { liveSettlements, LiveApiError, type LiveSettlement } from '../lib/liveApi';
@@ -86,14 +87,14 @@ export default function Settlements() {
           <span style={{ flex: 1.5 }}>UTR</span>
         </div>
         {settlements.map((s) => (
-          <div key={s.id} className="trow" style={{ minWidth: 560 }}>
+          <Link key={s.id} to={`/settlements/${encodeURIComponent(s.id)}`} className="trow" style={{ minWidth: 560, cursor: 'pointer' }}>
             <span style={{ flex: 1 }} className="muted">{new Date(s.settledAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
             <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(s.amount)}</span>
             <span style={{ flex: 1 }}>
               <Tag label={s.status} cls={s.status === 'processed' ? 'tag-green' : 'tag-dim'} />
             </span>
             <span style={{ flex: 1.5 }} className="muted">{s.utr ?? '—'}</span>
-          </div>
+          </Link>
         ))}
         {settlements.length === 0 && !loading && <div className="trow muted">No settlements yet.</div>}
       </div>

@@ -154,6 +154,29 @@ export class RazorpayService {
     }));
   }
 
+  /** Exact payment→settlement linkage, unlike listSettlements above — each
+   * item names the real settlement_id it landed in, plus its own fee/tax.
+   * `type` also includes non-payment rows (refunds, adjustments); only
+   * `type === 'payment'` items are what SettlementsService actually stores.
+   * Scoped to one calendar month, matching Razorpay's own report params. */
+  async listSettlementRecon(year: number, month: number): Promise<{ id: string; settlementId: string; type: string; amount: number; fee: number; tax: number; paidAt: Date }[]> {
+    if (!this.live) return [];
+    const res = await fetch(`https://api.razorpay.com/v1/settlements/recon/combined?year=${year}&month=${month}`, {
+      headers: { Authorization: this.authHeader() },
+    });
+    if (!res.ok) throw new Error(`Razorpay settlement recon fetch failed: ${res.status} ${await res.text()}`);
+    const data = await res.json();
+    return (data.items as Array<{ entity_id: string; settlement_id: string; type: string; amount: number; fee: number; tax: number; created_at: number }>).map((i) => ({
+      id: i.entity_id,
+      settlementId: i.settlement_id,
+      type: i.type,
+      amount: Math.round(i.amount / 100),
+      fee: Math.round(i.fee / 100),
+      tax: Math.round(i.tax / 100),
+      paidAt: new Date(i.created_at * 1000),
+    }));
+  }
+
   // ---------- Subscriptions (organizer/promoter/venue plan billing) ----------
   // Same dev-stub pattern as everything above. Docs: razorpay.com/docs/api/payments/subscriptions/
 

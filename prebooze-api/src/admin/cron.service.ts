@@ -199,8 +199,8 @@ export class CronService {
    * plenty frequent without hammering Razorpay's API for no reason. */
   @Cron('0 10 * * *')
   async settlementSyncTick() {
-    const { synced } = await this.settlements.sync();
-    if (synced) this.log.log(`Settlement sync: ${synced} record(s)`);
+    const { synced, items } = await this.settlements.sync();
+    if (synced || items) this.log.log(`Settlement sync: ${synced} settlement(s), ${items} recon item(s)`);
   }
 
   /** Daily — corrects the "Razorpay commission" ledger estimate to the real
