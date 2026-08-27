@@ -1189,6 +1189,15 @@ model Booking {
   // already-sold ticket promised its guest.
   coverCharge Int @default(0)
 
+  // Platform's own cut, computed from Event.commission % and locked in at
+  // booking creation — same reasoning as promoterCommission above. Real bug
+  // found 2026-08-27: finalizeRefund() used to re-read Event.commission
+  // *at refund time* instead of using what was actually charged, so any
+  // admin edit to an event's commission % between a sale and that sale's
+  // later refund silently unbalanced the finance ledger's Income vs
+  // Expense for that event, with no way to detect it after the fact.
+  commission Int @default(0)
+
   couponCode String?
   status     BookingStatus @default(confirmed)
   guests     Json // BookingGuest[] — {name, checkedIn, gender?, whatsapp?} (see prebooze-web/src/types.ts)

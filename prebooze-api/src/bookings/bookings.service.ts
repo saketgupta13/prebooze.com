@@ -516,6 +516,7 @@ export class BookingsService {
           promoterRef: input.promoterRef,
           promoterVia: input.promoterRef ? input.promoterVia : undefined,
           promoterCommission,
+          commission,
           walletCreditUsed,
           paymentId: paymentId ?? undefined,
           qrToken,
@@ -761,6 +762,7 @@ export class BookingsService {
       });
       if (res.count === 0) throw new BadRequestException(`"${tier.name}" sold out`);
 
+      const commission = this.commissionFor(subtotal, event.commission);
       const created = await tx.booking.create({
         data: {
           id,
@@ -778,6 +780,7 @@ export class BookingsService {
           paymentMethod: isComp ? 'Comp' : input.method,
           qrToken,
           coverCharge: tier.coverCharge * input.qty,
+          commission,
         },
       });
 
@@ -796,7 +799,6 @@ export class BookingsService {
         await tx.user.update({ where: { id: buyer.id }, data: { ...nameUpdate, ...genderUpdate, ...ageUpdate, ...(newUsername ? { username: newUsername } : {}) } });
       }
 
-      const commission = this.commissionFor(subtotal, event.commission);
       if (subtotal > 0) {
         if (event.hostedByVenue && event.venueId) {
           await tx.venueLedgerTx.create({
@@ -925,9 +927,15 @@ export class BookingsService {
 
       // reverse the organizer's (or venue's) earnings credit from the
       // original sale — same subtotal-minus-commission the original
-      // booking credited them
-      const event = await tx.event.findUnique({ where: { id: booking.eventId }, select: { organizerId: true, hostedByVenue: true, venueId: true, title: true, commission: true } });
-      const commission = event ? this.commissionFor(booking.subtotal, event.commission) : 0;
+      // booking credited them. Uses booking.commission (locked in at sale
+      // time), not a fresh read of Event.commission — a later admin edit to
+      // the event's commission % must never change what an already-sold,
+      // already-refunded booking reverses. Real bug found 2026-08-27: this
+      // used to recompute from the event's current setting, which silently
+      // unbalanced the finance ledger whenever commission % changed between
+      // a sale and its later refund.
+      const event = await tx.event.findUnique({ where: { id: booking.eventId }, select: { organizerId: true, hostedByVenue: true, venueId: true, title: true } });
+      const commission = booking.commission;
       if (event) {
         if (event.hostedByVenue && event.venueId) {
           await tx.venueLedgerTx.create({
