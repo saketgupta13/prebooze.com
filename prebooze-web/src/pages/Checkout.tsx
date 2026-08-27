@@ -576,19 +576,29 @@ export default function Checkout() {
             try {
               const booking = await finishCreate({ orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature });
               afterBookingSuccess(booking.id);
-            } catch (e) {
+            } catch {
               // The payment webhook can reconcile and create the booking
               // before this call arrives — it releases the same hold this
               // call needs, so this fails with a generic "hold expired"
-              // error even though the guest is already booked. Check for
-              // that real booking by payment id before showing an error.
-              const existing = await bookings.list().then((list) => list.find((b) => b.paymentId === r.razorpay_payment_id)).catch(() => undefined);
+              // error even though the guest is already booked. Poll for
+              // that real booking by payment id — a few attempts, since the
+              // webhook can take a few seconds — before showing anything.
+              let existing;
+              for (let attempt = 0; attempt < 5 && !existing; attempt++) {
+                if (attempt > 0) await new Promise((r2) => setTimeout(r2, 1500));
+                existing = await bookings.list().then((list) => list.find((b) => b.paymentId === r.razorpay_payment_id)).catch(() => undefined);
+              }
               if (existing) {
                 afterBookingSuccess(existing.id);
                 return;
               }
+              // Money has already left the guest's account at this point —
+              // never suggest picking tickets again here, that risks a
+              // second charge. The webhook will still complete this
+              // shortly; support can also finish it manually from the
+              // payment id if it somehow doesn't.
               setPaying(false);
-              setCouponMsg({ ok: false, text: (e as Error).message ?? 'Payment succeeded but the booking could not be finalized — contact support' });
+              setCouponMsg({ ok: false, text: `Payment received — we're finalizing your booking, check My Bookings in a minute. If it's not there, contact support with payment ID ${r.razorpay_payment_id}.` });
             }
           },
           modal: {
