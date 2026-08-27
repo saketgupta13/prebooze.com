@@ -876,6 +876,21 @@ export const liveLedger = {
   addCategory: (kind: 'income' | 'expense', name: string) => liveFetch<unknown>('/admin/ledger/categories', { body: { kind, name } }),
 };
 
+export interface LiveSettlement {
+  id: string;
+  amount: number;
+  status: string;
+  utr: string | null;
+  settledAt: string;
+}
+export const liveSettlements = {
+  // Cached data only — synced daily by CronService.settlementSyncTick, not
+  // fetched live from Razorpay on every page load (a full backfill re-sync
+  // would be a slow first request, and there's no reason to re-hit their
+  // API more often than settlements actually change).
+  list: () => liveFetch<{ settlements: LiveSettlement[]; total: number }>('/admin/settlements'),
+};
+
 export const PERM_MODULES = [
   'Dashboard', 'Events & approvals', 'Event commission (per event)', 'Bookings', 'Refunds',
   'Payments & payouts', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',

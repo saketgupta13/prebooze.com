@@ -10,6 +10,7 @@ import { BookingsService } from '../bookings/bookings.service';
 import { LeadsService } from './leads.service';
 import { NotificationsService } from './notifications.service';
 import { CartsService } from './carts.service';
+import { SettlementsService } from './settlements.service';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -31,6 +32,7 @@ export class CronService {
     private leads: LeadsService,
     private notifications: NotificationsService,
     private carts: CartsService,
+    private settlements: SettlementsService,
   ) {}
 
   /** Payouts are never marked paid automatically — there's no real bank
@@ -190,5 +192,24 @@ export class CronService {
         .catch(() => {});
       this.log.warn(`Stuck refund tick: ${stuck.length} still unresolved`);
     }
+  }
+
+  /** Daily — settlements only ever get added, never edited, and the account
+   * settles every few days to a week+ (not a fixed schedule), so daily is
+   * plenty frequent without hammering Razorpay's API for no reason. */
+  @Cron('0 10 * * *')
+  async settlementSyncTick() {
+    const { synced } = await this.settlements.sync();
+    if (synced) this.log.log(`Settlement sync: ${synced} record(s)`);
+  }
+
+  /** Daily — corrects the "Razorpay commission" ledger estimate to the real
+   * per-payment fee once Razorpay's finalized it (see BookingsService.
+   * reconcileRazorpayFees's own doc comment for why this can't just happen
+   * at sale time). */
+  @Cron('0 10 * * *')
+  async razorpayFeeReconcileTick() {
+    const { reconciled } = await this.bookings.reconcileRazorpayFees();
+    if (reconciled) this.log.log(`Razorpay fee reconcile: ${reconciled} booking(s)`);
   }
 }

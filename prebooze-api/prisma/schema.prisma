@@ -1204,6 +1204,11 @@ model Booking {
   // later refund silently unbalanced the finance ledger's Income vs
   // Expense for that event, with no way to detect it after the fact.
   commission Int @default(0)
+  // Set once BookingsService's fee-reconciliation cron has replaced the
+  // "Razorpay commission" ledger estimate (2.36% of total, posted at sale
+  // time) with the real per-payment fee Razorpay actually charged. Guards
+  // against re-adjusting the same booking's ledger entry twice.
+  razorpayFeeReconciled Boolean @default(false)
 
   couponCode String?
   status     BookingStatus @default(confirmed)
@@ -1999,6 +2004,22 @@ model LedgerCategory {
   name String
 
   @@unique([kind, name])
+}
+
+// Real Razorpay settlement batches — what actually lands in the bank, cached
+// from their Settlements API (SettlementsService.sync, daily cron). Not
+// per-event: Razorpay bundles multiple events'/days' payments into one
+// batch on its own schedule, so this is a separate "bank statement" view
+// from the per-event ledger above, not a breakdown of it. `id` is
+// Razorpay's real settlement id (e.g. "setl_...") — upserting on it makes
+// a re-sync idempotent.
+model RazorpaySettlement {
+  id        String   @id
+  amount    Int // ₹, converted from Razorpay's paise
+  status    String
+  utr       String?
+  settledAt DateTime // Razorpay's created_at
+  fetchedAt DateTime @default(now())
 }
 
 // ============================================================================

@@ -119,6 +119,41 @@ export class RazorpayService {
     };
   }
 
+  /** The real fee Razorpay actually deducted for this payment — in ₹, GST
+   * already included (Razorpay's own `fee` field is the total deduction,
+   * `tax` just breaks out how much of it was GST — confirmed against real
+   * payments 2026-08-27). Used to correct BookingsService's 2.36% estimate
+   * to the exact real number once Razorpay's finalized it. */
+  async getPaymentFee(paymentId: string): Promise<number | null> {
+    if (!this.live || paymentId.startsWith('pay_dev_')) return null;
+    const res = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
+      headers: { Authorization: this.authHeader() },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data.fee === 'number' ? Math.round(data.fee / 100) : null;
+  }
+
+  /** Real settlement batches — what Razorpay actually pays out to the bank,
+   * on its own schedule (not per-event, not per-booking; one batch can span
+   * several days/events). `skip`/`count` mirror Razorpay's own pagination
+   * params directly. */
+  async listSettlements(skip: number, count: number): Promise<{ id: string; amount: number; status: string; utr: string | null; settledAt: Date }[]> {
+    if (!this.live) return [];
+    const res = await fetch(`https://api.razorpay.com/v1/settlements?count=${count}&skip=${skip}`, {
+      headers: { Authorization: this.authHeader() },
+    });
+    if (!res.ok) throw new Error(`Razorpay settlements fetch failed: ${res.status} ${await res.text()}`);
+    const data = await res.json();
+    return (data.items as Array<{ id: string; amount: number; status: string; utr: string | null; created_at: number }>).map((s) => ({
+      id: s.id,
+      amount: Math.round(s.amount / 100),
+      status: s.status,
+      utr: s.utr,
+      settledAt: new Date(s.created_at * 1000),
+    }));
+  }
+
   // ---------- Subscriptions (organizer/promoter/venue plan billing) ----------
   // Same dev-stub pattern as everything above. Docs: razorpay.com/docs/api/payments/subscriptions/
 

@@ -27,6 +27,7 @@ import { AdminEmailTemplatesController } from './email-templates-admin.controlle
 import { AdminInvoicesController } from '../invoices/invoices-admin.controller';
 import { AdminSubscriptionsController } from './admin-subscriptions.controller';
 import { AdminLeadsController, LeadDraftController } from './leads.controller';
+import { AdminSettlementsController } from './settlements.controller';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffService } from './staff.service';
@@ -55,6 +56,7 @@ import { SubTiersService } from './sub-tiers.service';
 import { EmailTemplatesAdminService } from './email-templates-admin.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { LeadsService } from './leads.service';
+import { SettlementsService } from './settlements.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { OwnerOnlyGuard } from './owner-only.guard';
 import { PermissionGuard } from './permission.guard';
@@ -111,6 +113,7 @@ import { redisProvider } from '../redis.provider';
     AdminSubscriptionsController,
     AdminLeadsController,
     LeadDraftController,
+    AdminSettlementsController,
   ],
   providers: [
     JwtAuthGuard,
@@ -152,6 +155,7 @@ import { redisProvider } from '../redis.provider';
     WalletService,
     HoldsService,
     CronService,
+    SettlementsService,
     StaffAuthGuard,
     OwnerOnlyGuard,
     PermissionGuard,

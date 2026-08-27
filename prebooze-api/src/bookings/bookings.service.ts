@@ -1115,6 +1115,39 @@ export class BookingsService {
     return { ok: true };
   }
 
+  /** Daily cron (CronService.razorpayFeeReconcileTick) — the "Razorpay
+   * commission" ledger entry is posted at sale time using a flat 2.36%
+   * estimate (see RAZORPAY_FEE_PCT), since the real fee isn't always known
+   * yet at that exact moment. Once Razorpay's finalized it, this replaces
+   * the estimate with the real number by adjusting the ledger for just the
+   * difference — never re-posting the full amount, which would double it.
+   * razorpayFeeReconciled gates each booking to exactly one adjustment. */
+  async reconcileRazorpayFees() {
+    if (!this.razorpay.live) return { reconciled: 0 };
+    const candidates = await this.prisma.booking.findMany({
+      where: { razorpayFeeReconciled: false, paymentId: { not: null } },
+      include: { event: { select: { id: true, title: true } } },
+    });
+    let reconciled = 0;
+    for (const b of candidates) {
+      if (!b.event || !b.paymentId) continue;
+      const realFee = await this.razorpay.getPaymentFee(b.paymentId);
+      if (realFee === null) continue; // not finalized yet, or a dev-fake payment — try again next tick
+      const estimated = Math.round(b.total * (RAZORPAY_FEE_PCT / 100));
+      const delta = realFee - estimated;
+      if (delta !== 0) {
+        await this.prisma.ledgerEntry.upsert({
+          where: { eventId_category: { eventId: b.event.id, category: 'Razorpay commission' } },
+          create: { kind: 'expense', category: 'Razorpay commission', amount: Math.max(0, realFee), note: b.event.title, eventId: b.event.id, auto: true },
+          update: { amount: { increment: delta } },
+        });
+      }
+      await this.prisma.booking.update({ where: { id: b.id }, data: { razorpayFeeReconciled: true } });
+      reconciled++;
+    }
+    return { reconciled };
+  }
+
   // ---------- admin: bookings list/detail ----------
   async adminList(status?: string, userId?: string) {
     return this.prisma.booking.findMany({
