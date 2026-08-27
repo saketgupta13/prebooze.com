@@ -953,16 +953,41 @@ export class BookingsService {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (refundTo === 'wallet') {
       await this.wa.send(user.phone, 'refund_wallet', [id, String(booking.total)]).catch(() => {});
+      await this.email.sendTemplate(user.email, 'refund_processed', {
+        name: user.name, bookingId: id, amount: money(booking.total),
+        refundNote: 'to your Prebooze wallet — ready to use instantly.',
+      }).catch(() => {});
     } else {
-      if (booking.paymentId) await this.razorpay.refund(booking.paymentId, booking.total * 100).catch(() => {});
-      await this.wa.send(user.phone, 'refund_source', [id, String(booking.total)]).catch(() => {});
+      // Inventory/ledger reversal above is already committed and correct
+      // (the seat really is freed) regardless of what happens here — this
+      // is only the actual money movement back to the guest. Real
+      // 2026-08-14 incident: this used to be `.catch(() => {})`'d away
+      // silently, so a real guest was told their refund was on its way
+      // and it never was, for ~13 days before anyone noticed.
+      let refundSucceeded = false;
+      if (booking.paymentId) {
+        try {
+          await this.razorpay.refund(booking.paymentId, booking.total * 100);
+          refundSucceeded = true;
+        } catch {
+          // fall through — refundSucceeded stays false
+        }
+      }
+      if (refundSucceeded) {
+        await this.wa.send(user.phone, 'refund_source', [id, String(booking.total)]).catch(() => {});
+        await this.email.sendTemplate(user.email, 'refund_processed', {
+          name: user.name, bookingId: id, amount: money(booking.total),
+          refundNote: 'to your original payment method — usually 5–7 business days to reflect.',
+        }).catch(() => {});
+      } else {
+        // Never tell the guest it's on its way when it isn't — flag it for
+        // a human to retry (BookingsService.retryRefund) instead.
+        await this.prisma.booking.update({ where: { id }, data: { refundFailedAt: new Date() } });
+        await this.staffAlerts
+          .alert(`⚠ Refund to original payment method FAILED for booking ${id} (₹${booking.total}, ${user.name}) — payment ${booking.paymentId ?? 'none on file'}. The booking is marked refunded (seat already freed) but the guest has NOT actually been paid back. Retry from Booking detail.`)
+          .catch(() => {});
+      }
     }
-    await this.email.sendTemplate(user.email, 'refund_processed', {
-      name: user.name, bookingId: id, amount: money(booking.total),
-      refundNote: refundTo === 'wallet'
-        ? 'to your Prebooze wallet — ready to use instantly.'
-        : 'to your original payment method — usually 5–7 business days to reflect.',
-    }).catch(() => {});
 
     // FIFO: offer the freed spot to the first person still waiting
     const next = await this.prisma.waitlistEntry.findFirst({
@@ -985,6 +1010,33 @@ export class BookingsService {
     }
 
     return this.prisma.booking.findUniqueOrThrow({ where: { id } });
+  }
+
+  /** Staff-only — re-attempts *only* the real Razorpay refund call for a
+   * booking whose refundFailedAt is set (finalizeRefund already committed
+   * the inventory restore and ledger reversal the first time; re-running
+   * that whole flow here would double-apply both). Throws straight through
+   * on a second failure — no silent catch this time, so staff sees a real
+   * error immediately instead of a false "done". */
+  async retryRefund(id: string) {
+    const booking = await this.prisma.booking.findUnique({ where: { id } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.status !== 'refunded' || booking.refundedTo !== 'source') {
+      throw new BadRequestException('This booking has no refund-to-source to retry');
+    }
+    if (!booking.refundFailedAt) throw new BadRequestException("This refund didn't fail — nothing to retry");
+    if (!booking.paymentId) throw new BadRequestException('No payment on file for this booking — this refund must be issued manually outside Razorpay');
+
+    await this.razorpay.refund(booking.paymentId, booking.total * 100);
+    await this.prisma.booking.update({ where: { id }, data: { refundFailedAt: null } });
+
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: booking.userId } });
+    await this.wa.send(user.phone, 'refund_source', [id, String(booking.total)]).catch(() => {});
+    await this.email.sendTemplate(user.email, 'refund_processed', {
+      name: user.name, bookingId: id, amount: money(booking.total),
+      refundNote: 'to your original payment method — usually 5–7 business days to reflect.',
+    }).catch(() => {});
+    return { ok: true };
   }
 
   // ---------- admin: bookings list/detail ----------

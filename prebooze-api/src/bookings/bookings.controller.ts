@@ -129,6 +129,12 @@ export class AdminBookingsController {
     return this.bookings.adminDeclineRefund(decodeURIComponent(id));
   }
 
+  @Post(':id/refund/retry')
+  @RequirePermission('Refunds', 'approve')
+  retryRefund(@Param('id') id: string) {
+    return this.bookings.retryRefund(decodeURIComponent(id));
+  }
+
   @Post(':id/resend-email')
   @RequirePermission('Bookings', 'edit')
   resendEmail(@Param('id') id: string) {

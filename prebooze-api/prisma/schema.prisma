@@ -1220,6 +1220,15 @@ model Booking {
   // the guest's browser tab died mid-UPI-app-switch).
   paymentId          String?       @unique // Razorpay payment id (or dev-stub id — see RazorpayService)
   refundedTo         RefundMethod?
+  // Set when the real Razorpay refund call fails after the booking's
+  // already been marked refunded (inventory/ledger reversal already
+  // committed by then — that part is genuinely correct, the seat really
+  // is freed — only the actual money movement to the guest didn't
+  // happen). Real 2026-08-14 incident this closes: a guest was told
+  // their refund was on its way and it silently never was, for ~13 days
+  // before anyone noticed. Cleared by BookingsService.retryRefund once a
+  // retry actually succeeds. Null for a normal, successful refund.
+  refundFailedAt DateTime?
 
   // Manual/admin booking creation slice — null means "the normal guest
   // checkout flow" (Razorpay/dev-stub, implied by paymentId). Set only for
