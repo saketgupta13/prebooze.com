@@ -101,25 +101,28 @@ export class ReportsService {
     // just also mirrored into the ledger table (BookingsService.
     // postEventLedger) so Finance.tsx has real auto-posted rows to show.
     // Summing them again here would double-count every real sale.
-    // Ledger has no per-event city, so "other income"/expenses only ever
-    // appear in the All-cities view — same convention the old mock used,
-    // now enforced server-side rather than in the frontend's useMemo.
-    const otherIncome = city
-      ? 0
-      : (
-          await this.prisma.ledgerEntry.aggregate({
-            where: { kind: 'income', category: { notIn: ['Ticket commission', 'Booking fees'] }, createdAt: dateWhere },
-            _sum: { amount: true },
-          })
-        )._sum.amount ?? 0;
+    // LedgerEntry has no city column of its own, but every auto-posted row
+    // does carry the eventId it came from — scope through that via the same
+    // scopedEventIds a city filter already computes above. Real gap fixed
+    // 2026-08-28: a city-scoped report used to always show ₹0 for every
+    // expense/other-income category, city filter or not, because this used
+    // to skip the query entirely whenever `city` was set. A manual entry
+    // with no eventId (e.g. a platform-wide expense an admin typed in
+    // directly) still only ever shows in the All-cities view — there's
+    // nothing to scope it by.
+    const ledgerEventFilter = city ? { eventId: { in: [...scopedEventIds] } } : {};
+
+    const otherIncome = (
+      await this.prisma.ledgerEntry.aggregate({
+        where: { kind: 'income', category: { notIn: ['Ticket commission', 'Booking fees'] }, createdAt: dateWhere, ...ledgerEventFilter },
+        _sum: { amount: true },
+      })
+    )._sum.amount ?? 0;
 
     const expensesByCat: Record<string, number> = {};
-    let totalExpenses = 0;
-    if (!city) {
-      const expenseRows = await this.prisma.ledgerEntry.findMany({ where: { kind: 'expense', createdAt: dateWhere } });
-      for (const row of expenseRows) expensesByCat[row.category] = (expensesByCat[row.category] ?? 0) + row.amount;
-      totalExpenses = Object.values(expensesByCat).reduce((a, v) => a + v, 0);
-    }
+    const expenseRows = await this.prisma.ledgerEntry.findMany({ where: { kind: 'expense', createdAt: dateWhere, ...ledgerEventFilter } });
+    for (const row of expenseRows) expensesByCat[row.category] = (expensesByCat[row.category] ?? 0) + row.amount;
+    const totalExpenses = Object.values(expensesByCat).reduce((a, v) => a + v, 0);
 
     const gross = selling.reduce((a, e) => a + e.revenue, 0);
     const payoutsDue = Math.round(selling.filter((e) => !e.paidOut).reduce((a, e) => a + (e.revenue - (e.revenue * (e.commission as number)) / 100), 0));

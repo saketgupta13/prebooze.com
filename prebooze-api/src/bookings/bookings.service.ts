@@ -614,6 +614,20 @@ export class BookingsService {
       // running total per event per category, not one row per booking
       await this.postEventLedger(tx, event.id, event.title, 'Ticket commission', 'income', commission);
       await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
+      // Real cost of this sale, previously invisible — only deducted from a
+      // later refund (see refundDeductionFor), never recorded as its own
+      // expense on the sale itself until now. input.razorpay (not just
+      // paymentId, which is also set on the dev-fake-payment path) is the
+      // real signal a genuine Razorpay payment happened.
+      if (input.razorpay) {
+        await this.postEventLedger(tx, event.id, event.title, 'Razorpay commission', 'expense', Math.round(total * (RAZORPAY_FEE_PCT / 100)));
+      }
+      // Rounded up to a whole rupee per message — LedgerEntry.amount has no
+      // paise support like every other ₹ field in this system, and the real
+      // ~₹0.145/message cost would otherwise round to ₹0 and never
+      // accumulate at all. Overstates the true cost, but stays non-zero and
+      // visible, which a silent ₹0 wouldn't be.
+      await this.postEventLedger(tx, event.id, event.title, 'WhatsApp message charges', 'expense', Math.ceil(WHATSAPP_MSG_COST));
 
       // paying with a saved method sets it default
       if (input.payMethodId) {
@@ -729,7 +743,7 @@ export class BookingsService {
    * Finds-or-creates the buyer by phone the same way OTP signup does (an
    * admin-onboarded customer and a later real signup on the same number
    * resolve to one account, never two). Reuses the same fee formula as
-   * guest checkout (bookingFee × qty, no separate GST add-on charged to the
+   * guest checkout (% of subtotal, no separate GST add-on charged to the
    * guest) rather than reproducing the mock's one-off fee formula, for
    * consistency with every other booking in the system. Comp bookings
    * (subtotal 0) skip the organizer ledger credit — nothing was actually
@@ -838,6 +852,9 @@ export class BookingsService {
       }
       await this.postEventLedger(tx, event.id, event.title, 'Ticket commission', 'income', commission);
       await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
+      // No Razorpay commission here — a manual/staff booking never touches
+      // Razorpay. The WhatsApp confirmation still goes out below though.
+      await this.postEventLedger(tx, event.id, event.title, 'WhatsApp message charges', 'expense', Math.ceil(WHATSAPP_MSG_COST));
       return created;
     });
 
@@ -909,6 +926,8 @@ export class BookingsService {
       await this.email.sendTemplate(user.email, 'refund_requested', {
         name: user.name, bookingId: id, amount: money(expected),
       }).catch(() => {});
+      const event = await this.prisma.event.findUnique({ where: { id: booking.eventId }, select: { title: true } });
+      if (event) await this.postEventLedger(this.prisma, booking.eventId, event.title, 'WhatsApp message charges', 'expense', Math.ceil(WHATSAPP_MSG_COST));
       await this.notifications.notify('↩', `Refund requested — booking ${id} · ₹${booking.total}`, '/admin/bookings?status=refund_requested');
       await this.staffAlerts.alert(`↩ Refund requested — booking ${id} · ₹${booking.total} · ${user.name}`).catch(() => {});
       return this.prisma.booking.findUniqueOrThrow({ where: { id } });
@@ -942,6 +961,12 @@ export class BookingsService {
     // refundDeductionFor's doc comment for what this withholds and why.
     const deduction = this.refundDeductionFor(booking, refundTo);
     const refundAmount = Math.max(0, booking.total - deduction);
+    // Fetched once, outside the transaction — reused below for the
+    // post-transaction WhatsApp-charge postings, which can't reuse `tx`
+    // since they only fire after the transaction has already committed
+    // (the 'source' one is also conditional on the real Razorpay call
+    // succeeding, which isn't known until after that point).
+    const event = await this.prisma.event.findUnique({ where: { id: booking.eventId }, select: { organizerId: true, hostedByVenue: true, venueId: true, title: true } });
 
     await this.prisma.$transaction(async (tx) => {
       await tx.booking.update({ where: { id }, data: { status: 'refunded', refundedTo: refundTo } });
@@ -967,7 +992,6 @@ export class BookingsService {
       // used to recompute from the event's current setting, which silently
       // unbalanced the finance ledger whenever commission % changed between
       // a sale and its later refund.
-      const event = await tx.event.findUnique({ where: { id: booking.eventId }, select: { organizerId: true, hostedByVenue: true, venueId: true, title: true } });
       const commission = booking.commission;
       if (event) {
         if (event.hostedByVenue && event.venueId) {
@@ -981,14 +1005,18 @@ export class BookingsService {
         }
       }
 
-      // reverse the platform's own income the same way — but only net of
-      // `deduction`, since that portion was never actually given back to
-      // the guest. Recorded as a separate "Refund losses" expense
-      // (aggregated per event, same as the income side) rather than netted
-      // directly against the income categories, so gross income and gross
-      // refunds both stay visible.
+      // reverse the platform's own income the same way — the refund gives
+      // back the fee+commission revenue in full (gross, not netted against
+      // `deduction`): the Razorpay/WhatsApp costs `deduction` withholds have
+      // their own explicit "Razorpay commission"/"WhatsApp message charges"
+      // expense lines (posted at sale time, and again below for the extra
+      // refund-time WhatsApp sends) — netting them in here too would count
+      // the same real cost twice. Recorded as a separate "Refund losses"
+      // expense (aggregated per event, same as the income side) rather than
+      // netted directly against the income categories, so gross income and
+      // gross refunds both stay visible.
       if (event) {
-        await this.postEventLedger(tx, booking.eventId, event.title, 'Refund losses', 'expense', Math.max(0, booking.fee + commission - deduction));
+        await this.postEventLedger(tx, booking.eventId, event.title, 'Refund losses', 'expense', booking.fee + commission);
       }
     });
 
@@ -999,6 +1027,7 @@ export class BookingsService {
         name: user.name, bookingId: id, amount: money(refundAmount),
         refundNote: 'to your Prebooze wallet — ready to use instantly.',
       }).catch(() => {});
+      if (event) await this.postEventLedger(this.prisma, booking.eventId, event.title, 'WhatsApp message charges', 'expense', Math.ceil(WHATSAPP_MSG_COST));
     } else {
       // Inventory/ledger reversal above is already committed and correct
       // (the seat really is freed) regardless of what happens here — this
@@ -1021,6 +1050,7 @@ export class BookingsService {
           name: user.name, bookingId: id, amount: money(refundAmount),
           refundNote: 'to your original payment method — usually 5–7 business days to reflect.',
         }).catch(() => {});
+        if (event) await this.postEventLedger(this.prisma, booking.eventId, event.title, 'WhatsApp message charges', 'expense', Math.ceil(WHATSAPP_MSG_COST));
       } else {
         // Never tell the guest it's on its way when it isn't — flag it for
         // a human to retry (BookingsService.retryRefund) instead.
