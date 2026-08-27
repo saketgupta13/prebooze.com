@@ -4,7 +4,10 @@ import { liveSettlements, LiveApiError, type LiveSettlementDetail } from '../lib
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
-const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
+// Real bank money, settled in paise — shown with decimals, not rounded to
+// whole rupees, so this always matches Razorpay's own dashboard and the
+// bank statement for the exact same settlement.
+const fmt = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function CopyChip({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -59,19 +62,19 @@ export default function SettlementDetail() {
   return (
     <div className="stack fade" style={{ maxWidth: 900, gap: 14 }}>
       <LiveHeaderBar title="Settlement" session={session} />
-      <Link to="/settlements" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Settlements</Link>
+      <Link to="/settlements" className="btn btn-ghost" style={{ width: 'fit-content', marginBottom: 4 }}>← Settlements</Link>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       {loading && <div className="tiny muted">Loading…</div>}
 
       {data && (
         <>
           {/* Header — mirrors Razorpay's own settlement-detail header */}
-          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--green-soft, #d7f5da)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: 'var(--green)', flexShrink: 0 }}>
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '22px 20px' }}>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--green-soft, #d7f5da)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: 'var(--green)', flexShrink: 0 }}>
               {data.settlement.status === 'processed' ? '✓' : '⏳'}
             </div>
-            <div>
-              <div style={{ fontSize: 26, fontWeight: 800 }}>₹{fmt(data.settlement.amount)}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.2 }}>₹{fmt(data.settlement.amount)}</div>
               <div className="tiny muted">
                 {data.settlement.status === 'processed' ? 'Deposited on ' : 'Status: ' + data.settlement.status + ' — '}
                 {new Date(data.settlement.settledAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}

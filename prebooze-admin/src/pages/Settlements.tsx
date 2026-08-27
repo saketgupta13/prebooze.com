@@ -7,7 +7,9 @@ import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
 const TITLE = 'Settlements';
-const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
+// Real bank money, settled in paise — shown with decimals, not rounded to
+// whole rupees, so this always matches what actually lands in the bank.
+const fmt = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** Real Razorpay settlement batches — what actually landed in the bank,
  * synced daily from their Settlements API (SettlementsService). Not the

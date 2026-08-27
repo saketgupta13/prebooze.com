@@ -147,7 +147,9 @@ export class RazorpayService {
     const data = await res.json();
     return (data.items as Array<{ id: string; amount: number; status: string; utr: string | null; created_at: number }>).map((s) => ({
       id: s.id,
-      amount: Math.round(s.amount / 100),
+      // Not rounded — real bank money, settles in paise. See
+      // RazorpaySettlement.amount's doc comment.
+      amount: s.amount / 100,
       status: s.status,
       utr: s.utr,
       settledAt: new Date(s.created_at * 1000),
@@ -170,9 +172,10 @@ export class RazorpayService {
       id: i.entity_id,
       settlementId: i.settlement_id,
       type: i.type,
-      amount: Math.round(i.amount / 100),
-      fee: Math.round(i.fee / 100),
-      tax: Math.round(i.tax / 100),
+      // Not rounded — same reasoning as listSettlements above.
+      amount: i.amount / 100,
+      fee: i.fee / 100,
+      tax: i.tax / 100,
       paidAt: new Date(i.created_at * 1000),
     }));
   }
