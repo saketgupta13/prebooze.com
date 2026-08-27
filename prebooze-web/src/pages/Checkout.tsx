@@ -577,6 +577,16 @@ export default function Checkout() {
               const booking = await finishCreate({ orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature });
               afterBookingSuccess(booking.id);
             } catch (e) {
+              // The payment webhook can reconcile and create the booking
+              // before this call arrives — it releases the same hold this
+              // call needs, so this fails with a generic "hold expired"
+              // error even though the guest is already booked. Check for
+              // that real booking by payment id before showing an error.
+              const existing = await bookings.list().then((list) => list.find((b) => b.paymentId === r.razorpay_payment_id)).catch(() => undefined);
+              if (existing) {
+                afterBookingSuccess(existing.id);
+                return;
+              }
               setPaying(false);
               setCouponMsg({ ok: false, text: (e as Error).message ?? 'Payment succeeded but the booking could not be finalized — contact support' });
             }
