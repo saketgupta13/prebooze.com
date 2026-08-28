@@ -1190,6 +1190,9 @@ export interface LiveInvoice {
   city: string | null;
   description: string;
   subtotal: number;
+  fee: number;
+  discount: number;
+  walletCredit: number;
   total: number;
   status: string;
   issuedAt: string;

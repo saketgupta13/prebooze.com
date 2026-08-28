@@ -132,6 +132,24 @@ export default function InvoiceDetail() {
             <span style={{ flex: 2 }}>{inv.description}</span>
             <span style={{ flex: 1, textAlign: 'right' }}>₹{fmt(inv.subtotal)}</span>
           </div>
+          {inv.fee > 0 && (
+            <div className="trow">
+              <span style={{ flex: 2 }} className="muted">Booking fee</span>
+              <span style={{ flex: 1, textAlign: 'right' }} className="muted">₹{fmt(inv.fee)}</span>
+            </div>
+          )}
+          {inv.discount > 0 && (
+            <div className="trow">
+              <span style={{ flex: 2 }} className="muted">Discount</span>
+              <span style={{ flex: 1, textAlign: 'right' }} className="muted">− ₹{fmt(inv.discount)}</span>
+            </div>
+          )}
+          {inv.walletCredit > 0 && (
+            <div className="trow">
+              <span style={{ flex: 2 }} className="muted">Prebooze wallet credit</span>
+              <span style={{ flex: 1, textAlign: 'right' }} className="muted">− ₹{fmt(inv.walletCredit)}</span>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end', fontSize: 13 }}>
