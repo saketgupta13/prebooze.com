@@ -11,6 +11,7 @@ import { LeadsService } from './leads.service';
 import { NotificationsService } from './notifications.service';
 import { CartsService } from './carts.service';
 import { SettlementsService } from './settlements.service';
+import { SocialService } from '../social/social.service';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -33,6 +34,7 @@ export class CronService {
     private notifications: NotificationsService,
     private carts: CartsService,
     private settlements: SettlementsService,
+    private social: SocialService,
   ) {}
 
   /** Payouts are never marked paid automatically — there's no real bank
@@ -211,5 +213,17 @@ export class CronService {
   async razorpayFeeReconcileTick() {
     const { reconciled } = await this.bookings.reconcileRazorpayFees();
     if (reconciled) this.log.log(`Razorpay fee reconcile: ${reconciled} booking(s)`);
+  }
+
+  /** Weekly (Monday, same day as the owner summary, offset 30 min later to
+   * avoid the two competing for DB connections at the exact same tick) — a
+   * digest of new followers picked up in the last 7 days, one email per
+   * account that actually has a real email on file. See SocialService.
+   * sendFollowerDigest's own doc comment for why this is a digest and not
+   * one email per follow. */
+  @Cron('30 8 * * 1')
+  async followerDigestTick() {
+    const { sent } = await this.social.sendFollowerDigest();
+    if (sent) this.log.log(`Follower digest: sent to ${sent} account(s)`);
   }
 }

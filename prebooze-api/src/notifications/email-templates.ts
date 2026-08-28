@@ -401,6 +401,15 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     tokens: ['name', 'jobTitle'],
   },
   {
+    id: 'new_followers_digest', name: 'New followers digest', category: 'Roles',
+    trigger: 'Weekly, if this account picked up at least one new follower and has a real email on file — see SocialService.sendFollowerDigest',
+    preheader: 'You\'ve got new followers on Prebooze',
+    defaultSubject: '{{count}} new follower{{plural}} this week on Prebooze',
+    defaultBody: `<p>Hey {{name}},</p><p><b>{{count}}</b> new follower{{plural}} started following you on Prebooze this week.</p>`,
+    cta: { label: 'View your profile →', urlTemplate: '{{profileUrl}}' },
+    tokens: ['name', 'count', 'plural', 'profileUrl'],
+  },
+  {
     id: 'weekly_summary', name: 'Weekly summary (owner)', category: 'Admin',
     trigger: 'Weekly, if "Weekly summary email" is on in Settings — needs the cron job slice, not yet scheduled',
     preheader: 'Your weekly platform summary',

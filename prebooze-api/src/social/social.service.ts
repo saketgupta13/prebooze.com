@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { EmailService } from '../notifications/email';
+import { toCitySlug } from '../common/city-slug';
 
 /** Deterministic cosmetic hue from an id — same idea as the seeded catalog's
  * avatarHue, just derived instead of authored, for projecting a real User
@@ -16,7 +18,10 @@ function formatReviewDate(d: Date): string {
 
 @Injectable()
 export class SocialService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private email: EmailService,
+  ) {}
 
   // ---- follows ----
   // Every follow is instant/accepted — there's no private-account gating in
@@ -256,5 +261,71 @@ export class SocialService {
       venueId,
       date: formatReviewDate(row.createdAt),
     };
+  }
+
+  // ---- follower digest ----
+  // followeeKey's real prefix convention, confirmed against every real
+  // follow-button call site: "person:<userId>" (PersonProfile.tsx),
+  // "promoter:<slug>" (PromoterProfile.tsx), "lineup:<slug>"
+  // (LineupProfile.tsx), "venue:<id>" (VenueDetail.tsx) — Organizer is the
+  // only one with no prefix (OrganizerProfile.tsx passes org.id bare).
+  private async resolveFollowee(key: string): Promise<{ name: string; email: string; profileUrl: string } | null> {
+    const webUrl = process.env.WEB_APP_URL || 'https://prebooze.com';
+    if (key.startsWith('person:')) {
+      const u = await this.prisma.user.findUnique({ where: { id: key.slice(7) } });
+      if (!u?.email?.trim()) return null;
+      return { name: u.name || 'there', email: u.email.trim(), profileUrl: `${webUrl}/u/${u.username || u.id}` };
+    }
+    if (key.startsWith('promoter:')) {
+      const p = await this.prisma.promoter.findUnique({ where: { slug: key.slice(9) }, include: { user: true } });
+      const email = p?.contact?.trim() || p?.user?.email?.trim();
+      if (!p || !email) return null;
+      return { name: p.name, email, profileUrl: `${webUrl}/${toCitySlug(p.city)}/promoter/${p.slug}` };
+    }
+    if (key.startsWith('lineup:')) {
+      const l = await this.prisma.lineup.findUnique({ where: { slug: key.slice(7) }, include: { user: true } });
+      const email = l?.user?.email?.trim();
+      if (!l || !email) return null;
+      return { name: l.name, email, profileUrl: `${webUrl}/${toCitySlug(l.city)}/lineup/${l.slug}` };
+    }
+    if (key.startsWith('venue:')) {
+      const v = await this.prisma.venue.findUnique({ where: { id: key.slice(6) }, include: { user: true } });
+      const email = v?.contact?.trim() || v?.user?.email?.trim();
+      if (!v || !email) return null;
+      return { name: v.name, email, profileUrl: `${webUrl}/${toCitySlug(v.city)}/venues/${v.id}` };
+    }
+    const o = await this.prisma.organizer.findUnique({ where: { id: key }, include: { user: true } });
+    const email = o?.contact?.trim() || o?.user?.email?.trim();
+    if (!o || !email) return null;
+    return { name: o.brandName, email, profileUrl: `${webUrl}/${toCitySlug(o.city)}/organizers/${o.id}` };
+  }
+
+  /** Weekly cron (CronService.followerDigestTick) — a digest, not one email
+   * per follow, since a popular account picking up many followers in a
+   * short window would otherwise mean a flood of individual emails (no
+   * existing batching pattern in this codebase to reuse, this is the
+   * first). Only sends where a real email actually resolves — most guests
+   * (`person:` targets) have none on file, so in practice this reaches
+   * organizer/promoter/venue/lineup accounts far more often. */
+  async sendFollowerDigest(): Promise<{ sent: number }> {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.follow.groupBy({
+      by: ['followeeKey'],
+      where: { createdAt: { gte: since } },
+      _count: { followeeKey: true },
+    });
+    let sent = 0;
+    for (const row of rows) {
+      const target = await this.resolveFollowee(row.followeeKey);
+      if (!target) continue;
+      const count = row._count.followeeKey;
+      await this.email
+        .sendTemplate(target.email, 'new_followers_digest', {
+          name: target.name, count: String(count), plural: count === 1 ? '' : 's', profileUrl: target.profileUrl,
+        })
+        .catch(() => {});
+      sent++;
+    }
+    return { sent };
   }
 }

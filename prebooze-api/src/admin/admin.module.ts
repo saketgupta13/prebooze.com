@@ -57,6 +57,7 @@ import { EmailTemplatesAdminService } from './email-templates-admin.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { LeadsService } from './leads.service';
 import { SettlementsService } from './settlements.service';
+import { SocialService } from '../social/social.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { OwnerOnlyGuard } from './owner-only.guard';
 import { PermissionGuard } from './permission.guard';
@@ -156,6 +157,7 @@ import { redisProvider } from '../redis.provider';
     HoldsService,
     CronService,
     SettlementsService,
+    SocialService,
     StaffAuthGuard,
     OwnerOnlyGuard,
     PermissionGuard,
