@@ -54,6 +54,26 @@ export function invoicePdfBuffer(inv: Invoice): Promise<Buffer> {
     doc.text(inv.description, 58, rowY, { width: 380 });
     doc.text(fmt(inv.subtotal), 470, rowY, { align: 'right', width: 67 });
 
+    // Real 2026-08-28 gap closed: this used to jump straight from subtotal
+    // to total with the booking fee (and any discount/wallet credit) baked
+    // silently into the difference — invisible on the actual PDF a guest
+    // downloads, even though checkout itself always showed them.
+    if (inv.fee > 0) {
+      rowY += 20;
+      doc.fillColor(MUTED).text('Booking fee', 58, rowY, { width: 380 });
+      doc.fillColor('#000').text(fmt(inv.fee), 470, rowY, { align: 'right', width: 67 });
+    }
+    if (inv.discount > 0) {
+      rowY += 20;
+      doc.fillColor(MUTED).text('Discount', 58, rowY, { width: 380 });
+      doc.fillColor('#000').text(`- ${fmt(inv.discount)}`, 470, rowY, { align: 'right', width: 67 });
+    }
+    if (inv.walletCredit > 0) {
+      rowY += 20;
+      doc.fillColor(MUTED).text('Prebooze wallet credit', 58, rowY, { width: 380 });
+      doc.fillColor('#000').text(`- ${fmt(inv.walletCredit)}`, 470, rowY, { align: 'right', width: 67 });
+    }
+
     rowY += 26;
     doc.moveTo(50, rowY - 6).lineTo(545, rowY - 6).strokeColor('#eee').stroke();
 

@@ -684,7 +684,7 @@ export class BookingsService {
         type: 'booking', refId: id, role: 'guest',
         payerName: input.mainGuest.trim(), payerEmail: user.email, payerPhone: input.whatsapp,
         city: ticketVenue?.city, description: `${qty}× ${event.title}`,
-        subtotal, total,
+        subtotal, fee, discount, walletCredit: walletCreditUsed, total,
       }).catch(() => {});
     }
 

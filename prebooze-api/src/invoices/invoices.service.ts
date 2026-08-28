@@ -18,6 +18,9 @@ export interface CreateInvoiceInput {
   city?: string | null;
   description: string;
   subtotal: number;
+  fee?: number;
+  discount?: number;
+  walletCredit?: number;
   gstPct?: number;
   gstAmount?: number;
   total: number;
@@ -66,6 +69,9 @@ export class InvoicesService {
           city: input.city || null,
           description: input.description,
           subtotal: input.subtotal,
+          fee: input.fee ?? 0,
+          discount: input.discount ?? 0,
+          walletCredit: input.walletCredit ?? 0,
           gstPct: input.gstPct ?? 0,
           gstAmount: input.gstAmount ?? 0,
           total: input.total,

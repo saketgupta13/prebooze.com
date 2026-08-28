@@ -2103,6 +2103,15 @@ model Invoice {
   city        String?
   description String
   subtotal    Float
+  // Real 2026-08-28 gap closed: a booking invoice used to jump straight
+  // from subtotal to total with no explanation for the gap — the booking
+  // fee (and any coupon discount / wallet credit) were invisible on the
+  // actual PDF a guest downloads, even though checkout itself always
+  // showed them. All three default to 0 so a "featured" invoice (which
+  // never has any of these) is unaffected.
+  fee         Float     @default(0)
+  discount    Float     @default(0)
+  walletCredit Float    @default(0)
   gstPct      Float     @default(0)
   gstAmount   Float     @default(0)
   total       Float
