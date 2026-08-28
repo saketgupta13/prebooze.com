@@ -1395,6 +1395,18 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   .hdr-in > .hdr-city { display: none; }
   .hdr-city-mobile { display: flex; flex-shrink: 0; white-space: nowrap; }
   .hdr-links { display: none; }
+  .hdr-host-mobile {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 700;
+    border: 1.5px solid var(--accent);
+    border-radius: 999px;
+    padding: 6px 12px;
+    color: var(--accent);
+  }
   .kpis { grid-template-columns: 1fr; }
   .hero { padding: 34px 22px; }
   .hero h1 { font-size: 26px; }

@@ -326,6 +326,18 @@ export default function Header() {
         <button className="hdr-city hdr-city-mobile" onClick={() => setCityOpen(true)}>
           📍 {city} <Caret />
         </button>
+        {/* .hdr-links (Events/Venues/Host with us/My Bookings) hides
+            entirely on mobile — see index.css — and there's no hamburger/
+            bottom-nav in this app to fall back on, so a logged-out mobile
+            visitor previously had no way to reach Host with us from the
+            header at all. Same !heldRole gate as the desktop link/menu
+            entry — an existing organizer/promoter/venue/lineup doesn't
+            need to see it again. */}
+        {!heldRole && (
+          <Link to="/host" className="hdr-host-mobile">
+            🎤 Host
+          </Link>
+        )}
       </div>
     </header>
   );
