@@ -25,17 +25,15 @@ export default function Footer() {
   // (see useCityList's own doc comment), so this adds no extra request.
   // Automatically covers any future city, no manual update needed.
   //
-  // Filtered to cities with real live presence (>=1 event, venue, or
-  // organizer) — real 2026-08-29 finding: 9 of 12 enabled cities had zero
-  // of all three. A sitewide link (every page) into an otherwise-empty
-  // city page is a thin-content risk that dilutes crawl priority away
-  // from the cities that actually have something on them, worse than not
-  // linking at all. Organizer counted separately from venue/event: a real
-  // organizer can be based in a city before registering any venue or
-  // posting a first event (e.g. Gurgaon — real organizer, zero venues,
-  // zero events, would've silently stayed excluded without this).
+  // Filtered to cities with a real, live EVENT — real 2026-08-29 decision:
+  // a venue or organizer on file isn't enough on its own (e.g. Gurgaon —
+  // real organizer, zero events), since a sitewide link (every page) into
+  // a city with nothing bookable yet is a thin-content risk that dilutes
+  // crawl priority away from the cities that actually have something on
+  // them, worse than not linking at all. Same criterion as CityPicker's
+  // filter.
   const { cities: allCities } = useCityList();
-  const cities = allCities?.filter((c) => c.events > 0 || c.venues > 0 || c.organizers > 0) ?? null;
+  const cities = allCities?.filter((c) => c.events > 0) ?? null;
   const socialList = [
     { label: 'Instagram', url: socials.instagram },
     { label: 'Facebook', url: socials.facebook },

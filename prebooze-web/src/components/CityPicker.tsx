@@ -53,14 +53,13 @@ export default function CityPicker({ open, onClose }: { open: boolean; onClose: 
     events: mockEventCounts.get(t.name) ?? 0, venues: mockVenueCounts.get(t.name) ?? 0, organizers: mockOrganizerCounts.get(t.name) ?? 0,
   }));
 
-  // Real 2026-08-29 change: only cities with a real venue or organizer
-  // actually show here — same reasoning as Footer.tsx's "Explore other
-  // cities" filter, now applied to the picker too rather than just
-  // showing every enabled city (several of which have neither). Organizer
-  // counted separately from venue: a real organizer can be based in a
-  // city before registering any venue (e.g. Gurgaon — real organizer,
-  // zero venues, would've silently stayed excluded without this).
-  const cityRows = (liveCities ?? (isBackendEnabled() ? [] : mockRows)).filter((c) => c.venues > 0 || c.organizers > 0);
+  // Real 2026-08-29 decision: a venue or organizer alone isn't enough —
+  // only cities with a real, live EVENT actually show here. A city can
+  // have a real organizer or venue on file with nothing bookable yet
+  // (e.g. Gurgaon — real organizer, zero events), which isn't useful to a
+  // guest picking a city to book something in. Same criterion as
+  // Footer.tsx's "Explore other cities" filter.
+  const cityRows = (liveCities ?? (isBackendEnabled() ? [] : mockRows)).filter((c) => c.events > 0);
   const topRows = cityRows.filter((c) => c.top);
   const allCities = useMemo(() => cityRows.map((c) => c.name).sort(), [cityRows]);
   const eventCounts = useMemo(() => new Map(cityRows.map((c) => [c.name, c.events])), [cityRows]);
