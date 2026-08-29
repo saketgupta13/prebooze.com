@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { MapPin, X, LocateFixed, Loader2, Check } from 'lucide-react';
+import CityIcon from './CityIcon';
 import { useApp } from '../store/AppContext';
 import { EVENTS, TOP_CITIES, VENUES, ORGANIZERS, venueById } from '../data/mock';
 import { catalog } from '../api';
@@ -115,7 +117,7 @@ export default function CityPicker({ open, onClose }: { open: boolean; onClose: 
           const match = allCities.find((c) => c.toLowerCase() === detected.toLowerCase());
           if (match && (eventCounts.get(match) ?? 0) > 0) {
             setCity(match);
-            setGeoMsg(`📍 Detected ${match}`);
+            setGeoMsg(`Detected ${match}`);
             onClose();
             navigateToCity(match);
           } else {
@@ -140,12 +142,20 @@ export default function CityPicker({ open, onClose }: { open: boolean; onClose: 
     <div className="modal-ov" onClick={onClose}>
       <div className="citypick card card-shadow" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h2 style={{ fontSize: 20 }}>Pick your city 📍</h2>
-          <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="close">✕</button>
+          <h2 style={{ fontSize: 20, display: 'flex', alignItems: 'center', gap: 8 }}>Pick your city <MapPin size={18} /></h2>
+          <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="close"><X size={16} /></button>
         </div>
 
-        <button className="btn btn-ghost btn-block" style={{ marginBottom: 12, borderColor: 'var(--accent)', color: 'var(--accent)' }} disabled={detecting} onClick={detect}>
-          {detecting ? '📡 Detecting your city…' : '📍 Detect my location'}
+        <button className="btn btn-ghost btn-block" style={{ marginBottom: 12, borderColor: 'var(--accent)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }} disabled={detecting} onClick={detect}>
+          {detecting ? (
+            <>
+              <Loader2 size={15} className="spin" /> Detecting your city…
+            </>
+          ) : (
+            <>
+              <LocateFixed size={15} /> Detect my location
+            </>
+          )}
         </button>
         {geoMsg && <div className="tiny muted-2 center" style={{ marginBottom: 10 }}>{geoMsg}</div>}
 
@@ -163,7 +173,7 @@ export default function CityPicker({ open, onClose }: { open: boolean; onClose: 
             <div className="citypick-grid">
               {topRows.map((t) => (
                 <button key={t.name} className={`citypick-cell ${t.name === city ? 'on' : ''}`} onClick={() => pick(t.name)}>
-                  <span className="ic">{t.icon ?? '📍'}</span>
+                  <span className="ic"><CityIcon city={t.name} /></span>
                   <span className="nm">{t.name}</span>
                   <span className="ct">{t.events ? `${t.events} events` : 'coming soon'}</span>
                 </button>
@@ -173,8 +183,8 @@ export default function CityPicker({ open, onClose }: { open: boolean; onClose: 
         ) : (
           <div style={{ maxHeight: 260, overflowY: 'auto' }}>
             {filtered.map((c) => (
-              <button key={c} className="ss-opt" style={{ display: 'flex', justifyContent: 'space-between' }} onClick={() => pick(c)}>
-                <span>{c === city ? '✓ ' : ''}{c}</span>
+              <button key={c} className="ss-opt" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => pick(c)}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{c === city && <Check size={14} />}{c}</span>
                 <span className="tiny muted-2">{eventCounts.get(c) ? `${eventCounts.get(c)} events` : 'coming soon'}</span>
               </button>
             ))}

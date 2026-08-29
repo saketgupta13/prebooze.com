@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { useApp } from '../store/AppContext';
 import { useCityList } from '../lib/useCityList';
+import CityIcon from './CityIcon';
 import { cityBrowse, cityCategories, cityVenues, cityOrganizers, cityPromoters, cityLineups } from '../lib/urls';
 
 // Admin only ever types "instagram.com/prebooze"-style handles, not always
@@ -106,7 +107,9 @@ export default function Footer() {
           <div className="ftr-cities">
             <span className="ftr-cities-label">Explore other cities:</span>
             {cities.map((c) => (
-              <Link key={c.name} to={cityBrowse(c.name)}>{c.name}</Link>
+              <Link key={c.name} to={cityBrowse(c.name)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <CityIcon city={c.name} size={14} /> {c.name}
+              </Link>
             ))}
           </div>
         )}

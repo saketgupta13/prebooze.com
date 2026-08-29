@@ -63,6 +63,12 @@
   --radius-l: 14px;
 }
 
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.9s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; }
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -445,6 +451,9 @@ textarea { resize: vertical; min-height: 84px; }
   z-index: 60;
 }
 .menu a, .menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   text-align: left;
   padding: 9px 12px;
   border-radius: 7px;
@@ -455,6 +464,7 @@ textarea { resize: vertical; min-height: 84px; }
   border: none;
   cursor: pointer;
 }
+.menu a svg, .menu button svg { flex-shrink: 0; opacity: 0.75; }
 .menu a:hover, .menu button:hover { background: var(--surface-2); }
 .menu .sep { height: 1px; background: var(--border); margin: 4px 6px; }
 
@@ -685,7 +695,8 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
 .citypick-cell { background: var(--surface-2); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 6px; cursor: pointer; color: var(--text); display: flex; flex-direction: column; align-items: center; gap: 4px; font: inherit; transition: border-color .15s, transform .15s; }
 .citypick-cell:hover { border-color: var(--accent); transform: translateY(-2px); }
 .citypick-cell.on { border-color: var(--accent); background: rgba(155,225,61,.08); }
-.citypick-cell .ic { font-size: 26px; }
+.citypick-cell .ic { color: var(--muted); display: flex; }
+.citypick-cell.on .ic, .citypick-cell:hover .ic { color: var(--accent); }
 .citypick-cell .nm { font-size: 12.5px; font-weight: 700; }
 .citypick-cell .ct { font-size: 10px; color: var(--muted-2); }
 /* The green accent tint under .on lightens the effective background just
@@ -1402,6 +1413,7 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
   .hdr-host-mobile {
     display: flex;
     align-items: center;
+    gap: 5px;
     flex-shrink: 0;
     white-space: nowrap;
     font-size: 13px;

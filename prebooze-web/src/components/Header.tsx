@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Search, Flame, MapPin, User, Ticket, Heart, Wallet, Gift, CreditCard,
+  LifeBuoy, LayoutGrid, Megaphone, Mic, Landmark, Tent, LogOut,
+} from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { EVENTS, LINEUPS, ORGANIZERS, TRENDING_SEARCHES, VENUES } from '../data/mock';
 import { catalog } from '../api';
@@ -55,7 +59,7 @@ function SearchBox({
 
   return (
     <form className={className} onSubmit={(e) => { setOpen(false); submitSearch(e); }} ref={ref} style={{ position: 'relative' }}>
-      🔍
+      <Search size={16} style={{ flexShrink: 0 }} />
       <input
         placeholder="Search events, artists, venues…"
         value={q}
@@ -66,15 +70,18 @@ function SearchBox({
         <div className="ss-list" style={{ top: 'calc(100% + 6px)' }}>
           {q.trim() === '' ? (
             <>
-              <div className="tiny muted-2" style={{ padding: '6px 10px 4px', fontWeight: 700, letterSpacing: 0.5 }}>🔥 TRENDING</div>
+              <div className="tiny muted-2" style={{ padding: '6px 10px 4px', fontWeight: 700, letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Flame size={12} /> TRENDING
+              </div>
               {trending.map((t) => (
                 <button
                   type="button"
                   key={t}
                   className="ss-opt"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                   onMouseDown={(e) => { e.preventDefault(); setQ(t); setOpen(false); navigate(cityBrowse(city) + '?q=' + encodeURIComponent(t)); }}
                 >
-                  🔎 {t}
+                  <Search size={13} style={{ flexShrink: 0, opacity: 0.6 }} /> {t}
                 </button>
               ))}
             </>
@@ -204,7 +211,7 @@ export default function Header() {
         <SearchBox className="hdr-search" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} city={city} />
 
         <button className="hdr-city" onClick={() => setCityOpen(true)}>
-          📍 {city} <Caret />
+          <MapPin size={14} /> {city} <Caret />
         </button>
         <CityPicker open={cityOpen} onClose={() => setCityOpen(false)} />
 
@@ -230,7 +237,7 @@ export default function Header() {
             ) : user.avatarUrl ? (
               <img src={user.avatarUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
             ) : (
-              <span className="avatar">👤</span>
+              <span className="avatar"><User size={16} /></span>
             )}
             <span className="hdr-user-name">{displayName.split(' ')[0]}</span> <Caret />
             {menuOpen && (
@@ -241,56 +248,56 @@ export default function Header() {
                 {!heldRole && (
                   <>
                     <Link to="/profile" onClick={() => setMenuOpen(false)}>
-                      👤 My profile
+                      <User size={15} /> My profile
                     </Link>
                     <Link to="/bookings" onClick={() => setMenuOpen(false)}>
-                      🎟 My bookings
+                      <Ticket size={15} /> My bookings
                     </Link>
                     <Link to="/wishlist" onClick={() => setMenuOpen(false)}>
-                      ❤️ Wishlist & favourites
+                      <Heart size={15} /> Wishlist & favourites
                     </Link>
                     <Link to="/wallet" onClick={() => setMenuOpen(false)}>
-                      👛 Wallet
+                      <Wallet size={15} /> Wallet
                     </Link>
                     <Link to="/refer" onClick={() => setMenuOpen(false)}>
-                      🎁 Refer & earn
+                      <Gift size={15} /> Refer & earn
                     </Link>
                   </>
                 )}
                 <Link to="/payment-methods" onClick={() => setMenuOpen(false)}>
-                  💳 Payment methods
+                  <CreditCard size={15} /> Payment methods
                 </Link>
                 <Link to="/help" onClick={() => setMenuOpen(false)}>
-                  🛟 Help center
+                  <LifeBuoy size={15} /> Help center
                 </Link>
                 {(user.isOrganizer || orgTeamAccess) && (
                   <Link to="/organizer" onClick={() => setMenuOpen(false)}>
-                    ▦ {orgTeamAccess && !user.isOrganizer ? `Team console — ${orgTeamAccess.organizerBrand}` : 'Organizer console'}
+                    <LayoutGrid size={15} /> {orgTeamAccess && !user.isOrganizer ? `Team console — ${orgTeamAccess.organizerBrand}` : 'Organizer console'}
                   </Link>
                 )}
                 {user.isPromoter && (
                   <Link to="/promoter" onClick={() => setMenuOpen(false)}>
-                    📣 Promoter console
+                    <Megaphone size={15} /> Promoter console
                   </Link>
                 )}
                 {user.isLineup && (
                   <Link to="/artist" onClick={() => setMenuOpen(false)}>
-                    🎤 Artist console
+                    <Mic size={15} /> Artist console
                   </Link>
                 )}
                 {user.isVenue && (
                   <Link to="/venue" onClick={() => setMenuOpen(false)}>
-                    🏛 Venue panel
+                    <Landmark size={15} /> Venue panel
                   </Link>
                 )}
                 {(user.isVenue || venueTeamAccess) && (
                   <Link to="/venue/hosting" onClick={() => setMenuOpen(false)}>
-                    🎪 {venueTeamAccess && !user.isVenue ? `Team console — ${venueTeamAccess.venueBrand}` : 'Organizer panel'}
+                    <Tent size={15} /> {venueTeamAccess && !user.isVenue ? `Team console — ${venueTeamAccess.venueBrand}` : 'Organizer panel'}
                   </Link>
                 )}
                 {!heldRole && (
                   <Link to="/host" onClick={() => setMenuOpen(false)}>
-                    🎤 Host with us
+                    <Mic size={15} /> Host with us
                   </Link>
                 )}
                 <div className="sep" />
@@ -301,7 +308,7 @@ export default function Header() {
                     navigate('/');
                   }}
                 >
-                  ↩ Log out
+                  <LogOut size={15} /> Log out
                 </button>
               </div>
             )}
@@ -324,7 +331,7 @@ export default function Header() {
       <div className="container hdr-search-mobile-row">
         <SearchBox className="hdr-search hdr-search-mobile" q={q} setQ={setQ} suggestions={suggestions} trending={trending} navigate={navigate} submitSearch={submitSearch} city={city} />
         <button className="hdr-city hdr-city-mobile" onClick={() => setCityOpen(true)}>
-          📍 {city} <Caret />
+          <MapPin size={14} /> {city} <Caret />
         </button>
         {/* .hdr-links (Events/Venues/Host with us/My Bookings) hides
             entirely on mobile — see index.css — and there's no hamburger/
@@ -335,7 +342,7 @@ export default function Header() {
             need to see it again. */}
         {!heldRole && (
           <Link to="/host" className="hdr-host-mobile">
-            🎤 Host
+            <Mic size={14} /> Host
           </Link>
         )}
       </div>
