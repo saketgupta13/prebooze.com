@@ -531,6 +531,8 @@ export function EditVenue() {
   const [pincode, setPincode] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
   const [cityBusy, setCityBusy] = useState(false);
   const [loginPhone, setLoginPhone] = useState<string | null>(null);
 
@@ -589,6 +591,7 @@ export function EditVenue() {
     e.preventDefault();
     if (!name.trim()) { setErr('Venue name is required'); return; }
     if (!loc.city.trim()) { setErr('Pick a city'); return; }
+    if (logoUploading || galleryUploading) { setErr('Media is still uploading — wait for it to finish before saving'); return; }
     try {
       await liveVenues.update(venue.id, {
         name: name.trim(),
@@ -671,11 +674,11 @@ export function EditVenue() {
       )}
       <div className="field">
         <label>Logo</label>
-        <RealImageUpload value={logoUrl} onChange={setLogoUrl} height={90} width={90} label="logo" />
+        <RealImageUpload value={logoUrl} onChange={setLogoUrl} onBusyChange={setLogoUploading} height={90} width={90} label="logo" />
       </div>
       <div className="field">
         <label>Gallery photos</label>
-        <RealGalleryUpload value={galleryUrls} onChange={setGalleryUrls} />
+        <RealGalleryUpload value={galleryUrls} onChange={setGalleryUrls} onBusyChange={setGalleryUploading} />
       </div>
       <div className="field">
         <label>Venue name</label>
@@ -748,7 +751,7 @@ export function EditVenue() {
         fallbackTitle={`${name || 'Venue'} — events & tickets`}
       />
       <div style={{ display: 'flex', gap: 10 }}>
-        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }}>Save venue</button>
+        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }} disabled={logoUploading || galleryUploading}>{(logoUploading || galleryUploading) ? 'Uploading…' : 'Save venue'}</button>
         <Link to={`/venues/${venue.id}`} className="btn btn-ghost" style={{ padding: 10 }}>Cancel</Link>
       </div>
     </form>

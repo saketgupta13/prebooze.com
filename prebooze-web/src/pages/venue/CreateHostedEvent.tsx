@@ -67,6 +67,10 @@ export default function CreateHostedEvent() {
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [teaserVideoUrl, setTeaserVideoUrl] = useState<string | null>(null);
+  const [posterUploading, setPosterUploading] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const [teaserUploading, setTeaserUploading] = useState(false);
+  const mediaUploading = posterUploading || galleryUploading || teaserUploading;
   // This event is always hosted at the venue's own address (see the
   // no-venue-picker note below), so "the venue" for gallery-reuse purposes
   // is just this venue's own listing — fetched once, not derived from a
@@ -250,6 +254,7 @@ export default function CreateHostedEvent() {
 
   const save = async (status: 'draft' | 'pending') => {
     setErr('');
+    if (mediaUploading) { setErr('Media is still uploading — wait for it to finish before saving'); return; }
     setSaving(true);
     try {
       await venuePartner.upsertHostedEvent(buildPayload(status));
@@ -349,7 +354,7 @@ export default function CreateHostedEvent() {
         <p className="muted small" style={{ marginBottom: 16 }}>All optional — a poster helps your event stand out.</p>
         <div className="field">
           <span>Poster (portrait 3:4)</span>
-          <RealUploadBox value={posterUrl} onChange={setPosterUrl} upload={venuePartner.upload} label="⬆ upload poster" style={{ height: 200, width: 160 }} />
+          <RealUploadBox value={posterUrl} onChange={setPosterUrl} upload={venuePartner.upload} onBusyChange={setPosterUploading} label="⬆ upload poster" style={{ height: 200, width: 160 }} />
         </div>
         <div className="field">
           <span>Gallery photos (optional, up to 6)</span>
@@ -363,11 +368,11 @@ export default function CreateHostedEvent() {
               + Use your venue's photos ({venuePhotosToAdd.length})
             </button>
           )}
-          <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={venuePartner.upload} />
+          <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={venuePartner.upload} onBusyChange={setGalleryUploading} />
         </div>
         <div className="field">
           <span>Teaser reel (optional)</span>
-          <RealVideoUploadBox value={teaserVideoUrl} onChange={setTeaserVideoUrl} upload={venuePartner.upload} label="⬆ teaser video · 9:16" />
+          <RealVideoUploadBox value={teaserVideoUrl} onChange={setTeaserVideoUrl} upload={venuePartner.upload} onBusyChange={setTeaserUploading} label="⬆ teaser video · 9:16" />
           <input
             className="input"
             placeholder="or paste a link — Instagram Reel, YouTube, or a direct video file"
@@ -648,8 +653,8 @@ export default function CreateHostedEvent() {
       </div>
 
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-        <button className="btn btn-ghost" disabled={saving} onClick={() => save('draft')}>{saving ? 'Saving…' : 'Save draft'}</button>
-        <button className="btn btn-pri" disabled={saving || !canSubmit} onClick={() => save('pending')}>{saving ? 'Submitting…' : 'Submit for approval →'}</button>
+        <button className="btn btn-ghost" disabled={saving || mediaUploading} onClick={() => save('draft')}>{mediaUploading ? 'Uploading…' : saving ? 'Saving…' : 'Save draft'}</button>
+        <button className="btn btn-pri" disabled={saving || mediaUploading || !canSubmit} onClick={() => save('pending')}>{mediaUploading ? 'Uploading…' : saving ? 'Submitting…' : 'Submit for approval →'}</button>
       </div>
     </div>
   );

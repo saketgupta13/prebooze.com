@@ -3,19 +3,30 @@ import { liveMedia, LiveApiError } from '../lib/liveApi';
 
 /** Real file upload (POST /admin/media/upload, multipart) — distinct from
  * the mock ImagePicker, which only ever reads a file into a base64 data URL
- * and never leaves the browser. This one returns a real, persisted URL. */
+ * and never leaves the browser. This one returns a real, persisted URL.
+ *
+ * `onBusyChange` — real 2026-08-29 bug found (House of Aura's organizer
+ * logo): this component's upload-in-progress state was entirely private,
+ * so a page's own Save button had no way to know an upload was still in
+ * flight and could fire (and navigate away) before it finished — the
+ * upload would still succeed a moment later, but `onChange(url)` landed on
+ * an unmounted/already-saved page and the URL was silently lost. Optional
+ * so existing call sites don't need to change unless they have a nearby
+ * save action worth gating on this. */
 export default function RealImageUpload({
   value,
   onChange,
   height = 160,
   width = 130,
   label,
+  onBusyChange,
 }: {
   value?: string | null;
   onChange: (url: string) => void;
   height?: number;
   width?: number;
   label: string;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -26,6 +37,7 @@ export default function RealImageUpload({
     if (!file) return;
     setBusy(true);
     setErr('');
+    onBusyChange?.(true);
     try {
       const { url } = await liveMedia.upload(file);
       onChange(url);
@@ -33,6 +45,7 @@ export default function RealImageUpload({
       setErr(e2 instanceof LiveApiError ? e2.message : 'Upload failed');
     } finally {
       setBusy(false);
+      onBusyChange?.(false);
     }
   };
 
@@ -68,11 +81,13 @@ export default function RealImageUpload({
 
 /** Multiple real photos (venue gallery slider) — same upload plumbing as
  * RealImageUpload, each file uploaded for real and the array storing
- * persisted URLs, not base64. */
-export function RealGalleryUpload({ value, onChange, max = 8 }: {
+ * persisted URLs, not base64. See RealImageUpload's onBusyChange doc
+ * comment for why this exists. */
+export function RealGalleryUpload({ value, onChange, max = 8, onBusyChange }: {
   value: string[];
   onChange: (urls: string[]) => void;
   max?: number;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -84,6 +99,7 @@ export function RealGalleryUpload({ value, onChange, max = 8 }: {
     if (!files.length) return;
     setErr('');
     setBusy(true);
+    onBusyChange?.(true);
     try {
       const uploaded = await Promise.all(files.map((f) => liveMedia.upload(f)));
       onChange([...value, ...uploaded.map((u) => u.url)]);
@@ -91,6 +107,7 @@ export function RealGalleryUpload({ value, onChange, max = 8 }: {
       setErr(e2 instanceof LiveApiError ? e2.message : 'Some uploads failed');
     } finally {
       setBusy(false);
+      onBusyChange?.(false);
     }
   };
   const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));

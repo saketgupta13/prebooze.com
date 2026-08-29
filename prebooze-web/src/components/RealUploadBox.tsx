@@ -5,8 +5,17 @@ import type { ReactNode } from 'react';
  * real upload endpoint (organizer.upload / venuePartner.upload) and stores
  * the returned, persisted URL instead of a browser-only data URL. Pass the
  * role-specific `upload` function so this one component works for both
- * organizer event media and venue gallery photos. */
-export function RealUploadBox({ value, onChange, upload, label, doneLabel, accept = 'image/*', style }: {
+ * organizer event media and venue gallery photos.
+ *
+ * `onBusyChange` — real 2026-08-29 bug found (House of Aura's organizer
+ * logo): this component's upload-in-progress state was entirely private,
+ * so a page's own Save button had no way to know an upload was still in
+ * flight and could fire (and navigate away) before it finished — the
+ * upload would still succeed a moment later, but `onChange(url)` landed on
+ * an unmounted/already-saved page and the URL was silently lost. Optional
+ * so existing call sites don't need to change unless they have a nearby
+ * save action worth gating on this. */
+export function RealUploadBox({ value, onChange, upload, label, doneLabel, accept = 'image/*', style, onBusyChange }: {
   value?: string | null;
   onChange: (url: string) => void;
   upload: (file: File) => Promise<{ url: string }>;
@@ -14,6 +23,7 @@ export function RealUploadBox({ value, onChange, upload, label, doneLabel, accep
   doneLabel?: ReactNode;
   accept?: string;
   style?: React.CSSProperties;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -25,6 +35,7 @@ export function RealUploadBox({ value, onChange, upload, label, doneLabel, accep
     if (!file) return;
     setErr('');
     setBusy(true);
+    onBusyChange?.(true);
     try {
       const { url } = await upload(file);
       onChange(url);
@@ -32,6 +43,7 @@ export function RealUploadBox({ value, onChange, upload, label, doneLabel, accep
       setErr('Upload failed — try again');
     } finally {
       setBusy(false);
+      onBusyChange?.(false);
     }
   };
 
@@ -62,12 +74,14 @@ export function RealUploadBox({ value, onChange, upload, label, doneLabel, accep
 }
 
 /** Real video upload (teaser reel) — same upload plumbing as RealUploadBox
- * but with a <video> preview instead of a background-image thumbnail. */
-export function RealVideoUploadBox({ value, onChange, upload, label }: {
+ * but with a <video> preview instead of a background-image thumbnail. See
+ * RealUploadBox's onBusyChange doc comment for why this exists. */
+export function RealVideoUploadBox({ value, onChange, upload, label, onBusyChange }: {
   value?: string | null;
   onChange: (url: string) => void;
   upload: (file: File) => Promise<{ url: string }>;
   label: string;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -79,6 +93,7 @@ export function RealVideoUploadBox({ value, onChange, upload, label }: {
     if (!file) return;
     setErr('');
     setBusy(true);
+    onBusyChange?.(true);
     try {
       const { url } = await upload(file);
       onChange(url);
@@ -86,6 +101,7 @@ export function RealVideoUploadBox({ value, onChange, upload, label }: {
       setErr('Upload failed — try again');
     } finally {
       setBusy(false);
+      onBusyChange?.(false);
     }
   };
 
@@ -104,12 +120,14 @@ export function RealVideoUploadBox({ value, onChange, upload, label }: {
 }
 
 /** Multiple real photos — same shape as GalleryDropBox but each file is
- * uploaded for real and the array stores persisted URLs. */
-export function RealGalleryUploadBox({ value, onChange, upload, max = 6 }: {
+ * uploaded for real and the array stores persisted URLs. See
+ * RealUploadBox's onBusyChange doc comment for why this exists. */
+export function RealGalleryUploadBox({ value, onChange, upload, max = 6, onBusyChange }: {
   value: string[];
   onChange: (urls: string[]) => void;
   upload: (file: File) => Promise<{ url: string }>;
   max?: number;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -121,6 +139,7 @@ export function RealGalleryUploadBox({ value, onChange, upload, max = 6 }: {
     if (!files.length) return;
     setErr('');
     setBusy(true);
+    onBusyChange?.(true);
     try {
       const uploaded = await Promise.all(files.map((f) => upload(f)));
       onChange([...value, ...uploaded.map((u) => u.url)]);
@@ -128,6 +147,7 @@ export function RealGalleryUploadBox({ value, onChange, upload, max = 6 }: {
       setErr('Some uploads failed — try again');
     } finally {
       setBusy(false);
+      onBusyChange?.(false);
     }
   };
   const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));

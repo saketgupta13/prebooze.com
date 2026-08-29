@@ -27,6 +27,7 @@ export default function PromoterSettings() {
   const [open, setOpen] = useState<string | null>(null);
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [brand, setBrand] = useState('');
   const [username, setUsername] = useState('');
   const [loc, setLoc] = useState<LocationValue>(emptyLocation());
@@ -65,6 +66,7 @@ export default function PromoterSettings() {
 
   const saveProfile = async () => {
     setErr('');
+    if (logoUploading) { setErr('Photo is still uploading — wait for it to finish before saving'); return; }
     setSaving(true);
     try {
       const updated = await promoterApi.updateMe({
@@ -131,6 +133,7 @@ export default function PromoterSettings() {
           value={logoUrl}
           onChange={setLogoUrl}
           upload={promoterApi.upload}
+          onBusyChange={setLogoUploading}
           label="⬆ upload photo"
           style={{ height: 100, width: 100, marginBottom: 14 }}
         />
@@ -157,8 +160,8 @@ export default function PromoterSettings() {
           <span>Audience size / reach</span>
           <input value={audienceReach} onChange={(e) => setAudienceReach(e.target.value)} placeholder="e.g. 8k on Instagram, 2k WhatsApp broadcast" />
         </div>
-        <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={saving} onClick={saveProfile}>
-          {saving ? 'Saving…' : 'Save profile ✓'}
+        <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={saving || logoUploading} onClick={saveProfile}>
+          {logoUploading ? 'Uploading…' : saving ? 'Saving…' : 'Save profile ✓'}
         </button>
       </div>
 

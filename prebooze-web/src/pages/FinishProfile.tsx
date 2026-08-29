@@ -38,6 +38,7 @@ export default function FinishProfile() {
   const [interests, setInterests] = useState<string[]>(user?.interests ?? []);
   const [loc, setLoc] = useState({ ...emptyLocation(), city: user?.city ?? '', state: user?.state ?? '', pincode: user?.pincode ?? '' });
   const [photo, setPhoto] = useState(user?.avatarUrl ?? '');
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [showAllSocials, setShowAllSocials] = useState(false);
   // Real, admin-managed categories (EventCategory), same as
   // EditProfile.tsx's identical fix — INTEREST_TAGS is only the
@@ -75,6 +76,7 @@ export default function FinishProfile() {
     if (!bio.trim()) return setErr('Bio is required');
     if (!Object.values(socialLinks).some((v) => v?.trim())) return setErr('At least one social link is required');
     if (interests.length === 0) return setErr('Pick at least one interest');
+    if (photoUploading) return setErr('Photo is still uploading — wait for it to finish before saving');
 
     setSaving(true);
     try {
@@ -148,6 +150,7 @@ export default function FinishProfile() {
             value={photo}
             onChange={setPhoto}
             upload={auth.upload}
+            onBusyChange={setPhotoUploading}
             label="📷 photo + — Add a profile picture — it appears on your tickets and reviews"
             doneLabel="✓ Photo added — click to replace"
             style={{ marginBottom: 16, height: 120 }}
@@ -248,8 +251,8 @@ export default function FinishProfile() {
             </div>
           </div>
 
-          <button className="btn btn-pri btn-block btn-lg" style={{ marginTop: 8 }} disabled={saving}>
-            {saving ? 'Saving…' : 'Save & claim my 10% off →'}
+          <button className="btn btn-pri btn-block btn-lg" style={{ marginTop: 8 }} disabled={saving || photoUploading}>
+            {photoUploading ? 'Uploading…' : saving ? 'Saving…' : 'Save & claim my 10% off →'}
           </button>
         </form>
       </div>

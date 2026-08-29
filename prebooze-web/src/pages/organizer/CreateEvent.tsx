@@ -90,6 +90,12 @@ export default function CreateEvent() {
   const [teaserVideoUrl, setTeaserVideoUrl] = useState<string | null>(null);
   const [socialPostUrl, setSocialPostUrl] = useState('');
   const [socialStoryUrl, setSocialStoryUrl] = useState('');
+  const [posterUploading, setPosterUploading] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const [teaserUploading, setTeaserUploading] = useState(false);
+  const [socialPostUploading, setSocialPostUploading] = useState(false);
+  const [socialStoryUploading, setSocialStoryUploading] = useState(false);
+  const mediaUploading = posterUploading || galleryUploading || teaserUploading || socialPostUploading || socialStoryUploading;
 
   // Step 2 — tickets
   const [tiers, setTiers] = useState<TierDraft[]>(DEFAULT_TIERS);
@@ -303,6 +309,7 @@ export default function CreateEvent() {
 
   const save = async (status: 'draft' | 'pending') => {
     setErr('');
+    if (mediaUploading) { setErr('Media is still uploading — wait for it to finish before saving'); return; }
     setSaving(true);
     try {
       await organizer.upsertEvent(buildPayload(status));
@@ -339,8 +346,8 @@ export default function CreateEvent() {
             <button className="btn btn-ghost" onClick={() => setPreview(false)}>
               ✎ Keep editing
             </button>
-            <button className="btn btn-pri" disabled={saving} onClick={() => save('pending')}>
-              {saving ? 'Submitting…' : 'Submit for approval →'}
+            <button className="btn btn-pri" disabled={saving || mediaUploading} onClick={() => save('pending')}>
+              {mediaUploading ? 'Uploading…' : saving ? 'Submitting…' : 'Submit for approval →'}
             </button>
           </div>
         </div>
@@ -519,8 +526,8 @@ export default function CreateEvent() {
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button className="btn btn-ghost" disabled={saving} onClick={() => save('draft')}>
-              {saving ? 'Saving…' : 'Save draft'}
+            <button className="btn btn-ghost" disabled={saving || mediaUploading} onClick={() => save('draft')}>
+              {mediaUploading ? 'Uploading…' : saving ? 'Saving…' : 'Save draft'}
             </button>
             <button className="btn btn-pri" disabled={!step1Valid} onClick={() => setStep(1)}>
               Next: Media →
@@ -535,7 +542,7 @@ export default function CreateEvent() {
           <p className="muted small" style={{ marginBottom: 16 }}>All optional — a poster helps your event stand out, everything else is a nice-to-have.</p>
           <div className="field">
             <span>Poster (portrait 3:4) — shown on your event card & page</span>
-            <RealUploadBox value={posterUrl} onChange={setPosterUrl} upload={organizer.upload} label="⬆ upload poster" style={{ height: 200, width: 160 }} />
+            <RealUploadBox value={posterUrl} onChange={setPosterUrl} upload={organizer.upload} onBusyChange={setPosterUploading} label="⬆ upload poster" style={{ height: 200, width: 160 }} />
           </div>
           <div className="field">
             <span>Gallery photos (optional, up to 6)</span>
@@ -549,11 +556,11 @@ export default function CreateEvent() {
                 + Use {venue!.name}'s photos ({venuePhotosToAdd.length})
               </button>
             )}
-            <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={organizer.upload} />
+            <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={organizer.upload} onBusyChange={setGalleryUploading} />
           </div>
           <div className="field">
             <span>Teaser reel (optional)</span>
-            <RealVideoUploadBox value={teaserVideoUrl} onChange={setTeaserVideoUrl} upload={organizer.upload} label="⬆ teaser video · 9:16" />
+            <RealVideoUploadBox value={teaserVideoUrl} onChange={setTeaserVideoUrl} upload={organizer.upload} onBusyChange={setTeaserUploading} label="⬆ teaser video · 9:16" />
             <input
               className="input"
               placeholder="or paste a link — Instagram Reel, YouTube, or a direct video file"
@@ -565,11 +572,11 @@ export default function CreateEvent() {
           <div className="form-row">
             <div className="field">
               <span>Social post image (1:1, optional)</span>
-              <RealUploadBox value={socialPostUrl || null} onChange={setSocialPostUrl} upload={organizer.upload} label="⬆ post 1:1" style={{ height: 110, width: 110 }} />
+              <RealUploadBox value={socialPostUrl || null} onChange={setSocialPostUrl} upload={organizer.upload} onBusyChange={setSocialPostUploading} label="⬆ post 1:1" style={{ height: 110, width: 110 }} />
             </div>
             <div className="field">
               <span>Social story image (9:16, optional)</span>
-              <RealUploadBox value={socialStoryUrl || null} onChange={setSocialStoryUrl} upload={organizer.upload} label="⬆ story 9:16" style={{ height: 160, width: 90 }} />
+              <RealUploadBox value={socialStoryUrl || null} onChange={setSocialStoryUrl} upload={organizer.upload} onBusyChange={setSocialStoryUploading} label="⬆ story 9:16" style={{ height: 160, width: 90 }} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>

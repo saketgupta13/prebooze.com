@@ -124,6 +124,7 @@ export function LineupEdit() {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
@@ -179,6 +180,7 @@ export function LineupEdit() {
     e.preventDefault();
     if (!name.trim()) { setErr('Name / title is required'); return; }
     if (!description.trim()) { setErr("Add a short description — it shows on their profile"); return; }
+    if (logoUploading) { setErr('Logo is still uploading — wait for it to finish before saving'); return; }
     const linksArr = links.split('·').map((s) => s.trim()).filter(Boolean);
     try {
       if (isCreate) {
@@ -212,7 +214,7 @@ export function LineupEdit() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-          <RealImageUpload value={logoUrl} onChange={setLogoUrl} height={76} width={76} label="logo" />
+          <RealImageUpload value={logoUrl} onChange={setLogoUrl} onBusyChange={setLogoUploading} height={76} width={76} label="logo" />
           <div className="field" style={{ flex: 1 }}>
             <label>Name / title</label>
             <input className="input" style={{ fontSize: 15, fontWeight: 700 }} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. DJ Nova" autoFocus={isCreate} />
@@ -262,7 +264,7 @@ export function LineupEdit() {
       <div className="tiny hint">appears in event editors' line-up pickers and as a followable profile on the guest site</div>
 
       <div style={{ display: 'flex', gap: 10 }}>
-        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }}>{isCreate ? 'Create line-up ✓' : 'Save line-up'}</button>
+        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }} disabled={logoUploading}>{logoUploading ? 'Uploading logo…' : isCreate ? 'Create line-up ✓' : 'Save line-up'}</button>
         <Link to="/lineups" className="btn btn-ghost" style={{ padding: 10 }}>Cancel</Link>
       </div>
     </form>

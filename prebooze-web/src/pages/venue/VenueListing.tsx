@@ -44,6 +44,8 @@ export default function VenueListing() {
   const [timings, setTimings] = useState('');
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
   const [contactPerson, setContactPerson] = useState('');
   const [contactPersonPhone, setContactPersonPhone] = useState('');
   const [instagram, setInstagram] = useState('');
@@ -92,6 +94,7 @@ export default function VenueListing() {
       toast('Name, venue type, address, capacity and about are required');
       return;
     }
+    if (logoUploading || galleryUploading) { toast('Media is still uploading — wait for it to finish before saving'); return; }
     setErr('');
     setSaving(true);
     try {
@@ -161,7 +164,7 @@ export default function VenueListing() {
         </div>
         <div className="field">
           <span>Logo — shown next to your venue name in the directory</span>
-          <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={venuePartner.upload} label="⬆ upload logo" doneLabel="✓ Logo uploaded — click to replace" style={{ height: 100, width: 100 }} />
+          <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={venuePartner.upload} onBusyChange={setLogoUploading} label="⬆ upload logo" doneLabel="✓ Logo uploaded — click to replace" style={{ height: 100, width: 100 }} />
         </div>
         {pendingCity && (
           <div className="dashed-box" style={{ border: '1.5px dashed var(--accent)', borderRadius: 10, padding: '8px 10px', fontSize: 12.5, marginBottom: 12 }}>
@@ -217,9 +220,9 @@ export default function VenueListing() {
         </div>
         <div className="field">
           <span>📷 Photos (up to 6) — shown in the guest directory and to organizers picking a venue</span>
-          <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={venuePartner.upload} />
+          <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={venuePartner.upload} onBusyChange={setGalleryUploading} />
         </div>
-        <button className="btn btn-pri btn-lg" disabled={saving}>{saving ? 'Saving…' : 'Save listing ✓'}</button>
+        <button className="btn btn-pri btn-lg" disabled={saving || logoUploading || galleryUploading}>{(logoUploading || galleryUploading) ? 'Uploading…' : saving ? 'Saving…' : 'Save listing ✓'}</button>
         <span className="tiny muted-2" style={{ marginLeft: 10 }}>changing city needs admin approval — everything else here is live immediately</span>
       </form>
     </div>

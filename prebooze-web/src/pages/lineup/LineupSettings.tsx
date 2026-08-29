@@ -17,6 +17,7 @@ const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', '
 export default function LineupSettings() {
   const { user, updateUser, toast } = useApp();
   const [logoUrl, setLogoUrl] = useState('');
+  const [logoUploading, setLogoUploading] = useState(false);
   const [form, setForm] = useState({
     lineupName: user?.lineupName ?? '',
     lineupCategory: user?.lineupCategory ?? 'DJ',
@@ -54,6 +55,7 @@ export default function LineupSettings() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
+    if (logoUploading) { setErr('Photo is still uploading — wait for it to finish before saving'); return; }
     setSaving(true);
     try {
       const updated = await lineupApi.updateMe({
@@ -104,6 +106,7 @@ export default function LineupSettings() {
           value={logoUrl}
           onChange={setLogoUrl}
           upload={lineupApi.upload}
+          onBusyChange={setLogoUploading}
           label="📷 photo + — Add a press shot — it headlines your profile and event chips"
           doneLabel="✓ Profile photo added — click to replace"
           style={{ marginBottom: 16, height: 120 }}
@@ -149,7 +152,7 @@ export default function LineupSettings() {
           <span>Bio — what do you play / do?</span>
           <WysiwygEditor value={form.bio} onChange={(html) => setForm((f) => ({ ...f, bio: html }))} minHeight={80} />
         </div>
-        <button className="btn btn-pri btn-block btn-lg" style={{ marginTop: 8 }} disabled={saving || loading}>{saving ? 'Saving…' : 'Save changes'}</button>
+        <button className="btn btn-pri btn-block btn-lg" style={{ marginTop: 8 }} disabled={saving || loading || logoUploading}>{logoUploading ? 'Uploading…' : saving ? 'Saving…' : 'Save changes'}</button>
       </form>
     </div>
   );

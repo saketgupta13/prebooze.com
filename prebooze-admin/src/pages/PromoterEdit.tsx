@@ -28,6 +28,7 @@ export default function PromoterEdit() {
   const [pincode, setPincode] = useState('');
   const [bio, setBio] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [seo, setSeo] = useState<Seo>(emptySeo());
 
   const load = () => {
@@ -72,6 +73,7 @@ export default function PromoterEdit() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) { setErr('Name is required'); return; }
+    if (logoUploading) { setErr('Photo is still uploading — wait for it to finish before saving'); return; }
     try {
       await livePromoters.update(p.id, {
         name: name.trim(), contact: contact.trim(),
@@ -93,7 +95,7 @@ export default function PromoterEdit() {
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
 
       <form className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }} onSubmit={save}>
-        <RealImageUpload value={logoUrl} onChange={setLogoUrl} height={90} width={90} label="photo" />
+        <RealImageUpload value={logoUrl} onChange={setLogoUrl} onBusyChange={setLogoUploading} height={90} width={90} label="photo" />
         <div style={{ display: 'flex', gap: 8 }}>
           <div className="field" style={{ flex: 1 }}>
             <label>Promoter / PR name</label>
@@ -123,7 +125,7 @@ export default function PromoterEdit() {
 
         <div style={{ display: 'flex', gap: 10 }}>
           <Link to={`/promoters/${p.id}`} className="btn btn-ghost">Cancel</Link>
-          <button type="submit" className="btn btn-pri" style={{ flex: 1, padding: 10 }}>Save changes</button>
+          <button type="submit" className="btn btn-pri" style={{ flex: 1, padding: 10 }} disabled={logoUploading}>{logoUploading ? 'Uploading photo…' : 'Save changes'}</button>
         </div>
       </form>
     </div>

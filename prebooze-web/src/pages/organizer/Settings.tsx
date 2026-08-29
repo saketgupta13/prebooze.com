@@ -27,6 +27,7 @@ export default function Settings() {
   const [org, setOrg] = useState<Organizer | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [err, setErr] = useState('');
   const [open, setOpen] = useState<string | null>(null);
 
@@ -75,6 +76,11 @@ export default function Settings() {
 
   const saveProfile = async () => {
     setErr('');
+    // Real 2026-08-29 bug: a logo upload still in flight — saving here
+    // would either lose the upload once it lands after this page has
+    // already moved on, or persist blank when the file never actually
+    // finished. See RealUploadBox's onBusyChange doc comment.
+    if (logoUploading) { setErr('Logo is still uploading — wait for it to finish before saving'); return; }
     setSaving(true);
     try {
       const updated = await organizer.updateMe({
@@ -125,7 +131,7 @@ export default function Settings() {
             <div style={{ flexBasis: '100%', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="field">
                 <span>Logo</span>
-                <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={organizer.upload} label="⬆ upload logo" style={{ height: 100, width: 100 }} />
+                <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={organizer.upload} onBusyChange={setLogoUploading} label="⬆ upload logo" style={{ height: 100, width: 100 }} />
               </div>
               <div className="form-row">
                 <div className="field">
@@ -193,8 +199,8 @@ export default function Settings() {
                   ))}
                 </div>
               </div>
-              <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={saving} onClick={saveProfile}>
-                {saving ? 'Saving…' : 'Save profile ✓'}
+              <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={saving || logoUploading} onClick={saveProfile}>
+                {logoUploading ? 'Uploading logo…' : saving ? 'Saving…' : 'Save profile ✓'}
               </button>
             </div>
           )}

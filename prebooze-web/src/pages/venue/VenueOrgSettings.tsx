@@ -26,6 +26,7 @@ export default function VenueOrgSettings() {
   const [open, setOpen] = useState(false);
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [name, setName] = useState('');
   const [loc, setLoc] = useState<LocationValue>(emptyLocation());
   const [about, setAbout] = useState('');
@@ -56,6 +57,7 @@ export default function VenueOrgSettings() {
 
   const saveProfile = async () => {
     setErr('');
+    if (logoUploading) { setErr('Logo is still uploading — wait for it to finish before saving'); return; }
     setSaving(true);
     try {
       const updated = await venuePartner.updateListing({
@@ -106,7 +108,7 @@ export default function VenueOrgSettings() {
             <div style={{ flexBasis: '100%', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="field">
                 <span>Logo</span>
-                <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={venuePartner.upload} label="⬆ upload logo" style={{ height: 100, width: 100 }} />
+                <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={venuePartner.upload} onBusyChange={setLogoUploading} label="⬆ upload logo" style={{ height: 100, width: 100 }} />
               </div>
               <div className="field">
                 <span>Venue name</span>
@@ -135,8 +137,8 @@ export default function VenueOrgSettings() {
                 </div>
               </div>
               <div className="tiny muted-2">venue type, amenities, timings and photos live on the venue panel's My listing page — same record, one place for display details</div>
-              <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={saving} onClick={saveProfile}>
-                {saving ? 'Saving…' : 'Save profile ✓'}
+              <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={saving || logoUploading} onClick={saveProfile}>
+                {logoUploading ? 'Uploading…' : saving ? 'Saving…' : 'Save profile ✓'}
               </button>
             </div>
           )}

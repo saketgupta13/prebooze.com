@@ -38,6 +38,7 @@ export default function LineupOnboarding() {
 
   const draft0 = loadDraft(DRAFT_ID, emptyDraft);
   const [logoUrl, setLogoUrl] = useState('');
+  const [logoUploading, setLogoUploading] = useState(false);
   const [stageName, setStageName] = useState(draft0.stageName);
   const [category, setCategory] = useState(draft0.category);
   const [loc, setLoc] = useState(draft0.loc);
@@ -72,6 +73,7 @@ export default function LineupOnboarding() {
       return;
     }
     setErr('');
+    if (logoUploading) { setErr('Photo is still uploading — wait for it to finish before saving'); return; }
     setSubmitting(true);
     try {
       const res = await kyc.quickSignupLineup({
@@ -142,6 +144,7 @@ export default function LineupOnboarding() {
             value={logoUrl}
             onChange={setLogoUrl}
             upload={lineupApi.upload}
+            onBusyChange={setLogoUploading}
             label="📷 photo + — Add a press shot — it headlines your profile and event chips"
             doneLabel="✓ Profile photo added — click to replace"
             style={{ marginBottom: 16, height: 120 }}
@@ -186,8 +189,8 @@ export default function LineupOnboarding() {
             <button type="button" className="btn btn-ghost" style={{ flexShrink: 0 }} onClick={() => navigate(-1)}>
               ← Back
             </button>
-            <button className="btn btn-pri btn-lg" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }} disabled={!step1Valid || submitting}>
-              {submitting ? 'Setting up…' : 'Join the roster →'}
+            <button className="btn btn-pri btn-lg" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }} disabled={!step1Valid || submitting || logoUploading}>
+              {logoUploading ? 'Uploading…' : submitting ? 'Setting up…' : 'Join the roster →'}
             </button>
           </div>
           <div className="tiny muted-2 center" style={{ marginTop: 10 }}>

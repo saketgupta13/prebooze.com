@@ -6,10 +6,12 @@ import { liveMedia, LiveApiError } from '../lib/liveApi';
 export default function RealVideoUpload({
   value,
   onChange,
+  onBusyChange,
   label,
 }: {
   value?: string | null;
   onChange: (url: string) => void;
+  onBusyChange?: (busy: boolean) => void;
   label: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -20,6 +22,7 @@ export default function RealVideoUpload({
     const file = e.target.files?.[0];
     if (!file) return;
     setBusy(true);
+    onBusyChange?.(true);
     setErr('');
     try {
       const { url } = await liveMedia.upload(file);
@@ -28,6 +31,7 @@ export default function RealVideoUpload({
       setErr(e2 instanceof LiveApiError ? e2.message : 'Upload failed (max 80MB)');
     } finally {
       setBusy(false);
+      onBusyChange?.(false);
     }
   };
 

@@ -125,6 +125,12 @@ export default function EventEditorReal() {
   const [teaserVideoUrl, setTeaserVideoUrl] = useState('');
   const [socialPostUrl, setSocialPostUrl] = useState('');
   const [socialStoryUrl, setSocialStoryUrl] = useState('');
+  const [posterUploading, setPosterUploading] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const [teaserUploading, setTeaserUploading] = useState(false);
+  const [socialPostUploading, setSocialPostUploading] = useState(false);
+  const [socialStoryUploading, setSocialStoryUploading] = useState(false);
+  const mediaUploading = posterUploading || galleryUploading || teaserUploading || socialPostUploading || socialStoryUploading;
 
   useEffect(() => {
     if (!token) return;
@@ -261,6 +267,11 @@ export default function EventEditorReal() {
     if (!canSave) {
       setErr(`Title, a venue (or city + locality for a private event)${requiresOrganizer ? ', organizer' : ''} (and date, for a new event) are required`);
       setTab('basics');
+      return;
+    }
+    if (mediaUploading) {
+      setErr('Media is still uploading — wait for it to finish before saving');
+      setTab('media');
       return;
     }
     setSaving(true);
@@ -584,7 +595,7 @@ export default function EventEditorReal() {
         <div className="stack" style={{ gap: 16 }}>
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <b>Poster</b>
-            <RealImageUpload value={posterUrl} onChange={setPosterUrl} height={200} width={160} label="⬆ poster 3:4" />
+            <RealImageUpload value={posterUrl} onChange={setPosterUrl} onBusyChange={setPosterUploading} height={200} width={160} label="⬆ poster 3:4" />
             <div className="tiny hint">Saved along with the rest of the form — click {isCreate ? 'Create event' : 'Save changes'} below once you've uploaded it.</div>
           </div>
 
@@ -616,7 +627,7 @@ export default function EventEditorReal() {
                 </div>
               ))}
               {galleryUrls.length < 6 && (
-                <RealImageUpload value={null} onChange={(url) => setGalleryUrls((prev) => [...prev, url])} height={110} width={110} label="+ add photo" />
+                <RealImageUpload value={null} onChange={(url) => setGalleryUrls((prev) => [...prev, url])} onBusyChange={setGalleryUploading} height={110} width={110} label="+ add photo" />
               )}
             </div>
             <div className="tiny hint">Optional — shown as a photo gallery on the guest event page.</div>
@@ -624,7 +635,7 @@ export default function EventEditorReal() {
 
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <b>Teaser reel (optional)</b>
-            <RealVideoUpload value={teaserVideoUrl || null} onChange={setTeaserVideoUrl} label="⬆ teaser video · 9:16" />
+            <RealVideoUpload value={teaserVideoUrl || null} onChange={setTeaserVideoUrl} onBusyChange={setTeaserUploading} label="⬆ teaser video · 9:16" />
             <div className="tiny hint">Upload a file, or paste a link below instead — Instagram Reel, YouTube, or a direct video file all work.</div>
             <input
               className="input"
@@ -640,11 +651,11 @@ export default function EventEditorReal() {
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               <div>
                 <div className="tiny muted" style={{ marginBottom: 4 }}>Instagram post · 1:1</div>
-                <RealImageUpload value={socialPostUrl || null} onChange={setSocialPostUrl} height={110} width={110} label="⬆ post 1:1" />
+                <RealImageUpload value={socialPostUrl || null} onChange={setSocialPostUrl} onBusyChange={setSocialPostUploading} height={110} width={110} label="⬆ post 1:1" />
               </div>
               <div>
                 <div className="tiny muted" style={{ marginBottom: 4 }}>Instagram story · 9:16</div>
-                <RealImageUpload value={socialStoryUrl || null} onChange={setSocialStoryUrl} height={160} width={90} label="⬆ story 9:16" />
+                <RealImageUpload value={socialStoryUrl || null} onChange={setSocialStoryUrl} onBusyChange={setSocialStoryUploading} height={160} width={90} label="⬆ story 9:16" />
               </div>
             </div>
             <div className="tiny hint">Optional — ready-to-post promo images shown on the guest page's Share panel.</div>
@@ -821,7 +832,7 @@ export default function EventEditorReal() {
       )}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-pri" disabled={saving || !canSave} onClick={save}>{saving ? 'Saving…' : isCreate ? 'Create event' : 'Save changes'}</button>
+        <button className="btn btn-pri" disabled={saving || !canSave || mediaUploading} onClick={save}>{mediaUploading ? 'Uploading…' : saving ? 'Saving…' : isCreate ? 'Create event' : 'Save changes'}</button>
       </div>
     </div>
   );

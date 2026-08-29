@@ -31,6 +31,8 @@ export default function SettingsLive() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [saved, setSaved] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [faviconUploading, setFaviconUploading] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -57,6 +59,7 @@ export default function SettingsLive() {
   };
 
   const save = async () => {
+    if (logoUploading || faviconUploading) { setErr('Media is still uploading — wait for it to finish before saving'); return; }
     setSaving(true);
     setErr('');
     try {
@@ -86,7 +89,7 @@ export default function SettingsLive() {
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <div>
             <div className="tiny muted" style={{ marginBottom: 6 }}>Logo (wordmark)</div>
-            <RealImageUpload value={settings.logoUrl} onChange={(url) => set('logoUrl', url)} width={220} height={70} label="Upload logo" />
+            <RealImageUpload value={settings.logoUrl} onChange={(url) => set('logoUrl', url)} onBusyChange={setLogoUploading} width={220} height={70} label="Upload logo" />
             {settings.logoUrl && (
               <button className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} onClick={() => set('logoUrl', null)}>
                 Reset to default
@@ -95,7 +98,7 @@ export default function SettingsLive() {
           </div>
           <div>
             <div className="tiny muted" style={{ marginBottom: 6 }}>Favicon</div>
-            <RealImageUpload value={settings.faviconUrl} onChange={(url) => set('faviconUrl', url)} width={70} height={70} label="Upload favicon" />
+            <RealImageUpload value={settings.faviconUrl} onChange={(url) => set('faviconUrl', url)} onBusyChange={setFaviconUploading} width={70} height={70} label="Upload favicon" />
             {settings.faviconUrl && (
               <button className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} onClick={() => set('faviconUrl', null)}>
                 Reset to default
@@ -234,7 +237,7 @@ export default function SettingsLive() {
       </div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <button className="btn btn-pri" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save settings'}</button>
+        <button className="btn btn-pri" disabled={saving || logoUploading || faviconUploading} onClick={save}>{(logoUploading || faviconUploading) ? 'Uploading…' : saving ? 'Saving…' : 'Save settings'}</button>
         {saved && <span className="tiny" style={{ color: 'var(--green)' }}>Saved ✓</span>}
       </div>
     </div>

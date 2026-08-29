@@ -32,6 +32,7 @@ export default function EditProfile() {
     country: user?.country ?? 'India', state: user?.state ?? '', city: user?.city ?? '', pincode: user?.pincode ?? '',
   });
   const [photo, setPhoto] = useState(user?.avatarUrl ?? '');
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [showAllSocials, setShowAllSocials] = useState(false);
   // Real, admin-managed categories (EventCategory — the same tree the
   // event browse filters and both event editors' pickers already use)
@@ -73,6 +74,7 @@ export default function EditProfile() {
     e.preventDefault();
     setErr('');
     setUsernameErr('');
+    if (photoUploading) { setErr('Photo is still uploading — wait for it to finish before saving'); return; }
     setSaving(true);
     try {
       const updated = await auth.updateMe({
@@ -113,6 +115,7 @@ export default function EditProfile() {
             value={photo}
             onChange={setPhoto}
             upload={auth.upload}
+            onBusyChange={setPhotoUploading}
             label="📷 photo + — Add a profile picture"
             doneLabel="✓ Photo added — click to replace"
             style={{ marginBottom: 18, height: 120 }}
@@ -222,7 +225,7 @@ export default function EditProfile() {
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-pri" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
+            <button className="btn btn-pri" disabled={saving || photoUploading}>{photoUploading ? 'Uploading…' : saving ? 'Saving…' : 'Save changes'}</button>
             <Link to="/profile" className="btn btn-ghost">
               Cancel
             </Link>

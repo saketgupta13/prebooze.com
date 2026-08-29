@@ -63,6 +63,7 @@ export default function VenueOnboarding() {
   const [timings, setTimings] = useState(draft0.timings);
   const [about, setAbout] = useState(draft0.about);
   const [logoUrl, setLogoUrl] = useState('');
+  const [logoUploading, setLogoUploading] = useState(false);
   const [contactPerson, setContactPerson] = useState('');
   const [contactPersonPhone, setContactPersonPhone] = useState('');
   const [instagram, setInstagram] = useState('');
@@ -132,6 +133,7 @@ export default function VenueOnboarding() {
       return;
     }
     setErr('');
+    if (logoUploading) { setErr('Logo is still uploading — wait for it to finish before saving'); return; }
     setSubmitting(true);
     try {
       await venuePartner.onboard({
@@ -219,7 +221,7 @@ export default function VenueOnboarding() {
             </div>
             <div className="field">
               <span>Logo (optional) — shown next to your venue name in the directory</span>
-              <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={venuePartner.upload} label="⬆ upload logo" doneLabel="✓ Logo uploaded — click to replace" style={{ height: 100, width: 100 }} />
+              <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={venuePartner.upload} onBusyChange={setLogoUploading} label="⬆ upload logo" doneLabel="✓ Logo uploaded — click to replace" style={{ height: 100, width: 100 }} />
             </div>
             <LocationPicker value={loc} onChange={setLoc} />
             <div className="form-row">
@@ -273,8 +275,8 @@ export default function VenueOnboarding() {
               <button type="button" className="btn btn-ghost" style={{ flexShrink: 0 }} onClick={() => navigate(-1)}>
                 ← Back
               </button>
-              <button className="btn btn-pri btn-lg" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }} disabled={!valid || submitting}>
-                {submitting ? 'Setting up…' : 'List my venue →'}
+              <button className="btn btn-pri btn-lg" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }} disabled={!valid || submitting || logoUploading}>
+                {logoUploading ? 'Uploading…' : submitting ? 'Setting up…' : 'List my venue →'}
               </button>
             </div>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>

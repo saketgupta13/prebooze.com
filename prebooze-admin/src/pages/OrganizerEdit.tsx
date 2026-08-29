@@ -45,6 +45,7 @@ export default function OrganizerEdit() {
   const [loc, setLoc] = useState({ country: 'India', state: '', city: '' });
   const [seo, setSeo] = useState<Seo>(emptySeo());
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [loginPhone, setLoginPhone] = useState<string | null>(null);
 
   const load = () => {
@@ -96,6 +97,12 @@ export default function OrganizerEdit() {
     e.preventDefault();
     if (!form.brandName.trim()) { setErr('Organizer name is required'); return; }
     if (!loc.city.trim()) { setErr('Pick a city'); return; }
+    // Real 2026-08-29 bug: a logo upload still in flight (or one that had
+    // already failed and silently left the field blank) — saving here
+    // would either lose the upload once it lands after this page has
+    // already navigated away, or persist blank when the file never
+    // actually finished. See RealImageUpload's onBusyChange doc comment.
+    if (logoUploading) { setErr('Logo is still uploading — wait for it to finish before saving'); return; }
     try {
       await liveOrganizers.update(org.id, {
         ...form,
@@ -124,7 +131,7 @@ export default function OrganizerEdit() {
         <div className="display" style={{ fontWeight: 700 }}>Business profile</div>
         <div className="field">
           <label>Logo</label>
-          <RealImageUpload value={logoUrl} onChange={setLogoUrl} height={90} width={90} label="⬆ upload logo" />
+          <RealImageUpload value={logoUrl} onChange={setLogoUrl} onBusyChange={setLogoUploading} height={90} width={90} label="⬆ upload logo" />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <div className="field" style={{ flex: 1 }}>
@@ -184,7 +191,7 @@ export default function OrganizerEdit() {
       />
 
       <div style={{ display: 'flex', gap: 10 }}>
-        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }}>Save organizer</button>
+        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }} disabled={logoUploading}>{logoUploading ? 'Uploading logo…' : 'Save organizer'}</button>
         <Link to={`/organizers/${org.id}`} className="btn btn-ghost" style={{ padding: 10 }}>Cancel</Link>
       </div>
     </form>
