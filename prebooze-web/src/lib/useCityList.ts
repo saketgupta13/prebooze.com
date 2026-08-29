@@ -9,6 +9,7 @@ export interface CityRow {
   top: boolean;
   events: number;
   venues: number;
+  organizers: number;
 }
 
 let cache: CityRow[] | null = null;
@@ -20,7 +21,7 @@ const mockRows = (): CityRow[] => {
     const c = (e.venueId ? venueById(e.venueId)?.city : e.privateCity) ?? undefined;
     if (c) counts.set(c, (counts.get(c) ?? 0) + 1);
   });
-  return TOP_CITIES.map((t) => ({ name: t.name, icon: t.icon, top: true, events: counts.get(t.name) ?? 0, venues: 0 }));
+  return TOP_CITIES.map((t) => ({ name: t.name, icon: t.icon, top: true, events: counts.get(t.name) ?? 0, venues: 0, organizers: 0 }));
 };
 
 /** The real, admin-managed city list (Admin > Locations, GET /cities) —

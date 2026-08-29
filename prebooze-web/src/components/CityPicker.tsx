@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { EVENTS, TOP_CITIES, VENUES, venueById } from '../data/mock';
+import { EVENTS, TOP_CITIES, VENUES, ORGANIZERS, venueById } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import { toCitySlug } from '../lib/urls';
 
-interface CityRow { name: string; icon?: string; top: boolean; events: number; venues: number }
+interface CityRow { name: string; icon?: string; top: boolean; events: number; venues: number; organizers: number }
 
 /** BookMyShow-style city picker — top cities with icons, search, and geo-detect. */
 export default function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -43,13 +43,24 @@ export default function CityPicker({ open, onClose }: { open: boolean; onClose: 
     VENUES.forEach((v) => m.set(v.city, (m.get(v.city) ?? 0) + 1));
     return m;
   }, []);
-  const mockRows: CityRow[] = TOP_CITIES.map((t) => ({ name: t.name, icon: t.icon, top: true, events: mockEventCounts.get(t.name) ?? 0, venues: mockVenueCounts.get(t.name) ?? 0 }));
+  const mockOrganizerCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    ORGANIZERS.forEach((o) => m.set(o.city, (m.get(o.city) ?? 0) + 1));
+    return m;
+  }, []);
+  const mockRows: CityRow[] = TOP_CITIES.map((t) => ({
+    name: t.name, icon: t.icon, top: true,
+    events: mockEventCounts.get(t.name) ?? 0, venues: mockVenueCounts.get(t.name) ?? 0, organizers: mockOrganizerCounts.get(t.name) ?? 0,
+  }));
 
-  // Real 2026-08-29 change: only cities with a real venue actually show
-  // here — same reasoning as Footer.tsx's "Explore other cities" filter,
-  // now applied to the picker too rather than just showing every enabled
-  // city (several of which have zero venues and zero events).
-  const cityRows = (liveCities ?? (isBackendEnabled() ? [] : mockRows)).filter((c) => c.venues > 0);
+  // Real 2026-08-29 change: only cities with a real venue or organizer
+  // actually show here — same reasoning as Footer.tsx's "Explore other
+  // cities" filter, now applied to the picker too rather than just
+  // showing every enabled city (several of which have neither). Organizer
+  // counted separately from venue: a real organizer can be based in a
+  // city before registering any venue (e.g. Gurgaon — real organizer,
+  // zero venues, would've silently stayed excluded without this).
+  const cityRows = (liveCities ?? (isBackendEnabled() ? [] : mockRows)).filter((c) => c.venues > 0 || c.organizers > 0);
   const topRows = cityRows.filter((c) => c.top);
   const allCities = useMemo(() => cityRows.map((c) => c.name).sort(), [cityRows]);
   const eventCounts = useMemo(() => new Map(cityRows.map((c) => [c.name, c.events])), [cityRows]);

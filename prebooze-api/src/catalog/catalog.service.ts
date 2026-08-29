@@ -537,7 +537,17 @@ export class CatalogService {
     // crawl priority away from cities that actually have something on them.
     const venuesByCity = new Map<string, number>();
     for (const v of venues) venuesByCity.set(v.city, (venuesByCity.get(v.city) ?? 0) + 1);
-    return cities.map((c) => ({ name: c.name, icon: c.icon ?? undefined, top: c.top, state: c.state?.name, events: eventsByCity.get(c.name) ?? 0, venues: venuesByCity.get(c.name) ?? 0 }));
+    // Same reasoning again, one more time — an organizer can be based in a
+    // city and onboarded for real before they've registered any Venue row
+    // (private-address events only) or posted their first event, so
+    // "venues > 0" alone still undercounts real presence.
+    const organizers = await this.prisma.organizer.findMany({ select: { city: true } });
+    const organizersByCity = new Map<string, number>();
+    for (const o of organizers) organizersByCity.set(o.city, (organizersByCity.get(o.city) ?? 0) + 1);
+    return cities.map((c) => ({
+      name: c.name, icon: c.icon ?? undefined, top: c.top, state: c.state?.name,
+      events: eventsByCity.get(c.name) ?? 0, venues: venuesByCity.get(c.name) ?? 0, organizers: organizersByCity.get(c.name) ?? 0,
+    }));
   }
 
   /** Real, admin-managed venue-type tags (Admin > Content > Venue types),
