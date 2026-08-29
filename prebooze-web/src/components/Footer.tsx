@@ -24,7 +24,17 @@ export default function Footer() {
   // Same cached city list CityScope already fetches on every page load
   // (see useCityList's own doc comment), so this adds no extra request.
   // Automatically covers any future city, no manual update needed.
-  const { cities } = useCityList();
+  //
+  // Filtered to cities with real live inventory (>=1 event or venue) —
+  // real 2026-08-29 finding: 9 of 12 enabled cities had zero of either.
+  // A sitewide link (every page) into an otherwise-empty city page is a
+  // thin-content risk that dilutes crawl priority away from the cities
+  // that actually have something on them, worse than not linking at all.
+  // CityPicker deliberately keeps showing all enabled cities regardless —
+  // a guest manually picking their own city is a different, legitimate
+  // case from an automatic sitewide crawl signal.
+  const { cities: allCities } = useCityList();
+  const cities = allCities?.filter((c) => c.events > 0 || c.venues > 0) ?? null;
   const socialList = [
     { label: 'Instagram', url: socials.instagram },
     { label: 'Facebook', url: socials.facebook },

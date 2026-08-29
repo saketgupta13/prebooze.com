@@ -529,7 +529,15 @@ export class CatalogService {
       if (!c.privateCity) continue;
       eventsByCity.set(c.privateCity, (eventsByCity.get(c.privateCity) ?? 0) + c._count);
     }
-    return cities.map((c) => ({ name: c.name, icon: c.icon ?? undefined, top: c.top, state: c.state?.name, events: eventsByCity.get(c.name) ?? 0 }));
+    // Real venue count per city too, not just events — a city can have a
+    // real, live venue onboarded before its first event goes up, and
+    // Footer.tsx's "Explore other cities" section (real 2026-08-29 SEO
+    // fix) treats either as "has real content worth linking to," to avoid
+    // a sitewide crawlable link into an otherwise-empty city page diluting
+    // crawl priority away from cities that actually have something on them.
+    const venuesByCity = new Map<string, number>();
+    for (const v of venues) venuesByCity.set(v.city, (venuesByCity.get(v.city) ?? 0) + 1);
+    return cities.map((c) => ({ name: c.name, icon: c.icon ?? undefined, top: c.top, state: c.state?.name, events: eventsByCity.get(c.name) ?? 0, venues: venuesByCity.get(c.name) ?? 0 }));
   }
 
   /** Real, admin-managed venue-type tags (Admin > Content > Venue types),
