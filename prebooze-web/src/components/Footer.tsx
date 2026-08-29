@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { useApp } from '../store/AppContext';
+import { useCityList } from '../lib/useCityList';
 import { cityBrowse, cityCategories, cityVenues, cityOrganizers, cityPromoters, cityLineups } from '../lib/urls';
 
 // Admin only ever types "instagram.com/prebooze"-style handles, not always
@@ -17,6 +18,13 @@ const withScheme = (url: string) => {
 export default function Footer() {
   const { socials, footerCopyright, logoUrl } = usePlatformInfo();
   const { city } = useApp();
+  // Real, crawlable <a href> per city (via <Link>, not CityPicker's
+  // onClick-only buttons) — the only internal-link signal reinforcing
+  // sitemap.xml for any city other than the one currently being viewed.
+  // Same cached city list CityScope already fetches on every page load
+  // (see useCityList's own doc comment), so this adds no extra request.
+  // Automatically covers any future city, no manual update needed.
+  const { cities } = useCityList();
   const socialList = [
     { label: 'Instagram', url: socials.instagram },
     { label: 'Facebook', url: socials.facebook },
@@ -85,6 +93,14 @@ export default function Footer() {
             </div>
           </div>
         </div>
+        {cities && cities.length > 0 && (
+          <div className="ftr-cities">
+            <span className="ftr-cities-label">Explore other cities:</span>
+            {cities.map((c) => (
+              <Link key={c.name} to={cityBrowse(c.name)}>{c.name}</Link>
+            ))}
+          </div>
+        )}
         <div className="ftr-base">
           <img src={logoUrl || '/prebooze-logo.png'} alt="" />
           <span>{footerCopyright}</span>
