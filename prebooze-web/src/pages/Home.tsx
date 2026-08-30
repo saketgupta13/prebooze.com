@@ -20,7 +20,7 @@ import CategoryIcon from '../components/CategoryIcon';
 import {
   ShoppingCart, X, Search, MessageCircle, CreditCard, QrCode, FileText, BadgeCheck, TrendingUp, Wallet,
   Handshake, Link2, ClipboardList, Banknote, Headphones, Star, Calendar, Flame, Landmark, Mic, Megaphone,
-  Heart, Rocket, Newspaper, Lock, Undo2, Eye, Zap, Ticket, MapPin,
+  Heart, Rocket, Newspaper, Lock, Undo2, Eye, Zap, Ticket, MapPin, Clapperboard,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import ReelCard from '../components/ReelCard';
@@ -449,7 +449,7 @@ export default function Home() {
         {cityPeople.length > 0 && (
         <section className="section">
           <div className="section-hd">
-            <h2>Going out in {city} 🔥</h2>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Going out in {city} <Flame size={20} /></h2>
             <Link to={cityPeoplePath(city)}>See all people →</Link>
           </div>
           <div className="card" style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
@@ -483,7 +483,7 @@ export default function Home() {
         {(reelsLoading || (liveReels ?? REEL_HUES).length > 0) && (
           <section className="section">
             <div className="section-hd">
-              <h2>Things happening at events 🎬</h2>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Things happening at events <Clapperboard size={20} /></h2>
               <span className="muted-2 small">‹ swipe ›</span>
             </div>
             <Slider slideWidth={150}>
@@ -522,7 +522,7 @@ export default function Home() {
         {(topPromoters.length > 0 || promoLoading) && (
         <section className="section">
           <div className="section-hd">
-            <h2>Top promoters in {city} 📣</h2>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Top promoters in {city} <Megaphone size={20} /></h2>
             <Link to={cityPromoters(city)}>See all →</Link>
           </div>
           <Slider slideWidth={244}>
@@ -541,7 +541,7 @@ export default function Home() {
         {(topLineups.length > 0 || lineupLoading) && (
         <section className="section">
           <div className="section-hd">
-            <h2>Top line-ups in {city} 🎤</h2>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Top line-ups in {city} <Headphones size={20} /></h2>
             <Link to={cityLineups(city)}>See all →</Link>
           </div>
           <Slider slideWidth={244}>
