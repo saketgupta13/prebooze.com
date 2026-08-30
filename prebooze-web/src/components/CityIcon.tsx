@@ -223,6 +223,28 @@ function Kite(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+function GujaratiSchool(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <line x1="2" y1="21" x2="22" y2="21" />
+      <path d="M3 21V10h11v11" />
+      <line x1="3" y1="13.3" x2="14" y2="13.3" />
+      <line x1="3" y1="16.6" x2="14" y2="16.6" />
+      <line x1="4.5" y1="10" x2="4.5" y2="21" />
+      <line x1="7" y1="10" x2="7" y2="21" />
+      <line x1="9.5" y1="10" x2="9.5" y2="21" />
+      <line x1="12" y1="10" x2="12" y2="21" />
+      <path d="M14 21V4.5h5V21" />
+      <line x1="14" y1="9" x2="19" y2="9" />
+      <circle cx="16.5" cy="6.7" r="1.3" />
+      <line x1="16.5" y1="6" x2="16.5" y2="6.7" />
+      <line x1="16.5" y1="6.7" x2="17" y2="6.7" />
+      <path d="M14.5 4.5V3.2h4v1.3" />
+      <line x1="16.5" y1="3.2" x2="16.5" y2="2.2" />
+    </svg>
+  );
+}
+
 function CitySkyline(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base} {...props}>
@@ -237,6 +259,7 @@ function CitySkyline(props: SVGProps<SVGSVGElement>) {
 }
 
 const CITY_LANDMARKS: Record<string, (p: SVGProps<SVGSVGElement>) => ReactElement> = {
+  Gondia: GujaratiSchool,
   Mumbai: GatewayOfIndia,
   Delhi: IndiaGate,
   Bengaluru: VidhanaSoudha,
