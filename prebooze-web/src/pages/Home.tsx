@@ -17,7 +17,12 @@ import DirectoryCardSkeleton from '../components/DirectoryCardSkeleton';
 import Slider from '../components/Slider';
 import Poster from '../components/Poster';
 import CategoryIcon from '../components/CategoryIcon';
-import { ShoppingCart, X } from 'lucide-react';
+import {
+  ShoppingCart, X, Search, MessageCircle, CreditCard, QrCode, FileText, BadgeCheck, TrendingUp, Wallet,
+  Handshake, Link2, ClipboardList, Banknote, Headphones, Star, Calendar, Flame, Landmark, Mic, Megaphone,
+  Heart, Rocket, Newspaper,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import ReelCard from '../components/ReelCard';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
@@ -57,50 +62,50 @@ const TRUST = [
   { icon: '📍', title: 'Local to your city', desc: 'Every listing is filtered to your city — only what you can actually attend.' },
 ];
 
-const HOW: Record<'guests' | 'organizers' | 'promoters' | 'lineups' | 'venues', { label: string; steps: { icon: string; t: string; d: string }[] }> = {
+const HOW: Record<'guests' | 'organizers' | 'promoters' | 'lineups' | 'venues', { label: string; steps: { icon: LucideIcon; t: string; d: string }[] }> = {
   guests: {
     label: 'For guests',
     steps: [
-      { icon: '🔎', t: 'Find an event', d: 'Browse concerts, comedy and parties in your city.' },
-      { icon: '💬', t: 'Login with WhatsApp', d: 'One OTP, no password. 20 seconds flat.' },
-      { icon: '💳', t: 'Pay & get your QR', d: 'UPI or card — ticket lands in WhatsApp instantly.' },
-      { icon: '🎉', t: 'Scan at entry', d: 'Show your QR, walk in, enjoy the night.' },
+      { icon: Search, t: 'Find an event', d: 'Browse concerts, comedy and parties in your city.' },
+      { icon: MessageCircle, t: 'Login with WhatsApp', d: 'One OTP, no password. 20 seconds flat.' },
+      { icon: CreditCard, t: 'Pay & get your QR', d: 'UPI or card — ticket lands in WhatsApp instantly.' },
+      { icon: QrCode, t: 'Scan at entry', d: 'Show your QR, walk in, enjoy the night.' },
     ],
   },
   organizers: {
     label: 'For organizers',
     steps: [
-      { icon: '📝', t: 'Create your event', d: 'Set tickets, tiers and guest-list rules in minutes.' },
-      { icon: '✅', t: 'Get verified & go live', d: 'Quick KYC, then publish to the whole city.' },
-      { icon: '📈', t: 'Guests book instantly', d: 'Discovery, social proof and coupons do the selling.' },
-      { icon: '💰', t: 'Scan & get paid', d: 'Check in at the gate, payouts land weekly.' },
+      { icon: FileText, t: 'Create your event', d: 'Set tickets, tiers and guest-list rules in minutes.' },
+      { icon: BadgeCheck, t: 'Get verified & go live', d: 'Quick KYC, then publish to the whole city.' },
+      { icon: TrendingUp, t: 'Guests book instantly', d: 'Discovery, social proof and coupons do the selling.' },
+      { icon: Wallet, t: 'Scan & get paid', d: 'Check in at the gate, payouts land weekly.' },
     ],
   },
   promoters: {
     label: 'For promoters',
     steps: [
-      { icon: '🤝', t: 'Get approved', d: 'Sign up, pass KYC, get added to an event’s allow-list.' },
-      { icon: '🔗', t: 'Share your link', d: 'Every event gives you a personal affiliate guest-list link.' },
-      { icon: '📋', t: 'Fill the list', d: 'Guests join free before the cutoff; watch arrivals live.' },
-      { icon: '💸', t: 'Earn per head', d: 'The organizer pays you for every guest who shows up.' },
+      { icon: Handshake, t: 'Get approved', d: 'Sign up, pass KYC, get added to an event’s allow-list.' },
+      { icon: Link2, t: 'Share your link', d: 'Every event gives you a personal affiliate guest-list link.' },
+      { icon: ClipboardList, t: 'Fill the list', d: 'Guests join free before the cutoff; watch arrivals live.' },
+      { icon: Banknote, t: 'Earn per head', d: 'The organizer pays you for every guest who shows up.' },
     ],
   },
   lineups: {
     label: 'For line-ups',
     steps: [
-      { icon: '🎧', t: 'Create your profile', d: 'DJ, band or comedian — set your genre, city and links.' },
-      { icon: '⭐', t: 'Grow your following', d: 'Fans follow you and get pinged on your next set.' },
-      { icon: '📅', t: 'Get booked', d: 'Organizers add you to their line-ups and events.' },
-      { icon: '🔥', t: 'Sell out shows', d: 'Your name on the poster pulls your crowd in.' },
+      { icon: Headphones, t: 'Create your profile', d: 'DJ, band or comedian — set your genre, city and links.' },
+      { icon: Star, t: 'Grow your following', d: 'Fans follow you and get pinged on your next set.' },
+      { icon: Calendar, t: 'Get booked', d: 'Organizers add you to their line-ups and events.' },
+      { icon: Flame, t: 'Sell out shows', d: 'Your name on the poster pulls your crowd in.' },
     ],
   },
   venues: {
     label: 'For venues',
     steps: [
-      { icon: '🏛', t: 'List your venue', d: 'Photos, capacity, amenities and license — one quick form.' },
-      { icon: '✅', t: 'Get verified', d: 'Admin reviews your documents; the badge builds trust.' },
-      { icon: '📅', t: 'Host events', d: 'Organizers pick your venue while creating their events.' },
-      { icon: '📈', t: 'Fill your nights', d: 'Every event page, ticket and search points guests to you.' },
+      { icon: Landmark, t: 'List your venue', d: 'Photos, capacity, amenities and license — one quick form.' },
+      { icon: BadgeCheck, t: 'Get verified', d: 'Admin reviews your documents; the badge builds trust.' },
+      { icon: Calendar, t: 'Host events', d: 'Organizers pick your venue while creating their events.' },
+      { icon: TrendingUp, t: 'Fill your nights', d: 'Every event page, ticket and search points guests to you.' },
     ],
   },
 };
@@ -144,11 +149,11 @@ function TestimonialSkeleton() {
 
 const HOME_EVENT_LIMIT = 8;
 
-const JOIN = [
-  { icon: '🎤', title: 'Host events', desc: 'List your event, sell tickets, scan QR at the gate — payouts weekly.', cta: 'Host with us →', to: '/host' },
-  { icon: '📣', title: 'Become a promoter', desc: 'Run guest lists with your own affiliate links and earn per head.', cta: 'Start promoting →', to: '/promoter/onboarding' },
-  { icon: '🎧', title: 'Join as line-up', desc: 'DJs, bands and comedians — get a profile and get booked.', cta: 'Create artist profile →', to: '/lineup/onboarding' },
-  { icon: '🏛', title: 'List your venue', desc: 'Clubs, rooftops and warehouses — get verified and host events.', cta: 'List my venue →', to: '/venue/onboarding' },
+const JOIN: { icon: LucideIcon; title: string; desc: string; cta: string; to: string }[] = [
+  { icon: Mic, title: 'Host events', desc: 'List your event, sell tickets, scan QR at the gate — payouts weekly.', cta: 'Host with us →', to: '/host' },
+  { icon: Megaphone, title: 'Become a promoter', desc: 'Run guest lists with your own affiliate links and earn per head.', cta: 'Start promoting →', to: '/promoter/onboarding' },
+  { icon: Headphones, title: 'Join as line-up', desc: 'DJs, bands and comedians — get a profile and get booked.', cta: 'Create artist profile →', to: '/lineup/onboarding' },
+  { icon: Landmark, title: 'List your venue', desc: 'Clubs, rooftops and warehouses — get verified and host events.', cta: 'List my venue →', to: '/venue/onboarding' },
 ];
 
 export default function Home() {
@@ -608,7 +613,7 @@ export default function Home() {
               <div key={s.t} className="card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span className="num" style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>{i + 1}</span>
-                  <span style={{ fontSize: 22 }}>{s.icon}</span>
+                  <span style={{ display: 'flex' }}><s.icon size={20} /></span>
                 </div>
                 <h3 style={{ fontSize: 15, marginTop: 8 }}>{s.t}</h3>
                 <p className="tiny muted" style={{ marginTop: 4 }}>{s.d}</p>
@@ -621,7 +626,7 @@ export default function Home() {
         {(testimonials.length > 0 || testimonialsLoading) && (
         <section className="section">
           <div className="section-hd">
-            <h2>Happy guests 💚</h2>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Happy guests <Heart size={20} style={{ color: 'var(--accent)' }} fill="var(--accent)" /></h2>
             <Link to="/testimonials">Read all reviews →</Link>
           </div>
           <Slider slideWidth={300}>
@@ -642,13 +647,13 @@ export default function Home() {
         {blogPosts.length > 0 && (
         <section className="section">
           <div className="section-hd">
-            <h2>From the blog 📰</h2>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>From the blog <Newspaper size={20} /></h2>
             <Link to="/blog">Read all posts →</Link>
           </div>
           <Slider slideWidth={280}>
             {blogPosts.map((p) => (
               <Link key={p.id} to={`/blog/${p.id}`} className="ecard">
-                <Poster hue={blogHueFromId(p.id)} emoji="📰" label="cover 16:9" variant="landscape" imageUrl={p.bannerUrl} alt={p.title} />
+                <Poster hue={blogHueFromId(p.id)} icon={<Newspaper size={40} />} label="cover 16:9" variant="landscape" imageUrl={p.bannerUrl} alt={p.title} />
                 <div>
                   {p.category && <span className="tag" style={{ marginBottom: 6 }}>{p.category}</span>}
                   <h3 style={{ margin: '6px 0 4px' }}>{p.title}</h3>
@@ -663,14 +668,14 @@ export default function Home() {
 
         {/* Join us */}
         <section className="section">
-          <div className="section-hd"><h2>Join the Prebooze network 🚀</h2></div>
+          <div className="section-hd"><h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Join the Prebooze network <Rocket size={20} /></h2></div>
           <p className="muted small" style={{ marginTop: -6, marginBottom: 14 }}>
             Whoever you are in nightlife — there’s a way in.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
             {JOIN.map((j) => (
               <div key={j.title} className="card" style={{ display: 'flex', flexDirection: 'column', borderColor: 'var(--border)' }}>
-                <div style={{ fontSize: 30 }}>{j.icon}</div>
+                <div style={{ color: 'var(--accent)' }}><j.icon size={30} /></div>
                 <h3 style={{ fontSize: 17, marginTop: 8 }}>{j.title}</h3>
                 <p className="muted small" style={{ marginTop: 4, flex: 1 }}>{j.desc}</p>
                 <Link to={j.to} className="btn btn-pri btn-block btn-sm" style={{ marginTop: 12 }}>{j.cta}</Link>
