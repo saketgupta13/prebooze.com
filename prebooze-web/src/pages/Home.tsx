@@ -20,7 +20,7 @@ import CategoryIcon from '../components/CategoryIcon';
 import {
   ShoppingCart, X, Search, MessageCircle, CreditCard, QrCode, FileText, BadgeCheck, TrendingUp, Wallet,
   Handshake, Link2, ClipboardList, Banknote, Headphones, Star, Calendar, Flame, Landmark, Mic, Megaphone,
-  Heart, Rocket, Newspaper,
+  Heart, Rocket, Newspaper, Lock, Undo2, Eye, Zap, Ticket, MapPin,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import ReelCard from '../components/ReelCard';
@@ -51,15 +51,15 @@ const HERO = [
 // other real-data section on this page.
 const REEL_HUES = [20, 150, 260, 330, 45, 95, 200, 285, 12, 340, 170, 60];
 
-const TRUST = [
-  { icon: '✅', title: 'Verified organizers only', desc: 'Every host is KYC-checked. No fake listings, ever.' },
-  { icon: '💬', title: 'WhatsApp OTP login', desc: 'No passwords. Your tickets land straight in your chats.' },
-  { icon: '🔒', title: 'Secure QR entry', desc: 'Screenshot-proof, time-rotating codes — impossible to fake.' },
-  { icon: '↩️', title: 'Easy cancellations', desc: 'Plans change? Cancel any time before the event. Instant wallet credit, or back to your card/UPI in a few days.' },
-  { icon: '👀', title: 'See who’s going', desc: 'Follow friends and spot the crowd before you book.' },
-  { icon: '⚡', title: 'Book in 20 seconds', desc: 'Pick, pay with UPI, walk in. That’s the whole flow.' },
-  { icon: '🎟️', title: 'Fair, transparent fees', desc: 'What you see is what you pay — no surprise charges at checkout.' },
-  { icon: '📍', title: 'Local to your city', desc: 'Every listing is filtered to your city — only what you can actually attend.' },
+const TRUST: { icon: LucideIcon; title: string; desc: string }[] = [
+  { icon: BadgeCheck, title: 'Verified organizers only', desc: 'Every host is KYC-checked. No fake listings, ever.' },
+  { icon: MessageCircle, title: 'WhatsApp OTP login', desc: 'No passwords. Your tickets land straight in your chats.' },
+  { icon: Lock, title: 'Secure QR entry', desc: 'Screenshot-proof, time-rotating codes — impossible to fake.' },
+  { icon: Undo2, title: 'Easy cancellations', desc: 'Plans change? Cancel any time before the event. Instant wallet credit, or back to your card/UPI in a few days.' },
+  { icon: Eye, title: 'See who’s going', desc: 'Follow friends and spot the crowd before you book.' },
+  { icon: Zap, title: 'Book in 20 seconds', desc: 'Pick, pay with UPI, walk in. That’s the whole flow.' },
+  { icon: Ticket, title: 'Fair, transparent fees', desc: 'What you see is what you pay — no surprise charges at checkout.' },
+  { icon: MapPin, title: 'Local to your city', desc: 'Every listing is filtered to your city — only what you can actually attend.' },
 ];
 
 const HOW: Record<'guests' | 'organizers' | 'promoters' | 'lineups' | 'venues', { label: string; steps: { icon: LucideIcon; t: string; d: string }[] }> = {
@@ -592,7 +592,7 @@ export default function Home() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14 }}>
             {TRUST.map((t) => (
               <div key={t.title} className="card">
-                <div style={{ fontSize: 26 }}>{t.icon}</div>
+                <div style={{ color: 'var(--accent)' }}><t.icon size={26} /></div>
                 <h3 style={{ fontSize: 15, marginTop: 8 }}>{t.title}</h3>
                 <p className="tiny muted" style={{ marginTop: 4 }}>{t.desc}</p>
               </div>
