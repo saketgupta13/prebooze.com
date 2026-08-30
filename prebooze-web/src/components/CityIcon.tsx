@@ -163,13 +163,24 @@ function PalmTree(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function Orange(props: SVGProps<SVGSVGElement>) {
+function Deekshabhoomi(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base} {...props}>
-      <circle cx="12" cy="13.5" r="7" />
-      <path d="M12 6.5V3" />
-      <path d="M12 3.5c1.4-1 2.8-1 4-.1" />
-      <path d="M12 7v13" />
+      <line x1="2.5" y1="21" x2="21.5" y2="21" />
+      <path d="M3.5 21V17.5h17V21" />
+      <line x1="3.5" y1="17.5" x2="20.5" y2="17.5" />
+      <line x1="5" y1="17.5" x2="5" y2="21" />
+      <line x1="6.5" y1="17.5" x2="6.5" y2="21" />
+      <line x1="8" y1="17.5" x2="8" y2="21" />
+      <line x1="16" y1="17.5" x2="16" y2="21" />
+      <line x1="17.5" y1="17.5" x2="17.5" y2="21" />
+      <line x1="19" y1="17.5" x2="19" y2="21" />
+      <path d="M10.3 21v-2.5a1.7 1.7 0 0 1 3.4 0V21" />
+      <path d="M4.5 17.5c0.6-0.7 1.2-0.7 1.8 0c0.6-0.7 1.2-0.7 1.8 0c0.6-0.7 1.2-0.7 1.8 0c0.6-0.7 1.2-0.7 1.8 0c0.6-0.7 1.2-0.7 1.8 0c0.6-0.7 1.2-0.7 1.8 0c0.6-0.7 1.2-0.7 1.8 0c0.6-0.7 1.2-0.7 1.8 0" />
+      <path d="M3.5 17.2C3.5 10 7 5.3 12 5.3S20.5 10 20.5 17.2" />
+      <path d="M10.6 5.3V3.7h2.8v1.6" />
+      <line x1="12" y1="3.7" x2="12" y2="2" />
+      <path d="M11.3 2c0.4-0.5 1-0.5 1.4 0" />
     </svg>
   );
 }
@@ -234,7 +245,7 @@ const CITY_LANDMARKS: Record<string, (p: SVGProps<SVGSVGElement>) => ReactElemen
   Chennai: Gopuram,
   Kolkata: VictoriaMemorial,
   Goa: PalmTree,
-  Nagpur: Orange,
+  Nagpur: Deekshabhoomi,
   Jaipur: HawaMahal,
   Ahmedabad: Kite,
 };
