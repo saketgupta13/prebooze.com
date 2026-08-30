@@ -17,6 +17,7 @@ import DirectoryCardSkeleton from '../components/DirectoryCardSkeleton';
 import Slider from '../components/Slider';
 import Poster from '../components/Poster';
 import CategoryIcon from '../components/CategoryIcon';
+import { ShoppingCart, X } from 'lucide-react';
 import ReelCard from '../components/ReelCard';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
@@ -332,14 +333,16 @@ export default function Home() {
     <main className="page">
       <div className="container">
         {resumeCart && !dismissed && (
-          <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderColor: 'var(--accent)', background: 'rgba(155,225,61,.06)' }}>
-            <span style={{ fontSize: 22 }}>🛒</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="small bold">You left {resumeCart.qty} ticket{resumeCart.qty > 1 ? 's' : ''} for {resumeCart.eventTitle}</div>
-              <div className="tiny muted-2">Finish before they sell out · {resumeCart.tierSummary} · ₹{resumeCart.total}</div>
+          <div className="card resume-cart-card" style={{ marginBottom: 16, padding: '16px 18px', borderColor: 'var(--accent)', background: 'rgba(155,225,61,.06)', position: 'relative' }}>
+            <button className="resume-cart-dismiss" onClick={() => setDismissed(true)} aria-label="dismiss"><X size={15} /></button>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <span className="resume-cart-icon"><ShoppingCart size={20} /></span>
+              <div style={{ flex: 1, minWidth: 0, paddingRight: 22 }}>
+                <div className="small bold">You left {resumeCart.qty} ticket{resumeCart.qty > 1 ? 's' : ''} for {resumeCart.eventTitle}</div>
+                <div className="tiny muted-2">Finish before they sell out · {resumeCart.tierSummary} · ₹{resumeCart.total}</div>
+              </div>
             </div>
-            <button className="btn btn-pri btn-sm" onClick={resume}>Resume checkout →</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setDismissed(true)} aria-label="dismiss">✕</button>
+            <button className="btn btn-pri btn-block" style={{ marginTop: 14 }} onClick={resume}>Resume checkout →</button>
           </div>
         )}
 

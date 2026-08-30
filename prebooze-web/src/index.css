@@ -337,6 +337,31 @@ textarea { resize: vertical; min-height: 84px; }
 }
 .card-shadow { box-shadow: var(--shadow); }
 
+.resume-cart-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(155, 225, 61, 0.14);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.resume-cart-dismiss {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--muted-2);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  border-radius: 6px;
+}
+.resume-cart-dismiss:hover { color: var(--text); background: var(--surface-2); }
+
 /* ============ Header ============ */
 .hdr {
   position: sticky;
