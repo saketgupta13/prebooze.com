@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MessageCircle, Mail, MapPin, Ticket } from 'lucide-react';
 import { usePlatformInfo } from '../../lib/usePlatformInfo';
 import { useSeo } from '../../lib/useSeo';
 import { support } from '../../api';
@@ -71,13 +72,13 @@ export default function Contact() {
 
         <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
           {[
-            ['💬 WhatsApp support', `Fastest way to reach us · ${contact.phone}`],
-            ['✉ Email', `${contact.email} · replies in ~24h`],
-            ['📍 Office', contact.address],
-            ['🎫 Organizer support', `Payouts, KYC, listing issues → ${contact.organizerEmail}`],
-          ].map(([t, d]) => (
+            { icon: MessageCircle, t: 'WhatsApp support', d: `Fastest way to reach us · ${contact.phone}` },
+            { icon: Mail, t: 'Email', d: `${contact.email} · replies in ~24h` },
+            { icon: MapPin, t: 'Office', d: contact.address },
+            { icon: Ticket, t: 'Organizer support', d: `Payouts, KYC, listing issues → ${contact.organizerEmail}` },
+          ].map(({ icon: Icon, t, d }) => (
             <div key={t} className="card">
-              <h3 style={{ fontSize: 15, marginBottom: 4 }}>{t}</h3>
+              <h3 style={{ fontSize: 15, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><Icon size={16} /> {t}</h3>
               <p className="muted small">{d}</p>
             </div>
           ))}

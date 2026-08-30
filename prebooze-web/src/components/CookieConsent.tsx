@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { Cookie } from 'lucide-react';
 import { social } from '../api';
 import { getToken } from '../api/client';
 import { useApp } from '../store/AppContext';
@@ -182,7 +183,7 @@ export default function CookieConsent() {
       >
         {!managing ? (
           <>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>Cookies 🍪</div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>Cookies <Cookie size={16} /></div>
             <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--muted)' }}>
               We use cookies to keep you signed in and to remember your city and preferences. See our{' '}
               <Link to="/legal/cookies" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Cookie Policy</Link> for details.

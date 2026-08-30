@@ -17,6 +17,7 @@ import { displayTierPrice, tierCountdownLabel } from '../lib/ticketTierPricing';
 import { useTicker } from '../lib/useTicker';
 import { partySizeFromTierName } from '../lib/partySize';
 import { requiredAgeFor } from '../lib/ageGate';
+import { Clock, Lock, AlertTriangle, CheckCircle2, User, Camera, Ticket, XCircle, CreditCard, Wallet, Hourglass, Smartphone } from 'lucide-react';
 
 const ABSORBED_NOTE: Record<string, string> = {
   Organizer: 'absorbed by the organizer',
@@ -389,7 +390,7 @@ export default function Checkout() {
       <main className="page">
         <div className="container center" style={{ padding: '72px 0' }}>
           <div className="card card-shadow" style={{ maxWidth: 460, margin: '0 auto', textAlign: 'center' }}>
-            <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}>⏱</div>
+            <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}><Clock size={30} /></div>
             <h1 style={{ fontSize: 22, marginTop: 8 }}>{holdErr}</h1>
             <button
               className="btn btn-pri btn-lg"
@@ -413,7 +414,7 @@ export default function Checkout() {
       <main className="page">
         <div className="container center" style={{ padding: '72px 0' }}>
           <div className="card card-shadow" style={{ maxWidth: 460, margin: '0 auto', textAlign: 'center' }}>
-            <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}>⏱</div>
+            <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}><Clock size={30} /></div>
             <h1 style={{ fontSize: 22, marginTop: 8 }}>Your hold expired</h1>
             <p className="muted" style={{ margin: '10px 0 18px' }}>
               We held your {ticketCount} ticket{ticketCount > 1 ? 's' : ''} for {CART_HOLD_MINUTES} minutes. Pick them
@@ -734,7 +735,7 @@ export default function Checkout() {
       <div className="container">
         <div className="breadcrumb">
           <Link to={eventPath(eventCity(event) ?? city, event.slug)}>← {event.title}</Link> / Checkout · step 2 of 2 ·{' '}
-          <span className="accent">🔒 secure checkout</span>
+          <span className="accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Lock size={12} /> secure checkout</span>
         </div>
         <h1 style={{ fontSize: 24, marginBottom: 16 }}>Checkout</h1>
 
@@ -751,7 +752,7 @@ export default function Checkout() {
               background: lowTime ? 'rgba(255,90,90,.06)' : 'rgba(155,225,61,.06)',
             }}
           >
-            <span style={{ fontSize: 20 }}>⏳</span>
+            <span style={{ fontSize: 20, display: 'inline-flex' }}><Hourglass size={20} /></span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="small bold">
                 {ticketCount} ticket{ticketCount > 1 ? 's' : ''} held for you
@@ -786,8 +787,8 @@ export default function Checkout() {
                     }}
                   >
                     {dup
-                      ? <>⚠ You already booked this event as <b>{existing.mainGuest}</b> — {existing.tierName}, Booking {existing.id}. Still want another ticket for the same person?</>
-                      : <>✓ You already have a booking for this event ({existing.tierName}, {existing.mainGuest}, Booking {existing.id}). This new one will be for <b>{name.trim() || 'the attendee below'}</b>.</>}
+                      ? <><AlertTriangle size={13} style={{ verticalAlign: -2 }} /> You already booked this event as <b>{existing.mainGuest}</b> — {existing.tierName}, Booking {existing.id}. Still want another ticket for the same person?</>
+                      : <><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> You already have a booking for this event ({existing.tierName}, {existing.mainGuest}, Booking {existing.id}). This new one will be for <b>{name.trim() || 'the attendee below'}</b>.</>}
                   </div>
                 );
               })()}
@@ -807,7 +808,7 @@ export default function Checkout() {
                             ...(avatarUrl ? { backgroundImage: `url(${avatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}),
                           }}
                         >
-                          {avatarBusy ? '…' : !avatarUrl && '👤'}
+                          {avatarBusy ? '…' : !avatarUrl && <User size={22} />}
                         </button>
                         <span
                           style={{
@@ -816,7 +817,7 @@ export default function Checkout() {
                             fontSize: 10, border: '2px solid var(--surface, #16170f)', pointerEvents: 'none',
                           }}
                         >
-                          📷
+                          <Camera size={11} />
                         </span>
                         <input
                           ref={avatarInputRef}
@@ -944,13 +945,13 @@ export default function Checkout() {
                 <span>Email (optional)</span>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@mail.com — for your ticket PDF" />
               </div>
-              <div className="small muted">
-                🎟 Tickets sent to WhatsApp <span className="bold">{whatsapp || '—'}</span>
-                {email.trim() && <> and emailed to <span className="bold">{email}</span></>} <span className="verified">✓</span>
+              <div className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <Ticket size={13} /> Tickets sent to WhatsApp <span className="bold">{whatsapp || '—'}</span>
+                {email.trim() && <> and emailed to <span className="bold">{email}</span></>} <span className="verified" style={{ display: 'inline-flex' }}><CheckCircle2 size={13} /></span>
               </div>
               {attendeeErr && (
-                <div className="small danger-text" style={{ marginTop: 10 }}>
-                  ✕ {attendeeErr}
+                <div className="small danger-text" style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <XCircle size={13} /> {attendeeErr}
                 </div>
               )}
             </div>
@@ -973,7 +974,7 @@ export default function Checkout() {
               </div>
               {couponMsg && (
                 <div className={`small ${couponMsg.ok ? 'accent' : 'danger-text'}`} style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span>{couponMsg.ok ? '✓ ' : '✕ '}{couponMsg.text}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{couponMsg.ok ? <CheckCircle2 size={13} /> : <XCircle size={13} />} {couponMsg.text}</span>
                   {appliedCode && (
                     <button type="button" className="btn btn-ghost btn-sm" onClick={clearCoupon}>
                       Remove
@@ -999,7 +1000,7 @@ export default function Checkout() {
                           onClick={() => applyCoupon(c.code)}
                           title={c.description ?? undefined}
                         >
-                          {isApplied ? '✓ ' : ''}{c.code} · {benefit}
+                          {isApplied ? <CheckCircle2 size={12} style={{ verticalAlign: -1, marginRight: 3 }} /> : ''}{c.code} · {benefit}
                         </button>
                       );
                     })}
@@ -1019,17 +1020,18 @@ export default function Checkout() {
             <div className="card">
               <h3 style={{ marginBottom: 14 }}>Pay with</h3>
               {[
-                ...displayPayMethods.map((m) => ({ id: m.id, label: `${m.type === 'upi' ? '🅿️' : '💳'} ${m.label}${m.isDefault ? ' · default' : ''} (saved)` })),
-                { id: 'razorpay', label: 'Razorpay — UPI / cards / netbanking' },
-                ...(liveEvent ? [] : [{ id: 'card', label: 'Card •••• 4242' }, { id: 'wallet', label: 'Apple / Google Pay' }]),
+                ...displayPayMethods.map((m) => ({ id: m.id, icon: m.type === 'upi' ? <Smartphone size={14} /> : <CreditCard size={14} />, label: `${m.label}${m.isDefault ? ' · default' : ''} (saved)` })),
+                { id: 'razorpay', icon: null, label: 'Razorpay — UPI / cards / netbanking' },
+                ...(liveEvent ? [] : [{ id: 'card', icon: null, label: 'Card •••• 4242' }, { id: 'wallet', icon: null, label: 'Apple / Google Pay' }]),
               ].map((m) => (
-                <label key={m.id} className={`payopt ${payMethod === m.id ? 'on' : ''}`}>
+                <label key={m.id} className={`payopt ${payMethod === m.id ? 'on' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
                     type="radio"
                     name="pay"
                     checked={payMethod === m.id}
                     onChange={() => setPayMethod(m.id)}
                   />
+                  {m.icon}
                   {m.label}
                 </label>
               ))}
@@ -1052,8 +1054,8 @@ export default function Checkout() {
                   <span>{formatPrice(l.qty * displayTierPrice(l.tier, event.date))}</span>
                 </div>
                 {tierCountdownLabel(l.tier, event.date) && (
-                  <div className="tiny accent" style={{ marginBottom: 4, fontWeight: 700 }}>
-                    ⏳ {tierCountdownLabel(l.tier, event.date)} left at this price
+                  <div className="tiny accent" style={{ marginBottom: 4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Hourglass size={11} /> {tierCountdownLabel(l.tier, event.date)} left at this price
                   </div>
                 )}
               </div>
@@ -1085,9 +1087,9 @@ export default function Checkout() {
               </div>
             )}
             {effectiveWalletBalance > 0 && (
-              <label className="checkbox-row" style={{ margin: '8px 0 2px', fontSize: 13 }}>
+              <label className="checkbox-row" style={{ margin: '8px 0 2px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input type="checkbox" checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} />
-                👛 Use ₹{Math.min(effectiveWalletBalance, Math.max(0, finalSubtotal + finalFee - finalDiscount))} Prebooze credit (balance ₹{effectiveWalletBalance})
+                <Wallet size={13} /> Use ₹{Math.min(effectiveWalletBalance, Math.max(0, finalSubtotal + finalFee - finalDiscount))} Prebooze credit (balance ₹{effectiveWalletBalance})
               </label>
             )}
             {finalCredit > 0 && (
@@ -1105,7 +1107,7 @@ export default function Checkout() {
             </button>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
               {finalSubtotal > 0
-                ? <>🔒 secured by Razorpay · <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link></>
+                ? <><Lock size={11} style={{ verticalAlign: -1 }} /> secured by Razorpay · <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link></>
                 : <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link>}
             </div>
             {socials.whatsapp && (

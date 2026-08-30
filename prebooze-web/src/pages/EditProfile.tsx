@@ -11,6 +11,7 @@ import { isBackendEnabled } from '../api/client';
 import { ApiError } from '../api/client';
 import { SOCIAL_PLATFORMS, type SocialLinks } from '../types';
 import { ageFromDob } from '../lib/ageGate';
+import { XCircle, Camera, CheckCircle2, BadgeCheck } from 'lucide-react';
 
 export default function EditProfile() {
   const { user, updateUser } = useApp();
@@ -108,7 +109,7 @@ export default function EditProfile() {
           <span className="accent">{user.profilePct}% complete</span>
         </div>
         <h1 style={{ fontSize: 24, marginBottom: 18 }}>Edit profile</h1>
-        {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+        {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><XCircle size={13} /> {err}</div>}
 
         <form className="card" onSubmit={save}>
           <RealUploadBox
@@ -116,8 +117,8 @@ export default function EditProfile() {
             onChange={setPhoto}
             upload={auth.upload}
             onBusyChange={setPhotoUploading}
-            label="📷 photo + — Add a profile picture"
-            doneLabel="✓ Photo added — click to replace"
+            label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Camera size={14} /> photo + — Add a profile picture</span>}
+            doneLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckCircle2 size={14} /> Photo added — click to replace</span>}
             style={{ marginBottom: 18, height: 120 }}
           />
 
@@ -135,7 +136,7 @@ export default function EditProfile() {
                 placeholder="@username"
                 style={usernameErr ? { borderColor: 'var(--danger)' } : undefined}
               />
-              {usernameErr && <div className="tiny danger-text" style={{ marginTop: 4 }}>✕ {usernameErr} — please choose a different one</div>}
+              {usernameErr && <div className="tiny danger-text" style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}><XCircle size={12} /> {usernameErr} — please choose a different one</div>}
             </div>
           </div>
           <div className="form-row">
@@ -211,7 +212,7 @@ export default function EditProfile() {
                   }
                 >
                   {t}
-                  {interests.includes(t) ? ' ✓' : ''}
+                  {interests.includes(t) ? <CheckCircle2 size={12} style={{ marginLeft: 4, verticalAlign: -1 }} /> : ''}
                 </button>
               ))}
             </div>
@@ -220,7 +221,7 @@ export default function EditProfile() {
           <div style={{ marginBottom: 16 }}>
             <ChangePhoneNumber />
             {user.idVerified && (
-              <div className="tiny muted-2" style={{ marginTop: 6 }}>Aadhaar verified <span className="verified">✓</span></div>
+              <div className="tiny muted-2" style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5 }}>Aadhaar verified <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span></div>
             )}
           </div>
 

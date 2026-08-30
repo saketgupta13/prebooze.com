@@ -11,6 +11,7 @@ import Loader from '../../components/Loader';
 import { eventCity, eventPath } from '../../lib/urls';
 import { formatFromPrice } from '../../lib/formatPrice';
 import { displayMinPrice, hasCurrentlyPaidTier } from '../../lib/ticketTierPricing';
+import { Check, X, Ticket, PartyPopper, Camera, ArrowRight, Building2 } from 'lucide-react';
 
 /** The guest's free-entry pass — a QR that rotates every few seconds (screenshot-proof)
  * and is only valid before the cutoff. After the cutoff it flips to a paid-ticket CTA.
@@ -65,8 +66,8 @@ export default function GuestPass() {
       <div className="container confirm-hero">
         {valid ? (
           <>
-            <div className="confirm-tick">✓</div>
-            <h1 style={{ fontSize: 24 }}>You're on the list! 🎟️</h1>
+            <div className="confirm-tick"><Check size={30} /></div>
+            <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>You're on the list! <Ticket size={20} /></h1>
             <p className="muted" style={{ margin: '8px 0 20px' }}>
               Sent to WhatsApp {pass.phone} · show this QR at the gate before it closes.
             </p>
@@ -74,8 +75,8 @@ export default function GuestPass() {
             <div className="card card-shadow" style={{ textAlign: 'center' }}>
               <h2 style={{ fontSize: 20 }}>{event.title}</h2>
               {event.organizer?.brandName && (
-                <div className="small accent" style={{ fontWeight: 700, margin: '2px 0' }}>
-                  🎪 Hosted by {event.organizer.brandName}
+                <div className="small accent" style={{ fontWeight: 700, margin: '2px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                  <Building2 size={14} /> Hosted by {event.organizer.brandName}
                 </div>
               )}
               <div className="muted small" style={{ margin: '6px 0 4px' }}>
@@ -94,8 +95,8 @@ export default function GuestPass() {
 
               <QRCode value={`${pass.id}-${rotation}`} caption="one QR for the whole group · rotates every minute · screenshot-proof" />
 
-              <div className="small bold" style={{ marginTop: 16 }}>Thanks for booking with Prebooze — see you there! 🎉</div>
-              {igHandle && <div className="tiny accent" style={{ marginTop: 4 }}>📸 Follow us @{igHandle} on Instagram</div>}
+              <div className="small bold" style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>Thanks for booking with Prebooze — see you there! <PartyPopper size={16} /></div>
+              {igHandle && <div className="tiny accent" style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}><Camera size={12} /> Follow us @{igHandle} on Instagram</div>}
               <div className="tiny muted-2" style={{ marginTop: 10 }}>
                 Terms & conditions apply — <Link to="/legal/terms" className="link">www.prebooze.com/legal/terms</Link>
               </div>
@@ -130,15 +131,15 @@ export default function GuestPass() {
           </>
         ) : (
           <div className="card card-shadow" style={{ textAlign: 'center' }}>
-            <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}>✕</div>
+            <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}><X size={30} /></div>
             <h1 style={{ fontSize: 22, marginTop: 8 }}>Free window closed</h1>
             <p className="muted" style={{ margin: '10px 0 18px' }}>
               Free entry for <b>{event.title}</b> closed
               {cutoff && ` at ${cutoff.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })}`}. You can
               still grab a ticket and come in.
             </p>
-            <Link to={`${eventPath(eventCity(event) ?? 'Hyderabad', event.slug)}?ref=${pass.promoterSlug}`} className="btn btn-pri btn-lg">
-              Get a ticket — {formatFromPrice(displayMinPrice(event.tiers, event.date), hasCurrentlyPaidTier(event.tiers, event.date))} →
+            <Link to={`${eventPath(eventCity(event) ?? 'Hyderabad', event.slug)}?ref=${pass.promoterSlug}`} className="btn btn-pri btn-lg" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              Get a ticket — {formatFromPrice(displayMinPrice(event.tiers, event.date), hasCurrentlyPaidTier(event.tiers, event.date))} <ArrowRight size={16} />
             </Link>
           </div>
         )}

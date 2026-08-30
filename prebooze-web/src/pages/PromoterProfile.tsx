@@ -18,6 +18,7 @@ import { useJsonLd } from '../lib/useJsonLd';
 import { buildPromoterSchema, buildBreadcrumbSchema } from '../lib/schema';
 import { useCityReconcile } from '../lib/useCityReconcile';
 import { promoterPath, cityHome, cityPromoters } from '../lib/urls';
+import { Megaphone, BadgeCheck, CheckCircle2 } from 'lucide-react';
 
 /** Public promoter profile — followable, shows the events they're promoting. */
 export default function PromoterProfile() {
@@ -86,12 +87,12 @@ export default function PromoterProfile() {
       <div className="container">
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 22, flexWrap: 'wrap' }}>
           <div style={{ width: 90 }}>
-            <Poster hue={promoter.hue} emoji="📣" variant="square" imageUrl={promoter.logoUrl} alt={promoter.name} eager />
+            <Poster hue={promoter.hue} icon={<Megaphone size={32} />} variant="square" imageUrl={promoter.logoUrl} alt={promoter.name} eager />
           </div>
           <div style={{ flex: 1, minWidth: 220 }}>
             <span className="tag">Promoter</span>
             <h1 style={{ fontSize: 26, margin: '6px 0 2px' }}>
-              {promoter.name} {promoter.verified && <span className="verified">✓</span>}
+              {promoter.name} {promoter.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={18} /></span>}
             </h1>
             <div className="muted small">{promoter.city} · {promoter.showRate}% show-up rate</div>
           </div>
@@ -101,7 +102,7 @@ export default function PromoterProfile() {
             ))}
             {!isOwnProfile && (
               <button className={`btn ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(followKey)}>
-                {isFollowing ? 'Following ✓' : '+ Follow'}
+                {isFollowing ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Following <CheckCircle2 size={13} /></span> : '+ Follow'}
               </button>
             )}
             <ShareButton path={promoterPath(promoter.city, promoter.slug)} />
@@ -130,10 +131,10 @@ export default function PromoterProfile() {
               <div className="hr" />
               <div className="kv"><span className="k">Based in</span><span>{formatLocation(promoter)}</span></div>
               <div className="kv"><span className="k">Show-up rate</span><span className="accent bold">{promoter.showRate}%</span></div>
-              <div className="kv"><span className="k">Verified</span><span>{promoter.verified ? <span className="verified">✓ by Prebooze</span> : '—'}</span></div>
+              <div className="kv"><span className="k">Verified</span><span>{promoter.verified ? <span className="verified" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><BadgeCheck size={13} /> by Prebooze</span> : '—'}</span></div>
             </div>
             <div className="card" style={{ marginTop: 16 }}>
-              <h3 style={{ marginBottom: 6 }}>Run guest lists? 📣</h3>
+              <h3 style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>Run guest lists? <Megaphone size={16} /></h3>
               <p className="muted small" style={{ marginBottom: 10 }}>
                 Get a profile like this, promote events and fill free-entry lists with your own affiliate links.
               </p>

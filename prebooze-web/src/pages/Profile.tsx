@@ -7,6 +7,7 @@ import type { Booking, Organizer, Venue } from '../types';
 import Poster from '../components/Poster';
 import ShareButton from '../components/ShareButton';
 import { cityBrowse, cityVenues, organizerPath, venuePath } from '../lib/urls';
+import { User, BadgeCheck, Pencil, CheckCircle2, Gift, Heart, Landmark, Ticket, Camera } from 'lucide-react';
 
 export default function Profile() {
   const { user, following, toggleFollow, setAttendanceVisibility, toggleDiscoverable, followers, followersLoading, favVenues, toggleFavVenue, wishlist, city } = useApp();
@@ -62,12 +63,12 @@ export default function Profile() {
             {user.avatarUrl ? (
               <img src={user.avatarUrl} alt="" className="avatar" style={{ width: 74, height: 74, objectFit: 'cover', margin: '0 auto 12px' }} />
             ) : (
-              <span className="avatar" style={{ width: 74, height: 74, fontSize: 32, margin: '0 auto 12px' }}>
-                👤
+              <span className="avatar" style={{ width: 74, height: 74, fontSize: 32, margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <User size={34} />
               </span>
             )}
             <h1 style={{ fontSize: 21 }}>
-              {user.name || 'New guest'} {user.idVerified && <span className="verified">✓</span>}
+              {user.name || 'New guest'} {user.idVerified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={16} /></span>}
             </h1>
             <div className="muted small" style={{ marginBottom: 6 }}>
               {user.username ? `@${user.username} · ` : ''}
@@ -80,10 +81,10 @@ export default function Profile() {
               <div className="muted small rich-text" style={{ marginBottom: 10 }} dangerouslySetInnerHTML={{ __html: user.bio }} />
             )}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-              <Link to="/profile/edit" className="btn btn-ghost btn-sm">
-                ✎ Edit
+              <Link to="/profile/edit" className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Pencil size={13} /> Edit
               </Link>
-              <ShareButton path={user.username ? `/u/${user.username}` : '/people'} label="⇪ Share profile" />
+              <ShareButton path={user.username ? `/u/${user.username}` : '/people'} label="Share profile" />
             </div>
           </div>
 
@@ -91,12 +92,12 @@ export default function Profile() {
             <h3 style={{ marginBottom: 8 }}>Verification status</h3>
             <div className="kv">
               <span className="k">Phone number</span>
-              <span className="badge badge-ok">Verified ✓</span>
+              <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Verified <CheckCircle2 size={13} /></span>
             </div>
             <div className="kv">
               <span className="k">Government ID</span>
               {user.idVerified ? (
-                <span className="badge badge-ok">Verified ✓</span>
+                <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Verified <CheckCircle2 size={13} /></span>
               ) : (
                 // ID verification is paused platform-wide for now (no live
                 // KYC vendor key yet) — not linked to /verify-id so guests
@@ -117,7 +118,7 @@ export default function Profile() {
 
           {!user.profileRewardClaimedAt && (
             <div className="card" style={{ marginBottom: 16, borderColor: 'var(--accent)' }}>
-              <h3 style={{ marginBottom: 4 }}>🎁 Get 10% off your next booking</h3>
+              <h3 style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><Gift size={16} /> Get 10% off your next booking</h3>
               <p className="tiny muted-2" style={{ marginBottom: 10 }}>
                 Finish your profile — photo, bio, interests — and get a one-time 10% off code (up to ₹100).
               </p>
@@ -138,7 +139,7 @@ export default function Profile() {
                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
                     onClick={() => setAttendanceVisibility(o.v)}
                   >
-                    <span>{cur ? '✓ ' : ''}{o.label}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{cur && <CheckCircle2 size={13} />} {o.label}</span>
                     <span className="tiny" style={{ opacity: 0.75, fontWeight: 400 }}>{o.desc}</span>
                   </button>
                 );
@@ -156,7 +157,7 @@ export default function Profile() {
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
               onClick={toggleDiscoverable}
             >
-              <span>{user.discoverable ? '✓ ' : ''}Show me in the People directory</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{user.discoverable && <CheckCircle2 size={13} />} Show me in the People directory</span>
               <span className="tiny" style={{ opacity: 0.75, fontWeight: 400 }}>{user.discoverable ? 'On' : 'Off'}</span>
             </button>
           </div>
@@ -184,10 +185,10 @@ export default function Profile() {
             {followedOrgs.map((o) => (
               <div key={o.id} className="kv">
                 <Link to={organizerPath(o.city, o.id)} className="k bold" style={{ color: 'var(--text)' }}>
-                  {o.brandName} {o.verified && <span className="verified">✓</span>}
+                  {o.brandName} {o.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span>}
                 </Link>
-                <button className="btn btn-ghost btn-sm" onClick={() => toggleFollow(o.id)}>
-                  Following ✓
+                <button className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => toggleFollow(o.id)}>
+                  Following <CheckCircle2 size={13} />
                 </button>
               </div>
             ))}
@@ -196,17 +197,17 @@ export default function Profile() {
           <div className="card" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <h3>Favourite venues ({favVenueDetails.length})</h3>
-              <Link to="/wishlist" className="link tiny bold">❤️ Wishlist ({wishlist.length}) →</Link>
+              <Link to="/wishlist" className="link tiny bold" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Heart size={12} /> Wishlist ({wishlist.length}) →</Link>
             </div>
             {favVenueDetails.length === 0 ? (
-              <div className="muted small">Tap 🤍 on any <Link to={cityVenues(city)} className="link">venue</Link> to save it here.</div>
+              <div className="muted small">Tap <Heart size={12} style={{ verticalAlign: -2 }} /> on any <Link to={cityVenues(city)} className="link">venue</Link> to save it here.</div>
             ) : (
               favVenueDetails.map((v) => (
                 <div key={v.id} className="kv" style={{ alignItems: 'center' }}>
-                  <Link to={venuePath(v.city, v.id)} className="k bold" style={{ color: 'var(--text)' }}>
-                    🏛 {v.name} <span className="muted" style={{ fontWeight: 400 }}>· {v.city}</span>
+                  <Link to={venuePath(v.city, v.id)} className="k bold" style={{ color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <Landmark size={13} /> {v.name} <span className="muted" style={{ fontWeight: 400 }}>· {v.city}</span>
                   </Link>
-                  <button className="btn btn-ghost btn-sm" onClick={() => toggleFavVenue(v.id)}>❤️ Saved</button>
+                  <button className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => toggleFavVenue(v.id)}><Heart size={12} fill="currentColor" /> Saved</button>
                 </div>
               ))
             )}
@@ -229,7 +230,7 @@ export default function Profile() {
                         {p.name[0]}
                       </span>
                     )}
-                    {p.name} {p.verified && <span className="verified">✓</span>}
+                    {p.name} {p.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span>}
                   </span>
                 </Link>
               ))
@@ -256,7 +257,7 @@ export default function Profile() {
               <div className="grid-3">
                 {upcoming.map((b) => (
                   <div key={b.id} className="ecard">
-                    <Poster hue={b.event!.posterHue} emoji="🎟" label="poster" imageUrl={b.event!.posterUrl} alt={b.event!.title} />
+                    <Poster hue={b.event!.posterHue} icon={<Ticket size={26} />} label="poster" imageUrl={b.event!.posterUrl} alt={b.event!.title} />
                     <div>
                       <h3>{b.event!.title}</h3>
                       <div className="meta">{fmtDate(b.event!.date)}</div>
@@ -281,7 +282,7 @@ export default function Profile() {
               <div className="grid-3">
                 {attended.slice(0, 6).map((b) => (
                   <div key={b.id} className="ecard">
-                    <Poster hue={b.event!.posterHue} emoji="📸" label="poster" imageUrl={b.event!.posterUrl} alt={b.event!.title} />
+                    <Poster hue={b.event!.posterHue} icon={<Camera size={26} />} label="poster" imageUrl={b.event!.posterUrl} alt={b.event!.title} />
                     <div>
                       <h3>{b.event!.title}</h3>
                       <div className="meta">{fmtDate(b.event!.date)}</div>

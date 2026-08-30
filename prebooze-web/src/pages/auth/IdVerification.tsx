@@ -5,6 +5,7 @@ import { FileDropBox } from '../../components/FileDropBox';
 import { dataUrlToFile } from '../../lib/fileUtils';
 import { kyc } from '../../api';
 import { ApiError } from '../../api/client';
+import { Camera, Lock } from 'lucide-react';
 
 /** Guest ID verification — the one part of KYC that's fully automatic. Used
  * to just be a 1.2s setTimeout that unconditionally marked everyone
@@ -81,7 +82,7 @@ export default function IdVerification() {
           <FileDropBox
             value={selfie}
             onChange={setSelfie}
-            label="🤳 camera frame — face in oval · 📷 Capture selfie"
+            label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Camera size={13} /> camera frame — face in oval · Capture selfie</span>}
             doneLabel="✓ Selfie captured — click to replace"
             style={{ padding: selfie ? undefined : 34 }}
           />
@@ -90,8 +91,8 @@ export default function IdVerification() {
         <button className="btn btn-pri btn-block btn-lg" disabled={!canSubmit} onClick={submit}>
           {checking ? 'Verifying automatically…' : 'Submit for verification'}
         </button>
-        <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-          🔒 encrypted · checked automatically by our ID verification partner · result in seconds
+        <div className="tiny muted-2 center" style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+          <Lock size={12} /> encrypted · checked automatically by our ID verification partner · result in seconds
         </div>
       </div>
     </main>

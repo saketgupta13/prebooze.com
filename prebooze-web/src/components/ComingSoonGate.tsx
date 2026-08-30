@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode, FormEvent } from 'react';
+import { Ticket } from 'lucide-react';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { getBypassToken, setBypassToken, verifyBypassToken, staffAuth, StaffAuthError } from '../lib/staffBypass';
 
@@ -78,7 +79,7 @@ function ComingSoonPage({ onBypass }: { onBypass: () => void }) {
         background: 'var(--bg, #0e0f0a)', color: 'var(--text, #f1f3ea)', padding: 24, textAlign: 'center',
       }}
     >
-      <div style={{ fontSize: 44, marginBottom: 16 }}>🎟️</div>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}><Ticket size={44} /></div>
       <h1 style={{ fontSize: 28, marginBottom: 10 }}>Prebooze is almost here</h1>
       <p style={{ opacity: 0.7, maxWidth: 420, marginBottom: 28 }}>
         We're putting the finishing touches on your city's next favorite way to find events. Check back soon.

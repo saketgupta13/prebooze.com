@@ -4,6 +4,7 @@ import { ApiError } from '../../api/client';
 import PromoteCard from '../../components/PromoteCard';
 import Loader from '../../components/Loader';
 import type { Invoice, LineupProfile } from '../../types';
+import { X, Download } from 'lucide-react';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const fmtMoney = (n: number) => `₹${n.toLocaleString('en-IN')}`;
@@ -49,7 +50,7 @@ export default function LineupBilling() {
       <p className="muted small" style={{ marginBottom: 16 }}>
         Feature your artist profile for real Razorpay billing — no subscription tiers, just pay for what you use.
       </p>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
 
       <PromoteCard type="lineup" refId={profile.slug} city={profile.city || 'All'} label="your artist profile" />
 
@@ -65,8 +66,8 @@ export default function LineupBilling() {
             <span className={`badge ${inv.status === 'issued' ? 'badge-ok' : 'badge-pending'}`}>
               {inv.status === 'issued' ? 'Issued' : 'Void'}
             </span>
-            <button className="btn btn-ghost btn-sm" disabled={downloadingId === inv.id} onClick={() => download(inv)}>
-              {downloadingId === inv.id ? 'Downloading…' : '⬇ Download PDF'}
+            <button className="btn btn-ghost btn-sm" disabled={downloadingId === inv.id} onClick={() => download(inv)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {downloadingId === inv.id ? 'Downloading…' : <><Download size={14} /> Download PDF</>}
             </button>
           </div>
         ))}

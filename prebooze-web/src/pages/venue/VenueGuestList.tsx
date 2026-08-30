@@ -3,6 +3,7 @@ import { venuePartner, promoter, type OrgGuestListEntry, type OrgPromoterGuest }
 import { ApiError } from '../../api/client';
 import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
 import type { Event } from '../../types';
+import { AlertCircle, Check, X, Megaphone } from 'lucide-react';
 
 /** Venue-hosted equivalent of organizer/OrgGuestList.tsx — same free-entry
  * guest list + promoter-guests section, scoped to events this venue hosts
@@ -95,7 +96,7 @@ export default function VenueGuestList() {
           ))}
         </select>
       </div>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
       {events.length === 0 && <div className="muted small">No hosted events yet — the guest list is per event.</div>}
 
       {eventId && (
@@ -144,7 +145,7 @@ export default function VenueGuestList() {
                 ))}
               </div>
             )}
-            <button className="btn btn-pri">Add to list ✓</button>
+            <button className="btn btn-pri" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Add to list <Check size={14} /></button>
           </form>
 
           <div className="card">
@@ -166,15 +167,15 @@ export default function VenueGuestList() {
                     {g.phone || 'no phone'} · {1 + g.plusOnes} head{g.plusOnes ? 's' : ''} · added by {g.addedBy}
                   </div>
                 </div>
-                <button className={`chip ${g.arrived ? 'on' : ''}`} onClick={() => toggleArrived(g.id)}>
-                  {g.arrived ? 'Arrived ✓' : 'Mark arrived'}
+                <button className={`chip ${g.arrived ? 'on' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => toggleArrived(g.id)}>
+                  {g.arrived ? <>Arrived <Check size={12} /></> : 'Mark arrived'}
                 </button>
                 <button
                   className="btn btn-danger btn-sm"
                   style={{ border: '1.5px solid var(--danger)', color: 'var(--danger)' }}
                   onClick={() => { if (window.confirm(`Remove ${g.name} from the guest list?`)) remove(g.id); }}
                 >
-                  ✕
+                  <X size={14} />
                 </button>
               </div>
             ))}
@@ -237,8 +238,8 @@ function PromoterGuestsSection({ eventId, events }: { eventId: string; events: E
       ) : (
         [...byPromoter.entries()].map(([slug, list]) => (
           <div key={slug} style={{ marginTop: 12 }}>
-            <div className="small bold" style={{ marginBottom: 4 }}>
-              📣 {slug} <span className="muted" style={{ fontWeight: 400 }}>· {list.filter((g) => g.arrived).length}/{list.length} in</span>
+            <div className="small bold" style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Megaphone size={13} /> {slug} <span className="muted" style={{ fontWeight: 400 }}>· {list.filter((g) => g.arrived).length}/{list.length} in</span>
             </div>
             {list.map((g) => (
               <div key={g.id} className="evrow">
@@ -253,7 +254,7 @@ function PromoterGuestsSection({ eventId, events }: { eventId: string; events: E
                     title={closed && !g.arrived ? 'Free window closed' : ''}
                     onClick={() => checkIn(g.id)}
                   >
-                    {g.arrived ? 'Arrived ✓' : closed ? 'No-show' : 'Check in'}
+                    {g.arrived ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Arrived <Check size={11} /></span> : closed ? 'No-show' : 'Check in'}
                   </button>
                 </span>
               </div>

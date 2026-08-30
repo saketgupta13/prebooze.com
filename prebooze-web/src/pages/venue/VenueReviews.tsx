@@ -3,6 +3,7 @@ import { venuePartner, socialReviews, type VenueReview } from '../../api';
 import { ApiError } from '../../api/client';
 import Stars from '../../components/Stars';
 import Loader from '../../components/Loader';
+import { AlertCircle, Star, User } from 'lucide-react';
 
 /** Real reviews — GET /venues/:id/reviews (view-only; moderation is
  * admin-only). Mirrors organizer/OrgReviews.tsx exactly — same real
@@ -33,10 +34,10 @@ export default function VenueReviews() {
       <div className="muted small" style={{ marginBottom: 18 }}>
         what guests said after events at your venue — reviews are moderated by Prebooze and can't be edited or removed here
       </div>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
 
       <div className="kpis" style={{ marginBottom: 18 }}>
-        <div className="kpi"><div className="l">Average rating</div><div className="v">★ {avg.toFixed(1)}</div></div>
+        <div className="kpi"><div className="l">Average rating</div><div className="v" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Star size={18} /> {avg.toFixed(1)}</div></div>
         <div className="kpi"><div className="l">Total reviews</div><div className="v">{reviews.length}</div></div>
         <div className="kpi"><div className="l">5-star share</div><div className="v accent">{fiveStarShare}%</div></div>
       </div>
@@ -45,7 +46,7 @@ export default function VenueReviews() {
         {reviews.length === 0 && <div className="muted small">No reviews yet.</div>}
         {reviews.map((r) => (
           <div key={r.id} className="review" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <span className="avatar">👤</span>
+            <span className="avatar" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><User size={16} /></span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div>
                 <span className="bold">{r.author}</span> · <Stars rating={r.rating} /> · <span className="muted-2 small">{r.date}</span>

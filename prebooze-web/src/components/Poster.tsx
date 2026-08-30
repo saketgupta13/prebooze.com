@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Music } from 'lucide-react';
 
 interface Props {
   hue: number;
@@ -34,8 +35,13 @@ interface Props {
  * paints pixels but is invisible to Google Image Search and can't carry
  * alt text at all, which meant none of this site's real photography
  * (event posters, venue galleries, brand logos) was ever indexable. */
-export default function Poster({ hue, emoji = '🎶', icon, label, variant = 'portrait', className = '', imageUrl, alt = '', eager = false }: Props) {
+export default function Poster({ hue, emoji, icon, label, variant = 'portrait', className = '', imageUrl, alt = '', eager = false }: Props) {
   const cls = variant === 'portrait' ? '' : variant;
+  // Falls all the way back to a real lucide icon (not the old hardcoded
+  // musical-note emoji literal) when a caller supplies neither a real
+  // `icon` nor its own `emoji` glyph — same "poster-icon" 40px treatment
+  // as an explicit icon.
+  const resolvedIcon = icon ?? (emoji ? undefined : <Music size={40} />);
   return (
     <div
       className={`poster ${cls} ${className}`}
@@ -57,7 +63,7 @@ export default function Poster({ hue, emoji = '🎶', icon, label, variant = 'po
         />
       ) : (
         <>
-          <span className={icon ? 'poster-icon' : undefined}>{icon ?? emoji}</span>
+          <span className={resolvedIcon ? 'poster-icon' : undefined}>{resolvedIcon ?? emoji}</span>
           {label && <span className="poster-label">{label}</span>}
         </>
       )}

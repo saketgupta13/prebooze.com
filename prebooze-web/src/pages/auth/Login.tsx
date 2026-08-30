@@ -4,6 +4,7 @@ import { useApp } from '../../store/AppContext';
 import { enabledCountries } from '../../data/locations';
 import { ApiError } from '../../api/client';
 import { usePlatformInfo } from '../../lib/usePlatformInfo';
+import { MessageCircle } from 'lucide-react';
 
 // Same 4-path check Otp.tsx's skipsGuestFunnel already uses — kept as a
 // plain inline map here rather than a shared import, since it's small and
@@ -57,7 +58,7 @@ export default function Login() {
         </div>
 
         <form className="card card-shadow auth-card" onSubmit={submit} style={{ width: '100%' }}>
-          <h1 style={{ fontSize: 24 }}>{onboardingCopy ? onboardingCopy.heading : 'Welcome 👋'}</h1>
+          <h1 style={{ fontSize: 24 }}>{onboardingCopy ? onboardingCopy.heading : 'Welcome'}</h1>
           <p className="muted small" style={{ margin: '6px 0 18px' }}>
             Login or sign up — no password needed
           </p>
@@ -100,8 +101,8 @@ export default function Login() {
             </div>
           )}
 
-          <button className="btn btn-whatsapp btn-block btn-lg" disabled={busy}>
-            {busy ? 'Sending…' : 'Get OTP on WhatsApp 💬'}
+          <button className="btn btn-whatsapp btn-block btn-lg" disabled={busy} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            {busy ? 'Sending…' : <>Get OTP on WhatsApp <MessageCircle size={16} /></>}
           </button>
           <div className="tiny muted-2 center" style={{ marginTop: 12 }}>
             WhatsApp OTP only — no password, no SMS

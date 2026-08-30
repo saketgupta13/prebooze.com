@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Ticket, Tent, Landmark, Headphones } from 'lucide-react';
 import { useSeo } from '../../lib/useSeo';
 
 export default function About() {
@@ -72,7 +73,7 @@ export default function About() {
           </div>
           <div className="grid-2">
             <div className="card">
-              <h3 style={{ marginBottom: 10 }}>🎟 For guests</h3>
+              <h3 style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}><Ticket size={18} /> For guests</h3>
               <ul className="muted small" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}>
                 <li>Fast checkout — name and date of birth to start, everything else optional</li>
                 <li>WhatsApp + email tickets with QR entry</li>
@@ -84,7 +85,7 @@ export default function About() {
               </ul>
             </div>
             <div className="card">
-              <h3 style={{ marginBottom: 10 }}>🎪 For organizers</h3>
+              <h3 style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}><Tent size={18} /> For organizers</h3>
               <ul className="muted small" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}>
                 <li>Commission negotiated with our team — no fixed slab forced on every event</li>
                 <li>Real Razorpay payouts, weekly by default, with a downloadable invoice trail</li>
@@ -97,7 +98,7 @@ export default function About() {
               </ul>
             </div>
             <div className="card">
-              <h3 style={{ marginBottom: 10 }}>🏛 For venues</h3>
+              <h3 style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}><Landmark size={18} /> For venues</h3>
               <ul className="muted small" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}>
                 <li>Free listing, live the same day you apply</li>
                 <li>Discovered directly by organizers browsing the directory</li>
@@ -107,7 +108,7 @@ export default function About() {
               </ul>
             </div>
             <div className="card">
-              <h3 style={{ marginBottom: 10 }}>🎧 For artists, DJs &amp; performers</h3>
+              <h3 style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}><Headphones size={18} /> For artists, DJs &amp; performers</h3>
               <ul className="muted small" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}>
                 <li>Free public profile — name, genre, bio, press shot and links</li>
                 <li>Found directly by organizers building a lineup</li>

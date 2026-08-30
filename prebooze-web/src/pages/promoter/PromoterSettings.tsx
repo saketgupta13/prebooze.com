@@ -9,6 +9,7 @@ import Loader from '../../components/Loader';
 import { RealUploadBox } from '../../components/RealUploadBox';
 import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import { promoterPath } from '../../lib/urls';
+import { CheckCircle2, ArrowRight, X, Upload } from 'lucide-react';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -122,19 +123,19 @@ export default function PromoterSettings() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
           <h3>Promoter profile</h3>
           {me.verified ? (
-            <span className="badge badge-ok">Verified ✓</span>
+            <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={13} /> Verified</span>
           ) : (
-            <Link to="/promoter/settings/verification" className="btn btn-pri btn-sm">Complete verification →</Link>
+            <Link to="/promoter/settings/verification" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Complete verification <ArrowRight size={14} /></Link>
           )}
         </div>
-        {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+        {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
         <div className="tiny muted-2" style={{ marginBottom: 12 }}>Promoting since {fmtDate(me.createdAt)}</div>
         <RealUploadBox
           value={logoUrl}
           onChange={setLogoUrl}
           upload={promoterApi.upload}
           onBusyChange={setLogoUploading}
-          label="⬆ upload photo"
+          label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Upload size={14} /> upload photo</span>}
           style={{ height: 100, width: 100, marginBottom: 14 }}
         />
         <div className="form-row">
@@ -160,8 +161,8 @@ export default function PromoterSettings() {
           <span>Audience size / reach</span>
           <input value={audienceReach} onChange={(e) => setAudienceReach(e.target.value)} placeholder="e.g. 8k on Instagram, 2k WhatsApp broadcast" />
         </div>
-        <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={saving || logoUploading} onClick={saveProfile}>
-          {logoUploading ? 'Uploading…' : saving ? 'Saving…' : 'Save profile ✓'}
+        <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={saving || logoUploading} onClick={saveProfile}>
+          {logoUploading ? 'Uploading…' : saving ? 'Saving…' : <><CheckCircle2 size={14} /> Save profile</>}
         </button>
       </div>
 
@@ -203,11 +204,11 @@ export default function PromoterSettings() {
               </div>
               <button
                 className="btn btn-pri btn-sm"
-                style={{ alignSelf: 'flex-start' }}
+                style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 disabled={!bankName.trim() || !bankAccount.trim() || !accountHolder.trim() || !ifsc.trim() || saving}
                 onClick={saveBank}
               >
-                {saving ? 'Saving…' : 'Save bank details ✓'}
+                {saving ? 'Saving…' : <><CheckCircle2 size={14} /> Save bank details</>}
               </button>
             </div>
           )}

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Search } from 'lucide-react';
 import { useSeo } from '../../lib/useSeo';
 import { useApp } from '../../store/AppContext';
 import { cityHome, cityBrowse } from '../../lib/urls';
@@ -35,7 +36,7 @@ export default function NotFound() {
   return (
     <main className="page" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', maxWidth: 420, padding: 24 }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>🔎</div>
+        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Search size={40} /></div>
         <h1 style={{ fontSize: 22, marginBottom: 8 }}>Page not found</h1>
         <p className="muted" style={{ marginBottom: 20 }}>
           That link's outdated, or the page moved. Let's get you back on track.

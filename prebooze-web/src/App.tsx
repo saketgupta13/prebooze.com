@@ -1,5 +1,6 @@
 import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { Suspense, lazy, useEffect } from 'react';
+import { Wrench } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
 import { useApp } from './store/AppContext';
 import { usePlatformInfo } from './lib/usePlatformInfo';
@@ -253,7 +254,7 @@ function MaintenanceGate({ children }: { children: ReactNode }) {
   return (
     <main className="page" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', maxWidth: 420, padding: 24 }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>🛠️</div>
+        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Wrench size={40} /></div>
         <h1 style={{ fontSize: 22, marginBottom: 8 }}>We'll be right back</h1>
         <p className="muted">Prebooze is down for scheduled maintenance — ticket bookings are paused. Check back shortly.</p>
       </div>

@@ -4,6 +4,7 @@ import { ApiError } from '../../api/client';
 import PromoteCard from '../../components/PromoteCard';
 import Loader from '../../components/Loader';
 import type { Invoice, Venue } from '../../types';
+import { AlertCircle } from 'lucide-react';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const fmtMoney = (n: number) => `₹${n.toLocaleString('en-IN')}`;
@@ -48,7 +49,7 @@ export default function VenueBilling() {
       <p className="muted small" style={{ marginBottom: 16 }}>
         Feature your venue for real Razorpay billing — no subscription tiers, just pay for what you use.
       </p>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
 
       <PromoteCard type="venue" refId={venue.id} city={venue.city} label="your venue" />
 

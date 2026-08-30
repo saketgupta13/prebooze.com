@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
 
 /** A searchable dropdown — type to filter, click to select. */
 export default function SearchableSelect({
-  value, onChange, options, placeholder, disabled,
+  value, onChange, options, placeholder, disabled, icon,
 }: {
   value: string;
   onChange: (v: string) => void;
   options: string[];
   placeholder?: string;
   disabled?: boolean;
+  /** Show a leading search icon inside the input (opt-in, existing callers unaffected). */
+  icon?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -25,7 +28,8 @@ export default function SearchableSelect({
   const filtered = options.filter((o) => o.toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <div className="ss" ref={ref}>
+    <div className="ss" ref={ref} style={icon ? { position: 'relative' } : undefined}>
+      {icon && <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.5, pointerEvents: 'none' }} />}
       <input
         value={open ? q : value}
         placeholder={placeholder}
@@ -33,6 +37,7 @@ export default function SearchableSelect({
         onFocus={() => { setOpen(true); setQ(''); }}
         onChange={(e) => { setQ(e.target.value); setOpen(true); }}
         autoComplete="off"
+        style={icon ? { paddingLeft: 30 } : undefined}
       />
       {open && !disabled && (
         <div className="ss-list">

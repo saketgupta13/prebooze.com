@@ -6,6 +6,7 @@ import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { PromoterProfile } from '../types';
 import { featuredRefs, featuredFirst } from '../lib/featured';
+import { Megaphone } from 'lucide-react';
 import DirectoryCard from '../components/DirectoryCard';
 import { cityHome, promoterPath } from '../lib/urls';
 
@@ -42,7 +43,7 @@ export default function Promoters() {
         <div className="breadcrumb">
           <Link to={cityHome(city)}>Home</Link> / Promoters
         </div>
-        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Promoters in {city} 📣</h1>
+        <h1 style={{ fontSize: 26, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>Promoters in {city} <Megaphone size={22} /></h1>
         <p className="muted" style={{ marginBottom: 18 }}>
           Promoters run free-entry guest lists for select events in {city} — sign up through their link before
           the cutoff and skip the ticket price entirely. Follow a promoter to see which parties they're running
@@ -60,7 +61,7 @@ export default function Promoters() {
                 key={p.slug}
                 to={promoterPath(p.city, p.slug)}
                 hue={p.hue}
-                avatarText="📣"
+                avatarText={<Megaphone size={20} />}
                 avatarImage={p.logoUrl}
                 name={p.name}
                 verified={p.verified}

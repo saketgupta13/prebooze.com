@@ -4,6 +4,7 @@ import { fmtMoney } from '../../data/mock';
 import Loader from '../../components/Loader';
 import { venuePartner, type VenueLedgerTx } from '../../api';
 import { ApiError } from '../../api/client';
+import { AlertCircle } from 'lucide-react';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -39,7 +40,7 @@ export default function VenueLedger() {
   return (
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 18 }}>Hosting ledger</h1>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
 
       <div className="kpis" style={{ marginBottom: 18 }}>
         <div className="kpi" style={{ borderColor: 'rgba(155,225,61,.4)' }}>

@@ -13,6 +13,7 @@ import { auth, venuePartner, catalog } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
+import { CheckCircle2, Landmark, BadgeCheck, Check, Upload, Clock, Info, AlertCircle } from 'lucide-react';
 import { useDraftLead } from '../../lib/useDraftLead';
 import { cityVenues } from '../../lib/urls';
 
@@ -164,17 +165,17 @@ export default function VenueOnboarding() {
     return (
       <main className="page">
         <div className="container confirm-hero">
-          <div className="confirm-tick">✓</div>
-          <h1 style={{ fontSize: 26 }}>Your venue is on Prebooze! 🏛</h1>
+          <div className="confirm-tick"><CheckCircle2 size={30} /></div>
+          <h1 style={{ fontSize: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>Your venue is on Prebooze! <Landmark size={22} /></h1>
           <p className="muted" style={{ margin: '8px 0 22px' }}>
             <b style={{ color: 'var(--text)' }}>{name}</b> is live right now — it's in the {loc.city} venue
             directory and organizers can already pick it while creating events. Add the verified{' '}
-            <span className="verified">✓</span> badge whenever you're ready, from Settings.
+            <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span> badge whenever you're ready, from Settings.
           </p>
           <div className="card" style={{ textAlign: 'left', marginBottom: 18 }}>
             <div className="kv"><span className="k">Listing</span><span>{name} · {vtypes.join(', ')} · {loc.city}</span></div>
             <div className="kv"><span className="k">Capacity</span><span>{capacity} guests</span></div>
-            <div className="kv"><span className="k">Status</span><span className="badge badge-ok">Live ✓</span></div>
+            <div className="kv"><span className="k">Status</span><span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Live <Check size={12} /></span></div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/venue" className="btn btn-pri">Go to my venue dashboard →</Link>
@@ -221,7 +222,15 @@ export default function VenueOnboarding() {
             </div>
             <div className="field">
               <span>Logo (optional) — shown next to your venue name in the directory</span>
-              <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={venuePartner.upload} onBusyChange={setLogoUploading} label="⬆ upload logo" doneLabel="✓ Logo uploaded — click to replace" style={{ height: 100, width: 100 }} />
+              <RealUploadBox
+                value={logoUrl}
+                onChange={setLogoUrl}
+                upload={venuePartner.upload}
+                onBusyChange={setLogoUploading}
+                label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Upload size={13} /> upload logo</span>}
+                doneLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckCircle2 size={13} /> Logo uploaded — click to replace</span>}
+                style={{ height: 100, width: 100 }}
+              />
             </div>
             <LocationPicker value={loc} onChange={setLoc} />
             <div className="form-row">
@@ -246,11 +255,11 @@ export default function VenueOnboarding() {
               </div>
             </div>
             <div className="field">
-              <span>🕒 Timings</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Clock size={13} /> Timings</span>
               <input value={timings} onChange={(e) => setTimings(e.target.value)} placeholder="e.g. Wed–Sun · 8 PM – 1 AM" />
             </div>
             <div className="field">
-              <span>ℹ️ About the venue</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Info size={13} /> About the venue</span>
               <WysiwygEditor value={about} onChange={setAbout} minHeight={80} />
             </div>
             <div className="form-row">
@@ -270,7 +279,7 @@ export default function VenueOnboarding() {
                 <input value={facebook} onChange={(e) => setFacebook(e.target.value)} placeholder="facebook.com/yourvenue" />
               </div>
             </div>
-            {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+            {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" className="btn btn-ghost" style={{ flexShrink: 0 }} onClick={() => navigate(-1)}>
                 ← Back

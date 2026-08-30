@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { promoter as promoterApi, type LeaderboardRow } from '../../api';
 import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
+import { Medal, CheckCircle2 } from 'lucide-react';
 
 /** Reputation board — promoters ranked by show-up rate (the share of their guests
  * who actually walk in). GET /promoter/leaderboard computes this live off
@@ -23,7 +24,11 @@ export default function PromoterLeaderboard() {
   if (loading) return <Loader />;
   if (err) return <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>{err}</div>;
 
-  const medal = (i: number) => (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`);
+  const medal = (i: number): ReactNode =>
+    i === 0 ? <Medal size={18} style={{ color: '#d4af37' }} /> :
+    i === 1 ? <Medal size={18} style={{ color: '#a8a8a8' }} /> :
+    i === 2 ? <Medal size={18} style={{ color: '#c07a3d' }} /> :
+    `#${i + 1}`;
 
   return (
     <div>
@@ -46,7 +51,7 @@ export default function PromoterLeaderboard() {
             <div key={r.slug} className="evrow" style={me ? { background: 'rgba(155,225,61,.08)', borderRadius: 8 } : undefined}>
               <span style={{ width: 40, fontWeight: 700 }}>{medal(i)}</span>
               <span style={{ flex: 1.6, minWidth: 0 }}>
-                <b className="small">{r.name}</b> {r.verified && <span className="verified">✓</span>}
+                <b className="small">{r.name}</b> {r.verified && <span className="verified" style={{ display: 'inline-flex', verticalAlign: 'middle' }}><CheckCircle2 size={13} /></span>}
                 {me && <span className="badge badge-accent" style={{ marginLeft: 6 }}>you</span>}
               </span>
               <span style={{ flex: 1, textAlign: 'right' }} className="small muted">

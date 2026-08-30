@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { fmtMoney } from '../../data/mock';
 import { promoter as promoterApi, type PromoterWithdrawal } from '../../api';
 import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
+import { CheckCircle2, ArrowRight } from 'lucide-react';
 
 const MIN_WITHDRAW = 500;
 
@@ -24,10 +25,10 @@ interface EventEarning {
   status: 'pending' | 'reminder_sent' | 'received';
 }
 
-const STATUS_LABEL: Record<EventEarning['status'], string> = {
+const STATUS_LABEL: Record<EventEarning['status'], ReactNode> = {
   pending: 'Not marked paid yet',
   reminder_sent: 'Reminder sent to organizer',
-  received: 'Received ✓',
+  received: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={12} /> Received</span>,
 };
 
 /** What a promoter has earned — per-head payouts on verified arrivals + a
@@ -47,7 +48,7 @@ export default function PromoterEarnings() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [requesting, setRequesting] = useState(false);
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState<ReactNode>('');
   const [actingOn, setActingOn] = useState<string | null>(null);
   const [orgFilter, setOrgFilter] = useState('all');
   const [eventFilter, setEventFilter] = useState('all');
@@ -79,7 +80,7 @@ export default function PromoterEarnings() {
     setErr('');
     try {
       await promoterApi.remindOrganizerToPay(eventId);
-      setMsg('Reminder sent ✓');
+      setMsg(<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={13} /> Reminder sent</span>);
       load();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Failed to send reminder');
@@ -112,7 +113,7 @@ export default function PromoterEarnings() {
     setRequesting(true);
     try {
       await promoterApi.withdraw(available);
-      setMsg(`Payout of ${fmtMoney(available)} requested ✓`);
+      setMsg(<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={13} /> Payout of {fmtMoney(available)} requested</span>);
       load();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Failed to request payout');
@@ -155,8 +156,8 @@ export default function PromoterEarnings() {
             <div className="tiny muted-2">{fmtMoney(earnings.withdrawn)} withdrawn to date · min payout {fmtMoney(MIN_WITHDRAW)}</div>
             {msg && <div className="tiny" style={{ marginTop: 4 }}>{msg}</div>}
           </div>
-          <button className="btn btn-pri" disabled={available < MIN_WITHDRAW || requesting} onClick={requestPayout}>
-            {requesting ? 'Requesting…' : 'Request payout →'}
+          <button className="btn btn-pri" disabled={available < MIN_WITHDRAW || requesting} onClick={requestPayout} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {requesting ? 'Requesting…' : <>Request payout <ArrowRight size={14} /></>}
           </button>
         </div>
       </div>
@@ -223,8 +224,8 @@ export default function PromoterEarnings() {
                 </div>
                 {e.status !== 'received' && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <button className="btn btn-pri btn-sm" disabled={actingOn === e.eventId} onClick={() => markReceived(e.eventId)}>
-                      I got paid ✓
+                    <button className="btn btn-pri btn-sm" disabled={actingOn === e.eventId} onClick={() => markReceived(e.eventId)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <CheckCircle2 size={14} /> I got paid
                     </button>
                     <button className="btn btn-ghost btn-sm" disabled={actingOn === e.eventId} onClick={() => remindOrganizer(e.eventId)}>
                       {e.status === 'reminder_sent' ? 'Remind again' : 'Remind organizer'}

@@ -2,12 +2,13 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { fmtMoney } from '../data/mock';
 import { cityBrowse } from '../lib/urls';
+import { Gift, Handshake, Undo2, Ticket, Circle, type LucideIcon } from 'lucide-react';
 
-const TX_META: Record<string, { icon: string; label: string }> = {
-  referral_welcome: { icon: '🎁', label: 'Welcome credit' },
-  referral_reward: { icon: '🤝', label: 'Referral reward' },
-  refund: { icon: '↩️', label: 'Refund' },
-  spend: { icon: '🎟️', label: 'Spent at checkout' },
+const TX_META: Record<string, { icon: LucideIcon; label: string }> = {
+  referral_welcome: { icon: Gift, label: 'Welcome credit' },
+  referral_reward: { icon: Handshake, label: 'Referral reward' },
+  refund: { icon: Undo2, label: 'Refund' },
+  spend: { icon: Ticket, label: 'Spent at checkout' },
 };
 
 /** Prebooze wallet — store credits from referrals & refunds, spent at checkout. */
@@ -26,7 +27,7 @@ export default function Wallet() {
           <div style={{ fontSize: 38, fontWeight: 800, margin: '6px 0' }} className="accent">{fmtMoney(walletBalance)}</div>
           <div className="small muted">auto-applies at checkout · earned from referrals &amp; refunds</div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 14, flexWrap: 'wrap' }}>
-            <Link to="/refer" className="btn btn-pri btn-sm">🎁 Refer & earn more →</Link>
+            <Link to="/refer" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Gift size={15} /> Refer & earn more →</Link>
             <Link to={cityBrowse(city)} className="btn btn-ghost btn-sm">Spend on events →</Link>
           </div>
         </div>
@@ -40,10 +41,10 @@ export default function Wallet() {
             </div>
           ) : (
             walletTxs.map((t) => {
-              const meta = TX_META[t.type] ?? { icon: '•', label: t.type };
+              const meta = TX_META[t.type] ?? { icon: Circle, label: t.type };
               return (
                 <div key={t.id} className="evrow">
-                  <span style={{ fontSize: 20 }}>{meta.icon}</span>
+                  <span style={{ display: 'flex' }}><meta.icon size={20} /></span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="bold small">{meta.label}</div>
                     <div className="tiny muted-2">{t.note} · {new Date(t.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</div>

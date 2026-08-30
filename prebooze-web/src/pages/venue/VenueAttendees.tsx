@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { venuePartner, type OrgAttendee } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event } from '../../types';
+import { AlertCircle, Download, QrCode, Check } from 'lucide-react';
 
 const STATUS_FILTERS = ['All', 'Checked in', 'Confirmed', 'Refunded'];
 
@@ -72,10 +73,10 @@ export default function VenueAttendees() {
       <div className="breadcrumb">
         <Link to="/venue/hosting/events">Events I host</Link> / {eventF === 'All' ? 'All events' : eventF} / Attendees
       </div>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
         <input
-          placeholder="🔍 Search name / phone / booking #"
+          placeholder="Search name / phone / booking #"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           style={{ maxWidth: 280 }}
@@ -92,11 +93,11 @@ export default function VenueAttendees() {
           ))}
         </select>
         <span style={{ flex: 1 }} />
-        <button className="btn btn-ghost btn-sm" onClick={exportCsv}>
-          ⬇ Export CSV
+        <button className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={exportCsv}>
+          <Download size={14} /> Export CSV
         </button>
-        <Link to="/venue/hosting/scanner" className="btn btn-pri btn-sm">
-          📷 Scan QR
+        <Link to="/venue/hosting/scanner" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <QrCode size={14} /> Scan QR
         </Link>
       </div>
 
@@ -131,7 +132,7 @@ export default function VenueAttendees() {
                   <td className="muted">{r.whatsapp}</td>
                   <td>{r.tierName}</td>
                   <td>
-                    {s === 'checked-in' && <span className="badge badge-ok">Checked in ✓</span>}
+                    {s === 'checked-in' && <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Checked in <Check size={12} /></span>}
                     {s === 'confirmed' && <span className="badge badge-pending">Confirmed</span>}
                     {s === 'refunded' && <span className="badge badge-danger">Refunded</span>}
                   </td>

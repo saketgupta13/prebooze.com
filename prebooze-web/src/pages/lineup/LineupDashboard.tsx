@@ -7,6 +7,7 @@ import { lineup as lineupApi } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event, LineupProfile } from '../../types';
 import { eventCity, eventPath, lineupPath } from '../../lib/urls';
+import { Headphones, CheckCircle2, ArrowRight, ExternalLink } from 'lucide-react';
 
 /** Real line-up overview — GET /lineup/me + GET /lineup/events. Reaching
  * this page at all means LineupLayout.tsx already confirmed the role is
@@ -36,11 +37,11 @@ export default function LineupDashboard() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
-        <h1 style={{ fontSize: 24 }}>Hey, {profile.name} 🎤</h1>
+        <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 8 }}>Hey, {profile.name} <Headphones size={20} /></h1>
         {profile.verified ? (
-          <span className="badge badge-ok">Verified ✓</span>
+          <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={13} /> Verified</span>
         ) : (
-          <Link to="/artist/profile/verification" className="btn btn-pri btn-sm">Complete verification →</Link>
+          <Link to="/artist/profile/verification" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Complete verification <ArrowRight size={14} /></Link>
         )}
       </div>
       <p className="muted small" style={{ margin: '4px 0 18px' }}>
@@ -60,8 +61,8 @@ export default function LineupDashboard() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
           <h3>Profile</h3>
           <div style={{ display: 'flex', gap: 8 }}>
-            <Link to="/artist/profile" className="btn btn-pri btn-sm">Edit profile →</Link>
-            <Link to={lineupPath(profile.city, profile.slug)} className="btn btn-ghost btn-sm">View public profile ↗</Link>
+            <Link to="/artist/profile" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Edit profile <ArrowRight size={14} /></Link>
+            <Link to={lineupPath(profile.city, profile.slug)} className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>View public profile <ExternalLink size={13} /></Link>
           </div>
         </div>
         <div className="kv"><span className="k">Username</span><span>@{profile.slug}</span></div>
@@ -80,7 +81,7 @@ export default function LineupDashboard() {
                   <div className="bold small">{e.title} {e.myRole && <span className="muted" style={{ fontWeight: 400 }}>· {e.myRole}</span>}</div>
                   <div className="tiny muted-2">{fmtDate(e.date)} · {fmtTime(e.date)} · {e.venue?.name}, {e.venue?.city}</div>
                 </div>
-                <Link to={eventPath(eventCity(e) ?? profile.city, e.slug)} className="btn btn-ghost btn-sm">View →</Link>
+                <Link to={eventPath(eventCity(e) ?? profile.city, e.slug)} className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>View <ArrowRight size={13} /></Link>
               </div>
             ))}
             {past.length > 0 && (

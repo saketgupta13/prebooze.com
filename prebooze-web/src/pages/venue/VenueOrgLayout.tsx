@@ -4,25 +4,29 @@ import { useApp } from '../../store/AppContext';
 import PendingReview, { RejectedReview } from '../../components/PendingReview';
 import { PageLoader } from '../../components/Loader';
 import { venuePartner } from '../../api';
+import {
+  LayoutDashboard, Ticket, Users, QrCode, ClipboardList, Activity, Percent, ShoppingCart, Banknote, Megaphone, Shield, Settings, MoreHorizontal, X,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 // `module` is the exact VenueRole permission-matrix key that gates this nav
 // item's visibility for an invited team member (see VenueTeamRoles.tsx's
 // PERM_MODULES / the backend's VENUE_ORG_PERM_MODULES — must match exactly).
 // Same shape as OrganizerLayout's NAV, minus Team & roles duplication logic
 // and minus Reviews (kept solely on the venue panel — see VenueReviews.tsx).
-const NAV: { to: string; label: string; end?: boolean; module?: string }[] = [
-  { to: '/venue/hosting', label: '▦ Dashboard', end: true },
-  { to: '/venue/hosting/events', label: '🎫 Events', module: 'Events & wizard' },
-  { to: '/venue/hosting/attendees', label: '👥 Attendees', module: 'Attendees & check-in' },
-  { to: '/venue/hosting/scanner', label: '📷 Scanner', module: 'Attendees & check-in' },
-  { to: '/venue/hosting/guest-list', label: '📋 Guest list', module: 'Guest list' },
-  { to: '/venue/hosting/live', label: '● Live monitor', module: 'Attendees & check-in' },
-  { to: '/venue/hosting/coupons', label: '🏷 Promo codes', module: 'Coupons' },
-  { to: '/venue/hosting/carts', label: '🛒 Abandoned carts', module: 'Events & wizard' },
-  { to: '/venue/hosting/ledger', label: '💰 Payouts', module: 'Payouts & withdrawals' },
-  { to: '/venue/hosting/promoters', label: '📣 Promoters', module: 'Payouts & withdrawals' },
-  { to: '/venue/hosting/team', label: '🛡 Team & roles', module: 'Settings & team' },
-  { to: '/venue/hosting/settings', label: '⚙ Settings', module: 'Settings & team' },
+const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; module?: string }[] = [
+  { to: '/venue/hosting', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/venue/hosting/events', label: 'Events', icon: Ticket, module: 'Events & wizard' },
+  { to: '/venue/hosting/attendees', label: 'Attendees', icon: Users, module: 'Attendees & check-in' },
+  { to: '/venue/hosting/scanner', label: 'Scanner', icon: QrCode, module: 'Attendees & check-in' },
+  { to: '/venue/hosting/guest-list', label: 'Guest list', icon: ClipboardList, module: 'Guest list' },
+  { to: '/venue/hosting/live', label: 'Live monitor', icon: Activity, module: 'Attendees & check-in' },
+  { to: '/venue/hosting/coupons', label: 'Promo codes', icon: Percent, module: 'Coupons' },
+  { to: '/venue/hosting/carts', label: 'Abandoned carts', icon: ShoppingCart, module: 'Events & wizard' },
+  { to: '/venue/hosting/ledger', label: 'Payouts', icon: Banknote, module: 'Payouts & withdrawals' },
+  { to: '/venue/hosting/promoters', label: 'Promoters', icon: Megaphone, module: 'Payouts & withdrawals' },
+  { to: '/venue/hosting/team', label: 'Team & roles', icon: Shield, module: 'Settings & team' },
+  { to: '/venue/hosting/settings', label: 'Settings', icon: Settings, module: 'Settings & team' },
 ];
 
 // How many of navItems (in NAV order) get a permanent bottom-tab slot on
@@ -71,8 +75,8 @@ export default function VenueOrgLayout() {
           <div className="cap">ORGANIZER</div>
           {hostingEnabled ? (
             NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
-                {n.label}
+              <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <n.icon size={15} /> {n.label}
               </NavLink>
             ))
           ) : (
@@ -103,8 +107,8 @@ function TeamConsole({ access }: { access: NonNullable<ReturnType<typeof useApp>
             Managing <b>{access.venueBrand}</b> as <b>{access.roleName}</b>
           </div>
           {visibleNav.map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
-              {n.label}
+            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <n.icon size={15} /> {n.label}
             </NavLink>
           ))}
         </aside>
@@ -130,18 +134,15 @@ function MobileOrgNav({ navItems }: { navItems: typeof NAV }) {
   return (
     <>
       <nav className="org-mobile-tabbar">
-        {pinned.map((n) => {
-          const [ico, ...labelParts] = n.label.split(' ');
-          return (
-            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
-              <span className="ico">{ico}</span>
-              {labelParts.join(' ')}
-            </NavLink>
-          );
-        })}
+        {pinned.map((n) => (
+          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
+            <span className="ico"><n.icon size={18} /></span>
+            {n.label}
+          </NavLink>
+        ))}
         {rest.length > 0 && (
           <button onClick={() => setOpen(true)}>
-            <span className="ico">⋯</span>
+            <span className="ico"><MoreHorizontal size={18} /></span>
             More
           </button>
         )}
@@ -152,11 +153,11 @@ function MobileOrgNav({ navItems }: { navItems: typeof NAV }) {
           <div className="org-drawer">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <span className="cap" style={{ padding: 0 }}>MORE</span>
-              <span onClick={() => setOpen(false)} style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: 18, lineHeight: 1 }}>✕</span>
+              <span onClick={() => setOpen(false)} style={{ cursor: 'pointer', color: 'var(--muted)', display: 'flex' }}><X size={18} /></span>
             </div>
             {rest.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => (isActive ? 'on' : '')}>
-                {n.label}
+              <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => (isActive ? 'on' : '')} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <n.icon size={15} /> {n.label}
               </NavLink>
             ))}
           </div>

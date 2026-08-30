@@ -9,6 +9,8 @@ import Poster from '../../components/Poster';
 import CategoryIcon from '../../components/CategoryIcon';
 import Loader from '../../components/Loader';
 import { eventCity, eventPath } from '../../lib/urls';
+import { AlertCircle, Check, Clock, X, Pencil } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -18,10 +20,10 @@ const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'draft', label: 'Drafts' },
 ];
 
-const STATUS_BADGE: Record<EventStatus, { cls: string; label: string }> = {
-  approved: { cls: 'badge-ok', label: 'Approved ✓ · Live' },
-  pending: { cls: 'badge-pending', label: 'Pending review ◌' },
-  rejected: { cls: 'badge-danger', label: 'Rejected ✕' },
+const STATUS_BADGE: Record<EventStatus, { cls: string; label: string; icon?: LucideIcon }> = {
+  approved: { cls: 'badge-ok', label: 'Approved · Live', icon: Check },
+  pending: { cls: 'badge-pending', label: 'Pending review', icon: Clock },
+  rejected: { cls: 'badge-danger', label: 'Rejected', icon: X },
   draft: { cls: 'badge-outline', label: 'Draft' },
 };
 
@@ -76,7 +78,7 @@ export default function VenueHostedEvents() {
         <button className={scope === 'past' ? 'on' : ''} onClick={() => setScope('past')}>Past</button>
       </div>
 
-      {err && <div className="danger-text small">✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
       {!err && list.length === 0 && <div className="empty">No {scope} events{tab !== 'all' ? ` in ${tab}` : ''}.</div>}
 
       {list.length > 0 && (
@@ -85,9 +87,10 @@ export default function VenueHostedEvents() {
             const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
             const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
             const badge = STATUS_BADGE[e.status];
+            const BadgeIcon = badge.icon;
             return (
               <div key={e.id} className="ecard" style={{ position: 'relative' }}>
-                <span className={`badge ${badge.cls}`} style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, fontSize: 10 }}>{badge.label}</span>
+                <span className={`badge ${badge.cls}`} style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}>{BadgeIcon && <BadgeIcon size={10} />}{badge.label}</span>
                 <Poster hue={e.posterHue} icon={<CategoryIcon name={e.category} />} imageUrl={e.posterUrl} alt={e.title} />
                 <div className="ecard-body">
                   <h3>{e.title}</h3>
@@ -108,7 +111,7 @@ export default function VenueHostedEvents() {
                   )}
                   <div className="row" style={{ gap: 6 }}>
                     <span style={{ flex: 1 }} />
-                    <Link to={`/venue/hosting/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval">✎ Edit</Link>
+                    <Link to={`/venue/hosting/events/${e.id}/edit`} className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} title="Edit — resubmits for approval"><Pencil size={12} /> Edit</Link>
                     {e.status === 'approved' && <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="icon-round" title="View as guest">⋮</Link>}
                   </div>
                 </div>

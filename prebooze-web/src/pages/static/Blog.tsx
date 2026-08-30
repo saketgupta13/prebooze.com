@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Newspaper, Mic2 } from 'lucide-react';
 import { content } from '../../api';
 import { isBackendEnabled } from '../../api/client';
 import type { CmsBlogSummary } from '../../types';
@@ -71,7 +72,7 @@ export default function Blog() {
         {/* Featured post */}
         <Link to={`/blog/${featured.id}`} className="card" style={{ display: 'flex', gap: 22, alignItems: 'stretch', marginBottom: 26, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 280px' }}>
-            <Poster hue={hueFromId(featured.id)} emoji="📰" label="cover 16:9" variant="landscape" imageUrl={featured.bannerUrl} alt={featured.title} eager />
+            <Poster hue={hueFromId(featured.id)} icon={<Newspaper size={40} />} label="cover 16:9" variant="landscape" imageUrl={featured.bannerUrl} alt={featured.title} eager />
           </div>
           <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
             {featured.category && <span className="tag" style={{ width: 'fit-content' }}>{featured.category}</span>}
@@ -86,7 +87,7 @@ export default function Blog() {
         <div className="grid-3">
           {rest.map((p) => (
             <Link key={p.id} to={`/blog/${p.id}`} className="ecard">
-              <Poster hue={hueFromId(p.id)} emoji="📰" label="cover 16:9" variant="landscape" imageUrl={p.bannerUrl} alt={p.title} />
+              <Poster hue={hueFromId(p.id)} icon={<Newspaper size={40} />} label="cover 16:9" variant="landscape" imageUrl={p.bannerUrl} alt={p.title} />
               <div>
                 {p.category && <span className="tag" style={{ marginBottom: 6 }}>{p.category}</span>}
                 <h3 style={{ margin: '6px 0 4px' }}>{p.title}</h3>
@@ -99,7 +100,7 @@ export default function Blog() {
 
         <section className="section cta-banner">
           <div>
-            <h3>Want your event featured? 🎤</h3>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Want your event featured? <Mic2 size={18} /></h3>
             <p>Organizers on Prebooze get covered first — list your event and tell us the story.</p>
           </div>
           <Link to="/host" className="btn btn-pri">Host with us →</Link>

@@ -10,10 +10,12 @@ import { downloadTicket } from '../lib/ticket';
 import { downloadIcs } from '../lib/calendar';
 import { eventLocation } from '../lib/venue';
 import { cityBrowse } from '../lib/urls';
+import type { ReactNode } from 'react';
+import { Undo2, Hourglass, Calendar, MapPin, Ticket, CreditCard, CheckCircle2, Wallet, Download } from 'lucide-react';
 
-const REFUND_BADGE: Record<string, { cls: string; label: string }> = {
-  refunded: { cls: 'badge-accent', label: 'Refunded ↩' },
-  refund_requested: { cls: 'badge-accent', label: 'Refund pending ⏳' },
+const REFUND_BADGE: Record<string, { cls: string; label: ReactNode }> = {
+  refunded: { cls: 'badge-accent', label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Refunded <Undo2 size={12} /></span> },
+  refund_requested: { cls: 'badge-accent', label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Refund pending <Hourglass size={12} /></span> },
   cancelled: { cls: 'badge-danger', label: 'Cancelled' },
 };
 
@@ -136,13 +138,13 @@ export default function MyBookings() {
                 <div style={{ flex: 1, minWidth: 240 }}>
                   <h2 style={{ fontSize: 20 }}>{event.title}</h2>
                   <div style={{ display: 'grid', gap: 7, margin: '12px 0', fontSize: 14 }} className="muted">
-                    <span>📅 {fmtDate(event.date)}, {fmtTime(event.date)}</span>
-                    <span>📍 {eventLocation(event, venue)}</span>
-                    <span>🎟 {selected.tierName} · {selected.id}</span>
-                    <span>
-                      💳 Paid ₹{selected.total} ·{' '}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Calendar size={13} /> {fmtDate(event.date)}, {fmtTime(event.date)}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><MapPin size={13} /> {eventLocation(event, venue)}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Ticket size={13} /> {selected.tierName} · {selected.id}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                      <CreditCard size={13} /> Paid ₹{selected.total} ·{' '}
                       {selected.status === 'confirmed' ? (
-                        <span className="badge badge-ok">Confirmed ✓</span>
+                        <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Confirmed <CheckCircle2 size={13} /></span>
                       ) : (
                         <span className={`badge ${REFUND_BADGE[selected.status].cls}`}>{REFUND_BADGE[selected.status].label}</span>
                       )}
@@ -171,15 +173,17 @@ export default function MyBookings() {
                       <div style={{ display: 'grid', gap: 8 }}>
                         <button
                           className="btn btn-pri btn-sm"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                           onClick={() => doRefund(selected.id, 'wallet')}
                         >
-                          👛 Prebooze wallet — instant credit
+                          <Wallet size={14} /> Prebooze wallet — instant credit
                         </button>
                         <button
                           className="btn btn-ghost btn-sm"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                           onClick={() => doRefund(selected.id, 'source')}
                         >
-                          💳 Original payment method — 5–7 business days
+                          <CreditCard size={14} /> Original payment method — 5–7 business days
                         </button>
                         <button className="btn btn-ghost btn-sm" onClick={() => setRefundingId(null)}>
                           Keep my booking
@@ -192,11 +196,11 @@ export default function MyBookings() {
                   <div style={{ textAlign: 'center' }}>
                     <QRCode value={selected.qrToken || selected.id} caption={`valid for ${selected.guests.length} guest${selected.guests.length > 1 ? 's' : ''}`} />
                     <div style={{ marginTop: 10 }}>
-                      <button className="btn btn-pri btn-sm" onClick={() => downloadTicket(selected, event, venue)}>
-                        ⬇ Download ticket
+                      <button className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={() => downloadTicket(selected, event, venue)}>
+                        <Download size={13} /> Download ticket
                       </button>{' '}
-                      <button className="btn btn-ghost btn-sm" onClick={() => downloadIcs(event, venue)}>
-                        📅 Add to calendar
+                      <button className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={() => downloadIcs(event, venue)}>
+                        <Calendar size={13} /> Add to calendar
                       </button>
                     </div>
                   </div>

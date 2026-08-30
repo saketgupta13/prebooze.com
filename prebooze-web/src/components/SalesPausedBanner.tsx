@@ -1,3 +1,4 @@
+import { Ticket } from 'lucide-react';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 
 /** Settings → Danger zone → "Pause all ticket sales" is a real, backend-
@@ -21,9 +22,13 @@ export default function SalesPausedBanner() {
         textAlign: 'center',
         padding: '8px 16px',
         fontSize: 13,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
       }}
     >
-      🎫 Ticket sales are temporarily paused platform-wide — browsing works fine, but bookings can't be completed right now. Check back shortly.
+      <Ticket size={14} /> Ticket sales are temporarily paused platform-wide — browsing works fine, but bookings can't be completed right now. Check back shortly.
     </div>
   );
 }

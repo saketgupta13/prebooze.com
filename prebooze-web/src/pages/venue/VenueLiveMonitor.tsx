@@ -3,6 +3,7 @@ import { venuePartner, type OrgLiveMonitor } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event } from '../../types';
 import Loader from '../../components/Loader';
+import { AlertCircle, Check, Radio } from 'lucide-react';
 
 const ago = (iso: string) => {
   const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
@@ -26,7 +27,7 @@ export default function VenueLiveMonitor() {
   const [ciName, setCiName] = useState('');
   const [ciCount, setCiCount] = useState(1);
   const [ciBusy, setCiBusy] = useState(false);
-  const [ciMsg, setCiMsg] = useState('');
+  const [ciMsg, setCiMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [pauseBusy, setPauseBusy] = useState(false);
 
   useEffect(() => {
@@ -62,15 +63,15 @@ export default function VenueLiveMonitor() {
     e.preventDefault();
     if (!ciName.trim()) return;
     setCiBusy(true);
-    setCiMsg('');
+    setCiMsg(null);
     try {
       await venuePartner.manualCheckIn(eventId, ciName.trim(), ciCount);
-      setCiMsg(`✓ ${ciName.trim()} checked in (${ciCount})`);
+      setCiMsg({ text: `${ciName.trim()} checked in (${ciCount})`, ok: true });
       setCiName('');
       setCiCount(1);
       loadLive();
     } catch (e2) {
-      setCiMsg(e2 instanceof ApiError ? `✕ ${e2.message}` : '✕ Check-in failed');
+      setCiMsg({ text: e2 instanceof ApiError ? e2.message : 'Check-in failed', ok: false });
     } finally {
       setCiBusy(false);
     }
@@ -98,7 +99,7 @@ export default function VenueLiveMonitor() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 6 }}>
         <h1 style={{ fontSize: 24 }}>
-          Live monitor <span className="badge badge-ok">● LIVE</span>
+          Live monitor <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Radio size={11} /> LIVE</span>
         </h1>
         <select value={eventId} onChange={(e) => setEventId(e.target.value)} style={{ maxWidth: 240 }}>
           {events.map((e) => (
@@ -107,7 +108,7 @@ export default function VenueLiveMonitor() {
         </select>
       </div>
       <div className="tiny muted-2" style={{ marginBottom: 16 }}>refreshes every 5s · works on staff phones at the gate</div>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
 
       {data && (
         <>
@@ -163,8 +164,8 @@ export default function VenueLiveMonitor() {
           </div>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-            <button className={data.salesPaused ? 'btn btn-pri' : 'btn btn-danger'} style={{ flex: 1 }} disabled={pauseBusy} onClick={togglePause}>
-              {pauseBusy ? 'Updating…' : data.salesPaused ? 'Resume gate sales ✓' : 'Pause gate sales'}
+            <button className={data.salesPaused ? 'btn btn-pri' : 'btn btn-danger'} style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={pauseBusy} onClick={togglePause}>
+              {pauseBusy ? 'Updating…' : data.salesPaused ? <>Resume gate sales <Check size={14} /></> : 'Pause gate sales'}
             </button>
             <button className={panel === 'checkin' ? 'btn btn-pri' : 'btn btn-ghost'} style={{ flex: 1 }} onClick={() => setPanel(panel === 'checkin' ? 'none' : 'checkin')}>
               Manual check-in
@@ -186,9 +187,13 @@ export default function VenueLiveMonitor() {
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCiCount((c) => Math.min(10, c + 1))}>+</button>
                   </div>
                 </div>
-                <button className="btn btn-pri" style={{ flex: '0 0 auto' }} disabled={ciBusy}>{ciBusy ? 'Checking…' : 'Check in ✓'}</button>
+                <button className="btn btn-pri" style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={ciBusy}>{ciBusy ? 'Checking…' : <>Check in <Check size={14} /></>}</button>
               </div>
-              {ciMsg && <div className={`tiny ${ciMsg.startsWith('✕') ? 'danger-text' : ''}`} style={{ marginTop: 8 }}>{ciMsg}</div>}
+              {ciMsg && (
+                <div className={`tiny ${ciMsg.ok ? '' : 'danger-text'}`} style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  {ciMsg.ok ? <Check size={13} /> : <AlertCircle size={13} />} {ciMsg.text}
+                </div>
+              )}
             </form>
           )}
 

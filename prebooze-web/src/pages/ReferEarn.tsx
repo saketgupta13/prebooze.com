@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { REFERRAL_CONFIG, fmtMoney } from '../data/mock';
 import { copyToClipboard } from '../lib/clipboard';
+import { Gift, MessageCircle, Link2, UserPlus, Ticket, type LucideIcon } from 'lucide-react';
 
 const mask = (phone: string) => phone.slice(0, 7) + '••••' + phone.slice(-2);
 
@@ -40,7 +41,7 @@ export default function ReferEarn() {
         </div>
 
         <div className="card card-shadow" style={{ textAlign: 'center', marginBottom: 18, padding: '26px 20px' }}>
-          <div style={{ fontSize: 38 }}>🎁</div>
+          <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--accent)' }}><Gift size={38} /></div>
           <h1 style={{ fontSize: 24, margin: '6px 0' }}>Give ₹{REFERRAL_CONFIG.referee}, get ₹{REFERRAL_CONFIG.referrer}</h1>
           <p className="muted small" style={{ maxWidth: 420, margin: '0 auto 16px' }}>
             Your friend gets <b>₹{REFERRAL_CONFIG.referee} wallet credit</b> on signup — you earn{' '}
@@ -50,8 +51,8 @@ export default function ReferEarn() {
             {link}
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-whatsapp" onClick={waShare}>💬 Share on WhatsApp</button>
-            <button className="btn btn-ghost" onClick={copy}>{copied ? 'Copied ✓' : '🔗 Copy link'}</button>
+            <button className="btn btn-whatsapp" onClick={waShare} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><MessageCircle size={15} /> Share on WhatsApp</button>
+            <button className="btn btn-ghost" onClick={copy} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{copied ? 'Copied ✓' : <><Link2 size={15} /> Copy link</>}</button>
           </div>
           {copyErr && <div className="tiny danger-text" style={{ marginTop: 8 }}>{copyErr}</div>}
         </div>
@@ -70,19 +71,21 @@ export default function ReferEarn() {
         <div className="card" style={{ marginBottom: 18 }}>
           <h3 style={{ marginBottom: 10 }}>How it works</h3>
           <div style={{ display: 'grid', gap: 10 }}>
-            {[
-              ['🔗', 'Share your link', 'Send it to friends on WhatsApp — one tap.'],
-              ['👋', `Friend joins, gets ₹${REFERRAL_CONFIG.referee}`, 'Their welcome credit lands in their wallet instantly.'],
+            {(
               [
-                '🎟️',
-                `They book, you earn ₹${REFERRAL_CONFIG.referrer}`,
-                'When they pay for their first ticket, your reward hits your wallet.',
-              ],
-            ].map(([icon, t, d], i) => (
+                [Link2, 'Share your link', 'Send it to friends on WhatsApp — one tap.'],
+                [UserPlus, `Friend joins, gets ₹${REFERRAL_CONFIG.referee}`, 'Their welcome credit lands in their wallet instantly.'],
+                [
+                  Ticket,
+                  `They book, you earn ₹${REFERRAL_CONFIG.referrer}`,
+                  'When they pay for their first ticket, your reward hits your wallet.',
+                ],
+              ] as [LucideIcon, string, string][]
+            ).map(([Icon, t, d], i) => (
               <div key={t} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <span className="num" style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, flexShrink: 0 }}>{i + 1}</span>
                 <div>
-                  <div className="bold small">{icon} {t}</div>
+                  <div className="bold small" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Icon size={15} /> {t}</div>
                   <div className="tiny muted-2">{d}</div>
                 </div>
               </div>

@@ -14,6 +14,7 @@ import { cityBrowse } from '../lib/urls';
 import { formatPrice } from '../lib/formatPrice';
 import { tierGraceEndDate, formatCountdownDHM } from '../lib/ticketTierPricing';
 import { useTicker } from '../lib/useTicker';
+import { CheckCircle2, PartyPopper, Martini, Download, Calendar, Megaphone, MessageCircle, Link2, Gift } from 'lucide-react';
 
 export default function Confirmation() {
   const { id } = useParams();
@@ -83,8 +84,8 @@ export default function Confirmation() {
   return (
     <main className="page">
       <div className="container confirm-hero">
-        <div className="confirm-tick">✓</div>
-        <h1 style={{ fontSize: 28 }}>You're going! 🎉</h1>
+        <div className="confirm-tick"><CheckCircle2 size={30} /></div>
+        <h1 style={{ fontSize: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>You're going! <PartyPopper size={24} /></h1>
         <p className="muted" style={{ margin: '8px 0 22px' }}>
           Ticket sent to WhatsApp {booking.whatsapp}
           {booking.total > 0 ? ` · paid ${formatPrice(booking.total)} via Razorpay` : ' · Free entry'}
@@ -97,11 +98,11 @@ export default function Confirmation() {
           </div>
           <div className="small" style={{ marginBottom: 14 }}>
             {booking.tierName} · Booking {booking.id}{' '}
-            <span className="badge badge-ok">Confirmed ✓</span>
+            <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Confirmed <CheckCircle2 size={13} /></span>
           </div>
           {!!booking.coverCharge && (
-            <div className="small accent" style={{ marginBottom: 14 }}>
-              🍹 Includes ₹{booking.coverCharge} redeemable at the venue
+            <div className="small accent" style={{ marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Martini size={15} /> Includes ₹{booking.coverCharge} redeemable at the venue
             </div>
           )}
           <QRCode
@@ -128,10 +129,10 @@ export default function Confirmation() {
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
-            <button className="btn btn-pri" onClick={() => downloadTicket(booking, event, venue)}>
-              ⬇ Download ticket
+            <button className="btn btn-pri" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => downloadTicket(booking, event, venue)}>
+              <Download size={15} /> Download ticket
             </button>
-            <button className="btn btn-ghost" onClick={() => downloadIcs(event, venue)}>📅 Add to calendar</button>
+            <button className="btn btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => downloadIcs(event, venue)}><Calendar size={15} /> Add to calendar</button>
             <Link to="/bookings" className="btn btn-ghost">
               View booking
             </Link>
@@ -139,11 +140,13 @@ export default function Confirmation() {
         </div>
 
         <div className="card" style={{ textAlign: 'left', marginTop: 16 }}>
-          <h3 style={{ marginBottom: 2 }}>Tell your people 📣</h3>
+          <h3 style={{ marginBottom: 2, display: 'flex', alignItems: 'center', gap: 8 }}>Tell your people <Megaphone size={18} /></h3>
           <p className="small muted" style={{ marginBottom: 10 }}>Bring your crew — share you're going and pull them in.</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn btn-whatsapp btn-sm" onClick={waShare}>💬 Share on WhatsApp</button>
-            <button className="btn btn-ghost btn-sm" onClick={copy}>{copied ? 'Link copied ✓' : '🔗 Copy link'}</button>
+            <button className="btn btn-whatsapp btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={waShare}><MessageCircle size={15} /> Share on WhatsApp</button>
+            <button className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={copy}>
+              {copied ? <><CheckCircle2 size={15} /> Link copied</> : <><Link2 size={15} /> Copy link</>}
+            </button>
           </div>
           {copyErr && <div className="tiny danger-text" style={{ marginTop: 6 }}>{copyErr}</div>}
           {visibility === 'off' ? (
@@ -158,15 +161,15 @@ export default function Confirmation() {
               </button>
             </div>
           ) : (
-            <div className="tiny muted-2" style={{ marginTop: 12 }}>
-              ✓ Visible to {visibility === 'public' ? 'everyone' : 'your followers'} on “Who's going”. Change in your profile.
+            <div className="tiny muted-2" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <CheckCircle2 size={13} /> Visible to {visibility === 'public' ? 'everyone' : 'your followers'} on “Who's going”. Change in your profile.
             </div>
           )}
         </div>
 
         {!user?.profileRewardClaimedAt && (liveBookings ?? bookings).length === 1 && (
           <div className="card card-shadow" style={{ textAlign: 'left', marginTop: 16, borderColor: 'var(--accent)' }}>
-            <h3 style={{ marginBottom: 2 }}>🎁 Get 10% off your next booking</h3>
+            <h3 style={{ marginBottom: 2, display: 'flex', alignItems: 'center', gap: 8 }}><Gift size={18} /> Get 10% off your next booking</h3>
             <p className="small muted" style={{ marginBottom: 10 }}>
               Finish a few more details on your profile — photo, bio, interests — and we'll send you a one-time 10% off code (up to ₹100), valid for 15 days.
             </p>

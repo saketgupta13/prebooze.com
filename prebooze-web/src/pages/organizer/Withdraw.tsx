@@ -4,6 +4,7 @@ import { fmtMoney } from '../../data/mock';
 import Loader from '../../components/Loader';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
+import { Lock } from 'lucide-react';
 
 /** Withdraw available balance — real POST /organizer/withdraw. Settlement
  * itself is manual on our side (see Payouts.tsx), so this doesn't claim an
@@ -116,8 +117,8 @@ export default function Withdraw() {
             </div>
           </div>
         )}
-        <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-          🔒 payouts settle only to the account on file for your organizer profile
+        <div className="tiny muted-2 center" style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+          <Lock size={12} /> payouts settle only to the account on file for your organizer profile
         </div>
       </div>
     </div>

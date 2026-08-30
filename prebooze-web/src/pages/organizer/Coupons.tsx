@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Coupon, Event } from '../../types';
+import { X, Check, Pencil } from 'lucide-react';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const GENDERS: { key: 'all' | 'women' | 'men' | 'other'; label: string }[] = [
@@ -115,7 +116,7 @@ export default function Coupons() {
           {showForm ? 'Hide form' : '+ Create promo code'}
         </button>
       </div>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
 
       {showForm && (
         <form className="card" style={{ marginBottom: 18 }} onSubmit={save}>
@@ -178,8 +179,8 @@ export default function Coupons() {
             <span>Audience — gender</span>
             <div className="chip-row">
               {GENDERS.map((g) => (
-                <button type="button" key={g.key} className={`chip chip-tap ${gender === g.key ? 'on' : ''}`} onClick={() => setGender(g.key)}>
-                  {g.label}{gender === g.key ? ' ✓' : ''}
+                <button type="button" key={g.key} className={`chip chip-tap ${gender === g.key ? 'on' : ''}`} onClick={() => setGender(g.key)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {g.label}{gender === g.key ? <Check size={12} /> : ''}
                 </button>
               ))}
             </div>
@@ -190,7 +191,9 @@ export default function Coupons() {
             First-time users only
           </label>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-pri" disabled={busy}>{busy ? 'Saving…' : editingId ? 'Save changes ✓' : 'Save coupon'}</button>
+            <button className="btn btn-pri" disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {busy ? 'Saving…' : editingId ? <>Save changes <Check size={15} /></> : 'Save coupon'}
+            </button>
             {editingId && (
               <button
                 type="button"
@@ -236,7 +239,9 @@ export default function Coupons() {
             <button className="btn btn-ghost btn-sm" onClick={() => toggleStatus(c)}>
               {c.status === 'active' ? 'Pause' : 'Resume'}
             </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => startEdit(c)}>✎ Edit</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => startEdit(c)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Pencil size={13} /> Edit
+            </button>
           </div>
         ))}
       </div>

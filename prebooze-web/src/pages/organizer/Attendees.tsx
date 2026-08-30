@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { organizer, type OrgAttendee } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event } from '../../types';
+import { X, Search, Download, Camera, CheckCircle2 } from 'lucide-react';
 
 const STATUS_FILTERS = ['All', 'Checked in', 'Confirmed', 'Refunded'];
 
@@ -79,14 +80,17 @@ export default function Attendees() {
       <div className="breadcrumb">
         <Link to="/organizer/events">Events</Link> / {eventF === 'All' ? 'All events' : eventF} / Attendees
       </div>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
-        <input
-          placeholder="🔍 Search name / phone / booking #"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          style={{ maxWidth: 280 }}
-        />
+        <div style={{ position: 'relative', maxWidth: 280 }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+          <input
+            placeholder="Search name / phone / booking #"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ width: '100%', paddingLeft: 30 }}
+          />
+        </div>
         <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 140 }}>
           {STATUS_FILTERS.map((s) => (
             <option key={s}>{s}</option>
@@ -104,11 +108,11 @@ export default function Attendees() {
           ))}
         </select>
         <span style={{ flex: 1 }} />
-        <button className="btn btn-ghost btn-sm" onClick={exportCsv}>
-          ⬇ Export CSV
+        <button className="btn btn-ghost btn-sm" onClick={exportCsv} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Download size={15} /> Export CSV
         </button>
-        <Link to="/organizer/scanner" className="btn btn-pri btn-sm">
-          📷 Scan QR
+        <Link to="/organizer/scanner" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Camera size={15} /> Scan QR
         </Link>
       </div>
 
@@ -143,7 +147,7 @@ export default function Attendees() {
                   <td className="muted">{r.whatsapp}</td>
                   <td>{r.tierName}</td>
                   <td>
-                    {s === 'checked-in' && <span className="badge badge-ok">Checked in ✓</span>}
+                    {s === 'checked-in' && <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Checked in <CheckCircle2 size={13} /></span>}
                     {s === 'confirmed' && <span className="badge badge-pending">Confirmed</span>}
                     {s === 'refunded' && <span className="badge badge-danger">Refunded</span>}
                   </td>

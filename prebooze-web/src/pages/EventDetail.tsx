@@ -44,6 +44,10 @@ import Stepper from '../components/Stepper';
 import EventCard from '../components/EventCard';
 import ShareButton from '../components/ShareButton';
 import ReviewsSection from '../components/ReviewsSection';
+import {
+  Calendar, MapPin, Clock, Flame, Download, Headphones, Landmark, Eye, CheckCircle2, BadgeCheck,
+  Star, Mic, Tag, Megaphone, Frown, PartyPopper, ListPlus, Lock, Ticket, X, Hourglass, Martini,
+} from 'lucide-react';
 
 /** Real event + venue + organizer + reviews + recommended, all from the
  * live catalog API — this page used to read purely from the local mock
@@ -293,18 +297,18 @@ export default function EventDetail() {
               <div className="detail-title">
                 <h1>{event.title}</h1>
                 <div className="detail-meta">
-                  <span>📅 {fmtDate(event.date)}, {fmtTime(event.date)}</span>
-                  <span>
-                    📍 {venue ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Calendar size={13} /> {fmtDate(event.date)}, {fmtTime(event.date)}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <MapPin size={13} /> {venue ? (
                       <><Link to={venuePath(venue.city, venue.id)} className="link">{venue.name}</Link>, {venue.city}</>
                     ) : (
                       eventLocation(event)
                     )}
                   </span>
-                  <span>⏱ {event.durationHrs} hrs</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Clock size={13} /> {event.durationHrs} hrs</span>
                   {showGoing(event) && (
-                    <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
-                      🔥 {going.toLocaleString('en-IN')} going
+                    <span style={{ color: 'var(--accent)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      <Flame size={13} /> {going.toLocaleString('en-IN')} going
                       {event.recentActivity && ` · ${event.recentActivity.count} booked ${event.recentActivity.window === 'today' ? 'today' : 'this week'}`}
                     </span>
                   )}
@@ -317,8 +321,8 @@ export default function EventDetail() {
                   ))}
                   <ShareButton path={eventCityName ? eventPath(eventCityName, event.slug) : `/events/${event.slug}`} text={`${event.title} 🎟️ — book on Prebooze:`} />
                   {event.socialBanners?.storyUrl && (
-                    <a href={event.socialBanners.storyUrl} download className="chip small" style={{ textDecoration: 'none' }}>
-                      ⬇ Story image
+                    <a href={event.socialBanners.storyUrl} download className="chip small" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Download size={12} /> Story image
                     </a>
                   )}
                 </div>
@@ -340,13 +344,13 @@ export default function EventDetail() {
                       {organizer.logoUrl ? (
                         <img src={organizer.logoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
                       ) : (
-                        <span className="avatar">🎧</span>
+                        <span className="avatar"><Headphones size={20} /></span>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div className="tiny muted-2">{event.hostedByVenue ? 'In collaboration with' : 'Hosted by'}</div>
                         <div className="bold small">
-                          {organizer.brandName} {organizer.verified && <span className="verified">✓</span>}{' '}
-                          <span className="muted" style={{ fontWeight: 400 }}>· ★ {organizer.rating}</span>
+                          {organizer.brandName} {organizer.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span>}{' '}
+                          <span className="muted" style={{ fontWeight: 400, display: 'inline-flex', alignItems: 'center', gap: 3 }}>· <Star size={12} /> {organizer.rating}</span>
                         </div>
                       </div>
                       <span className="link small">View →</span>
@@ -362,19 +366,19 @@ export default function EventDetail() {
                       {venue.logoUrl ? (
                         <img src={venue.logoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
                       ) : (
-                        <span className="avatar">🏛</span>
+                        <span className="avatar"><Landmark size={20} /></span>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div className="tiny muted-2">{event.hostedByVenue ? 'Hosted by' : 'Hosted at'}</div>
                         <div className="bold small">
-                          {venue.name} {venue.verified && <span className="verified">✓</span>}
+                          {venue.name} {venue.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span>}
                         </div>
                       </div>
                       <span className="link small">View →</span>
                     </Link>
                   ) : (
                     <div className="evrow" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
-                      <span className="avatar">📍</span>
+                      <span className="avatar"><MapPin size={20} /></span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div className="tiny muted-2">Location</div>
                         <div className="bold small">{eventLocation(event)}</div>
@@ -385,16 +389,16 @@ export default function EventDetail() {
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
                     <div style={{ minWidth: 0 }}>
-                      <div className="bold small">
-                        {showGoing(event) ? `${going.toLocaleString('en-IN')} going` : going === 0 ? 'Be the first to go 👀' : 'Guests are already going 👀'}
+                      <div className="bold small" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {showGoing(event) ? `${going.toLocaleString('en-IN')} going` : going === 0 ? <>Be the first to go <Eye size={14} /></> : <>Guests are already going <Eye size={14} /></>}
                       </div>
                     </div>
                     <div style={{ flex: 1 }} />
                     {status === 'going' ? (
-                      <span className="badge badge-accent">You're going ✓</span>
+                      <span className="badge badge-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>You're going <CheckCircle2 size={13} /></span>
                     ) : !isOwnEvent ? (
-                      <button className={`btn btn-sm ${status === 'interested' ? 'btn-pri' : 'btn-ghost'}`} onClick={() => toggleInterested(event.id)}>
-                        {status === 'interested' ? '★ Interested' : '☆ Interested'}
+                      <button className={`btn btn-sm ${status === 'interested' ? 'btn-pri' : 'btn-ghost'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={() => toggleInterested(event.id)}>
+                        <Star size={13} fill={status === 'interested' ? 'currentColor' : 'none'} /> Interested
                       </button>
                     ) : null}
                   </div>
@@ -467,11 +471,11 @@ export default function EventDetail() {
                         {profile?.logoUrl ? (
                           <img src={profile.logoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
                         ) : (
-                          <span className="avatar">{profile?.emoji ?? (l.role.includes('DJ') || l.role.includes('artist') ? '🎤' : '🏷')}</span>
+                          <span className="avatar">{profile?.emoji ?? (l.role.includes('DJ') || l.role.includes('artist') ? <Mic size={18} /> : <Tag size={18} />)}</span>
                         )}
                         <span className="who">
                           <span className="n" style={{ display: 'block' }}>
-                            {l.name} {profile?.verified && <span className="verified">✓</span>}
+                            {l.name} {profile?.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span>}
                           </span>
                           <span className="r">{l.role}{profile ? ' · view profile →' : ''}</span>
                         </span>
@@ -548,10 +552,10 @@ export default function EventDetail() {
                 <div className="lineup">
                   {taggedPromoters.map((p) => (
                     <Link key={p.slug} to={promoterPath(p.city, p.slug)} className="lineup-item" style={{ borderColor: 'var(--border-3)' }}>
-                      <span className="avatar">📣</span>
+                      <span className="avatar"><Megaphone size={18} /></span>
                       <span className="who">
                         <span className="n" style={{ display: 'block' }}>
-                          {p.name} {p.verified && <span className="verified">✓</span>}
+                          {p.name} {p.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span>}
                         </span>
                         <span className="r">Free-entry guest list · view profile →</span>
                       </span>
@@ -611,20 +615,20 @@ export default function EventDetail() {
           )}
           <aside className={`ticket-box card card-shadow ${isMobile ? (ticketBoxOpen ? 'ticket-box-sheet' : 'ticket-box-bar') : ''}`}>
             {refPromoter && showFullTicketBox && (
-              <div className="dashed-box" style={{ border: '1.5px dashed var(--accent)', borderRadius: 10, padding: '8px 10px', fontSize: 12, marginBottom: 12 }}>
-                📣 Referred by <b>{refPromoter.name}</b> — they’ll be credited for your booking.
+              <div className="dashed-box" style={{ border: '1.5px dashed var(--accent)', borderRadius: 10, padding: '8px 10px', fontSize: 12, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Megaphone size={13} /> Referred by <b>{refPromoter.name}</b> — they’ll be credited for your booking.
               </div>
             )}
             {!showFullTicketBox ? (
-              <button className="btn btn-pri btn-block btn-lg" onClick={() => setTicketBoxOpen(true)}>
-                {eventOver ? '😔 Sold out' : allSoldOut ? '😔 Sold out — join the waitlist' : `🎟 Book ticket — ${formatFromPrice(minPrice, hasCurrentlyPaidTier(event.tiers, event.date))} →`}
+              <button className="btn btn-pri btn-block btn-lg" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={() => setTicketBoxOpen(true)}>
+                {eventOver ? <><Frown size={16} /> Sold out</> : allSoldOut ? <><Frown size={16} /> Sold out — join the waitlist</> : <><Ticket size={16} /> Book ticket — {formatFromPrice(minPrice, hasCurrentlyPaidTier(event.tiers, event.date))} →</>}
               </button>
             ) : (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                   <h3>Select tickets</h3>
                   {isMobile && (
-                    <button className="btn btn-ghost btn-sm" aria-label="Collapse" onClick={() => setTicketBoxOpen(false)}>✕</button>
+                    <button className="btn btn-ghost btn-sm" aria-label="Collapse" onClick={() => setTicketBoxOpen(false)}><X size={14} /></button>
                   )}
                 </div>
             {event.tiers.map((t) => {
@@ -640,20 +644,27 @@ export default function EventDetail() {
                       )}
                     </div>
                     {t.includes.length > 0 && (
-                      <div className="includes">✓ {t.includes.join(' · ✓ ')}</div>
+                      <div className="includes" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 4px' }}>
+                        {t.includes.map((inc, i) => (
+                          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            {i > 0 && <span>·</span>}
+                            <CheckCircle2 size={11} /> {inc}
+                          </span>
+                        ))}
+                      </div>
                     )}
                     {t.description && <div className="includes" style={{ marginTop: 2 }}>{t.description}</div>}
                     {tierCountdownLabel(t, event.date) && (
-                      <div className="tiny accent" style={{ marginTop: 2, fontWeight: 700 }}>
-                        ⏳ {tierCountdownLabel(t, event.date)} left at this price
+                      <div className="tiny accent" style={{ marginTop: 2, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Hourglass size={11} /> {tierCountdownLabel(t, event.date)} left at this price
                       </div>
                     )}
                     {tierWindowCaption(t, event.date) && (
                       <div className="tiny muted" style={{ marginTop: 2 }}>{tierWindowCaption(t, event.date)}</div>
                     )}
                     {!!t.coverCharge && (
-                      <div className="tiny accent" style={{ marginTop: 2 }}>
-                        🍹 Includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote ? ` (${t.coverChargeNote})` : ''}
+                      <div className="tiny accent" style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Martini size={13} /> Includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote ? ` (${t.coverChargeNote})` : ''}
                       </div>
                     )}
                   </div>
@@ -675,15 +686,15 @@ export default function EventDetail() {
             </div>
             {eventOver ? (
               <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
-                <div className="bold" style={{ marginBottom: 4 }}>Sold out 😔</div>
+                <div className="bold" style={{ marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>Sold out <Frown size={16} /></div>
                 <div className="tiny muted-2">This event has already happened.</div>
               </div>
             ) : allSoldOut ? (
               <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
-                <div className="bold" style={{ marginBottom: 4 }}>Sold out 😔</div>
+                <div className="bold" style={{ marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>Sold out <Frown size={16} /></div>
                 {myEntry?.status === 'offered' ? (
                   <>
-                    <div className="accent bold small" style={{ marginBottom: 8 }}>🎉 A spot just opened up for you!</div>
+                    <div className="accent bold small" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><PartyPopper size={14} /> A spot just opened up for you!</div>
                     <div className="tiny muted-2">First come, first served — complete your booking before it's re-offered.</div>
                   </>
                 ) : myEntry ? (
@@ -698,12 +709,13 @@ export default function EventDetail() {
                     </p>
                     <button
                       className="btn btn-pri btn-block"
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                       onClick={() => {
                         joinWaitlist(event.id);
                         setTimeout(refetchWaitlist, 600); // let the real POST land, then pull the authoritative queue
                       }}
                     >
-                      🎗 Join the waitlist ({queue.filter((w) => w.status === 'waiting').length} waiting)
+                      <ListPlus size={15} /> Join the waitlist ({queue.filter((w) => w.status === 'waiting').length} waiting)
                     </button>
                   </>
                 ) : (
@@ -711,12 +723,12 @@ export default function EventDetail() {
                 )}
               </div>
             ) : existingRole(user) ? (
-              <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: '10px 12px', fontSize: 12.5 }} >
-                🔒 {roleLabel(existingRole(user)!)[0].toUpperCase() + roleLabel(existingRole(user)!).slice(1)} accounts can't book tickets — use a personal number to attend as a guest.
+              <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: '10px 12px', fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6 }} >
+                <Lock size={13} /> {roleLabel(existingRole(user)!)[0].toUpperCase() + roleLabel(existingRole(user)!).slice(1)} accounts can't book tickets — use a personal number to attend as a guest.
               </div>
             ) : salesPaused ? (
-              <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: '10px 12px', fontSize: 12.5 }}>
-                🎫 Ticket sales are temporarily paused platform-wide — check back shortly.
+              <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: '10px 12px', fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Ticket size={13} /> Ticket sales are temporarily paused platform-wide — check back shortly.
               </div>
             ) : (
               <button className="btn btn-pri btn-block btn-lg" disabled={ticketCount === 0} onClick={book}>
@@ -728,14 +740,14 @@ export default function EventDetail() {
             {status !== 'going' && !isOwnEvent && (
               <button
                 className={`btn btn-block btn-sm ${status === 'interested' ? 'btn-pri' : 'btn-ghost'}`}
-                style={{ marginTop: 8 }}
+                style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
                 onClick={() => toggleInterested(event.id)}
               >
-                {status === 'interested' ? '★ Interested — saved' : '☆ Interested'}
+                <Star size={13} fill={status === 'interested' ? 'currentColor' : 'none'} /> {status === 'interested' ? 'Interested — saved' : 'Interested'}
               </button>
             )}
-                <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-                  🔒 secure checkout · <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link>
+                <div className="tiny muted-2 center" style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                  <Lock size={11} /> secure checkout · <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link>
                 </div>
               </>
             )}

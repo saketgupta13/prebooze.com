@@ -6,6 +6,7 @@ import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Venue, Event } from '../types';
 import Poster from '../components/Poster';
+import { Landmark, Heart } from 'lucide-react';
 import { venuePath } from '../lib/urls';
 
 const TYPE_PLACEHOLDER = 'Venue type';
@@ -62,7 +63,7 @@ export default function Venues() {
       <div className="container">
         <div className="chip-row" style={{ marginBottom: 20, gap: 10, alignItems: 'center' }}>
           <input
-            placeholder="🔍 Search venues…"
+            placeholder="Search venues…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             style={{ maxWidth: 240, borderRadius: 999 }}
@@ -96,9 +97,9 @@ export default function Venues() {
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavVenue(v.id); }}
                   style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, background: 'rgba(0,0,0,.45)', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  {fav ? '❤️' : '🤍'}
+                  <Heart size={15} fill={fav ? 'currentColor' : 'none'} />
                 </button>
-                <Poster hue={v.photoHue} emoji="🏛" label={v.galleryUrls?.[0] ? undefined : 'venue photo'} imageUrl={v.galleryUrls?.[0]} variant="landscape" alt={v.name} />
+                <Poster hue={v.photoHue} icon={<Landmark size={40} />} label={v.galleryUrls?.[0] ? undefined : 'venue photo'} imageUrl={v.galleryUrls?.[0]} variant="landscape" alt={v.name} />
                 {v.logoUrl && <img src={v.logoUrl} alt="" width={38} height={38} loading="lazy" decoding="async" className="ecard-logo" />}
                 <div>
                   <h3>

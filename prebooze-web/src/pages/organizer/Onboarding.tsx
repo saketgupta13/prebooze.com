@@ -12,6 +12,7 @@ import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
 import { useDraftLead } from '../../lib/useDraftLead';
 import CategoryIcon from '../../components/CategoryIcon';
+import { CheckCircle2, X, Check, ArrowLeft, ArrowRight } from 'lucide-react';
 
 const DRAFT_ID = 'organizer';
 const slugify = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -135,7 +136,7 @@ export default function Onboarding() {
             value={logo}
             onChange={setLogo}
             label="logo + — Brand logo — shown on every event you publish"
-            doneLabel="✓ Logo added — click to replace"
+            doneLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckCircle2 size={13} /> Logo added — click to replace</span>}
             style={{ marginBottom: 16 }}
           />
 
@@ -149,7 +150,7 @@ export default function Onboarding() {
             <div className="chip-row">
               {categories.map((c) => (
                 <button type="button" key={c.name} className={`chip ${types.includes(c.name) ? 'on' : ''}`} onClick={() => toggleType(c.name)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <CategoryIcon name={c.name} size={15} /> {c.name}{types.includes(c.name) ? ' ✓' : ''}
+                  <CategoryIcon name={c.name} size={15} /> {c.name}{types.includes(c.name) ? <Check size={12} /> : ''}
                 </button>
               ))}
             </div>
@@ -175,20 +176,20 @@ export default function Onboarding() {
                     onChange={(e) => setOtherLink(i, e.target.value)}
                     placeholder={i === 0 ? 'Website, X, YouTube…' : 'Another link'}
                   />
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeOtherLink(i)} title="Remove">✕</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeOtherLink(i)} title="Remove"><X size={13} /></button>
                 </div>
               ))}
               <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addOtherLink}>+ Add another link</button>
             </div>
           </div>
 
-          {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+          {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
           <div style={{ display: 'flex', gap: 10 }}>
-            <button type="button" className="btn btn-ghost" style={{ flexShrink: 0 }} onClick={() => navigate(-1)}>
-              ← Back
+            <button type="button" className="btn btn-ghost" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => navigate(-1)}>
+              <ArrowLeft size={15} /> Back
             </button>
-            <button className="btn btn-pri btn-lg" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }} disabled={!valid || submitting}>
-              {submitting ? 'Setting up…' : 'Create my organizer account →'}
+            <button className="btn btn-pri btn-lg" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={!valid || submitting}>
+              {submitting ? 'Setting up…' : <>Create my organizer account <ArrowRight size={15} /></>}
             </button>
           </div>
         </form>

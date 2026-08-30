@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { FEATURED_PRICING, fmtDate, venueById } from '../../data/mock';
@@ -9,6 +10,7 @@ import type { Event, EventStatus } from '../../types';
 import { eventCity, eventPath } from '../../lib/urls';
 import Poster from '../../components/Poster';
 import CategoryIcon from '../../components/CategoryIcon';
+import { CheckCircle2, X, Star, Pencil } from 'lucide-react';
 
 const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -18,10 +20,10 @@ const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'draft', label: 'Drafts' },
 ];
 
-const STATUS_BADGE: Record<EventStatus, { cls: string; label: string }> = {
-  approved: { cls: 'badge-ok', label: 'Approved ✓ · Live' },
+const STATUS_BADGE: Record<EventStatus, { cls: string; label: ReactNode }> = {
+  approved: { cls: 'badge-ok', label: <>Approved <CheckCircle2 size={11} /> · Live</> },
   pending: { cls: 'badge-pending', label: 'Pending review ◌' },
-  rejected: { cls: 'badge-danger', label: 'Rejected ✕' },
+  rejected: { cls: 'badge-danger', label: <>Rejected <X size={11} /></> },
   draft: { cls: 'badge-outline', label: 'Draft' },
 };
 
@@ -92,7 +94,7 @@ export default function MyEvents() {
       </div>
 
       {loading && <div className="empty">Loading…</div>}
-      {err && <div className="danger-text small">✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
       {!loading && !err && list.length === 0 && <div className="empty">No {scope} events{tab !== 'all' ? ` in ${tab}` : ''}.</div>}
 
       {list.length > 0 && (
@@ -104,7 +106,7 @@ export default function MyEvents() {
             const feat = findFeatured(featured, 'event', e.id);
             return (
               <div key={e.id} className="ecard" style={{ position: 'relative' }}>
-                <span className={`badge ${badge.cls}`} style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, fontSize: 10 }}>{badge.label}</span>
+                <span className={`badge ${badge.cls}`} style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 3 }}>{badge.label}</span>
                 <Poster hue={e.posterHue} icon={<CategoryIcon name={e.category} />} imageUrl={e.posterUrl} alt={e.title} />
                 <div className="ecard-body">
                   <h3>{e.title}</h3>
@@ -125,18 +127,18 @@ export default function MyEvents() {
                   <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
                     {e.status === 'approved' && (
                       feat?.status === 'active' ? (
-                        <span className="badge badge-accent" title={`Featured until ${fmtDate(feat.expiresAt)}`}>★ Featured</span>
+                        <span className="badge badge-accent" title={`Featured until ${fmtDate(feat.expiresAt)}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Star size={11} /> Featured</span>
                       ) : feat?.status === 'pending' ? (
-                        <span className="badge badge-pending">★ Pending ◌</span>
+                        <span className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Star size={11} /> Pending ◌</span>
                       ) : (
-                        <button className="btn btn-ghost btn-sm" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} title={`Feature on the home page — ₹${FEATURED_PRICING.perEvent}`} onClick={() => featureEvent(e)}>
-                          ★ Feature
+                        <button className="btn btn-ghost btn-sm" style={{ borderColor: 'var(--accent)', color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 5 }} title={`Feature on the home page — ₹${FEATURED_PRICING.perEvent}`} onClick={() => featureEvent(e)}>
+                          <Star size={13} /> Feature
                         </button>
                       )
                     )}
                     <span style={{ flex: 1 }} />
-                    <Link to={`/organizer/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval">
-                      ✎ Edit
+                    <Link to={`/organizer/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      <Pencil size={13} /> Edit
                     </Link>
                     <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="icon-round" title="View as guest">
                       ⋮

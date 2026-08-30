@@ -8,6 +8,7 @@ import type { Organizer, Event } from '../types';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import DirectoryCard from '../components/DirectoryCard';
 import { cityHome, organizerPath } from '../lib/urls';
+import { Headphones, Star, CheckCircle2 } from 'lucide-react';
 
 /** Public directory of verified organizers in the selected city. */
 export default function Organizers() {
@@ -45,7 +46,7 @@ export default function Organizers() {
         <div className="breadcrumb">
           <Link to={cityHome(city)}>Home</Link> / Organizers
         </div>
-        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Organizers in {city} 🎧</h1>
+        <h1 style={{ fontSize: 26, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>Organizers in {city} <Headphones size={22} /></h1>
         <p className="muted" style={{ marginBottom: 18 }}>
           Every organizer listed here is KYC-verified before their first event goes live — no fake listings, no
           last-minute cancellations from an unverified host. Browse concerts, comedy nights, festivals and club
@@ -64,11 +65,11 @@ export default function Organizers() {
                 key={o.id}
                 to={organizerPath(o.city, o.id)}
                 hue={o.logoHue}
-                avatarText="🎧"
+                avatarText={<Headphones size={18} />}
                 avatarImage={o.logoUrl}
                 name={o.brandName}
                 verified={o.verified}
-                meta={`${o.city} · ★ ${o.rating} · since ${o.since}`}
+                meta={<>{o.city} · <Star size={11} style={{ verticalAlign: -1 }} /> {o.rating} · since {o.since}</>}
                 bio={o.about}
                 featured={feat.has(o.id)}
                 stats={
@@ -79,7 +80,7 @@ export default function Organizers() {
                 action={
                   isOwn ? null : (
                     <button className={`btn btn-sm btn-block ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(o.id)}>
-                      {isFollowing ? 'Following ✓' : '+ Follow'}
+                      {isFollowing ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Following <CheckCircle2 size={13} /></span> : '+ Follow'}
                     </button>
                   )
                 }

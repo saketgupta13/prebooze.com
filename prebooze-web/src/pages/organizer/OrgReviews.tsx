@@ -4,6 +4,7 @@ import { ApiError } from '../../api/client';
 import Stars from '../../components/Stars';
 import Loader from '../../components/Loader';
 import type { GuestReview } from '../../store/AppContext';
+import { X, Star, User } from 'lucide-react';
 
 /** Real reviews — GET /organizers/:id/reviews (view-only; moderation is
  * admin-only, same boundary the old mock already described). */
@@ -32,10 +33,10 @@ export default function OrgReviews() {
       <div className="muted small" style={{ marginBottom: 18 }}>
         what guests said after your events — reviews are moderated by Prebooze and can't be edited or removed by organizers
       </div>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
 
       <div className="kpis" style={{ marginBottom: 18 }}>
-        <div className="kpi"><div className="l">Average rating</div><div className="v">★ {avg.toFixed(1)}</div></div>
+        <div className="kpi"><div className="l">Average rating</div><div className="v" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Star size={16} /> {avg.toFixed(1)}</div></div>
         <div className="kpi"><div className="l">Total reviews</div><div className="v">{reviews.length}</div></div>
         <div className="kpi"><div className="l">5-star share</div><div className="v accent">{fiveStarShare}%</div></div>
       </div>
@@ -44,7 +45,7 @@ export default function OrgReviews() {
         {reviews.length === 0 && <div className="muted small">No reviews yet.</div>}
         {reviews.map((r) => (
           <div key={r.id} className="review" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <span className="avatar">👤</span>
+            <span className="avatar" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><User size={16} /></span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div>
                 <span className="bold">{r.author}</span> · <Stars rating={r.rating} /> ·{' '}

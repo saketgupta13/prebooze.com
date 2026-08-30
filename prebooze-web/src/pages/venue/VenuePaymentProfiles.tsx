@@ -5,6 +5,7 @@ import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
 import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import type { VenuePaymentProfile } from '../../api';
+import { AlertCircle, Check } from 'lucide-react';
 
 type Draft = {
   legalName: string; businessAddress: string; loc: LocationValue;
@@ -107,7 +108,7 @@ export default function VenuePaymentProfiles() {
       <p className="muted small" style={{ marginBottom: 18 }}>
         Bank accounts you can withdraw your hosting revenue to — hold more than one if you invoice under different entities. Withdrawals always pay out to whichever is set default. Doesn't require identity verification.
       </p>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
 
       {profiles.map((p) => (
         <div key={p.id} className="card" style={{ marginBottom: 12, maxWidth: 640 }}>
@@ -195,7 +196,7 @@ function ProfileForm({ draft, setDraft, valid, saving, onSave, onCancel }: {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-pri btn-sm" disabled={!valid || saving} onClick={onSave}>{saving ? 'Saving…' : 'Save ✓'}</button>
+        <button className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={!valid || saving} onClick={onSave}>{saving ? 'Saving…' : <>Save <Check size={14} /></>}</button>
         <button className="btn btn-ghost btn-sm" disabled={saving} onClick={onCancel}>Cancel</button>
       </div>
     </div>

@@ -8,6 +8,7 @@ import Loader from '../../components/Loader';
 import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 import type { Venue } from '../../types';
+import { AlertCircle, Upload, Check, BadgeCheck } from 'lucide-react';
 import { venuePath } from '../../lib/urls';
 
 /** Organizer panel's own Settings — a real, separate editing surface from
@@ -90,7 +91,7 @@ export default function VenueOrgSettings() {
         <h1 style={{ fontSize: 24, marginBottom: 18 }}>Settings</h1>
         <Link to={venuePath(venue.city, venue.id)} className="link small bold">View public page ↗</Link>
       </div>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
       <div style={{ marginBottom: 16 }}>
         <ChangePhoneNumber />
       </div>
@@ -108,7 +109,14 @@ export default function VenueOrgSettings() {
             <div style={{ flexBasis: '100%', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="field">
                 <span>Logo</span>
-                <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={venuePartner.upload} onBusyChange={setLogoUploading} label="⬆ upload logo" style={{ height: 100, width: 100 }} />
+                <RealUploadBox
+                  value={logoUrl}
+                  onChange={setLogoUrl}
+                  upload={venuePartner.upload}
+                  onBusyChange={setLogoUploading}
+                  label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Upload size={13} /> upload logo</span>}
+                  style={{ height: 100, width: 100 }}
+                />
               </div>
               <div className="field">
                 <span>Venue name</span>
@@ -137,8 +145,8 @@ export default function VenueOrgSettings() {
                 </div>
               </div>
               <div className="tiny muted-2">venue type, amenities, timings and photos live on the venue panel's My listing page — same record, one place for display details</div>
-              <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={saving || logoUploading} onClick={saveProfile}>
-                {logoUploading ? 'Uploading…' : saving ? 'Saving…' : 'Save profile ✓'}
+              <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={saving || logoUploading} onClick={saveProfile}>
+                {logoUploading ? 'Uploading…' : saving ? 'Saving…' : <>Save profile <Check size={14} /></>}
               </button>
             </div>
           )}
@@ -148,7 +156,7 @@ export default function VenueOrgSettings() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="bold small">
               Verification
-              {venue.verified && <span className="verified" style={{ marginLeft: 6 }}>✓</span>}
+              {venue.verified && <span className="verified" style={{ marginLeft: 6, display: 'inline-flex' }}><BadgeCheck size={13} /></span>}
             </div>
             <div className="tiny muted">
               {venue.verified ? 'Your identity is verified' : "License + address proof — a one-time verified badge, doesn't affect hosting"}

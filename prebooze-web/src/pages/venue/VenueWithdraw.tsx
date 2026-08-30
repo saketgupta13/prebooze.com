@@ -4,6 +4,7 @@ import { fmtMoney } from '../../data/mock';
 import Loader from '../../components/Loader';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
+import { AlertCircle, BadgeCheck, Check, Lock } from 'lucide-react';
 
 /** Withdraw available hosting balance — real POST /venue/hosting/withdraw.
  * Same shape as organizer/Withdraw.tsx: settlement itself is manual on our
@@ -54,7 +55,7 @@ export default function VenueWithdraw() {
         <Link to="/venue/hosting/ledger">← Hosting ledger</Link> / Withdraw
       </div>
       <h1 style={{ fontSize: 24, marginBottom: 18 }}>Withdraw to bank</h1>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
 
       <div className="card" style={{ maxWidth: 480, marginBottom: 16 }}>
         <div className="kv">
@@ -63,7 +64,7 @@ export default function VenueWithdraw() {
         </div>
         <div className="kv">
           <span className="k">Payout account</span>
-          <span>{defaultBankLast4 ? <>•••• {defaultBankLast4} <span className="verified">✓</span></> : 'No payment profile on file — add one in Settings'}</span>
+          <span>{defaultBankLast4 ? <>•••• {defaultBankLast4} <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span></> : 'No payment profile on file — add one in Settings'}</span>
         </div>
         <div className="field" style={{ marginTop: 12 }}>
           <span>Amount to withdraw</span>
@@ -76,7 +77,7 @@ export default function VenueWithdraw() {
             </button>
           ))}
         </div>
-        {amt > balance && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ More than your available balance</div>}
+        {amt > balance && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> More than your available balance</div>}
 
         {!confirming ? (
           <button className="btn btn-pri btn-block btn-lg" disabled={!valid} onClick={() => setConfirming(true)}>
@@ -88,15 +89,15 @@ export default function VenueWithdraw() {
               Request a withdrawal of <b>{fmtMoney(amt)}</b> to {defaultBankLast4 ? `•••• ${defaultBankLast4}` : 'your account on file'}? Our team processes it from here.
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-pri" style={{ flex: 1 }} disabled={submitting} onClick={confirm}>
-                {submitting ? 'Submitting…' : 'Confirm ✓'}
+              <button className="btn btn-pri" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={submitting} onClick={confirm}>
+                {submitting ? 'Submitting…' : <>Confirm <Check size={14} /></>}
               </button>
               <button className="btn btn-ghost" disabled={submitting} onClick={() => setConfirming(false)}>Back</button>
             </div>
           </div>
         )}
-        <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-          🔒 payouts settle only to the account on file for your venue profile
+        <div className="tiny muted-2 center" style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+          <Lock size={12} /> payouts settle only to the account on file for your venue profile
         </div>
       </div>
     </div>

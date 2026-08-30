@@ -8,6 +8,7 @@ import Loader from '../../components/Loader';
 import type { Event } from '../../types';
 import { eventLocation } from '../../lib/venue';
 import type { PromoterGuest } from '../../store/AppContext';
+import { ArrowLeft, Ticket, Banknote, Download, CheckCircle2 } from 'lucide-react';
 
 type Mode = 'guestlist' | 'commission';
 interface PaidGuest {
@@ -91,7 +92,7 @@ export default function PromoterGuestList() {
       <div>
         <h1 style={{ fontSize: 24 }}>Event not found</h1>
         {err && <div className="tiny danger-text" style={{ marginTop: 8 }}>{err}</div>}
-        <Link to="/promoter/promotions" className="btn btn-ghost" style={{ marginTop: 12 }}>← My promotions</Link>
+        <Link to="/promoter/promotions" className="btn btn-ghost" style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}><ArrowLeft size={14} /> My promotions</Link>
       </div>
     );
   }
@@ -140,7 +141,7 @@ export default function PromoterGuestList() {
   return (
     <div>
       <div className="breadcrumb">
-        <Link to="/promoter/promotions">← My promotions</Link> / {event.title}
+        <Link to="/promoter/promotions" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> My promotions</Link> / {event.title}
       </div>
       <h1 style={{ fontSize: 24 }}>Live guest list</h1>
       <div className="muted small" style={{ marginBottom: 18 }}>
@@ -153,11 +154,11 @@ export default function PromoterGuestList() {
 
       {modes.length > 1 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <button type="button" className={`btn btn-sm ${activeTab === 'guestlist' ? 'btn-pri' : 'btn-ghost'}`} onClick={() => setTab('guestlist')}>
-            🎟️ Guest list
+          <button type="button" className={`btn btn-sm ${activeTab === 'guestlist' ? 'btn-pri' : 'btn-ghost'}`} onClick={() => setTab('guestlist')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Ticket size={14} /> Guest list
           </button>
-          <button type="button" className={`btn btn-sm ${activeTab === 'commission' ? 'btn-pri' : 'btn-ghost'}`} onClick={() => setTab('commission')}>
-            💰 Paid commission
+          <button type="button" className={`btn btn-sm ${activeTab === 'commission' ? 'btn-pri' : 'btn-ghost'}`} onClick={() => setTab('commission')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Banknote size={14} /> Paid commission
           </button>
         </div>
       )}
@@ -226,7 +227,7 @@ export default function PromoterGuestList() {
                     ))}
                   </select>
                 )}
-                <button className="btn btn-ghost btn-sm" onClick={exportFreeEntry} disabled={!filteredGuests.length}>⬇ Export CSV</button>
+                <button className="btn btn-ghost btn-sm" onClick={exportFreeEntry} disabled={!filteredGuests.length} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Download size={14} /> Export CSV</button>
               </div>
             </div>
             {err && <div className="tiny danger-text" style={{ marginBottom: 8 }}>{err}</div>}
@@ -262,7 +263,7 @@ export default function PromoterGuestList() {
                         disabled={g.arrived}
                         onClick={() => checkIn(g.id)}
                       >
-                        {g.arrived ? 'Arrived ✓' : closed ? 'No-show' : 'Check in'}
+                        {g.arrived ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><CheckCircle2 size={11} /> Arrived</span> : closed ? 'No-show' : 'Check in'}
                       </button>
                     </span>
                   </div>
@@ -287,7 +288,7 @@ export default function PromoterGuestList() {
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
               <h3>Guests who bought via your link</h3>
-              <button className="btn btn-ghost btn-sm" onClick={exportPaid} disabled={!paidGuests.length}>⬇ Export CSV</button>
+              <button className="btn btn-ghost btn-sm" onClick={exportPaid} disabled={!paidGuests.length} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Download size={14} /> Export CSV</button>
             </div>
             {err && <div className="tiny danger-text" style={{ marginBottom: 8 }}>{err}</div>}
             {paidGuests.length === 0 ? (

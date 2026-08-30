@@ -5,6 +5,7 @@ import SubscriptionPlans from '../../components/SubscriptionPlans';
 import PromoteCard from '../../components/PromoteCard';
 import Loader from '../../components/Loader';
 import type { Invoice } from '../../types';
+import { X, Download } from 'lucide-react';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const fmtMoney = (n: number) => `₹${n.toLocaleString('en-IN')}`;
@@ -50,7 +51,7 @@ export default function PromoterSubscription() {
         Your plan sets how many guests you can add to lists each month. Upgrade any time — changes apply once payment
         is confirmed.
       </p>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
       <SubscriptionPlans api={promoter.subscription} usage={usage} />
 
       <div style={{ marginTop: 24 }}>
@@ -73,8 +74,8 @@ export default function PromoterSubscription() {
             <span className={`badge ${inv.status === 'issued' ? 'badge-ok' : 'badge-pending'}`}>
               {inv.status === 'issued' ? 'Issued' : 'Void'}
             </span>
-            <button className="btn btn-ghost btn-sm" disabled={downloadingId === inv.id} onClick={() => download(inv)}>
-              {downloadingId === inv.id ? 'Downloading…' : '⬇ Download PDF'}
+            <button className="btn btn-ghost btn-sm" disabled={downloadingId === inv.id} onClick={() => download(inv)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {downloadingId === inv.id ? 'Downloading…' : <><Download size={14} /> Download PDF</>}
             </button>
           </div>
         ))}

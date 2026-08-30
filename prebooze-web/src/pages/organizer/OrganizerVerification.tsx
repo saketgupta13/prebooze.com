@@ -6,6 +6,7 @@ import { FileDropBox } from '../../components/FileDropBox';
 import { dataUrlToFile } from '../../lib/fileUtils';
 import Loader from '../../components/Loader';
 import type { Organizer } from '../../types';
+import { BadgeCheck, ShieldCheck, X, Check, ArrowLeft, ArrowRight, IdCard, FileText, Camera, Lock } from 'lucide-react';
 
 const CONTACT_ROLES = ['Owner', 'Manager', 'Accountant', 'Other'] as const;
 type ContactRole = (typeof CONTACT_ROLES)[number];
@@ -84,9 +85,9 @@ export default function OrganizerVerification() {
   if (org.verified) {
     return (
       <div className="card" style={{ maxWidth: 560 }}>
-        <div className="bold" style={{ marginBottom: 6 }}>You're verified <span className="verified">✓</span></div>
+        <div className="bold" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>You're verified <span className="verified" style={{ display: 'inline-flex', alignItems: 'center' }}><BadgeCheck size={15} /></span></div>
         <p className="muted small">Your identity has been verified.</p>
-        <Link to="/organizer/settings" className="link small bold" style={{ display: 'inline-block', marginTop: 10 }}>← Back to Settings</Link>
+        <Link to="/organizer/settings" className="link small bold" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 10 }}><ArrowLeft size={13} /> Back to Settings</Link>
       </div>
     );
   }
@@ -94,11 +95,11 @@ export default function OrganizerVerification() {
   if (pending || done) {
     return (
       <div className="card" style={{ maxWidth: 560 }}>
-        <div className="bold" style={{ marginBottom: 6 }}>🛡 Verification under review</div>
+        <div className="bold" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><ShieldCheck size={16} /> Verification under review</div>
         <p className="muted small">
           We've got your details — our team usually reviews within 24h. You'll get a WhatsApp/email once you're verified.
         </p>
-        <Link to="/organizer/settings" className="link small bold" style={{ display: 'inline-block', marginTop: 10 }}>← Back to Settings</Link>
+        <Link to="/organizer/settings" className="link small bold" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 10 }}><ArrowLeft size={13} /> Back to Settings</Link>
       </div>
     );
   }
@@ -107,20 +108,20 @@ export default function OrganizerVerification() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
         <h1 style={{ fontSize: 24, marginBottom: 6 }}>Complete verification</h1>
-        <Link to="/organizer/settings" className="link small bold">← Back to Settings</Link>
+        <Link to="/organizer/settings" className="link small bold" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><ArrowLeft size={13} /> Back to Settings</Link>
       </div>
       <p className="muted small" style={{ marginBottom: 18 }}>
-        Identity verification only — gets you the <span className="verified">✓</span> verified badge. Doesn't affect withdrawals; add a payment profile for that in Settings.
+        Identity verification only — gets you the <span className="verified" style={{ display: 'inline-flex', alignItems: 'center' }}><BadgeCheck size={13} /></span> verified badge. Doesn't affect withdrawals; add a payment profile for that in Settings.
       </p>
 
       <div className="card" style={{ marginBottom: 16, maxWidth: 640 }}>
         <h3 style={{ marginBottom: 12 }}>Who are we verifying?</h3>
         <div className="chip-row">
-          <button type="button" className={`chip ${entityType === 'individual' ? 'on' : ''}`} onClick={() => setEntityType('individual')}>
-            Individual{entityType === 'individual' ? ' ✓' : ''}
+          <button type="button" className={`chip ${entityType === 'individual' ? 'on' : ''}`} onClick={() => setEntityType('individual')} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            Individual{entityType === 'individual' ? <Check size={12} /> : ''}
           </button>
-          <button type="button" className={`chip ${entityType === 'firm' ? 'on' : ''}`} onClick={() => setEntityType('firm')}>
-            Firm / Company / LLP{entityType === 'firm' ? ' ✓' : ''}
+          <button type="button" className={`chip ${entityType === 'firm' ? 'on' : ''}`} onClick={() => setEntityType('firm')} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            Firm / Company / LLP{entityType === 'firm' ? <Check size={12} /> : ''}
           </button>
         </div>
       </div>
@@ -132,14 +133,14 @@ export default function OrganizerVerification() {
             We don't have a way to validate these automatically — a real person on our team reviews them.
           </p>
           {entityType === 'individual' ? (
-            <FileDropBox value={aadhaar} onChange={setAadhaar} accept="image/*,.pdf" label="🪪 Upload your Aadhaar card" doneLabel="✓ Aadhaar uploaded — click to replace" style={{ marginBottom: 12 }} />
+            <FileDropBox value={aadhaar} onChange={setAadhaar} accept="image/*,.pdf" label={<><IdCard size={14} /> Upload your Aadhaar card</>} doneLabel={<><Check size={13} /> Aadhaar uploaded — click to replace</>} style={{ marginBottom: 12 }} />
           ) : (
             <>
-              <FileDropBox value={registration} onChange={setRegistration} accept="image/*,.pdf" label="📄 Upload your business registration document" doneLabel="✓ Registration doc uploaded — click to replace" style={{ marginBottom: 12 }} />
-              <FileDropBox value={ownerAadhaar} onChange={setOwnerAadhaar} accept="image/*,.pdf" label="🪪 Upload the owner's Aadhaar card" doneLabel="✓ Owner's Aadhaar uploaded — click to replace" style={{ marginBottom: 12 }} />
+              <FileDropBox value={registration} onChange={setRegistration} accept="image/*,.pdf" label={<><FileText size={14} /> Upload your business registration document</>} doneLabel={<><Check size={13} /> Registration doc uploaded — click to replace</>} style={{ marginBottom: 12 }} />
+              <FileDropBox value={ownerAadhaar} onChange={setOwnerAadhaar} accept="image/*,.pdf" label={<><IdCard size={14} /> Upload the owner's Aadhaar card</>} doneLabel={<><Check size={13} /> Owner's Aadhaar uploaded — click to replace</>} style={{ marginBottom: 12 }} />
             </>
           )}
-          <FileDropBox value={selfie} onChange={setSelfie} label="📷 capture or upload a selfie" doneLabel="✓ Selfie captured — click to replace" />
+          <FileDropBox value={selfie} onChange={setSelfie} label={<><Camera size={14} /> capture or upload a selfie</>} doneLabel={<><Check size={13} /> Selfie captured — click to replace</>} />
         </div>
       )}
 
@@ -179,14 +180,14 @@ export default function OrganizerVerification() {
         )}
       </div>
 
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
       <div style={{ display: 'flex', gap: 10, maxWidth: 640 }}>
-        <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>← Back</button>
-        <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!valid || submitting} onClick={submit}>
-          {submitting ? 'Submitting…' : 'Submit for verification →'}
+        <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><ArrowLeft size={15} /> Back</button>
+        <button className="btn btn-pri btn-lg" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={!valid || submitting} onClick={submit}>
+          {submitting ? 'Submitting…' : <>Submit for verification <ArrowRight size={15} /></>}
         </button>
       </div>
-      <div className="tiny muted-2" style={{ marginTop: 10 }}>🔒 reviewed manually by our team · usually approved within 24h</div>
+      <div className="tiny muted-2" style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 5 }}><Lock size={12} /> reviewed manually by our team · usually approved within 24h</div>
     </div>
   );
 }

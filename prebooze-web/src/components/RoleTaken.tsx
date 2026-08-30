@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Lock } from 'lucide-react';
 import type { Role } from '../lib/roles';
 import { roleHome, roleLabel } from '../lib/roles';
 
@@ -8,7 +9,7 @@ export default function RoleTaken({ has }: { has: Role }) {
     <main className="page">
       <div className="container center" style={{ padding: '72px 0' }}>
         <div className="card card-shadow" style={{ maxWidth: 460, margin: '0 auto', textAlign: 'center' }}>
-          <div style={{ fontSize: 34 }}>🔒</div>
+          <div style={{ display: 'flex', justifyContent: 'center' }}><Lock size={34} /></div>
           <h1 style={{ fontSize: 22, marginTop: 8 }}>One number, one role</h1>
           <p className="muted" style={{ margin: '10px 0 18px' }}>
             This number is already registered as a <b>{roleLabel(has)}</b>. A number can hold only one role — use a

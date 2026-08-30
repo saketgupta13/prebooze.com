@@ -7,6 +7,7 @@ import { isBackendEnabled } from '../api/client';
 import type { Event, Venue } from '../types';
 import EventCard from '../components/EventCard';
 import Poster from '../components/Poster';
+import { Heart, Landmark } from 'lucide-react';
 import { cityBrowse, cityVenues, venuePath } from '../lib/urls';
 
 /** Saved events — the guest's wishlist. Wishlist/favourite membership itself
@@ -40,7 +41,7 @@ export default function Wishlist() {
         <div className="breadcrumb">
           <Link to="/profile">Profile</Link> / Wishlist
         </div>
-        <h1 style={{ fontSize: 26, marginBottom: 4 }}>My wishlist ❤️</h1>
+        <h1 style={{ fontSize: 26, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>My wishlist <Heart size={22} fill="currentColor" /></h1>
         <p className="muted" style={{ marginBottom: 22 }}>
           Events you've saved for later — tap the heart on any event to add it here.
         </p>
@@ -58,13 +59,13 @@ export default function Wishlist() {
         )}
 
         <div className="section-hd" style={{ marginTop: 34 }}>
-          <h2>Favourite venues ({favVenues.length}) 🏛</h2>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Favourite venues ({favVenues.length}) <Landmark size={20} /></h2>
           <Link to={cityVenues(city)}>Browse venues →</Link>
         </div>
         {loading ? (
           <div className="tiny muted">Loading…</div>
         ) : favVenues.length === 0 ? (
-          <div className="empty">No favourite venues yet — tap 🤍 on any venue.</div>
+          <div className="empty" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>No favourite venues yet — tap <Heart size={14} /> on any venue.</div>
         ) : (
           <div className="grid-3">
             {favVenues.map((id) => {
@@ -79,9 +80,9 @@ export default function Wishlist() {
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavVenue(v.id); }}
                     style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, background: 'rgba(0,0,0,.45)', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    ❤️
+                    <Heart size={15} fill="currentColor" />
                   </button>
-                  <Poster hue={v.photoHue} emoji="🏛" label={v.galleryUrls?.[0] ? undefined : 'venue photo'} imageUrl={v.galleryUrls?.[0]} variant="landscape" alt={v.name} />
+                  <Poster hue={v.photoHue} icon={<Landmark size={40} />} label={v.galleryUrls?.[0] ? undefined : 'venue photo'} imageUrl={v.galleryUrls?.[0]} variant="landscape" alt={v.name} />
                   {v.logoUrl && <img src={v.logoUrl} alt="" width={38} height={38} loading="lazy" decoding="async" className="ecard-logo" />}
                   <div>
                     <h3>

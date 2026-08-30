@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Star } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { fmtDate } from '../data/mock';
 import { featured as featuredApi } from '../api';
@@ -114,7 +115,7 @@ export default function PromoteCard({
     <div className="card" style={{ marginBottom: 18, borderColor: rec?.status === 'active' ? 'var(--accent)' : undefined }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h3>Get featured ⭐</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Get featured <Star size={18} /></h3>
           <p className="muted small" style={{ marginTop: 4, maxWidth: 440 }}>
             Feature {label} on the {city} home page and directory — you jump to the front of your slider with a
             Featured badge. Billed monthly, renews automatically.

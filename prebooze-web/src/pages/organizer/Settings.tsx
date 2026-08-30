@@ -9,6 +9,7 @@ import LocationPicker, { emptyLocation, type LocationValue } from '../../compone
 import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 import type { Organizer, PaymentProfile } from '../../types';
 import { organizerPath } from '../../lib/urls';
+import { ExternalLink, X, Upload, Check, BadgeCheck, ArrowRight } from 'lucide-react';
 
 const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
 
@@ -112,9 +113,9 @@ export default function Settings() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
         <h1 style={{ fontSize: 24, marginBottom: 18 }}>Settings</h1>
-        <Link to={organizerPath(org.city, org.id)} className="link small bold">View public profile ↗</Link>
+        <Link to={organizerPath(org.city, org.id)} className="link small bold" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>View public profile <ExternalLink size={13} /></Link>
       </div>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
       <div style={{ marginBottom: 16 }}>
         <ChangePhoneNumber />
       </div>
@@ -131,7 +132,7 @@ export default function Settings() {
             <div style={{ flexBasis: '100%', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="field">
                 <span>Logo</span>
-                <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={organizer.upload} onBusyChange={setLogoUploading} label="⬆ upload logo" style={{ height: 100, width: 100 }} />
+                <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={organizer.upload} onBusyChange={setLogoUploading} label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Upload size={13} /> upload logo</span>} style={{ height: 100, width: 100 }} />
               </div>
               <div className="form-row">
                 <div className="field">
@@ -183,7 +184,7 @@ export default function Settings() {
                         onChange={(e) => setOtherLink(i, e.target.value)}
                         placeholder={i === 0 ? 'Website, X, YouTube…' : 'Another link'}
                       />
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeOtherLink(i)} title="Remove">✕</button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeOtherLink(i)} title="Remove"><X size={13} /></button>
                     </div>
                   ))}
                   <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addOtherLink}>+ Add another link</button>
@@ -193,14 +194,14 @@ export default function Settings() {
                 <span>Event types you host</span>
                 <div className="chip-row">
                   {EVENT_TYPES.map((t) => (
-                    <button type="button" key={t} className={`chip ${eventTypes.includes(t) ? 'on' : ''}`} onClick={() => toggleType(t)}>
-                      {t}{eventTypes.includes(t) ? ' ✓' : ''}
+                    <button type="button" key={t} className={`chip ${eventTypes.includes(t) ? 'on' : ''}`} onClick={() => toggleType(t)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {t}{eventTypes.includes(t) ? <Check size={12} /> : ''}
                     </button>
                   ))}
                 </div>
               </div>
-              <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start' }} disabled={saving || logoUploading} onClick={saveProfile}>
-                {logoUploading ? 'Uploading logo…' : saving ? 'Saving…' : 'Save profile ✓'}
+              <button className="btn btn-pri btn-sm" style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={saving || logoUploading} onClick={saveProfile}>
+                {logoUploading ? 'Uploading logo…' : saving ? 'Saving…' : <>Save profile <Check size={13} /></>}
               </button>
             </div>
           )}
@@ -210,13 +211,13 @@ export default function Settings() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="bold small">
               Verification
-              {org.verified && <span className="verified" style={{ marginLeft: 6 }}>✓</span>}
+              {org.verified && <span className="verified" style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center' }}><BadgeCheck size={14} /></span>}
             </div>
             <div className="tiny muted">
               {org.verified ? 'Your identity is verified' : 'Aadhaar/registration + selfie — a one-time verified badge, doesn\'t affect withdrawals'}
             </div>
           </div>
-          {!org.verified && <Link to="/organizer/settings/verification" className="btn btn-pri btn-sm">Complete verification →</Link>}
+          {!org.verified && <Link to="/organizer/settings/verification" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>Complete verification <ArrowRight size={13} /></Link>}
         </div>
 
         <div className="evrow" style={{ flexWrap: 'wrap' }}>
@@ -228,7 +229,7 @@ export default function Settings() {
                 : 'No payment profile yet — required before withdrawing'}
             </div>
           </div>
-          <Link to="/organizer/settings/payment-profiles" className="btn btn-ghost btn-sm">Manage →</Link>
+          <Link to="/organizer/settings/payment-profiles" className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>Manage <ArrowRight size={13} /></Link>
         </div>
 
         <div className="evrow">
@@ -236,7 +237,7 @@ export default function Settings() {
             <div className="bold small">Team & roles</div>
             <div className="tiny muted">door-scan access, managers</div>
           </div>
-          <Link to="/organizer/team" className="btn btn-ghost btn-sm">Manage →</Link>
+          <Link to="/organizer/team" className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>Manage <ArrowRight size={13} /></Link>
         </div>
       </div>
     </div>

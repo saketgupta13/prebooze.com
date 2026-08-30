@@ -4,6 +4,7 @@ import { organizer, type OrgLedgerTx } from '../../api';
 import { ApiError } from '../../api/client';
 import type { CartRecord } from '../../store/AppContext';
 import type { Event } from '../../types';
+import { X, RotateCcw, MessageCircle } from 'lucide-react';
 
 const ago = (iso: string) => {
   const ms = Date.now() - new Date(iso).getTime();
@@ -95,7 +96,7 @@ export default function OrgAbandonedCarts() {
           ))}
         </select>
       </div>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
 
       <div className="kpis" style={{ marginBottom: 16 }}>
         <div className="kpi"><div className="l">Abandoned carts</div><div className="v">{mine.length}</div></div>
@@ -137,8 +138,8 @@ export default function OrgAbandonedCarts() {
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
                       {c.remindedAt && <span className="badge badge-accent" style={{ fontSize: 10 }}>reminded {ago(c.remindedAt)}</span>}
-                      <button className="btn btn-whatsapp btn-sm" disabled={reminding === c.id} onClick={() => remind(c.id)}>
-                        {reminding === c.id ? 'Sending…' : c.remindedAt ? '↻ Remind again' : '💬 Send reminder'}
+                      <button className="btn btn-whatsapp btn-sm" disabled={reminding === c.id} onClick={() => remind(c.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        {reminding === c.id ? 'Sending…' : c.remindedAt ? <><RotateCcw size={13} /> Remind again</> : <><MessageCircle size={13} /> Send reminder</>}
                       </button>
                     </div>
                   </td>

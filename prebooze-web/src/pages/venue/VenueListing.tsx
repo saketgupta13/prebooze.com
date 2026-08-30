@@ -10,6 +10,7 @@ import { venuePartner, catalog } from '../../api';
 import { ApiError, isBackendEnabled } from '../../api/client';
 import type { Venue } from '../../types';
 import { venuePath } from '../../lib/urls';
+import { AlertCircle, Upload, CheckCircle2, Check, MapPin, Clock, Info, Camera } from 'lucide-react';
 
 // Offline fallback only — see the live fetch below.
 const VENUE_TYPES_FALLBACK = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
@@ -116,8 +117,8 @@ export default function VenueListing() {
       updateUser({ venueName: updated.name });
       toast(
         updated.pendingCity
-          ? `Listing updated ✓ — city change to ${updated.pendingCity} is pending admin approval`
-          : 'Listing updated ✓ changes are live'
+          ? `Listing updated — city change to ${updated.pendingCity} is pending admin approval`
+          : 'Listing updated — changes are live'
       );
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : 'Failed to save listing');
@@ -146,7 +147,7 @@ export default function VenueListing() {
         This is exactly what guests see in the directory and what organizers see when picking a venue.
       </p>
 
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
       <form className="card" onSubmit={save}>
         <div className="field">
           <span>Venue name</span>
@@ -164,11 +165,19 @@ export default function VenueListing() {
         </div>
         <div className="field">
           <span>Logo — shown next to your venue name in the directory</span>
-          <RealUploadBox value={logoUrl} onChange={setLogoUrl} upload={venuePartner.upload} onBusyChange={setLogoUploading} label="⬆ upload logo" doneLabel="✓ Logo uploaded — click to replace" style={{ height: 100, width: 100 }} />
+          <RealUploadBox
+            value={logoUrl}
+            onChange={setLogoUrl}
+            upload={venuePartner.upload}
+            onBusyChange={setLogoUploading}
+            label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Upload size={13} /> upload logo</span>}
+            doneLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckCircle2 size={13} /> Logo uploaded — click to replace</span>}
+            style={{ height: 100, width: 100 }}
+          />
         </div>
         {pendingCity && (
-          <div className="dashed-box" style={{ border: '1.5px dashed var(--accent)', borderRadius: 10, padding: '8px 10px', fontSize: 12.5, marginBottom: 12 }}>
-            🏙 City change requested: <b>{venue.city} → {pendingCity}</b> — awaiting admin approval. Your listing still shows <b>{venue.city}</b> until it's approved.
+          <div className="dashed-box" style={{ border: '1.5px dashed var(--accent)', borderRadius: 10, padding: '8px 10px', fontSize: 12.5, marginBottom: 12, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+            <MapPin size={14} style={{ flexShrink: 0, marginTop: 1 }} /> <span>City change requested: <b>{venue.city} → {pendingCity}</b> — awaiting admin approval. Your listing still shows <b>{venue.city}</b> until it's approved.</span>
           </div>
         )}
         <LocationPicker value={loc} onChange={setLoc} />
@@ -194,11 +203,11 @@ export default function VenueListing() {
           </div>
         </div>
         <div className="field">
-          <span>🕒 Timings</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Clock size={13} /> Timings</span>
           <input value={timings} onChange={(e) => setTimings(e.target.value)} placeholder="e.g. Wed–Sun · 8 PM – 1 AM" />
         </div>
         <div className="field">
-          <span>ℹ️ About the venue</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Info size={13} /> About the venue</span>
           <WysiwygEditor value={about} onChange={setAbout} minHeight={80} />
         </div>
         <div className="form-row">
@@ -219,10 +228,10 @@ export default function VenueListing() {
           </div>
         </div>
         <div className="field">
-          <span>📷 Photos (up to 6) — shown in the guest directory and to organizers picking a venue</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Camera size={13} /> Photos (up to 6) — shown in the guest directory and to organizers picking a venue</span>
           <RealGalleryUploadBox value={galleryUrls} onChange={setGalleryUrls} upload={venuePartner.upload} onBusyChange={setGalleryUploading} />
         </div>
-        <button className="btn btn-pri btn-lg" disabled={saving || logoUploading || galleryUploading}>{(logoUploading || galleryUploading) ? 'Uploading…' : saving ? 'Saving…' : 'Save listing ✓'}</button>
+        <button className="btn btn-pri btn-lg" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={saving || logoUploading || galleryUploading}>{(logoUploading || galleryUploading) ? 'Uploading…' : saving ? 'Saving…' : <>Save listing <Check size={14} /></>}</button>
         <span className="tiny muted-2" style={{ marginLeft: 10 }}>changing city needs admin approval — everything else here is live immediately</span>
       </form>
     </div>

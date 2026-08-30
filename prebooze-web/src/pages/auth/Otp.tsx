@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { ApiError } from '../../api/client';
 import { usePlatformInfo } from '../../lib/usePlatformInfo';
+import { MessageCircle } from 'lucide-react';
 
 export default function Otp() {
   const { pendingPhone, pendingExistingName, loginWithOtp, requestOtp } = useApp();
@@ -106,8 +107,8 @@ export default function Otp() {
             ← Back
           </Link>
           <h1 style={{ fontSize: 24, marginTop: 8 }}>Enter the code</h1>
-          <p className="muted small" style={{ margin: '6px 0 4px' }}>
-            Sent via WhatsApp 💬 to <span className="bold">{masked}</span>
+          <p className="muted small" style={{ margin: '6px 0 4px', display: 'flex', alignItems: 'center', gap: 5 }}>
+            Sent via WhatsApp <MessageCircle size={13} /> to <span className="bold">{masked}</span>
           </p>
           <div className="otp-boxes">
             {digits.map((d, i) => (

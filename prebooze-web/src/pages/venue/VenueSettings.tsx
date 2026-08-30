@@ -5,6 +5,7 @@ import { auth, venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 import type { Venue } from '../../types';
+import { AlertCircle, Check, BadgeCheck } from 'lucide-react';
 
 /** Venue account settings — contact, notifications, payment method pointer,
  * identity verification. Real PATCH /me (the same generic profile endpoint
@@ -29,7 +30,7 @@ export default function VenueSettings() {
     try {
       const updated = await auth.updateMe({ name: contact.trim(), email: email.trim() });
       updateUser(updated);
-      toast('Settings saved ✓');
+      toast('Settings saved');
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : 'Failed to save settings');
     } finally {
@@ -41,7 +42,7 @@ export default function VenueSettings() {
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 16 }}>Settings</h1>
 
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
       <form className="card" onSubmit={save} style={{ marginBottom: 18 }}>
         <h3 style={{ marginBottom: 12 }}>Contact</h3>
         <div className="form-row">
@@ -54,7 +55,7 @@ export default function VenueSettings() {
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="venue@mail.com" />
           </div>
         </div>
-        <button className="btn btn-pri" disabled={saving}>{saving ? 'Saving…' : 'Save ✓'}</button>
+        <button className="btn btn-pri" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={saving}>{saving ? 'Saving…' : <>Save <Check size={14} /></>}</button>
       </form>
 
       <div style={{ marginBottom: 18 }}>
@@ -66,7 +67,7 @@ export default function VenueSettings() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="bold small">
               Verification
-              {venue.verified && <span className="verified" style={{ marginLeft: 6 }}>✓</span>}
+              {venue.verified && <span className="verified" style={{ marginLeft: 6, display: 'inline-flex' }}><BadgeCheck size={13} /></span>}
             </div>
             <div className="tiny muted">
               {venue.verified ? 'Your identity is verified' : "License + address proof — a one-time verified badge, doesn't affect your listing being live"}

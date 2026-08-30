@@ -4,6 +4,7 @@ import Loader from '../../components/Loader';
 import Accordion from '../../components/Accordion';
 import { venuePartner, type VenueHostingRequest } from '../../api';
 import { ApiError } from '../../api/client';
+import { PartyPopper, AlertCircle, CheckCircle2, Ticket, Banknote, Clock, XCircle } from 'lucide-react';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -47,24 +48,24 @@ export default function VenueHosting() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, marginBottom: 6 }}>🎪 Host your own events</h1>
+      <h1 style={{ fontSize: 24, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}><PartyPopper size={22} /> Host your own events</h1>
       <p className="muted small" style={{ marginBottom: 18 }}>
         List and sell tickets for events you run yourself at your venue — solo, or together with a real organizer on
         Prebooze. You stay the ledger-of-record: every sale credits your own hosting balance, Prebooze only ever
         takes its usual commission.
       </p>
-      {err && <div className="danger-text small" style={{ marginBottom: 12 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
 
       {hostingEnabled ? (
         <>
           <div className="card" style={{ borderColor: 'rgba(155,225,61,.4)', marginBottom: 18 }}>
-            <div className="bold" style={{ marginBottom: 6 }}>✓ Hosting is enabled for your venue</div>
+            <div className="bold" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={16} /> Hosting is enabled for your venue</div>
             <p className="small muted" style={{ marginBottom: 12 }}>
               You can create and manage your own events, with real ticket sales, from here.
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Link to="/venue/hosting/events" className="btn btn-pri btn-sm">🎟 Events I host →</Link>
-              <Link to="/venue/hosting/ledger" className="btn btn-ghost btn-sm">💰 Hosting ledger →</Link>
+              <Link to="/venue/hosting/events" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Ticket size={14} /> Events I host →</Link>
+              <Link to="/venue/hosting/ledger" className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Banknote size={14} /> Hosting ledger →</Link>
             </div>
           </div>
 
@@ -95,7 +96,7 @@ export default function VenueHosting() {
         </>
       ) : request?.status === 'pending' ? (
         <div className="card" style={{ borderColor: 'var(--accent)' }}>
-          <div className="bold" style={{ marginBottom: 6 }}>◌ Request sent — under review</div>
+          <div className="bold" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Clock size={16} /> Request sent — under review</div>
           <p className="small muted">
             Requested on {fmtDate(request.createdAt)}. Our team will reach out to walk you through hosting rules
             before switching this on — not every venue knows them going in, so we confirm with you first.
@@ -103,7 +104,7 @@ export default function VenueHosting() {
         </div>
       ) : request?.status === 'rejected' ? (
         <div className="card" style={{ borderColor: 'var(--danger)' }}>
-          <div className="bold" style={{ marginBottom: 6 }}>✕ Request not approved</div>
+          <div className="bold" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><XCircle size={16} /> Request not approved</div>
           {request.reviewNote && <p className="small muted" style={{ marginBottom: 12 }}>Reason: {request.reviewNote}</p>}
           <button className="btn btn-pri btn-sm" disabled={busy} onClick={requestHosting}>
             {busy ? 'Sending…' : 'Request again'}

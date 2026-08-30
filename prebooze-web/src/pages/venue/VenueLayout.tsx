@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import PendingReview, { RejectedReview } from '../../components/PendingReview';
+import { LayoutDashboard, Landmark, Calendar, Star, Sparkles, Settings, MoreHorizontal, X } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
-const NAV = [
-  { to: '/venue', label: '▦ Dashboard', end: true },
-  { to: '/venue/listing', label: '🏛 My listing' },
-  { to: '/venue/events', label: '📅 Events here' },
-  { to: '/venue/reviews', label: '★ Reviews' },
-  { to: '/venue/billing', label: '⭐ Featured & billing' },
-  { to: '/venue/settings', label: '⚙ Settings' },
+const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
+  { to: '/venue', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/venue/listing', label: 'My listing', icon: Landmark },
+  { to: '/venue/events', label: 'Events here', icon: Calendar },
+  { to: '/venue/reviews', label: 'Reviews', icon: Star },
+  { to: '/venue/billing', label: 'Featured & billing', icon: Sparkles },
+  { to: '/venue/settings', label: 'Settings', icon: Settings },
 ];
 
 const PINNED_COUNT = 4;
@@ -42,8 +44,8 @@ export default function VenueLayout() {
         <aside className="org-side org-side-desktop-only">
           <div className="cap">VENUE</div>
           {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
-              {n.label}
+            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <n.icon size={15} /> {n.label}
             </NavLink>
           ))}
         </aside>
@@ -68,18 +70,15 @@ function MobileOrgNav({ navItems }: { navItems: typeof NAV }) {
   return (
     <>
       <nav className="org-mobile-tabbar">
-        {pinned.map((n) => {
-          const [ico, ...labelParts] = n.label.split(' ');
-          return (
-            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
-              <span className="ico">{ico}</span>
-              {labelParts.join(' ')}
-            </NavLink>
-          );
-        })}
+        {pinned.map((n) => (
+          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
+            <span className="ico"><n.icon size={18} /></span>
+            {n.label}
+          </NavLink>
+        ))}
         {rest.length > 0 && (
           <button onClick={() => setOpen(true)}>
-            <span className="ico">⋯</span>
+            <span className="ico"><MoreHorizontal size={18} /></span>
             More
           </button>
         )}
@@ -90,11 +89,11 @@ function MobileOrgNav({ navItems }: { navItems: typeof NAV }) {
           <div className="org-drawer">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <span className="cap" style={{ padding: 0 }}>MORE</span>
-              <span onClick={() => setOpen(false)} style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: 18, lineHeight: 1 }}>✕</span>
+              <span onClick={() => setOpen(false)} style={{ cursor: 'pointer', color: 'var(--muted)', display: 'flex' }}><X size={18} /></span>
             </div>
             {rest.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => (isActive ? 'on' : '')}>
-                {n.label}
+              <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => (isActive ? 'on' : '')} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <n.icon size={15} /> {n.label}
               </NavLink>
             ))}
           </div>

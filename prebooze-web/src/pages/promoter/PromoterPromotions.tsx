@@ -9,6 +9,7 @@ import type { Event } from '../../types';
 import type { PromoterGuest } from '../../store/AppContext';
 import { copyToClipboard } from '../../lib/clipboard';
 import { absoluteUrl, cityBrowse, eventCity, eventPath } from '../../lib/urls';
+import { Megaphone, ArrowRight, CheckCircle2, Ticket, Banknote, Link2, ClipboardList, ExternalLink, Users } from 'lucide-react';
 
 type Mode = 'guestlist' | 'commission';
 
@@ -61,14 +62,14 @@ export default function PromoterPromotions() {
       <div>
         <h1 style={{ fontSize: 24, marginBottom: 16 }}>My promotions</h1>
         <div className="empty">
-          <div style={{ fontSize: 30, marginBottom: 10 }}>📣</div>
+          <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}><Megaphone size={30} /></div>
           No events yet. Organizers invite promoters per event — once you're added to an event's promoter
           list it shows up here with your affiliate link and a live guest list.
           <div className="tiny muted-2" style={{ marginTop: 10 }}>
             (you're signed in as <b>@{mySlug || 'unknown'}</b> — an organizer must allow this handle)
           </div>
           <div style={{ marginTop: 16 }}>
-            <Link to={cityBrowse(city)} className="btn btn-ghost">Browse events in your city →</Link>
+            <Link to={cityBrowse(city)} className="btn btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Browse events in your city <ArrowRight size={14} /></Link>
           </div>
         </div>
       </div>
@@ -149,7 +150,7 @@ export default function PromoterPromotions() {
                   </div>
                   {organizerOptions.length > 1 && <div className="tiny muted-2" style={{ marginTop: 2 }}>by {e.organizer?.brandName ?? 'organizer'}</div>}
                 </div>
-                <span className="badge badge-accent" style={{ height: 'fit-content' }}>You're allowed ✓</span>
+                <span className="badge badge-accent" style={{ height: 'fit-content', display: 'inline-flex', alignItems: 'center', gap: 4 }}>You're allowed <CheckCircle2 size={13} /></span>
               </div>
 
               <div className="hr" />
@@ -167,15 +168,17 @@ export default function PromoterPromotions() {
                     type="button"
                     className={`btn btn-sm ${tab === 'guestlist' ? 'btn-pri' : 'btn-ghost'}`}
                     onClick={() => setActiveTab((prev) => ({ ...prev, [e.id]: 'guestlist' }))}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
-                    🎟️ Guest list
+                    <Ticket size={14} /> Guest list
                   </button>
                   <button
                     type="button"
                     className={`btn btn-sm ${tab === 'commission' ? 'btn-pri' : 'btn-ghost'}`}
                     onClick={() => setActiveTab((prev) => ({ ...prev, [e.id]: 'commission' }))}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
-                    💰 Paid commission
+                    <Banknote size={14} /> Paid commission
                   </button>
                 </div>
               )}
@@ -210,19 +213,19 @@ export default function PromoterPromotions() {
                     {arrived > 0 && <> · <b className="accent">{arrived}</b> arrived</>}
                     {earned > 0 && <> · earned <b className="accent">₹{earned}</b></>}
                   </div>
-                  <div className="tiny muted-2" style={{ marginTop: 12 }}>🎟️ Free-entry link — guest skips the ticket, no purchase, no revenue-share earning</div>
+                  <div className="tiny muted-2" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 4 }}><Ticket size={12} /> Free-entry link — guest skips the ticket, no purchase, no revenue-share earning</div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <button className="btn btn-pri btn-sm" onClick={() => copy(link, e.id)}>
-                      {copied === e.id ? 'Copied ✓' : '🔗 Copy free-entry link'}
+                    <button className="btn btn-pri btn-sm" onClick={() => copy(link, e.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      {copied === e.id ? <><CheckCircle2 size={13} /> Copied</> : <><Link2 size={13} /> Copy free-entry link</>}
                     </button>
-                    <Link to={`/promoter/guests/${e.id}`} className="btn btn-ghost btn-sm">📋 Guest list</Link>
-                    <a href={link} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">Preview link ↗</a>
+                    <Link to={`/promoter/guests/${e.id}`} className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><ClipboardList size={13} /> Guest list</Link>
+                    <a href={link} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Preview link <ExternalLink size={13} /></a>
                   </div>
                   <div className="tiny muted-2" style={{ marginTop: 6, wordBreak: 'break-all' }}>{link}</div>
 
                   {cfg.allowTeams && team.length > 0 && (
                     <div style={{ marginTop: 12, borderTop: '1px dashed var(--border-dash)', paddingTop: 10 }}>
-                      <div className="tiny muted-2" style={{ marginBottom: 6 }}>👥 Team links — each tagged to a member:</div>
+                      <div className="tiny muted-2" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><Users size={12} /> Team links — each tagged to a member:</div>
                       <div style={{ display: 'grid', gap: 6 }}>
                         {team.map((m) => {
                           const sub = `${link}?via=${m.handle}`;
@@ -234,10 +237,10 @@ export default function PromoterPromotions() {
                               <span className="tiny muted-2">{g.length} brought · {g.filter((x) => x.arrived).length} in</span>
                               <button
                                 className="btn btn-ghost btn-sm"
-                                style={{ marginLeft: 'auto' }}
+                                style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5 }}
                                 onClick={() => copy(sub, key)}
                               >
-                                {copied === key ? 'Copied ✓' : '🔗 Copy'}
+                                {copied === key ? <><CheckCircle2 size={12} /> Copied</> : <><Link2 size={12} /> Copy</>}
                               </button>
                             </div>
                           );
@@ -256,20 +259,20 @@ export default function PromoterPromotions() {
                       <div className="bold accent">{revSharePct}% on paid tickets</div>
                     </div>
                   </div>
-                  <div className="tiny muted-2" style={{ marginTop: 12 }}>
-                    💰 Ticket link — send this for a paid sale, you earn {revSharePct}% of the ticket price on it
+                  <div className="tiny muted-2" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Banknote size={12} /> Ticket link — send this for a paid sale, you earn {revSharePct}% of the ticket price on it
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <button className="btn btn-pri btn-sm" onClick={() => copy(ticketLink, `${e.id}-ticket`)}>
-                      {copied === `${e.id}-ticket` ? 'Copied ✓' : '🔗 Copy ticket link'}
+                    <button className="btn btn-pri btn-sm" onClick={() => copy(ticketLink, `${e.id}-ticket`)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      {copied === `${e.id}-ticket` ? <><CheckCircle2 size={13} /> Copied</> : <><Link2 size={13} /> Copy ticket link</>}
                     </button>
-                    <a href={ticketLink} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">Preview link ↗</a>
+                    <a href={ticketLink} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Preview link <ExternalLink size={13} /></a>
                   </div>
                   <div className="tiny muted-2" style={{ marginTop: 6, wordBreak: 'break-all' }}>{ticketLink}</div>
                 </>
               )}
 
-              <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="btn btn-ghost btn-sm" style={{ marginTop: 10, display: 'inline-block' }}>View event →</Link>
+              <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="btn btn-ghost btn-sm" style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}>View event <ArrowRight size={13} /></Link>
             </div>
           );
         })}

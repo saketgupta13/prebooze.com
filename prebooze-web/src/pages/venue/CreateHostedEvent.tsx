@@ -9,6 +9,7 @@ import { RealUploadBox, RealGalleryUploadBox, RealVideoUploadBox } from '../../c
 import { venuePartner, catalog, type VenueCollaboratorOption } from '../../api';
 import { ApiError } from '../../api/client';
 import { stripHtml } from '../../lib/richtext';
+import { AlertCircle, X, Check, Ticket, Banknote } from 'lucide-react';
 
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
 
@@ -278,7 +279,7 @@ export default function CreateHostedEvent() {
         </h1>
         {editing && <span className="badge badge-pending">edits resubmit for admin approval</span>}
       </div>
-      {err && <div className="danger-text small" style={{ margin: '10px 0' }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ margin: '10px 0', display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
 
       <div className="card">
         <div className="field">
@@ -335,15 +336,15 @@ export default function CreateHostedEvent() {
               setOrganizerId(o?.id ?? '');
             }}
             options={collaborators.map((o) => o.brandName)}
-            placeholder="🔍 search verified organizers…"
+            placeholder="Search verified organizers…"
           />
           <div className="tiny muted-2" style={{ marginTop: 6 }}>
             No invite needed — this event still belongs to your venue's own ledger and dashboard either way. Any
             revenue split with the organizer happens directly between you two.
           </div>
           {organizerId && (
-            <button type="button" className="chip on" style={{ marginTop: 8 }} onClick={() => setOrganizerId('')}>
-              {collaborators.find((o) => o.id === organizerId)?.brandName} ✕
+            <button type="button" className="chip on" style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setOrganizerId('')}>
+              {collaborators.find((o) => o.id === organizerId)?.brandName} <X size={13} />
             </button>
           )}
         </div>
@@ -400,7 +401,7 @@ export default function CreateHostedEvent() {
                 <span>Qty</span>
                 <input value={t.quantity} onChange={(e) => setTier(i, { quantity: e.target.value })} inputMode="numeric" />
               </div>
-              <button className="icon-round" style={{ alignSelf: 'center', flex: '0 0 auto', background: 'none' }} onClick={() => setTiers((prev) => prev.filter((_, x) => x !== i))} disabled={tiers.length === 1} title="Remove tier">✕</button>
+              <button className="icon-round" style={{ alignSelf: 'center', flex: '0 0 auto', background: 'none' }} onClick={() => setTiers((prev) => prev.filter((_, x) => x !== i))} disabled={tiers.length === 1} title="Remove tier"><X size={14} /></button>
             </div>
             <div className="field" style={{ marginTop: 10, marginBottom: 6 }}>
               <span>Ticket description</span>
@@ -458,7 +459,7 @@ export default function CreateHostedEvent() {
               {Array.from(new Set([...INCLUDE_OPTIONS, ...t.includes])).map((opt) => (
                 <button key={opt} className={`chip chip-tap ${t.includes.includes(opt) ? 'on' : ''}`} style={{ fontSize: 12, padding: '4px 11px' }}
                   onClick={() => setTier(i, { includes: t.includes.includes(opt) ? t.includes.filter((x) => x !== opt) : [...t.includes, opt] })}>
-                  {opt}{t.includes.includes(opt) ? ' ✓' : ''}
+                  {opt}{t.includes.includes(opt) && <Check size={12} style={{ marginLeft: 4, verticalAlign: -1 }} />}
                 </button>
               ))}
             </div>
@@ -495,7 +496,7 @@ export default function CreateHostedEvent() {
               <span>Details</span>
               <input value={r.body} onChange={(e) => setRule(i, { body: e.target.value })} />
             </div>
-            <button className="icon-round" style={{ alignSelf: 'center', flex: '0 0 auto', background: 'none' }} onClick={() => setRules((prev) => prev.filter((_, x) => x !== i))} title="Remove rule">✕</button>
+            <button className="icon-round" style={{ alignSelf: 'center', flex: '0 0 auto', background: 'none' }} onClick={() => setRules((prev) => prev.filter((_, x) => x !== i))} title="Remove rule"><X size={14} /></button>
           </div>
         ))}
         <div className="chip-row" style={{ marginBottom: 16 }}>
@@ -512,13 +513,13 @@ export default function CreateHostedEvent() {
               toggleLineup({ name: l.name, role });
             }}
             options={lineups.filter((l) => !lineupSel.some((x) => x.name === l.name)).map((l) => l.name)}
-            placeholder="🔍 search line-up & partners to add…"
+            placeholder="Search line-up & partners to add…"
           />
           {lineupSel.length > 0 && (
             <div className="chip-row" style={{ marginTop: 8 }}>
               {lineupSel.map((l) => (
-                <button key={l.name} type="button" className="chip on" onClick={() => toggleLineup(l)} title="Remove from bill">
-                  {l.name} ({l.role}) ✕
+                <button key={l.name} type="button" className="chip on" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => toggleLineup(l)} title="Remove from bill">
+                  {l.name} ({l.role}) <X size={13} />
                 </button>
               ))}
             </div>
@@ -557,7 +558,7 @@ export default function CreateHostedEvent() {
             <div className="field">
               <span>Allowed promoters — pick who, and how each one promotes your event</span>
               <div className="tiny muted-2" style={{ marginBottom: 8 }}>
-                🎟️ Guest list = free entry, no ticket sold. 💰 Paid commission = a % of the ticket price on any sale
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={13} /> Guest list</span> = free entry, no ticket sold. <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Banknote size={13} /> Paid commission</span> = a % of the ticket price on any sale
                 through their link, added on top so it doesn't cut into your revenue (the guest pays the extra, same
                 as Prebooze's own commission on that sale).
               </div>
@@ -570,17 +571,17 @@ export default function CreateHostedEvent() {
                     <div key={p.slug} style={{ border: '1.5px solid var(--border-3)', borderRadius: 10, padding: '10px 12px' }}>
                       <label className="checkbox-row">
                         <input type="checkbox" checked={isAllowed} onChange={() => togglePromoter(p.slug)} />
-                        <span style={{ fontWeight: 700, color: 'var(--text)' }}>{p.name} {p.verified ? '✓' : ''}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{p.name} {p.verified && <Check size={13} />}</span>
                       </label>
                       {isAllowed && (
                         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center', marginTop: 8, marginLeft: 26 }}>
                           <label className="checkbox-row" style={{ marginBottom: 0 }}>
                             <input type="checkbox" checked={hasGuestList} onChange={() => toggleGuestList(p.slug)} />
-                            <span className="small">🎟️ Guest list</span>
+                            <span className="small" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={13} /> Guest list</span>
                           </label>
                           <label className="checkbox-row" style={{ marginBottom: 0 }}>
                             <input type="checkbox" checked={hasCommission} onChange={() => toggleCommission(p.slug)} />
-                            <span className="small">💰 Paid commission</span>
+                            <span className="small" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Banknote size={13} /> Paid commission</span>
                           </label>
                           {hasCommission && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

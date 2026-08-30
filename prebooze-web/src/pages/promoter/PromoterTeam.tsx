@@ -6,6 +6,7 @@ import Loader from '../../components/Loader';
 import type { Event } from '../../types';
 import type { PromoterGuest } from '../../store/AppContext';
 import { copyToClipboard } from '../../lib/clipboard';
+import { CheckCircle2, Pencil, X, Ticket, Banknote } from 'lucide-react';
 
 const fmtMoney = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -193,7 +194,7 @@ export default function PromoterTeam() {
             <input value={quotaShare} onChange={(e) => setQuotaShare(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="blank = no separate cap" />
           </div>
         </div>
-        <button className="btn btn-pri">Add to team ✓</button>
+        <button className="btn btn-pri" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={14} /> Add to team</button>
       </form>
 
       <div className="card" style={{ marginBottom: 18 }}>
@@ -219,15 +220,15 @@ export default function PromoterTeam() {
                   <div style={{ flex: 1 }} className="small">
                     <b className="accent">{s.brought}</b> brought · <b className="accent">{s.arrived}</b> in
                   </div>
-                  <button className="btn btn-ghost btn-sm" onClick={() => (editing ? setEditingId(null) : startEdit(m))}>
-                    {editing ? 'Cancel' : '✎ Edit'}
+                  <button className="btn btn-ghost btn-sm" onClick={() => (editing ? setEditingId(null) : startEdit(m))} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    {editing ? 'Cancel' : <><Pencil size={12} /> Edit</>}
                   </button>
                   <button
                     className="btn btn-danger btn-sm"
-                    style={{ border: '1.5px solid var(--danger)', color: 'var(--danger)' }}
+                    style={{ border: '1.5px solid var(--danger)', color: 'var(--danger)', display: 'inline-flex', alignItems: 'center' }}
                     onClick={() => remove(m.id)}
                   >
-                    ✕
+                    <X size={13} />
                   </button>
                 </div>
                 {editing && (
@@ -245,13 +246,13 @@ export default function PromoterTeam() {
                 )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 10, paddingLeft: 40, flexWrap: 'wrap' }}>
                   {fLink && (
-                    <button className="btn btn-ghost btn-sm" onClick={() => copy(fLink, `f-${m.handle}`)}>
-                      {copied === `f-${m.handle}` ? 'Copied ✓' : '🎟️ Copy free-entry link'}
+                    <button className="btn btn-ghost btn-sm" onClick={() => copy(fLink, `f-${m.handle}`)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      {copied === `f-${m.handle}` ? <><CheckCircle2 size={13} /> Copied</> : <><Ticket size={13} /> Copy free-entry link</>}
                     </button>
                   )}
                   {tLink && (
-                    <button className="btn btn-ghost btn-sm" onClick={() => copy(tLink, `t-${m.handle}`)}>
-                      {copied === `t-${m.handle}` ? 'Copied ✓' : '💰 Copy ticket link'}
+                    <button className="btn btn-ghost btn-sm" onClick={() => copy(tLink, `t-${m.handle}`)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      {copied === `t-${m.handle}` ? <><CheckCircle2 size={13} /> Copied</> : <><Banknote size={13} /> Copy ticket link</>}
                     </button>
                   )}
                   {!fLink && !tLink && <span className="tiny muted-2">links activate once an organizer enables teams on an event</span>}
@@ -280,8 +281,8 @@ export default function PromoterTeam() {
                     </div>
                     <div style={{ textAlign: 'right', flex: 1 }}>
                       <div className="small bold">{fmtMoney(r.owed)}</div>
-                      <div className="tiny" style={{ color: r.status === 'paid' ? 'var(--green, #2a9d5c)' : 'var(--muted-2)' }}>
-                        {r.status === 'paid' ? 'Paid ✓' : 'Not paid yet'}
+                      <div className="tiny" style={{ color: r.status === 'paid' ? 'var(--green, #2a9d5c)' : 'var(--muted-2)', display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>
+                        {r.status === 'paid' ? <><CheckCircle2 size={11} /> Paid</> : 'Not paid yet'}
                       </div>
                     </div>
                     {r.status !== 'paid' && (
@@ -289,8 +290,9 @@ export default function PromoterTeam() {
                         className="btn btn-pri btn-sm"
                         disabled={actingOn === `${teamMemberId}-${r.eventId}`}
                         onClick={() => markPaid(teamMemberId, r.eventId)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                       >
-                        I paid them ✓
+                        <CheckCircle2 size={13} /> I paid them
                       </button>
                     )}
                   </div>

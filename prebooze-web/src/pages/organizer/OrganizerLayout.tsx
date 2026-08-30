@@ -3,6 +3,10 @@ import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import PendingReview, { RejectedReview } from '../../components/PendingReview';
 import { PageLoader } from '../../components/Loader';
+import {
+  LayoutDashboard, Ticket, Users, Camera, ClipboardList, Radio, Star, Tag, ShoppingCart, Banknote, Megaphone,
+  ShieldCheck, Award, Settings as SettingsIcon, MoreHorizontal, X, type LucideIcon,
+} from 'lucide-react';
 
 // `module` is the exact OrgRole permission-matrix key that gates this nav
 // item's visibility for an invited team member (see OrgTeamRoles.tsx's
@@ -10,21 +14,21 @@ import { PageLoader } from '../../components/Loader';
 // `undefined` = always visible to any team member regardless of role
 // (Dashboard); `'owner'` = never shown to a team member at all, real
 // account owner only (Billing — money/KYC, not delegated via any role).
-const NAV: { to: string; label: string; end?: boolean; module?: string | 'owner' }[] = [
-  { to: '/organizer', label: '▦ Dashboard', end: true },
-  { to: '/organizer/events', label: '🎫 Events', module: 'Events & wizard' },
-  { to: '/organizer/attendees', label: '👥 Attendees', module: 'Attendees & check-in' },
-  { to: '/organizer/scanner', label: '📷 Scanner', module: 'Attendees & check-in' },
-  { to: '/organizer/guestlist', label: '📋 Guest list', module: 'Guest list' },
-  { to: '/organizer/live', label: '● Live monitor', module: 'Attendees & check-in' },
-  { to: '/organizer/reviews', label: '★ Reviews', module: 'Reviews' },
-  { to: '/organizer/coupons', label: '🏷 Promo codes', module: 'Coupons' },
-  { to: '/organizer/carts', label: '🛒 Abandoned carts', module: 'Events & wizard' },
-  { to: '/organizer/payouts', label: '💰 Payouts', module: 'Payouts & withdrawals' },
-  { to: '/organizer/promoters', label: '📣 Promoters', module: 'Payouts & withdrawals' },
-  { to: '/organizer/team', label: '🛡 Team & roles', module: 'Settings & team' },
-  { to: '/organizer/billing', label: '⭐ Featured & billing', module: 'owner' },
-  { to: '/organizer/settings', label: '⚙ Settings', module: 'Settings & team' },
+const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; module?: string | 'owner' }[] = [
+  { to: '/organizer', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/organizer/events', label: 'Events', icon: Ticket, module: 'Events & wizard' },
+  { to: '/organizer/attendees', label: 'Attendees', icon: Users, module: 'Attendees & check-in' },
+  { to: '/organizer/scanner', label: 'Scanner', icon: Camera, module: 'Attendees & check-in' },
+  { to: '/organizer/guestlist', label: 'Guest list', icon: ClipboardList, module: 'Guest list' },
+  { to: '/organizer/live', label: 'Live monitor', icon: Radio, module: 'Attendees & check-in' },
+  { to: '/organizer/reviews', label: 'Reviews', icon: Star, module: 'Reviews' },
+  { to: '/organizer/coupons', label: 'Promo codes', icon: Tag, module: 'Coupons' },
+  { to: '/organizer/carts', label: 'Abandoned carts', icon: ShoppingCart, module: 'Events & wizard' },
+  { to: '/organizer/payouts', label: 'Payouts', icon: Banknote, module: 'Payouts & withdrawals' },
+  { to: '/organizer/promoters', label: 'Promoters', icon: Megaphone, module: 'Payouts & withdrawals' },
+  { to: '/organizer/team', label: 'Team & roles', icon: ShieldCheck, module: 'Settings & team' },
+  { to: '/organizer/billing', label: 'Featured & billing', icon: Award, module: 'owner' },
+  { to: '/organizer/settings', label: 'Settings', icon: SettingsIcon, module: 'Settings & team' },
 ];
 
 // How many of navItems (in NAV order) get a permanent bottom-tab slot on
@@ -60,7 +64,7 @@ export default function OrganizerLayout() {
           <div className="cap">ORGANIZER</div>
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
-              {n.label}
+              <n.icon size={16} /> {n.label}
             </NavLink>
           ))}
         </aside>
@@ -87,7 +91,7 @@ function TeamConsole({ access }: { access: NonNullable<ReturnType<typeof useApp>
           </div>
           {visibleNav.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
-              {n.label}
+              <n.icon size={16} /> {n.label}
             </NavLink>
           ))}
         </aside>
@@ -115,18 +119,15 @@ function MobileOrgNav({ navItems }: { navItems: typeof NAV }) {
   return (
     <>
       <nav className="org-mobile-tabbar">
-        {pinned.map((n) => {
-          const [ico, ...labelParts] = n.label.split(' ');
-          return (
-            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
-              <span className="ico">{ico}</span>
-              {labelParts.join(' ')}
-            </NavLink>
-          );
-        })}
+        {pinned.map((n) => (
+          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
+            <span className="ico"><n.icon size={16} /></span>
+            {n.label}
+          </NavLink>
+        ))}
         {rest.length > 0 && (
           <button onClick={() => setOpen(true)}>
-            <span className="ico">⋯</span>
+            <span className="ico"><MoreHorizontal size={16} /></span>
             More
           </button>
         )}
@@ -137,11 +138,11 @@ function MobileOrgNav({ navItems }: { navItems: typeof NAV }) {
           <div className="org-drawer">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <span className="cap" style={{ padding: 0 }}>MORE</span>
-              <span onClick={() => setOpen(false)} style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: 18, lineHeight: 1 }}>✕</span>
+              <span onClick={() => setOpen(false)} style={{ cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center' }}><X size={18} /></span>
             </div>
             {rest.map((n) => (
               <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => (isActive ? 'on' : '')}>
-                {n.label}
+                <n.icon size={16} /> {n.label}
               </NavLink>
             ))}
           </div>

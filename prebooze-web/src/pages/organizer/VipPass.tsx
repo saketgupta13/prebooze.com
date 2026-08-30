@@ -6,6 +6,7 @@ import { eventLocation } from '../../lib/venue';
 import { instagramHandle } from '../../lib/social';
 import { usePlatformInfo } from '../../lib/usePlatformInfo';
 import QRCode from '../../components/QRCode';
+import { Crown, Tent, PartyPopper, Camera, Sparkles } from 'lucide-react';
 import Loader from '../../components/Loader';
 
 /** A personal invite from the organizer themselves — not a promoter's
@@ -48,8 +49,8 @@ export default function VipPass() {
   return (
     <main className="page">
       <div className="container confirm-hero">
-        <div className="confirm-tick" style={{ background: '#f0b429', color: '#1a1300' }}>✨</div>
-        <h1 style={{ fontSize: 24 }}>You're invited! ✨</h1>
+        <div className="confirm-tick" style={{ background: '#f0b429', color: '#1a1300', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Crown size={22} /></div>
+        <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>You're invited! <Sparkles size={20} /></h1>
         <p className="muted" style={{ margin: '8px 0 20px' }}>
           {event.organizer?.brandName ?? 'The organizer'} personally added you to the list — sent to WhatsApp {pass.phone}.
         </p>
@@ -57,14 +58,14 @@ export default function VipPass() {
         <div className="card card-shadow" style={{ textAlign: 'center' }}>
           <span
             className="badge"
-            style={{ background: 'rgba(240,180,41,.16)', color: '#f0b429', marginBottom: 10, display: 'inline-block' }}
+            style={{ background: 'rgba(240,180,41,.16)', color: '#f0b429', marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
-            ✨ VIP Invite
+            <Crown size={13} /> VIP Invite
           </span>
           <h2 style={{ fontSize: 20, marginTop: 8 }}>{event.title}</h2>
           {event.organizer?.brandName && (
-            <div className="small" style={{ fontWeight: 700, margin: '2px 0', color: '#f0b429' }}>
-              🎪 Hosted by {event.organizer.brandName}
+            <div className="small" style={{ fontWeight: 700, margin: '2px 0', color: '#f0b429', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <Tent size={14} /> Hosted by {event.organizer.brandName}
             </div>
           )}
           <div className="muted small" style={{ margin: '6px 0 14px' }}>
@@ -82,8 +83,8 @@ export default function VipPass() {
 
           <QRCode value={`vip-${pass.id}`} caption="one QR for the whole group · show it at the gate" />
 
-          <div className="small bold" style={{ marginTop: 16 }}>Thanks for booking with Prebooze — see you there! 🎉</div>
-          {igHandle && <div className="tiny accent" style={{ marginTop: 4 }}>📸 Follow us @{igHandle} on Instagram</div>}
+          <div className="small bold" style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>Thanks for booking with Prebooze — see you there! <PartyPopper size={15} /></div>
+          {igHandle && <div className="tiny accent" style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Camera size={12} /> Follow us @{igHandle} on Instagram</div>}
           <div className="tiny muted-2" style={{ marginTop: 10 }}>
             Terms & conditions apply — <Link to="/legal/terms" className="link">www.prebooze.com/legal/terms</Link>
           </div>

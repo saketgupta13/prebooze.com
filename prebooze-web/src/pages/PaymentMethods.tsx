@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { existingRole, roleLabel } from '../lib/roles';
+import { CreditCard, Smartphone, CheckCircle2, X, Lock } from 'lucide-react';
 
 /** Saved payment methods (all roles) + auto-renew for subscriptions/featured. */
 export default function PaymentMethods() {
@@ -36,7 +37,7 @@ export default function PaymentMethods() {
         <div className="breadcrumb">
           <Link to="/profile">Profile</Link> / Payment methods
         </div>
-        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Payment methods 💳</h1>
+        <h1 style={{ fontSize: 26, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>Payment methods <CreditCard size={22} /></h1>
         <p className="muted" style={{ marginBottom: 22 }}>
           Save UPI or cards for one-tap checkout{role ? ' and subscription renewals' : ''}.
         </p>
@@ -48,7 +49,7 @@ export default function PaymentMethods() {
           ) : (
             payMethods.map((m) => (
               <div key={m.id} className="evrow">
-                <span style={{ fontSize: 20 }}>{m.type === 'upi' ? '🅿️' : '💳'}</span>
+                <span style={{ fontSize: 20, display: 'inline-flex' }}>{m.type === 'upi' ? <Smartphone size={20} /> : <CreditCard size={20} />}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="bold small">{m.label}</div>
                   <div className="tiny muted-2">
@@ -57,11 +58,11 @@ export default function PaymentMethods() {
                   </div>
                 </div>
                 {m.isDefault ? (
-                  <span className="badge badge-accent">Default ✓</span>
+                  <span className="badge badge-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Default <CheckCircle2 size={13} /></span>
                 ) : (
                   <button className="btn btn-ghost btn-sm" onClick={() => setDefaultPayMethod(m.id)}>Make default</button>
                 )}
-                <button className="btn btn-danger btn-sm" style={{ border: '1.5px solid var(--danger)', color: 'var(--danger)' }} onClick={() => removePayMethod(m.id)}>✕</button>
+                <button className="btn btn-danger btn-sm" style={{ border: '1.5px solid var(--danger)', color: 'var(--danger)' }} onClick={() => removePayMethod(m.id)}><X size={14} /></button>
               </div>
             ))
           )}
@@ -98,8 +99,8 @@ export default function PaymentMethods() {
               </div>
             </div>
           )}
-          <button className="btn btn-pri">Save method ✓</button>
-          <span className="tiny muted-2" style={{ marginLeft: 10 }}>🔒 CVV is verified at charge time, never stored</span>
+          <button className="btn btn-pri" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={14} /> Save method</button>
+          <span className="tiny muted-2" style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Lock size={11} /> CVV is verified at charge time, never stored</span>
         </form>
 
         {role && (
@@ -118,7 +119,7 @@ export default function PaymentMethods() {
                   toast(user?.autoRenew ? 'Auto-renew turned off' : 'Auto-renew on — renews from your default method ✓');
                 }}
               >
-                {user?.autoRenew ? 'Auto-renew ON ✓' : 'Auto-renew OFF'}
+                {user?.autoRenew ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Auto-renew ON <CheckCircle2 size={13} /></span> : 'Auto-renew OFF'}
               </button>
             </div>
             {user?.autoRenew && payMethods.length === 0 && (

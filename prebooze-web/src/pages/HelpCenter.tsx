@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { existingRole } from '../lib/roles';
 import Accordion from '../components/Accordion';
+import type { ReactNode } from 'react';
+import { Ticket, Mic, Megaphone, Guitar, Landmark, LifeBuoy, CheckCircle2 } from 'lucide-react';
 
 type HelpRole = 'guest' | 'organizer' | 'promoter' | 'lineup' | 'venue';
 
-const HELP: Record<HelpRole, { label: string; icon: string; topics: string[]; faqs: { q: string; a: string }[] }> = {
+const HELP: Record<HelpRole, { label: string; icon: ReactNode; topics: string[]; faqs: { q: string; a: string }[] }> = {
   guest: {
-    label: 'Guest', icon: '🎟️',
+    label: 'Guest', icon: <Ticket size={14} />,
     topics: ['Booking & tickets', 'Refunds & wallet', 'Guest lists', 'Payments', 'Account & login', 'Something else'],
     faqs: [
       { q: 'How do I get my ticket?', a: 'It lands on your WhatsApp instantly after payment — also downloadable as a PNG from My Bookings.' },
@@ -18,7 +20,7 @@ const HELP: Record<HelpRole, { label: string; icon: string; topics: string[]; fa
     ],
   },
   organizer: {
-    label: 'Organizer', icon: '🎤',
+    label: 'Organizer', icon: <Mic size={14} />,
     topics: ['Event approval', 'Payouts & withdrawals', 'Scanner & check-in', 'Promoter guest lists', 'Featured placement', 'Something else'],
     faqs: [
       { q: 'When do I get paid?', a: 'Weekly auto-payouts every Monday, with per-event settlement after the event completes. Track it under Payouts.' },
@@ -28,7 +30,7 @@ const HELP: Record<HelpRole, { label: string; icon: string; topics: string[]; fa
     ],
   },
   promoter: {
-    label: 'Promoter', icon: '📣',
+    label: 'Promoter', icon: <Megaphone size={14} />,
     topics: ['Guest lists & links', 'Earnings & payouts', 'Subscription & quota', 'Team / sub-promoters', 'Something else'],
     faqs: [
       { q: 'How do I earn?', a: 'The organizer pays you per verified arrival, plus a gate commission when a listed guest arrives after the cutoff and buys a ticket.' },
@@ -38,7 +40,7 @@ const HELP: Record<HelpRole, { label: string; icon: string; topics: string[]; fa
     ],
   },
   lineup: {
-    label: 'Line-up', icon: '🎸',
+    label: 'Line-up', icon: <Guitar size={14} />,
     topics: ['Profile & verification', 'Event tags', 'Featured placement', 'Something else'],
     faqs: [
       { q: 'How do I get tagged in events?', a: 'Organizers add you to their line-up during event creation. Tagged events appear on your artist dashboard.' },
@@ -47,7 +49,7 @@ const HELP: Record<HelpRole, { label: string; icon: string; topics: string[]; fa
     ],
   },
   venue: {
-    label: 'Venue partner', icon: '🏛',
+    label: 'Venue partner', icon: <Landmark size={14} />,
     topics: ['Listing & verification', 'Event hosting', 'License & documents', 'Something else'],
     faqs: [
       { q: 'How do I list my venue?', a: 'Organizers can add venues during event creation, or write to partners@prebooze.com for a managed listing with photos and amenities.' },
@@ -91,10 +93,10 @@ export default function HelpCenter() {
         <div className="breadcrumb">
           <Link to="/">Home</Link> / Help center
         </div>
-        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Help center 🛟</h1>
+        <h1 style={{ fontSize: 26, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>Help center <LifeBuoy size={22} /></h1>
         <p className="muted" style={{ marginBottom: 14 }}>
           {user ? (
-            <>Help for your account — <b className="accent">{HELP[myRole].icon} {HELP[myRole].label}</b>.</>
+            <>Help for your account — <b className="accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{HELP[myRole].icon} {HELP[myRole].label}</b>.</>
           ) : (
             'Pick who you are for the right answers.'
           )}
@@ -103,7 +105,7 @@ export default function HelpCenter() {
         {!user && (
           <div className="chip-row" style={{ marginBottom: 18 }}>
             {(Object.keys(HELP) as HelpRole[]).map((r) => (
-              <button key={r} className={`chip ${role === r ? 'on' : ''}`} onClick={() => pickRole(r)}>
+              <button key={r} className={`chip ${role === r ? 'on' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={() => pickRole(r)}>
                 {HELP[r].icon} {HELP[r].label}
               </button>
             ))}
@@ -111,7 +113,7 @@ export default function HelpCenter() {
         )}
 
         <div className="card" style={{ marginBottom: 18 }}>
-          <h3 style={{ marginBottom: 10 }}>Raise a ticket <span className="badge badge-accent">{help.icon} {help.label}</span></h3>
+          <h3 style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>Raise a ticket <span className="badge badge-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{help.icon} {help.label}</span></h3>
           {!user ? (
             <div className="muted small">
               <Link to="/login" className="link bold">Log in</Link> to raise a ticket — we reply on your WhatsApp number.
@@ -152,7 +154,7 @@ export default function HelpCenter() {
                 {t.status === 'open' ? (
                   <span className="badge badge-pending">Open ◌</span>
                 ) : (
-                  <span className="badge badge-ok">Resolved ✓</span>
+                  <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Resolved <CheckCircle2 size={13} /></span>
                 )}
               </div>
             ))}
@@ -160,7 +162,7 @@ export default function HelpCenter() {
         )}
 
         <div className="card">
-          <h3 style={{ marginBottom: 10 }}>{help.icon} {help.label} — common questions</h3>
+          <h3 style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>{help.icon} {help.label} — common questions</h3>
           {help.faqs.map((f) => (
             <Accordion key={f.q} title={f.q}>{f.a}</Accordion>
           ))}

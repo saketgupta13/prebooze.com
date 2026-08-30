@@ -9,6 +9,7 @@ import DirectoryCard from '../components/DirectoryCard';
 import DirectoryCardSkeleton from '../components/DirectoryCardSkeleton';
 import type { Person } from '../types';
 import { cityHome, eventPath } from '../lib/urls';
+import { Users, Flame, Ticket, CheckCircle2 } from 'lucide-react';
 
 /** Directory of followable guests — the social graph behind "Who's going".
  * Real, opt-in guests only (User.discoverable) — PEOPLE mock stays only as
@@ -56,7 +57,7 @@ export default function People() {
         </div>
 
         <div className="card" style={{ marginBottom: 18, padding: '22px 24px', background: 'rgba(155,225,61,.05)' }}>
-          <h1 style={{ fontSize: 26, marginBottom: 4 }}>Find your people 👋</h1>
+          <h1 style={{ fontSize: 26, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>Find your people <Users size={22} /></h1>
           <p className="muted" style={{ maxWidth: 560 }}>
             Follow the crews and regulars whose nights you want in on — then you’ll see who’s going before you book.
           </p>
@@ -107,7 +108,7 @@ export default function People() {
                   extra={(common > 0 || going.length > 0) && (
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {common > 0 && (
-                        <span className="tag" style={{ borderColor: 'var(--accent)', color: 'var(--accent)', fontWeight: 700 }}>🔥 {common} in common</span>
+                        <span className="tag" style={{ borderColor: 'var(--accent)', color: 'var(--accent)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Flame size={12} /> {common} in common</span>
                       )}
                       {going.slice(0, common > 0 ? 1 : 2).map((e) => (
                         // Person.going only carries {id, slug, title} — no
@@ -115,13 +116,13 @@ export default function People() {
                         // browsing city; EventDetail's useCityReconcile
                         // self-corrects to the event's real city on load
                         // if that guess was wrong, same as any legacy link.
-                        <Link key={e.id} to={eventPath(city, e.slug)} className="tag" style={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🎟 {e.title}</Link>
+                        <Link key={e.id} to={eventPath(city, e.slug)} className="tag" style={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={11} /> {e.title}</Link>
                       ))}
                     </div>
                   )}
                   action={
                     <button className={`btn btn-sm btn-block ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(key)}>
-                      {isFollowing ? 'Following ✓' : '+ Follow'}
+                      {isFollowing ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Following <CheckCircle2 size={13} /></span> : '+ Follow'}
                     </button>
                   }
                 />

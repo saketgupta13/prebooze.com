@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import type { ReactNode } from 'react';
+import { FileText } from 'lucide-react';
 
 /** A real file picker with a real preview — reads the picked image into a
  * data URL via FileReader. Replaces the old fake "click to toggle a
@@ -7,7 +8,7 @@ import type { ReactNode } from 'react';
 export function FileDropBox({ value, onChange, label, doneLabel, style, accept = 'image/*' }: {
   value?: string;
   onChange: (dataUrl: string) => void;
-  label: string;
+  label: ReactNode;
   doneLabel?: ReactNode;
   style?: React.CSSProperties;
   // Widened for document uploads (e.g. a firm's registration certificate,
@@ -41,7 +42,7 @@ export function FileDropBox({ value, onChange, label, doneLabel, style, accept =
       }}
     >
       <input ref={inputRef} type="file" accept={accept} onChange={onFile} style={{ display: 'none' }} />
-      {value ? (isPdf ? '📄 PDF selected — click to replace' : (doneLabel ?? '✓ Image uploaded — click to replace')) : label}
+      {value ? (isPdf ? <><FileText size={14} style={{ verticalAlign: -2 }} /> PDF selected — click to replace</> : (doneLabel ?? '✓ Image uploaded — click to replace')) : label}
     </button>
   );
 }

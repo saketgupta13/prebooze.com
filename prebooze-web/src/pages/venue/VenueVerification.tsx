@@ -6,6 +6,7 @@ import { FileDropBox } from '../../components/FileDropBox';
 import { dataUrlToFile } from '../../lib/fileUtils';
 import Loader from '../../components/Loader';
 import type { Venue } from '../../types';
+import { BadgeCheck, ShieldCheck, Upload, CheckCircle2, AlertCircle, Lock } from 'lucide-react';
 
 const CONTACT_ROLES = ['Owner', 'Manager', 'Accountant', 'Other'] as const;
 type ContactRole = (typeof CONTACT_ROLES)[number];
@@ -76,7 +77,7 @@ export default function VenueVerification() {
   if (venue.verified) {
     return (
       <div className="card" style={{ maxWidth: 560 }}>
-        <div className="bold" style={{ marginBottom: 6 }}>You're verified <span className="verified">✓</span></div>
+        <div className="bold" style={{ marginBottom: 6 }}>You're verified <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={14} /></span></div>
         <p className="muted small">Your venue's identity has been verified.</p>
         <Link to="/venue/settings" className="link small bold" style={{ display: 'inline-block', marginTop: 10 }}>← Back to Settings</Link>
       </div>
@@ -86,7 +87,7 @@ export default function VenueVerification() {
   if (pending || done) {
     return (
       <div className="card" style={{ maxWidth: 560 }}>
-        <div className="bold" style={{ marginBottom: 6 }}>🛡 Verification under review</div>
+        <div className="bold" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><ShieldCheck size={16} /> Verification under review</div>
         <p className="muted small">
           We've got your details — our team usually reviews within 24h. You'll get a WhatsApp/email once you're verified.
         </p>
@@ -102,7 +103,7 @@ export default function VenueVerification() {
         <Link to="/venue/settings" className="link small bold">← Back to Settings</Link>
       </div>
       <p className="muted small" style={{ marginBottom: 18 }}>
-        Identity verification only — gets you the <span className="verified">✓</span> verified badge. Your listing is
+        Identity verification only — gets you the <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span> verified badge. Your listing is
         already live and bookable either way.
       </p>
 
@@ -111,8 +112,21 @@ export default function VenueVerification() {
         <p className="tiny muted" style={{ marginBottom: 12 }}>
           We don't have a way to validate these automatically — a real person on our team reviews them.
         </p>
-        <FileDropBox value={license} onChange={setLicense} accept="image/*,.pdf" label="⬆ upload bar / entertainment operating license" doneLabel="✓ License uploaded — click to replace" style={{ marginBottom: 12 }} />
-        <FileDropBox value={addressProof} onChange={setAddressProof} accept="image/*,.pdf" label="⬆ upload utility bill / lease / registration" doneLabel="✓ Address proof uploaded — click to replace" />
+        <FileDropBox
+          value={license}
+          onChange={setLicense}
+          accept="image/*,.pdf"
+          label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Upload size={13} /> upload bar / entertainment operating license</span>}
+          doneLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckCircle2 size={13} /> License uploaded — click to replace</span>}
+          style={{ marginBottom: 12 }}
+        />
+        <FileDropBox
+          value={addressProof}
+          onChange={setAddressProof}
+          accept="image/*,.pdf"
+          label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Upload size={13} /> upload utility bill / lease / registration</span>}
+          doneLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckCircle2 size={13} /> Address proof uploaded — click to replace</span>}
+        />
       </div>
 
       <div className="card" style={{ marginBottom: 16, maxWidth: 640 }}>
@@ -151,14 +165,14 @@ export default function VenueVerification() {
         )}
       </div>
 
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
       <div style={{ display: 'flex', gap: 10, maxWidth: 640 }}>
         <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>← Back</button>
         <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!valid || submitting} onClick={submit}>
           {submitting ? 'Submitting…' : 'Submit for verification →'}
         </button>
       </div>
-      <div className="tiny muted-2" style={{ marginTop: 10 }}>🔒 reviewed manually by our team · usually approved within 24h</div>
+      <div className="tiny muted-2" style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 5 }}><Lock size={12} /> reviewed manually by our team · usually approved within 24h</div>
     </div>
   );
 }

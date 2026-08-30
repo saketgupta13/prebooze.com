@@ -11,6 +11,7 @@ import { stripHtml } from '../lib/richtext';
 import { eventLocation } from '../lib/venue';
 import type { Event, Person, PersonDetail } from '../types';
 import { cityPeople, eventCity, eventPath } from '../lib/urls';
+import { X, BadgeCheck, CheckCircle2 } from 'lucide-react';
 
 function Avatar({ hue, name, imageUrl, size = 30 }: { hue: number; name: string; imageUrl?: string; size?: number }) {
   if (imageUrl) {
@@ -45,7 +46,7 @@ function PeopleCard({ title, people, empty, onClose, limit }: { title: string; p
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <h3>{title} <span className="badge badge-accent">{people.length}</span></h3>
-        {onClose && <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>}
+        {onClose && <button className="btn btn-ghost btn-sm" onClick={onClose}><X size={14} /></button>}
       </div>
       {people.length === 0 ? (
         <div className="muted small">{empty}</div>
@@ -55,7 +56,7 @@ function PeopleCard({ title, people, empty, onClose, limit }: { title: string; p
             <Link key={p.id} to={`/u/${p.username}`} className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}>
               <Avatar hue={p.avatarHue} name={p.name} imageUrl={p.avatarUrl} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="bold small">{p.name} {p.verified && <span className="verified">✓</span>}</div>
+                <div className="bold small">{p.name} {p.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span>}</div>
                 <div className="tiny muted-2">@{p.username} · {p.city}</div>
               </div>
               <span className="link small">View →</span>
@@ -170,11 +171,11 @@ export default function PersonProfile() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <Avatar hue={person.avatarHue} name={person.name} imageUrl={person.avatarUrl} size={72} />
             <div style={{ flex: 1, minWidth: 180 }}>
-              <h1 style={{ fontSize: 24 }}>{person.name} {person.verified && <span className="verified">✓</span>}</h1>
+              <h1 style={{ fontSize: 24 }}>{person.name} {person.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={18} /></span>}</h1>
               <div className="muted small">@{person.username} · {person.city}</div>
             </div>
             <button className={`btn ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(key)}>
-              {isFollowing ? 'Following ✓' : '+ Follow'}
+              {isFollowing ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Following <CheckCircle2 size={13} /></span> : '+ Follow'}
             </button>
           </div>
 

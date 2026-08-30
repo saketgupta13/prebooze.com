@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PenLine, Star } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { SEED_REVIEWS } from '../data/mock';
 import { socialReviews, type OrgReview, type VenueReview } from '../api';
@@ -129,8 +130,8 @@ function ReviewForm({
   const [open, setOpen] = useState(!!autoOpen);
   if (!open) {
     return (
-      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }} onClick={() => setOpen(true)}>
-        ✍ Write a review
+      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setOpen(true)}>
+        <PenLine size={14} /> Write a review
       </button>
     );
   }
@@ -154,8 +155,8 @@ function ReviewForm({
       )}
       <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
         {[1, 2, 3, 4, 5].map((n) => (
-          <button key={n} type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, filter: n <= rating ? 'none' : 'grayscale(1) opacity(.45)' }} onClick={() => setRating(n)} aria-label={`${n} star`}>
-            ⭐
+          <button key={n} type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }} onClick={() => setRating(n)} aria-label={`${n} star`}>
+            <Star size={22} fill={n <= rating ? 'var(--accent)' : 'none'} color={n <= rating ? 'var(--accent)' : 'var(--muted-2)'} />
           </button>
         ))}
         <span className="tiny muted-2" style={{ alignSelf: 'center' }}>{rating ? `${rating}/5` : 'pick a rating'}</span>

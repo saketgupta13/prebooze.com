@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { orgRoles, orgTeam, type OrgModulePerms, type OrgPermKey, type OrgStaffMember } from '../../api';
 import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
+import { X, Check, Camera } from 'lucide-react';
 
 const PERM_MODULES = ['Events & wizard', 'Attendees & check-in', 'Guest list', 'Coupons', 'Payouts & withdrawals', 'Reviews', 'Settings & team'];
 const PERM_KEYS: OrgPermKey[] = ['view', 'edit'];
@@ -140,8 +141,8 @@ export default function OrgTeamRoles() {
         <h1 style={{ fontSize: 24 }}>Team &amp; roles</h1>
         <button className="btn btn-pri" onClick={() => setShowInvite((v) => !v)}>+ Invite member</button>
       </div>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
-      {inviteSent && <div className="small" style={{ marginBottom: 10, color: 'var(--accent)' }}>✓ Invite sent — they can log in with that phone number now.</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
+      {inviteSent && <div className="small" style={{ marginBottom: 10, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 6 }}><Check size={14} /> Invite sent — they can log in with that phone number now.</div>}
 
       {showInvite && (
         <form className="card" style={{ borderColor: 'var(--accent)', marginBottom: 16 }} onSubmit={invite}>
@@ -168,7 +169,7 @@ export default function OrgTeamRoles() {
               <span>Email (optional)</span>
               <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="for an extra email invite" />
             </div>
-            <button className="btn btn-pri" style={{ flex: '0 0 auto' }} disabled={inviting}>{inviting ? 'Sending…' : 'Invite ✓'}</button>
+            <button className="btn btn-pri" style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 6 }} disabled={inviting}>{inviting ? 'Sending…' : <>Invite <Check size={14} /></>}</button>
           </div>
           <label className="checkbox-row">
             <input type="checkbox" checked={inviteScan} onChange={() => setInviteScan((v) => !v)} />
@@ -186,8 +187,8 @@ export default function OrgTeamRoles() {
           <div key={m.id} className="evrow">
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="bold small">{m.name}</div>
-              <div className="tiny muted">
-                {m.phone ?? 'no phone on file'} · {m.scan ? '📷 door-scan access' : 'no scan access'}
+              <div className="tiny muted" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {m.phone ?? 'no phone on file'} · {m.scan ? <><Camera size={11} /> door-scan access</> : 'no scan access'}
               </div>
             </div>
             {m.roleName === 'Owner' ? (
@@ -209,7 +210,7 @@ export default function OrgTeamRoles() {
                 style={{ border: '1.5px solid var(--danger)', color: 'var(--danger)' }}
                 onClick={() => removeMember(m.id, m.name)}
               >
-                ✕
+                <X size={14} />
               </button>
             )}
           </div>
@@ -242,7 +243,7 @@ export default function OrgTeamRoles() {
       <div className="card">
         <div className="bold small" style={{ marginBottom: 10 }}>
           Role: {selectedRole} — permissions {isOwnerRole && <span className="tiny muted">(Owner always has full access)</span>}
-          {saved && <span className="tiny accent" style={{ marginLeft: 10 }}>✓ saved</span>}
+          {saved && <span className="tiny accent" style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={11} /> saved</span>}
         </div>
         <div className="kv" style={{ borderBottom: '1px solid var(--border)', fontWeight: 700 }}>
           <span className="k" style={{ flex: 2 }}>Module</span>
@@ -270,10 +271,10 @@ export default function OrgTeamRoles() {
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <button
               className="btn btn-danger btn-sm"
-              style={{ border: '1.5px solid var(--danger)', color: 'var(--danger)' }}
+              style={{ border: '1.5px solid var(--danger)', color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: 6 }}
               onClick={removeRole}
             >
-              ✕ Remove role
+              <X size={13} /> Remove role
             </button>
           </div>
         )}

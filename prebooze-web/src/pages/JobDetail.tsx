@@ -6,6 +6,7 @@ import { careers as careersApi } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { CareerJob } from '../types';
 import { PageLoader } from '../components/Loader';
+import { MapPin, CheckCircle2, Upload } from 'lucide-react';
 
 /** Full job description with an apply form. */
 export default function JobDetail() {
@@ -74,13 +75,13 @@ export default function JobDetail() {
               <h1 style={{ fontSize: 24 }}>{job.title}</h1>
               <div className="chip-row" style={{ marginTop: 8 }}>
                 <span className="tag">{job.team}</span>
-                <span className="tag">📍 {job.loc}</span>
+                <span className="tag" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><MapPin size={12} /> {job.loc}</span>
                 <span className="tag">{job.type}</span>
                 <span className="tag" style={{ fontSize: 10.5 }}>Job ID: {job.id}</span>
               </div>
             </div>
             {applied ? (
-              <span className="badge badge-ok">Applied ✓</span>
+              <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Applied <CheckCircle2 size={13} /></span>
             ) : (
               <button className="btn btn-pri" onClick={() => setOpen(true)}>Apply now →</button>
             )}
@@ -134,7 +135,11 @@ export default function JobDetail() {
                     setCv(f ?? null);
                   }}
                 />
-                {cv ? `✓ ${cv.name} attached · click to replace` : '⬆ upload your CV / resume'}
+                {cv ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={14} /> {cv.name} attached · click to replace</span>
+                ) : (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Upload size={14} /> upload your CV / resume</span>
+                )}
               </label>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>

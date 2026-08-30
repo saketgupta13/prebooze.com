@@ -4,6 +4,8 @@ import { fmtMoney } from '../../data/mock';
 import Loader from '../../components/Loader';
 import { organizer, type OrgLedgerTx } from '../../api';
 import { ApiError } from '../../api/client';
+import { X, Check, Download, BadgeCheck, ArrowRight } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -15,8 +17,9 @@ interface PromoterPayoutRow {
   // both, or neither can be nonzero for a given promoter on a given event.
   perHead: number; commission: number; total: number; status: 'pending' | 'reminder_sent' | 'received';
 }
-const STATUS_LABEL: Record<PromoterPayoutRow['status'], string> = {
-  pending: 'Not paid yet', reminder_sent: 'Promoter sent a reminder', received: 'Promoter confirmed received ✓',
+const STATUS_LABEL: Record<PromoterPayoutRow['status'], ReactNode> = {
+  pending: 'Not paid yet', reminder_sent: 'Promoter sent a reminder',
+  received: <>Promoter confirmed received <Check size={11} /></>,
 };
 
 /** Real payout ledger — GET /organizer/payouts + GET /organizer/me for the
@@ -64,7 +67,7 @@ export default function Payouts() {
   return (
     <div>
       <h1 style={{ fontSize: 24, marginBottom: 18 }}>Payouts</h1>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
 
       <div className="kpis" style={{ marginBottom: 18 }}>
         <div className="kpi" style={{ borderColor: 'rgba(155,225,61,.4)' }}>
@@ -83,7 +86,7 @@ export default function Payouts() {
       <div className="card" style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span className="small">
           Payout to <span className="bold">{defaultBankLast4 ? `•••• ${defaultBankLast4}` : 'no bank on file'}</span>{' '}
-          {defaultBankLast4 && <span className="verified">✓</span>}{' '}
+          {defaultBankLast4 && <span className="verified" style={{ display: 'inline-flex', alignItems: 'center' }}><BadgeCheck size={13} /></span>}{' '}
           <span className="muted">· processed by our team after each withdrawal request</span>
         </span>
         <Link to="/organizer/settings/payment-profiles" className="btn btn-ghost btn-sm">change</Link>
@@ -93,7 +96,7 @@ export default function Payouts() {
         <div className="card" style={{ marginBottom: 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
             <h3 style={{ marginBottom: 4 }}>What you owe promoters</h3>
-            <Link to="/organizer/promoters" className="link tiny">Promoter profiles + bank details →</Link>
+            <Link to="/organizer/promoters" className="link tiny" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Promoter profiles + bank details <ArrowRight size={12} /></Link>
           </div>
           <p className="tiny muted-2" style={{ marginBottom: 12 }}>
             Per-head payouts and revenue-share you set per event, per promoter. This is settled directly between you
@@ -113,7 +116,7 @@ export default function Payouts() {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div className="small bold">{fmtMoney(r.total)}</div>
-                  <div className="tiny" style={{ color: r.status === 'received' ? 'var(--green, #2a9d5c)' : 'var(--muted-2)' }}>
+                  <div className="tiny" style={{ color: r.status === 'received' ? 'var(--green, #2a9d5c)' : 'var(--muted-2)', display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
                     {STATUS_LABEL[r.status]}
                   </div>
                 </div>
@@ -152,8 +155,8 @@ export default function Payouts() {
             )}
           </tbody>
         </table>
-        <button className="btn btn-ghost btn-sm" style={{ marginTop: 14 }} onClick={exportCsv} disabled={!ledger.length}>
-          ⬇ Download statement (CSV)
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={exportCsv} disabled={!ledger.length}>
+          <Download size={14} /> Download statement (CSV)
         </button>
       </div>
     </div>

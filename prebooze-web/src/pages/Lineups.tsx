@@ -8,6 +8,7 @@ import type { LineupProfile } from '../types';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import DirectoryCard from '../components/DirectoryCard';
 import { cityHome, lineupPath } from '../lib/urls';
+import { Mic, CheckCircle2 } from 'lucide-react';
 
 /** Public directory of line-up artists — DJs, bands, comedians and more. */
 export default function Lineups() {
@@ -37,7 +38,7 @@ export default function Lineups() {
         <div className="breadcrumb">
           <Link to={cityHome(city)}>Home</Link> / Line-ups
         </div>
-        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Line-ups in {city} 🎤</h1>
+        <h1 style={{ fontSize: 26, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>Line-ups in {city} <Mic size={22} /></h1>
         <p className="muted" style={{ marginBottom: 18 }}>
           DJs, bands, comedians and performers with upcoming shows in {city} — each profile links straight to
           the events they're playing, so you can follow an act and catch their next set before it sells out.
@@ -71,7 +72,7 @@ export default function Lineups() {
                 action={
                   isOwn ? null : (
                     <button className={`btn btn-sm btn-block ${isFollowing ? 'btn-ghost' : 'btn-pri'}`} onClick={() => toggleFollow(key)}>
-                      {isFollowing ? 'Following ✓' : '+ Follow'}
+                      {isFollowing ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Following <CheckCircle2 size={13} /></span> : '+ Follow'}
                     </button>
                   )
                 }

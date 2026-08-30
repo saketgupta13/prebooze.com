@@ -7,6 +7,7 @@ import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import { lineup as lineupApi } from '../../api';
 import { ApiError } from '../../api/client';
+import { CheckCircle2, ArrowRight, X, Camera } from 'lucide-react';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 
@@ -90,25 +91,25 @@ export default function LineupSettings() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="bold small">
               Verification
-              {verified && <span className="verified" style={{ marginLeft: 6 }}>✓</span>}
+              {verified && <span className="verified" style={{ marginLeft: 6, display: 'inline-flex', verticalAlign: 'middle' }}><CheckCircle2 size={14} /></span>}
             </div>
             <div className="tiny muted">
               {verified ? 'Your identity is verified' : "ID + selfie — a one-time verified badge, doesn't affect your profile being live"}
             </div>
           </div>
-          {!verified && <Link to="/artist/profile/verification" className="btn btn-pri btn-sm">Complete verification →</Link>}
+          {!verified && <Link to="/artist/profile/verification" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Complete verification <ArrowRight size={14} /></Link>}
         </div>
       )}
 
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
       <form className="card" onSubmit={save}>
         <RealUploadBox
           value={logoUrl}
           onChange={setLogoUrl}
           upload={lineupApi.upload}
           onBusyChange={setLogoUploading}
-          label="📷 photo + — Add a press shot — it headlines your profile and event chips"
-          doneLabel="✓ Profile photo added — click to replace"
+          label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Camera size={15} /> photo + — Add a press shot — it headlines your profile and event chips</span>}
+          doneLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={15} /> Profile photo added — click to replace</span>}
           style={{ marginBottom: 16, height: 120 }}
         />
         <div className="field">
@@ -123,8 +124,8 @@ export default function LineupSettings() {
           <span>Line-up category</span>
           <div className="chip-row">
             {CATEGORIES.map((c) => (
-              <button key={c} type="button" className={`chip ${form.lineupCategory === c ? 'on' : ''}`} onClick={() => setForm((f) => ({ ...f, lineupCategory: c }))} disabled={loading}>
-                {c}{form.lineupCategory === c ? ' ✓' : ''}
+              <button key={c} type="button" className={`chip ${form.lineupCategory === c ? 'on' : ''}`} onClick={() => setForm((f) => ({ ...f, lineupCategory: c }))} disabled={loading} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {c}{form.lineupCategory === c ? <CheckCircle2 size={12} /> : ''}
               </button>
             ))}
           </div>
@@ -142,7 +143,7 @@ export default function LineupSettings() {
                   placeholder={i === 0 ? 'instagram.com/you, spotify, soundcloud…' : 'Another link'}
                   disabled={loading}
                 />
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeLink(i)} title="Remove" disabled={loading}>✕</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeLink(i)} title="Remove" disabled={loading} style={{ display: 'inline-flex', alignItems: 'center' }}><X size={14} /></button>
               </div>
             ))}
             <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addLink} disabled={loading}>+ Add another link</button>

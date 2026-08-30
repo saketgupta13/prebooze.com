@@ -18,6 +18,7 @@ import { buildOrganizerSchema, buildBreadcrumbSchema } from '../lib/schema';
 import { useCityReconcile } from '../lib/useCityReconcile';
 import { organizerPath, cityHome, cityOrganizers } from '../lib/urls';
 import { formatLocation } from '../lib/formatLocation';
+import { Headphones, BadgeCheck, CheckCircle2, Star } from 'lucide-react';
 
 export default function OrganizerProfile() {
   const { id } = useParams();
@@ -101,11 +102,11 @@ export default function OrganizerProfile() {
       <div className="container">
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 22, flexWrap: 'wrap' }}>
           <div style={{ width: 96 }}>
-            <Poster hue={org.logoHue} emoji="🎧" variant="square" imageUrl={org.logoUrl} alt={org.brandName} eager />
+            <Poster hue={org.logoHue} icon={<Headphones size={36} />} variant="square" imageUrl={org.logoUrl} alt={org.brandName} eager />
           </div>
           <div style={{ flex: 1, minWidth: 220 }}>
             <h1 style={{ fontSize: 24 }}>
-              {org.brandName} {org.verified && <span className="verified">✓</span>}
+              {org.brandName} {org.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={18} /></span>}
             </h1>
             <div className="muted small">
               @{org.username} · {org.city} · since {org.since}
@@ -133,7 +134,7 @@ export default function OrganizerProfile() {
                 className={`btn btn-sm ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
                 onClick={() => toggleFollow(org.id)}
               >
-                {isFollowing ? 'Following ✓' : '+ Follow'}
+                {isFollowing ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Following <CheckCircle2 size={13} /></span> : '+ Follow'}
               </button>
             )}
             <ShareButton path={organizerPath(org.city, org.id)} />
@@ -148,7 +149,7 @@ export default function OrganizerProfile() {
                 <div className="l">followers</div>
               </div>
               <div className="s">
-                <div className="v">{org.reviewCount ? `${org.rating.toFixed(1)} ★` : '—'}</div>
+                <div className="v" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>{org.reviewCount ? <>{org.rating.toFixed(1)} <Star size={16} /></> : '—'}</div>
                 <div className="l">{org.reviewCount ? `${org.reviewCount} review${org.reviewCount === 1 ? '' : 's'}` : 'no reviews yet'}</div>
               </div>
               <div className="s">
@@ -171,7 +172,7 @@ export default function OrganizerProfile() {
               </div>
               <div className="kv">
                 <span className="k">Verified</span>
-                <span className={org.verified ? 'verified' : 'muted'}>{org.verified ? '✓ by Prebooze' : 'pending'}</span>
+                <span className={org.verified ? 'verified' : 'muted'} style={org.verified ? { display: 'inline-flex', alignItems: 'center', gap: 4 } : undefined}>{org.verified ? <><BadgeCheck size={13} /> by Prebooze</> : 'pending'}</span>
               </div>
             </div>
           </div>

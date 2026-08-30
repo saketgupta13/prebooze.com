@@ -5,6 +5,7 @@ import { ApiError } from '../../api/client';
 import { FileDropBox } from '../../components/FileDropBox';
 import { dataUrlToFile } from '../../lib/fileUtils';
 import Loader from '../../components/Loader';
+import { CheckCircle2, ShieldCheck, ArrowLeft, ArrowRight, IdCard, Camera, X, Lock } from 'lucide-react';
 
 /** Self-serve *identity* verification — badge-only, entirely separate from
  * payout details (bank fields in Settings). Same guest-style ID + selfie
@@ -56,9 +57,9 @@ export default function PromoterVerification() {
   if (me.verified) {
     return (
       <div className="card" style={{ maxWidth: 560 }}>
-        <div className="bold" style={{ marginBottom: 6 }}>You're verified <span className="verified">✓</span></div>
+        <div className="bold" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>You're verified <span className="verified" style={{ display: 'inline-flex' }}><CheckCircle2 size={16} /></span></div>
         <p className="muted small">Your identity has been verified.</p>
-        <Link to="/promoter/settings" className="link small bold" style={{ display: 'inline-block', marginTop: 10 }}>← Back to Settings</Link>
+        <Link to="/promoter/settings" className="link small bold" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}><ArrowLeft size={14} /> Back to Settings</Link>
       </div>
     );
   }
@@ -66,11 +67,11 @@ export default function PromoterVerification() {
   if (pending || done) {
     return (
       <div className="card" style={{ maxWidth: 560 }}>
-        <div className="bold" style={{ marginBottom: 6 }}>🛡 Verification under review</div>
+        <div className="bold" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><ShieldCheck size={17} /> Verification under review</div>
         <p className="muted small">
           We've got your details — our team usually reviews within 24h. You'll get a WhatsApp/email once you're verified.
         </p>
-        <Link to="/promoter/settings" className="link small bold" style={{ display: 'inline-block', marginTop: 10 }}>← Back to Settings</Link>
+        <Link to="/promoter/settings" className="link small bold" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}><ArrowLeft size={14} /> Back to Settings</Link>
       </div>
     );
   }
@@ -79,10 +80,10 @@ export default function PromoterVerification() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
         <h1 style={{ fontSize: 24, marginBottom: 6 }}>Complete verification</h1>
-        <Link to="/promoter/settings" className="link small bold">← Back to Settings</Link>
+        <Link to="/promoter/settings" className="link small bold" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><ArrowLeft size={14} /> Back to Settings</Link>
       </div>
       <p className="muted small" style={{ marginBottom: 18 }}>
-        Identity verification only — gets you the <span className="verified">✓</span> verified badge and organizers
+        Identity verification only — gets you the <span className="verified" style={{ display: 'inline-flex', verticalAlign: 'middle' }}><CheckCircle2 size={13} /></span> verified badge and organizers
         approve you faster. Doesn't affect your ability to promote or earn.
       </p>
 
@@ -91,23 +92,23 @@ export default function PromoterVerification() {
         <p className="tiny muted" style={{ marginBottom: 12 }}>
           We don't have a way to validate these automatically — a real person on our team reviews them.
         </p>
-        <FileDropBox value={idDoc} onChange={setIdDoc} accept="image/*,.pdf" label="🪪 Upload Aadhaar / passport front" doneLabel="✓ ID uploaded — click to replace" style={{ marginBottom: 12 }} />
+        <FileDropBox value={idDoc} onChange={setIdDoc} accept="image/*,.pdf" label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IdCard size={15} /> Upload Aadhaar / passport front</span>} doneLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={15} /> ID uploaded — click to replace</span>} style={{ marginBottom: 12 }} />
         <FileDropBox
           value={selfie}
           onChange={setSelfie}
-          label="📷 capture or upload a selfie"
-          doneLabel="✓ Selfie captured — click to replace"
+          label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Camera size={15} /> capture or upload a selfie</span>}
+          doneLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={15} /> Selfie captured — click to replace</span>}
         />
       </div>
 
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
       <div style={{ display: 'flex', gap: 10, maxWidth: 640 }}>
-        <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>← Back</button>
-        <button className="btn btn-pri btn-lg" style={{ flex: 1 }} disabled={!valid || submitting} onClick={submit}>
-          {submitting ? 'Submitting…' : 'Submit for verification →'}
+        <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><ArrowLeft size={15} /> Back</button>
+        <button className="btn btn-pri btn-lg" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={!valid || submitting} onClick={submit}>
+          {submitting ? 'Submitting…' : <>Submit for verification <ArrowRight size={16} /></>}
         </button>
       </div>
-      <div className="tiny muted-2" style={{ marginTop: 10 }}>🔒 reviewed manually by our team · usually approved within 24h</div>
+      <div className="tiny muted-2" style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 4 }}><Lock size={12} /> reviewed manually by our team · usually approved within 24h</div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Mic, Landmark, Headphones, Megaphone } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
 import { useSeo } from '../../lib/useSeo';
 
@@ -47,17 +48,17 @@ export default function HostLanding() {
             weekly — with WhatsApp tickets and QR check-in built in.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 22, flexWrap: 'wrap' }}>
-            <Link to={joinTarget} state={{ from: '/organizer/onboarding' }} className="btn btn-pri btn-lg">
-              🎤 Join as Organizer
+            <Link to={joinTarget} state={{ from: '/organizer/onboarding' }} className="btn btn-pri btn-lg" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Mic size={16} /> Join as Organizer
             </Link>
-            <Link to={venueJoinTarget} state={{ from: '/venue/onboarding' }} className="btn btn-ghost btn-lg">
-              🏛 Join as Venue
+            <Link to={venueJoinTarget} state={{ from: '/venue/onboarding' }} className="btn btn-ghost btn-lg" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Landmark size={16} /> Join as Venue
             </Link>
-            <Link to="/lineup/onboarding" className="btn btn-ghost btn-lg">
-              🎤 Join as Artist / Line-up
+            <Link to="/lineup/onboarding" className="btn btn-ghost btn-lg" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Headphones size={16} /> Join as Artist / Line-up
             </Link>
-            <Link to="/promoter/onboarding" className="btn btn-ghost btn-lg">
-              📣 Join as Promoter / PR
+            <Link to="/promoter/onboarding" className="btn btn-ghost btn-lg" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Megaphone size={16} /> Join as Promoter / PR
             </Link>
           </div>
         </section>
@@ -117,11 +118,11 @@ export default function HostLanding() {
         </section>
 
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
-          <Link to={joinTarget} state={{ from: '/organizer/onboarding' }} className="btn btn-pri btn-lg">
-            🎤 Join as Organizer →
+          <Link to={joinTarget} state={{ from: '/organizer/onboarding' }} className="btn btn-pri btn-lg" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Mic size={16} /> Join as Organizer →
           </Link>
-          <Link to={venueJoinTarget} state={{ from: '/venue/onboarding' }} className="btn btn-ghost btn-lg">
-            🏛 Join as Venue →
+          <Link to={venueJoinTarget} state={{ from: '/venue/onboarding' }} className="btn btn-ghost btn-lg" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Landmark size={16} /> Join as Venue →
           </Link>
         </div>
       </div>

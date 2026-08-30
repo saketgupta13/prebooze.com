@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { CheckCircle2, X } from 'lucide-react';
 
 /** Real file upload — same look as FileDropBox/GalleryDropBox, but hits a
  * real upload endpoint (organizer.upload / venuePartner.upload) and stores
@@ -19,7 +20,7 @@ export function RealUploadBox({ value, onChange, upload, label, doneLabel, accep
   value?: string | null;
   onChange: (url: string) => void;
   upload: (file: File) => Promise<{ url: string }>;
-  label: string;
+  label: ReactNode;
   doneLabel?: ReactNode;
   accept?: string;
   style?: React.CSSProperties;
@@ -66,7 +67,7 @@ export function RealUploadBox({ value, onChange, upload, label, doneLabel, accep
         }}
       >
         <input ref={inputRef} type="file" accept={accept} onChange={onFile} style={{ display: 'none' }} />
-        {busy ? 'Uploading…' : value ? (doneLabel ?? '✓ uploaded — click to replace') : label}
+        {busy ? 'Uploading…' : value ? (doneLabel ?? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckCircle2 size={13} /> uploaded — click to replace</span>) : label}
       </button>
       {err && <div className="tiny danger-text" style={{ marginTop: 4 }}>{err}</div>}
     </div>
@@ -80,7 +81,7 @@ export function RealVideoUploadBox({ value, onChange, upload, label, onBusyChang
   value?: string | null;
   onChange: (url: string) => void;
   upload: (file: File) => Promise<{ url: string }>;
-  label: string;
+  label: ReactNode;
   onBusyChange?: (busy: boolean) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -161,9 +162,9 @@ export function RealGalleryUploadBox({ value, onChange, upload, max = 6, onBusyC
             <button
               type="button"
               onClick={() => remove(i)}
-              style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 10, cursor: 'pointer', lineHeight: '18px', padding: 0 }}
+              style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
             >
-              ✕
+              <X size={11} />
             </button>
           </div>
         ))}

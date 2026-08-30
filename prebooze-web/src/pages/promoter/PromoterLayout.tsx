@@ -2,15 +2,17 @@ import { useState } from 'react';
 import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import PendingReview, { RejectedReview } from '../../components/PendingReview';
+import { LayoutGrid, Megaphone, Banknote, Users, Trophy, CreditCard, Settings, MoreHorizontal, X } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
-const NAV = [
-  { to: '/promoter', label: '▦ Dashboard', end: true },
-  { to: '/promoter/promotions', label: '📣 My promotions' },
-  { to: '/promoter/earnings', label: '💰 Earnings' },
-  { to: '/promoter/team', label: '👥 Team' },
-  { to: '/promoter/leaderboard', label: '🏆 Leaderboard' },
-  { to: '/promoter/subscription', label: '💳 Subscription' },
-  { to: '/promoter/settings', label: '⚙ Profile & settings' },
+const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
+  { to: '/promoter', label: 'Dashboard', icon: LayoutGrid, end: true },
+  { to: '/promoter/promotions', label: 'My promotions', icon: Megaphone },
+  { to: '/promoter/earnings', label: 'Earnings', icon: Banknote },
+  { to: '/promoter/team', label: 'Team', icon: Users },
+  { to: '/promoter/leaderboard', label: 'Leaderboard', icon: Trophy },
+  { to: '/promoter/subscription', label: 'Subscription', icon: CreditCard },
+  { to: '/promoter/settings', label: 'Profile & settings', icon: Settings },
 ];
 
 const PINNED_COUNT = 4;
@@ -32,7 +34,7 @@ export default function PromoterLayout() {
           <div className="cap">PROMOTER</div>
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
-              {n.label}
+              <n.icon size={16} /> {n.label}
             </NavLink>
           ))}
         </aside>
@@ -57,18 +59,15 @@ function MobileOrgNav({ navItems }: { navItems: typeof NAV }) {
   return (
     <>
       <nav className="org-mobile-tabbar">
-        {pinned.map((n) => {
-          const [ico, ...labelParts] = n.label.split(' ');
-          return (
-            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
-              <span className="ico">{ico}</span>
-              {labelParts.join(' ')}
-            </NavLink>
-          );
-        })}
+        {pinned.map((n) => (
+          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'on' : '')}>
+            <span className="ico"><n.icon size={18} /></span>
+            {n.label}
+          </NavLink>
+        ))}
         {rest.length > 0 && (
           <button onClick={() => setOpen(true)}>
-            <span className="ico">⋯</span>
+            <span className="ico"><MoreHorizontal size={18} /></span>
             More
           </button>
         )}
@@ -79,7 +78,7 @@ function MobileOrgNav({ navItems }: { navItems: typeof NAV }) {
           <div className="org-drawer">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <span className="cap" style={{ padding: 0 }}>MORE</span>
-              <span onClick={() => setOpen(false)} style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: 18, lineHeight: 1 }}>✕</span>
+              <span onClick={() => setOpen(false)} style={{ cursor: 'pointer', color: 'var(--muted)', display: 'flex', lineHeight: 1 }}><X size={18} /></span>
             </div>
             {rest.map((n) => (
               <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => (isActive ? 'on' : '')}>

@@ -9,6 +9,7 @@ import CategoryIcon from '../../components/CategoryIcon';
 import Loader from '../../components/Loader';
 import type { Event, PromoterProfile } from '../../types';
 import { eventLocation } from '../../lib/venue';
+import { Ticket, X, ArrowRight, Lock } from 'lucide-react';
 
 /** Public guest-capture landing reached via a promoter's affiliate link.
  * No login — name / phone / age / gender → a time-based QR pass. All fraud/
@@ -99,7 +100,7 @@ export default function GuestLanding() {
               <Poster hue={event.posterHue} icon={<CategoryIcon name={event.category} />} imageUrl={event.posterUrl} alt={event.title} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <span className="badge badge-accent">Free entry 🎟️</span>
+              <span className="badge badge-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Free entry <Ticket size={13} /></span>
               <h1 style={{ fontSize: 20, margin: '6px 0 2px' }}>{event.title}</h1>
               <div className="muted small">{fmtDate(event.date)} · {fmtTime(event.date)} · {eventLocation(event, venue)}</div>
             </div>
@@ -159,7 +160,7 @@ export default function GuestLanding() {
                     className="btn btn-ghost btn-sm"
                     onClick={() => setCompanions((prev) => prev.filter((_, idx) => idx !== i))}
                   >
-                    ✕
+                    <X size={14} />
                   </button>
                 </div>
               ))}
@@ -171,11 +172,11 @@ export default function GuestLanding() {
             </div>
 
             {err && <div className="alert alert-error" style={{ marginBottom: 12 }}>{err}</div>}
-            <button className="btn btn-pri btn-block btn-lg" disabled={submitting}>
-              {submitting ? 'Joining…' : companions.filter((c) => c.trim()).length > 0 ? `Get our free-entry QR (${1 + companions.filter((c) => c.trim()).length}) →` : 'Get my free-entry QR →'}
+            <button className="btn btn-pri btn-block btn-lg" disabled={submitting} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              {submitting ? 'Joining…' : companions.filter((c) => c.trim()).length > 0 ? <>{`Get our free-entry QR (${1 + companions.filter((c) => c.trim()).length})`} <ArrowRight size={16} /></> : <>Get my free-entry QR <ArrowRight size={16} /></>}
             </button>
-            <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-              🔒 your QR is sent to WhatsApp &amp; email · valid only before the cutoff · carry ID matching your name
+            <div className="tiny muted-2 center" style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <Lock size={12} /> your QR is sent to WhatsApp &amp; email · valid only before the cutoff · carry ID matching your name
             </div>
           </form>
         </div>

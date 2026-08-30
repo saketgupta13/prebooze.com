@@ -6,6 +6,7 @@ import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event } from '../../types';
 import { eventCity, eventPath } from '../../lib/urls';
+import { AlertCircle, Ticket } from 'lucide-react';
 
 /** Every event hosted at this venue — real GET /venue/events (already scoped
  * to approved events at this venue, organizer embedded). */
@@ -36,7 +37,7 @@ export default function VenueEvents() {
       <p className="muted small" style={{ marginBottom: 14 }}>
         Organizers book your venue through their event flow — every approved event shows up here automatically.
       </p>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
       <div className="tabs" style={{ marginBottom: 14 }}>
         <button className={tab === 'upcoming' ? 'on' : ''} onClick={() => setTab('upcoming')}>Upcoming</button>
         <button className={tab === 'past' ? 'on' : ''} onClick={() => setTab('past')}>Past</button>
@@ -60,8 +61,8 @@ export default function VenueEvents() {
                 {e.organizer && <> · by {e.organizer.brandName}</>}
               </div>
             </div>
-            <div className="small muted" style={{ minWidth: 110 }}>
-              🎟 {sold}/{total} sold
+            <div className="small muted" style={{ minWidth: 110, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Ticket size={13} /> {sold}/{total} sold
               {sold >= total && total > 0 && <span className="accent bold"> · sold out</span>}
             </div>
             <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="btn btn-ghost btn-sm">View event →</Link>

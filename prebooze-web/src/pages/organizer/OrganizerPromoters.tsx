@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
+import { X, BadgeCheck, Megaphone } from 'lucide-react';
 
 const fmtMoney = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
@@ -41,11 +42,11 @@ export default function OrganizerPromoters() {
         you owe. Real transfers happen outside Prebooze; for per-event status and "mark received" history, see{' '}
         <Link to="/organizer/payouts" className="link">Payouts</Link>.
       </p>
-      {err && <div className="danger-text small" style={{ marginBottom: 12 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
 
       {rows.length === 0 ? (
         <div className="empty">
-          <div style={{ fontSize: 30, marginBottom: 10 }}>📣</div>
+          <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}><Megaphone size={30} /></div>
           No promoters yet. Add some from an event's Promoters step when creating or editing an event.
         </div>
       ) : (
@@ -56,7 +57,7 @@ export default function OrganizerPromoters() {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <h3 style={{ fontSize: 16 }}>{p.promoterName}</h3>
-                    {p.verified && <span className="verified">✓</span>}
+                    {p.verified && <span className="verified" style={{ display: 'inline-flex', alignItems: 'center' }}><BadgeCheck size={14} /></span>}
                   </div>
                   <div className="muted small">{p.city}{p.contact && <> · {p.contact}</>}</div>
                   {p.bio && <div className="tiny muted-2" style={{ marginTop: 4, maxWidth: 480 }}>{p.bio}</div>}

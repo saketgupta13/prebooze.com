@@ -5,6 +5,8 @@ import { ApiError } from '../../api/client';
 import type { Booking, Event } from '../../types';
 import { isPassValid } from '../../lib/promoterPass';
 import CameraQRScanner from '../../components/CameraQRScanner';
+import type { ReactNode } from 'react';
+import { Megaphone, Star, CheckCircle2, Martini, Ticket, X, Gift, Keyboard, Camera, Check } from 'lucide-react';
 
 type ScanState =
   | { mode: 'idle' }
@@ -28,7 +30,7 @@ interface GuestListMatch {
   kind: 'promoter' | 'orgList';
   key: string;
   name: string;
-  sub: string;
+  sub: ReactNode;
   disabled: boolean;
   reason?: string;
   row: OrgPromoterGuest | OrgGuestListEntry;
@@ -67,7 +69,7 @@ function guestListMatches(promoterGuests: OrgPromoterGuest[], orgGuests: OrgGues
       kind: 'promoter' as const,
       key: g.id,
       name: g.name,
-      sub: `📣 brought by @${g.promoterSlug}`,
+      sub: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Megaphone size={11} /> brought by @{g.promoterSlug}</span>,
       disabled: g.arrived || !valid,
       reason: g.arrived ? 'Already checked in' : !valid ? 'Free-entry window closed' : undefined,
       row: g,
@@ -78,7 +80,11 @@ function guestListMatches(promoterGuests: OrgPromoterGuest[], orgGuests: OrgGues
       kind: 'orgList' as const,
       key: g.id,
       name: g.name,
-      sub: g.companions.length ? `⭐ guest list · with ${g.companions.map((c) => c.name).join(', ')}` : '⭐ guest list',
+      sub: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <Star size={11} /> guest list{g.companions.length ? <> · with {g.companions.map((c) => c.name).join(', ')}</> : null}
+        </span>
+      ),
       disabled: g.arrived,
       reason: g.arrived ? 'Already checked in' : undefined,
       row: g,
@@ -215,7 +221,7 @@ export default function VenueScanner() {
     return (
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div className="confirm-tick">✓</div>
+          <div className="confirm-tick"><CheckCircle2 size={30} /></div>
           <h2>Checked in</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Booking</span><span className="bold">{b.id}</span></div>
@@ -227,9 +233,9 @@ export default function VenueScanner() {
           <div style={{ textAlign: 'left', margin: '14px 0', paddingTop: 14, borderTop: '1px dashed var(--border-dash)' }}>
             <div className="tiny muted" style={{ marginBottom: 6 }}>What's included in this ticket</div>
             {b.coverCharge ? (
-              <div className="accent bold">🍹 ₹{b.coverCharge} redeemable at the venue</div>
+              <div className="accent bold" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Martini size={15} /> ₹{b.coverCharge} redeemable at the venue</div>
             ) : (
-              <div className="bold">🎟 Entry</div>
+              <div className="bold" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Ticket size={15} /> Entry</div>
             )}
           </div>
           <button className="btn btn-pri btn-block btn-lg" onClick={() => setState({ mode: 'idle' })}>
@@ -245,16 +251,16 @@ export default function VenueScanner() {
     return (
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div className="confirm-tick">✓</div>
+          <div className="confirm-tick"><CheckCircle2 size={30} /></div>
           <h2>Free entry — valid</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Guest</span><span className="bold">{g.name}</span></div>
-            <div className="kv"><span className="k">Brought by</span><span>📣 {g.promoterSlug}</span></div>
+            <div className="kv"><span className="k">Brought by</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Megaphone size={13} /> {g.promoterSlug}</span></div>
             <div className="kv"><span className="k">Age · gender</span><span>{g.age} · {g.gender}</span></div>
             <div className="kv"><span className="k">Event</span><span>{event?.title}</span></div>
           </div>
-          <button className="btn btn-pri btn-block btn-lg" disabled={busy} onClick={() => confirmPromoter(g)}>
-            {busy ? 'Checking in…' : `Check in ${g.name.split(' ')[0]} ✓`}
+          <button className="btn btn-pri btn-block btn-lg" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={busy} onClick={() => confirmPromoter(g)}>
+            {busy ? 'Checking in…' : <>Check in {g.name.split(' ')[0]} <Check size={14} /></>}
           </button>
           <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }} onClick={() => setState({ mode: 'idle' })}>
             Scan next →
@@ -270,7 +276,7 @@ export default function VenueScanner() {
     return (
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div className="confirm-tick">✓</div>
+          <div className="confirm-tick"><CheckCircle2 size={30} /></div>
           <h2>Guest list — valid</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Guest</span><span className="bold">{g.name}</span></div>
@@ -278,8 +284,8 @@ export default function VenueScanner() {
             <div className="kv"><span className="k">Party size</span><span>{partySize}</span></div>
             <div className="kv"><span className="k">Added by</span><span>{g.addedBy}</span></div>
           </div>
-          <button className="btn btn-pri btn-block btn-lg" disabled={busy} onClick={() => confirmGuestListEntry(g)}>
-            {busy ? 'Checking in…' : `Check in ${g.name.split(' ')[0]} ✓`}
+          <button className="btn btn-pri btn-block btn-lg" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={busy} onClick={() => confirmGuestListEntry(g)}>
+            {busy ? 'Checking in…' : <>Check in {g.name.split(' ')[0]} <Check size={14} /></>}
           </button>
           <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }} onClick={() => setState({ mode: 'idle' })}>
             Scan next →
@@ -295,7 +301,7 @@ export default function VenueScanner() {
     return (
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div className="confirm-tick">✓</div>
+          <div className="confirm-tick"><CheckCircle2 size={30} /></div>
           <h2>Valid ticket</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Booking</span><span className="bold">{row.bookingId}</span></div>
@@ -308,13 +314,13 @@ export default function VenueScanner() {
           <div style={{ textAlign: 'left', margin: '14px 0', paddingTop: 14, borderTop: '1px dashed var(--border-dash)' }}>
             <div className="tiny muted" style={{ marginBottom: 6 }}>What's included in this ticket</div>
             {row.coverCharge ? (
-              <div className="accent bold">🍹 ₹{row.coverCharge} redeemable at the venue</div>
+              <div className="accent bold" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Martini size={15} /> ₹{row.coverCharge} redeemable at the venue</div>
             ) : (
-              <div className="bold">🎟 Entry</div>
+              <div className="bold" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Ticket size={15} /> Entry</div>
             )}
           </div>
-          <button className="btn btn-pri btn-block btn-lg" disabled={busy} onClick={() => confirmBooking(row)}>
-            {busy ? 'Checking in…' : 'Check in ✓'}
+          <button className="btn btn-pri btn-block btn-lg" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={busy} onClick={() => confirmBooking(row)}>
+            {busy ? 'Checking in…' : <>Check in <Check size={14} /></>}
           </button>
           <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }} onClick={() => setState({ mode: 'idle' })}>
             Scan next →
@@ -328,7 +334,7 @@ export default function VenueScanner() {
     return (
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}>✕</div>
+          <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}><X size={30} /></div>
           <h2 className="danger-text">Not valid</h2>
           <p className="muted small" style={{ margin: '10px 0 20px' }}>{state.reason}</p>
           <button className="btn btn-pri btn-block" onClick={() => setState({ mode: 'idle' })}>Try again</button>
@@ -348,11 +354,11 @@ export default function VenueScanner() {
 
       <div style={{ padding: '0 16px 16px' }}>
         <div className="chip-row" style={{ marginBottom: 14 }}>
-          <button type="button" className={`chip ${entryMode === 'paid' ? 'on' : ''}`} onClick={() => { setEntryMode('paid'); setSearch(''); }}>
-            🎟 Paid booking
+          <button type="button" className={`chip ${entryMode === 'paid' ? 'on' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => { setEntryMode('paid'); setSearch(''); }}>
+            <Ticket size={13} /> Paid booking
           </button>
-          <button type="button" className={`chip ${entryMode === 'guestlist' ? 'on' : ''}`} onClick={() => { setEntryMode('guestlist'); setSearch(''); }}>
-            🎁 Guest list
+          <button type="button" className={`chip ${entryMode === 'guestlist' ? 'on' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => { setEntryMode('guestlist'); setSearch(''); }}>
+            <Gift size={13} /> Guest list
           </button>
         </div>
       </div>
@@ -361,8 +367,8 @@ export default function VenueScanner() {
         {useCamera ? (
           <>
             <CameraQRScanner onScan={onQrScanned} active={state.mode === 'idle' && !busy} />
-            <button className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 10 }} onClick={() => setUseCamera(false)}>
-              ⌨ Switch to manual entry
+            <button className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={() => setUseCamera(false)}>
+              <Keyboard size={14} /> Switch to manual entry
             </button>
           </>
         ) : (
@@ -416,13 +422,13 @@ export default function VenueScanner() {
                 )}
               </div>
             )}
-            <button className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 10 }} onClick={() => setUseCamera(true)}>
-              📷 Switch to camera scan
+            <button className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={() => setUseCamera(true)}>
+              <Camera size={14} /> Switch to camera scan
             </button>
           </>
         )}
-        <div className="small muted center" style={{ marginTop: 12 }}>
-          {loading ? 'Loading…' : `✓ ${checkedInTotal} checked in · ${total} total`}
+        <div className="small muted center" style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+          {loading ? 'Loading…' : <><Check size={13} /> {checkedInTotal} checked in · {total} total</>}
         </div>
         {useCamera && (
           <div className="tiny muted-2 center" style={{ marginTop: 10 }}>

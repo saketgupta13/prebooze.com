@@ -8,6 +8,7 @@ import type { Event } from '../types';
 import { useSeo } from '../lib/useSeo';
 import { cityHome, cityBrowse } from '../lib/urls';
 import CategoryIcon from '../components/CategoryIcon';
+import { FolderOpen, MapPin } from 'lucide-react';
 
 /** Browse-by-category directory — categories + sub-categories with live
  * counts. Category/sub-category names now come from the real, admin-managed
@@ -46,7 +47,7 @@ export default function Categories() {
         <div className="breadcrumb">
           <Link to={cityHome(city)}>Home</Link> / Browse by category
         </div>
-        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Browse by category 🗂️</h1>
+        <h1 style={{ fontSize: 26, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>Browse by category <FolderOpen size={22} /></h1>
         <p className="muted" style={{ marginBottom: 22 }}>
           From live concerts and stand-up comedy to festivals and late-night club sets, every event in{' '}
           <span className="accent bold">{city}</span> is organized into a category and sub-category so you can
@@ -95,7 +96,7 @@ export default function Categories() {
           })}
         </div>
         <div className="tiny muted-2" style={{ marginTop: 14 }}>
-          counts follow your selected city · switch city from the 📍 picker in the header
+          counts follow your selected city · switch city from the <MapPin size={12} style={{ verticalAlign: -2 }} /> picker in the header
         </div>
       </div>
     </main>

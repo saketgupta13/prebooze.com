@@ -6,6 +6,7 @@ import { careers as careersApi } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { CareerJob } from '../types';
 import { useSeo } from '../lib/useSeo';
+import { Rocket, MapPin, CheckCircle2, Upload } from 'lucide-react';
 
 /** Careers — open roles + apply (jobs are admin-managed). */
 export default function Careers() {
@@ -55,7 +56,7 @@ export default function Careers() {
         <div className="breadcrumb">
           <Link to="/">Home</Link> / Careers
         </div>
-        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Work with us 🚀</h1>
+        <h1 style={{ fontSize: 26, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>Work with us <Rocket size={22} /></h1>
         <p className="muted" style={{ marginBottom: 22 }}>
           {jobsLoading ? 'Loading open roles…' : <>We're building India's nightlife layer — {jobs.filter((j) => j.status === 'open').length} roles open right now.</>}
         </p>
@@ -69,12 +70,12 @@ export default function Careers() {
                 </Link>
                 <div className="chip-row" style={{ marginTop: 6 }}>
                   <span className="tag">{j.team}</span>
-                  <span className="tag">📍 {j.loc}</span>
+                  <span className="tag" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><MapPin size={12} /> {j.loc}</span>
                   <span className="tag">{j.type}</span>
                 </div>
               </div>
               {appliedIds.has(j.id) ? (
-                <span className="badge badge-ok">Applied ✓</span>
+                <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Applied <CheckCircle2 size={13} /></span>
               ) : applying === j.id ? (
                 <button className="btn btn-ghost btn-sm" onClick={() => setApplying(null)}>Cancel</button>
               ) : (
@@ -114,7 +115,11 @@ export default function Careers() {
                         setCv(f ?? null);
                       }}
                     />
-                    {cv ? `✓ ${cv.name} attached · click to replace` : '⬆ upload your CV / resume'}
+                    {cv ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={14} /> {cv.name} attached · click to replace</span>
+                    ) : (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Upload size={14} /> upload your CV / resume</span>
+                    )}
                   </label>
                 </div>
                 <button className="btn btn-pri">Submit application →</button>

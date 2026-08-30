@@ -12,6 +12,7 @@ import { isBackendEnabled, ApiError } from '../api/client';
 import { pushEvent } from '../lib/gtm';
 import { trackMeta } from '../lib/meta';
 import { useDraftLead } from '../lib/useDraftLead';
+import { CheckCircle2, BadgeCheck, XCircle, Camera, Mic } from 'lucide-react';
 
 const CATEGORIES = ['Artist', 'DJ', 'Band', 'Comedian', 'Sponsor', 'Promoter', 'Host'];
 const DRAFT_ID = 'lineup';
@@ -98,16 +99,16 @@ export default function LineupOnboarding() {
     return (
       <main className="page">
         <div className="container confirm-hero">
-          <div className="confirm-tick">✓</div>
-          <h1 style={{ fontSize: 26 }}>You're on the roster! 🎤</h1>
+          <div className="confirm-tick"><CheckCircle2 size={30} /></div>
+          <h1 style={{ fontSize: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>You're on the roster! <Mic size={22} /></h1>
           <p className="muted" style={{ margin: '8px 0 22px' }}>
             <b style={{ color: 'var(--text)' }}>{stageName}</b> ({category}) is live right now — organizers can
             already add you to line-ups, and guests can follow you. Add the verified{' '}
-            <span className="verified">✓</span> badge whenever you're ready, from Settings.
+            <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span> badge whenever you're ready, from Settings.
           </p>
           <div className="card" style={{ textAlign: 'left', marginBottom: 18 }}>
             <div className="kv"><span className="k">Profile</span><span>{stageName} · {category} · {loc.city}</span></div>
-            <div className="kv"><span className="k">Status</span><span className="badge badge-ok">Live ✓</span></div>
+            <div className="kv"><span className="k">Status</span><span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Live <CheckCircle2 size={13} /></span></div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/lineup/dj-nova" className="btn btn-ghost">See an example profile</Link>
@@ -131,7 +132,7 @@ export default function LineupOnboarding() {
           <span className="small muted bold">{pct}%</span>
         </div>
 
-        {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+        {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><XCircle size={13} /> {err}</div>}
 
         <form
           className="card"
@@ -145,8 +146,8 @@ export default function LineupOnboarding() {
             onChange={setLogoUrl}
             upload={lineupApi.upload}
             onBusyChange={setLogoUploading}
-            label="📷 photo + — Add a press shot — it headlines your profile and event chips"
-            doneLabel="✓ Profile photo added — click to replace"
+            label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Camera size={14} /> photo + — Add a press shot — it headlines your profile and event chips</span>}
+            doneLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckCircle2 size={14} /> Profile photo added — click to replace</span>}
             style={{ marginBottom: 16, height: 120 }}
           />
           <div className="field">
@@ -158,7 +159,7 @@ export default function LineupOnboarding() {
             <div className="chip-row">
               {CATEGORIES.map((c) => (
                 <button key={c} type="button" className={`chip ${category === c ? 'on' : ''}`} onClick={() => setCategory(c)}>
-                  {c}{category === c ? ' ✓' : ''}
+                  {c}{category === c ? <CheckCircle2 size={12} style={{ marginLeft: 4, verticalAlign: -1 }} /> : ''}
                 </button>
               ))}
             </div>
@@ -175,7 +176,7 @@ export default function LineupOnboarding() {
                     onChange={(e) => setLink(i, e.target.value)}
                     placeholder={i === 0 ? 'instagram.com/you, spotify, soundcloud…' : 'Another link'}
                   />
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeLink(i)} title="Remove">✕</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeLink(i)} title="Remove"><XCircle size={14} /></button>
                 </div>
               ))}
               <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addLink}>+ Add another link</button>

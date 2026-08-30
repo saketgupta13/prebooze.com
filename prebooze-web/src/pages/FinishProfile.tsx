@@ -10,6 +10,7 @@ import { isBackendEnabled } from '../api/client';
 import { ApiError } from '../api/client';
 import { SOCIAL_PLATFORMS, type SocialLinks } from '../types';
 import { ageFromDob } from '../lib/ageGate';
+import { PartyPopper, XCircle, Camera, CheckCircle2 } from 'lucide-react';
 
 /** Soft-required "finish your profile" step — everything the old mandatory
  * pre-booking gate used to force, moved here instead (that gate — a
@@ -113,7 +114,7 @@ export default function FinishProfile() {
     return (
       <main className="page">
         <div className="container center" style={{ maxWidth: 480, padding: '60px 0' }}>
-          <h1 style={{ fontSize: 24 }}>🎉 Profile complete!</h1>
+          <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><PartyPopper size={22} /> Profile complete!</h1>
           <p className="muted small" style={{ marginTop: 6 }}>
             Here's 10% off (up to ₹100) your next booking{validTill ? ` — valid until ${validTill}` : ''}:
           </p>
@@ -143,7 +144,7 @@ export default function FinishProfile() {
           Finish these and get 10% off (up to ₹100) your next booking — one-time code, valid for 15 days.
         </p>
 
-        {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+        {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><XCircle size={13} /> {err}</div>}
 
         <form className="card" onSubmit={save}>
           <RealUploadBox
@@ -151,8 +152,8 @@ export default function FinishProfile() {
             onChange={setPhoto}
             upload={auth.upload}
             onBusyChange={setPhotoUploading}
-            label="📷 photo + — Add a profile picture — it appears on your tickets and reviews"
-            doneLabel="✓ Photo added — click to replace"
+            label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Camera size={14} /> photo + — Add a profile picture — it appears on your tickets and reviews</span>}
+            doneLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckCircle2 size={14} /> Photo added — click to replace</span>}
             style={{ marginBottom: 16, height: 120 }}
           />
 
@@ -171,7 +172,7 @@ export default function FinishProfile() {
                 placeholder="@username"
                 style={usernameErr ? { borderColor: 'var(--danger)' } : undefined}
               />
-              {usernameErr && <div className="tiny danger-text" style={{ marginTop: 4 }}>✕ {usernameErr} — please choose a different one</div>}
+              {usernameErr && <div className="tiny danger-text" style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}><XCircle size={12} /> {usernameErr} — please choose a different one</div>}
             </div>
           </div>
           <div className="form-row">
@@ -245,7 +246,7 @@ export default function FinishProfile() {
                   }
                 >
                   {t}
-                  {interests.includes(t) ? ' ✓' : ''}
+                  {interests.includes(t) ? <CheckCircle2 size={12} style={{ marginLeft: 4, verticalAlign: -1 }} /> : ''}
                 </button>
               ))}
             </div>

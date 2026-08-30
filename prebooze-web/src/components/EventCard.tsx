@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Heart, Flame } from 'lucide-react';
 import type { Event } from '../types';
 import { fmtDate, fmtTime, isEventOver } from '../data/mock';
 import { useApp } from '../store/AppContext';
@@ -32,9 +33,9 @@ export default function EventCard({ event }: { event: Event }) {
         aria-label={saved ? 'Remove from wishlist' : 'Add to wishlist'}
         title={saved ? 'Remove from wishlist' : 'Add to wishlist'}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleWishlist(event.id); }}
-        style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, background: 'rgba(0,0,0,.45)', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, background: 'rgba(0,0,0,.45)', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       >
-        {saved ? '❤️' : '🤍'}
+        <Heart size={15} color={saved ? '#ff5a6e' : '#fff'} fill={saved ? '#ff5a6e' : 'none'} />
       </button>
       <Poster hue={event.posterHue} icon={<CategoryIcon name={event.category} />} label="Poster 3:4" imageUrl={event.posterUrl} alt={event.title} />
       <div className="ecard-body">
@@ -43,7 +44,7 @@ export default function EventCard({ event }: { event: Event }) {
           {fmtDate(event.date)}, {fmtTime(event.date)} · {event.durationHrs} hrs
         </div>
         <div className="going">
-          {showGoing(event) && <>🔥 {going.toLocaleString('en-IN')} going</>}
+          {showGoing(event) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Flame size={13} /> {going.toLocaleString('en-IN')} going</span>}
         </div>
         <div className="row">
           <span className="price">{formatFromPrice(displayMinPrice(event.tiers, event.date), hasCurrentlyPaidTier(event.tiers, event.date))}</span>

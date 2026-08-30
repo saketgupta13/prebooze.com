@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { stripHtml } from '../lib/richtext';
+import { Star, BadgeCheck } from 'lucide-react';
 
 /** Consistent directory card for people / promoters / organizers / line-ups.
  * Plain card background (no banners), avatar, bio + stats + action. */
@@ -9,11 +10,11 @@ export default function DirectoryCard({
 }: {
   to: string;
   hue: number;
-  avatarText: string; // initial or emoji, shown when avatarImage is unset
+  avatarText: ReactNode; // initial, emoji or icon, shown when avatarImage is unset
   avatarImage?: string | null; // real uploaded logo — takes over from avatarText when present
   name: string;
   verified?: boolean;
-  meta: string;
+  meta: ReactNode;
   bio?: string;
   stats?: ReactNode;
   extra?: ReactNode;
@@ -23,7 +24,7 @@ export default function DirectoryCard({
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', borderColor: featured ? 'var(--accent)' : undefined, position: 'relative' }}>
       {featured && (
-        <span className="badge badge-accent" style={{ position: 'absolute', top: 12, right: 12, fontSize: 10 }}>★ Featured</span>
+        <span className="badge badge-accent" style={{ position: 'absolute', top: 12, right: 12, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 3 }}><Star size={10} /> Featured</span>
       )}
       <Link to={to} style={{ width: 'fit-content' }} aria-label={name}>
         {avatarImage ? (
@@ -45,7 +46,7 @@ export default function DirectoryCard({
         )}
       </Link>
       <Link to={to} style={{ textDecoration: 'none', color: 'inherit', marginTop: 10 }}>
-        <h3 style={{ fontSize: 15.5 }}>{name} {verified && <span className="verified">✓</span>}</h3>
+        <h3 style={{ fontSize: 15.5 }}>{name} {verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={14} /></span>}</h3>
       </Link>
       <div className="tiny muted-2">{meta}</div>
       {bio && (

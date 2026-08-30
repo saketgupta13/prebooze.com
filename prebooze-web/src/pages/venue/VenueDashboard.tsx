@@ -7,6 +7,7 @@ import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event, Venue } from '../../types';
 import { eventCity, eventPath, venuePath } from '../../lib/urls';
+import { Landmark, Check, CheckCircle2, Circle } from 'lucide-react';
 
 /** Real venue overview — GET /venue/listing + GET /venue/events. */
 export default function VenueDashboard() {
@@ -42,9 +43,9 @@ export default function VenueDashboard() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
-        <h1 style={{ fontSize: 24 }}>{venue.name} 🏛</h1>
+        <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 8 }}>{venue.name} <Landmark size={20} /></h1>
         {venue.verified ? (
-          <span className="badge badge-ok">Verified ✓</span>
+          <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Verified <Check size={12} /></span>
         ) : (
           <Link to="/venue/settings/verification" className="btn btn-pri btn-sm">Complete verification →</Link>
         )}
@@ -74,7 +75,7 @@ export default function VenueDashboard() {
         <h3 style={{ marginBottom: 10 }}>Listing checklist</h3>
         {checklist.map((c) => (
           <div key={c.t} className="kv">
-            <span className="k">{c.done ? '✅' : '◻️'} {c.t}</span>
+            <span className="k" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{c.done ? <CheckCircle2 size={15} style={{ color: 'var(--accent)' }} /> : <Circle size={15} style={{ color: 'var(--muted-2)' }} />} {c.t}</span>
             {!c.done && c.t === 'Verification' && <span className="tiny muted-2">admin review in progress</span>}
           </div>
         ))}

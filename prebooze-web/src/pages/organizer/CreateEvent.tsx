@@ -13,6 +13,9 @@ import { RealUploadBox, RealGalleryUploadBox, RealVideoUploadBox } from '../../c
 import { organizer, catalog } from '../../api';
 import { ApiError } from '../../api/client';
 import { stripHtml } from '../../lib/richtext';
+import {
+  Eye, Pencil, ArrowRight, ArrowLeft, X, Calendar, MapPin, Clock, BadgeCheck, Check, Upload, Ticket, Banknote,
+} from 'lucide-react';
 
 const STEPS = ['1 Basics', '2 Media', '3 Tickets', '4 Rules & line-up', '5 Promoters', '6 SEO & publish'];
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
@@ -342,17 +345,17 @@ export default function CreateEvent() {
     return (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-          <h1 style={{ fontSize: 20 }}>👁 Preview — guest view</h1>
+          <h1 style={{ fontSize: 20, display: 'flex', alignItems: 'center', gap: 8 }}><Eye size={18} /> Preview — guest view</h1>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-ghost" onClick={() => setPreview(false)}>
-              ✎ Keep editing
+            <button className="btn btn-ghost" onClick={() => setPreview(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Pencil size={14} /> Keep editing
             </button>
-            <button className="btn btn-pri" disabled={saving || mediaUploading} onClick={() => save('pending')}>
-              {mediaUploading ? 'Uploading…' : saving ? 'Submitting…' : 'Submit for approval →'}
+            <button className="btn btn-pri" disabled={saving || mediaUploading} onClick={() => save('pending')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {mediaUploading ? 'Uploading…' : saving ? 'Submitting…' : <>Submit for approval <ArrowRight size={15} /></>}
             </button>
           </div>
         </div>
-        {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+        {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
 
         <div className="card">
           <div className="detail-head">
@@ -360,9 +363,9 @@ export default function CreateEvent() {
             <div className="detail-title">
               <h1 style={{ fontSize: 24 }}>{ev.title}</h1>
               <div className="detail-meta">
-                <span>📅 {fmtDate(ev.date)}, {fmtTime(ev.date)}</span>
-                <span>📍 {venue ? `${venue.name}, ${venue.city}` : privateAddress ? `${privateLocality}, ${privateCity}` : ''}</span>
-                <span>⏱ {ev.durationHrs} hrs</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Calendar size={14} /> {fmtDate(ev.date)}, {fmtTime(ev.date)}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><MapPin size={14} /> {venue ? `${venue.name}, ${venue.city}` : privateAddress ? `${privateLocality}, ${privateCity}` : ''}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Clock size={14} /> {ev.durationHrs} hrs</span>
               </div>
               <div className="chip-row">
                 {ev.tags.map((t) => (
@@ -373,7 +376,7 @@ export default function CreateEvent() {
               </div>
               <div className="small muted" style={{ marginTop: 12 }}>
                 Hosted by <span className="bold" style={{ color: 'var(--text)' }}>{user?.orgBrand ?? 'Your brand'}</span>{' '}
-                <span className="verified">✓</span> ·{' '}
+                <span className="verified" style={{ display: 'inline-flex', alignItems: 'center' }}><BadgeCheck size={14} /></span> ·{' '}
                 {ev.tiers.map((t) => `${t.name} ₹${t.price}`).join(' · ')}
               </div>
             </div>
@@ -391,8 +394,8 @@ export default function CreateEvent() {
             </ul>
           )}
         </div>
-        <div className="tiny muted-2" style={{ marginTop: 12 }}>
-          After submit: status <span className="badge badge-pending">Pending admin approval</span> →
+        <div className="tiny muted-2" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+          After submit: status <span className="badge badge-pending">Pending admin approval</span> <ArrowRight size={12} />
           goes live on approval
         </div>
       </div>
@@ -402,26 +405,26 @@ export default function CreateEvent() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <h1 style={{ fontSize: 24 }}>
-          <Link to="/organizer/events" className="muted">
-            ←
+        <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link to="/organizer/events" className="muted" style={{ display: 'inline-flex', alignItems: 'center' }}>
+            <ArrowLeft size={20} />
           </Link>{' '}
           {editing ? `Edit event — ${editing.title}` : 'Create event'}
         </h1>
         {editing && <span className="badge badge-pending">edits resubmit for admin approval</span>}
       </div>
-      {err && <div className="danger-text small" style={{ margin: '10px 0' }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ margin: '10px 0', display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
 
       <div className="wizard-steps">
         {STEPS.map((s, i) => (
           <button
             key={s}
             className={`ws ${i === step ? 'on' : ''} ${i < step ? 'done' : ''}`}
-            style={{ background: 'none', cursor: 'pointer' }}
+            style={{ background: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
             onClick={() => setStep(i)}
           >
             {s}
-            {i < step ? ' ✓' : ''}
+            {i < step ? <Check size={13} /> : ''}
           </button>
         ))}
       </div>
@@ -495,7 +498,8 @@ export default function CreateEvent() {
                   value={privateCity}
                   onChange={setPrivateCity}
                   options={liveCities}
-                  placeholder="🔍 search cities…"
+                  placeholder="search cities…"
+                  icon
                 />
                 <input
                   value={privateLocality}
@@ -519,7 +523,8 @@ export default function CreateEvent() {
                   if (v) setVenueId(v.id);
                 }}
                 options={venues.map(venueLabel)}
-                placeholder="🔍 search venues…"
+                placeholder="search venues…"
+                icon
               />
               <div className="tiny muted-2" style={{ marginTop: 6 }}>
                 Venue not listed? They need to register as a Prebooze venue partner first.
@@ -530,8 +535,8 @@ export default function CreateEvent() {
             <button className="btn btn-ghost" disabled={saving || mediaUploading} onClick={() => save('draft')}>
               {mediaUploading ? 'Uploading…' : saving ? 'Saving…' : 'Save draft'}
             </button>
-            <button className="btn btn-pri" disabled={!step1Valid} onClick={() => setStep(1)}>
-              Next: Media →
+            <button className="btn btn-pri" disabled={!step1Valid} onClick={() => setStep(1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              Next: Media <ArrowRight size={15} />
             </button>
           </div>
         </div>
@@ -543,7 +548,7 @@ export default function CreateEvent() {
           <p className="muted small" style={{ marginBottom: 16 }}>All optional — a poster helps your event stand out, everything else is a nice-to-have.</p>
           <div className="field">
             <span>Poster (portrait 3:4) — shown on your event card & page</span>
-            <RealUploadBox value={posterUrl} onChange={setPosterUrl} upload={organizer.upload} onBusyChange={setPosterUploading} label="⬆ upload poster" style={{ height: 200, width: 160 }} />
+            <RealUploadBox value={posterUrl} onChange={setPosterUrl} upload={organizer.upload} onBusyChange={setPosterUploading} label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Upload size={13} /> upload poster</span>} style={{ height: 200, width: 160 }} />
           </div>
           <div className="field">
             <span>Gallery photos (optional, up to 6)</span>
@@ -561,7 +566,7 @@ export default function CreateEvent() {
           </div>
           <div className="field">
             <span>Teaser reel (optional)</span>
-            <RealVideoUploadBox value={teaserVideoUrl} onChange={setTeaserVideoUrl} upload={organizer.upload} onBusyChange={setTeaserUploading} label="⬆ teaser video · 9:16" />
+            <RealVideoUploadBox value={teaserVideoUrl} onChange={setTeaserVideoUrl} upload={organizer.upload} onBusyChange={setTeaserUploading} label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Upload size={13} /> teaser video · 9:16</span>} />
             <input
               className="input"
               placeholder="or paste a link — Instagram Reel, YouTube, or a direct video file"
@@ -573,19 +578,19 @@ export default function CreateEvent() {
           <div className="form-row">
             <div className="field">
               <span>Social post image (1:1, optional)</span>
-              <RealUploadBox value={socialPostUrl || null} onChange={setSocialPostUrl} upload={organizer.upload} onBusyChange={setSocialPostUploading} label="⬆ post 1:1" style={{ height: 110, width: 110 }} />
+              <RealUploadBox value={socialPostUrl || null} onChange={setSocialPostUrl} upload={organizer.upload} onBusyChange={setSocialPostUploading} label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Upload size={13} /> post 1:1</span>} style={{ height: 110, width: 110 }} />
             </div>
             <div className="field">
               <span>Social story image (9:16, optional)</span>
-              <RealUploadBox value={socialStoryUrl || null} onChange={setSocialStoryUrl} upload={organizer.upload} onBusyChange={setSocialStoryUploading} label="⬆ story 9:16" style={{ height: 160, width: 90 }} />
+              <RealUploadBox value={socialStoryUrl || null} onChange={setSocialStoryUrl} upload={organizer.upload} onBusyChange={setSocialStoryUploading} label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Upload size={13} /> story 9:16</span>} style={{ height: 160, width: 90 }} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
-            <button className="btn btn-ghost" onClick={() => setStep(0)}>
-              ← Back
+            <button className="btn btn-ghost" onClick={() => setStep(0)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <ArrowLeft size={15} /> Back
             </button>
-            <button className="btn btn-pri" onClick={() => setStep(2)}>
-              Next: Tickets →
+            <button className="btn btn-pri" onClick={() => setStep(2)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              Next: Tickets <ArrowRight size={15} />
             </button>
           </div>
         </div>
@@ -624,7 +629,7 @@ export default function CreateEvent() {
                   disabled={tiers.length === 1}
                   title="Remove tier"
                 >
-                  ✕
+                  <X size={15} />
                 </button>
               </div>
               <div className="tiny muted" style={{ marginBottom: 6 }}>
@@ -709,7 +714,7 @@ export default function CreateEvent() {
                   <button
                     key={opt}
                     className={`chip chip-tap ${t.includes.includes(opt) ? 'on' : ''}`}
-                    style={{ fontSize: 12, padding: '4px 11px' }}
+                    style={{ fontSize: 12, padding: '4px 11px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                     onClick={() =>
                       setTier(i, {
                         includes: t.includes.includes(opt)
@@ -719,7 +724,7 @@ export default function CreateEvent() {
                     }
                   >
                     {opt}
-                    {t.includes.includes(opt) ? ' ✓' : ''}
+                    {t.includes.includes(opt) ? <Check size={11} /> : ''}
                   </button>
                 ))}
               </div>
@@ -755,11 +760,11 @@ export default function CreateEvent() {
           </div>
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
-            <button className="btn btn-ghost" onClick={() => setStep(1)}>
-              ← Back
+            <button className="btn btn-ghost" onClick={() => setStep(1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <ArrowLeft size={15} /> Back
             </button>
-            <button className="btn btn-pri" disabled={!tiersValid} onClick={() => setStep(3)}>
-              Next: Rules & line-up →
+            <button className="btn btn-pri" disabled={!tiersValid} onClick={() => setStep(3)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              Next: Rules & line-up <ArrowRight size={15} />
             </button>
           </div>
         </div>
@@ -788,7 +793,7 @@ export default function CreateEvent() {
                 onClick={() => setRules((prev) => prev.filter((_, x) => x !== i))}
                 title="Remove rule"
               >
-                ✕
+                <X size={15} />
               </button>
             </div>
           ))}
@@ -808,7 +813,8 @@ export default function CreateEvent() {
                 toggleLineup({ name: l.name, role });
               }}
               options={lineups.filter((l) => !lineupSel.some((x) => x.name === l.name)).map((l) => l.name)}
-              placeholder="🔍 search line-up & partners to add…"
+              placeholder="search line-up & partners to add…"
+              icon
             />
             <div className="tiny muted-2" style={{ margin: '8px 0' }}>
               Artist not listed? They need to register as a Prebooze line-up first.
@@ -816,19 +822,19 @@ export default function CreateEvent() {
             {lineupSel.length > 0 && (
               <div className="chip-row">
                 {lineupSel.map((l) => (
-                  <button key={l.name} type="button" className="chip on" onClick={() => toggleLineup(l)} title="Remove from bill">
-                    {l.name} ({l.role}) ✕
+                  <button key={l.name} type="button" className="chip on" onClick={() => toggleLineup(l)} title="Remove from bill" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    {l.name} ({l.role}) <X size={11} />
                   </button>
                 ))}
               </div>
             )}
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
-            <button className="btn btn-ghost" onClick={() => setStep(2)}>
-              ← Back
+            <button className="btn btn-ghost" onClick={() => setStep(2)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <ArrowLeft size={15} /> Back
             </button>
-            <button className="btn btn-pri" onClick={() => setStep(4)}>
-              Next: Promoters →
+            <button className="btn btn-pri" onClick={() => setStep(4)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              Next: Promoters <ArrowRight size={15} />
             </button>
           </div>
         </div>
@@ -866,7 +872,7 @@ export default function CreateEvent() {
               <div className="field">
                 <span>Allowed promoters — pick who, and how each one promotes your event</span>
                 <div className="tiny muted-2" style={{ marginBottom: 8 }}>
-                  🎟️ Guest list = free entry, no ticket sold. 💰 Paid commission = a % of the ticket price on any
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Ticket size={12} /> Guest list</span> = free entry, no ticket sold. <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Banknote size={12} /> Paid commission</span> = a % of the ticket price on any
                   sale through their link, added on top so it doesn't cut into your revenue (the guest pays the
                   extra, same as Prebooze's own commission on that sale). Pick either, both, or leave a promoter
                   unchecked on both to add them without activating anything yet.
@@ -880,17 +886,17 @@ export default function CreateEvent() {
                       <div key={p.slug} style={{ border: '1.5px solid var(--border-3)', borderRadius: 10, padding: '10px 12px' }}>
                         <label className="checkbox-row">
                           <input type="checkbox" checked={isAllowed} onChange={() => togglePromoter(p.slug)} />
-                          <span style={{ fontWeight: 700, color: 'var(--text)' }}>{p.name} {p.verified ? '✓' : ''}</span>
+                          <span style={{ fontWeight: 700, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{p.name} {p.verified ? <BadgeCheck size={14} /> : ''}</span>
                         </label>
                         {isAllowed && (
                           <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center', marginTop: 8, marginLeft: 26 }}>
                             <label className="checkbox-row" style={{ marginBottom: 0 }}>
                               <input type="checkbox" checked={hasGuestList} onChange={() => toggleGuestList(p.slug)} />
-                              <span className="small">🎟️ Guest list</span>
+                              <span className="small" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={13} /> Guest list</span>
                             </label>
                             <label className="checkbox-row" style={{ marginBottom: 0 }}>
                               <input type="checkbox" checked={hasCommission} onChange={() => toggleCommission(p.slug)} />
-                              <span className="small">💰 Paid commission</span>
+                              <span className="small" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Banknote size={13} /> Paid commission</span>
                             </label>
                             {hasCommission && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -947,11 +953,11 @@ export default function CreateEvent() {
           )}
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 16 }}>
-            <button className="btn btn-ghost" onClick={() => setStep(3)}>
-              ← Back
+            <button className="btn btn-ghost" onClick={() => setStep(3)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <ArrowLeft size={15} /> Back
             </button>
-            <button className="btn btn-pri" onClick={() => setStep(5)}>
-              Next: SEO & publish →
+            <button className="btn btn-pri" onClick={() => setStep(5)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              Next: SEO & publish <ArrowRight size={15} />
             </button>
           </div>
         </div>
@@ -998,11 +1004,11 @@ export default function CreateEvent() {
           </Accordion>
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 16 }}>
-            <button className="btn btn-ghost" onClick={() => setStep(4)}>
-              ← Back
+            <button className="btn btn-ghost" onClick={() => setStep(4)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <ArrowLeft size={15} /> Back
             </button>
-            <button className="btn btn-pri" disabled={!step1Valid || !tiersValid} onClick={() => setPreview(true)}>
-              Preview event →
+            <button className="btn btn-pri" disabled={!step1Valid || !tiersValid} onClick={() => setPreview(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              Preview event <ArrowRight size={15} />
             </button>
           </div>
         </div>

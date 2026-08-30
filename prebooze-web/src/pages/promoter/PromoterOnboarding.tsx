@@ -12,6 +12,7 @@ import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
 import { useDraftLead } from '../../lib/useDraftLead';
+import { Camera, CheckCircle2, X, ArrowLeft, ArrowRight } from 'lucide-react';
 
 const DRAFT_ID = 'promoter';
 type Draft = {
@@ -119,8 +120,8 @@ export default function PromoterOnboarding() {
           <FileDropBox
             value={logo}
             onChange={setLogo}
-            label="📷 logo + — a mark guests recognise on your lists and links"
-            doneLabel="✓ Logo / photo added — click to replace"
+            label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Camera size={15} /> logo + — a mark guests recognise on your lists and links</span>}
+            doneLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={15} /> Logo / photo added — click to replace</span>}
             style={{ marginBottom: 16 }}
           />
           <div className="field">
@@ -140,13 +141,13 @@ export default function PromoterOnboarding() {
             <span>Audience size / reach (optional)</span>
             <input value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="e.g. 8k on Instagram, 2k WhatsApp broadcast" />
           </div>
-          {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+          {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
           <div style={{ display: 'flex', gap: 10 }}>
-            <button type="button" className="btn btn-ghost" style={{ flexShrink: 0 }} onClick={() => navigate(-1)}>
-              ← Back
+            <button type="button" className="btn btn-ghost" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => navigate(-1)}>
+              <ArrowLeft size={15} /> Back
             </button>
-            <button className="btn btn-pri btn-lg" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }} disabled={!valid || submitting}>
-              {submitting ? 'Setting up…' : 'Create my promoter account →'}
+            <button className="btn btn-pri btn-lg" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={!valid || submitting}>
+              {submitting ? 'Setting up…' : <>Create my promoter account <ArrowRight size={16} /></>}
             </button>
           </div>
         </form>

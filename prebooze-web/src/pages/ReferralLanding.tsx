@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { REFERRAL_CONFIG } from '../data/mock';
 import { cityBrowse } from '../lib/urls';
+import { Gift, Ticket } from 'lucide-react';
 
 /** Public referral landing — /r/:code. Saves the code so signup attributes the friend. */
 export default function ReferralLanding() {
@@ -17,13 +18,13 @@ export default function ReferralLanding() {
     <main className="page">
       <div className="container center" style={{ padding: '72px 0' }}>
         <div className="card card-shadow" style={{ maxWidth: 460, margin: '0 auto', textAlign: 'center' }}>
-          <div style={{ fontSize: 40 }}>🎁</div>
+          <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--accent)' }}><Gift size={40} /></div>
           <h1 style={{ fontSize: 24, marginTop: 8 }}>You've been invited!</h1>
           <p className="muted" style={{ margin: '10px 0 4px' }}>
             A friend invited you to Prebooze — your city's events, one tap away.
           </p>
           <p style={{ marginBottom: 18 }}>
-            Sign up now and get <b className="accent">₹{REFERRAL_CONFIG.referee} wallet credit</b> for your first booking. 🎟️
+            Sign up now and get <b className="accent">₹{REFERRAL_CONFIG.referee} wallet credit</b> for your first booking. <Ticket size={14} style={{ verticalAlign: 'text-bottom' }} />
           </p>
           {user ? (
             <>

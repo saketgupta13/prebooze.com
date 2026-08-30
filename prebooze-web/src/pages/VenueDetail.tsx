@@ -6,6 +6,7 @@ import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Venue, Event } from '../types';
 import Poster from '../components/Poster';
+import { Landmark, Heart, MapPin, Navigation, Clock, Info } from 'lucide-react';
 import ImageLightbox from '../components/ImageLightbox';
 import { PageLoader } from '../components/Loader';
 import ShareButton from '../components/ShareButton';
@@ -93,7 +94,7 @@ export default function VenueDetail() {
 
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', margin: '22px 0', flexWrap: 'wrap' }}>
           <div style={{ width: 96 }}>
-            <Poster hue={venue.photoHue} emoji="🏛" variant="square" imageUrl={venue.logoUrl} alt={venue.name} eager />
+            <Poster hue={venue.photoHue} icon={<Landmark size={40} />} variant="square" imageUrl={venue.logoUrl} alt={venue.name} eager />
           </div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <h1 style={{ fontSize: 24 }}>
@@ -126,8 +127,9 @@ export default function VenueDetail() {
               className="btn btn-ghost btn-sm"
               title={favVenues.includes(venue.id) ? 'Remove favourite' : 'Favourite this venue'}
               onClick={() => toggleFavVenue(venue.id)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              {favVenues.includes(venue.id) ? '❤️ Favourited' : '🤍 Favourite'}
+              {favVenues.includes(venue.id) ? <><Heart size={14} fill="currentColor" /> Favourited</> : <><Heart size={14} /> Favourite</>}
             </button>
             {!isOwnProfile && (
               <button
@@ -165,14 +167,14 @@ export default function VenueDetail() {
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
             />
-            <div className="small muted" style={{ marginBottom: 10 }}>📍 {venue.address}, {formatLocation(venue)}</div>
+            <div className="small muted" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><MapPin size={14} /> {venue.address}, {formatLocation(venue)}</div>
             <a
               href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${venue.name}, ${venue.address}, ${formatLocation(venue)}`)}`}
               target="_blank"
               rel="noreferrer"
               className="btn btn-pri btn-sm"
             >
-              🧭 Get directions →
+              <Navigation size={14} /> Get directions →
             </a>
           </div>
           <div className="card venue-about-card">
@@ -186,11 +188,11 @@ export default function VenueDetail() {
             </div>
             {venue.timings && (
               <>
-                <h3 style={{ marginBottom: 8 }}>🕒 Timings</h3>
+                <h3 style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><Clock size={16} /> Timings</h3>
                 <p className="muted small" style={{ marginBottom: 16 }}>{venue.timings}</p>
               </>
             )}
-            <h3 style={{ marginBottom: 8 }}>ℹ️ About this venue</h3>
+            <h3 style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><Info size={16} /> About this venue</h3>
             <div className="muted small rich-text" dangerouslySetInnerHTML={{ __html: venue.about }} />
           </div>
         </div>
@@ -258,7 +260,7 @@ function VenueSlider({ hue, labels, galleryUrls }: { hue: number; labels: string
       >
         <Poster
           hue={(hue + idx * 40) % 360}
-          emoji="🏛"
+          icon={<Landmark size={40} />}
           label={photos ? undefined : `${labels[idx]} · photo ${idx + 1} of ${labels.length}`}
           imageUrl={photos?.[idx]}
           variant="landscape"

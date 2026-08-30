@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Lock } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { ApiError } from '../api/client';
 import type { RoleSubscription, SubTier } from '../api';
@@ -216,8 +217,8 @@ export default function SubscriptionPlans({
         </div>
       )}
 
-      <div className="tiny muted-2" style={{ marginTop: 14 }}>
-        🔒 real billing via Razorpay Subscriptions · tiers &amp; prices are configurable by admin
+      <div className="tiny muted-2" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Lock size={12} /> real billing via Razorpay Subscriptions · tiers &amp; prices are configurable by admin
       </div>
     </div>
   );

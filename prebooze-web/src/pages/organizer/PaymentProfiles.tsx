@@ -5,6 +5,7 @@ import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
 import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import type { PaymentProfile } from '../../types';
+import { ArrowLeft, X, Check } from 'lucide-react';
 
 type Draft = {
   legalName: string; businessAddress: string; loc: LocationValue;
@@ -103,12 +104,12 @@ export default function PaymentProfiles() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
         <h1 style={{ fontSize: 24, marginBottom: 6 }}>Payment profiles</h1>
-        <Link to="/organizer/settings" className="link small bold">← Back to Settings</Link>
+        <Link to="/organizer/settings" className="link small bold" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><ArrowLeft size={13} /> Back to Settings</Link>
       </div>
       <p className="muted small" style={{ marginBottom: 18 }}>
         Bank accounts you can withdraw to — hold more than one if you invoice under different entities. Withdrawals always pay out to whichever is set default. Doesn't require identity verification.
       </p>
-      {err && <div className="danger-text small" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
 
       {profiles.map((p) => (
         <div key={p.id} className="card" style={{ marginBottom: 12, maxWidth: 640 }}>
@@ -196,7 +197,7 @@ function ProfileForm({ draft, setDraft, valid, saving, onSave, onCancel }: {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-pri btn-sm" disabled={!valid || saving} onClick={onSave}>{saving ? 'Saving…' : 'Save ✓'}</button>
+        <button className="btn btn-pri btn-sm" disabled={!valid || saving} onClick={onSave} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{saving ? 'Saving…' : <>Save <Check size={13} /></>}</button>
         <button className="btn btn-ghost btn-sm" disabled={saving} onClick={onCancel}>Cancel</button>
       </div>
     </div>

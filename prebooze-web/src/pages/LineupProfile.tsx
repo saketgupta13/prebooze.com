@@ -18,6 +18,7 @@ import { useJsonLd } from '../lib/useJsonLd';
 import { buildLineupSchema, buildBreadcrumbSchema } from '../lib/schema';
 import { useCityReconcile } from '../lib/useCityReconcile';
 import { lineupPath, cityHome, cityLineups } from '../lib/urls';
+import { BadgeCheck, CheckCircle2, Mic } from 'lucide-react';
 
 /** Public line-up profile — artists, DJs, sponsors and promoters guests can follow. */
 export default function LineupProfile() {
@@ -94,7 +95,7 @@ export default function LineupProfile() {
           <div style={{ flex: 1, minWidth: 220 }}>
             <span className="tag">{lineup.category}</span>
             <h1 style={{ fontSize: 26, margin: '6px 0 2px' }}>
-              {lineup.name} {lineup.verified && <span className="verified">✓</span>}
+              {lineup.name} {lineup.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={18} /></span>}
             </h1>
             <div className="muted small">{lineup.city} · {lineup.eventsPlayed} events played</div>
           </div>
@@ -107,7 +108,7 @@ export default function LineupProfile() {
                 className={`btn btn-sm ${isFollowing ? 'btn-ghost' : 'btn-pri'}`}
                 onClick={() => toggleFollow(followKey)}
               >
-                {isFollowing ? 'Following ✓' : '+ Follow'}
+                {isFollowing ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Following <CheckCircle2 size={13} /></span> : '+ Follow'}
               </button>
             )}
             <ShareButton path={lineupPath(lineup.city, lineup.slug)} />
@@ -144,11 +145,11 @@ export default function LineupProfile() {
               </div>
               <div className="kv">
                 <span className="k">Verified</span>
-                <span>{lineup.verified ? <span className="verified">✓ by Prebooze</span> : '—'}</span>
+                <span>{lineup.verified ? <span className="verified" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><BadgeCheck size={13} /> by Prebooze</span> : '—'}</span>
               </div>
             </div>
             <div className="card" style={{ marginTop: 16 }}>
-              <h3 style={{ marginBottom: 6 }}>Are you an artist? 🎤</h3>
+              <h3 style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>Are you an artist? <Mic size={16} /></h3>
               <p className="muted small" style={{ marginBottom: 10 }}>
                 Get a profile like this, appear on event line-ups and grow your followers.
               </p>
@@ -204,7 +205,7 @@ export default function LineupProfile() {
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <h3 style={{ fontSize: 14 }}>
-                          {l.name} {l.verified && <span className="verified">✓</span>}
+                          {l.name} {l.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span>}
                         </h3>
                         <div className="meta">{fmtCount(netFollowers('lineup:' + l.slug, l.followers))} followers</div>
                       </div>

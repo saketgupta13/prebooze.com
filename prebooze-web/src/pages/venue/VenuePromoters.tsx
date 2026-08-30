@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
+import { AlertCircle, Megaphone, BadgeCheck } from 'lucide-react';
 
 const fmtMoney = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
@@ -37,11 +38,11 @@ export default function VenuePromoters() {
         Everyone you've allowed to promote your hosted events — their profile, bank details for paying them out, and
         what you owe. Real transfers happen outside Prebooze.
       </p>
-      {err && <div className="danger-text small" style={{ marginBottom: 12 }}>✕ {err}</div>}
+      {err && <div className="danger-text small" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {err}</div>}
 
       {rows.length === 0 ? (
         <div className="empty">
-          <div style={{ fontSize: 30, marginBottom: 10 }}>📣</div>
+          <div style={{ marginBottom: 10, color: 'var(--muted-2)' }}><Megaphone size={30} /></div>
           No promoters yet. Add some from an event's Promoters step when creating or editing a hosted event.
         </div>
       ) : (
@@ -52,7 +53,7 @@ export default function VenuePromoters() {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <h3 style={{ fontSize: 16 }}>{p.promoterName}</h3>
-                    {p.verified && <span className="verified">✓</span>}
+                    {p.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span>}
                   </div>
                   <div className="muted small">{p.city}{p.contact && <> · {p.contact}</>}</div>
                   {p.bio && <div className="tiny muted-2" style={{ marginTop: 4, maxWidth: 480 }}>{p.bio}</div>}

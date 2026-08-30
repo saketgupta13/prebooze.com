@@ -7,6 +7,7 @@ import type { Event } from '../../types';
 import Loader from '../../components/Loader';
 import PromoteCard from '../../components/PromoteCard';
 import { promoterPath } from '../../lib/urls';
+import { Megaphone, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function PromoterDashboard() {
   const [me, setMe] = useState<PromoterMe | null>(null);
@@ -50,11 +51,11 @@ export default function PromoterDashboard() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 18, flexWrap: 'wrap', gap: 8 }}>
-        <h1 style={{ fontSize: 24 }}>Hey, {me.name} 📣</h1>
+        <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 8 }}>Hey, {me.name} <Megaphone size={20} /></h1>
         {me.verified ? (
-          <span className="badge badge-ok">Verified ✓</span>
+          <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={13} /> Verified</span>
         ) : (
-          <Link to="/promoter/settings/verification" className="btn btn-pri btn-sm">Complete verification →</Link>
+          <Link to="/promoter/settings/verification" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Complete verification <ArrowRight size={14} /></Link>
         )}
       </div>
 
@@ -90,7 +91,7 @@ export default function PromoterDashboard() {
             <div style={{ width: `${pct}%`, height: '100%', background: usage.used >= usage.quota ? 'var(--danger)' : 'var(--accent)', transition: 'width .3s' }} />
           </div>
           {usage.used >= usage.quota && (
-            <Link to="/promoter/subscription" className="btn btn-pri btn-sm" style={{ marginTop: 10 }}>Upgrade plan →</Link>
+            <Link to="/promoter/subscription" className="btn btn-pri btn-sm" style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}>Upgrade plan <ArrowRight size={14} /></Link>
           )}
         </div>
       )}
@@ -146,7 +147,7 @@ export default function PromoterDashboard() {
             <h3>Your public profile</h3>
             <p className="muted small" style={{ marginTop: 4 }}>guests can follow you and get your lists first</p>
           </div>
-          <Link to={promoterPath(me.city || 'Hyderabad', me.slug)} className="btn btn-ghost btn-sm">View / share →</Link>
+          <Link to={promoterPath(me.city || 'Hyderabad', me.slug)} className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>View / share <ArrowRight size={14} /></Link>
         </div>
       </div>
     </div>

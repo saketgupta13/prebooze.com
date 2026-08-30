@@ -5,6 +5,7 @@ import { content } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { CmsTestimonial } from '../types';
 import Stars from '../components/Stars';
+import { Heart } from 'lucide-react';
 
 /** All guest testimonials, filterable by city — real GET /testimonials
  * (admin's Content > Testimonials), not the hardcoded mock array. */
@@ -28,7 +29,7 @@ export default function Testimonials() {
         <div className="breadcrumb">
           <Link to="/">Home</Link> / Reviews
         </div>
-        <h1 style={{ fontSize: 26, marginBottom: 4 }}>Happy guests 💚</h1>
+        <h1 style={{ fontSize: 26, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>Happy guests <Heart size={22} style={{ color: 'var(--accent)' }} fill="var(--accent)" /></h1>
         <p className="muted" style={{ marginBottom: 14 }}>
           {loading ? 'Loading…' : <><b className="accent">{avg}★</b> average from {all.length}+ verified guests across the network.</>}
         </p>
