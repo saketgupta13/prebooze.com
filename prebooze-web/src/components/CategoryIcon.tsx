@@ -1,4 +1,4 @@
-import { Music, Laugh, PartyPopper, Disc3, Home, Guitar, Sparkles, Wrench, Tag } from 'lucide-react';
+import { Music, Laugh, PartyPopper, Disc3, Home, Guitar, Sparkles, GraduationCap, Tag } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 /** Real icons for event categories — replaces the admin-typed emoji on
@@ -16,7 +16,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   'House parties': Home,
   Jamming: Guitar,
   Party: Sparkles,
-  Workshop: Wrench,
+  Workshop: GraduationCap,
 };
 
 export default function CategoryIcon({ name, size = 18, className }: { name: string; size?: number; className?: string }) {

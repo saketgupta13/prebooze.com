@@ -1,4 +1,4 @@
-import { Music, Laugh, PartyPopper, Disc3, Home, Guitar, Sparkles, Wrench, Tag as TagIcon } from 'lucide-react';
+import { Music, Laugh, PartyPopper, Disc3, Home, Guitar, Sparkles, GraduationCap, Tag as TagIcon } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 /** Real icons for event categories — mirrors prebooze-web's CategoryIcon.tsx
@@ -13,7 +13,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   'House parties': Home,
   Jamming: Guitar,
   Party: Sparkles,
-  Workshop: Wrench,
+  Workshop: GraduationCap,
 };
 
 export default function CategoryIcon({ name, size = 18, className }: { name: string; size?: number; className?: string }) {
