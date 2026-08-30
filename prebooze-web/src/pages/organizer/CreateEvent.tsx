@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { fmtDate, fmtTime } from '../../data/mock';
 import type { Event, LineupProfile, PromoterProfile, Venue } from '../../types';
-import Poster, { categoryEmoji } from '../../components/Poster';
+import Poster from '../../components/Poster';
+import CategoryIcon from '../../components/CategoryIcon';
 import Loader from '../../components/Loader';
 import Accordion from '../../components/Accordion';
 import WysiwygEditor from '../../components/WysiwygEditor';
@@ -355,7 +356,7 @@ export default function CreateEvent() {
 
         <div className="card">
           <div className="detail-head">
-            <Poster hue={(title.length * 47) % 360} emoji={categoryEmoji(ev.category)} label="portrait banner 3:4" imageUrl={ev.posterUrl} alt={ev.title} />
+            <Poster hue={(title.length * 47) % 360} icon={<CategoryIcon name={ev.category} />} label="portrait banner 3:4" imageUrl={ev.posterUrl} alt={ev.title} />
             <div className="detail-title">
               <h1 style={{ fontSize: 24 }}>{ev.title}</h1>
               <div className="detail-meta">

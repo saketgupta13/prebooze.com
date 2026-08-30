@@ -16,6 +16,7 @@ import DirectoryCard from '../components/DirectoryCard';
 import DirectoryCardSkeleton from '../components/DirectoryCardSkeleton';
 import Slider from '../components/Slider';
 import Poster from '../components/Poster';
+import CategoryIcon from '../components/CategoryIcon';
 import ReelCard from '../components/ReelCard';
 import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
@@ -389,7 +390,7 @@ export default function Home() {
           if (tiles.length === 0) return null;
           const cells = tiles.map((c) => (
             <Link key={c.name} to={`${cityBrowse(city)}?cat=${encodeURIComponent(c.name)}`} className="citypick-cell" style={{ textDecoration: 'none', minWidth: 130 }}>
-              <span className="ic">{c.icon}</span>
+              <span className="ic"><CategoryIcon name={c.name} size={26} /></span>
               <span className="nm">{c.name}</span>
               <span className="ct">{c.n} event{c.n === 1 ? '' : 's'}</span>
             </Link>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Tag } from '../components/ui';
+import CategoryIcon from '../components/CategoryIcon';
 import { liveCategories, liveEvents, LiveApiError, type LiveCategory } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -75,8 +76,9 @@ export default function Categories() {
               onClick={() => navigate(`/categories/${encodeURIComponent(c.name)}/edit`)}
             >
               <span className="muted">⠿</span>
+              <span style={{ display: 'flex', alignItems: 'center' }}><CategoryIcon name={c.name} size={16} /></span>
               <span style={{ flex: 1 }}>
-                {c.icon} <b>{c.name}</b> · {count} events
+                <b>{c.name}</b> · {count} events
                 {c.subs.length > 0 && <span className="tiny muted"> · {c.subs.length} sub-categor{c.subs.length === 1 ? 'y' : 'ies'}</span>}
                 {c.imageUrl && <span className="tiny green"> · cover ✓</span>}
                 {c.seo?.title && <span className="tiny green"> · SEO ✓</span>}

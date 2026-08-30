@@ -4,7 +4,8 @@ import { GENDER_OPTIONS, fmtDate, fmtTime } from '../../data/mock';
 import { catalog, promoter as promoterApi } from '../../api';
 import { ApiError } from '../../api/client';
 import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
-import Poster, { categoryEmoji } from '../../components/Poster';
+import Poster from '../../components/Poster';
+import CategoryIcon from '../../components/CategoryIcon';
 import Loader from '../../components/Loader';
 import type { Event, PromoterProfile } from '../../types';
 import { eventLocation } from '../../lib/venue';
@@ -95,7 +96,7 @@ export default function GuestLanding() {
         <div className="card card-shadow">
           <div style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
             <div style={{ width: 76, flexShrink: 0 }}>
-              <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} imageUrl={event.posterUrl} alt={event.title} />
+              <Poster hue={event.posterHue} icon={<CategoryIcon name={event.category} />} imageUrl={event.posterUrl} alt={event.title} />
             </div>
             <div style={{ minWidth: 0 }}>
               <span className="badge badge-accent">Free entry 🎟️</span>

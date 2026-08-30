@@ -7,6 +7,7 @@ import { isBackendEnabled } from '../api/client';
 import type { Event } from '../types';
 import { useSeo } from '../lib/useSeo';
 import { cityHome, cityBrowse } from '../lib/urls';
+import CategoryIcon from '../components/CategoryIcon';
 
 /** Browse-by-category directory — categories + sub-categories with live
  * counts. Category/sub-category names now come from the real, admin-managed
@@ -60,7 +61,7 @@ export default function Categories() {
               <div key={c.name} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
                 <Link to={`${cityBrowse(city)}?cat=${encodeURIComponent(c.name)}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 34 }}>{c.icon}</span>
+                    <CategoryIcon name={c.name} size={34} />
                     <div>
                       <h3 style={{ fontSize: 17 }}>{c.name}</h3>
                       <div className="tiny muted-2">

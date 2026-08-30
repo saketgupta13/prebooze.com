@@ -11,6 +11,7 @@ import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
 import { useDraftLead } from '../../lib/useDraftLead';
+import CategoryIcon from '../../components/CategoryIcon';
 
 const DRAFT_ID = 'organizer';
 const slugify = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -147,8 +148,8 @@ export default function Onboarding() {
             <span>Event types you host *</span>
             <div className="chip-row">
               {categories.map((c) => (
-                <button type="button" key={c.name} className={`chip ${types.includes(c.name) ? 'on' : ''}`} onClick={() => toggleType(c.name)}>
-                  {c.icon} {c.name}{types.includes(c.name) ? ' ✓' : ''}
+                <button type="button" key={c.name} className={`chip ${types.includes(c.name) ? 'on' : ''}`} onClick={() => toggleType(c.name)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <CategoryIcon name={c.name} size={15} /> {c.name}{types.includes(c.name) ? ' ✓' : ''}
                 </button>
               ))}
             </div>

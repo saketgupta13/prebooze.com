@@ -33,7 +33,8 @@ import { formatPrice, formatFromPrice } from '../lib/formatPrice';
 import { displayTierPrice, displayMinPrice, hasCurrentlyPaidTier, tierWindowCaption, tierCountdownLabel } from '../lib/ticketTierPricing';
 import { useTicker } from '../lib/useTicker';
 import { useIsMobile } from '../lib/useIsMobile';
-import Poster, { categoryEmoji } from '../components/Poster';
+import Poster from '../components/Poster';
+import CategoryIcon from '../components/CategoryIcon';
 import TeaserReel from '../components/TeaserReel';
 import ImageLightbox from '../components/ImageLightbox';
 import { PageLoader } from '../components/Loader';
@@ -288,7 +289,7 @@ export default function EventDetail() {
           <div className="detail-head-area">
             {/* Head */}
             <div className="detail-head">
-              <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} label="portrait banner 3:4" imageUrl={event.posterUrl} alt={event.title} eager />
+              <Poster hue={event.posterHue} icon={<CategoryIcon name={event.category} />} label="portrait banner 3:4" imageUrl={event.posterUrl} alt={event.title} eager />
               <div className="detail-title">
                 <h1>{event.title}</h1>
                 <div className="detail-meta">

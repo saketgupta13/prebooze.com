@@ -7,7 +7,8 @@ import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event, EventStatus } from '../../types';
 import { eventCity, eventPath } from '../../lib/urls';
-import Poster, { categoryEmoji } from '../../components/Poster';
+import Poster from '../../components/Poster';
+import CategoryIcon from '../../components/CategoryIcon';
 
 const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -104,7 +105,7 @@ export default function MyEvents() {
             return (
               <div key={e.id} className="ecard" style={{ position: 'relative' }}>
                 <span className={`badge ${badge.cls}`} style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, fontSize: 10 }}>{badge.label}</span>
-                <Poster hue={e.posterHue} emoji={categoryEmoji(e.category)} imageUrl={e.posterUrl} alt={e.title} />
+                <Poster hue={e.posterHue} icon={<CategoryIcon name={e.category} />} imageUrl={e.posterUrl} alt={e.title} />
                 <div className="ecard-body">
                   <h3>{e.title}</h3>
                   <div className="meta">

@@ -1,6 +1,11 @@
+import type { ReactNode } from 'react';
+
 interface Props {
   hue: number;
   emoji?: string;
+  /** A real icon component (e.g. CategoryIcon) — takes priority over `emoji`
+   * when set. Category posters use this instead of an emoji glyph. */
+  icon?: ReactNode;
   label?: string;
   variant?: 'portrait' | 'landscape' | 'square' | 'reel';
   className?: string;
@@ -29,7 +34,7 @@ interface Props {
  * paints pixels but is invisible to Google Image Search and can't carry
  * alt text at all, which meant none of this site's real photography
  * (event posters, venue galleries, brand logos) was ever indexable. */
-export default function Poster({ hue, emoji = '🎶', label, variant = 'portrait', className = '', imageUrl, alt = '', eager = false }: Props) {
+export default function Poster({ hue, emoji = '🎶', icon, label, variant = 'portrait', className = '', imageUrl, alt = '', eager = false }: Props) {
   const cls = variant === 'portrait' ? '' : variant;
   return (
     <div
@@ -52,18 +57,10 @@ export default function Poster({ hue, emoji = '🎶', label, variant = 'portrait
         />
       ) : (
         <>
-          <span>{emoji}</span>
+          <span className={icon ? 'poster-icon' : undefined}>{icon ?? emoji}</span>
           {label && <span className="poster-label">{label}</span>}
         </>
       )}
     </div>
   );
 }
-
-export const categoryEmoji = (category: string) =>
-  ({
-    Concerts: '🎸',
-    Comedy: '🎤',
-    Festivals: '🎪',
-    'This weekend': '🌇',
-  })[category] ?? '🎶';

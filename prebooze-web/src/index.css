@@ -556,6 +556,8 @@ textarea { resize: vertical; min-height: 84px; }
    radius, aspect-ratio, slider-track flex-basis) — object-fit crops it to
    fill that box the same way the photo posters' background-image does. */
 video.poster { width: 100%; height: 100%; object-fit: cover; display: block; background: var(--surface-2); }
+.poster .poster-icon { color: rgba(237, 239, 230, 0.5); display: flex; }
+.poster .poster-icon svg { width: 40px; height: 40px; }
 .poster .poster-label {
   font-size: 11px;
   font-weight: 700;

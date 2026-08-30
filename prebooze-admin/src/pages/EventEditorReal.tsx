@@ -415,7 +415,7 @@ export default function EventEditorReal() {
               onChange={(e) => { setCategory(e.target.value); setSubCategory(''); }}
             >
               <option value="">Select…</option>
-              {categories.map((c) => <option key={c.name} value={c.name}>{c.icon} {c.name}</option>)}
+              {categories.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
             </select>
           </div>
           <div className="field">

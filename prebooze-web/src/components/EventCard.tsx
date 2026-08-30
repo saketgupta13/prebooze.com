@@ -7,7 +7,8 @@ import { isFeatured } from '../lib/featured';
 import { eventCity, eventPath } from '../lib/urls';
 import { formatFromPrice } from '../lib/formatPrice';
 import { displayMinPrice, hasCurrentlyPaidTier } from '../lib/ticketTierPricing';
-import Poster, { categoryEmoji } from './Poster';
+import Poster from './Poster';
+import CategoryIcon from './CategoryIcon';
 
 export default function EventCard({ event }: { event: Event }) {
   const { featured, wishlist, toggleWishlist, city } = useApp();
@@ -35,7 +36,7 @@ export default function EventCard({ event }: { event: Event }) {
       >
         {saved ? '❤️' : '🤍'}
       </button>
-      <Poster hue={event.posterHue} emoji={categoryEmoji(event.category)} label="Poster 3:4" imageUrl={event.posterUrl} alt={event.title} />
+      <Poster hue={event.posterHue} icon={<CategoryIcon name={event.category} />} label="Poster 3:4" imageUrl={event.posterUrl} alt={event.title} />
       <div className="ecard-body">
         <h3>{event.title}</h3>
         <div className="meta">

@@ -5,9 +5,9 @@ import { liveCategories, liveMedia, LiveApiError, type LiveCategory } from '../l
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
 import type { Seo } from '../types';
+import CategoryIcon from '../components/CategoryIcon';
 
 const TITLE = 'Edit category';
-const ICONS = ['🎵', '😂', '🎪', '🏠', '🎤', '🎧', '🍷', '⚽', '🎭', '🏷'];
 
 /** Chip-based sub-category editor — same add/remove-tag pattern as the
  * venue amenities editor. */
@@ -159,26 +159,9 @@ export default function CategoryEdit() {
         </div>
         <div className="field">
           <label>Icon — shown on the home filter chip</label>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {ICONS.map((i) => (
-              <button
-                key={i}
-                type="button"
-                className={`chip ${icon === i ? 'on' : ''}`}
-                style={{ fontSize: 16, padding: '4px 10px' }}
-                onClick={() => setIcon(i)}
-              >
-                {i}
-              </button>
-            ))}
-            <input
-              className="input"
-              style={{ width: 70, textAlign: 'center' }}
-              value={icon}
-              onChange={(e) => setIcon(e.target.value)}
-              maxLength={4}
-              title="or type any emoji"
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CategoryIcon name={catName || 'New category'} size={20} />
+            <span className="tiny hint">Auto-assigned from the category name — no need to pick one.</span>
           </div>
         </div>
         <input ref={imgInputRef} type="file" accept="image/*" onChange={onImageFile} style={{ display: 'none' }} />

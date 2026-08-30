@@ -5,7 +5,8 @@ import { useApp } from '../../store/AppContext';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event, EventStatus } from '../../types';
-import Poster, { categoryEmoji } from '../../components/Poster';
+import Poster from '../../components/Poster';
+import CategoryIcon from '../../components/CategoryIcon';
 import Loader from '../../components/Loader';
 import { eventCity, eventPath } from '../../lib/urls';
 
@@ -87,7 +88,7 @@ export default function VenueHostedEvents() {
             return (
               <div key={e.id} className="ecard" style={{ position: 'relative' }}>
                 <span className={`badge ${badge.cls}`} style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, fontSize: 10 }}>{badge.label}</span>
-                <Poster hue={e.posterHue} emoji={categoryEmoji(e.category)} imageUrl={e.posterUrl} alt={e.title} />
+                <Poster hue={e.posterHue} icon={<CategoryIcon name={e.category} />} imageUrl={e.posterUrl} alt={e.title} />
                 <div className="ecard-body">
                   <h3>{e.title}</h3>
                   <div className="meta">
