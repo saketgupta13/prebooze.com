@@ -413,7 +413,9 @@ export default function Home() {
         </div>
         <div className="chip-row" style={{ marginBottom: 18 }}>
           {categoryChips.map((c) => (
-            <button key={c} className={`chip ${cat === c ? 'on' : ''}`} onClick={() => setCat(c)}>{c}</button>
+            <button key={c} className={`chip ${cat === c ? 'on' : ''}`} onClick={() => setCat(c)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {c !== 'All' && <CategoryIcon name={c} size={14} />} {c}
+            </button>
           ))}
         </div>
         <div className="grid-4">
