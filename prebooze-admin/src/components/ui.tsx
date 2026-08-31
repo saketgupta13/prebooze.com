@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { BookingStatus, CustomerStatus, EventStatus, OrganizerStatus } from '../types';
+import type { BookingStatus, CustomerStatus, OrganizerStatus } from '../types';
 import { liveLocations, type LiveCountry } from '../lib/liveApi';
 import { CheckCircle2, X, Search } from 'lucide-react';
 
@@ -39,10 +39,26 @@ export function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) 
   );
 }
 
-export const EVENT_STATUS: Record<EventStatus, { label: string; cls: string }> = {
-  live: { label: '● Live', cls: 'tag-green' },
-  pending: { label: 'Pending', cls: 'tag-red' },
-  draft: { label: 'Draft', cls: '' },
+/** True once a real event's date has passed. Event.status only tracks the
+ * admin approval workflow (pending/approved/rejected/draft) — nothing ever
+ * flips an approved event back once its date passes, so "approved" alone
+ * doesn't mean "currently live." */
+export const isPastEvent = (dateIso: string) => new Date(dateIso).getTime() < Date.now();
+
+/** The one real source of truth for an event's status badge — always call
+ * this instead of indexing a status→label map directly. A previous version
+ * of this map used a stale mock-era status shape ('live'|'pending'|'draft')
+ * that never matched the real Event.status enum ('draft'|'pending'|
+ * 'approved'|'rejected') at all, so every real approved event silently fell
+ * through to "Draft" wherever that map was used (Venues.tsx). Separately,
+ * Dashboard.tsx and OrganizerDetail.tsx each had their own copy that DID
+ * match the real enum but never checked the date, so a finished approved
+ * event showed "● Live" forever. Fixed 2026-08-31 by centralizing here. */
+export const eventStatusTag = (e: { status: string; date: string }): { label: string; cls: string } => {
+  if (e.status === 'approved') return isPastEvent(e.date) ? { label: 'Past', cls: 'tag-dim' } : { label: '● Live', cls: 'tag-green' };
+  if (e.status === 'pending') return { label: 'Pending', cls: 'tag-red' };
+  if (e.status === 'rejected') return { label: 'Rejected', cls: 'tag-dim' };
+  return { label: 'Draft', cls: '' };
 };
 
 export const BOOKING_STATUS: Record<BookingStatus, { label: string; cls: string }> = {

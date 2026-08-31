@@ -2,27 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Pencil, X } from 'lucide-react';
 import { fmt } from '../store/data';
-import { Kpi, Tag } from '../components/ui';
+import { Kpi, Tag, eventStatusTag } from '../components/ui';
 import { liveOrganizers, liveEvents, LiveApiError, type LiveOrganizer, type LiveEvent, type LiveOrgStaffMember } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
 
 const TITLE = 'Organizer detail';
-const STATUS_TAG: Record<string, { label: string; cls: string }> = {
-  approved: { label: '● Live', cls: 'tag-green' },
-  pending: { label: 'Pending', cls: 'tag-red' },
-  draft: { label: 'Draft', cls: '' },
-  rejected: { label: 'Rejected', cls: 'tag-dim' },
-};
-
-// Event.status only tracks the admin approval workflow (pending/approved/
-// draft/rejected) — nothing ever flips an approved event back once its date
-// passes, so "approved" alone doesn't mean "currently live." Same real-date
-// check EventsReal.tsx already uses for its Live/Past scope split; this page
-// never adopted it, so a finished event kept showing "● Live" forever.
-const isPastEvent = (e: LiveEvent) => new Date(e.date).getTime() < Date.now();
-const eventStatusTag = (e: LiveEvent) =>
-  e.status === 'approved' && isPastEvent(e) ? { label: 'Past', cls: 'tag-dim' } : (STATUS_TAG[e.status] ?? STATUS_TAG.draft);
 
 const eventRevenue = (e: LiveEvent) => e.tiers.reduce((a, t) => a + t.sold * t.price, 0);
 const eventSold = (e: LiveEvent) => e.tiers.reduce((a, t) => a + t.sold, 0);

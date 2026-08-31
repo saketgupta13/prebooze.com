@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Kpi, Tag } from '../components/ui';
+import { Kpi, Tag, eventStatusTag } from '../components/ui';
 import { liveDashboard, liveEvents, LiveApiError, type LiveDashboard } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -10,10 +10,6 @@ const TITLE = 'Dashboard';
 const RANGES: Record<string, number> = { 'Last 7 days': 7, 'Last 14 days': 14, 'Last 30 days': 30, 'Last 90 days': 90 };
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
 const fmtMoney = (n: number) => `₹${fmt(n)}`;
-const STATUS_TAG: Record<string, { label: string; cls: string }> = {
-  approved: { label: '● Live', cls: 'tag-green' },
-  pending: { label: 'Pending', cls: 'tag-red' },
-};
 
 /** Real KPIs, computed live from the database on every request (grossSales,
  * trend, ticket stats, top events/promoters — DashboardService.overview) —
@@ -262,7 +258,7 @@ export default function Dashboard() {
             </div>
             {data.liveAndUpcoming.length === 0 && <div className="trow muted">Nothing upcoming.</div>}
             {data.liveAndUpcoming.map((ev) => {
-              const sm = STATUS_TAG[ev.status] ?? { label: ev.status, cls: '' };
+              const sm = eventStatusTag(ev);
               return (
                 <div key={ev.id} className="trow clickable" style={{ minWidth: 560 }} onClick={() => navigate(`/events/${ev.id}`)}>
                   <span style={{ flex: 2, fontWeight: 700 }}>{ev.title}</span>

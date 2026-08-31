@@ -9,6 +9,14 @@ import { useLiveGate } from '../components/LiveChrome';
 
 const TITLE = 'Live monitor';
 
+// The shared isPastEvent() (used for status badges elsewhere) only checks
+// the start date, which is fine for a badge but wrong here: this page's
+// whole job is watching an event WHILE it's running, and a naive
+// start-time-only check would call an event "over" the moment it starts,
+// hours before it actually ends. Uses the real durationHrs to find the
+// actual end time instead.
+const isEventWindowOver = (e: LiveEvent) => new Date(e.date).getTime() + (e.durationHrs ?? 0) * 3600000 < Date.now();
+
 function ago(at: string) {
   const s = Math.max(0, Math.round((Date.now() - new Date(at).getTime()) / 1000));
   if (s < 5) return 'just now';
@@ -65,7 +73,14 @@ export default function LiveMonitor() {
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
 
-  const event = events.find((e) => e.id === eventId) ?? events.find((e) => e.status === 'approved');
+  // Defaulting to "any approved event" with no end-time check used to mean a
+  // long-finished event could silently become the default (approved events
+  // never revert once they end) — the monitor would then show that dead
+  // event's stale check-in data as if it were tonight's, instead of
+  // correctly falling through to "No live event right now." No fallback to
+  // an ended event now — if nothing's actually running, the empty state
+  // below is the honest result.
+  const event = events.find((e) => e.id === eventId) ?? events.find((e) => e.status === 'approved' && !isEventWindowOver(e));
 
   if (!loading && !event) {
     return (

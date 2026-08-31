@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, X, Pencil, MapPin, Clock, Link2, Info } from 'lucide-react';
 import { AMENITY_PRESETS } from '../store/data';
 import { fmt } from '../store/data';
-import { CityFilterDropdown, EVENT_STATUS, GradientPhoto, Kpi, LiveLocationPicker, Tag } from '../components/ui';
+import { CityFilterDropdown, eventStatusTag, GradientPhoto, Kpi, LiveLocationPicker, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import MapEmbed from '../components/MapEmbed';
 import RealImageUpload, { RealGalleryUpload } from '../components/RealImageUpload';
@@ -407,7 +407,7 @@ export function VenueDetail() {
           <div key={ev.id} className="trow" style={{ minWidth: 400 }}>
             <span style={{ flex: 2, fontWeight: 700 }}>{ev.title}</span>
             <span style={{ flex: 1 }} className="muted">{new Date(ev.date).toLocaleDateString('en-IN')}</span>
-            <span style={{ flex: 1 }}><Tag {...(EVENT_STATUS[ev.status as keyof typeof EVENT_STATUS] ?? EVENT_STATUS.draft)} /></span>
+            <span style={{ flex: 1 }}><Tag {...eventStatusTag(ev)} /></span>
           </div>
         ))}
         {here.length === 0 && !loading && <div className="trow muted">No events at this venue yet.</div>}
