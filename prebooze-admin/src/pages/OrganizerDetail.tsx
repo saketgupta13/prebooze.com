@@ -15,6 +15,15 @@ const STATUS_TAG: Record<string, { label: string; cls: string }> = {
   rejected: { label: 'Rejected', cls: 'tag-dim' },
 };
 
+// Event.status only tracks the admin approval workflow (pending/approved/
+// draft/rejected) — nothing ever flips an approved event back once its date
+// passes, so "approved" alone doesn't mean "currently live." Same real-date
+// check EventsReal.tsx already uses for its Live/Past scope split; this page
+// never adopted it, so a finished event kept showing "● Live" forever.
+const isPastEvent = (e: LiveEvent) => new Date(e.date).getTime() < Date.now();
+const eventStatusTag = (e: LiveEvent) =>
+  e.status === 'approved' && isPastEvent(e) ? { label: 'Past', cls: 'tag-dim' } : (STATUS_TAG[e.status] ?? STATUS_TAG.draft);
+
 const eventRevenue = (e: LiveEvent) => e.tiers.reduce((a, t) => a + t.sold * t.price, 0);
 const eventSold = (e: LiveEvent) => e.tiers.reduce((a, t) => a + t.sold, 0);
 const eventCap = (e: LiveEvent) => e.tiers.reduce((a, t) => a + t.quantity, 0);
@@ -122,7 +131,7 @@ export default function OrganizerDetail() {
               <span style={{ flex: 1 }}>₹{fmt(rev)}</span>
               <span style={{ flex: 1 }}>₹{fmt(commAmt)} ({c}%)</span>
               <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(rev - commAmt)}</span>
-              <span style={{ flex: 0.8 }}><Tag {...(STATUS_TAG[ev.status] ?? STATUS_TAG.draft)} /></span>
+              <span style={{ flex: 0.8 }}><Tag {...eventStatusTag(ev)} /></span>
             </div>
           );
         })}
