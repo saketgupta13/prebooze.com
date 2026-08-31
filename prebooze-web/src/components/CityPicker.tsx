@@ -90,11 +90,11 @@ export default function CityPicker({ open, onClose }: { open: boolean; onClose: 
   const navigateToCity = useCallback(
     (c: string) => {
       const [first, ...rest] = location.pathname.split('/').filter(Boolean);
-      const isCityScoped = first && cityRows.some((row) => toCitySlug(row.name) === first);
+      const isCityScoped = first && allEnabledCityRows.some((row) => toCitySlug(row.name) === first);
       if (!isCityScoped) return;
       navigate(`/${toCitySlug(c)}${rest.length ? '/' + rest.join('/') : ''}${location.search}`);
     },
-    [location, navigate, cityRows]
+    [location, navigate, allEnabledCityRows]
   );
 
   const pick = useCallback(
