@@ -55,13 +55,26 @@ export default function CityPicker({ open, onClose }: { open: boolean; onClose: 
     events: mockEventCounts.get(t.name) ?? 0, venues: mockVenueCounts.get(t.name) ?? 0, organizers: mockOrganizerCounts.get(t.name) ?? 0,
   }));
 
+  // Real, admin-enabled cities regardless of event count — used only to
+  // recognise "is the current page city-scoped at all" below. Deliberately
+  // NOT the events>0-filtered list: a city can be real/enabled/live (e.g.
+  // Kanpur — real organizer on file, zero events yet, added 2026-08-31)
+  // without showing up in the picker's own list, and someone can still
+  // land on that city's page directly (an organizer checking their own
+  // city, a shared link, a bookmark). Real 2026-08-31 bug — navigateToCity
+  // below used to check the events-filtered list for this, so anyone on
+  // Kanpur's page couldn't switch to ANY other city: isCityScoped came back
+  // false (Kanpur isn't in that filtered list), so every pick silently
+  // updated app state without ever touching the URL.
+  const allEnabledCityRows = liveCities ?? (isBackendEnabled() ? [] : mockRows);
+
   // Real 2026-08-29 decision: a venue or organizer alone isn't enough —
   // only cities with a real, live EVENT actually show here. A city can
   // have a real organizer or venue on file with nothing bookable yet
   // (e.g. Gurgaon — real organizer, zero events), which isn't useful to a
   // guest picking a city to book something in. Same criterion as
   // Footer.tsx's "Explore other cities" filter.
-  const cityRows = (liveCities ?? (isBackendEnabled() ? [] : mockRows)).filter((c) => c.events > 0);
+  const cityRows = allEnabledCityRows.filter((c) => c.events > 0);
   const topRows = cityRows.filter((c) => c.top);
   const allCities = useMemo(() => cityRows.map((c) => c.name).sort(), [cityRows]);
   const eventCounts = useMemo(() => new Map(cityRows.map((c) => [c.name, c.events])), [cityRows]);
