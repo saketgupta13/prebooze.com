@@ -97,26 +97,30 @@ export default function OrganizerDetail() {
         <div className="display" style={{ fontWeight: 700, padding: '10px 14px', borderBottom: '1px solid rgba(139,195,74,.15)' }}>
           Income by event
         </div>
-        <div className="thead" style={{ minWidth: 560 }}>
+        <div className="thead" style={{ minWidth: 640 }}>
           <span style={{ flex: 2 }}>Event</span>
           <span style={{ flex: 1 }}>Sold</span>
           <span style={{ flex: 1 }}>Gross</span>
           <span style={{ flex: 1 }}>Commission</span>
           <span style={{ flex: 1 }}>Net</span>
           <span style={{ flex: 0.8 }}>Status</span>
+          <span style={{ flex: 0.8 }}>Payout</span>
         </div>
         {orgEvents.map((ev) => {
           const c = ev.commission ?? 0;
           const rev = eventRevenue(ev);
           const commAmt = (rev * c) / 100;
           return (
-            <div key={ev.id} className="trow clickable" style={{ minWidth: 560 }} onClick={() => navigate(`/events/${ev.id}`)}>
+            <div key={ev.id} className="trow clickable" style={{ minWidth: 640 }} onClick={() => navigate(`/events/${ev.id}`)}>
               <span style={{ flex: 2, fontWeight: 700 }}>{ev.title}</span>
               <span style={{ flex: 1 }}>{fmt(eventSold(ev))}/{fmt(eventCap(ev))}</span>
               <span style={{ flex: 1 }}>₹{fmt(rev)}</span>
               <span style={{ flex: 1 }}>₹{fmt(commAmt)} ({c}%)</span>
               <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(rev - commAmt)}</span>
               <span style={{ flex: 0.8 }}><Tag {...eventStatusTag(ev)} /></span>
+              <span style={{ flex: 0.8 }}>
+                <Tag label={ev.paidOut ? 'Paid' : 'Unpaid'} cls={ev.paidOut ? 'tag-green' : 'tag-dim'} />
+              </span>
             </div>
           );
         })}
