@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { GUEST_SITE_URL } from '../store/data';
 import NotificationsPanel from './NotificationsPanel';
@@ -194,6 +194,16 @@ export default function AdminLayout() {
   const mobileNav = useMemo(() => MOBILE_NAV.filter((n) => visibleTo.has(n.to)), [visibleTo]);
   const sectionNav = useMemo(() => SECTION_NAV.filter((n) => visibleTo.has(n.to)), [visibleTo]);
 
+  // "/" is hardcoded to <Dashboard/> in App.tsx for every role — a staffer
+  // without Dashboard view (e.g. Sales, whose only real access is Leads)
+  // used to land there anyway and just see it fail (GET /admin/dashboard
+  // 403s server-side, the same PermissionGuard the sidebar link itself
+  // respects), since nothing ever routed them off it. Send them to the
+  // first section they can actually use instead — their real landing page.
+  const location = useLocation();
+  const needsLandingRedirect = staffMeta && staffMeta.roleName !== 'Owner' && location.pathname === '/' && !visibleTo.has('/');
+  const landingTo = mainNav[0]?.to ?? contentNav[0]?.to ?? extraNav.find((n) => n.to !== '/profile')?.to ?? '/profile';
+
   const results = useMemo<SearchResult[]>(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
@@ -332,7 +342,7 @@ export default function AdminLayout() {
         </nav>
 
         <main className="content">
-          <Outlet />
+          {needsLandingRedirect ? <Navigate to={landingTo} replace /> : <Outlet />}
         </main>
       </div>
 
