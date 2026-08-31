@@ -63,7 +63,7 @@ export interface Event {
   lineup: LineupItem[];
   tiers: TicketTier[];
   posterHue: number;
-  seo?: { title: string; description: string; slug: string; keywords: string[] };
+  seo?: { title: string; description: string; slug: string; keywords: string };
   promoterConfig?: PromoterConfig;
   // postUrl/storyUrl are the real, persisted upload URLs (admin's real
   // event editor); post/postDataUrl/story/storyDataUrl are the older

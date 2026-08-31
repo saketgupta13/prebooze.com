@@ -222,7 +222,11 @@ export default function CreateEvent() {
           setSeoTitle(ev.seo?.title ?? '');
           setSeoDesc(ev.seo?.description ?? '');
           setSeoSlug(ev.seo?.slug ?? '');
-          setSeoKeywords(ev.seo?.keywords.join(', ') ?? '');
+          // Real events can still carry the old array-shaped keywords this
+          // page itself used to write (before admin's EventEditorReal's
+          // plain-string shape was made the one standard) — handle both so
+          // loading an older event's SEO tab can't throw.
+          setSeoKeywords(Array.isArray(ev.seo?.keywords) ? ev.seo.keywords.join(', ') : ev.seo?.keywords ?? '');
         } else if (vs.length) {
           setVenueId(vs[0].id);
         }
@@ -291,7 +295,7 @@ export default function CreateEvent() {
       title: seoTitle || `${title} | tickets`,
       description: seoDesc || stripHtml(description).slice(0, 160),
       slug,
-      keywords: seoKeywords.split(',').map((s) => s.trim()).filter(Boolean),
+      keywords: seoKeywords,
     },
     promoterConfig: {
       enabled: promoEnabled,

@@ -263,7 +263,7 @@ export const EVENTS: Event[] = [
       description:
         'An unforgettable night of live indie music at Arena Hall, Austin. Book on Prebooze.',
       slug: 'indie-night-live-austin',
-      keywords: ['indie concert', 'austin', 'live music'],
+      keywords: 'indie concert, austin, live music',
     },
     promoterConfig: {
       enabled: true,
