@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, ArrowUpRight, Landmark, X, Check, CheckCircle2, Ticket, Banknote } from 'lucide-react';
 import {
   liveEvents, liveVenues, liveOrganizers, liveLineups, livePromoters, liveCategories, LiveApiError,
   type LiveEvent, type LiveEventInput, type LiveVenue, type LiveOrganizer, type LiveLineup, type LivePromoter, type LiveCategory,
@@ -73,7 +74,7 @@ export default function EventEditorReal() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState<ReactNode>('');
   const [rejectReason, setRejectReason] = useState('');
   const [showReject, setShowReject] = useState(false);
 
@@ -283,7 +284,7 @@ export default function EventEditorReal() {
       } else {
         const updated = await liveEvents.update(id!, buildInput());
         setExisting(updated);
-        setMsg('Saved ✓');
+        setMsg(<>Saved <CheckCircle2 size={13} /></>);
       }
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to save');
@@ -294,7 +295,7 @@ export default function EventEditorReal() {
 
   const approve = async () => {
     if (!existing) return;
-    try { setExisting(await liveEvents.approve(existing.id)); setMsg('Approved ✓'); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed'); }
+    try { setExisting(await liveEvents.approve(existing.id)); setMsg(<>Approved <CheckCircle2 size={13} /></>); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed'); }
   };
   const reject = async () => {
     if (!existing) return;
@@ -308,7 +309,7 @@ export default function EventEditorReal() {
     if (!existing) return;
     const v = commission.trim() === '' ? null : parseFloat(commission);
     if (v != null && (Number.isNaN(v) || v < 0 || v > 100)) { setErr('Commission must be 0-100'); return; }
-    try { setExisting(await liveEvents.setCommission(existing.id, v)); setMsg('Commission saved ✓'); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed'); }
+    try { setExisting(await liveEvents.setCommission(existing.id, v)); setMsg(<>Commission saved <CheckCircle2 size={13} /></>); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed'); }
   };
   const togglePaidOut = async () => {
     if (!existing) return;
@@ -347,12 +348,12 @@ export default function EventEditorReal() {
   return (
     <div className="stack fade" style={{ maxWidth: 900, gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/events" style={{ fontSize: 13 }}>← Events</Link>
+        <Link to="/events" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Events</Link>
         <h1 className="display" style={{ fontSize: 18 }}>{isCreate ? 'Create event' : title}</h1>
         {existing && <span className="tag">{existing.status}</span>}
         {existing && (
           <button className="btn btn-ghost btn-sm" disabled={previewing} onClick={preview}>
-            {previewing ? 'Opening…' : 'Preview ↗'}
+            {previewing ? 'Opening…' : <>Preview <ArrowUpRight size={14} /></>}
           </button>
         )}
         <div style={{ flex: 1 }} />
@@ -366,7 +367,7 @@ export default function EventEditorReal() {
       {existing && existing.status === 'pending' && (
         <div className="card" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <b style={{ marginRight: 8 }}>Pending approval</b>
-          <button className="btn btn-pri btn-sm" onClick={approve}>Approve ✓</button>
+          <button className="btn btn-pri btn-sm" onClick={approve}>Approve <Check size={14} /></button>
           {showReject ? (
             <>
               <input className="input" style={{ width: 200 }} placeholder="reason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
@@ -385,8 +386,8 @@ export default function EventEditorReal() {
         </div>
       )}
       {existing?.hostedByVenue && (
-        <div className="card" style={{ borderColor: 'var(--amber, #d99a2b)', color: 'var(--amber, #d99a2b)' }}>
-          🎪 This event is hosted by <b>{existing.venue?.name ?? 'a venue'}</b>, not a regular organizer. The "Save" form below works without picking one — only select an organizer if you actually mean to attach a
+        <div className="card" style={{ borderColor: 'var(--amber, #d99a2b)', color: 'var(--amber, #d99a2b)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <Landmark size={16} style={{ flex: 'none', marginTop: 2 }} /> This event is hosted by <b>{existing.venue?.name ?? 'a venue'}</b>, not a regular organizer. The "Save" form below works without picking one — only select an organizer if you actually mean to attach a
           collaborating organizer to this event.
         </div>
       )}
@@ -461,7 +462,7 @@ export default function EventEditorReal() {
                 items={venues.map((v) => ({ id: v.id, label: v.name, sub: v.city }))}
                 selectedId={venueId}
                 onChange={setVenueId}
-                placeholder="🔍 search venues…"
+                placeholder="Search venues…"
               />
             </div>
           )}
@@ -471,7 +472,7 @@ export default function EventEditorReal() {
               items={organizers.map((o) => ({ id: o.id, label: o.brandName }))}
               selectedId={organizerId}
               onChange={setOrganizerId}
-              placeholder="🔍 search organizers…"
+              placeholder="Search organizers…"
             />
           </div>
           <div className="field">
@@ -508,7 +509,7 @@ export default function EventEditorReal() {
                 title={(t.sold ?? 0) > 0 ? 'Tier has sold tickets' : 'Remove tier'}
                 onClick={() => setTiers((prev) => prev.filter((_, x) => x !== i))}
               >
-                ✕
+                <X size={13} />
               </button>
               <div className="field" style={{ flexBasis: '100%' }}>
                 <label>Ticket description — shown under this tier on the event page</label>
@@ -569,7 +570,7 @@ export default function EventEditorReal() {
                       className={`chip ${t.includes.includes(opt) ? 'on' : ''}`}
                       onClick={() => patchTier(i, { includes: t.includes.includes(opt) ? t.includes.filter((x) => x !== opt) : [...t.includes, opt] })}
                     >
-                      {opt}{t.includes.includes(opt) ? ' ✓' : ''}
+                      {opt}{t.includes.includes(opt) ? <Check size={11} style={{ marginLeft: 4, verticalAlign: -1 }} /> : ''}
                     </button>
                   ))}
                 </div>
@@ -595,7 +596,7 @@ export default function EventEditorReal() {
         <div className="stack" style={{ gap: 16 }}>
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <b>Poster</b>
-            <RealImageUpload value={posterUrl} onChange={setPosterUrl} onBusyChange={setPosterUploading} height={200} width={160} label="⬆ poster 3:4" />
+            <RealImageUpload value={posterUrl} onChange={setPosterUrl} onBusyChange={setPosterUploading} height={200} width={160} label="poster 3:4" />
             <div className="tiny hint">Saved along with the rest of the form — click {isCreate ? 'Create event' : 'Save changes'} below once you've uploaded it.</div>
           </div>
 
@@ -622,7 +623,7 @@ export default function EventEditorReal() {
                     style={{ position: 'absolute', top: 4, right: 4, padding: '2px 6px' }}
                     onClick={() => setGalleryUrls((prev) => prev.filter((_, x) => x !== i))}
                   >
-                    ✕
+                    <X size={13} />
                   </button>
                 </div>
               ))}
@@ -635,7 +636,7 @@ export default function EventEditorReal() {
 
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <b>Teaser reel (optional)</b>
-            <RealVideoUpload value={teaserVideoUrl || null} onChange={setTeaserVideoUrl} onBusyChange={setTeaserUploading} label="⬆ teaser video · 9:16" />
+            <RealVideoUpload value={teaserVideoUrl || null} onChange={setTeaserVideoUrl} onBusyChange={setTeaserUploading} label="teaser video · 9:16" />
             <div className="tiny hint">Upload a file, or paste a link below instead — Instagram Reel, YouTube, or a direct video file all work.</div>
             <input
               className="input"
@@ -651,11 +652,11 @@ export default function EventEditorReal() {
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               <div>
                 <div className="tiny muted" style={{ marginBottom: 4 }}>Instagram post · 1:1</div>
-                <RealImageUpload value={socialPostUrl || null} onChange={setSocialPostUrl} onBusyChange={setSocialPostUploading} height={110} width={110} label="⬆ post 1:1" />
+                <RealImageUpload value={socialPostUrl || null} onChange={setSocialPostUrl} onBusyChange={setSocialPostUploading} height={110} width={110} label="post 1:1" />
               </div>
               <div>
                 <div className="tiny muted" style={{ marginBottom: 4 }}>Instagram story · 9:16</div>
-                <RealImageUpload value={socialStoryUrl || null} onChange={setSocialStoryUrl} onBusyChange={setSocialStoryUploading} height={160} width={90} label="⬆ story 9:16" />
+                <RealImageUpload value={socialStoryUrl || null} onChange={setSocialStoryUrl} onBusyChange={setSocialStoryUploading} height={160} width={90} label="story 9:16" />
               </div>
             </div>
             <div className="tiny hint">Optional — ready-to-post promo images shown on the guest page's Share panel.</div>
@@ -687,7 +688,7 @@ export default function EventEditorReal() {
                     className="btn btn-danger btn-sm"
                     onClick={() => setRules((prev) => prev.filter((_, x) => x !== i))}
                   >
-                    ✕
+                    <X size={13} />
                   </button>
                 </div>
               ))}
@@ -715,7 +716,6 @@ export default function EventEditorReal() {
           <div className="field">
             <label>Line-up — pick from the real Line-ups directory (stored as name/role on the event)</label>
             <MultiSelectSearch
-              chipIcon="🎤"
               placeholder="Search registered line-ups by name…"
               emptyHint="No line-ups registered yet."
               items={lineups.map((l) => ({ id: l.name, label: l.name, sub: l.category, disabled: !l.verified, disabledLabel: '(pending verification)' }))}
@@ -744,7 +744,6 @@ export default function EventEditorReal() {
               <div className="field">
                 <label>Promoters allowed on this event</label>
                 <MultiSelectSearch
-                  chipIcon="📣"
                   placeholder="Search registered promoters by name…"
                   emptyHint="No promoters registered yet."
                   items={promoters.map((p) => ({ id: p.slug, label: p.name, sub: p.city, disabled: !p.verified, disabledLabel: '(unverified)' }))}
@@ -756,7 +755,7 @@ export default function EventEditorReal() {
                 <div className="field">
                   <label>How each promoter promotes this event</label>
                   <div className="tiny muted" style={{ marginBottom: 8 }}>
-                    🎟️ Guest list = free entry, no ticket sold. 💰 Paid commission = a % of the ticket price on any
+                    <Ticket size={12} style={{ verticalAlign: -2 }} /> Guest list = free entry, no ticket sold. <Banknote size={12} style={{ verticalAlign: -2 }} /> Paid commission = a % of the ticket price on any
                     sale through their link, added on top (guest-funded, same as Prebooze's own commission on that
                     sale) so it never cuts into the organizer's revenue. Pick either, both, or neither.
                   </div>
@@ -775,7 +774,7 @@ export default function EventEditorReal() {
                                 checked={hasGuestList}
                                 onChange={() => setGuestListPromoters((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]))}
                               />
-                              <span className="small">🎟️ Guest list</span>
+                              <span className="small" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={13} /> Guest list</span>
                             </label>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <input
@@ -783,7 +782,7 @@ export default function EventEditorReal() {
                                 checked={hasCommission}
                                 onChange={() => setCommissionPromoters((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]))}
                               />
-                              <span className="small">💰 Paid commission</span>
+                              <span className="small" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Banknote size={13} /> Paid commission</span>
                             </label>
                             {hasCommission && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

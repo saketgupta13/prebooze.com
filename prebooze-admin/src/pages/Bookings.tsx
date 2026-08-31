@@ -5,6 +5,7 @@ import { downloadCsv } from '../lib/csv';
 import { liveBookings, liveCarts, LiveApiError, type LiveBooking, type LiveCart } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import { ArrowLeft, Download, ClipboardList, ShoppingCart, ArrowRight } from 'lucide-react';
 
 const TITLE = 'Bookings';
 type FilterKey = 'all' | LiveBooking['status'];
@@ -130,11 +131,11 @@ export default function Bookings() {
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       {loading && <div className="tiny muted">Loading…</div>}
 
-      {eventId && <Link to="/bookings" style={{ fontSize: 13 }}>← All events</Link>}
+      {eventId && <Link to="/bookings" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> All events</Link>}
       <div className="page-hd">
         <h1 className="page-title">{eventId ? (scopedEvent?.title ?? 'Bookings') : 'Bookings'}</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          {!showingSummary && <button className="btn btn-ghost" onClick={exportCsv}>⬇ Export CSV</button>}
+          {!showingSummary && <button className="btn btn-ghost" onClick={exportCsv} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Download size={14} /> Export CSV</button>}
           <Link to="/bookings/new" className="btn btn-pri">+ Manual booking</Link>
         </div>
       </div>
@@ -142,8 +143,8 @@ export default function Bookings() {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <SearchBox value={query} onChange={setQuery} placeholder="booking id / phone / name…" style={{ flex: 1, minWidth: 180 }} />
         {!eventId && !query.trim() && (
-          <Link to={showingSummary ? '/bookings?view=all' : '/bookings'} className={`chip ${!showingSummary ? 'on' : ''}`}>
-            {showingSummary ? '📋 All bookings' : '← Back to events'}
+          <Link to={showingSummary ? '/bookings?view=all' : '/bookings'} className={`chip ${!showingSummary ? 'on' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            {showingSummary ? <><ClipboardList size={13} /> All bookings</> : <><ArrowLeft size={13} /> Back to events</>}
           </Link>
         )}
         {!showingSummary && FILTERS.map((f) => (
@@ -213,8 +214,8 @@ export default function Bookings() {
       {cartsByEvent.length > 0 && (
         <div className="tblwrap">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid rgba(139,195,74,.15)', flexWrap: 'wrap', gap: 6 }}>
-            <span className="display" style={{ fontWeight: 700 }}>🛒 Abandoned carts by event</span>
-            <span className="small muted">{carts.length} open · ₹{fmt(cartsTotalValue)} recoverable · <Link to="/abandoned">recover →</Link></span>
+            <span className="display" style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><ShoppingCart size={16} /> Abandoned carts by event</span>
+            <span className="small muted">{carts.length} open · ₹{fmt(cartsTotalValue)} recoverable · <Link to="/abandoned" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>recover <ArrowRight size={12} /></Link></span>
           </div>
           <div className="thead" style={{ minWidth: 480 }}>
             <span style={{ flex: 2 }}>Event</span>

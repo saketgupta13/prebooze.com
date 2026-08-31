@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { liveTrending, LiveApiError, type LiveTrendingTerm } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -102,7 +103,7 @@ export default function TrendingSearches() {
             <span style={{ flex: 1 }}><b>{t.term}</b></span>
             <button type="button" className="btn btn-ghost btn-sm" disabled={i === 0} onClick={() => move(i, -1)} title="Move up">↑</button>
             <button type="button" className="btn btn-ghost btn-sm" disabled={i === terms.length - 1} onClick={() => move(i, 1)} title="Move down">↓</button>
-            <span className="btn btn-danger btn-sm" style={{ padding: '2px 7px', cursor: 'pointer' }} onClick={() => remove(t.term)}>✕</span>
+            <span className="btn btn-danger btn-sm" style={{ padding: '2px 7px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }} onClick={() => remove(t.term)}><X size={13} /></span>
           </div>
         ))}
         {terms.length === 0 && !loading && (

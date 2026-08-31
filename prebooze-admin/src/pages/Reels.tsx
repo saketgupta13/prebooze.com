@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import { liveReels, liveMedia, LiveApiError, type LiveReel } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -132,7 +133,7 @@ export default function Reels() {
               </button>
             </span>
             <span style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => remove(r.id)}>✕</button>
+              <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => remove(r.id)}><X size={14} /></button>
             </span>
           </div>
         ))}

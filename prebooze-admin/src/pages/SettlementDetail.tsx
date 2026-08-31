@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Copy, CheckCircle2, Clock } from 'lucide-react';
 import { liveSettlements, LiveApiError, type LiveSettlementDetail } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -23,7 +24,7 @@ function CopyChip({ value }: { value: string }) {
       }}
       title="Copy"
     >
-      {copied ? '✓' : '📋'}
+      {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
     </button>
   );
 }
@@ -71,7 +72,7 @@ export default function SettlementDetail() {
           {/* Header — mirrors Razorpay's own settlement-detail header */}
           <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '22px 20px' }}>
             <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--green-soft, #d7f5da)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: 'var(--green)', flexShrink: 0 }}>
-              {data.settlement.status === 'processed' ? '✓' : '⏳'}
+              {data.settlement.status === 'processed' ? <CheckCircle2 size={20} /> : <Clock size={20} />}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.2 }}>₹{fmt(data.settlement.amount)}</div>

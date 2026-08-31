@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { BookingStatus, CustomerStatus, EventStatus, OrganizerStatus } from '../types';
 import { liveLocations, type LiveCountry } from '../lib/liveApi';
+import { CheckCircle2, X, Search } from 'lucide-react';
 
 /** Pill toggle switch — used in place of a plain checkbox everywhere in the
  * admin panel's settings-style forms. */
@@ -168,7 +169,7 @@ export function ImagePicker({ value, onChange, aspectRatio = '16 / 5', height, w
       }}
     >
       <input ref={inputRef} type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
-      {value ? (children ?? <span className="tiny hint">✓ image uploaded — click to replace</span>) : (
+      {value ? (children ?? <span className="tiny hint" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={12} /> image uploaded — click to replace</span>) : (
         <span className="hint" style={{ margin: 'auto', fontSize: 12 }}>{label}</span>
       )}
     </button>
@@ -210,9 +211,9 @@ export function GalleryPicker({ value, onChange, max = 6, label }: {
           <button
             type="button"
             onClick={() => remove(i)}
-            style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 10, cursor: 'pointer', lineHeight: '18px', padding: 0 }}
+            style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
           >
-            ✕
+            <X size={11} />
           </button>
         </div>
       ))}
@@ -272,7 +273,7 @@ export function SearchBox({ value, onChange, placeholder, style }: {
 }) {
   return (
     <div className="search-box" style={style}>
-      <span style={{ opacity: 0.6 }}>🔍</span>
+      <span style={{ opacity: 0.6, display: 'flex' }}><Search size={15} /></span>
       <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
     </div>
   );
@@ -310,14 +311,14 @@ export function MultiSelectSearch({ items, selectedIds, onChange, placeholder, e
       {selected.length > 0 && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
           {selected.map((s) => (
-            <button key={s.id} type="button" className="chip on" onClick={() => toggle(s.id)}>
-              {chipIcon ?? ''} {s.label} ✕
+            <button key={s.id} type="button" className="chip on" onClick={() => toggle(s.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              {chipIcon ?? ''} {s.label} <X size={11} />
             </button>
           ))}
         </div>
       )}
       <div className="search-box" style={{ position: 'relative' }}>
-        <span style={{ opacity: 0.6 }}>🔍</span>
+        <span style={{ opacity: 0.6, display: 'flex' }}><Search size={15} /></span>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -378,7 +379,7 @@ export function SingleSelectSearch({ items, selectedId, onChange, placeholder }:
 
   return (
     <div className="search-box" style={{ position: 'relative' }}>
-      <span style={{ opacity: 0.6 }}>🔍</span>
+      <span style={{ opacity: 0.6, display: 'flex' }}><Search size={15} /></span>
       <input
         value={focused ? query : (selected?.label ?? '')}
         onChange={(e) => setQuery(e.target.value)}

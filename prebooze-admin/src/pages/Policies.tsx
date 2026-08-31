@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { X, AlertTriangle, Check } from 'lucide-react';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import WysiwygEditor from '../components/WysiwygEditor';
 import { livePolicies, LiveApiError, type LivePolicy } from '../lib/liveApi';
@@ -109,7 +110,7 @@ export default function Policies() {
                 disabled={sections.length === 1}
                 onClick={() => setSections((prev) => prev.filter((_, x) => x !== i))}
               >
-                ✕
+                <X size={13} />
               </button>
             </div>
             <WysiwygEditor value={sec.body} onChange={(html) => setSection(i, { body: html })} minHeight={72} />
@@ -126,11 +127,11 @@ export default function Policies() {
 
       <SeoFields seo={seo} onChange={setSeo} slug={'/' + policy.slug.replace(/^\//, '')} fallbackTitle={policy.title} />
 
-      <div className="dashed-box tiny red" style={{ color: 'var(--red)' }}>
-        ⚠ Placeholder legal copy — real language must be drafted and reviewed by counsel before launch.
+      <div className="dashed-box tiny red" style={{ color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <AlertTriangle size={14} style={{ flex: 'none' }} /> Placeholder legal copy — real language must be drafted and reviewed by counsel before launch.
       </div>
 
-      <button className="btn btn-pri" style={{ width: 'fit-content', padding: 10 }} onClick={save}>Save {policy.title} ✓</button>
+      <button className="btn btn-pri" style={{ width: 'fit-content', padding: 10 }} onClick={save}>Save {policy.title} <Check size={14} /></button>
     </div>
   );
 }

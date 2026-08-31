@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Star as StarIcon, Pencil, X } from 'lucide-react';
 import { liveTestimonials, LiveApiError, type LiveTestimonial } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -116,11 +117,11 @@ export default function Testimonials() {
               </div>
               <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>"{t.quote}"</div>
             </div>
-            <button className={`chip ${t.featured ? 'on' : ''}`} style={{ fontSize: 10.5 }} onClick={() => toggleFeatured(t)}>
-              {t.featured ? '★ Featured' : 'Feature'}
+            <button className={`chip ${t.featured ? 'on' : ''}`} style={{ fontSize: 10.5, display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => toggleFeatured(t)}>
+              {t.featured ? <><StarIcon size={11} /> Featured</> : 'Feature'}
             </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => startEdit(t)}>✎</button>
-            <button className="btn btn-danger btn-sm" onClick={() => remove(t.id)}>✕</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => startEdit(t)}><Pencil size={13} /></button>
+            <button className="btn btn-danger btn-sm" onClick={() => remove(t.id)}><X size={14} /></button>
           </div>
         ))}
         {testimonials.length === 0 && !loading && <div className="card muted small">No testimonials yet.</div>}

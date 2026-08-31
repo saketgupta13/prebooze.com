@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Pencil, X } from 'lucide-react';
 import { fmt } from '../store/data';
 import { Kpi, Tag } from '../components/ui';
 import { liveOrganizers, liveEvents, LiveApiError, type LiveOrganizer, type LiveEvent, type LiveOrgStaffMember } from '../lib/liveApi';
@@ -65,7 +66,7 @@ export default function OrganizerDetail() {
       <div className="stack fade">
         {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Organizer not found</h1>
-        <Link to="/organizers" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Organizers</Link>
+        <Link to="/organizers" className="btn btn-ghost" style={{ width: 'fit-content' }}><ArrowLeft size={14} /> Organizers</Link>
       </div>
     );
   }
@@ -80,11 +81,11 @@ export default function OrganizerDetail() {
     <div className="stack fade" style={{ maxWidth: 1000, gap: 14 }}>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/organizers" style={{ fontSize: 13 }}>← Organizers</Link>
+        <Link to="/organizers" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Organizers</Link>
         <h1 className="display" style={{ fontSize: 18 }}>{org.brandName}</h1>
         {org.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Unverified" cls="" />}
         <div style={{ flex: 1 }} />
-        <Link to={`/organizers/${org.id}/edit`} className="btn btn-pri btn-sm">✎ Edit organizer</Link>
+        <Link to={`/organizers/${org.id}/edit`} className="btn btn-pri btn-sm"><Pencil size={13} /> Edit organizer</Link>
       </div>
       <div className="small muted">
         {org.contact || '—'} · {org.city} · organizer since {org.since} ·{' '}
@@ -146,7 +147,7 @@ export default function OrganizerDetail() {
             <span style={{ flex: 1 }}>{m.roleName}</span>
             <span style={{ flex: 0.6, textAlign: 'right' }}>
               <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => removeTeamMember(m.id, m.name)}>
-                ✕ Remove
+                <X size={13} /> Remove
               </button>
             </span>
           </div>

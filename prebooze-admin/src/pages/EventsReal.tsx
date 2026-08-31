@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Landmark, Lock, Pencil } from 'lucide-react';
 import { liveEvents, LiveApiError, type LiveEvent } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
@@ -153,9 +154,13 @@ export default function EventsReal() {
                 <div className="tiny muted">{e.category} · {new Date(e.date).toLocaleDateString('en-IN')} · {e.status}</div>
               </span>
               <span style={{ flex: 1.2 }} className="muted small">
-                {e.organizer ? (e.hostedByVenue ? `${e.organizer.brandName} · 🎪 with venue` : e.organizer.brandName) : `🎪 ${e.venue?.name ?? 'venue-hosted'}`}
+                {e.organizer ? (
+                  e.hostedByVenue
+                    ? <>{e.organizer.brandName} · <Landmark size={11} style={{ verticalAlign: -1 }} /> with venue</>
+                    : e.organizer.brandName
+                ) : <><Landmark size={11} style={{ verticalAlign: -1 }} /> {e.venue?.name ?? 'venue-hosted'}</>}
                 <br />
-                {e.venue ? `${e.venue.name} · ${e.venue.city}` : `🔒 ${e.privateLocality}, ${e.privateCity}`}
+                {e.venue ? `${e.venue.name} · ${e.venue.city}` : <><Lock size={11} style={{ verticalAlign: -1 }} /> {e.privateLocality}, {e.privateCity}</>}
               </span>
               <span style={{ flex: 1 }}>{e.status === 'pending' ? '—' : `${sold}/${cap}`}</span>
               <span style={{ flex: 0.9, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -183,7 +188,7 @@ export default function EventsReal() {
                     )}
                   </>
                 )}
-                <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/events/${e.id}`)}>✎ Edit</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/events/${e.id}`)}><Pencil size={13} /> Edit</button>
               </span>
             </div>
           );

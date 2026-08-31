@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Star as StarIcon, Pencil, X } from 'lucide-react';
 import { CityFilterDropdown, SearchBox } from '../components/ui';
 import { liveReviews, liveOrganizers, LiveApiError, type LiveReview, type LiveOrganizer } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -85,7 +86,7 @@ export default function Reviews() {
 
       <div className="page-hd">
         <h1 className="page-title">Reviews</h1>
-        <span className="chip">★ {avg} avg · {list.length} shown</span>
+        <span className="chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><StarIcon size={12} /> {avg} avg · {list.length} shown</span>
       </div>
       <div className="tiny hint" style={{ marginTop: -6 }}>
         moderation is admin-only — organizers see their reviews read-only · edit to redact spam/abuse, remove only when guidelines are broken
@@ -125,11 +126,12 @@ export default function Reviews() {
                 </div>
                 <button
                   className="btn btn-ghost btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
                   onClick={() => { setEditingId(r.id); setEditText(r.text); setEditRating(r.rating); }}
                 >
-                  ✎ Edit
+                  <Pencil size={13} /> Edit
                 </button>
-                <button className="btn btn-danger btn-sm" onClick={() => remove(r)}>✕</button>
+                <button className="btn btn-danger btn-sm" onClick={() => remove(r)}><X size={14} /></button>
               </div>
             )}
           </div>

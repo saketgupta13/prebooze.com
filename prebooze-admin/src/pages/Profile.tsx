@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '../store/AdminContext';
 import { Tag } from '../components/ui';
+import { User } from 'lucide-react';
 import { clearLiveToken, liveMe, liveNotifications, liveSettings, LiveApiError, type LiveNotification } from '../lib/liveApi';
 
 function timeAgo(iso: string): string {
@@ -88,7 +89,7 @@ export default function Profile() {
       <h1 className="page-title">My profile</h1>
 
       <div className="card" style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-        <div className="avatar" style={{ width: 56, height: 56, fontSize: 24 }}>👤</div>
+        <div className="avatar" style={{ width: 56, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={24} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="display" style={{ fontSize: 16 }}>{session.name ?? 'Admin'}</div>
           <div className="small muted">{session.email}</div>

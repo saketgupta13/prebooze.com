@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { X, Star } from 'lucide-react';
 import { liveLocations, LiveApiError, type LiveCountry } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -67,7 +68,7 @@ export default function Locations() {
     </button>
   );
   const Del = ({ onClick }: { onClick: () => void }) => (
-    <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={(e) => { e.stopPropagation(); onClick(); }}>✕</button>
+    <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={(e) => { e.stopPropagation(); onClick(); }}><X size={13} /></button>
   );
 
   return (
@@ -158,10 +159,10 @@ export default function Locations() {
                   <button
                     className="chip"
                     title="Show as a top-city tile in the guest city picker (max 12)"
-                    style={{ fontSize: 12, padding: '2px 8px', borderColor: ci.top ? 'var(--green)' : undefined }}
+                    style={{ fontSize: 12, padding: '2px 8px', borderColor: ci.top ? 'var(--green)' : undefined, display: 'inline-flex', alignItems: 'center' }}
                     onClick={(e) => { e.stopPropagation(); run(() => liveLocations.updateCity(ci.name, { top: !ci.top })); }}
                   >
-                    {ci.top ? '⭐' : '☆'}
+                    <Star size={13} fill={ci.top ? 'currentColor' : 'none'} />
                   </button>
                   <Toggle on={ci.enabled} onClick={() => run(() => liveLocations.toggleCity(ci.name))} />
                   <Del onClick={() => run(() => liveLocations.removeCity(ci.name))} />
@@ -180,7 +181,7 @@ export default function Locations() {
         </div>
       </div>
       <div className="tiny hint">
-        disabled locations are hidden from onboarding pickers and the guest city picker · ⭐ marks a city as a top-city tile in the guest picker popup ({topCount}/{TOP_CITY_LIMIT} starred)
+        disabled locations are hidden from onboarding pickers and the guest city picker · <Star size={11} fill="currentColor" style={{ verticalAlign: -1 }} /> marks a city as a top-city tile in the guest picker popup ({topCount}/{TOP_CITY_LIMIT} starred)
       </div>
     </div>
   );

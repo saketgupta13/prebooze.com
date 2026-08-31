@@ -7,6 +7,7 @@ import { liveBlogs, liveBlogCategories, liveMedia, LiveApiError, type LiveBlog, 
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
 import type { Seo } from '../types';
+import { ArrowLeft, CheckCircle2, Upload } from 'lucide-react';
 
 const TITLE = 'Edit blog post';
 
@@ -71,7 +72,7 @@ export function BlogEditor() {
       <div className="stack fade">
         {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Post not found</h1>
-        <Link to="/blogs" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Blog posts</Link>
+        <Link to="/blogs" className="btn btn-ghost" style={{ width: 'fit-content', display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Blog posts</Link>
       </div>
     );
   }
@@ -122,7 +123,7 @@ export function BlogEditor() {
   return (
     <form className="stack fade" style={{ maxWidth: 680, gap: 14 }} onSubmit={save}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/blogs" style={{ fontSize: 13 }}>← Blog posts</Link>
+        <Link to="/blogs" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Blog posts</Link>
         <h1 className="page-title">{isCreate ? 'New blog post' : `Edit — ${existing!.title}`}</h1>
         <div style={{ flex: 1 }} />
         <Link to="/blogs/categories" className="btn btn-ghost btn-sm">Manage categories</Link>
@@ -141,9 +142,9 @@ export function BlogEditor() {
         disabled={uploading}
       >
         {bannerUrl ? (
-          <span className="tiny" style={{ margin: 'auto', color: '#fff' }}>✓ cover banner uploaded (16:6) — click to replace</span>
+          <span className="tiny" style={{ margin: 'auto', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={12} /> cover banner uploaded (16:6) — click to replace</span>
         ) : (
-          <span>{uploading ? 'Uploading…' : '⬆ upload cover banner · 16:6 · required for every post'}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{uploading ? 'Uploading…' : <><Upload size={13} /> upload cover banner · 16:6 · required for every post</>}</span>
         )}
       </button>
 
@@ -179,7 +180,7 @@ export function BlogEditor() {
 
       <div style={{ display: 'flex', gap: 10 }}>
         <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }}>
-          {status === 'published' ? 'Save & publish ✓' : status === 'scheduled' ? 'Save & schedule' : 'Save draft'}
+          {status === 'published' ? <>Save & publish <CheckCircle2 size={14} /></> : status === 'scheduled' ? 'Save & schedule' : 'Save draft'}
         </button>
         <Link to="/blogs" className="btn btn-ghost" style={{ padding: 10 }}>Cancel</Link>
       </div>
@@ -248,7 +249,7 @@ export function BlogCategories() {
   return (
     <div className="stack fade" style={{ maxWidth: 640, gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/blogs" style={{ fontSize: 13 }}>← Blog posts</Link>
+        <Link to="/blogs" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Blog posts</Link>
         <h1 className="page-title">Blog categories</h1>
       </div>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
@@ -265,8 +266,8 @@ export function BlogCategories() {
           <div key={c.id} className="trow" style={{ minWidth: 380 }}>
             <span style={{ flex: 1.6, fontWeight: 700 }}>{c.name}</span>
             <span style={{ flex: 1 }}>{blogs.filter((b) => b.category === c.name).length}</span>
-            <span style={{ flex: 1 }} className={c.bannerUrl ? 'green' : 'hint'}>{c.bannerUrl ? '✓ set' : '—'}</span>
-            <span style={{ flex: 1 }} className={c.seo?.title ? 'green' : 'hint'}>{c.seo?.title ? '✓ set' : '—'}</span>
+            <span style={{ flex: 1, display: 'inline-flex', alignItems: 'center', gap: 4 }} className={c.bannerUrl ? 'green' : 'hint'}>{c.bannerUrl ? <><CheckCircle2 size={12} /> set</> : '—'}</span>
+            <span style={{ flex: 1, display: 'inline-flex', alignItems: 'center', gap: 4 }} className={c.seo?.title ? 'green' : 'hint'}>{c.seo?.title ? <><CheckCircle2 size={12} /> set</> : '—'}</span>
           </div>
         ))}
         {categories.length === 0 && !loading && <div className="trow muted">No categories yet.</div>}
@@ -280,7 +281,7 @@ export function BlogCategories() {
         </div>
         <input ref={bannerInputRef} type="file" accept="image/*" onChange={onBannerFile} style={{ display: 'none' }} />
         <button type="button" className="ph" style={{ height: 60, width: '100%', cursor: 'pointer', backgroundImage: bannerUrl ? `url(${bannerUrl})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }} disabled={uploading} onClick={() => bannerInputRef.current?.click()}>
-          {bannerUrl ? <span className="tiny" style={{ margin: 'auto', color: '#fff' }}>✓ category banner uploaded (16:5)</span> : (uploading ? 'Uploading…' : '+ upload category banner 16:5 — tops the category page')}
+          {bannerUrl ? <span className="tiny" style={{ margin: 'auto', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={12} /> category banner uploaded (16:5)</span> : (uploading ? 'Uploading…' : '+ upload category banner 16:5 — tops the category page')}
         </button>
         <SeoFields seo={seo} onChange={setSeo} slug={slug} fallbackTitle={`${name || 'Category'} — Prebooze Blog`} />
         <button type="submit" className="btn btn-pri" style={{ alignSelf: 'flex-start' }}>Create category</button>

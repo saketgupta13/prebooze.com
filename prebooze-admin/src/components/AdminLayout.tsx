@@ -6,6 +6,14 @@ import NotificationsPanel from './NotificationsPanel';
 import { Drawer } from './ui';
 import { useBranding } from '../lib/useBranding';
 import { clearLiveToken, getLiveToken, liveMe, type LiveStaffMe } from '../lib/liveApi';
+import {
+  LayoutDashboard, Calendar, Ticket, ShoppingCart, Users, ShieldCheck, Contact, Briefcase,
+  Megaphone, Star, Gift, MapPin, Landmark, Globe, Mic, Wallet, Banknote, Receipt,
+  CircleDollarSign, Building2, Tag, TrendingUp, BarChart3, Image, Film, MessageCircle,
+  HelpCircle, FolderTree, Tags, PenLine, FileText, ScrollText, Compass, UserCog, Mail,
+  Settings, User, Search, Bell, ArrowRight, X, MoreHorizontal,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 interface SearchResult {
   type: string;
@@ -14,46 +22,46 @@ interface SearchResult {
   to: string;
 }
 
-const MAIN_NAV = [
-  { to: '/', icon: '▦', label: 'Dashboard', end: true },
-  { to: '/events', icon: '🎪', label: 'Events' },
-  { to: '/bookings', icon: '🎟', label: 'Bookings' },
-  { to: '/abandoned', icon: '🛒', label: 'Abandoned carts' },
-  { to: '/customers', icon: '👥', label: 'Customers' },
-  { to: '/verifications', icon: '🛂', label: 'Verifications' },
-  { to: '/leads', icon: '📇', label: 'Leads' },
-  { to: '/organizers', icon: '🧑‍💼', label: 'Organizers' },
-  { to: '/promoters', icon: '📣', label: 'Promoters' },
-  { to: '/featured', icon: '⭐', label: 'Featured' },
-  { to: '/referrals', icon: '🎁', label: 'Refer & earn' },
-  { to: '/venues', icon: '📍', label: 'Venues' },
-  { to: '/venue-hosting', icon: '🏟', label: 'Venue hosting' },
-  { to: '/locations', icon: '🌍', label: 'Locations' },
-  { to: '/lineups', icon: '🎤', label: 'Line-ups' },
-  { to: '/payments', icon: '💰', label: 'Payments' },
-  { to: '/promoter-payouts', icon: '💸', label: 'Promoter payouts' },
-  { to: '/invoices', icon: '🧾', label: 'Invoices' },
-  { to: '/finance', icon: '💵', label: 'Income & expenses' },
-  { to: '/settlements', icon: '🏦', label: 'Settlements' },
-  { to: '/promos', icon: '🏷', label: 'Promo codes' },
-  { to: '/reviews', icon: '★', label: 'Reviews' },
-  { to: '/reports', icon: '📈', label: 'Reports' },
-  { to: '/analytics', icon: '📊', label: 'Analytics' },
+const MAIN_NAV: { to: string; icon: LucideIcon; label: string; end?: boolean }[] = [
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
+  { to: '/events', icon: Calendar, label: 'Events' },
+  { to: '/bookings', icon: Ticket, label: 'Bookings' },
+  { to: '/abandoned', icon: ShoppingCart, label: 'Abandoned carts' },
+  { to: '/customers', icon: Users, label: 'Customers' },
+  { to: '/verifications', icon: ShieldCheck, label: 'Verifications' },
+  { to: '/leads', icon: Contact, label: 'Leads' },
+  { to: '/organizers', icon: Briefcase, label: 'Organizers' },
+  { to: '/promoters', icon: Megaphone, label: 'Promoters' },
+  { to: '/featured', icon: Star, label: 'Featured' },
+  { to: '/referrals', icon: Gift, label: 'Refer & earn' },
+  { to: '/venues', icon: MapPin, label: 'Venues' },
+  { to: '/venue-hosting', icon: Landmark, label: 'Venue hosting' },
+  { to: '/locations', icon: Globe, label: 'Locations' },
+  { to: '/lineups', icon: Mic, label: 'Line-ups' },
+  { to: '/payments', icon: Wallet, label: 'Payments' },
+  { to: '/promoter-payouts', icon: Banknote, label: 'Promoter payouts' },
+  { to: '/invoices', icon: Receipt, label: 'Invoices' },
+  { to: '/finance', icon: CircleDollarSign, label: 'Income & expenses' },
+  { to: '/settlements', icon: Building2, label: 'Settlements' },
+  { to: '/promos', icon: Tag, label: 'Promo codes' },
+  { to: '/reviews', icon: Star, label: 'Reviews' },
+  { to: '/reports', icon: TrendingUp, label: 'Reports' },
+  { to: '/analytics', icon: BarChart3, label: 'Analytics' },
 ];
 
-const CONTENT_NAV = [
-  { to: '/banners', icon: '🖼', label: 'Banners' },
-  { to: '/reels', icon: '🎬', label: 'Reels' },
-  { to: '/careers', icon: '💼', label: 'Careers' },
-  { to: '/testimonials', icon: '💬', label: 'Testimonials' },
-  { to: '/faqs', icon: '❓', label: 'FAQs' },
-  { to: '/categories', icon: '🗂', label: 'Categories' },
-  { to: '/trending', icon: '🔥', label: 'Trending searches' },
-  { to: '/venue-types', icon: '🏷', label: 'Venue types' },
-  { to: '/blogs', icon: '✍', label: 'Blogs' },
-  { to: '/pages', icon: '📄', label: 'Pages' },
-  { to: '/policies', icon: '📜', label: 'Policies' },
-  { to: '/menus', icon: '🧭', label: 'Menus' },
+const CONTENT_NAV: { to: string; icon: LucideIcon; label: string; end?: boolean }[] = [
+  { to: '/banners', icon: Image, label: 'Banners' },
+  { to: '/reels', icon: Film, label: 'Reels' },
+  { to: '/careers', icon: Briefcase, label: 'Careers' },
+  { to: '/testimonials', icon: MessageCircle, label: 'Testimonials' },
+  { to: '/faqs', icon: HelpCircle, label: 'FAQs' },
+  { to: '/categories', icon: FolderTree, label: 'Categories' },
+  { to: '/trending', icon: TrendingUp, label: 'Trending searches' },
+  { to: '/venue-types', icon: Tags, label: 'Venue types' },
+  { to: '/blogs', icon: PenLine, label: 'Blogs' },
+  { to: '/pages', icon: FileText, label: 'Pages' },
+  { to: '/policies', icon: ScrollText, label: 'Policies' },
+  { to: '/menus', icon: Compass, label: 'Menus' },
 ];
 
 // The bottom tab bar only has room for a handful of icons — these four plus
@@ -61,20 +69,20 @@ const CONTENT_NAV = [
 // below). "More" used to be a dead-end NavLink straight to /promos, which
 // looked like tapping it did nothing since it never revealed the rest of
 // the admin's ~30 sections the sidebar shows on desktop.
-const MOBILE_NAV = [
-  { to: '/', icon: '▦', label: 'Home', end: true },
-  { to: '/events', icon: '🎪', label: 'Events' },
-  { to: '/bookings', icon: '🎟', label: 'Bookings' },
-  { to: '/payments', icon: '💰', label: 'Money' },
+const MOBILE_NAV: { to: string; icon: LucideIcon; label: string; end?: boolean }[] = [
+  { to: '/', icon: LayoutDashboard, label: 'Home', end: true },
+  { to: '/events', icon: Calendar, label: 'Events' },
+  { to: '/bookings', icon: Ticket, label: 'Bookings' },
+  { to: '/payments', icon: Wallet, label: 'Money' },
 ];
 
 // A few sections that live outside MAIN_NAV/CONTENT_NAV (no sidebar chip of
 // their own) but should still be jump-to-able by name.
-const EXTRA_NAV = [
-  { to: '/staff', icon: '🧑‍💻', label: 'Staff & roles' },
-  { to: '/email-templates', icon: '✉️', label: 'Email templates' },
-  { to: '/settings', icon: '⚙', label: 'Settings' },
-  { to: '/profile', icon: '👤', label: 'Profile' },
+const EXTRA_NAV: { to: string; icon: LucideIcon; label: string; end?: boolean }[] = [
+  { to: '/staff', icon: UserCog, label: 'Staff & roles' },
+  { to: '/email-templates', icon: Mail, label: 'Email templates' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/profile', icon: User, label: 'Profile' },
 ];
 
 // Every admin section, searchable by name — "jump to X" rather than
@@ -233,7 +241,7 @@ export default function AdminLayout() {
           </span>
         </div>
         <div ref={searchWrapRef} className="search-box hide-mobile" style={{ flex: 1, maxWidth: 420, position: 'relative' }}>
-          <span style={{ opacity: 0.6 }}>🔍</span>
+          <span style={{ opacity: 0.6, display: 'flex' }}><Search size={15} /></span>
           <input
             placeholder="Search bookings, events, users…"
             value={query}
@@ -275,13 +283,16 @@ export default function AdminLayout() {
         <div style={{ flex: 1 }} />
         <button
           className="btn btn-ghost btn-sm"
-          style={unread > 0 ? { borderColor: 'var(--red)', color: 'var(--red-soft)' } : undefined}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            ...(unread > 0 ? { borderColor: 'var(--red)', color: 'var(--red-soft)' } : undefined),
+          }}
           onClick={() => setNotifOpen(true)}
         >
-          🔔{unread > 0 ? ` ${unread}` : ''}
+          <Bell size={15} />{unread > 0 ? ` ${unread}` : ''}
         </button>
-        <a href={GUEST_SITE_URL} target="_blank" rel="noreferrer" className="btn btn-pri btn-sm">
-          View guest site →
+        <a href={GUEST_SITE_URL} target="_blank" rel="noreferrer" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          View guest site <ArrowRight size={15} />
         </a>
         <button
           className="btn btn-ghost btn-sm"
@@ -293,28 +304,28 @@ export default function AdminLayout() {
         >
           Log out
         </button>
-        <Link to="/profile" className="avatar" title="My profile" style={{ textDecoration: 'none' }}>👤</Link>
+        <Link to="/profile" className="avatar" title="My profile" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><User size={16} /></Link>
       </header>
 
       <div className="shell">
         <nav className="sidebar">
           {mainNav.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
-              <span>{n.icon}</span>
+              <n.icon size={16} />
               <span>{n.label}</span>
             </NavLink>
           ))}
           {contentNav.length > 0 && <div className="group">Content</div>}
           {contentNav.map((n) => (
             <NavLink key={n.to} to={n.to} className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
-              <span>{n.icon}</span>
+              <n.icon size={16} />
               <span>{n.label}</span>
             </NavLink>
           ))}
           <div style={{ flex: 1 }} />
           {extraNav.filter((n) => n.to !== '/profile').map((n) => (
             <NavLink key={n.to} to={n.to} className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}>
-              <span>{n.icon}</span>
+              <n.icon size={16} />
               <span>{n.label}</span>
             </NavLink>
           ))}
@@ -342,7 +353,7 @@ export default function AdminLayout() {
               color: isActive ? 'var(--green)' : 'var(--muted)',
             })}
           >
-            <span className="ico" style={{ fontSize: 15 }}>{n.icon}</span>
+            <span className="ico"><n.icon size={15} /></span>
             {n.label}
           </NavLink>
         ))}
@@ -361,7 +372,7 @@ export default function AdminLayout() {
             cursor: 'pointer',
           }}
         >
-          <span className="ico" style={{ fontSize: 15 }}>⋯</span>
+          <span className="ico"><MoreHorizontal size={15} /></span>
           More
         </button>
       </nav>
@@ -377,7 +388,7 @@ const MOBILE_TAB_PATHS = new Set(['/', '/events', '/bookings', '/payments']);
 
 interface NavItem {
   to: string;
-  icon: string;
+  icon: LucideIcon;
   label: string;
   end?: boolean;
 }
@@ -393,7 +404,7 @@ function MoreMenu({ onClose, mainNav, contentNav, extraNav }: { onClose: () => v
     <Drawer onClose={onClose}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <b className="display" style={{ fontSize: 15 }}>More</b>
-        <span onClick={onClose} style={{ cursor: 'pointer', color: 'var(--muted)' }}>✕</span>
+        <span onClick={onClose} style={{ cursor: 'pointer', color: 'var(--muted)', display: 'flex' }}><X size={18} /></span>
       </div>
       <div className="stack" style={{ gap: 2 }}>
         {mainRest.map((n) => (
@@ -403,7 +414,7 @@ function MoreMenu({ onClose, mainNav, contentNav, extraNav }: { onClose: () => v
             onClick={onClose}
             className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}
           >
-            <span>{n.icon}</span>
+            <n.icon size={16} />
             <span>{n.label}</span>
           </NavLink>
         ))}
@@ -415,7 +426,7 @@ function MoreMenu({ onClose, mainNav, contentNav, extraNav }: { onClose: () => v
             onClick={onClose}
             className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}
           >
-            <span>{n.icon}</span>
+            <n.icon size={16} />
             <span>{n.label}</span>
           </NavLink>
         ))}
@@ -427,7 +438,7 @@ function MoreMenu({ onClose, mainNav, contentNav, extraNav }: { onClose: () => v
             onClick={onClose}
             className={({ isActive }) => `navitem ${isActive ? 'on' : ''}`}
           >
-            <span>{n.icon}</span>
+            <n.icon size={16} />
             <span>{n.label}</span>
           </NavLink>
         ))}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, Download, Check, X } from 'lucide-react';
 import { Kpi } from '../components/ui';
 import { downloadCsv } from '../lib/csv';
 import { liveEvents, liveGuestList, LiveApiError, type LiveEvent, type LiveGuestListEntry } from '../lib/liveApi';
@@ -53,7 +54,7 @@ export default function GuestList() {
       <div className="stack fade">
         {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Event not found</h1>
-        <Link to="/events" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Events</Link>
+        <Link to="/events" className="btn btn-ghost" style={{ width: 'fit-content' }}><ArrowLeft size={14} /> Events</Link>
       </div>
     );
   }
@@ -116,11 +117,11 @@ export default function GuestList() {
     <div className="stack fade" style={{ maxWidth: 760, gap: 14 }}>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to={`/events/${event.id}`} style={{ fontSize: 13 }}>← {event.title}</Link>
+        <Link to={`/events/${event.id}`} style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> {event.title}</Link>
         <h1 className="page-title">Guest list</h1>
         <span className="tag tag-green">free entry</span>
         <div style={{ flex: 1 }} />
-        <button className="btn btn-ghost btn-sm" onClick={exportCsv}>⬇ Export</button>
+        <button className="btn btn-ghost btn-sm" onClick={exportCsv}><Download size={13} /> Export</button>
       </div>
 
       <div className="kpi-grid">
@@ -146,7 +147,7 @@ export default function GuestList() {
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPlusOnes((p) => Math.min(6, p + 1))}>+</button>
           </div>
         </div>
-        <button type="submit" className="btn btn-pri" style={{ height: 38 }}>Add to list ✓</button>
+        <button type="submit" className="btn btn-pri" style={{ height: 38 }}>Add to list <Check size={14} /></button>
         {plusOnes > 0 && (
           <div style={{ flexBasis: '100%', display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px dashed rgba(139,195,74,.25)', paddingTop: 8 }}>
             <span className="tiny muted">name &amp; WhatsApp number required for each plus-one (checked at the gate):</span>
@@ -201,11 +202,11 @@ export default function GuestList() {
                 style={{ fontSize: 10.5, padding: '3px 10px' }}
                 onClick={() => toggleArrived(g.id)}
               >
-                {g.arrived ? 'Arrived ✓' : 'Mark arrived'}
+                {g.arrived ? <>Arrived <Check size={11} /></> : 'Mark arrived'}
               </button>
             </span>
             <span style={{ width: 40, display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => removeGuest(g.id)}>✕</button>
+              <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => removeGuest(g.id)}><X size={13} /></button>
             </span>
           </div>
         ))}

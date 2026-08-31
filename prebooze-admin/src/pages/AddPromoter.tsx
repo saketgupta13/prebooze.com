@@ -4,6 +4,7 @@ import WysiwygEditor from '../components/WysiwygEditor';
 import { livePromoters, LiveApiError } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 const TITLE = 'Add promoter';
 
@@ -42,7 +43,7 @@ export default function AddPromoter() {
   return (
     <div className="stack fade" style={{ maxWidth: 560, gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/promoters" style={{ fontSize: 13 }}>← Promoters</Link>
+        <Link to="/promoters" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Promoters</Link>
         <h1 className="page-title">Add promoter</h1>
       </div>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
@@ -67,7 +68,9 @@ export default function AddPromoter() {
           <WysiwygEditor value={bio} onChange={setBio} minHeight={56} />
         </div>
 
-        <button type="submit" className="btn btn-pri" style={{ padding: 10 }} disabled={saving}>{saving ? 'Saving…' : 'Add promoter ✓'}</button>
+        <button type="submit" className="btn btn-pri" style={{ padding: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={saving}>
+          {saving ? 'Saving…' : <>Add promoter <CheckCircle2 size={14} /></>}
+        </button>
       </form>
     </div>
   );

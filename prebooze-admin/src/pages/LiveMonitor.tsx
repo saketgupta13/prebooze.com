@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Kpi } from '../components/ui';
 import { fmt } from '../store/data';
 import { liveEvents, liveLiveMonitor, LiveApiError, type LiveEvent, type LiveMonitor as LiveMonitorData } from '../lib/liveApi';
@@ -31,7 +32,7 @@ export default function LiveMonitor() {
   const [panel, setPanel] = useState<'none' | 'checkin'>('none');
   const [ciName, setCiName] = useState('');
   const [ciCount, setCiCount] = useState(1);
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState<ReactNode>('');
 
   const eventId = id;
 
@@ -71,7 +72,7 @@ export default function LiveMonitor() {
       <div className="stack fade">
         {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">No live event right now</h1>
-        <Link to="/events" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Events</Link>
+        <Link to="/events" className="btn btn-ghost" style={{ width: 'fit-content' }}><ArrowLeft size={14} /> Events</Link>
       </div>
     );
   }
@@ -82,7 +83,7 @@ export default function LiveMonitor() {
   const togglePause = async () => {
     try {
       await liveEvents.setSalesPaused(event.id, !live.salesPaused);
-      setMsg(live.salesPaused ? 'Gate sales resumed ✓' : 'Gate sales paused');
+      setMsg(live.salesPaused ? <>Gate sales resumed <CheckCircle2 size={13} /></> : 'Gate sales paused');
       loadLive(true);
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to update');
@@ -94,7 +95,7 @@ export default function LiveMonitor() {
     if (!ciName.trim()) { setErr('Enter the guest name or booking #'); return; }
     try {
       await liveLiveMonitor.checkIn(event.id, ciName.trim(), ciCount);
-      setMsg(`${ciName.trim()} checked in manually (${ciCount}) ✓`);
+      setMsg(<>{ciName.trim()} checked in manually ({ciCount}) <CheckCircle2 size={13} /></>);
       setCiName(''); setCiCount(1); setPanel('none');
       loadLive(true);
     } catch (e2) {
@@ -108,7 +109,7 @@ export default function LiveMonitor() {
     <div className="stack fade" style={{ maxWidth: 760, gap: 14 }}>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to={`/events/${event.id}`} style={{ fontSize: 13 }}>← Event</Link>
+        <Link to={`/events/${event.id}`} style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Event</Link>
         <h1 className="display" style={{ fontSize: 18 }}>{event.title}</h1>
         <span className="tag tag-green">● LIVE</span>
         <div style={{ flex: 1 }} />
@@ -172,7 +173,7 @@ export default function LiveMonitor() {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button className={live.salesPaused ? 'btn btn-pri' : 'btn btn-danger'} style={{ flex: 1 }} onClick={togglePause}>
-          {live.salesPaused ? 'Resume gate sales ✓' : 'Pause gate sales'}
+          {live.salesPaused ? <>Resume gate sales <CheckCircle2 size={14} /></> : 'Pause gate sales'}
         </button>
         <button
           className={panel === 'checkin' ? 'btn btn-pri' : 'btn btn-ghost'}
@@ -197,7 +198,7 @@ export default function LiveMonitor() {
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCiCount((c) => Math.min(10, c + 1))}>+</button>
             </div>
           </div>
-          <button type="submit" className="btn btn-pri" style={{ height: 38 }}>Check in ✓</button>
+          <button type="submit" className="btn btn-pri" style={{ height: 38 }}>Check in <CheckCircle2 size={14} /></button>
         </form>
       )}
       <div className="tiny hint">rejected scans alert the door lead automatically · duplicate QRs show when &amp; where the first scan happened</div>

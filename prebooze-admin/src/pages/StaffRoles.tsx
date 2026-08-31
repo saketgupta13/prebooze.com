@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Mic, Landmark, Megaphone, Headphones, Copy, CheckCircle2, X } from 'lucide-react';
 import { Tag } from '../components/ui';
 import { liveStaff, liveRoles, PERM_MODULES, LiveApiError, type LiveStaff, type LiveRole, type PermKey } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -7,10 +8,10 @@ import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 const TITLE = 'Staff & roles';
 const PERM_KEYS: PermKey[] = ['view', 'edit', 'approve'];
 const LEAD_ROLE_OPTIONS = [
-  { key: 'organizer', label: 'Organizer', emoji: '🎤' },
-  { key: 'venue', label: 'Venue', emoji: '🏛' },
-  { key: 'promoter', label: 'Promoter', emoji: '📣' },
-  { key: 'lineup', label: 'Line-up', emoji: '🎧' },
+  { key: 'organizer', label: 'Organizer', icon: Mic },
+  { key: 'venue', label: 'Venue', icon: Landmark },
+  { key: 'promoter', label: 'Promoter', icon: Megaphone },
+  { key: 'lineup', label: 'Line-up', icon: Headphones },
 ];
 
 const fmtLastActive = (iso: string | null) =>
@@ -188,13 +189,14 @@ export default function StaffRoles() {
             <button
               type="button"
               className="btn btn-ghost btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
               onClick={() => {
                 navigator.clipboard.writeText(lastTempPassword.password);
                 setPwCopied(true);
                 window.setTimeout(() => setPwCopied(false), 2000);
               }}
             >
-              {pwCopied ? '✓ Copied' : 'Copy'}
+              {pwCopied ? <><CheckCircle2 size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
             </button>
           </div>
         </div>
@@ -278,11 +280,11 @@ export default function StaffRoles() {
                       key={r.key}
                       type="button"
                       className={`chip ${s.leadRoleScope.includes(r.key) ? 'on' : ''}`}
-                      style={{ fontSize: 11, padding: '3px 8px' }}
+                      style={{ fontSize: 11, padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                       onClick={() => toggleLeadScope(s, r.key)}
                       title={`Toggle ${r.label} leads for ${s.name}`}
                     >
-                      {r.emoji} {r.label}
+                      <r.icon size={11} /> {r.label}
                     </button>
                   ))
                 )}
@@ -292,7 +294,7 @@ export default function StaffRoles() {
               <span style={{ width: 60, display: 'flex', justifyContent: 'flex-end' }}>
                 {!isOwner && (
                   <button className="btn btn-danger btn-sm" style={{ padding: '3px 8px' }} onClick={() => removeStaff(s)}>
-                    ✕
+                    <X size={14} />
                   </button>
                 )}
               </span>
@@ -387,9 +389,10 @@ export default function StaffRoles() {
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             <button
               className="btn btn-danger btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
               onClick={() => removeRole(selectedRole)}
             >
-              ✕ Remove role
+              <X size={13} /> Remove role
             </button>
           </div>
         )}

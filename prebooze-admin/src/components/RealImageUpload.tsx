@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { liveMedia, LiveApiError } from '../lib/liveApi';
+import { CheckCircle2, X } from 'lucide-react';
 
 /** Real file upload (POST /admin/media/upload, multipart) — distinct from
  * the mock ImagePicker, which only ever reads a file into a base64 data URL
@@ -72,7 +73,9 @@ export default function RealImageUpload({
         }}
       >
         <input ref={inputRef} type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
-        <span className="tiny hint">{busy ? 'Uploading…' : value ? '✓ uploaded — click to replace' : label}</span>
+        <span className="tiny hint" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+          {busy ? 'Uploading…' : value ? <><CheckCircle2 size={12} /> uploaded — click to replace</> : label}
+        </span>
       </button>
       {err && <div className="tiny" style={{ color: 'var(--red)', marginTop: 4 }}>{err}</div>}
     </div>
@@ -121,9 +124,9 @@ export function RealGalleryUpload({ value, onChange, max = 8, onBusyChange }: {
             <button
               type="button"
               onClick={() => remove(i)}
-              style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 10, cursor: 'pointer', lineHeight: '18px', padding: 0 }}
+              style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
             >
-              ✕
+              <X size={11} />
             </button>
           </div>
         ))}

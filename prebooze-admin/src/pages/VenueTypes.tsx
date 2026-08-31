@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { X } from 'lucide-react';
 import { liveVenueTypes, LiveApiError, type LiveVenueType } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -116,7 +117,7 @@ export default function VenueTypes() {
             <span style={{ flex: 1 }}>{t.icon} <b>{t.name}</b> · {t.events} event{t.events === 1 ? '' : 's'}</span>
             <button type="button" className="btn btn-ghost btn-sm" disabled={i === 0} onClick={() => move(i, -1)} title="Move up">↑</button>
             <button type="button" className="btn btn-ghost btn-sm" disabled={i === types.length - 1} onClick={() => move(i, 1)} title="Move down">↓</button>
-            <span className="btn btn-danger btn-sm" style={{ padding: '2px 7px', cursor: 'pointer' }} onClick={() => remove(t.name, t.events)}>✕</span>
+            <span className="btn btn-danger btn-sm" style={{ padding: '2px 7px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }} onClick={() => remove(t.name, t.events)}><X size={13} /></span>
           </div>
         ))}
         {types.length === 0 && !loading && <div className="card muted small">No venue types yet.</div>}

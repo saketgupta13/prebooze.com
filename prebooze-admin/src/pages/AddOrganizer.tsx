@@ -6,6 +6,7 @@ import { SocialLinksEditor } from './OrganizerEdit';
 import { liveOrganizers, LiveApiError } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
+import { ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 const TITLE = 'Add organizer';
 
@@ -59,7 +60,7 @@ export default function AddOrganizer() {
   return (
     <div className="stack fade" style={{ maxWidth: 560, gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/organizers" style={{ fontSize: 13 }}>← Organizers</Link>
+        <Link to="/organizers" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Organizers</Link>
         <h1 className="page-title">Add organizer — business profile</h1>
       </div>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
@@ -110,8 +111,12 @@ export default function AddOrganizer() {
           <label>Social links</label>
           <SocialLinksEditor value={socialLinks} onChange={setSocialLinks} />
         </div>
-        <div className="tiny hint">PAN/GSTIN/bank details are added later by the organizer themselves (Settings → Payment profiles), or by staff on their behalf via Edit organizer once this row exists.</div>
-        <button type="submit" className="btn btn-pri" style={{ padding: 10 }} disabled={saving}>{saving ? 'Saving…' : 'Save organizer ✓'}</button>
+        <div className="tiny hint" style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+          PAN/GSTIN/bank details are added later by the organizer themselves (Settings <ArrowRight size={11} /> Payment profiles), or by staff on their behalf via Edit organizer once this row exists.
+        </div>
+        <button type="submit" className="btn btn-pri" style={{ padding: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={saving}>
+          {saving ? 'Saving…' : <>Save organizer <CheckCircle2 size={14} /></>}
+        </button>
       </form>
     </div>
   );

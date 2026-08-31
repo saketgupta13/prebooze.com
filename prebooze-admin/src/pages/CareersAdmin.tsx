@@ -3,6 +3,7 @@ import WysiwygEditor from '../components/WysiwygEditor';
 import { liveCareers, LiveApiError, type LiveJob, type LiveApplicant, type LiveCareerTeam } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import { Pencil, CheckCircle2, X, Download } from 'lucide-react';
 
 const TITLE = 'Careers';
 
@@ -108,8 +109,8 @@ export default function CareersAdmin() {
 
       <form className="card" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }} onSubmit={submit}>
         {editingId && (
-          <div style={{ flexBasis: '100%' }} className="small">
-            ✎ Editing <b>{editingId}</b> <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} onClick={reset}>cancel</button>
+          <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 4 }} className="small">
+            <Pencil size={12} /> Editing <b>{editingId}</b> <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} onClick={reset}>cancel</button>
           </div>
         )}
         <div className="field" style={{ flex: 1.6, minWidth: 160 }}>
@@ -139,14 +140,14 @@ export default function CareersAdmin() {
           <label>Job description</label>
           <WysiwygEditor value={about} onChange={setAbout} minHeight={56} />
         </div>
-        <button className="btn btn-pri" style={{ height: 38 }}>{editingId ? 'Save changes ✓' : '+ Post job'}</button>
+        <button className="btn btn-pri" style={{ height: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>{editingId ? <>Save changes <CheckCircle2 size={14} /></> : '+ Post job'}</button>
       </form>
 
       {teamOpen && (
         <form className="card" style={{ display: 'flex', gap: 8, alignItems: 'center' }} onSubmit={addTeam}>
           <b className="small">New team</b>
           <input className="input" style={{ maxWidth: 220, padding: '6px 10px' }} value={newTeam} onChange={(e) => setNewTeam(e.target.value)} placeholder="e.g. Finance" autoFocus />
-          <button className="btn btn-pri btn-sm">Create team ✓</button>
+          <button className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>Create team <CheckCircle2 size={13} /></button>
         </form>
       )}
 
@@ -180,11 +181,11 @@ export default function CareersAdmin() {
                   </button>
                 </span>
                 <span style={{ flex: 1.6, display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => startEdit(j.id)}>✎ Edit</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => startEdit(j.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Pencil size={12} /> Edit</button>
                   <button className="chip" style={{ fontSize: 10.5, padding: '3px 10px', borderColor: j.status === 'open' ? 'var(--green)' : 'var(--red)', color: j.status === 'open' ? undefined : 'var(--red)' }} onClick={() => toggleJob(j.id)}>
                     {j.status === 'open' ? 'Open' : 'Closed'}
                   </button>
-                  <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => removeJob(j.id)} title={apps.length > 0 ? 'Has applicants — close it instead' : 'Remove'}>✕</button>
+                  <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px', display: 'inline-flex', alignItems: 'center' }} onClick={() => removeJob(j.id)} title={apps.length > 0 ? 'Has applicants — close it instead' : 'Remove'}><X size={12} /></button>
                 </span>
               </div>
               {openJob === j.id && (
@@ -206,7 +207,7 @@ export default function CareersAdmin() {
                           {a.note && <div className="small" style={{ whiteSpace: 'pre-wrap' }}>{a.note}</div>}
                           {a.cv ? (
                             <a href={a.cv} target="_blank" rel="noopener noreferrer" download className="btn btn-ghost btn-sm" style={{ width: 'fit-content', marginTop: 2 }}>
-                              ⬇ Download CV
+                              <Download size={13} style={{ marginRight: 4 }} /> Download CV
                             </a>
                           ) : (
                             <span className="tiny muted">No CV attached</span>

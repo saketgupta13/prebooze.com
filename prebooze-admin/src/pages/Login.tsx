@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAdmin } from '../store/AdminContext';
 import { ToastHost } from '../components/AdminLayout';
 import { GUEST_SITE_URL } from '../store/data';
@@ -115,7 +116,7 @@ export default function Login() {
                     color: 'var(--muted)', fontSize: 15, lineHeight: 1,
                   }}
                 >
-                  {showPw ? '🙈' : '👁'}
+                  {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
             </div>
@@ -141,7 +142,7 @@ export default function Login() {
         )}
 
         <div style={{ textAlign: 'center', fontSize: 12.5 }}>
-          <a href={GUEST_SITE_URL}>Not staff? Browse events as a guest →</a>
+          <a href={GUEST_SITE_URL} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Not staff? Browse events as a guest <ArrowRight size={13} /></a>
         </div>
       </div>
       <ToastHost />

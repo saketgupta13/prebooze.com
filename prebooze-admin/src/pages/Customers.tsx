@@ -4,6 +4,7 @@ import { CUSTOMER_STATUS, SearchBox, Tag } from '../components/ui';
 import { liveCustomers, LiveApiError, type LiveCustomer } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import { CheckCircle2 } from 'lucide-react';
 
 const TITLE = 'Customers';
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
@@ -76,9 +77,9 @@ export default function Customers() {
         </div>
         {list.map((c) => (
           <div key={c.id} className="trow clickable" style={{ minWidth: 560 }} onClick={() => navigate(`/customers/${c.id}`)}>
-            <span style={{ flex: 1.8, fontWeight: 700 }}>
+            <span style={{ flex: 1.8, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               {c.name ? c.name : <span className="muted" style={{ fontWeight: 400, fontStyle: 'italic' }}>{c.phone}</span>}{' '}
-              {c.verified && '✓'}
+              {c.verified && <CheckCircle2 size={14} style={{ color: 'var(--green)' }} />}
               {!c.name && <span className="tag" style={{ marginLeft: 6, fontWeight: 400, fontStyle: 'normal' }}>No profile</span>}
             </span>
             <span style={{ flex: 0.8 }} className="muted">{c.gender || '—'}</span>

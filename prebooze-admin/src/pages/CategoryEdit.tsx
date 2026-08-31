@@ -6,6 +6,7 @@ import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
 import type { Seo } from '../types';
 import CategoryIcon from '../components/CategoryIcon';
+import { X, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 const TITLE = 'Edit category';
 
@@ -25,7 +26,7 @@ function SubsEditor({ value, onChange }: { value: string[]; onChange: (v: string
         {value.map((s) => (
           <span key={s} className="chip on" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {s}
-            <button type="button" onClick={() => onChange(value.filter((x) => x !== s))} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 13 }}>✕</button>
+            <button type="button" onClick={() => onChange(value.filter((x) => x !== s))} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'flex' }}><X size={12} /></button>
           </span>
         ))}
         {value.length === 0 && <span className="tiny muted">No sub-categories yet.</span>}
@@ -102,7 +103,7 @@ export default function CategoryEdit() {
       <div className="stack fade">
         {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Category not found</h1>
-        <Link to="/categories" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Categories</Link>
+        <Link to="/categories" className="btn btn-ghost" style={{ width: 'fit-content', display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Categories</Link>
       </div>
     );
   }
@@ -146,7 +147,7 @@ export default function CategoryEdit() {
   return (
     <form className="stack fade" style={{ maxWidth: 600, gap: 14 }} onSubmit={save}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/categories" style={{ fontSize: 13 }}>← Categories</Link>
+        <Link to="/categories" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Categories</Link>
         <h1 className="page-title">{isCreate ? 'Add category' : `Edit category — ${existing!.name}`}</h1>
       </div>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
@@ -167,7 +168,7 @@ export default function CategoryEdit() {
         <input ref={imgInputRef} type="file" accept="image/*" onChange={onImageFile} style={{ display: 'none' }} />
         {imageUrl ? (
           <button type="button" className="ph" style={{ height: 72, width: '100%', cursor: 'pointer', backgroundImage: `url(${imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }} onClick={() => imgInputRef.current?.click()}>
-            <span className="tiny" style={{ margin: 'auto', color: '#fff' }}>✓ cover image uploaded — click to replace</span>
+            <span className="tiny" style={{ margin: 'auto', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={12} /> cover image uploaded — click to replace</span>
           </button>
         ) : (
           <button type="button" className="ph" style={{ height: 72, width: '100%', cursor: 'pointer' }} disabled={uploading} onClick={() => imgInputRef.current?.click()}>

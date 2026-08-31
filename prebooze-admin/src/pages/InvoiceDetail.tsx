@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, Download, Mail, MessageCircle } from 'lucide-react';
 import { Tag } from '../components/ui';
 import { useBranding } from '../lib/useBranding';
 import { liveInvoices, LiveApiError, type LiveInvoice } from '../lib/liveApi';
@@ -50,7 +51,7 @@ export default function InvoiceDetail() {
       <div className="stack fade">
         {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Invoice not found</h1>
-        <Link to="/invoices" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Invoices</Link>
+        <Link to="/invoices" className="btn btn-ghost" style={{ width: 'fit-content' }}><ArrowLeft size={14} /> Invoices</Link>
       </div>
     );
   }
@@ -87,16 +88,16 @@ export default function InvoiceDetail() {
     <div className="stack fade" style={{ maxWidth: 720, gap: 14 }}>
       {err && <div className="card no-print" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/invoices" style={{ fontSize: 13 }}>← Invoices</Link>
+        <Link to="/invoices" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Invoices</Link>
         <h1 className="page-title">{inv.number}</h1>
         {inv.status === 'issued' ? <Tag label="Issued" cls="tag-green" /> : <Tag label="Void" cls="tag-dim" />}
         <div style={{ flex: 1 }} />
-        <button className="btn btn-pri btn-sm" disabled={busy === 'pdf'} onClick={download}>⬇ Download PDF</button>
+        <button className="btn btn-pri btn-sm" disabled={busy === 'pdf'} onClick={download}><Download size={13} /> Download PDF</button>
         <button className="btn btn-ghost btn-sm" disabled={!inv.payerEmail || busy === 'email'} onClick={() => resend('email')} title={inv.payerEmail ?? 'No email on file'}>
-          ✉ Resend email
+          <Mail size={13} /> Resend email
         </button>
         <button className="btn btn-ghost btn-sm" disabled={!inv.payerPhone || busy === 'whatsapp'} onClick={() => resend('whatsapp')} title={inv.payerPhone ?? 'No phone on file'}>
-          💬 Resend WhatsApp
+          <MessageCircle size={13} /> Resend WhatsApp
         </button>
       </div>
       {inv.lastSentAt && <div className="tiny hint no-print" style={{ marginTop: -8 }}>last sent {new Date(inv.lastSentAt).toLocaleString()}</div>}
@@ -165,7 +166,7 @@ export default function InvoiceDetail() {
       </div>
 
       <div className="tiny hint no-print">
-        linked {inv.type === 'booking' ? 'booking' : 'featured request'}: <button className="btn btn-ghost btn-sm" style={{ padding: '2px 8px' }} onClick={() => navigate(inv.type === 'booking' ? `/bookings/${encodeURIComponent(inv.refId)}` : '/featured')}>{inv.refId} →</button>
+        linked {inv.type === 'booking' ? 'booking' : 'featured request'}: <button className="btn btn-ghost btn-sm" style={{ padding: '2px 8px' }} onClick={() => navigate(inv.type === 'booking' ? `/bookings/${encodeURIComponent(inv.refId)}` : '/featured')}>{inv.refId} <ArrowRight size={12} /></button>
       </div>
     </div>
   );

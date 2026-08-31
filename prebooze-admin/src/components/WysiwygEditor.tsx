@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ClipboardEvent } from 'react';
+import { Link2 } from 'lucide-react';
 
 const INLINE_BTN: { cmd: string; label: string; title: string }[] = [
   { cmd: 'bold', label: 'B', title: 'Bold' },
@@ -179,8 +180,8 @@ export default function WysiwygEditor({ value, onChange, minHeight = 160 }: {
         <button type="button" className="btn btn-ghost btn-sm" title="Clear formatting" style={{ padding: '3px 9px', fontSize: 11.5, fontWeight: 700 }} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('removeFormat')}>
           Clear
         </button>
-        <button type="button" className="btn btn-ghost btn-sm" title="Link" style={{ padding: '3px 9px', fontSize: 11.5 }} onMouseDown={(e) => e.preventDefault()} onClick={addLink}>
-          🔗 Link
+        <button type="button" className="btn btn-ghost btn-sm" title="Link" style={{ padding: '3px 9px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 4 }} onMouseDown={(e) => e.preventDefault()} onClick={addLink}>
+          <Link2 size={12} /> Link
         </button>
       </div>
       <div

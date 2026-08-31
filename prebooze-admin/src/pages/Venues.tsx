@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, X, Pencil, MapPin, Clock, Link2, Info } from 'lucide-react';
 import { AMENITY_PRESETS } from '../store/data';
 import { fmt } from '../store/data';
 import { CityFilterDropdown, EVENT_STATUS, GradientPhoto, Kpi, LiveLocationPicker, Tag } from '../components/ui';
@@ -207,11 +208,11 @@ export function VenueHostingRequests() {
             />
             Contacted ✓
           </label>
-          <button type="button" className="btn btn-pri btn-sm" disabled={!r.contactedAt || busyId === r.id} onClick={() => approve(r.id)}>
-            ✓ Approve
+          <button type="button" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} disabled={!r.contactedAt || busyId === r.id} onClick={() => approve(r.id)}>
+            <CheckCircle2 size={13} /> Approve
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busyId === r.id} onClick={() => reject(r.id)}>
-            ✕ Reject
+          <button type="button" className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} disabled={busyId === r.id} onClick={() => reject(r.id)}>
+            <X size={13} /> Reject
           </button>
         </div>
       ))}
@@ -369,9 +370,9 @@ export function VenueDetail() {
         {venue.pendingCity && <Tag label={`🏙 City change → ${venue.pendingCity}`} cls="tag-amber" />}
         {venue.hostingEnabled && <Tag label="🎪 Hosting enabled" cls="tag-green" />}
         <div style={{ flex: 1 }} />
-        <Link to={`/venues/${venue.id}/edit`} className="btn btn-pri btn-sm">✎ Edit venue</Link>
+        <Link to={`/venues/${venue.id}/edit`} className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Pencil size={13} /> Edit venue</Link>
       </div>
-      {venue.address && <div className="small muted">{venue.address} · map pin set 📍</div>}
+      {venue.address && <div className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>{venue.address} · map pin set <MapPin size={12} /></div>}
 
       {venue.galleryUrls.length > 0 ? (
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
@@ -484,15 +485,15 @@ export function AddVenue() {
       <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Business contact email" />
       <input className="input" value={rules} onChange={(e) => setRules(e.target.value)} placeholder="House rules / notes" />
       <div className="card" style={{ padding: 12 }}>
-        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6 }}>🕒 Timings</div>
+        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Clock size={13} /> Timings</div>
         <input className="input" value={timings} onChange={(e) => setTimings(e.target.value)} placeholder="e.g. Wed–Sun · 8 PM – 1 AM" />
       </div>
       <div className="card" style={{ padding: 12 }}>
-        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6 }}>ℹ️ About the venue</div>
+        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Info size={13} /> About the venue</div>
         <WysiwygEditor value={about} onChange={setAbout} minHeight={60} />
       </div>
       <div className="card" style={{ padding: 12 }}>
-        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6 }}>🔗 Social media</div>
+        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Link2 size={13} /> Social media</div>
         <SocialLinksEditor value={socialLinks} onChange={setSocialLinks} />
       </div>
       <AmenitiesEditor value={amenities} onChange={setAmenities} />
@@ -631,11 +632,12 @@ export function EditVenue() {
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       {venue.pendingCity && (
         <div className="card" style={{ borderColor: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span>🏙 Owner requested a city change: <b>{venue.city} → {venue.pendingCity}</b></span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><MapPin size={13} /> Owner requested a city change: <b>{venue.city} → {venue.pendingCity}</b></span>
           <div style={{ flex: 1 }} />
           <button
             type="button"
             className="btn btn-pri btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
             disabled={cityBusy}
             onClick={async () => {
               setCityBusy(true);
@@ -650,11 +652,12 @@ export function EditVenue() {
               }
             }}
           >
-            ✓ Approve
+            <CheckCircle2 size={13} /> Approve
           </button>
           <button
             type="button"
             className="btn btn-ghost btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
             disabled={cityBusy}
             onClick={async () => {
               setCityBusy(true);
@@ -668,7 +671,7 @@ export function EditVenue() {
               }
             }}
           >
-            ✕ Reject
+            <X size={13} /> Reject
           </button>
         </div>
       )}
@@ -685,7 +688,7 @@ export function EditVenue() {
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="field">
-        <label>Address / map pin 📍</label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}>Address / map pin <MapPin size={13} /></label>
         <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} />
       </div>
       <MapEmbed query={`${address}, ${loc.city}`} />
@@ -720,15 +723,15 @@ export function EditVenue() {
         <input className="input" value={rules} onChange={(e) => setRules(e.target.value)} />
       </div>
       <div className="field">
-        <label>🕒 Timings</label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Clock size={13} /> Timings</label>
         <input className="input" value={timings} onChange={(e) => setTimings(e.target.value)} placeholder="e.g. Wed–Sun · 8 PM – 1 AM" />
       </div>
       <div className="field">
-        <label>ℹ️ About the venue</label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Info size={13} /> About the venue</label>
         <WysiwygEditor value={about} onChange={setAbout} minHeight={60} />
       </div>
       <div className="card" style={{ padding: 12 }}>
-        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6 }}>🔗 Social media</div>
+        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Link2 size={13} /> Social media</div>
         <SocialLinksEditor value={socialLinks} onChange={setSocialLinks} />
       </div>
       <AmenitiesEditor value={amenities} onChange={setAmenities} />

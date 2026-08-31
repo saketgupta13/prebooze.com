@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { fmt } from '../store/data';
 import { Kpi, SearchBox } from '../components/ui';
 import { liveCarts, liveEvents, LiveApiError, type LiveCart, type LiveCartStats, type LiveEvent } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import { MessageCircle, CheckCircle2, RotateCcw } from 'lucide-react';
 
 const TITLE = 'Abandoned carts';
 
@@ -36,7 +37,7 @@ export default function AbandonedCarts() {
   const [scope, setScope] = useState<'live' | 'past'>('live');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState<ReactNode>('');
 
   const load = () => {
     setLoading(true);
@@ -131,7 +132,7 @@ export default function AbandonedCarts() {
     setErr('');
     try {
       const res = await liveCarts.bulkRemind(ids);
-      setMsg(`${res.count} reminder(s) sent ✓`);
+      setMsg(<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={13} /> {res.count} reminder(s) sent</span>);
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to send reminders');
@@ -151,8 +152,9 @@ export default function AbandonedCarts() {
           className="btn btn-pri"
           disabled={unremindedIds.length === 0}
           onClick={() => bulkRemind(unremindedIds)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          💬 Nudge all {unremindedIds.length ? `(${unremindedIds.length})` : ''}
+          <MessageCircle size={15} /> Nudge all {unremindedIds.length ? `(${unremindedIds.length})` : ''}
         </button>
       </div>
 
@@ -241,8 +243,8 @@ export default function AbandonedCarts() {
               )}
             </span>
             <span style={{ flex: 1.2, display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => bulkRemind(r.cartIds)}>
-                {r.allReminded ? '↻ Remind again' : `💬 Send reminder${count > 1 ? ` (${count})` : ''}`}
+              <button className="btn btn-ghost btn-sm" onClick={() => bulkRemind(r.cartIds)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                {r.allReminded ? <><RotateCcw size={12} /> Remind again</> : <><MessageCircle size={12} /> Send reminder{count > 1 ? ` (${count})` : ''}</>}
               </button>
             </span>
           </div>

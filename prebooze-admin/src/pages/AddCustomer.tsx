@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { liveCustomers, LiveApiError } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 const TITLE = 'Add customer';
 
@@ -55,7 +56,7 @@ export default function AddCustomer() {
   return (
     <form className="stack fade" style={{ maxWidth: 520, gap: 12 }} onSubmit={submit}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/customers" style={{ fontSize: 13 }}>← Customers</Link>
+        <Link to="/customers" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Customers</Link>
         <h1 className="page-title">Onboard new customer</h1>
       </div>
       <div className="tiny hint" style={{ marginTop: -6 }}>
@@ -94,13 +95,15 @@ export default function AddCustomer() {
       </div>
       <label className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <input type="checkbox" checked={verified} onChange={() => setVerified((v) => !v)} style={{ accentColor: 'var(--green)' }} />
-        ID verified in person (skips Aadhaar upload — marks account Active ✓)
+        ID verified in person (skips Aadhaar upload — marks account Active <CheckCircle2 size={12} style={{ verticalAlign: -2 }} />)
       </label>
-      <div className="tiny hint">gender is used by gender-targeted promo codes at checkout · unverified customers can book but don't get the ✓ badge</div>
+      <div className="tiny hint" style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+        gender is used by gender-targeted promo codes at checkout · unverified customers can book but don't get the <CheckCircle2 size={11} /> badge
+      </div>
 
       <div style={{ display: 'flex', gap: 10 }}>
-        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }} disabled={saving}>
-          {saving ? 'Saving…' : 'Onboard customer ✓'}
+        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={saving}>
+          {saving ? 'Saving…' : <>Onboard customer <CheckCircle2 size={14} /></>}
         </button>
         <Link to="/customers" className="btn btn-ghost" style={{ padding: 10 }}>Cancel</Link>
       </div>

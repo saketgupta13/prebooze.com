@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Pencil, X } from 'lucide-react';
 import { Tag } from '../components/ui';
 import { livePromos, LiveApiError, type LivePromo } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -110,8 +111,8 @@ export default function Promos() {
               {p.status === 'active' ? <Tag label="Active" cls="tag-green" /> : <Tag label="Paused" cls="" />}
             </span>
             <span style={{ width: 84, display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
-              <Link to={`/promos/${p.code}/edit`} className="btn btn-ghost btn-sm" style={{ padding: '3px 8px' }}>✎</Link>
-              <button className="btn btn-danger btn-sm" style={{ padding: '3px 8px' }} onClick={() => remove(p.code)}>✕</button>
+              <Link to={`/promos/${p.code}/edit`} className="btn btn-ghost btn-sm" style={{ padding: '3px 8px' }}><Pencil size={14} /></Link>
+              <button className="btn btn-danger btn-sm" style={{ padding: '3px 8px' }} onClick={() => remove(p.code)}><X size={14} /></button>
             </span>
           </div>
         ))}

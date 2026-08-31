@@ -6,6 +6,7 @@ import { GUEST_SITE_URL } from '../store/data';
 import { liveBanners, liveBlogs, livePages, LiveApiError, type LiveBanner, type LiveBlog, type LiveSitePage } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import { ArrowRight, Pencil, X, CheckCircle2 } from 'lucide-react';
 
 /** Shared page scaffold: title + "+ Add" button revealing an inline mini-form. */
 function ContentPage({
@@ -87,7 +88,7 @@ export function Banners() {
       <div className="page-hd">
         <h1 className="page-title">Banners</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <a href={GUEST_SITE_URL} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">Preview home →</a>
+          <a href={GUEST_SITE_URL} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>Preview home <ArrowRight size={13} /></a>
           <Link to="/banners/new" className="btn btn-pri">+ Add banner</Link>
         </div>
       </div>
@@ -103,11 +104,11 @@ export function Banners() {
               }}
             >
               <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: 12.5, fontFamily: "'Space Grotesk',sans-serif" }}>{b.heading ?? 'banner 16:5'}</span>
-              {b.ctaLabel && <span className="tiny green">{b.ctaLabel} → {b.ctaLink}</span>}
+              {b.ctaLabel && <span className="tiny green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{b.ctaLabel} <ArrowRight size={10} /> {b.ctaLink}</span>}
             </div>
             <div style={{ padding: '8px 10px', fontSize: 11.5, display: 'flex', justifyContent: 'space-between', color: 'var(--text)' }}>
               <span>{b.title}</span>
-              <span className="green">{b.statusLabel} · ✎</span>
+              <span className="green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{b.statusLabel} · <Pencil size={11} /></span>
             </div>
           </button>
         ))}
@@ -174,8 +175,8 @@ export function Blogs() {
               <span className="muted">{b.meta}</span>
             </span>
             {tagFor(b.status)}
-            <span className="muted">✎</span>
-            <span className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={(e) => { e.stopPropagation(); remove(b.id, b.title); }}>✕</span>
+            <span className="muted" style={{ display: 'flex' }}><Pencil size={13} /></span>
+            <span className="btn btn-danger btn-sm" style={{ padding: '2px 7px', display: 'inline-flex', alignItems: 'center' }} onClick={(e) => { e.stopPropagation(); remove(b.id, b.title); }}><X size={12} /></span>
           </button>
         ))}
         {blogs.length === 0 && !loading && <div className="card muted small">No posts yet.</div>}
@@ -237,16 +238,16 @@ export function Pages() {
             >
               <span style={{ flex: 1 }}>
                 <b>{p.title}</b>
-                {p.seo?.title && <span className="tiny green"> · SEO ✓</span>}
+                {p.seo?.title && <span className="tiny green" style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}> · SEO <CheckCircle2 size={10} /></span>}
               </span>
               <span className="muted">/{p.slug.replace(/^\//, '')}</span>
-              <span className="muted">✎</span>
+              <span className="muted" style={{ display: 'flex' }}><Pencil size={13} /></span>
               <span
                 className="btn btn-danger btn-sm"
-                style={{ padding: '2px 7px' }}
+                style={{ padding: '2px 7px', display: 'inline-flex', alignItems: 'center' }}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); removePage(p.slug, p.title); }}
               >
-                ✕
+                <X size={12} />
               </span>
             </Link>
           ))}

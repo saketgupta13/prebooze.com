@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Medal } from 'lucide-react';
 import { Kpi } from '../components/ui';
 import { liveReferrals, LiveApiError, type LiveReferralAnalytics } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -112,7 +113,9 @@ export default function Referrals() {
           {top.map((t, i) => (
             <div key={t.name}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <b>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`} {t.name}</b>
+                <b style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  {i === 0 ? <Medal size={14} style={{ color: '#d4af37' }} /> : i === 1 ? <Medal size={14} style={{ color: '#a8a8a8' }} /> : i === 2 ? <Medal size={14} style={{ color: '#c07a3d' }} /> : `#${i + 1}`} {t.name}
+                </b>
                 <span className="muted">{t.joined} referred · {t.qualified} booked · ₹{fmt(t.qualified * (rates?.referrer ?? 0))} earned</span>
               </div>
               <div style={{ height: 8, background: 'rgba(139,195,74,.12)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>

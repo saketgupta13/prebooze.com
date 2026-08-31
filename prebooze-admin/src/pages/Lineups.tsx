@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Check } from 'lucide-react';
 import { fmt } from '../store/data';
 import { CityFilterDropdown, GradientPhoto, LiveLocationPicker, SearchBox, Tag } from '../components/ui';
 import WysiwygEditor from '../components/WysiwygEditor';
@@ -89,7 +90,7 @@ export function Lineups() {
               ) : (
                 <GradientPhoto seed={l.hue} style={{ width: 30, height: 30, borderRadius: '50%', flex: 'none', padding: 0 }} />
               )}
-              {l.name} {l.verified && '✓'}
+              {l.name} {l.verified && <Check size={13} />}
             </span>
             <span style={{ flex: 1 }}><Tag label={l.category} cls={['Artist', 'DJ', 'Band', 'Comedian'].includes(l.category) ? 'tag-green' : ''} /></span>
             <span style={{ flex: 1 }} className="muted">{l.city || '—'}</span>
@@ -168,7 +169,7 @@ export function LineupEdit() {
       <div className="stack fade">
         {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Line-up not found</h1>
-        <Link to="/lineups" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Line-ups</Link>
+        <Link to="/lineups" className="btn btn-ghost" style={{ width: 'fit-content' }}><ArrowLeft size={14} /> Line-ups</Link>
       </div>
     );
   }
@@ -207,7 +208,7 @@ export function LineupEdit() {
   return (
     <form className="stack fade" style={{ maxWidth: 560, gap: 14 }} onSubmit={save}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/lineups" style={{ fontSize: 13 }}>← Line-ups</Link>
+        <Link to="/lineups" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Line-ups</Link>
         <h1 className="page-title">{isCreate ? 'Add line-up' : `Edit — ${existing!.name}`}</h1>
       </div>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
@@ -250,7 +251,7 @@ export function LineupEdit() {
         </div>
         <label className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input type="checkbox" checked={verified} onChange={() => setVerified((v) => !v)} style={{ accentColor: 'var(--green)' }} />
-          Verified line-up ✓ (identity checked by admin)
+          Verified line-up <Check size={12} /> (identity checked by admin)
         </label>
       </div>
 
@@ -264,7 +265,7 @@ export function LineupEdit() {
       <div className="tiny hint">appears in event editors' line-up pickers and as a followable profile on the guest site</div>
 
       <div style={{ display: 'flex', gap: 10 }}>
-        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }} disabled={logoUploading}>{logoUploading ? 'Uploading logo…' : isCreate ? 'Create line-up ✓' : 'Save line-up'}</button>
+        <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }} disabled={logoUploading}>{logoUploading ? 'Uploading logo…' : isCreate ? <>Create line-up <Check size={14} /></> : 'Save line-up'}</button>
         <Link to="/lineups" className="btn btn-ghost" style={{ padding: 10 }}>Cancel</Link>
       </div>
     </form>

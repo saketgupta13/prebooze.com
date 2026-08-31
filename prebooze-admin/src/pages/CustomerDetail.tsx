@@ -4,6 +4,7 @@ import { CUSTOMER_STATUS, Kpi, Tag, LiveLocationPicker } from '../components/ui'
 import { liveCustomers, liveBookings, LiveApiError, type LiveCustomerDetail, type LiveBooking } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
+import { ArrowLeft, CheckCircle2, MessageCircle, Pencil, Trash2 } from 'lucide-react';
 
 const SOCIAL_LABELS: Record<string, string> = {
   instagram: 'Instagram', x: 'X (Twitter)', facebook: 'Facebook', youtube: 'YouTube',
@@ -73,7 +74,7 @@ export default function CustomerDetail() {
       <div className="stack fade">
         {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Customer not found</h1>
-        <Link to="/customers" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Customers</Link>
+        <Link to="/customers" className="btn btn-ghost" style={{ width: 'fit-content', display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Customers</Link>
       </div>
     );
   }
@@ -133,31 +134,32 @@ export default function CustomerDetail() {
     <div className="stack fade" style={{ maxWidth: 800, gap: 14 }}>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/customers" style={{ fontSize: 13 }}>← Customers</Link>
-        <h1 className="display" style={{ fontSize: 18 }}>{customer.name || customer.phone} {customer.verified && '✓'}</h1>
+        <Link to="/customers" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Customers</Link>
+        <h1 className="display" style={{ fontSize: 18, display: 'flex', alignItems: 'center', gap: 6 }}>{customer.name || customer.phone} {customer.verified && <CheckCircle2 size={16} style={{ color: 'var(--green)' }} />}</h1>
         {!customer.name && <span className="tag">No profile</span>}
         <Tag {...CUSTOMER_STATUS[customer.status]} />
         <div style={{ flex: 1 }} />
         {customer.phone ? (
           <button
             className="btn btn-ghost btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
             onClick={() => window.open(waLink(customer.phone, `Hey${customer.name ? ' ' + customer.name.split(' ')[0] : ''}, this is the Prebooze team 👋`), '_blank', 'noopener')}
           >
-            💬 WhatsApp
+            <MessageCircle size={13} /> WhatsApp
           </button>
         ) : (
-          <button className="btn btn-ghost btn-sm" disabled title="No phone number on file">💬 WhatsApp</button>
+          <button className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} disabled title="No phone number on file"><MessageCircle size={13} /> WhatsApp</button>
         )}
         {!editing && (
-          <button className="btn btn-ghost btn-sm" onClick={startEdit}>
-            ✎ Edit
+          <button className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={startEdit}>
+            <Pencil size={13} /> Edit
           </button>
         )}
         <button className="btn btn-danger btn-sm" onClick={toggleBlocked}>
           {customer.status === 'blocked' ? 'Unblock customer' : 'Block customer'}
         </button>
-        <button className="btn btn-danger btn-sm" disabled={deleting} onClick={deleteCustomer}>
-          {deleting ? 'Deleting…' : '🗑 Delete'}
+        <button className="btn btn-danger btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} disabled={deleting} onClick={deleteCustomer}>
+          {deleting ? 'Deleting…' : <><Trash2 size={13} /> Delete</>}
         </button>
       </div>
       <div className="small muted">

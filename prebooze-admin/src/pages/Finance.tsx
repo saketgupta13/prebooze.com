@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Download, Check, X } from 'lucide-react';
 import { Kpi, Tag } from '../components/ui';
 import { downloadCsv } from '../lib/csv';
 import { liveFinance, liveLedger, LiveApiError, type LiveFinance, type LiveLedgerEntry } from '../lib/liveApi';
@@ -120,7 +121,7 @@ export default function Finance() {
 
       <div className="page-hd">
         <h1 className="page-title">Income &amp; expenses</h1>
-        <button className="btn btn-ghost btn-sm" onClick={exportCsv}>⬇ Export</button>
+        <button className="btn btn-ghost btn-sm" onClick={exportCsv}><Download size={13} /> Export</button>
       </div>
 
       <div className="kpi-grid">
@@ -171,7 +172,7 @@ export default function Finance() {
             <label>Note (optional)</label>
             <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="what was this for?" />
           </div>
-          <button type="submit" className="btn btn-pri" style={{ height: 38 }}>Add ✓</button>
+          <button type="submit" className="btn btn-pri" style={{ height: 38 }}>Add <Check size={14} /></button>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {!showNewCat ? (
@@ -219,7 +220,7 @@ export default function Finance() {
             <span style={{ width: 40, display: 'flex', justifyContent: 'flex-end' }}>
               {!e.auto && (
                 <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => remove(e.id)} title="Remove entry">
-                  ✕
+                  <X size={13} />
                 </button>
               )}
             </span>

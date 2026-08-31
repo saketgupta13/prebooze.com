@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Mic, Landmark, Megaphone, Headphones, FileText, CheckCircle2, X, type LucideIcon } from 'lucide-react';
 import { Tag } from '../components/ui';
 import { stripHtml } from '../store/data';
 import { liveKyc, resolveDocUrl, LiveApiError, type LiveKycApplication } from '../lib/liveApi';
@@ -8,7 +9,7 @@ import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import { downloadFile } from '../lib/download';
 
 const TITLE = 'Verifications';
-const KIND_ICON: Record<string, string> = { organizer: '🧑‍💼', promoter: '📣', lineup: '🎤', venue: '📍' };
+const KIND_ICON: Record<string, LucideIcon> = { organizer: Mic, promoter: Megaphone, lineup: Headphones, venue: Landmark };
 const KIND_LABEL: Record<string, string> = { organizer: 'Organizer', promoter: 'Promoter', lineup: 'Line-up', venue: 'Venue' };
 
 function DocumentModal({ doc, onClose }: { doc: { type: string; path: string }; onClose: () => void }) {
@@ -18,7 +19,7 @@ function DocumentModal({ doc, onClose }: { doc: { type: string; path: string }; 
       <div className="card" style={{ maxWidth: 520, padding: 16 }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <b>{doc.type}</b>
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}><X size={14} /></button>
         </div>
         <img src={url} alt={doc.type} style={{ width: '100%', borderRadius: 8 }} />
         <button type="button" className="btn btn-pri btn-sm" style={{ marginTop: 10 }} onClick={() => downloadFile(url, `${doc.type}${url.slice(url.lastIndexOf('.'))}`)}>
@@ -134,8 +135,8 @@ export default function Verifications() {
             <div key={app.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
                 <div>
-                  <div style={{ fontWeight: 700 }}>
-                    {KIND_ICON[app.kind]}{' '}
+                  <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {(() => { const KindIcon = KIND_ICON[app.kind]; return KindIcon ? <KindIcon size={14} /> : null; })()}
                     <Link to={`/verifications/${app.id}`} style={{ color: 'inherit' }}>{app.user.name || app.user.phone}</Link>
                     <span className="tiny muted"> · {KIND_LABEL[app.kind]}</span>
                   </div>
@@ -173,10 +174,11 @@ export default function Verifications() {
                     key={`${d.type}-${i}`}
                     type="button"
                     className="chip"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
                     title="Click to preview & download"
                     onClick={() => setPreviewDoc(d)}
                   >
-                    📄 {d.type}
+                    <FileText size={12} /> {d.type}
                   </button>
                 ))}
                 <Link to={`/verifications/${app.id}`} className="chip">View full application →</Link>
@@ -188,8 +190,8 @@ export default function Verifications() {
 
               {app.status === 'pending' && (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn-pri btn-sm" onClick={() => approve(app.id)}>
-                    ✓ Approve &amp; activate
+                  <button className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={() => approve(app.id)}>
+                    <CheckCircle2 size={13} /> Approve &amp; activate
                   </button>
                   {rejecting === app.id ? (
                     <>
@@ -209,8 +211,8 @@ export default function Verifications() {
                       </button>
                     </>
                   ) : (
-                    <button className="btn btn-danger btn-sm" onClick={() => setRejecting(app.id)}>
-                      ✕ Reject
+                    <button className="btn btn-danger btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={() => setRejecting(app.id)}>
+                      <X size={13} /> Reject
                     </button>
                   )}
                 </div>

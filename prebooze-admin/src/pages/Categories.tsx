@@ -5,6 +5,7 @@ import CategoryIcon from '../components/CategoryIcon';
 import { liveCategories, liveEvents, LiveApiError, type LiveCategory } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import { CheckCircle2, Pencil, X } from 'lucide-react';
 
 const TITLE = 'Categories';
 
@@ -80,17 +81,17 @@ export default function Categories() {
               <span style={{ flex: 1 }}>
                 <b>{c.name}</b> · {count} events
                 {c.subs.length > 0 && <span className="tiny muted"> · {c.subs.length} sub-categor{c.subs.length === 1 ? 'y' : 'ies'}</span>}
-                {c.imageUrl && <span className="tiny green"> · cover ✓</span>}
-                {c.seo?.title && <span className="tiny green"> · SEO ✓</span>}
+                {c.imageUrl && <span className="tiny green" style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}> · cover <CheckCircle2 size={10} /></span>}
+                {c.seo?.title && <span className="tiny green" style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}> · SEO <CheckCircle2 size={10} /></span>}
               </span>
               {count === 0 ? <Tag label="Hidden" cls="tag-dim" /> : <Tag label="Visible" cls="tag-green" />}
-              <span className="muted">✎</span>
+              <span className="muted" style={{ display: 'flex' }}><Pencil size={13} /></span>
               <span
                 className="btn btn-danger btn-sm"
-                style={{ padding: '2px 7px' }}
+                style={{ padding: '2px 7px', display: 'inline-flex', alignItems: 'center' }}
                 onClick={(e) => { e.stopPropagation(); remove(c); }}
               >
-                ✕
+                <X size={12} />
               </span>
             </button>
           );

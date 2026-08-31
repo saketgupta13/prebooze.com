@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { liveBanners, liveEvents, livePages, liveMedia, LiveApiError, type LiveBanner, type LiveEvent, type LiveSitePage } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
+import { ArrowLeft, CheckCircle2, Upload } from 'lucide-react';
 
 const TITLE = 'Edit banner';
 
@@ -69,7 +70,7 @@ export default function BannerEdit() {
       <div className="stack fade">
         {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Banner not found</h1>
-        <Link to="/banners" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Banners</Link>
+        <Link to="/banners" className="btn btn-ghost" style={{ width: 'fit-content', display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Banners</Link>
       </div>
     );
   }
@@ -136,7 +137,7 @@ export default function BannerEdit() {
   return (
     <form className="stack fade" style={{ maxWidth: 640, gap: 14 }} onSubmit={save}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/banners" style={{ fontSize: 13 }}>← Banners</Link>
+        <Link to="/banners" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Banners</Link>
         <h1 className="page-title">{isCreate ? 'Add banner' : `Edit banner — ${existing!.title}`}</h1>
         <div style={{ flex: 1 }} />
         {!isCreate && <button type="button" className="btn btn-danger btn-sm" onClick={remove}>Remove</button>}
@@ -160,10 +161,14 @@ export default function BannerEdit() {
             <span className="display" style={{ fontSize: 22, color: '#fff' }}>{heading || 'Banner heading…'}</span>
             <span className="small" style={{ color: 'rgba(255,255,255,.85)' }}>{description || 'Banner description…'}</span>
             <span className="btn btn-pri btn-sm" style={{ marginTop: 4 }}>{ctaLabel || 'Book now →'}</span>
-            <span className="tiny" style={{ marginTop: 4, color: 'rgba(255,255,255,.7)' }}>✓ image 16:5 uploaded — click to replace · live preview</span>
+            <span className="tiny" style={{ marginTop: 4, color: 'rgba(255,255,255,.7)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <CheckCircle2 size={11} /> image 16:5 uploaded — click to replace · live preview
+            </span>
           </>
         ) : (
-          <span>{uploading ? 'Uploading…' : '⬆ click to upload banner image · 16:5 · min 1600px wide'}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            {uploading ? 'Uploading…' : <><Upload size={13} /> click to upload banner image · 16:5 · min 1600px wide</>}
+          </span>
         )}
       </button>
 

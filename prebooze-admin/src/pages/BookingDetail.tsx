@@ -5,6 +5,7 @@ import QRCode from '../components/QRCode';
 import { liveBookings, LiveApiError, type LiveBooking } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
+import { ArrowLeft, CheckCircle2, Undo2, AlertTriangle } from 'lucide-react';
 
 const TITLE = 'Booking detail';
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
@@ -90,7 +91,7 @@ export default function BookingDetail() {
       <div className="stack fade">
         {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">Booking not found</h1>
-        <Link to="/bookings" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Bookings</Link>
+        <Link to="/bookings" className="btn btn-ghost" style={{ width: 'fit-content', display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Bookings</Link>
       </div>
     );
   }
@@ -186,7 +187,7 @@ export default function BookingDetail() {
     <div className="stack fade" style={{ maxWidth: 720, gap: 14 }}>
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/bookings" style={{ fontSize: 13 }}>← Bookings</Link>
+        <Link to="/bookings" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Bookings</Link>
         <h1 className="display" style={{ fontSize: 18 }}>{booking.id}</h1>
         <Tag {...STATUS_TAG[booking.status]} />
       </div>
@@ -308,7 +309,7 @@ export default function BookingDetail() {
           <button className="btn btn-pri btn-sm" onClick={saveGuests} disabled={!guestsDirty || guestsSaving}>
             {guestsSaving ? 'Saving…' : 'Save guest list'}
           </button>
-          {guestsSaved && <span className="tiny muted">Saved — QR now covers {booking.guests.length} guest{booking.guests.length > 1 ? 's' : ''} ✓</span>}
+          {guestsSaved && <span className="tiny muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Saved — QR now covers {booking.guests.length} guest{booking.guests.length > 1 ? 's' : ''} <CheckCircle2 size={12} /></span>}
           {guestsErr && <span className="tiny" style={{ color: 'var(--red)' }}>{guestsErr}</span>}
         </div>
         <div className="tiny hint">full name and mobile number for every attendee — never masked for admin. Adding a guest here updates the QR's headcount and the ticket PDF too.</div>
@@ -371,7 +372,7 @@ export default function BookingDetail() {
 
       {booking.status === 'refund_requested' && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ color: 'var(--red-soft)', fontSize: 12.5, fontWeight: 700 }}>↩ Refund requested — "can't attend"</div>
+          <div style={{ color: 'var(--red-soft)', fontSize: 12.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Undo2 size={14} /> Refund requested — "can't attend"</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-pri btn-sm" style={{ flex: 1 }} onClick={approveRefund}>
               Approve refund
@@ -385,8 +386,8 @@ export default function BookingDetail() {
 
       {booking.refundFailedAt && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10, borderColor: 'var(--red)' }}>
-          <div style={{ color: 'var(--red)', fontSize: 12.5, fontWeight: 700 }}>
-            ⚠ Refund to original payment method failed
+          <div style={{ color: 'var(--red)', fontSize: 12.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <AlertTriangle size={14} /> Refund to original payment method failed
           </div>
           <div className="tiny muted">
             The seat was already freed and the organizer's ledger already reversed — that part is correct. The actual
@@ -433,7 +434,7 @@ export default function BookingDetail() {
           <button className="btn btn-pri btn-sm" onClick={saveNote} disabled={note === (booking.adminNote ?? '')}>
             Save note
           </button>
-          {noteSaved && <span className="tiny muted">Saved ✓</span>}
+          {noteSaved && <span className="tiny muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Saved <CheckCircle2 size={12} /></span>}
         </div>
       </div>
 
@@ -448,11 +449,11 @@ export default function BookingDetail() {
         >
           Resend ticket via WhatsApp
         </button>
-        {waOpened && <span className="tiny muted">WhatsApp opened with the ticket message ✓</span>}
+        {waOpened && <span className="tiny muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>WhatsApp opened with the ticket message <CheckCircle2 size={12} /></span>}
         <button className="btn btn-ghost btn-sm" onClick={resendEmail}>
           Resend ticket via email
         </button>
-        {emailSent && <span className="tiny muted">Email sent ✓</span>}
+        {emailSent && <span className="tiny muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Email sent <CheckCircle2 size={12} /></span>}
         {emailErr && <span className="tiny" style={{ color: 'var(--red)' }}>{emailErr}</span>}
       </div>
     </div>

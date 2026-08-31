@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Trophy, Medal, CheckCircle2 } from 'lucide-react';
 import { fmt, stripHtml } from '../store/data';
 import { CityFilterDropdown, GradientPhoto, SearchBox, Tag } from '../components/ui';
 import { livePromoters, LiveApiError, type LivePromoter } from '../lib/liveApi';
@@ -73,7 +74,7 @@ export function Promoters() {
       {top.length > 0 && (
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span className="display" style={{ fontWeight: 700 }}>🏆 Top promoters</span>
+            <span className="display" style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Trophy size={16} /> Top promoters</span>
             <span className="tiny muted">by guests brought</span>
           </div>
           <div className="stack" style={{ gap: 8 }}>
@@ -82,7 +83,9 @@ export function Promoters() {
               return (
                 <div key={p.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/promoters/${p.id}`)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <b>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`} {p.name}</b>
+                    <b style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      {i === 0 ? <Medal size={14} style={{ color: '#d4af37' }} /> : i === 1 ? <Medal size={14} style={{ color: '#a8a8a8' }} /> : i === 2 ? <Medal size={14} style={{ color: '#c07a3d' }} /> : `#${i + 1}`} {p.name}
+                    </b>
                     <span className="muted">{p.showRate}% show · {fmt(p.guestsBrought)} guests</span>
                   </div>
                   <div style={{ height: 8, background: 'rgba(139,195,74,.12)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
@@ -196,7 +199,7 @@ export function PromoterDetail() {
         <h1 className="display" style={{ fontSize: 18 }}>{p.name}</h1>
         {p.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Unverified" cls="" />}
         <div style={{ flex: 1 }} />
-        <button className="btn btn-ghost btn-sm" onClick={toggleVerified}>{p.verified ? 'Unverify' : 'Verify ✓'}</button>
+        <button className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={toggleVerified}>{p.verified ? 'Unverify' : <><CheckCircle2 size={13} /> Verify</>}</button>
         <Link to={`/promoters/${p.id}/edit`} className="btn btn-ghost btn-sm">Edit</Link>
       </div>
       <div className="small muted">{p.contact || '—'} · {p.city} · {stripHtml(p.bio ?? '')}</div>

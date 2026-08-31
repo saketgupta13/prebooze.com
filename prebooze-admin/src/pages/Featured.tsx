@@ -1,11 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
+import { Ticket, Mic2, Landmark, Megaphone, Headphones, RotateCcw, Check } from 'lucide-react';
 import { Kpi } from '../components/ui';
 import { liveFeatured, LiveApiError, type LiveFeatured, type LiveFeaturedRates, type LiveFeaturedSubscription } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
 const TITLE = 'Featured';
-const TYPE_ICON: Record<string, string> = { event: '🎫', organizer: '🎧', promoter: '📣', lineup: '🎤', venue: '🏛' };
+const TYPE_ICON: Record<string, ComponentType<{ size?: number }>> = { event: Ticket, organizer: Mic2, promoter: Megaphone, lineup: Headphones, venue: Landmark };
+const TypeIcon = ({ type }: { type: string }) => {
+  const Icon = TYPE_ICON[type];
+  return Icon ? <Icon size={14} /> : null;
+};
 const SUB_STATUS_LABEL: Record<string, string> = {
   created: 'awaiting authorization', authenticated: 'awaiting authorization', active: 'active',
   pending: 'payment retrying', halted: 'halted — payment failed', cancelled: 'cancelled', completed: 'completed', expired: 'expired',
@@ -106,12 +111,12 @@ export default function Featured() {
 
   const Row = ({ f, actions }: { f: LiveFeatured; actions?: boolean }) => (
     <div className="trow" style={{ minWidth: 640, background: f.status === 'pending' ? 'rgba(255,107,94,.06)' : undefined }}>
-      <span style={{ flex: 1.6, fontWeight: 700 }}>{TYPE_ICON[f.type]} {f.entityName}</span>
+      <span style={{ flex: 1.6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={f.type} /> {f.entityName}</span>
       <span style={{ flex: 0.9 }} className="muted">{f.type}</span>
       <span style={{ flex: 0.8 }} className="muted">{f.city}</span>
       <span style={{ flex: 1 }}>
         ₹{fmt(f.amount)} <span className="tiny muted">{f.billing === 'monthly' ? '/mo' : 'one-off'}</span>
-        {f.featuredSubscriptionId && <span className="tiny" style={{ marginLeft: 6, color: 'var(--green)' }}>↻ auto</span>}
+        {f.featuredSubscriptionId && <span className="tiny" style={{ marginLeft: 6, color: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><RotateCcw size={11} /> auto</span>}
       </span>
       <span style={{ flex: 0.9 }} className="muted tiny">{f.status === 'active' ? `until ${fmtDate(f.expiresAt)}` : fmtDate(f.createdAt)}</span>
       <span style={{ flex: 1.3, display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
@@ -121,7 +126,7 @@ export default function Featured() {
             <button className="btn btn-danger btn-sm" onClick={() => reject(f.id)}>Reject</button>
           </>
         ) : (
-          <span className="tag tag-green">live ✓</span>
+          <span className="tag tag-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>live <Check size={11} /></span>
         )}
       </span>
     </div>
@@ -129,7 +134,7 @@ export default function Featured() {
 
   const ExpiredRow = ({ f }: { f: LiveFeatured }) => (
     <div className="trow" style={{ minWidth: 640 }}>
-      <span style={{ flex: 1.6, fontWeight: 700 }}>{TYPE_ICON[f.type]} {f.entityName}</span>
+      <span style={{ flex: 1.6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={f.type} /> {f.entityName}</span>
       <span style={{ flex: 0.9 }} className="muted">{f.type}</span>
       <span style={{ flex: 0.8 }} className="muted">{f.city}</span>
       <span style={{ flex: 1 }}>₹{fmt(f.amount)} <span className="tiny muted">{f.billing === 'monthly' ? '/mo' : 'one-off'}</span></span>
@@ -233,7 +238,7 @@ export default function Featured() {
         ) : (
           subs.map((s) => (
             <div key={s.id} className="trow" style={{ minWidth: 620, background: s.status === 'halted' ? 'rgba(255,107,94,.06)' : undefined }}>
-              <span style={{ flex: 1.6, fontWeight: 700 }}>{TYPE_ICON[s.type]} {s.entityName}</span>
+              <span style={{ flex: 1.6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={s.type} /> {s.entityName}</span>
               <span style={{ flex: 0.9 }} className="muted">{s.type}</span>
               <span style={{ flex: 1 }}>₹{fmt(s.amount)}</span>
               <span style={{ flex: 0.8 }} className="muted">{s.paidCount}</span>
@@ -260,7 +265,7 @@ export default function Featured() {
       </div>
       <div className="tiny hint">
         approving a request makes it live on the guest home page + directory · placements are city-scoped and clearly labelled "Featured" ·
-        rows marked "↻ auto" renew themselves via a real Razorpay subscription — no approval needed each cycle, see Auto-renewal subscriptions below
+        rows marked <RotateCcw size={11} style={{ verticalAlign: -1 }} /> "auto" renew themselves via a real Razorpay subscription — no approval needed each cycle, see Auto-renewal subscriptions below
       </div>
     </div>
   );

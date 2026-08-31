@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
 import { livePayments, LiveApiError, type LivePayoutRow } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -115,7 +116,7 @@ export default function Payments() {
               </span>
               <span style={{ flex: 0.9, display: 'flex', justifyContent: 'flex-end' }}>
                 {r.paidOut ? (
-                  <span className="tag tag-green" title={r.payoutUtr ?? undefined}>Paid ✓</span>
+                  <span className="tag tag-green" title={r.payoutUtr ?? undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>Paid <Check size={11} /></span>
                 ) : payingId === r.id ? null : (
                   <button className="btn btn-ghost btn-sm" onClick={() => startPay(r.id)}>
                     Mark paid…

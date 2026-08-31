@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Check, Pencil, X } from 'lucide-react';
 import { liveFaqs, LiveApiError, type LiveFaq } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -84,7 +85,7 @@ export default function Faqs() {
           <textarea className="input" style={{ minHeight: 56, resize: 'vertical' }} value={answer} onChange={(e) => setAnswer(e.target.value)} />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="submit" className="btn btn-pri btn-sm">{editing ? 'Save changes ✓' : 'Add FAQ'}</button>
+          <button type="submit" className="btn btn-pri btn-sm">{editing ? <>Save changes <Check size={14} /></> : 'Add FAQ'}</button>
           {editing && <button type="button" className="btn btn-ghost btn-sm" onClick={reset}>Cancel</button>}
         </div>
       </form>
@@ -96,8 +97,8 @@ export default function Faqs() {
               <div className="bold" style={{ fontSize: 13 }}>{f.question}</div>
               <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>{f.answer}</div>
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => startEdit(f)}>✎</button>
-            <button className="btn btn-danger btn-sm" onClick={() => remove(f.id)}>✕</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => startEdit(f)}><Pencil size={13} /></button>
+            <button className="btn btn-danger btn-sm" onClick={() => remove(f.id)}><X size={13} /></button>
           </div>
         ))}
         {list.length === 0 && !loading && <div className="card muted small">No {audience} FAQs yet.</div>}

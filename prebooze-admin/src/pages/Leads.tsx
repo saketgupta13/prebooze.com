@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { Mic2, Landmark, Megaphone, Headphones, X, CheckCircle2, Mail, MessageCircle, Calendar } from 'lucide-react';
 import {
   liveLeads,
   liveStaff,
@@ -21,7 +22,11 @@ import { Kpi, Drawer, LiveLocationPicker } from '../components/ui';
 
 const TITLE = 'Leads';
 const ROLE_LABEL: Record<LeadRole, string> = { organizer: 'Organizer', venue: 'Venue', promoter: 'Promoter', lineup: 'Line-up' };
-const ROLE_EMOJI: Record<LeadRole, string> = { organizer: '🎤', venue: '🏛', promoter: '📣', lineup: '🎧' };
+const ROLE_ICON: Record<LeadRole, ComponentType<{ size?: number }>> = { organizer: Mic2, venue: Landmark, promoter: Megaphone, lineup: Headphones };
+const RoleIcon = ({ role, size = 12 }: { role: LeadRole; size?: number }) => {
+  const Icon = ROLE_ICON[role];
+  return <Icon size={size} />;
+};
 
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -119,7 +124,7 @@ export default function Leads() {
   const [dirHits, setDirHits] = useState<DirHit[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [sendBusy, setSendBusy] = useState<'email' | 'whatsapp' | null>(null);
-  const [sendMsg, setSendMsg] = useState('');
+  const [sendMsg, setSendMsg] = useState<ReactNode>('');
   const [onboardOpen, setOnboardOpen] = useState(false);
   const [onboardForm, setOnboardForm] = useState(emptyOnboardForm);
   const [onboardBusy, setOnboardBusy] = useState(false);
@@ -300,7 +305,7 @@ export default function Leads() {
     setErr('');
     try {
       await liveLeads.sendOnboarding(selected.id, { [channel]: true });
-      setSendMsg(channel === 'email' ? 'Onboarding email sent ✓' : 'Sent via WhatsApp ✓');
+      setSendMsg(channel === 'email' ? <>Onboarding email sent <CheckCircle2 size={13} /></> : <>Sent via WhatsApp <CheckCircle2 size={13} /></>);
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to send');
@@ -401,8 +406,8 @@ export default function Leads() {
             All ({leads.length})
           </button>
           {allowedRoles.map((r) => (
-            <button key={r} className={roleFilter === r ? 'on' : ''} onClick={() => setRoleFilter(r)}>
-              {ROLE_EMOJI[r]} {ROLE_LABEL[r]} ({leads.filter((l) => l.role === r).length})
+            <button key={r} className={roleFilter === r ? 'on' : ''} onClick={() => setRoleFilter(r)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <RoleIcon role={r} /> {ROLE_LABEL[r]} ({leads.filter((l) => l.role === r).length})
             </button>
           ))}
         </div>
@@ -451,7 +456,7 @@ export default function Leads() {
                   >
                     <div style={{ fontSize: 12.5, fontWeight: 700 }}>{lead.name}</div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '5px 0' }}>
-                      {roleFilter === 'all' && <span className="tag tag-dim">{ROLE_EMOJI[lead.role]} {ROLE_LABEL[lead.role]}</span>}
+                      {roleFilter === 'all' && <span className="tag tag-dim" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><RoleIcon role={lead.role} size={11} /> {ROLE_LABEL[lead.role]}</span>}
                       <span className="tag">{lead.source}</span>
                       {lead.city && <span className="tag tag-dim">{lead.city}</span>}
                     </div>
@@ -463,7 +468,7 @@ export default function Leads() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span className="tiny muted">{lead.assignedToId ? staffName(lead.assignedToId) : '—'}</span>
                       {lead.followUpAt && (
-                        <span className={`tiny ${isOverdue(lead) ? 'red' : 'muted'}`}>📅 {fmtDateTime(lead.followUpAt)}</span>
+                        <span className={`tiny ${isOverdue(lead) ? 'red' : 'muted'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Calendar size={11} /> {fmtDateTime(lead.followUpAt)}</span>
                       )}
                     </div>
                   </div>
@@ -478,18 +483,18 @@ export default function Leads() {
         <Drawer onClose={close}>
           <div className="page-hd">
             <h2 style={{ font: '700 16px "Space Grotesk", sans-serif' }}>{drawer === 'create' ? 'Add lead' : 'Lead'}</h2>
-            <button className="btn btn-ghost btn-sm" onClick={close}>✕</button>
+            <button className="btn btn-ghost btn-sm" onClick={close}><X size={14} /></button>
           </div>
 
           {drawer === 'create' ? (
             <div className="field">
               <label>Lead type</label>
               <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as LeadRole })}>
-                {allowedRoles.map((r) => <option key={r} value={r}>{ROLE_EMOJI[r]} {ROLE_LABEL[r]}</option>)}
+                {allowedRoles.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
               </select>
             </div>
           ) : (
-            selected && <div className="tag tag-dim" style={{ width: 'fit-content' }}>{ROLE_EMOJI[selected.role]} {ROLE_LABEL[selected.role]} lead</div>
+            selected && <div className="tag tag-dim" style={{ width: 'fit-content', display: 'inline-flex', alignItems: 'center', gap: 4 }}><RoleIcon role={selected.role} size={11} /> {ROLE_LABEL[selected.role]} lead</div>
           )}
 
           <div className="field">
@@ -568,7 +573,7 @@ export default function Leads() {
                       onClick={() => sendOnboarding('email')}
                       title={!selected.email ? 'Add an email above first' : undefined}
                     >
-                      {sendBusy === 'email' ? 'Sending…' : '✉️ Email'}
+                      {sendBusy === 'email' ? 'Sending…' : <><Mail size={13} /> Email</>}
                     </button>
                     <button
                       className="btn btn-ghost btn-sm"
@@ -576,7 +581,7 @@ export default function Leads() {
                       onClick={() => sendOnboarding('whatsapp')}
                       title={!selected.contact ? 'Add a phone number above first' : undefined}
                     >
-                      {sendBusy === 'whatsapp' ? 'Sending…' : '💬 WhatsApp'}
+                      {sendBusy === 'whatsapp' ? 'Sending…' : <><MessageCircle size={13} /> WhatsApp</>}
                     </button>
                   </div>
                   {sendMsg && <div className="tiny green">{sendMsg}</div>}
@@ -588,7 +593,7 @@ export default function Leads() {
                   <>
                     <div className="field">
                       {onboardSent ? (
-                        <div className="dashed-box">✓ Sent for verification — the verification team will take it from here.</div>
+                        <div className="dashed-box" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={14} style={{ flex: 'none' }} /> Sent for verification — the verification team will take it from here.</div>
                       ) : (
                         <>
                           <label>Start onboarding</label>
@@ -657,8 +662,8 @@ export default function Leads() {
                 )}
 
                 {linkedLabel(selected) ? (
-                  <div className="dashed-box">
-                    ✓ Linked to {ROLE_LABEL[selected.role].toLowerCase()} <b>{linkedLabel(selected)}</b>
+                  <div className="dashed-box" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <CheckCircle2 size={14} style={{ flex: 'none' }} /> Linked to {ROLE_LABEL[selected.role].toLowerCase()} <b>{linkedLabel(selected)}</b>
                   </div>
                 ) : (
                   <div className="field">

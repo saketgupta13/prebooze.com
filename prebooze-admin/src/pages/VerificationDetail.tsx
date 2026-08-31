@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Mic, Landmark, Megaphone, Headphones, FileText, CheckCircle2, X, type LucideIcon } from 'lucide-react';
 import { Tag } from '../components/ui';
 import { liveKyc, liveMedia, resolveDocUrl, LiveApiError, type LiveKycApplication } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -7,7 +8,7 @@ import { useLiveGate } from '../components/LiveChrome';
 import { downloadFile } from '../lib/download';
 
 const TITLE = 'Verification detail';
-const KIND_ICON: Record<string, string> = { organizer: '🧑‍💼', promoter: '📣', lineup: '🎤', venue: '📍' };
+const KIND_ICON: Record<string, LucideIcon> = { organizer: Mic, promoter: Megaphone, lineup: Headphones, venue: Landmark };
 const KIND_LABEL: Record<string, string> = { organizer: 'Organizer', promoter: 'Promoter', lineup: 'Line-up', venue: 'Venue' };
 const DOC_LABEL: Record<string, string> = {
   aadhaar: "Aadhaar card", registration: 'Registration document', ownerAadhaar: "Owner's Aadhaar card", selfie: 'Selfie',
@@ -159,8 +160,8 @@ export default function VerificationDetail() {
       {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Link to="/verifications" style={{ fontSize: 13 }}>← Verifications</Link>
-        <h1 className="page-title">
-          {KIND_ICON[app.kind]} {app.user.name || app.user.phone} <span className="tiny muted">· {KIND_LABEL[app.kind]}</span>
+        <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {(() => { const KindIcon = KIND_ICON[app.kind]; return KindIcon ? <KindIcon size={18} /> : null; })()} {app.user.name || app.user.phone} <span className="tiny muted">· {KIND_LABEL[app.kind]}</span>
         </h1>
         {app.status === 'approved' && <Tag label="Approved" cls="tag-green" />}
         {app.status === 'rejected' && <Tag label="Rejected" cls="tag-red" />}
@@ -289,8 +290,8 @@ export default function VerificationDetail() {
             return (
               <div key={`${d.type}-${i}`} style={{ width: 200 }}>
                 {isPdf ? (
-                  <div style={{ width: '100%', aspectRatio: '1', borderRadius: 8, border: '1px solid rgba(139,195,74,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>
-                    📄
+                  <div style={{ width: '100%', aspectRatio: '1', borderRadius: 8, border: '1px solid rgba(139,195,74,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
+                    <FileText size={40} />
                   </div>
                 ) : (
                   <img src={url} alt={d.type} style={{ width: '100%', borderRadius: 8, border: '1px solid rgba(139,195,74,.2)' }} />
@@ -354,11 +355,11 @@ export default function VerificationDetail() {
               </div>
             )}
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-pri" style={{ flex: 1 }} disabled={missing.length > 0} onClick={approve}>
-                ✓ Approve &amp; activate
+              <button className="btn btn-pri" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={missing.length > 0} onClick={approve}>
+                <CheckCircle2 size={14} /> Approve &amp; activate
               </button>
-              <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => setRejecting((v) => !v)}>
-                ✕ Reject
+              <button className="btn btn-danger" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={() => setRejecting((v) => !v)}>
+                <X size={14} /> Reject
               </button>
             </div>
             {rejecting && (

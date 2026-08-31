@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Check } from 'lucide-react';
 import { fmt } from '../store/data';
 import { liveEvents, liveSettings, liveManualBooking, LiveApiError, type LiveEvent } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -117,7 +118,7 @@ export default function ManualBooking() {
       <div className="stack fade">
         {err && <div className="card" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{err}</div>}
         <h1 className="page-title">No live events to book against</h1>
-        <Link to="/bookings" className="btn btn-ghost" style={{ width: 'fit-content' }}>← Bookings</Link>
+        <Link to="/bookings" className="btn btn-ghost" style={{ width: 'fit-content' }}><ArrowLeft size={14} /> Bookings</Link>
       </div>
     );
   }
@@ -125,7 +126,7 @@ export default function ManualBooking() {
   return (
     <form className="stack fade" style={{ maxWidth: 560, gap: 12 }} onSubmit={submit}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Link to="/bookings" style={{ fontSize: 13 }}>← Bookings</Link>
+        <Link to="/bookings" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Bookings</Link>
         <h1 className="page-title">Manual booking</h1>
       </div>
       <div className="tiny hint" style={{ marginTop: -6 }}>for phone orders, walk-ups and comps — the guest gets the group QR on WhatsApp</div>
@@ -259,7 +260,7 @@ export default function ManualBooking() {
 
       <div style={{ display: 'flex', gap: 10 }}>
         <button type="submit" className="btn btn-pri" style={{ padding: 10, flex: 1 }} disabled={saving}>
-          {saving ? 'Saving…' : isComp ? 'Create comp booking ✓' : `Record booking — ₹${fmt(totals.total)} ✓`}
+          {saving ? 'Saving…' : isComp ? <>Create comp booking <Check size={14} /></> : <>Record booking — ₹{fmt(totals.total)} <Check size={14} /></>}
         </button>
         <Link to="/bookings" className="btn btn-ghost" style={{ padding: 10 }}>Cancel</Link>
       </div>

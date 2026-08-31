@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Ticket, Star } from 'lucide-react';
 import { CityFilterDropdown, Kpi, Tag } from '../components/ui';
 import { liveInvoices, LiveApiError, type LiveInvoice } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -113,7 +114,7 @@ export default function Invoices() {
         {list.map((inv) => (
           <div key={inv.id} className="trow clickable" style={{ minWidth: 900 }} onClick={() => navigate(`/invoices/${inv.id}`)}>
             <span style={{ flex: 1.3, fontWeight: 700 }}>{inv.number}</span>
-            <span style={{ flex: 1 }} className="muted">{inv.type === 'booking' ? '🎟 Booking' : '⭐ Featured'}</span>
+            <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4 }} className="muted">{inv.type === 'booking' ? <><Ticket size={12} /> Booking</> : <><Star size={12} /> Featured</>}</span>
             <span style={{ flex: 1.4 }}>{inv.payerName}</span>
             <span style={{ flex: 0.9 }} className="muted">{ROLE_LABEL[inv.role] ?? inv.role}</span>
             <span style={{ flex: 0.9 }} className="muted">{inv.city ?? '—'}</span>

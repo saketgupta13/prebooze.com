@@ -4,6 +4,7 @@ import { Kpi, Tag } from '../components/ui';
 import { liveDashboard, liveEvents, LiveApiError, type LiveDashboard } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import { Hand, AlertTriangle, ArrowRight, Undo2, ShieldCheck, Trophy, Medal } from 'lucide-react';
 
 const TITLE = 'Dashboard';
 const RANGES: Record<string, number> = { 'Last 7 days': 7, 'Last 14 days': 14, 'Last 30 days': 30, 'Last 90 days': 90 };
@@ -59,7 +60,7 @@ export default function Dashboard() {
       {loading && <div className="tiny muted">Loading…</div>}
 
       <div className="page-hd">
-        <h1 className="display" style={{ fontSize: 22 }}>Good morning, Admin 👋</h1>
+        <h1 className="display" style={{ fontSize: 22, display: 'flex', alignItems: 'center', gap: 8 }}>Good morning, Admin <Hand size={20} /></h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <select className="chip" style={{ appearance: 'none', cursor: 'pointer', background: 'var(--bg)' }} value={range} onChange={(e) => setRange(e.target.value)}>
             {Object.keys(RANGES).map((r) => (
@@ -128,14 +129,14 @@ export default function Dashboard() {
                 style={{ borderColor: 'rgba(255,107,94,.4)', color: 'var(--red-soft)', background: 'none', textAlign: 'left', fontSize: 12 }}
                 onClick={() => navigate('/events?tab=pending')}
               >
-                ⚠ {data.pendingEvents} event{data.pendingEvents === 1 ? '' : 's'} awaiting approval →
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {data.pendingEvents} event{data.pendingEvents === 1 ? '' : 's'} awaiting approval <ArrowRight size={13} /></span>
               </button>
               <button
                 className="dashed-box"
                 style={{ background: 'none', textAlign: 'left', fontSize: 12 }}
                 onClick={() => navigate('/bookings?status=refund_requested')}
               >
-                ↩ {data.pendingRefunds} refund request{data.pendingRefunds === 1 ? '' : 's'} pending →
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Undo2 size={14} /> {data.pendingRefunds} refund request{data.pendingRefunds === 1 ? '' : 's'} pending <ArrowRight size={13} /></span>
               </button>
               {data.liveNow > 0 && (
                 <button
@@ -143,7 +144,7 @@ export default function Dashboard() {
                   style={{ borderColor: 'rgba(139,195,74,.5)', color: 'var(--green)', background: 'none', textAlign: 'left', fontSize: 12 }}
                   onClick={() => navigate('/events')}
                 >
-                  ● {data.liveNow} event{data.liveNow === 1 ? '' : 's'} live now →
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>● {data.liveNow} event{data.liveNow === 1 ? '' : 's'} live now <ArrowRight size={13} /></span>
                 </button>
               )}
               <button
@@ -151,7 +152,7 @@ export default function Dashboard() {
                 style={{ background: 'none', textAlign: 'left', fontSize: 12 }}
                 onClick={() => navigate('/organizers')}
               >
-                🛡 {data.pendingKyc} organizer KYC to review →
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><ShieldCheck size={14} /> {data.pendingKyc} organizer KYC to review <ArrowRight size={13} /></span>
               </button>
             </div>
           </div>
@@ -225,8 +226,8 @@ export default function Dashboard() {
           {data.topPromoters.length > 0 && (
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span className="display" style={{ fontWeight: 700 }}>🏆 Top promoters</span>
-                <Link to="/promoters" className="small">All promoters →</Link>
+                <span className="display" style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Trophy size={16} /> Top promoters</span>
+                <Link to="/promoters" className="small" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>All promoters <ArrowRight size={12} /></Link>
               </div>
               <div className="stack" style={{ gap: 8 }}>
                 {data.topPromoters.map((p, i) => {
@@ -234,7 +235,7 @@ export default function Dashboard() {
                   return (
                     <div key={p.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/promoters/${p.id}`)}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                        <b>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} {p.name}</b>
+                        <b style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Medal size={14} color={i === 0 ? '#d4af37' : i === 1 ? '#a8a8a8' : '#b06a35'} /> {p.name}</b>
                         <span className="muted">₹{fmt(p.earned)} earned · {p.showRate}% show-rate</span>
                       </div>
                       <div style={{ height: 8, background: 'rgba(139,195,74,.12)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
@@ -250,7 +251,7 @@ export default function Dashboard() {
           <div className="tblwrap">
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(139,195,74,.15)' }}>
               <span className="display" style={{ fontWeight: 700 }}>Live &amp; upcoming events</span>
-              <Link to="/events" className="small">All events →</Link>
+              <Link to="/events" className="small" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>All events <ArrowRight size={12} /></Link>
             </div>
             <div className="thead" style={{ minWidth: 560 }}>
               <span style={{ flex: 2 }}>Event</span>

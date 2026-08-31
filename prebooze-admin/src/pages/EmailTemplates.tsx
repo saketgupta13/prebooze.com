@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { CheckCircle2, Check, X, RotateCcw, Pencil } from 'lucide-react';
 import WysiwygEditor from '../components/WysiwygEditor';
 import { Tag } from '../components/ui';
 import { useBranding } from '../lib/useBranding';
@@ -72,7 +73,7 @@ export default function EmailTemplates() {
 
   const [serverPreview, setServerPreview] = useState<{ subject: string; html: string } | null>(null);
   const [testTo, setTestTo] = useState('');
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState<ReactNode>('');
 
   const load = () => {
     setLoading(true);
@@ -126,7 +127,7 @@ export default function EmailTemplates() {
     try {
       await liveEmailTemplates.update(def.id, { subject: draftSubject, bodyHtml: draftBody });
       setEditing(false);
-      setMsg('Saved ✓');
+      setMsg(<>Saved <CheckCircle2 size={13} /></>);
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to save');
@@ -156,7 +157,7 @@ export default function EmailTemplates() {
       await liveEmailTemplates.reset(def.id);
       const remaining = templates.filter((t) => t.id !== def.id);
       setSelectedId(remaining[0]?.id ?? null);
-      setMsg(def.custom ? 'Deleted' : 'Reset to default ✓');
+      setMsg(def.custom ? 'Deleted' : <>Reset to default <CheckCircle2 size={13} /></>);
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to reset');
@@ -168,7 +169,7 @@ export default function EmailTemplates() {
     setErr('');
     try {
       await liveEmailTemplates.sendNow(def.id, testTo.trim());
-      setMsg(`Test sent to ${testTo.trim()} ✓`);
+      setMsg(<>Test sent to {testTo.trim()} <CheckCircle2 size={13} /></>);
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to send test');
     }
@@ -211,7 +212,7 @@ export default function EmailTemplates() {
           </div>
           <div className="tiny hint">custom templates aren't tied to an automatic trigger — send them manually from their detail view once created.</div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-pri btn-sm" onClick={createTemplate} disabled={!newName.trim() || !newSubject.trim() || !newBody.trim()}>Create ✓</button>
+            <button className="btn btn-pri btn-sm" onClick={createTemplate} disabled={!newName.trim() || !newSubject.trim() || !newBody.trim()}>Create <Check size={14} /></button>
             <button className="btn btn-ghost btn-sm" onClick={() => setCreating(false)}>Cancel</button>
           </div>
         </div>
@@ -254,9 +255,9 @@ export default function EmailTemplates() {
                 <div className="display" style={{ fontWeight: 700 }}>{def.name}</div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {!editing && (def.custom || def.customized) && (
-                    <button className="btn btn-danger btn-sm" onClick={resetOrDelete}>{def.custom ? '✕ Delete' : '↺ Reset to default'}</button>
+                    <button className="btn btn-danger btn-sm" onClick={resetOrDelete}>{def.custom ? <><X size={14} /> Delete</> : <><RotateCcw size={14} /> Reset to default</>}</button>
                   )}
-                  {!editing && <button className="btn btn-pri btn-sm" onClick={startEdit}>✎ Edit</button>}
+                  {!editing && <button className="btn btn-pri btn-sm" onClick={startEdit}><Pencil size={14} /> Edit</button>}
                 </div>
               </div>
 
@@ -274,7 +275,7 @@ export default function EmailTemplates() {
                     <div className="tiny hint">available tokens: {def.tokens.map((t) => `{{${t}}}`).join(', ')}{def.ctaLabel ? ` · CTA button "${def.ctaLabel}" is fixed by code, not editable here` : ''}</div>
                   )}
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn btn-pri btn-sm" onClick={save} disabled={!draftSubject.trim() || !draftBody.trim()}>Save ✓</button>
+                    <button className="btn btn-pri btn-sm" onClick={save} disabled={!draftSubject.trim() || !draftBody.trim()}>Save <Check size={14} /></button>
                     <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Cancel</button>
                   </div>
                 </>
