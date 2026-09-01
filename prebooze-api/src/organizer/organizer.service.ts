@@ -396,13 +396,20 @@ export class OrganizerService {
       if (!t.name?.trim()) throw new BadRequestException('Every ticket tier needs a name');
       const price = Math.max(0, Math.round(t.price));
       const coverCharge = Math.max(0, Math.round(t.coverCharge ?? 0));
-      if (coverCharge > price) throw new BadRequestException(`"${t.name}"'s cover charge can't exceed its ticket price`);
       // Time-limited free entry only makes sense on a ₹0 tier, and a
       // cutoff with no fallback price would leave the post-window price
       // undefined — both silently dropped rather than erroring, matching
       // how the create/edit forms already clear them client-side too.
       const freeCutoff = price === 0 ? t.freeCutoff : undefined;
       const lateFeePrice = freeCutoff && t.lateFeePrice && t.lateFeePrice > 0 ? Math.round(t.lateFeePrice) : undefined;
+      // A ₹0 tier with a late fee genuinely charges lateFeePrice once the
+      // window closes (see ticket-tier-pricing.ts's effectiveTierPrice) —
+      // cover charge can redeem up to whatever a guest actually pays, so it
+      // needs to check against that, not the always-₹0 base price. Bookings
+      // service only ever applies the cover charge to bookings made in that
+      // closed/late-fee window (see create()/manualBooking() below) — a
+      // genuinely free booking never gets a redeemable credit it didn't pay for.
+      if (coverCharge > (lateFeePrice ?? price)) throw new BadRequestException(`"${t.name}"'s cover charge can't exceed its ticket price`);
       const common = {
         name: t.name.trim(),
         price,

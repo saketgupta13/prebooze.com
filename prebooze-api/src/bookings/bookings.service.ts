@@ -13,7 +13,7 @@ import { WalletService } from '../wallet/wallet.service';
 import { REFERRAL_REFERRER_REWARD, uniqueReferralCodeFor } from '../referrals/referral.constants';
 import { NotificationsService } from '../admin/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
-import { effectiveTierPrice } from '../common/ticket-tier-pricing';
+import { effectiveTierPrice, tierWindowState } from '../common/ticket-tier-pricing';
 import { partySizeFromTierName } from '../common/party-size';
 import { requiredAgeFor } from '../common/age-gate';
 import { normalizePhone } from '../auth/auth.service';
@@ -548,8 +548,12 @@ export class BookingsService {
           qrToken,
           // Locked in now, same reasoning as promoterCommission above — a
           // later edit to a tier's cover charge never changes what this
-          // specific booking already promised its guest.
-          coverCharge: lines.reduce((a, l) => a + l.tier.coverCharge * l.qty, 0),
+          // specific booking already promised its guest. A ₹0 tier's free
+          // window (see ticket-tier-pricing.ts) pays nothing, so it gets no
+          // redeemable credit either — only a booking made after the window
+          // closes (paying lateFeePrice) actually earns the tier's cover
+          // charge. A normal always-paid tier is unaffected either way.
+          coverCharge: lines.reduce((a, l) => a + (tierWindowState(l.tier, event.date) === 'free' ? 0 : l.tier.coverCharge) * l.qty, 0),
         },
       });
 
@@ -819,7 +823,8 @@ export class BookingsService {
           whatsapp: phone,
           paymentMethod: isComp ? 'Comp' : input.method,
           qrToken,
-          coverCharge: tier.coverCharge * input.qty,
+          // Same free-window gating as the guest checkout path above.
+          coverCharge: (tierWindowState(tier, event.date) === 'free' ? 0 : tier.coverCharge) * input.qty,
           commission,
         },
       });

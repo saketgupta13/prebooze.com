@@ -523,14 +523,27 @@ export default function EventEditorReal() {
                 <label>Redeemable for (optional)</label>
                 <input className="input" value={t.coverChargeNote} onChange={(e) => patchTier(i, { coverChargeNote: e.target.value })} placeholder="e.g. food & drinks at the venue" />
               </div>
-              {t.coverCharge.trim() && +t.coverCharge > (+t.price || 0) && (
-                <div className="tiny" style={{ color: 'var(--red)', flexBasis: '100%' }}>Cover charge can't exceed the ticket price</div>
-              )}
-              {t.coverCharge.trim() && +t.coverCharge > 0 && !(+t.coverCharge > (+t.price || 0)) && (
-                <div className="tiny muted" style={{ flexBasis: '100%' }}>
-                  Guests see this ticket includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote.trim() ? ` (${t.coverChargeNote.trim()})` : ''}.
-                </div>
-              )}
+              {/* A ₹0 tier with a grace-period price (freeCutoff + lateFeePrice)
+                  genuinely charges lateFeePrice once the window closes — cover
+                  charge can redeem up to whatever a guest actually pays, not
+                  the always-₹0 base price. A booking made in the free window
+                  still gets no redeemable credit (see bookings.service.ts). */}
+              {(() => {
+                const effectivePrice = +t.price === 0 && t.freeCutoff && +t.lateFeePrice > 0 ? +t.lateFeePrice : +t.price || 0;
+                return (
+                  <>
+                    {t.coverCharge.trim() && +t.coverCharge > effectivePrice && (
+                      <div className="tiny" style={{ color: 'var(--red)', flexBasis: '100%' }}>Cover charge can't exceed the ticket price</div>
+                    )}
+                    {t.coverCharge.trim() && +t.coverCharge > 0 && !(+t.coverCharge > effectivePrice) && (
+                      <div className="tiny muted" style={{ flexBasis: '100%' }}>
+                        Guests see this ticket includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote.trim() ? ` (${t.coverChargeNote.trim()})` : ''}
+                        {+t.price === 0 && t.freeCutoff ? ' — only for bookings made after the free window closes.' : '.'}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               {+t.price === 0 && (
                 <div className="field" style={{ flex: 1, minWidth: 140 }}>
                   <label>Free until (optional)</label>
