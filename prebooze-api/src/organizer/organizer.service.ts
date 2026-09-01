@@ -264,7 +264,18 @@ export class OrganizerService {
       slug = await this.uniqueSlug(slugifyBase(input.title));
     }
 
-    const status = input.status === 'draft' ? 'draft' : 'pending';
+    // New events default to pending (or draft, if explicitly requested) —
+    // unchanged. An edit to an EXISTING event must not silently reset its
+    // status: this used to force status='pending' on every save regardless
+    // of what the event's status already was — a routine title/poster edit
+    // to a live, approved event silently un-published it, since no caller
+    // actually re-sends status:'approved' on an ordinary edit (confirmed
+    // the hard way: Toxic Bolly Night dropped offline ~20 min after being
+    // approved, from an otherwise unrelated edit). Now an edit preserves
+    // the existing status unless the caller explicitly sends a different
+    // one — an intentional "resubmit for approval" or admin approve/reject
+    // action still works exactly as before, since those do send status.
+    const status = existing ? (input.status !== undefined ? input.status : existing.status) : input.status === 'draft' ? 'draft' : 'pending';
 
     // Mode is decided by which the client actually sent, not by truthiness —
     // omitting both keys entirely (e.g. a status-only resubmit) leaves
