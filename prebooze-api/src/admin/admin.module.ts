@@ -10,7 +10,7 @@ import { AdminReelsController } from './reels.controller';
 import { AdminLedgerController } from './ledger.controller';
 import { AdminReportsController, AdminSettingsController } from './reports.controller';
 import { AdminGuestListController, AdminGuestListEntryController } from './guestlist.controller';
-import { AdminLiveMonitorController } from './live-monitor.controller';
+import { AdminLiveMonitorController, AdminLiveMonitorOverviewController } from './live-monitor.controller';
 import { AdminNotificationsController } from './notifications.controller';
 import { AdminDashboardController } from './dashboard.controller';
 import { AdminPromosController } from './promos.controller';
@@ -97,6 +97,7 @@ import { redisProvider } from '../redis.provider';
     AdminGuestListController,
     AdminGuestListEntryController,
     AdminLiveMonitorController,
+    AdminLiveMonitorOverviewController,
     AdminNotificationsController,
     AdminDashboardController,
     AdminPromosController,

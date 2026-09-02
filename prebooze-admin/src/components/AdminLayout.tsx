@@ -11,7 +11,7 @@ import {
   Megaphone, Star, Gift, MapPin, Landmark, Globe, Mic, Wallet, Banknote, Receipt,
   CircleDollarSign, Building2, Tag, TrendingUp, BarChart3, Image, Film, MessageCircle,
   HelpCircle, FolderTree, Tags, PenLine, FileText, ScrollText, Compass, UserCog, Mail,
-  Settings, User, Search, Bell, ArrowRight, X, MoreHorizontal,
+  Settings, User, Search, Bell, ArrowRight, X, MoreHorizontal, Radio,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -25,6 +25,7 @@ interface SearchResult {
 const MAIN_NAV: { to: string; icon: LucideIcon; label: string; end?: boolean }[] = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/events', icon: Calendar, label: 'Events' },
+  { to: '/live-monitor', icon: Radio, label: 'Live monitor' },
   { to: '/bookings', icon: Ticket, label: 'Bookings' },
   { to: '/abandoned', icon: ShoppingCart, label: 'Abandoned carts' },
   { to: '/customers', icon: Users, label: 'Customers' },
@@ -104,6 +105,7 @@ const SECTION_NAV = [...MAIN_NAV, ...CONTENT_NAV, ...EXTRA_NAV];
 const NAV_MODULE: Record<string, string> = {
   '/': 'Dashboard',
   '/events': 'Events & approvals',
+  '/live-monitor': 'Gate check-in',
   '/bookings': 'Bookings',
   '/abandoned': 'Abandoned carts',
   '/customers': 'Customers',

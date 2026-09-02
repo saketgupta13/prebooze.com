@@ -138,7 +138,7 @@ export default function Dashboard() {
                 <button
                   className="dashed-box"
                   style={{ borderColor: 'rgba(139,195,74,.5)', color: 'var(--green)', background: 'none', textAlign: 'left', fontSize: 12 }}
-                  onClick={() => navigate('/events')}
+                  onClick={() => navigate('/live-monitor')}
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>● {data.liveNow} event{data.liveNow === 1 ? '' : 's'} live now <ArrowRight size={13} /></span>
                 </button>

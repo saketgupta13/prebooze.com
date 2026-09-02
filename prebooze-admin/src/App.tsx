@@ -33,6 +33,7 @@ import TrendingSearches from './pages/TrendingSearches';
 import VenueTypes from './pages/VenueTypes';
 import StaffRoles from './pages/StaffRoles';
 import LiveMonitor from './pages/LiveMonitor';
+import LiveMonitorOverview from './pages/LiveMonitorOverview';
 import OrganizerEdit from './pages/OrganizerEdit';
 import { EditVenue } from './pages/Venues';
 import RunPayoutBatch from './pages/RunPayoutBatch';
@@ -71,6 +72,7 @@ export default function App() {
         <Route path="/events" element={<EventsReal />} />
         <Route path="/events/create" element={<EventEditorReal />} />
         <Route path="/events/:id" element={<EventEditorReal />} />
+        <Route path="/live-monitor" element={<LiveMonitorOverview />} />
         <Route path="/events/:id/live" element={<LiveMonitor />} />
         <Route path="/events/:id/guestlist" element={<GuestList />} />
         <Route path="/bookings" element={<Bookings />} />

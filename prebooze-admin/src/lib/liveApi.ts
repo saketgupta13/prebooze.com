@@ -1327,9 +1327,15 @@ export interface LiveMonitor {
   feed: { ok: boolean; text: string; at: string }[];
   salesPaused: boolean;
 }
+export interface LiveMonitorOverviewRow {
+  id: string; title: string; date: string; durationHrs: number;
+  city: string | null; venueName: string | null; salesPaused: boolean; isRunning: boolean;
+  total: number; checkedIn: number; pct: number; rejected: number;
+}
 export const liveLiveMonitor = {
   get: (eventId: string) => liveFetch<LiveMonitor>(`/admin/events/${eventId}/live`),
   checkIn: (eventId: string, name: string, count?: number) => liveFetch<unknown>(`/admin/events/${eventId}/live/check-in`, { body: { name, count } }),
+  overview: () => liveFetch<LiveMonitorOverviewRow[]>('/admin/live-monitor'),
 };
 
 export const liveManualBooking = {
