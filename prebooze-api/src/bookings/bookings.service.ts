@@ -26,6 +26,13 @@ import { LeadsService } from '../admin/leads.service';
 const FALLBACK_FEE_PCT = 3; // % — used only if PlatformSettings row is somehow missing
 const RAZORPAY_FEE_PCT = 2.36; // confirmed against real live payments 2026-08-27
 const WHATSAPP_MSG_COST = 0.145; // ₹ — AiSensy utility-template rate
+// Prebooze's own promoter-referral incentive (2026-09-02) — % of Prebooze's
+// own commission on a booking, paid to whichever real promoter's ?ref= is
+// on it. Deliberately separate from and unrelated to the organizer-funded
+// revenueShare system (promoterRevSharePct below) — this one needs no
+// organizer opt-in, applies to any live event. See Booking.
+// promoterPlatformCommission's schema comment for the full reasoning.
+const PROMOTER_PLATFORM_COMMISSION_PCT = 2;
 
 export interface CreateBookingInput {
   holdId: string;
@@ -461,6 +468,19 @@ export class BookingsService {
     const { event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies, fee, discount, couponRow, walletCreditUsed, total } =
       await this.priceHold(userId, input.holdId, input.couponCode, input.walletCredit, input.promoterRef);
 
+    // Prebooze's own promoter-referral commission — completely separate
+    // from promoterCommission above (organizer-funded, requires
+    // allowedPromoters opt-in). This one only requires the ref to belong to
+    // a real Promoter row — no organizer configuration involved at all, by
+    // design (see PROMOTER_PLATFORM_COMMISSION_PCT). Doesn't touch
+    // subtotal/total: Prebooze is splitting its own cut here, not adding a
+    // guest-funded markup, so pricing above is completely unaffected.
+    let promoterPlatformCommission = 0;
+    if (input.promoterRef && commission > 0) {
+      const platformPromoter = await this.prisma.promoter.findUnique({ where: { slug: input.promoterRef }, select: { id: true } });
+      if (platformPromoter) promoterPlatformCommission = Math.round((commission * PROMOTER_PLATFORM_COMMISSION_PCT) / 100);
+    }
+
     // A tier like "Couple" or "Group of 5" admits more than one person per
     // ticket — the guest list must have a name for every one of them, not
     // just one per ticket unit, or a Couple booking silently loses track of
@@ -543,6 +563,7 @@ export class BookingsService {
           promoterVia: input.promoterRef ? input.promoterVia : undefined,
           promoterCommission,
           commission,
+          promoterPlatformCommission,
           walletCreditUsed,
           paymentId: paymentId ?? undefined,
           qrToken,

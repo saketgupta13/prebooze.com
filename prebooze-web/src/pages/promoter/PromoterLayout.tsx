@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import PendingReview, { RejectedReview } from '../../components/PendingReview';
-import { LayoutGrid, Megaphone, Banknote, Users, Trophy, CreditCard, Settings, MoreHorizontal, X } from 'lucide-react';
+import { LayoutGrid, Megaphone, Globe, Banknote, Users, Trophy, CreditCard, Settings, MoreHorizontal, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
   { to: '/promoter', label: 'Dashboard', icon: LayoutGrid, end: true },
   { to: '/promoter/promotions', label: 'My promotions', icon: Megaphone },
+  { to: '/promoter/city-events', label: 'Promote any event', icon: Globe },
   { to: '/promoter/earnings', label: 'Earnings', icon: Banknote },
   { to: '/promoter/team', label: 'Team', icon: Users },
   { to: '/promoter/leaderboard', label: 'Leaderboard', icon: Trophy },

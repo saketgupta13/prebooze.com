@@ -1204,6 +1204,26 @@ model Booking {
   // later refund silently unbalanced the finance ledger's Income vs
   // Expense for that event, with no way to detect it after the fact.
   commission Int @default(0)
+  // Prebooze's OWN promoter-referral commission — 2% of the platform's
+  // `commission` above, paid by Prebooze itself, separate from and
+  // unrelated to promoterCommission below (organizer-funded revenue-share,
+  // requires the organizer to have opted the promoter into
+  // Event.promoterConfig.allowedPromoters for this event). This one applies
+  // to ANY real promoter's ?ref= on ANY paid booking, regardless of
+  // organizer opt-in — added 2026-09-02 as Prebooze's own promoter
+  // incentive, deliberately decoupled from the organizer-funded system.
+  // Naturally 0 on a free (₹0) booking, since 2% of a 0 platform commission
+  // is 0 — no separate "free tickets don't count" branch needed. Computed
+  // and locked in once at booking creation, same reasoning as
+  // promoterCommission — a later change to the platform rate never
+  // retroactively changes what a promoter already earned on a past sale.
+  promoterPlatformCommission Int @default(0)
+  // Mirrors Event.paidOut's shape — a reports-only flag for whether Prebooze
+  // has actually paid this booking's promoterPlatformCommission out yet, set
+  // via admin's payout register. Independent of promoterCommission's own
+  // (organizer-funded, self-attested via PromoterEventSettlement) payout
+  // tracking — these are two separate money flows with two separate payers.
+  promoterPlatformCommissionPaidOut Boolean @default(false)
   // Set once BookingsService's fee-reconciliation cron has replaced the
   // "Razorpay commission" ledger estimate (2.36% of total, posted at sale
   // time) with the real per-payment fee Razorpay actually charged. Guards

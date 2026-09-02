@@ -156,6 +156,42 @@ export class PromoterService {
     });
   }
 
+  /** Prebooze's own promoter-referral program (2026-09-02) — every live,
+   * approved event in the promoter's own city, completely independent of
+   * promotions() above (which only lists events an organizer has opted this
+   * promoter into via allowedPromoters). A promoter can generate a ?ref=
+   * link for ANY of these; if it converts to a paid booking, Prebooze pays
+   * them 2% of its own commission on that sale (see BookingsService.create,
+   * PROMOTER_PLATFORM_COMMISSION_PCT) — no organizer configuration or
+   * opt-in involved. Same "event over" definition as CatalogService.
+   * isEventOver, duplicated rather than cross-module-injected to keep this
+   * addition self-contained. */
+  async cityEvents(userId: string) {
+    const promoter = await this.myPromoter(userId);
+    const events = await this.prisma.event.findMany({
+      where: {
+        status: 'approved',
+        OR: [{ venue: { city: promoter.city } }, { privateCity: promoter.city }],
+      },
+      select: {
+        id: true, slug: true, title: true, posterUrl: true, date: true, durationHrs: true,
+        venue: { select: { name: true, city: true } }, privateCity: true,
+        organizer: { select: { brandName: true } },
+        tiers: { select: { price: true } },
+      },
+      orderBy: { date: 'asc' },
+    });
+    const now = Date.now();
+    return events
+      .filter((e) => new Date(e.date).getTime() + e.durationHrs * 3600000 >= now)
+      .map((e) => ({
+        id: e.id, slug: e.slug, title: e.title, posterUrl: e.posterUrl, date: e.date, durationHrs: e.durationHrs,
+        city: e.venue?.city ?? e.privateCity ?? promoter.city,
+        organizerName: e.organizer?.brandName ?? null,
+        minPrice: e.tiers.length ? Math.min(...e.tiers.map((t) => t.price)) : 0,
+      }));
+  }
+
   async guests(userId: string, eventId: string) {
     const promoter = await this.myPromoter(userId);
     return this.prisma.promoterGuest.findMany({ where: { eventId, promoterSlug: promoter.slug }, orderBy: { createdAt: 'desc' } });
@@ -343,6 +379,25 @@ export class PromoterService {
     const withdrawnAgg = await this.prisma.promoterWithdrawal.aggregate({ where: { promoterId: promoter.id }, _sum: { amount: true } });
 
     return { perHead, commission, withdrawn: withdrawnAgg._sum.amount ?? 0 };
+  }
+
+  /** Prebooze's own promoter-referral earnings (2026-09-02) — deliberately
+   * separate from earnings() above, which is entirely organizer-funded
+   * money (perHead free-list + revenue-share commission). This sums
+   * Booking.promoterPlatformCommission, split by whether admin has actually
+   * paid it out yet (promoterPlatformCommissionPaidOut — see admin's own
+   * payout register, mirrors Event.paidOut's pattern). No withdrawal flow
+   * of its own yet: Prebooze pays this directly, there's nothing for the
+   * promoter to request. */
+  async platformEarnings(userId: string) {
+    const promoter = await this.myPromoter(userId);
+    const bookings = await this.prisma.booking.findMany({
+      where: { promoterRef: promoter.slug, status: 'confirmed', promoterPlatformCommission: { gt: 0 } },
+      select: { promoterPlatformCommission: true, promoterPlatformCommissionPaidOut: true },
+    });
+    const total = bookings.reduce((a, b) => a + b.promoterPlatformCommission, 0);
+    const paidOut = bookings.filter((b) => b.promoterPlatformCommissionPaidOut).reduce((a, b) => a + b.promoterPlatformCommission, 0);
+    return { total, paidOut, pending: total - paidOut };
   }
 
   /** Per-event breakdown — the granularity PromoterEarnings.tsx's totals

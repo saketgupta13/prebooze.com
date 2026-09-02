@@ -779,6 +779,13 @@ export const livePayments = {
    * outside-Prebooze caveat as everything else here; status is whatever the
    * promoter has self-attested (PromoterEventSettlement), admin can't mark it. */
   promoterPayouts: () => liveFetch<LivePromoterPayoutRow[]>('/admin/payments/promoter-payouts'),
+  /** Prebooze's OWN promoter-referral commission (2026-09-02) — a separate
+   * money flow Prebooze itself owes directly, unrelated to promoterPayouts
+   * above (organizer-funded, self-attested). Grouped per-promoter, not
+   * per-event — "mark paid" clears every currently-unpaid booking for that
+   * promoter at once. */
+  platformCommissionDue: () => liveFetch<{ promoterId: string; promoterName: string; due: number }[]>('/admin/payments/promoter-platform-commission-due'),
+  markPlatformCommissionPaid: (promoterId: string) => liveFetch<{ ok: true; bookingsMarked: number }>(`/admin/payments/promoter-platform-commission/${promoterId}/mark-paid`, { method: 'POST' }),
 };
 
 export const LEAD_SOURCES = ['Instagram', 'WhatsApp', 'Phone call', 'Referral / walk-in', 'Website inquiry', 'Other social', 'Other'] as const;

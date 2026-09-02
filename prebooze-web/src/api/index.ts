@@ -405,6 +405,16 @@ export const promoter = {
     URL.revokeObjectURL(url);
   },
   promotions: () => apiFetch<Event[]>('/promoter/promotions'),
+  // Prebooze's own promoter-referral program (2026-09-02) — every live
+  // event in the promoter's city, independent of promotions() above (which
+  // only lists organizer-invited events). Generate a ?ref= link for any of
+  // these; a paid booking through it earns 2% of Prebooze's own commission,
+  // no organizer opt-in needed.
+  cityEvents: () =>
+    apiFetch<
+      { id: string; slug: string; title: string; posterUrl: string | null; date: string; durationHrs: number; city: string; organizerName: string | null; minPrice: number }[]
+    >('/promoter/city-events'),
+  platformEarnings: () => apiFetch<{ total: number; paidOut: number; pending: number }>('/promoter/platform-earnings'),
   guests: (eventId: string) => apiFetch<PromoterGuest[]>(`/promoter/events/${eventId}/guests`),
   paidGuests: (eventId: string) =>
     apiFetch<{ id: string; mainGuest: string; qty: number; subtotal: number; promoterCommission: number; createdAt: string }[]>(

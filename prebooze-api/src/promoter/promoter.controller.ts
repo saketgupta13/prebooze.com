@@ -64,6 +64,11 @@ export class PromoterController {
     return this.promoter.promotions(req.user.sub);
   }
 
+  @Get('city-events')
+  cityEvents(@Req() req: AuthedReq) {
+    return this.promoter.cityEvents(req.user.sub);
+  }
+
   @Get('events/:id/guests')
   guests(@Req() req: AuthedReq, @Param('id') id: string) {
     return this.promoter.guests(req.user.sub, id);
@@ -82,6 +87,11 @@ export class PromoterController {
   @Get('earnings')
   earnings(@Req() req: AuthedReq) {
     return this.promoter.earnings(req.user.sub);
+  }
+
+  @Get('platform-earnings')
+  platformEarnings(@Req() req: AuthedReq) {
+    return this.promoter.platformEarnings(req.user.sub);
   }
 
   @Get('events/earnings')

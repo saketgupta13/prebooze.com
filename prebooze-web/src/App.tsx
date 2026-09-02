@@ -94,6 +94,7 @@ const PromoterOnboarding = lazy(() => import('./pages/promoter/PromoterOnboardin
 const PromoterLayout = lazy(() => import('./pages/promoter/PromoterLayout'));
 const PromoterDashboard = lazy(() => import('./pages/promoter/PromoterDashboard'));
 const PromoterPromotions = lazy(() => import('./pages/promoter/PromoterPromotions'));
+const PromoterCityEvents = lazy(() => import('./pages/promoter/PromoterCityEvents'));
 const PromoterSubscription = lazy(() => import('./pages/promoter/PromoterSubscription'));
 const PromoterEarnings = lazy(() => import('./pages/promoter/PromoterEarnings'));
 const PromoterTeam = lazy(() => import('./pages/promoter/PromoterTeam'));
@@ -450,6 +451,7 @@ export default function App() {
         <Route path="/promoter" element={<PromoterLayout />}>
           <Route index element={<PromoterDashboard />} />
           <Route path="promotions" element={<PromoterPromotions />} />
+          <Route path="city-events" element={<PromoterCityEvents />} />
           <Route path="guests/:eventId" element={<PromoterGuestList />} />
           <Route path="earnings" element={<PromoterEarnings />} />
           <Route path="team" element={<PromoterTeam />} />

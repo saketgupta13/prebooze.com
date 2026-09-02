@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
@@ -27,5 +27,17 @@ export class AdminPaymentsController {
   @RequirePermission(MODULE, 'view')
   promoterPayoutsAll() {
     return this.payments.promoterPayoutsAll();
+  }
+
+  @Get('promoter-platform-commission-due')
+  @RequirePermission(MODULE, 'view')
+  platformCommissionDue() {
+    return this.payments.platformCommissionDue();
+  }
+
+  @Post('promoter-platform-commission/:promoterId/mark-paid')
+  @RequirePermission(MODULE, 'edit')
+  markPlatformCommissionPaid(@Param('promoterId') promoterId: string) {
+    return this.payments.markPlatformCommissionPaid(promoterId);
   }
 }

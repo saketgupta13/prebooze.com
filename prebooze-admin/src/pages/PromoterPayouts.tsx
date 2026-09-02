@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Landmark } from 'lucide-react';
+import { Landmark, Percent, CheckCircle2 } from 'lucide-react';
 import { livePayments, LiveApiError, type LivePromoterPayoutRow } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -36,6 +36,17 @@ export default function PromoterPayouts() {
   const [statusFilter, setStatusFilter] = useState<'All' | LivePromoterPayoutRow['status']>('All');
   const [q, setQ] = useState('');
 
+  // Prebooze's OWN promoter-referral commission (2026-09-02) — a completely
+  // separate money flow from `rows` above (organizer-funded, self-attested).
+  // This one Prebooze itself owes directly, so admin can actually mark it
+  // paid here, unlike the rest of this page.
+  const [platformDue, setPlatformDue] = useState<{ promoterId: string; promoterName: string; due: number }[]>([]);
+  const [payingId, setPayingId] = useState<string | null>(null);
+
+  const loadPlatformDue = () => {
+    livePayments.platformCommissionDue().then(setPlatformDue).catch(() => {});
+  };
+
   const load = () => {
     setLoading(true);
     setErr('');
@@ -44,11 +55,24 @@ export default function PromoterPayouts() {
       .then(setRows)
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
+    loadPlatformDue();
   };
   useEffect(() => {
     if (token) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  const markPlatformPaid = async (promoterId: string) => {
+    setPayingId(promoterId);
+    try {
+      await livePayments.markPlatformCommissionPaid(promoterId);
+      loadPlatformDue();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to mark paid');
+    } finally {
+      setPayingId(null);
+    }
+  };
 
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
@@ -74,6 +98,36 @@ export default function PromoterPayouts() {
         Real bank transfers between organizers and promoters happen entirely outside Prebooze — this is visibility
         only, sourced from what each promoter has self-confirmed. Nothing here moves money.
       </p>
+
+      <div className="tblwrap">
+        <div className="display" style={{ fontWeight: 700, padding: '10px 14px', borderBottom: '1px solid rgba(139,195,74,.15)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Percent size={14} /> Prebooze's own promoter commission — you owe this directly
+        </div>
+        <div className="tiny hint" style={{ padding: '0 14px 8px' }}>
+          Separate from the table below — 2% of Prebooze's own commission on paid tickets sold through a promoter's
+          city-events link, no organizer involved. "Mark paid" clears everything currently owed to that promoter.
+        </div>
+        <div className="thead" style={{ minWidth: 500 }}>
+          <span style={{ flex: 1.6 }}>Promoter</span>
+          <span style={{ flex: 1 }}>Owed</span>
+          <span style={{ flex: 1.2 }} />
+        </div>
+        {platformDue.map((r) => (
+          <div key={r.promoterId} className="trow" style={{ minWidth: 500 }}>
+            <span style={{ flex: 1.6, fontWeight: 700 }}>{r.promoterName}</span>
+            <span style={{ flex: 1 }} className="green">₹{fmt(r.due)}</span>
+            <span style={{ flex: 1.2, display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+              <Link to={`/payments/details?type=promoter&id=${r.promoterId}`} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm" title="View payment details (opens in new tab)">
+                <Landmark size={12} />
+              </Link>
+              <button className="btn btn-pri btn-sm" disabled={payingId === r.promoterId} onClick={() => markPlatformPaid(r.promoterId)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                {payingId === r.promoterId ? 'Marking…' : <><CheckCircle2 size={12} /> Mark paid</>}
+              </button>
+            </span>
+          </div>
+        ))}
+        {platformDue.length === 0 && <div className="trow muted">Nothing owed right now.</div>}
+      </div>
 
       <div className="kpis">
         <Kpi label="Still owed (not confirmed)" value={`₹${fmt(totalOwed)}`} />

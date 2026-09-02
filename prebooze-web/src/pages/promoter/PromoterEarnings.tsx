@@ -3,7 +3,8 @@ import { fmtMoney } from '../../data/mock';
 import { promoter as promoterApi, type PromoterWithdrawal } from '../../api';
 import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
-import { CheckCircle2, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CheckCircle2, ArrowRight, Percent } from 'lucide-react';
 
 const MIN_WITHDRAW = 500;
 
@@ -43,6 +44,11 @@ const STATUS_LABEL: Record<EventEarning['status'], ReactNode> = {
  * organizer actually pay me" tracker, not a payment record. */
 export default function PromoterEarnings() {
   const [earnings, setEarnings] = useState({ perHead: 0, commission: 0, withdrawn: 0 });
+  // Prebooze's OWN promoter-referral commission (2026-09-02) — completely
+  // separate money, source, and payer from `earnings` above (organizer-
+  // funded). Fetched and rendered independently so the two never get
+  // visually merged into one misleading "total".
+  const [platformEarnings, setPlatformEarnings] = useState({ total: 0, paidOut: 0, pending: 0 });
   const [byEvent, setByEvent] = useState<EventEarning[]>([]);
   const [withdrawals, setWithdrawals] = useState<PromoterWithdrawal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,8 +61,8 @@ export default function PromoterEarnings() {
 
   const load = () => {
     setLoading(true);
-    Promise.all([promoterApi.earnings(), promoterApi.withdrawals(), promoterApi.eventEarnings()])
-      .then(([e, w, ev]) => { setEarnings(e); setWithdrawals(w); setByEvent(ev); })
+    Promise.all([promoterApi.earnings(), promoterApi.withdrawals(), promoterApi.eventEarnings(), promoterApi.platformEarnings()])
+      .then(([e, w, ev, pe]) => { setEarnings(e); setWithdrawals(w); setByEvent(ev); setPlatformEarnings(pe); })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load earnings'))
       .finally(() => setLoading(false));
   };
@@ -159,6 +165,19 @@ export default function PromoterEarnings() {
           <button className="btn btn-pri" disabled={available < MIN_WITHDRAW || requesting} onClick={requestPayout} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {requesting ? 'Requesting…' : <>Request payout <ArrowRight size={14} /></>}
           </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <div className="tiny muted-2" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Percent size={12} /> Prebooze commission</div>
+            <div style={{ fontSize: 26, fontWeight: 800 }} className="accent">{fmtMoney(platformEarnings.total)}</div>
+            <div className="tiny muted-2">
+              {fmtMoney(platformEarnings.paidOut)} paid out · {fmtMoney(platformEarnings.pending)} pending — 2% of Prebooze's own cut on paid tickets sold through your city-events links, paid by Prebooze itself, not the organizer.
+            </div>
+          </div>
+          <Link to="/promoter/city-events" className="btn btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Promote an event <ArrowRight size={14} /></Link>
         </div>
       </div>
 

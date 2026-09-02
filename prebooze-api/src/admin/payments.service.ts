@@ -152,4 +152,54 @@ export class PaymentsService {
       .map((r) => ({ ...r, total: r.perHead + r.commission, status: settlementByKey.get(`${r.eventId}::${r.promoterId}`)?.status ?? 'pending' }))
       .sort((a, b) => b.eventDate.getTime() - a.eventDate.getTime());
   }
+
+  /** Prebooze's OWN promoter-referral commission (2026-09-02) — a
+   * completely separate money flow from promoterPayoutsAll() above (which
+   * is entirely organizer-funded and self-attested). This one Prebooze
+   * itself owes directly, so unlike the rest of this file it's grouped
+   * per-promoter rather than per-event — a promoter can rack up small
+   * amounts across many different organizers' events, and there's no
+   * per-event settlement to track since there's no organizer in this loop
+   * at all. */
+  async platformCommissionDue() {
+    const bookings = await this.prisma.booking.findMany({
+      where: { status: 'confirmed', promoterPlatformCommission: { gt: 0 }, promoterPlatformCommissionPaidOut: false },
+      select: { promoterRef: true, promoterPlatformCommission: true },
+    });
+    if (!bookings.length) return [];
+
+    const slugs = [...new Set(bookings.map((b) => b.promoterRef).filter((s): s is string => !!s))];
+    const promoters = await this.prisma.promoter.findMany({ where: { slug: { in: slugs } }, select: { id: true, slug: true, name: true } });
+    const promoterBySlug = new Map(promoters.map((p) => [p.slug, p]));
+
+    const totals = new Map<string, number>();
+    for (const b of bookings) {
+      if (!b.promoterRef || !promoterBySlug.has(b.promoterRef)) continue;
+      totals.set(b.promoterRef, (totals.get(b.promoterRef) ?? 0) + b.promoterPlatformCommission);
+    }
+
+    return [...totals.entries()]
+      .map(([slug, due]) => {
+        const p = promoterBySlug.get(slug)!;
+        return { promoterId: p.id, promoterName: p.name, due };
+      })
+      .sort((a, b) => b.due - a.due);
+  }
+
+  /** Marks every currently-unpaid confirmed booking's promoterPlatformCommission
+   * for this promoter as paid at once — a batch action, since the amount
+   * owed accumulates one small ticket sale at a time across many events, not
+   * something staff would realistically pay out per-booking. No UTR field
+   * to record here (same as PromoterEventSettlement's own status-only
+   * tracking) — this is visibility + a paid/unpaid toggle, not a real bank
+   * integration, matching every other payout register in this file. */
+  async markPlatformCommissionPaid(promoterId: string) {
+    const promoter = await this.prisma.promoter.findUnique({ where: { id: promoterId } });
+    if (!promoter) throw new BadRequestException('Promoter not found');
+    const { count } = await this.prisma.booking.updateMany({
+      where: { promoterRef: promoter.slug, status: 'confirmed', promoterPlatformCommission: { gt: 0 }, promoterPlatformCommissionPaidOut: false },
+      data: { promoterPlatformCommissionPaidOut: true },
+    });
+    return { ok: true, bookingsMarked: count };
+  }
 }
