@@ -101,18 +101,16 @@ export class PaymentsService {
    * bank-details snapshot the organizer's default PaymentProfile had at the
    * moment they withdrew (payoutBankLast4/payoutAccountHolderName/
    * payoutIfsc — captured on the ledger row itself, so it stays accurate
-   * even if they later change their default profile). No status field
-   * exists on this row (unlike Event.payoutUtr's paidOut flag) — this is
-   * the same "instant, self-serve, real-money-moves-outside-Prebooze"
-   * pattern as everything else in this file, just made visible instead of
-   * invisible. `amount` is stored negative (a debit); returned positive
-   * here since admin only ever wants to see "how much did they take out." */
+   * even if they later change their default profile), plus withdrawalPaidOut
+   * so admin can actually track which of these they've sent the money for.
+   * `amount` is stored negative (a debit); returned positive here since
+   * admin only ever wants to see "how much did they take out." */
   async organizerWithdrawals() {
     const rows = await this.prisma.organizerLedgerTx.findMany({
       where: { type: 'withdrawal' },
       select: {
         id: true, organizerId: true, amount: true, createdAt: true,
-        payoutBankLast4: true, payoutAccountHolderName: true, payoutIfsc: true,
+        payoutBankLast4: true, payoutAccountHolderName: true, payoutIfsc: true, withdrawalPaidOut: true,
         organizer: { select: { brandName: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -122,11 +120,19 @@ export class PaymentsService {
       organizerId: r.organizerId,
       organizerName: r.organizer?.brandName ?? '—',
       amount: Math.abs(r.amount),
+      paidOut: r.withdrawalPaidOut,
       bankLast4: r.payoutBankLast4,
       accountHolderName: r.payoutAccountHolderName,
       ifsc: r.payoutIfsc,
       createdAt: r.createdAt,
     }));
+  }
+
+  async markOrganizerWithdrawalPaid(id: string) {
+    const row = await this.prisma.organizerLedgerTx.findUnique({ where: { id } });
+    if (!row || row.type !== 'withdrawal') throw new BadRequestException('Withdrawal request not found');
+    if (row.withdrawalPaidOut) throw new BadRequestException('Already marked paid');
+    return this.prisma.organizerLedgerTx.update({ where: { id }, data: { withdrawalPaidOut: true } });
   }
 
   /** Platform-wide view of the organizer→promoter revenue-share/per-head

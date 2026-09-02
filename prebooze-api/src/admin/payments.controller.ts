@@ -29,6 +29,12 @@ export class AdminPaymentsController {
     return this.payments.organizerWithdrawals();
   }
 
+  @Post('organizer-withdrawals/:id/mark-paid')
+  @RequirePermission(MODULE, 'edit')
+  markOrganizerWithdrawalPaid(@Param('id') id: string) {
+    return this.payments.markOrganizerWithdrawalPaid(id);
+  }
+
   @Get('promoter-payouts')
   @RequirePermission(MODULE, 'view')
   promoterPayoutsAll() {

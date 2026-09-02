@@ -1552,6 +1552,15 @@ model OrganizerLedgerTx {
   payoutBankLast4         String?
   payoutAccountHolderName String?
   payoutIfsc              String?
+
+  // Whether admin has actually paid this row out yet — only meaningful for
+  // type:'withdrawal' rows (2026-09-02). The organizer's withdraw() call
+  // debits the ledger and fires a "processed" WhatsApp/email the instant
+  // they click, but until this field existed there was no way for admin to
+  // track which requests they've actually sent the money for. Mirrors
+  // Event.paidOut's shape/naming. VenueLedgerTx has the identical gap,
+  // deliberately left unaddressed here — organizer-only per explicit scope.
+  withdrawalPaidOut Boolean @default(false)
 }
 
 // Organizer's own team/permissions system — same view/edit-per-module shape

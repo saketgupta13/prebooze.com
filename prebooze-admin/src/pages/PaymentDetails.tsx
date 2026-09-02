@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Copy, CheckCircle2, Eye, EyeOff, BadgeCheck } from 'lucide-react';
+import { Search } from 'lucide-react';
 import {
   liveOrganizers, liveVenues, livePromoters, LiveApiError,
   type LiveOrganizer, type LiveVenue, type LivePromoter, type LivePaymentProfile, type LiveVenuePaymentProfile,
 } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
+import { PaymentProfileCard, PaymentProfileRow, AccountNumberField } from '../components/PaymentProfileFields';
 
 const TITLE = 'Payment details';
 
@@ -16,59 +17,6 @@ const TYPES: { key: PayeeType; label: string }[] = [
   { key: 'venue', label: 'Venues' },
   { key: 'promoter', label: 'Promoters' },
 ];
-
-function CopyChip({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className="btn btn-ghost btn-sm"
-      style={{ padding: '2px 6px', fontSize: 11 }}
-      onClick={() => {
-        navigator.clipboard.writeText(value).catch(() => {});
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1200);
-      }}
-      title="Copy"
-    >
-      {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
-    </button>
-  );
-}
-
-/** Full account number, hidden by default (a shoulder-surf/screenshot guard,
- * not a real access control — the API already returned it in full to
- * anyone with view permission on this module) with one click to reveal,
- * plus a copy button so staff never has to retype it into a bank transfer
- * form. This is the field the whole page exists for: elsewhere in admin
- * (OrganizerEdit's PaymentProfilesCard) only ever shows •••• + last 4,
- * which is what actually blocked staff from paying anyone out directly. */
-function AccountNumberField({ value }: { value: string }) {
-  const [shown, setShown] = useState(false);
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ fontFamily: 'monospace', fontSize: 14, letterSpacing: 0.5 }}>
-        {shown ? value : '•'.repeat(Math.max(4, value.length - 4)) + value.slice(-4)}
-      </span>
-      <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '2px 6px' }} onClick={() => setShown((s) => !s)} title={shown ? 'Hide' : 'Show'}>
-        {shown ? <EyeOff size={13} /> : <Eye size={13} />}
-      </button>
-      <CopyChip value={value} />
-    </div>
-  );
-}
-
-function Row({ label, value, copyable }: { label: string; value: string; copyable?: boolean }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '5px 0', borderBottom: '1px solid rgba(139,195,74,.08)' }}>
-      <span className="tiny muted">{label}</span>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, textAlign: 'right' }}>
-        {value || '—'}
-        {copyable && value && <CopyChip value={value} />}
-      </span>
-    </div>
-  );
-}
 
 /** Bank details for whoever Prebooze actually pays out — organizer, venue
  * (solo venue-hosted events), or promoter. Deep-linkable via
@@ -181,24 +129,7 @@ export default function PaymentDetails() {
               {!loadingProfiles && profiles.length === 0 && (
                 <div className="card"><div className="tiny muted">No payment profile on file — {name(selected)} hasn't added one yet.</div></div>
               )}
-              {profiles.map((p) => (
-                <div key={p.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                    <span className="display" style={{ fontWeight: 700 }}>{p.legalName}</span>
-                    {p.isDefault && <span className="tag tag-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><BadgeCheck size={11} /> Default</span>}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '5px 0', borderBottom: '1px solid rgba(139,195,74,.08)' }}>
-                    <span className="tiny muted">Account number</span>
-                    <AccountNumberField value={p.bankAccountNumber} />
-                  </div>
-                  <Row label="Account holder" value={p.accountHolderName} />
-                  <Row label="IFSC" value={p.ifsc} copyable />
-                  <Row label="Branch" value={p.branch ?? ''} />
-                  <Row label="PAN" value={p.pan} copyable />
-                  <Row label="GSTIN" value={p.noGst ? 'Not registered' : (p.gstin ?? '')} />
-                  <Row label="Business address" value={[p.businessAddress, p.city, p.state, p.pincode].filter(Boolean).join(', ')} />
-                </div>
-              ))}
+              {profiles.map((p) => <PaymentProfileCard key={p.id} profile={p} />)}
             </>
           )}
 
@@ -212,9 +143,9 @@ export default function PaymentDetails() {
                     <span className="tiny muted">Account number</span>
                     <AccountNumberField value={selectedPromoter.bankAccountNumber} />
                   </div>
-                  <Row label="Account holder" value={selectedPromoter.accountHolderName ?? ''} />
-                  <Row label="Bank" value={selectedPromoter.bankName ?? ''} />
-                  <Row label="IFSC" value={selectedPromoter.ifsc ?? ''} copyable />
+                  <PaymentProfileRow label="Account holder" value={selectedPromoter.accountHolderName ?? ''} />
+                  <PaymentProfileRow label="Bank" value={selectedPromoter.bankName ?? ''} />
+                  <PaymentProfileRow label="IFSC" value={selectedPromoter.ifsc ?? ''} copyable />
                 </>
               )}
             </div>
