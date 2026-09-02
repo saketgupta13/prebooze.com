@@ -99,6 +99,24 @@ export class DirectoryService {
     return this.prisma.paymentProfile.update({ where: { id: profileId }, data: data as never });
   }
 
+  // ---------- venue payment profiles (same "support-ticket convenience"
+  // reasoning as organizer's above — venues manage these themselves
+  // self-serve via VenuePaymentProfile, this is admin's god-mode view) ----------
+  async venuePaymentProfiles(venueId: string) {
+    if (!(await this.prisma.venue.findUnique({ where: { id: venueId } }))) throw new NotFoundException('Venue not found');
+    return this.prisma.venuePaymentProfile.findMany({ where: { venueId }, orderBy: { createdAt: 'asc' } });
+  }
+
+  async updateVenuePaymentProfile(venueId: string, profileId: string, patch: Record<string, unknown>) {
+    const profile = await this.prisma.venuePaymentProfile.findUnique({ where: { id: profileId } });
+    if (!profile || profile.venueId !== venueId) throw new NotFoundException('Payment profile not found');
+    const data = sanitizePatch(patch, PAYMENT_PROFILE_EDITABLE) as Record<string, unknown>;
+    if (typeof data.bankAccountNumber === 'string' && data.bankAccountNumber) {
+      data.bankLast4 = data.bankAccountNumber.slice(-4);
+    }
+    return this.prisma.venuePaymentProfile.update({ where: { id: profileId }, data: data as never });
+  }
+
   /** Staff-facing visibility into an organizer's own team (OrgStaff — see
    * OrgTeamService.addStaff for the real invite flow that creates these).
    * Admin "god mode", same reasoning as the rest of this service: no

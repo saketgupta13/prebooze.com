@@ -200,6 +200,7 @@ export function PromoterDetail() {
         {p.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Unverified" cls="" />}
         <div style={{ flex: 1 }} />
         <button className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={toggleVerified}>{p.verified ? 'Unverify' : <><CheckCircle2 size={13} /> Verify</>}</button>
+        <Link to={`/payments/details?type=promoter&id=${p.id}`} className="btn btn-ghost btn-sm">Payment details</Link>
         <Link to={`/promoters/${p.id}/edit`} className="btn btn-ghost btn-sm">Edit</Link>
       </div>
       <div className="small muted">{p.contact || '—'} · {p.city} · {stripHtml(p.bio ?? '')}</div>

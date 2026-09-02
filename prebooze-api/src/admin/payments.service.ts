@@ -26,7 +26,7 @@ export class PaymentsService {
     // "paid" days before they even took place).
     const events = await this.prisma.event.findMany({
       where: { status: { not: 'draft' }, commission: { not: null } },
-      select: { id: true, title: true, date: true, durationHrs: true, commission: true, paidOut: true, payoutUtr: true, organizer: { select: { brandName: true } }, venue: { select: { name: true } }, hostedByVenue: true },
+      select: { id: true, title: true, date: true, durationHrs: true, commission: true, paidOut: true, payoutUtr: true, organizerId: true, venueId: true, organizer: { select: { brandName: true } }, venue: { select: { name: true } }, hostedByVenue: true },
     }).then((rows) => rows.filter((e) => new Date(e.date).getTime() + e.durationHrs * 3600_000 <= Date.now()));
     const revenueByEvent = await this.prisma.booking.groupBy({
       by: ['eventId'],
@@ -42,12 +42,19 @@ export class PaymentsService {
     const rows = events.map((e) => {
       const revenue = revMap.get(e.id) ?? 0;
       const commissionAmt = Math.round((revenue * (e.commission as number)) / 100);
+      // Solo venue-hosted event (no organizer) — this is who staff actually
+      // need to pay out for this event's commission. payeeType/payeeId let
+      // the frontend jump straight to that payee's real bank details
+      // (Payment details page) instead of just showing a display name with
+      // nowhere to click through to.
+      const payeeType: 'organizer' | 'venue' | null = e.organizerId ? 'organizer' : e.venueId ? 'venue' : null;
+      const payeeId = e.organizerId ?? e.venueId ?? null;
       return {
         id: e.id,
         title: e.title,
-        // Solo venue-hosted event (no organizer) — this is who staff
-        // actually need to pay out for this event's commission.
         organizer: e.organizer?.brandName ?? e.venue?.name ?? '—',
+        payeeType,
+        payeeId,
         revenue,
         commission: e.commission,
         commissionAmt,

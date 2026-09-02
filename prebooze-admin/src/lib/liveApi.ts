@@ -455,6 +455,10 @@ export interface LivePromoter {
   bio: string; links: string[];
   followers: number; eventsPromoted: number; guestsBrought: number; showRate: number; planId: string;
   contact: string | null; seo: Seo | null; logoUrl: string | null;
+  // Flat on Promoter (not a plural PaymentProfile like organizer/venue) —
+  // GET /admin/promoters already returns these, just wasn't typed here yet.
+  bankName: string | null; bankAccountNumber: string | null; bankLast4: string | null;
+  accountHolderName: string | null; ifsc: string | null;
 }
 export interface LiveLineup {
   id: string; slug: string; name: string; category: string; verified: boolean; city: string;
@@ -494,6 +498,16 @@ export const livePromoters = {
   update: (id: string, body: Partial<LivePromoter>) => liveFetch<LivePromoter>(`/admin/promoters/${id}`, { method: 'PATCH', body }),
   setVerified: (id: string, verified: boolean) => liveFetch<LivePromoter>(`/admin/promoters/${id}/verify`, { method: 'POST', body: { verified } }),
 };
+// Same shape as LivePaymentProfile (organizer's) — VenuePaymentProfile is an
+// exact mirror of PaymentProfile in the schema, just keyed by venueId.
+export interface LiveVenuePaymentProfile {
+  id: string; venueId: string; isDefault: boolean;
+  legalName: string; businessAddress: string;
+  country: string | null; state: string | null; city: string | null; pincode: string | null;
+  bankAccountNumber: string; bankLast4: string; accountHolderName: string; ifsc: string; branch: string | null;
+  pan: string; gstin: string | null; noGst: boolean;
+  createdAt: string; updatedAt: string;
+}
 export const liveVenues = {
   list: () => liveFetch<LiveVenue[]>('/admin/venues'),
   create: (body: { name: string; city: string; state?: string; country?: string; pincode?: string; address?: string; capacity?: number; type?: string }) => liveFetch<LiveVenue>('/admin/venues', { body }),
@@ -501,6 +515,9 @@ export const liveVenues = {
   setVerified: (id: string, verified: boolean) => liveFetch<LiveVenue>(`/admin/venues/${id}/verify`, { method: 'POST', body: { verified } }),
   approveCityChange: (id: string) => liveFetch<LiveVenue>(`/admin/venues/${id}/city-change/approve`, { method: 'POST' }),
   rejectCityChange: (id: string) => liveFetch<LiveVenue>(`/admin/venues/${id}/city-change/reject`, { method: 'POST' }),
+  paymentProfiles: (id: string) => liveFetch<LiveVenuePaymentProfile[]>(`/admin/venues/${id}/payment-profiles`),
+  updatePaymentProfile: (id: string, profileId: string, body: Partial<LiveVenuePaymentProfile>) =>
+    liveFetch<LiveVenuePaymentProfile>(`/admin/venues/${id}/payment-profiles/${profileId}`, { method: 'PATCH', body }),
 };
 
 export interface LiveVenueHostingRequest {
@@ -736,6 +753,11 @@ export interface LivePayoutRow {
   id: string;
   title: string;
   organizer: string;
+  // Who actually gets paid — an organizer-run event's real organizerId, or
+  // a solo venue-hosted event's venueId. null only if an event somehow has
+  // neither (shouldn't happen — every event has one or the other).
+  payeeType: 'organizer' | 'venue' | null;
+  payeeId: string | null;
   revenue: number;
   commission: number | null;
   commissionAmt: number;

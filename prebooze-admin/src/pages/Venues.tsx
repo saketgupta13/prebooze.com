@@ -370,6 +370,7 @@ export function VenueDetail() {
         {venue.pendingCity && <Tag label={`🏙 City change → ${venue.pendingCity}`} cls="tag-amber" />}
         {venue.hostingEnabled && <Tag label="🎪 Hosting enabled" cls="tag-green" />}
         <div style={{ flex: 1 }} />
+        <Link to={`/payments/details?type=venue&id=${venue.id}`} className="btn btn-ghost btn-sm">Payment details</Link>
         <Link to={`/venues/${venue.id}/edit`} className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Pencil size={13} /> Edit venue</Link>
       </div>
       {venue.address && <div className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>{venue.address} · map pin set <MapPin size={12} /></div>}

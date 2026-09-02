@@ -158,4 +158,16 @@ export class AdminVenuesController {
   rejectCityChange(@Param('id') id: string) {
     return this.directory.rejectVenueCityChange(id);
   }
+
+  @Get(':id/payment-profiles')
+  @RequirePermission('Venues', 'view')
+  paymentProfiles(@Param('id') id: string) {
+    return this.directory.venuePaymentProfiles(id);
+  }
+
+  @Patch(':id/payment-profiles/:profileId')
+  @RequirePermission('Venues', 'edit')
+  updatePaymentProfile(@Param('id') id: string, @Param('profileId') profileId: string, @Body() body: Record<string, unknown>) {
+    return this.directory.updateVenuePaymentProfile(id, profileId, body);
+  }
 }

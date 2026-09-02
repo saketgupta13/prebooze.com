@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Landmark } from 'lucide-react';
 import { Kpi } from '../components/ui';
 import { livePayments, LiveApiError, type LivePayoutRow } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -114,7 +115,15 @@ export default function RunPayoutBatch() {
                 style={{ accentColor: 'var(--green)', width: 14, height: 14 }}
               />
             </span>
-            <span style={{ flex: 1.3, fontWeight: 700 }}>{d.organizer}</span>
+            <span style={{ flex: 1.3, fontWeight: 700 }}>
+              {d.payeeId ? (
+                <Link to={`/payments/details?type=${d.payeeType}&id=${d.payeeId}`} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} title="View payment details (opens in new tab)">
+                  {d.organizer} <Landmark size={12} style={{ opacity: 0.6 }} />
+                </Link>
+              ) : (
+                d.organizer
+              )}
+            </span>
             <span style={{ flex: 1.3 }} className="muted">{d.title}</span>
             <span style={{ flex: 0.9 }}>₹{fmt(d.revenue)}</span>
             <span style={{ flex: 0.9 }}>₹{fmt(d.commissionAmt)} <span className="muted">({d.commission ?? 0}%)</span></span>

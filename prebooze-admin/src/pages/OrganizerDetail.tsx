@@ -79,6 +79,7 @@ export default function OrganizerDetail() {
         <h1 className="display" style={{ fontSize: 18 }}>{org.brandName}</h1>
         {org.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Unverified" cls="" />}
         <div style={{ flex: 1 }} />
+        <Link to={`/payments/details?type=organizer&id=${org.id}`} className="btn btn-ghost btn-sm">Payment details</Link>
         <Link to={`/organizers/${org.id}/edit`} className="btn btn-pri btn-sm"><Pencil size={13} /> Edit organizer</Link>
       </div>
       <div className="small muted">

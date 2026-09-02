@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Check, Landmark } from 'lucide-react';
 import { livePayments, LiveApiError, type LivePayoutRow } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -104,7 +105,15 @@ export default function Payments() {
           {rows.length === 0 && !loading && <div className="trow muted">No payouts due — events only show up here once they've actually happened.</div>}
           {rows.map((r) => (
             <div key={r.id} className="trow" style={{ minWidth: 640, flexWrap: payingId === r.id ? 'wrap' : undefined }}>
-              <span style={{ flex: 1.6, fontWeight: 700 }}>{r.organizer}</span>
+              <span style={{ flex: 1.6, fontWeight: 700 }}>
+                {r.payeeId ? (
+                  <Link to={`/payments/details?type=${r.payeeType}&id=${r.payeeId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} title="View payment details">
+                    {r.organizer} <Landmark size={12} style={{ opacity: 0.6 }} />
+                  </Link>
+                ) : (
+                  r.organizer
+                )}
+              </span>
               <span style={{ flex: 1.6 }} className="muted">{r.title}</span>
               <span style={{ flex: 1 }}>₹{fmt(r.revenue)}</span>
               <span style={{ flex: 1.1 }}>

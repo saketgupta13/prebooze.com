@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Landmark } from 'lucide-react';
 import { livePayments, LiveApiError, type LivePromoterPayoutRow } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -98,7 +100,11 @@ export default function PromoterPayouts() {
         </div>
         {filtered.map((r) => (
           <div key={`${r.eventId}-${r.promoterId}`} className="trow" style={{ minWidth: 760, flexWrap: 'wrap' }}>
-            <span style={{ flex: 1.4, fontWeight: 700 }}>{r.promoterName}</span>
+            <span style={{ flex: 1.4, fontWeight: 700 }}>
+              <Link to={`/payments/details?type=promoter&id=${r.promoterId}`} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} title="View payment details (opens in new tab)">
+                {r.promoterName} <Landmark size={12} style={{ opacity: 0.6 }} />
+              </Link>
+            </span>
             <span style={{ flex: 1.6 }} className="small">{r.eventTitle}</span>
             <span style={{ flex: 1.2 }} className="small muted">{r.organizerBrand}</span>
             <span style={{ flex: 1 }} className="small">
