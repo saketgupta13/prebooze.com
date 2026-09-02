@@ -775,6 +775,13 @@ export const livePayments = {
   /** Records a real transfer you already made yourself — there's no bank
    * integration behind this, so it never moves money or invents a UTR. */
   markPaid: (eventId: string, utr: string) => liveFetch<{ id: string; paidOut: boolean; payoutUtr: string | null }>('/admin/payments/mark-paid', { body: { eventId, utr } }),
+  /** Organizer self-serve ledger withdrawals — instant debits, no approval
+   * step or status field (see OrganizerService.withdraw) — this is
+   * visibility only, same as everything else here. */
+  organizerWithdrawals: () =>
+    liveFetch<
+      { id: string; organizerId: string; organizerName: string; amount: number; bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string }[]
+    >('/admin/payments/organizer-withdrawals'),
   /** Organizer -> promoter money, platform-wide — same real transfer-happens-
    * outside-Prebooze caveat as everything else here; status is whatever the
    * promoter has self-attested (PromoterEventSettlement), admin can't mark it. */

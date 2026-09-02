@@ -7,8 +7,13 @@ import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import { Kpi } from '../components/ui';
 
 const TITLE = 'Payments & payouts';
-const TABS = ['Payouts due', 'Transactions', 'Refunds', 'Disputes'];
+const TABS = ['Payouts due', 'Withdrawal requests', 'Transactions', 'Refunds', 'Disputes'];
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
+
+interface OrganizerWithdrawal {
+  id: string; organizerId: string; organizerName: string; amount: number;
+  bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string;
+}
 
 /** Real per-event payout register (PaymentsService.due/markPaid) — "due"
  * only ever lists events that have actually finished, and marking one paid
@@ -28,6 +33,11 @@ export default function Payments() {
   const [payingId, setPayingId] = useState<string | null>(null);
   const [utrDraft, setUtrDraft] = useState('');
 
+  // Organizer self-serve ledger withdrawals — a separate money flow from
+  // `rows`/`summary` above (per-event payouts due). Loaded alongside since
+  // this page is the one place staff now check for both.
+  const [withdrawals, setWithdrawals] = useState<OrganizerWithdrawal[]>([]);
+
   const load = () => {
     setLoading(true);
     setErr('');
@@ -39,6 +49,7 @@ export default function Payments() {
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
+    livePayments.organizerWithdrawals().then(setWithdrawals).catch(() => {});
   };
 
   useEffect(() => {
@@ -146,6 +157,30 @@ export default function Payments() {
                   <button className="btn btn-ghost btn-sm" onClick={() => setPayingId(null)}>Cancel</button>
                 </div>
               )}
+            </div>
+          ))}
+        </div>
+      ) : tab === 'Withdrawal requests' ? (
+        <div className="tblwrap">
+          <div className="thead" style={{ minWidth: 600 }}>
+            <span style={{ flex: 1.4 }}>Organizer</span>
+            <span style={{ flex: 1 }}>Amount</span>
+            <span style={{ flex: 1.4 }}>Bank</span>
+            <span style={{ flex: 1 }}>Date</span>
+          </div>
+          {withdrawals.length === 0 && !loading && <div className="trow muted">No withdrawal requests yet.</div>}
+          {withdrawals.map((w) => (
+            <div key={w.id} className="trow" style={{ minWidth: 600 }}>
+              <span style={{ flex: 1.4, fontWeight: 700 }}>
+                <Link to={`/payments/details?type=organizer&id=${w.organizerId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} title="View payment details">
+                  {w.organizerName} <Landmark size={12} style={{ opacity: 0.6 }} />
+                </Link>
+              </span>
+              <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(w.amount)}</span>
+              <span style={{ flex: 1.4 }} className="muted small">
+                {w.accountHolderName ? `${w.accountHolderName} · ` : ''}{w.bankLast4 ? `•••• ${w.bankLast4}` : '—'}{w.ifsc ? ` · ${w.ifsc}` : ''}
+              </span>
+              <span style={{ flex: 1 }} className="tiny muted">{new Date(w.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
             </div>
           ))}
         </div>

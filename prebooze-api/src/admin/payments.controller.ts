@@ -23,6 +23,12 @@ export class AdminPaymentsController {
     return this.payments.markPaid(eventId, utr);
   }
 
+  @Get('organizer-withdrawals')
+  @RequirePermission(MODULE, 'view')
+  organizerWithdrawals() {
+    return this.payments.organizerWithdrawals();
+  }
+
   @Get('promoter-payouts')
   @RequirePermission(MODULE, 'view')
   promoterPayoutsAll() {
