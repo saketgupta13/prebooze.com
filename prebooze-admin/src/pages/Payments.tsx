@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Check, Landmark, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { livePayments, liveOrganizers, liveVenues, LiveApiError, type LivePayoutRow, type LivePaymentProfile, type LiveVenuePaymentProfile } from '../lib/liveApi';
 import { PaymentProfileCard } from '../components/PaymentProfileFields';
@@ -232,12 +231,20 @@ export default function Payments() {
             <span style={{ flex: 1 }} />
           </div>
           {withdrawals.length === 0 && !loading && <div className="trow muted">No withdrawal requests yet.</div>}
-          {withdrawals.map((w) => (
-            <div key={w.id} className="trow" style={{ minWidth: 700 }}>
+          {withdrawals.map((w) => {
+            const detailsKey = `organizer:${w.organizerId}`;
+            const detailsOpen = bankDetailsOpen === detailsKey;
+            return (
+            <div key={w.id} className="trow" style={{ minWidth: 700, flexWrap: detailsOpen ? 'wrap' : undefined }}>
               <span style={{ flex: 1.4, fontWeight: 700 }}>
-                <Link to={`/payments/details?type=organizer&id=${w.organizerId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} title="View payment details">
-                  {w.organizerName} <Landmark size={12} style={{ opacity: 0.6 }} />
-                </Link>
+                <button
+                  type="button"
+                  onClick={() => toggleBankDetails('organizer', w.organizerId)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--green)', font: 'inherit', fontWeight: 700 }}
+                  title="Show bank details"
+                >
+                  {w.organizerName} <Landmark size={12} style={{ opacity: 0.6 }} /> {detailsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
               </span>
               <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(w.amount)}</span>
               <span style={{ flex: 1.4 }} className="muted small">
@@ -253,8 +260,18 @@ export default function Payments() {
                   </button>
                 )}
               </span>
+              {detailsOpen && (
+                <div style={{ flex: '1 0 100%', marginTop: 8 }}>
+                  {loadingProfile === detailsKey && <div className="tiny muted">Loading bank details…</div>}
+                  {loadingProfile !== detailsKey && (profileCache[detailsKey]?.length ?? 0) === 0 && (
+                    <div className="tiny muted">No payment profile on file — {w.organizerName} hasn't added one yet.</div>
+                  )}
+                  {profileCache[detailsKey]?.map((p) => <PaymentProfileCard key={p.id} profile={p} />)}
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="ph" style={{ height: 120, borderRadius: 10 }}>{tab} — coming with backend integration</div>
