@@ -9,7 +9,7 @@ import { EVENTS, LINEUPS, ORGANIZERS, TRENDING_SEARCHES, VENUES } from '../data/
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import CityPicker from './CityPicker';
-import { existingRole } from '../lib/roles';
+import { existingRole, type Role } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { useCityList } from '../lib/useCityList';
 import { toCitySlug, cityHome, cityBrowse, cityVenues, eventPath, venuePath, lineupPath, organizerPath } from '../lib/urls';
@@ -111,11 +111,15 @@ export default function Header() {
   const { user, city, logout, orgTeamAccess, venueTeamAccess } = useApp();
   const { logoUrl } = usePlatformInfo();
   const heldRole = existingRole(user);
-  // A role account's display name lives on its brand field, not user.name —
-  // organizer/venue applicants in particular never fill in a guest name at
-  // all (they skip guest profile completion), so falling back to "Profile"
-  // left the header looking broken for every approved/pending role account.
-  const displayName = user?.name || user?.orgBrand || user?.promoterBrand || user?.lineupName || user?.venueName || 'Profile';
+  // A role account's header identity is its brand, not the person's name —
+  // guests are the only role that should ever show a personal name here.
+  const roleBrand: Record<Role, string | undefined> = {
+    organizer: user?.orgBrand,
+    promoter: user?.promoterBrand,
+    lineup: user?.lineupName,
+    venue: user?.venueName,
+  };
+  const displayName = (heldRole && roleBrand[heldRole]) || user?.name || user?.orgBrand || user?.promoterBrand || user?.lineupName || user?.venueName || 'Profile';
   const navigate = useNavigate();
   const location = useLocation();
   const [cityOpen, setCityOpen] = useState(false);
