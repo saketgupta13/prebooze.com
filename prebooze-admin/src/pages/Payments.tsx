@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Landmark, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { Check, Landmark, ChevronDown, ChevronUp } from 'lucide-react';
 import { livePayments, liveOrganizers, liveVenues, LiveApiError, type LivePayoutRow, type LivePaymentProfile, type LiveVenuePaymentProfile } from '../lib/liveApi';
 import { PaymentProfileCard } from '../components/PaymentProfileFields';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -11,7 +11,7 @@ const TABS = ['Payouts due', 'Withdrawal requests', 'Transactions', 'Refunds', '
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
 
 interface OrganizerWithdrawal {
-  id: string; organizerId: string; organizerName: string; amount: number; paidOut: boolean;
+  id: string; organizerId: string; organizerName: string; amount: number; paidOut: boolean; paidUtr: string | null;
   bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string;
 }
 
@@ -68,16 +68,25 @@ export default function Payments() {
     }
   };
 
-  const [markingWithdrawalId, setMarkingWithdrawalId] = useState<string | null>(null);
-  const markWithdrawalPaid = async (id: string) => {
-    setMarkingWithdrawalId(id);
+  // Reuses the exact same payingId/utrDraft expand-and-enter-UTR flow as
+  // Payouts due below (startPay/confirmPay) — same requirement, a real UTR
+  // before this can be marked paid, just against a different endpoint.
+  const [confirmingWithdrawal, setConfirmingWithdrawal] = useState(false);
+  const confirmWithdrawalPay = async (id: string) => {
+    if (!utrDraft.trim()) {
+      setErr('Enter the UTR / reference number from the transfer you made');
+      return;
+    }
+    setErr('');
+    setConfirmingWithdrawal(true);
     try {
-      await livePayments.markOrganizerWithdrawalPaid(id);
-      setWithdrawals((prev) => prev.map((w) => (w.id === id ? { ...w, paidOut: true } : w)));
+      await livePayments.markOrganizerWithdrawalPaid(id, utrDraft.trim());
+      setWithdrawals((prev) => prev.map((w) => (w.id === id ? { ...w, paidOut: true, paidUtr: utrDraft.trim() } : w)));
+      setPayingId(null);
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to mark paid');
     } finally {
-      setMarkingWithdrawalId(null);
+      setConfirmingWithdrawal(false);
     }
   };
 
@@ -235,7 +244,7 @@ export default function Payments() {
             const detailsKey = `organizer:${w.organizerId}`;
             const detailsOpen = bankDetailsOpen === detailsKey;
             return (
-            <div key={w.id} className="trow" style={{ minWidth: 700, flexWrap: detailsOpen ? 'wrap' : undefined }}>
+            <div key={w.id} className="trow" style={{ minWidth: 700, flexWrap: detailsOpen || payingId === w.id ? 'wrap' : undefined }}>
               <span style={{ flex: 1.4, fontWeight: 700 }}>
                 <button
                   type="button"
@@ -253,13 +262,30 @@ export default function Payments() {
               <span style={{ flex: 1 }} className="tiny muted">{new Date(w.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
               <span style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
                 {w.paidOut ? (
-                  <span className="tag tag-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>Paid <Check size={11} /></span>
-                ) : (
-                  <button className="btn btn-pri btn-sm" disabled={markingWithdrawalId === w.id} onClick={() => markWithdrawalPaid(w.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                    {markingWithdrawalId === w.id ? 'Marking…' : <><CheckCircle2 size={12} /> Mark paid</>}
+                  <span className="tag tag-green" title={w.paidUtr ?? undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>Paid <Check size={11} /></span>
+                ) : payingId === w.id ? null : (
+                  <button className="btn btn-ghost btn-sm" onClick={() => startPay(w.id)}>
+                    Mark paid…
                   </button>
                 )}
               </span>
+              {w.paidOut && w.paidUtr && (
+                <span style={{ flex: '1 0 100%', textAlign: 'right' }} className="tiny muted">{w.paidUtr}</span>
+              )}
+              {!w.paidOut && payingId === w.id && (
+                <div style={{ flex: '1 0 100%', display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                  <input
+                    className="input"
+                    style={{ flex: 1 }}
+                    placeholder="Real UTR / transaction reference from the transfer you made"
+                    value={utrDraft}
+                    onChange={(e) => setUtrDraft(e.target.value)}
+                    autoFocus
+                  />
+                  <button className="btn btn-pri btn-sm" disabled={confirmingWithdrawal} onClick={() => confirmWithdrawalPay(w.id)}>{confirmingWithdrawal ? 'Marking…' : 'Confirm'}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setPayingId(null)}>Cancel</button>
+                </div>
+              )}
               {detailsOpen && (
                 <div style={{ flex: '1 0 100%', marginTop: 8 }}>
                   {loadingProfile === detailsKey && <div className="tiny muted">Loading bank details…</div>}

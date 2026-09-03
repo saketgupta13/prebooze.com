@@ -1561,6 +1561,10 @@ model OrganizerLedgerTx {
   // Event.paidOut's shape/naming. VenueLedgerTx has the identical gap,
   // deliberately left unaddressed here — organizer-only per explicit scope.
   withdrawalPaidOut Boolean @default(false)
+  // Real UTR/transaction reference from the transfer, entered by admin at
+  // mark-paid time — same requirement as Event.payoutUtr's mark-paid flow
+  // (PaymentsService.markPaid). Only set once withdrawalPaidOut is true.
+  withdrawalPaidUtr String?
 }
 
 // Organizer's own team/permissions system — same view/edit-per-module shape

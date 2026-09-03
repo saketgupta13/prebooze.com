@@ -110,7 +110,8 @@ export class PaymentsService {
       where: { type: 'withdrawal' },
       select: {
         id: true, organizerId: true, amount: true, createdAt: true,
-        payoutBankLast4: true, payoutAccountHolderName: true, payoutIfsc: true, withdrawalPaidOut: true,
+        payoutBankLast4: true, payoutAccountHolderName: true, payoutIfsc: true,
+        withdrawalPaidOut: true, withdrawalPaidUtr: true,
         organizer: { select: { brandName: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -121,6 +122,7 @@ export class PaymentsService {
       organizerName: r.organizer?.brandName ?? '—',
       amount: Math.abs(r.amount),
       paidOut: r.withdrawalPaidOut,
+      paidUtr: r.withdrawalPaidUtr,
       bankLast4: r.payoutBankLast4,
       accountHolderName: r.payoutAccountHolderName,
       ifsc: r.payoutIfsc,
@@ -128,11 +130,15 @@ export class PaymentsService {
     }));
   }
 
-  async markOrganizerWithdrawalPaid(id: string) {
+  /** Same UTR requirement as PaymentsService.markPaid's per-event flow —
+   * this is bookkeeping only, never moves money, so a real transfer
+   * reference is what makes the record actually mean something. */
+  async markOrganizerWithdrawalPaid(id: string, utr: string) {
+    if (!utr?.trim()) throw new BadRequestException('Enter the real UTR / transaction reference for this transfer');
     const row = await this.prisma.organizerLedgerTx.findUnique({ where: { id } });
     if (!row || row.type !== 'withdrawal') throw new BadRequestException('Withdrawal request not found');
     if (row.withdrawalPaidOut) throw new BadRequestException('Already marked paid');
-    return this.prisma.organizerLedgerTx.update({ where: { id }, data: { withdrawalPaidOut: true } });
+    return this.prisma.organizerLedgerTx.update({ where: { id }, data: { withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim() } });
   }
 
   /** Platform-wide view of the organizer→promoter revenue-share/per-head

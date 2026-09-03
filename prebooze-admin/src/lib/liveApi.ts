@@ -780,9 +780,10 @@ export const livePayments = {
    * visibility only, same as everything else here. */
   organizerWithdrawals: () =>
     liveFetch<
-      { id: string; organizerId: string; organizerName: string; amount: number; paidOut: boolean; bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string }[]
+      { id: string; organizerId: string; organizerName: string; amount: number; paidOut: boolean; paidUtr: string | null; bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string }[]
     >('/admin/payments/organizer-withdrawals'),
-  markOrganizerWithdrawalPaid: (id: string) => liveFetch<{ id: string; withdrawalPaidOut: boolean }>(`/admin/payments/organizer-withdrawals/${id}/mark-paid`, { method: 'POST' }),
+  markOrganizerWithdrawalPaid: (id: string, utr: string) =>
+    liveFetch<{ id: string; withdrawalPaidOut: boolean; withdrawalPaidUtr: string | null }>(`/admin/payments/organizer-withdrawals/${id}/mark-paid`, { method: 'POST', body: { utr } }),
   /** Organizer -> promoter money, platform-wide — same real transfer-happens-
    * outside-Prebooze caveat as everything else here; status is whatever the
    * promoter has self-attested (PromoterEventSettlement), admin can't mark it. */

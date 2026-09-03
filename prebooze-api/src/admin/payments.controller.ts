@@ -31,8 +31,8 @@ export class AdminPaymentsController {
 
   @Post('organizer-withdrawals/:id/mark-paid')
   @RequirePermission(MODULE, 'edit')
-  markOrganizerWithdrawalPaid(@Param('id') id: string) {
-    return this.payments.markOrganizerWithdrawalPaid(id);
+  markOrganizerWithdrawalPaid(@Param('id') id: string, @Body('utr') utr: string) {
+    return this.payments.markOrganizerWithdrawalPaid(id, utr);
   }
 
   @Get('promoter-payouts')
