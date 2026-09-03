@@ -38,7 +38,7 @@ const PUBLIC_ORGANIZER_SELECT = {
 // reasoning as PUBLIC_ORGANIZER_SELECT above.
 const PUBLIC_VENUE_SELECT = {
   id: true, name: true, verified: true, type: true, locality: true, city: true, state: true, country: true, pincode: true, address: true,
-  capacity: true, rating: true, reviewCount: true, followers: true, amenities: true, about: true, timings: true,
+  capacity: true, rating: true, reviewCount: true, followers: true, amenities: true, about: true, timings: true, timingsByDay: true,
   photoHue: true, galleryUrls: true, logoUrl: true, contact: true, rules: true, seo: true, socialLinks: true,
   createdAt: true, updatedAt: true,
 } as const;
