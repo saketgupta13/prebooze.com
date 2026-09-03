@@ -369,7 +369,7 @@ export default function Scanner() {
   return (
     <div className="scanner card-shadow">
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 16px', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Link to="/organizer/attendees" className="small muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Exit scanner</Link>
+        <Link to="/organizer/bookings" className="small muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Exit scanner</Link>
         <select value={eventId} onChange={(e) => setEventId(e.target.value)} style={{ maxWidth: 200 }}>
           {events.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
         </select>

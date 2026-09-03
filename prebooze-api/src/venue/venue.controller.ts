@@ -138,6 +138,11 @@ export class VenueController {
     return this.venue.attendees(req.user.sub, id);
   }
 
+  @Get('hosting/bookings')
+  bookings(@Req() req: AuthedReq) {
+    return this.venue.bookings(req.user.sub);
+  }
+
   @Get('hosting/carts')
   carts(@Req() req: AuthedReq) {
     return this.venue.carts(req.user.sub);

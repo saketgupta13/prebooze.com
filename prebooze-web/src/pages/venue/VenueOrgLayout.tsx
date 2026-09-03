@@ -17,7 +17,7 @@ import type { LucideIcon } from 'lucide-react';
 const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; module?: string }[] = [
   { to: '/venue/hosting', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/venue/hosting/events', label: 'Events', icon: Ticket, module: 'Events & wizard' },
-  { to: '/venue/hosting/attendees', label: 'Attendees', icon: Users, module: 'Attendees & check-in' },
+  { to: '/venue/hosting/bookings', label: 'Bookings', icon: Users, module: 'Attendees & check-in' },
   { to: '/venue/hosting/scanner', label: 'Scanner', icon: QrCode, module: 'Attendees & check-in' },
   { to: '/venue/hosting/guest-list', label: 'Guest list', icon: ClipboardList, module: 'Guest list' },
   { to: '/venue/hosting/live', label: 'Live monitor', icon: Activity, module: 'Attendees & check-in' },

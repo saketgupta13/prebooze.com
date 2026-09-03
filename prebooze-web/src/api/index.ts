@@ -457,6 +457,22 @@ export const promoter = {
   subscription: subscriptionApi('promoter'),
 };
 
+// Booking-level row across every event — one per booking, not per guest
+// (see OrgAttendee below, which stays per-guest for the scanner). Same
+// shape organizer/venue's Bookings page and admin's own Bookings page use.
+export interface OrgBooking {
+  id: string;
+  mainGuest: string;
+  whatsapp: string;
+  tierName: string;
+  qty: number;
+  total: number;
+  status: 'confirmed' | 'cancelled' | 'refunded' | 'refund_requested';
+  checkedIn: boolean;
+  createdAt: string;
+  event: { id: string; title: string; date: string; durationHrs: number };
+}
+
 // ---------- organizer ----------
 export interface OrgAttendee {
   bookingId: string;
@@ -514,6 +530,7 @@ export const organizer = {
     tiers?: { id?: string; name: string; price: number; quantity: number; includes?: string[]; description?: string }[];
   }) => apiFetch<Event>('/organizer/events', { body: e }),
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),
+  bookings: () => apiFetch<OrgBooking[]>('/organizer/bookings'),
   coupons: () => apiFetch<Coupon[]>('/organizer/coupons'),
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/organizer/coupons', { body: c }),
   payouts: () => apiFetch<{ balance: number; ledger: OrgLedgerTx[] }>('/organizer/payouts'),
@@ -816,6 +833,7 @@ export const venuePartner = {
   // above exactly, same real shapes, just scoped to this venue's own
   // hosted events instead of an organizer's ----
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/venue/hosting/events/${eventId}/attendees`),
+  bookings: () => apiFetch<OrgBooking[]>('/venue/hosting/bookings'),
   abandonedCarts: () => apiFetch<CartRecord[]>('/venue/hosting/carts'),
   remindCart: (id: string) => apiFetch<void>(`/venue/hosting/carts/${id}/remind`, { method: 'POST' }),
   guestList: (eventId: string) => apiFetch<{ entries: OrgGuestListEntry[]; namesCount: number; totalHeads: number; arrived: number }>(`/venue/hosting/events/${eventId}/guest-list`),

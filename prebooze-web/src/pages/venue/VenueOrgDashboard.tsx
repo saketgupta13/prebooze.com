@@ -200,7 +200,7 @@ export default function VenueOrgDashboard() {
                   </span>
                 </div>
               </div>
-              <Link to={`/venue/hosting/attendees?event=${e.id}`} className="btn btn-ghost btn-sm">
+              <Link to={`/venue/hosting/bookings?event=${e.id}`} className="btn btn-ghost btn-sm">
                 Attendees →
               </Link>
             </div>

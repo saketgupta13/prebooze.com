@@ -59,7 +59,7 @@ const OrganizerLayout = lazy(() => import('./pages/organizer/OrganizerLayout'));
 const Dashboard = lazy(() => import('./pages/organizer/Dashboard'));
 const MyEvents = lazy(() => import('./pages/organizer/MyEvents'));
 const CreateEvent = lazy(() => import('./pages/organizer/CreateEvent'));
-const Attendees = lazy(() => import('./pages/organizer/Attendees'));
+const Bookings = lazy(() => import('./pages/organizer/Bookings'));
 const Scanner = lazy(() => import('./pages/organizer/Scanner'));
 const Coupons = lazy(() => import('./pages/organizer/Coupons'));
 const Payouts = lazy(() => import('./pages/organizer/Payouts'));
@@ -121,7 +121,7 @@ const VenueHostedEvents = lazy(() => import('./pages/venue/VenueHostedEvents'));
 const CreateHostedEvent = lazy(() => import('./pages/venue/CreateHostedEvent'));
 const VenueLedger = lazy(() => import('./pages/venue/VenueLedger'));
 const VenueWithdraw = lazy(() => import('./pages/venue/VenueWithdraw'));
-const VenueAttendees = lazy(() => import('./pages/venue/VenueAttendees'));
+const VenueBookings = lazy(() => import('./pages/venue/VenueBookings'));
 const VenueGuestList = lazy(() => import('./pages/venue/VenueGuestList'));
 const VenueLiveMonitor = lazy(() => import('./pages/venue/VenueLiveMonitor'));
 const VenueAbandonedCarts = lazy(() => import('./pages/venue/VenueAbandonedCarts'));
@@ -423,7 +423,7 @@ export default function App() {
           <Route path="events" element={<MyEvents />} />
           <Route path="events/create" element={<CreateEvent />} />
           <Route path="events/:id/edit" element={<CreateEvent />} />
-          <Route path="attendees" element={<Attendees />} />
+          <Route path="bookings" element={<Bookings />} />
           <Route path="scanner" element={<Scanner />} />
           <Route path="coupons" element={<Coupons />} />
           <Route path="carts" element={<OrgAbandonedCarts />} />
@@ -479,7 +479,7 @@ export default function App() {
           <Route path="events" element={<VenueHostedEvents />} />
           <Route path="events/create" element={<CreateHostedEvent />} />
           <Route path="events/:id/edit" element={<CreateHostedEvent />} />
-          <Route path="attendees" element={<VenueAttendees />} />
+          <Route path="bookings" element={<VenueBookings />} />
           <Route path="guest-list" element={<VenueGuestList />} />
           <Route path="live" element={<VenueLiveMonitor />} />
           <Route path="carts" element={<VenueAbandonedCarts />} />

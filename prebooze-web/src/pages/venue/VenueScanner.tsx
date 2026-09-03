@@ -346,7 +346,7 @@ export default function VenueScanner() {
   return (
     <div className="scanner card-shadow">
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 16px', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Link to="/venue/hosting/attendees" className="small muted">← Exit scanner</Link>
+        <Link to="/venue/hosting/bookings" className="small muted">← Exit scanner</Link>
         <select value={eventId} onChange={(e) => setEventId(e.target.value)} style={{ maxWidth: 200 }}>
           {events.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
         </select>

@@ -17,7 +17,7 @@ import {
 const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; module?: string | 'owner' }[] = [
   { to: '/organizer', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/organizer/events', label: 'Events', icon: Ticket, module: 'Events & wizard' },
-  { to: '/organizer/attendees', label: 'Attendees', icon: Users, module: 'Attendees & check-in' },
+  { to: '/organizer/bookings', label: 'Bookings', icon: Users, module: 'Attendees & check-in' },
   { to: '/organizer/scanner', label: 'Scanner', icon: Camera, module: 'Attendees & check-in' },
   { to: '/organizer/guestlist', label: 'Guest list', icon: ClipboardList, module: 'Guest list' },
   { to: '/organizer/live', label: 'Live monitor', icon: Radio, module: 'Attendees & check-in' },

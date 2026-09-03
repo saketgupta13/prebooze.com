@@ -508,6 +508,24 @@ export class OrganizerService {
     });
   }
 
+  /** Booking-level view across every one of this organizer's events, same
+   * shape as admin's Bookings page (one row per booking, not per guest) —
+   * attendees() above stays per-guest for the scanner/dashboard, which
+   * genuinely need one row per person; this is for a real "what did I
+   * sell" register, event-grouped with a live/past split, built
+   * client-side the same way admin's Bookings.tsx does it. */
+  async bookings(userId: string) {
+    const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'view');
+    return this.prisma.booking.findMany({
+      where: { event: { organizerId: org.id } },
+      select: {
+        id: true, mainGuest: true, whatsapp: true, tierName: true, qty: true, total: true, status: true, checkedIn: true, createdAt: true,
+        event: { select: { id: true, title: true, date: true, durationHrs: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   // ---------- coupons ----------
   async coupons(userId: string) {
     const org = await this.orgAccess.require(userId, 'Coupons', 'view');

@@ -218,7 +218,7 @@ export default function Dashboard() {
                   </span>
                 </div>
               </div>
-              <Link to={`/organizer/attendees?event=${e.id}`} className="btn btn-ghost btn-sm">
+              <Link to={`/organizer/bookings?event=${e.id}`} className="btn btn-ghost btn-sm">
                 Attendees →
               </Link>
             </div>

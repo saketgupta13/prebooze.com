@@ -399,6 +399,21 @@ export class VenueService {
     });
   }
 
+  /** Mirrors OrganizerService.bookings() exactly, scoped to this venue's
+   * own hosted events instead of an organizer's — booking-level rows, same
+   * shape admin's Bookings page uses. */
+  async bookings(userId: string) {
+    const venue = await this.venueAccess.require(userId, 'Attendees & check-in', 'view');
+    return this.prisma.booking.findMany({
+      where: { event: { venueId: venue.id, hostedByVenue: true } },
+      select: {
+        id: true, mainGuest: true, whatsapp: true, tierName: true, qty: true, total: true, status: true, checkedIn: true, createdAt: true,
+        event: { select: { id: true, title: true, date: true, durationHrs: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   // ---------- gate ops: guest list (mirrors OrganizerService, reuses the
   // same AdminGuestListService — GuestListEntry has no organizer/venue FK
   // at all, just eventId, so the shared CRUD needs no changes) ----------

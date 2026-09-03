@@ -86,6 +86,11 @@ export class OrganizerController {
     return this.organizer.attendees(req.user.sub, id);
   }
 
+  @Get('bookings')
+  bookings(@Req() req: AuthedReq) {
+    return this.organizer.bookings(req.user.sub);
+  }
+
   @Get('coupons')
   coupons(@Req() req: AuthedReq) {
     return this.organizer.coupons(req.user.sub);
