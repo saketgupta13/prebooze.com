@@ -113,6 +113,10 @@ export interface PromoterConfig {
   revenueShare?: Record<string, number>;
 }
 
+export type VenueDayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+export type VenueDayTiming = { open: string; close: string; closed: boolean };
+export type VenueTimingsByDay = Partial<Record<VenueDayKey, VenueDayTiming>>;
+
 export interface Venue {
   id: string;
   name: string;
@@ -134,7 +138,8 @@ export interface Venue {
   followers: number;
   amenities: string[];
   about: string;
-  timings?: string; // e.g. "Wed–Sun · 8 PM – 2 AM"
+  timings?: string; // legacy free-text ("Wed–Sun · 8 PM – 2 AM") — display fallback for venues never re-saved since timingsByDay shipped
+  timingsByDay?: VenueTimingsByDay | null;
   photoHue: number;
   galleryUrls?: string[]; // real, uploaded via POST /venue/upload
   logoUrl?: string | null; // real, uploaded via POST /venue/upload — same role as Organizer.logoUrl

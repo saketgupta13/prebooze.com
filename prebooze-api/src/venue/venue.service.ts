@@ -26,6 +26,7 @@ interface OnboardInput {
   capacity?: number;
   amenities?: string[];
   timings?: string;
+  timingsByDay?: Prisma.InputJsonValue;
   about?: string;
   galleryUrls?: string[];
   logoUrl?: string;
@@ -190,6 +191,7 @@ export class VenueService {
       amenities: input.amenities ?? [],
       about: input.about.trim(),
       timings: input.timings,
+      timingsByDay: input.timingsByDay,
       photoHue: h,
       logoUrl: input.logoUrl,
       contactPerson: input.contactPerson?.trim(),
@@ -260,6 +262,7 @@ export class VenueService {
         capacity: patch.capacity !== undefined ? Number(patch.capacity) : undefined,
         amenities: patch.amenities,
         timings: patch.timings,
+        timingsByDay: patch.timingsByDay,
         about: patch.about?.trim(),
         galleryUrls: patch.galleryUrls,
         logoUrl: patch.logoUrl,

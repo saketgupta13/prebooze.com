@@ -465,12 +465,16 @@ export interface LiveLineup {
   state: string | null; country: string | null; pincode: string | null; bio: string; logoUrl: string | null;
   links: string[]; followers: number; eventsPlayed: number; hue: number; emoji: string; seo: Seo | null;
 }
+export type VenueDayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+export type VenueDayTiming = { open: string; close: string; closed: boolean };
+export type VenueTimingsByDay = Partial<Record<VenueDayKey, VenueDayTiming>>;
 export interface LiveVenue {
   id: string; name: string; verified: boolean; type: string; locality: string; city: string;
   userId: string | null;
   state: string | null; country: string | null; pincode: string | null; pendingCity: string | null;
   address: string;
   capacity: number; rating: number; followers: number; amenities: string[]; about: string; timings: string | null;
+  timingsByDay: VenueTimingsByDay | null;
   photoHue: number; license: string | null; contact: string | null; rules: string | null; seo: Seo | null;
   contactPerson: string | null; contactPersonPhone: string | null;
   socialLinks: { instagram?: string; facebook?: string; other?: string[] } | null;
@@ -1115,6 +1119,15 @@ export const liveVenueTypes = {
   update: (name: string, body: { icon?: string; sort?: number }) =>
     liveFetch<LiveVenueType>(`/admin/venue-types/${encodeURIComponent(name)}`, { method: 'PATCH', body }),
   remove: (name: string) => liveFetch<{ ok: true }>(`/admin/venue-types/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+};
+
+export interface LiveAmenity { name: string; icon: string | null; sort: number; venues: number; }
+export const liveAmenities = {
+  list: () => liveFetch<LiveAmenity[]>('/admin/amenities'),
+  add: (name: string, icon?: string) => liveFetch<LiveAmenity>('/admin/amenities', { body: { name, icon } }),
+  update: (name: string, body: { icon?: string; sort?: number }) =>
+    liveFetch<LiveAmenity>(`/admin/amenities/${encodeURIComponent(name)}`, { method: 'PATCH', body }),
+  remove: (name: string) => liveFetch<{ ok: true }>(`/admin/amenities/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 };
 
 export interface LivePromo {

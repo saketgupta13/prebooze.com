@@ -316,7 +316,7 @@ const PAYMENT_PROFILE_EDITABLE = [
 const PROMOTER_EDITABLE = ['name', 'city', 'state', 'country', 'pincode', 'bio', 'contact', 'links', 'planId', 'seo', 'logoUrl'];
 const LINEUP_EDITABLE = ['name', 'category', 'city', 'state', 'country', 'pincode', 'bio', 'links', 'logoUrl', 'seo'];
 const VENUE_EDITABLE = [
-  'name', 'type', 'locality', 'city', 'state', 'country', 'pincode', 'address', 'capacity', 'amenities', 'about', 'timings', 'license', 'contact', 'rules', 'seo',
+  'name', 'type', 'locality', 'city', 'state', 'country', 'pincode', 'address', 'capacity', 'amenities', 'about', 'timings', 'timingsByDay', 'license', 'contact', 'rules', 'seo',
   'contactPerson', 'contactPersonPhone', 'socialLinks', 'logoUrl', 'galleryUrls',
 ];
 

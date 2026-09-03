@@ -245,7 +245,8 @@ model Venue {
   followers   Int      @default(0)
   amenities   String[] @default([])
   about       String
-  timings     String?
+  timings     String? // legacy free-text ("Wed–Sun · 8 PM – 2 AM") — kept for display fallback on venues never re-saved since timingsByDay shipped
+  timingsByDay Json? // per-day structured hours: { mon: { open, close, closed }, tue: {...}, ... } — HH:mm 24h strings
   photoHue    Int
   events      Event[]
 
@@ -737,6 +738,16 @@ model TrendingSearch {
 // from, replacing the free-text venue-type input with a real multi-select
 // and giving each tag a real "N events at this type of venue" count.
 model VenueType {
+  name String  @id
+  icon String?
+  sort Int     @default(0)
+}
+
+// Same real, admin-managed vocabulary pattern as VenueType — Venue.amenities
+// stays a plain String[] column (not a relation), this is just the taxonomy
+// those values get picked from/added to, so a custom amenity typed on one
+// venue becomes reusable on every other venue instead of a one-off string.
+model Amenity {
   name String  @id
   icon String?
   sort Int     @default(0)

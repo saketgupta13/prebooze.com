@@ -152,6 +152,11 @@ export class CatalogController {
     return this.catalog.venueTypes();
   }
 
+  @Get('amenities')
+  amenities() {
+    return this.catalog.amenities();
+  }
+
   @Get('search')
   search(@Query('q') q: string) {
     return this.catalog.search(q ?? '');

@@ -8,13 +8,14 @@ import Loader from '../../components/Loader';
 import LocationPicker, { emptyLocation, type LocationValue } from '../../components/LocationPicker';
 import { venuePartner, catalog } from '../../api';
 import { ApiError, isBackendEnabled } from '../../api/client';
-import type { Venue } from '../../types';
+import type { Venue, VenueTimingsByDay } from '../../types';
 import { venuePath } from '../../lib/urls';
-import { AlertCircle, Upload, CheckCircle2, Check, MapPin, Clock, Info, Camera } from 'lucide-react';
+import { AlertCircle, Upload, CheckCircle2, Check, MapPin, Info, Camera } from 'lucide-react';
+import VenueTimingsEditor from '../../components/VenueTimingsEditor';
 
 // Offline fallback only — see the live fetch below.
 const VENUE_TYPES_FALLBACK = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
-const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
+const AMENITIES_FALLBACK = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
 
 /** Venue.type is stored as a comma-joined string (same convention as
  * Organizer.eventTypes) so multi-select needs no schema change — split for
@@ -42,7 +43,7 @@ export default function VenueListing() {
   const [capacity, setCapacity] = useState('');
   const [amenities, setAmenities] = useState<string[]>([]);
   const [about, setAbout] = useState('');
-  const [timings, setTimings] = useState('');
+  const [timingsByDay, setTimingsByDay] = useState<VenueTimingsByDay>({});
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -59,6 +60,13 @@ export default function VenueListing() {
   }, []);
   const VENUE_TYPES = venueTypeOptions ?? (isBackendEnabled() ? [] : VENUE_TYPES_FALLBACK);
 
+  const [amenityOptions, setAmenityOptions] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.amenities().then((rows) => setAmenityOptions(rows.map((r) => r.name))).catch(() => setAmenityOptions([]));
+  }, []);
+  const AMENITIES = amenityOptions ?? (isBackendEnabled() ? [] : AMENITIES_FALLBACK);
+
   useEffect(() => {
     venuePartner
       .myListing()
@@ -72,7 +80,7 @@ export default function VenueListing() {
         setCapacity(String(v.capacity));
         setAmenities(v.amenities);
         setAbout(v.about);
-        setTimings(v.timings ?? '');
+        setTimingsByDay(v.timingsByDay ?? {});
         setGalleryUrls(v.galleryUrls ?? []);
         setLogoUrl(v.logoUrl ?? null);
         setContactPerson(v.contactPerson ?? '');
@@ -106,7 +114,7 @@ export default function VenueListing() {
       const updated = await venuePartner.updateListing({
         name: name.trim(), type: vtypes.join(', '), address: address.trim(),
         city: loc.city, state: loc.state || undefined, country: loc.country || undefined, pincode: loc.pincode || undefined,
-        capacity: Number(capacity), amenities, about: about.trim(), timings: timings.trim() || undefined,
+        capacity: Number(capacity), amenities, about: about.trim(), timingsByDay: Object.keys(timingsByDay).length ? timingsByDay : undefined,
         galleryUrls, logoUrl: logoUrl || undefined,
         contactPerson: contactPerson.trim() || undefined,
         contactPersonPhone: contactPersonPhone.trim() || undefined,
@@ -202,10 +210,7 @@ export default function VenueListing() {
             ))}
           </div>
         </div>
-        <div className="field">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Clock size={13} /> Timings</span>
-          <input value={timings} onChange={(e) => setTimings(e.target.value)} placeholder="e.g. Wed–Sun · 8 PM – 1 AM" />
-        </div>
+        <VenueTimingsEditor value={timingsByDay} onChange={setTimingsByDay} />
         <div className="field">
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Info size={13} /> About the venue</span>
           <WysiwygEditor value={about} onChange={setAbout} minHeight={80} />

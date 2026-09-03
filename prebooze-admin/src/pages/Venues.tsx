@@ -1,7 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, X, Pencil, MapPin, Clock, Link2, Info } from 'lucide-react';
-import { AMENITY_PRESETS } from '../store/data';
 import { fmt } from '../store/data';
 import { CityFilterDropdown, eventStatusTag, GradientPhoto, Kpi, LiveLocationPicker, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
@@ -9,22 +8,45 @@ import MapEmbed from '../components/MapEmbed';
 import RealImageUpload, { RealGalleryUpload } from '../components/RealImageUpload';
 import WysiwygEditor from '../components/WysiwygEditor';
 import AdminChangePhone from '../components/AdminChangePhone';
-import { liveVenues, liveEvents, liveVenueTypes, liveVenueHosting, liveCustomers, LiveApiError, type LiveVenue, type LiveEvent, type LiveVenueType, type LiveVenueHostingRequest } from '../lib/liveApi';
+import {
+  liveVenues, liveEvents, liveVenueTypes, liveAmenities, liveVenueHosting, liveCustomers, LiveApiError,
+  type LiveVenue, type LiveEvent, type LiveVenueType, type LiveAmenity, type LiveVenueHostingRequest,
+  type VenueTimingsByDay, type VenueDayKey,
+} from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import PlansAndSubscribers from '../components/PlansAndSubscribers';
 import type { Seo } from '../types';
 
-/** Chip-based amenities editor with presets + custom add. */
+/** Chip-based amenities editor, toggled from the real, admin-managed
+ * Amenity list (Content > Amenities) — same VenueTypeEditor pattern below,
+ * except this one also lets you type a brand-new amenity: that calls
+ * liveAmenities.add() first (an upsert-by-name, so it's a no-op if it
+ * already exists), which is what makes it reusable on every other venue
+ * instead of a one-off string on just this one. */
 function AmenitiesEditor({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const [options, setOptions] = useState<LiveAmenity[]>([]);
   const [custom, setCustom] = useState('');
+  useEffect(() => { liveAmenities.list().then(setOptions).catch(() => setOptions([])); }, []);
   const toggle = (a: string) => onChange(value.includes(a) ? value.filter((x) => x !== a) : [...value, a]);
-  const options = [...new Set([...AMENITY_PRESETS, ...value])];
+  const names = [...new Set([...options.map((o) => o.name), ...value])];
+  const add = async () => {
+    const n = custom.trim();
+    if (!n) return;
+    setCustom('');
+    try {
+      const created = await liveAmenities.add(n);
+      setOptions((prev) => (prev.some((o) => o.name === created.name) ? prev : [...prev, created]));
+    } catch {
+      // still usable on this venue even if the reusable-list write failed
+    }
+    if (!value.includes(n)) onChange([...value, n]);
+  };
   return (
     <div className="field">
       <label>Amenities</label>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-        {options.map((a) => (
+        {names.map((a) => (
           <button key={a} type="button" className={`chip ${value.includes(a) ? 'on' : ''}`} onClick={() => toggle(a)}>
             {value.includes(a) ? '✓ ' : ''}{a}
           </button>
@@ -36,25 +58,10 @@ function AmenitiesEditor({ value, onChange }: { value: string[]; onChange: (v: s
           style={{ flex: 1 }}
           value={custom}
           onChange={(e) => setCustom(e.target.value)}
-          placeholder="add a custom amenity…"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              if (custom.trim() && !value.includes(custom.trim())) onChange([...value, custom.trim()]);
-              setCustom('');
-            }
-          }}
+          placeholder="add a new amenity — saved for every venue…"
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
         />
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={() => {
-            if (custom.trim() && !value.includes(custom.trim())) onChange([...value, custom.trim()]);
-            setCustom('');
-          }}
-        >
-          + Add
-        </button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={add}>+ Add</button>
       </div>
     </div>
   );
@@ -82,6 +89,55 @@ function VenueTypeEditor({ value, onChange }: { value: string; onChange: (v: str
           </button>
         ))}
         {options.length === 0 && <span className="tiny muted">No venue types configured yet — add some under Content &gt; Venue types.</span>}
+      </div>
+    </div>
+  );
+}
+
+const TIMING_DAYS: { key: VenueDayKey; label: string }[] = [
+  { key: 'mon', label: 'Mon' }, { key: 'tue', label: 'Tue' }, { key: 'wed', label: 'Wed' }, { key: 'thu', label: 'Thu' },
+  { key: 'fri', label: 'Fri' }, { key: 'sat', label: 'Sat' }, { key: 'sun', label: 'Sun' },
+];
+const TIMING_DEFAULT = { open: '18:00', close: '01:00', closed: false };
+
+/** Per-day open/close hours, independent per weekday — replaces the old
+ * single free-text "Wed–Sun · 8 PM – 1 AM" string, which couldn't express a
+ * venue with different hours on different days at all. "Copy to all days"
+ * on a row applies that row's hours to every other day in one click, since
+ * most venues keep the same hours most of the week and retyping 7 times was
+ * the actual friction the old field couldn't help with either. */
+function TimingsEditor({ value, onChange }: { value: VenueTimingsByDay; onChange: (v: VenueTimingsByDay) => void }) {
+  const dayVal = (k: VenueDayKey) => value[k] ?? TIMING_DEFAULT;
+  const setDay = (k: VenueDayKey, patch: Partial<typeof TIMING_DEFAULT>) => onChange({ ...value, [k]: { ...dayVal(k), ...patch } });
+  const copyToAll = (k: VenueDayKey) => {
+    const src = dayVal(k);
+    const next: VenueTimingsByDay = {};
+    for (const d of TIMING_DAYS) next[d.key] = { ...src };
+    onChange(next);
+  };
+  return (
+    <div className="field">
+      <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Clock size={13} /> Timings</label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {TIMING_DAYS.map((d) => {
+          const t = dayVal(d.key);
+          return (
+            <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ width: 32, fontSize: 12, fontWeight: 700 }}>{d.label}</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5 }}>
+                <input type="checkbox" checked={t.closed} onChange={(e) => setDay(d.key, { closed: e.target.checked })} /> Closed
+              </label>
+              {!t.closed && (
+                <>
+                  <input type="time" className="input" style={{ padding: '4px 6px', fontSize: 12, width: 100 }} value={t.open} onChange={(e) => setDay(d.key, { open: e.target.value })} />
+                  <span style={{ fontSize: 11 }}>–</span>
+                  <input type="time" className="input" style={{ padding: '4px 6px', fontSize: 12, width: 100 }} value={t.close} onChange={(e) => setDay(d.key, { close: e.target.value })} />
+                </>
+              )}
+              <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '2px 7px', fontSize: 11 }} onClick={() => copyToAll(d.key)}>Copy to all days</button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -435,7 +491,7 @@ export function AddVenue() {
   const [socialLinks, setSocialLinks] = useState<{ instagram?: string; facebook?: string; other?: string[] } | null>(null);
   const [rules, setRules] = useState('');
   const [about, setAbout] = useState('');
-  const [timings, setTimings] = useState('');
+  const [timingsByDay, setTimingsByDay] = useState<VenueTimingsByDay>({});
   const [amenities, setAmenities] = useState<string[]>([]);
 
   const gate = useLiveGate('Add venue', session);
@@ -453,7 +509,8 @@ export function AddVenue() {
         address: address.trim() || undefined, capacity: capacity ? parseInt(capacity, 10) : undefined, type,
       });
       await liveVenues.update(created.id, {
-        contact: contact.trim() || undefined, rules: rules.trim() || undefined, about: about.trim() || undefined, timings: timings.trim() || undefined, amenities,
+        contact: contact.trim() || undefined, rules: rules.trim() || undefined, about: about.trim() || undefined,
+        timingsByDay: Object.keys(timingsByDay).length ? timingsByDay : undefined, amenities,
         contactPerson: contactPerson.trim() || undefined, contactPersonPhone: contactPersonPhone.trim() || undefined, socialLinks: socialLinks ?? undefined,
       });
       navigate('/venues');
@@ -486,8 +543,7 @@ export function AddVenue() {
       <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Business contact email" />
       <input className="input" value={rules} onChange={(e) => setRules(e.target.value)} placeholder="House rules / notes" />
       <div className="card" style={{ padding: 12 }}>
-        <div className="tiny" style={{ fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Clock size={13} /> Timings</div>
-        <input className="input" value={timings} onChange={(e) => setTimings(e.target.value)} placeholder="e.g. Wed–Sun · 8 PM – 1 AM" />
+        <TimingsEditor value={timingsByDay} onChange={setTimingsByDay} />
       </div>
       <div className="card" style={{ padding: 12 }}>
         <div className="tiny" style={{ fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Info size={13} /> About the venue</div>
@@ -525,7 +581,7 @@ export function EditVenue() {
   const [socialLinks, setSocialLinks] = useState<{ instagram?: string; facebook?: string; other?: string[] } | null>(null);
   const [rules, setRules] = useState('');
   const [about, setAbout] = useState('');
-  const [timings, setTimings] = useState('');
+  const [timingsByDay, setTimingsByDay] = useState<VenueTimingsByDay>({});
   const [verified, setVerified] = useState(false);
   const [amenities, setAmenities] = useState<string[]>([]);
   const [seo, setSeo] = useState<Seo>(emptySeo());
@@ -558,7 +614,7 @@ export function EditVenue() {
           setSocialLinks(v.socialLinks ?? null);
           setRules(v.rules ?? '');
           setAbout(v.about ?? '');
-          setTimings(v.timings ?? '');
+          setTimingsByDay(v.timingsByDay ?? {});
           setVerified(v.verified);
           setAmenities(v.amenities);
           setSeo((v.seo as Seo | null) ?? emptySeo());
@@ -610,7 +666,7 @@ export function EditVenue() {
         socialLinks: socialLinks ?? undefined,
         rules: rules.trim() || undefined,
         about: about.trim() || undefined,
-        timings: timings.trim() || undefined,
+        timingsByDay: Object.keys(timingsByDay).length ? timingsByDay : undefined,
         amenities,
         seo,
         logoUrl,
@@ -723,10 +779,7 @@ export function EditVenue() {
         <label>House rules / notes</label>
         <input className="input" value={rules} onChange={(e) => setRules(e.target.value)} />
       </div>
-      <div className="field">
-        <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Clock size={13} /> Timings</label>
-        <input className="input" value={timings} onChange={(e) => setTimings(e.target.value)} placeholder="e.g. Wed–Sun · 8 PM – 1 AM" />
-      </div>
+      <TimingsEditor value={timingsByDay} onChange={setTimingsByDay} />
       <div className="field">
         <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Info size={13} /> About the venue</label>
         <WysiwygEditor value={about} onChange={setAbout} minHeight={60} />

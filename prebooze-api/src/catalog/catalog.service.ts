@@ -570,6 +570,14 @@ export class CatalogService {
     return types.map((t) => ({ name: t.name, icon: t.icon ?? undefined, events: counts.get(t.name) ?? 0 }));
   }
 
+  /** Real, admin-managed amenity tags (Admin > Content > Amenities) — the
+   * vocabulary venue onboarding/listing pick chips from, same "real
+   * taxonomy, not a hardcoded frontend array" pattern as venueTypes(). */
+  async amenities() {
+    const rows = await this.prisma.amenity.findMany({ orderBy: { sort: 'asc' } });
+    return rows.map((a) => ({ name: a.name, icon: a.icon ?? undefined }));
+  }
+
   // ---------- search ----------
   async search(q: string) {
     if (!q.trim()) return [];

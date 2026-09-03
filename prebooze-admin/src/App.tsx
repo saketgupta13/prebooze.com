@@ -31,6 +31,7 @@ import { Banners, Blogs, Pages } from './pages/Content';
 import Categories from './pages/Categories';
 import TrendingSearches from './pages/TrendingSearches';
 import VenueTypes from './pages/VenueTypes';
+import Amenities from './pages/Amenities';
 import StaffRoles from './pages/StaffRoles';
 import LiveMonitor from './pages/LiveMonitor';
 import LiveMonitorOverview from './pages/LiveMonitorOverview';
@@ -131,6 +132,7 @@ export default function App() {
         <Route path="/categories/:name/edit" element={<CategoryEdit />} />
         <Route path="/trending" element={<TrendingSearches />} />
         <Route path="/venue-types" element={<VenueTypes />} />
+        <Route path="/amenities" element={<Amenities />} />
         <Route path="/blogs" element={<Blogs />} />
         <Route path="/blogs/new" element={<BlogEditor />} />
         <Route path="/blogs/categories" element={<BlogCategories />} />

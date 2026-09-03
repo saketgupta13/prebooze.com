@@ -13,16 +13,18 @@ import { auth, venuePartner, catalog } from '../../api';
 import { isBackendEnabled, ApiError } from '../../api/client';
 import { pushEvent } from '../../lib/gtm';
 import { trackMeta } from '../../lib/meta';
-import { CheckCircle2, Landmark, BadgeCheck, Check, Upload, Clock, Info, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Landmark, BadgeCheck, Check, Upload, Info, AlertCircle } from 'lucide-react';
 import { useDraftLead } from '../../lib/useDraftLead';
 import { cityVenues } from '../../lib/urls';
+import VenueTimingsEditor from '../../components/VenueTimingsEditor';
+import type { VenueTimingsByDay } from '../../types';
 
-// Offline/dev-mode fallback only — the real, admin-managed list (Admin >
-// Content > Venue types) is fetched below and used whenever a backend is
-// configured, same "mock is never a loading placeholder in production"
-// rule as every other real-taxonomy fetch in this app.
+// Offline/dev-mode fallback only — the real, admin-managed lists (Admin >
+// Content > Venue types / Amenities) are fetched below and used whenever a
+// backend is configured, same "mock is never a loading placeholder in
+// production" rule as every other real-taxonomy fetch in this app.
 const VENUE_TYPES_FALLBACK = ['Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
-const AMENITIES = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
+const AMENITIES_FALLBACK = ['Parking', 'Smoking area', 'Dance floor', 'Live sound rig', 'VIP tables', 'Outdoor seating', 'Food & kitchen', 'Full bar', 'Wheelchair access', 'Valet'];
 
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -36,11 +38,11 @@ const DRAFT_ID = 'venue';
 // live in React state — fine across step 1 <-> step 2 within the same visit.
 type Draft = {
   name: string; vtypes: string[]; loc: LocationValue; address: string; capacity: string;
-  amenities: string[]; timings: string; about: string;
+  amenities: string[]; timingsByDay: VenueTimingsByDay; about: string;
 };
 const emptyDraft: Draft = {
   name: '', vtypes: [VENUE_TYPES_FALLBACK[0]], loc: emptyLocation(), address: '', capacity: '',
-  amenities: [], timings: '', about: '',
+  amenities: [], timingsByDay: {}, about: '',
 };
 
 /** Venue-partner onboarding — self-serve, minimal, single-step, same
@@ -61,7 +63,7 @@ export default function VenueOnboarding() {
   const [address, setAddress] = useState(draft0.address);
   const [capacity, setCapacity] = useState(draft0.capacity);
   const [amenities, setAmenities] = useState<string[]>(draft0.amenities);
-  const [timings, setTimings] = useState(draft0.timings);
+  const [timingsByDay, setTimingsByDay] = useState<VenueTimingsByDay>(draft0.timingsByDay ?? {});
   const [about, setAbout] = useState(draft0.about);
   const [logoUrl, setLogoUrl] = useState('');
   const [logoUploading, setLogoUploading] = useState(false);
@@ -77,17 +79,24 @@ export default function VenueOnboarding() {
   }, []);
   const VENUE_TYPES = venueTypeOptions ?? (isBackendEnabled() ? [] : VENUE_TYPES_FALLBACK);
 
+  const [amenityOptions, setAmenityOptions] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    catalog.amenities().then((rows) => setAmenityOptions(rows.map((r) => r.name))).catch(() => setAmenityOptions([]));
+  }, []);
+  const AMENITIES = amenityOptions ?? (isBackendEnabled() ? [] : AMENITIES_FALLBACK);
+
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState('');
 
   useEffect(() => {
     try {
-      saveDraft(DRAFT_ID, { name, vtypes, loc, address, capacity, amenities, timings, about });
+      saveDraft(DRAFT_ID, { name, vtypes, loc, address, capacity, amenities, timingsByDay, about });
     } catch {
       // best-effort — a full localStorage quota shouldn't block onboarding itself
     }
-  }, [name, vtypes, loc, address, capacity, amenities, timings, about]);
+  }, [name, vtypes, loc, address, capacity, amenities, timingsByDay, about]);
 
   useDraftLead('venue', name, { city: loc.city, eventType: vtypes.join(', ') });
 
@@ -120,7 +129,7 @@ export default function VenueOnboarding() {
         followers: 0,
         amenities,
         about: about.trim(),
-        timings: timings.trim() || undefined,
+        timingsByDay: Object.keys(timingsByDay).length ? timingsByDay : undefined,
         photoHue: Math.floor(Math.random() * 360),
         logoUrl: logoUrl || undefined,
         contactPerson: contactPerson.trim() || undefined,
@@ -139,7 +148,7 @@ export default function VenueOnboarding() {
     try {
       await venuePartner.onboard({
         name: name.trim(), type: vtypes.join(', '), city: loc.city, state: loc.state || undefined, country: loc.country || undefined, pincode: loc.pincode || undefined, address: address.trim(),
-        capacity: Number(capacity), amenities, timings: timings.trim() || undefined, about: about.trim(),
+        capacity: Number(capacity), amenities, timingsByDay: Object.keys(timingsByDay).length ? timingsByDay : undefined, about: about.trim(),
         logoUrl: logoUrl || undefined,
         contactPerson: contactPerson.trim() || undefined,
         contactPersonPhone: contactPersonPhone.trim() || undefined,
@@ -254,10 +263,7 @@ export default function VenueOnboarding() {
                 ))}
               </div>
             </div>
-            <div className="field">
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Clock size={13} /> Timings</span>
-              <input value={timings} onChange={(e) => setTimings(e.target.value)} placeholder="e.g. Wed–Sun · 8 PM – 1 AM" />
-            </div>
+            <VenueTimingsEditor value={timingsByDay} onChange={setTimingsByDay} />
             <div className="field">
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Info size={13} /> About the venue</span>
               <WysiwygEditor value={about} onChange={setAbout} minHeight={80} />

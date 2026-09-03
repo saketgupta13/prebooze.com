@@ -149,6 +149,7 @@ export const catalog = {
   categories: () => apiFetch<{ name: string; icon: string; subs: string[] }[]>('/categories'),
   cities: () => apiFetch<{ name: string; icon?: string; top: boolean; state?: string; events: number; venues: number; organizers: number }[]>('/cities'),
   venueTypes: () => apiFetch<{ name: string; icon?: string; events: number }[]>('/venue-types'),
+  amenities: () => apiFetch<{ name: string; icon?: string }[]>('/amenities'),
   search: (q: string) => apiFetch<{ label: string; type: string; to: string }[]>('/search', { query: { q } }),
   trending: () => apiFetch<string[]>('/search/trending'),
   reels: () => apiFetch<{ id: string; title: string; hue: number; videoUrl: string | null; posterUrl: string | null }[]>('/reels'),

@@ -11,7 +11,7 @@ import {
   Megaphone, Star, Gift, MapPin, Landmark, Globe, Mic, Wallet, Banknote, Receipt,
   CircleDollarSign, Building2, Tag, TrendingUp, BarChart3, Image, Film, MessageCircle,
   HelpCircle, FolderTree, Tags, PenLine, FileText, ScrollText, Compass, UserCog, Mail,
-  Settings, User, Search, Bell, ArrowRight, X, MoreHorizontal, Radio,
+  Settings, User, Search, Bell, ArrowRight, X, MoreHorizontal, Radio, Sparkles,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -59,6 +59,7 @@ const CONTENT_NAV: { to: string; icon: LucideIcon; label: string; end?: boolean 
   { to: '/categories', icon: FolderTree, label: 'Categories' },
   { to: '/trending', icon: TrendingUp, label: 'Trending searches' },
   { to: '/venue-types', icon: Tags, label: 'Venue types' },
+  { to: '/amenities', icon: Sparkles, label: 'Amenities' },
   { to: '/blogs', icon: PenLine, label: 'Blogs' },
   { to: '/pages', icon: FileText, label: 'Pages' },
   { to: '/policies', icon: ScrollText, label: 'Policies' },
@@ -136,6 +137,7 @@ const NAV_MODULE: Record<string, string> = {
   '/categories': 'Content',
   '/trending': 'Content',
   '/venue-types': 'Content',
+  '/amenities': 'Content',
   '/blogs': 'Content',
   '/pages': 'Content',
   '/policies': 'Content',
