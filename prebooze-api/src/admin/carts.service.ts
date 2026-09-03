@@ -39,11 +39,26 @@ export class CartsService {
    * but it's still worth being able to look at rather than only ever
    * hard-deleting it from view. */
   async list(eventId?: string, past = false) {
-    const carts = await this.prisma.cart.findMany({
-      where: { status: 'active', user: { phone: { notIn: TEST_PHONE_NUMBERS } }, ...(eventId ? { eventId } : {}) },
+    // Fetched unfiltered by status (unlike below) so the dedupe can see a
+    // later 'completed' attempt and correctly drop an earlier stale 'active'
+    // one for the same user+event — a guest who retried and paid the second
+    // time must not still show as abandoned just because their first hold
+    // never got its own status flipped (same fix as OrganizerService.carts,
+    // which this admin view never had — a guest showed up in both Bookings
+    // and Abandoned carts here because of the gap).
+    const rows = await this.prisma.cart.findMany({
+      where: { user: { phone: { notIn: TEST_PHONE_NUMBERS } }, ...(eventId ? { eventId } : {}) },
       include: { user: { select: { name: true, phone: true } }, event: { select: { title: true, date: true, durationHrs: true } } },
       orderBy: { createdAt: 'desc' },
     });
+    const seen = new Set<string>();
+    const carts: typeof rows = [];
+    for (const c of rows) {
+      const key = `${c.userId}:${c.eventId}`;
+      if (seen.has(key)) continue; // only the latest attempt per user+event counts
+      seen.add(key);
+      if (c.status === 'active') carts.push(c);
+    }
     return carts.filter((c) => isEventOver(c.event) === past).map((c) => ({
       id: c.id,
       guest: c.user.name || c.user.phone,
@@ -61,14 +76,24 @@ export class CartsService {
    * booking (BookingsService.create flips status to 'completed'); there's
    * no separate "abandoned" status, every non-completed cart is still live. */
   async stats() {
-    const [openRows, completed] = await Promise.all([
-      this.prisma.cart.findMany({
-        where: { status: 'active', user: { phone: { notIn: TEST_PHONE_NUMBERS } } },
-        select: { total: true, event: { select: { date: true, durationHrs: true } } },
-      }),
-      this.prisma.cart.findMany({ where: { status: 'completed', user: { phone: { notIn: TEST_PHONE_NUMBERS } } }, select: { total: true } }),
-    ]);
-    const open = openRows.filter((c) => !isEventOver(c.event));
+    // Same latest-attempt-per-user+event dedupe as list() — otherwise a
+    // guest's stale first (unconverted) attempt inflates openCount/drags
+    // down the recovery rate even though their later attempt completed.
+    const rows = await this.prisma.cart.findMany({
+      where: { user: { phone: { notIn: TEST_PHONE_NUMBERS } } },
+      select: { userId: true, eventId: true, status: true, total: true, createdAt: true, event: { select: { date: true, durationHrs: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const seen = new Set<string>();
+    const latest: typeof rows = [];
+    for (const c of rows) {
+      const key = `${c.userId}:${c.eventId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      latest.push(c);
+    }
+    const open = latest.filter((c) => c.status === 'active' && !isEventOver(c.event));
+    const completed = latest.filter((c) => c.status === 'completed');
     const recoverable = open.reduce((a, c) => a + c.total, 0);
     const recoveredValue = completed.reduce((a, c) => a + c.total, 0);
     const totalSeen = open.length + completed.length;
@@ -119,12 +144,27 @@ export class CartsService {
    * got a manual reminder isn't double-nudged). Driven by CronService. */
   async sendAutoNudges() {
     const cutoff = new Date(Date.now() - HOLD_TTL_MS);
-    const rows = await this.prisma.cart.findMany({
+    const candidates = await this.prisma.cart.findMany({
       where: { status: 'active', remindedAt: null, createdAt: { lt: cutoff }, user: { phone: { notIn: TEST_PHONE_NUMBERS } } },
-      select: { id: true, event: { select: { date: true, durationHrs: true } } },
+      select: { id: true, userId: true, eventId: true, createdAt: true, event: { select: { date: true, durationHrs: true } } },
     });
+    // A candidate can be a stale first attempt that a later hold for the
+    // same user+event superseded — including one that already converted to
+    // a real booking. Without this check a guest who already paid could get
+    // (and, confirmed, did get) a "you forgot your cart" nudge for a cart
+    // they'd already completed via a second attempt.
+    const superseded = candidates.length
+      ? new Set(
+          (
+            await this.prisma.cart.findMany({
+              where: { OR: candidates.map((c) => ({ userId: c.userId, eventId: c.eventId, createdAt: { gt: c.createdAt } })) },
+              select: { userId: true, eventId: true },
+            })
+          ).map((c) => `${c.userId}:${c.eventId}`),
+        )
+      : new Set<string>();
     // No point nudging a guest back to book an event that's already over.
-    const carts = rows.filter((c) => !isEventOver(c.event));
+    const carts = candidates.filter((c) => !superseded.has(`${c.userId}:${c.eventId}`) && !isEventOver(c.event));
     for (const c of carts) {
       await this.remind(c.id).catch((err) => this.log.warn(`Auto-nudge for cart ${c.id} failed: ${(err as Error).message}`));
     }
