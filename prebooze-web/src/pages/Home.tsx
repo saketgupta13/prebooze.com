@@ -11,6 +11,7 @@ import type { CmsTestimonial, CmsBlogSummary, Event, Organizer, PromoterProfile,
 import { personFollowKey } from '../lib/social';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import { organizerPath, promoterPath, lineupPath, venuePath, cityBrowse, cityOrganizers, cityPromoters, cityLineups, cityVenues, cityPeople as cityPeoplePath } from '../lib/urls';
+import { todaysVenueHours } from '../lib/venueTimings';
 import EventCard from '../components/EventCard';
 import DirectoryCard from '../components/DirectoryCard';
 import DirectoryCardSkeleton from '../components/DirectoryCardSkeleton';
@@ -578,6 +579,7 @@ export default function Home() {
                           {venueFeat.has(v.id) && <span className="badge badge-accent" style={{ fontSize: 10 }}>★ Featured</span>}
                         </h3>
                         <div className="meta">★ {v.rating} · {count} event{count === 1 ? '' : 's'} · {v.type}</div>
+                        {todaysVenueHours(v.timingsByDay) && <div className="tiny muted-2">{todaysVenueHours(v.timingsByDay)}</div>}
                       </div>
                     </Link>
                   );

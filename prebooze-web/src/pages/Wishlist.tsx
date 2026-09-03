@@ -9,6 +9,7 @@ import EventCard from '../components/EventCard';
 import Poster from '../components/Poster';
 import { Heart, Landmark } from 'lucide-react';
 import { cityBrowse, cityVenues, venuePath } from '../lib/urls';
+import { todaysVenueHours } from '../lib/venueTimings';
 
 /** Saved events — the guest's wishlist. Wishlist/favourite membership itself
  * is still local-only (see AppContext) — this just makes sure a real event
@@ -91,6 +92,7 @@ export default function Wishlist() {
                     <div className="meta">
                       {v.type} · {v.locality}
                     </div>
+                    {todaysVenueHours(v.timingsByDay) && <div className="tiny muted-2">{todaysVenueHours(v.timingsByDay)}</div>}
                     <div className="small accent bold">{count} upcoming event{count === 1 ? '' : 's'}</div>
                   </div>
                 </Link>

@@ -8,6 +8,7 @@ import type { Venue, Event } from '../types';
 import Poster from '../components/Poster';
 import { Landmark, Heart } from 'lucide-react';
 import { venuePath } from '../lib/urls';
+import { todaysVenueHours } from '../lib/venueTimings';
 
 const TYPE_PLACEHOLDER = 'Venue type';
 // Offline fallback only — real vocabulary comes from GET /venue-types
@@ -108,6 +109,7 @@ export default function Venues() {
                   <div className="meta">
                     {v.type} · {v.locality}
                   </div>
+                  {todaysVenueHours(v.timingsByDay) && <div className="tiny muted-2">{todaysVenueHours(v.timingsByDay)}</div>}
                   <div className="small accent bold">{count} upcoming event{count === 1 ? '' : 's'}</div>
                 </div>
               </Link>

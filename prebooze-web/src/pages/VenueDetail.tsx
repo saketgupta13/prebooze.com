@@ -4,7 +4,7 @@ import { useApp } from '../store/AppContext';
 import { EVENTS, VENUES, fmtCount } from '../data/mock';
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
-import type { Venue, Event, VenueDayKey, VenueTimingsByDay } from '../types';
+import type { Venue, Event } from '../types';
 import Poster from '../components/Poster';
 import { Landmark, Heart, MapPin, Navigation, Clock, Info } from 'lucide-react';
 import ImageLightbox from '../components/ImageLightbox';
@@ -20,31 +20,7 @@ import { buildVenueSchema, buildBreadcrumbSchema } from '../lib/schema';
 import { useCityReconcile } from '../lib/useCityReconcile';
 import { venuePath, cityHome, cityVenues, cityBrowse } from '../lib/urls';
 import { formatLocation } from '../lib/formatLocation';
-
-const TIMING_DAY_ORDER: VenueDayKey[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-const TIMING_DAY_LABELS: Record<VenueDayKey, string> = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
-
-function fmtTime12h(hhmm: string): string {
-  const [h, m] = hhmm.split(':').map(Number);
-  const period = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  return m ? `${h12}:${String(m).padStart(2, '0')} ${period}` : `${h12} ${period}`;
-}
-
-/** Consecutive days sharing identical hours collapse into one row (e.g.
- * "Mon–Fri  6 PM – 1 AM") rather than repeating the same hours 7 times. */
-function groupVenueTimings(t: VenueTimingsByDay): { label: string; hours: string }[] {
-  const rows: { days: string[]; hours: string }[] = [];
-  for (const key of TIMING_DAY_ORDER) {
-    const d = t[key];
-    if (!d) continue;
-    const hours = d.closed ? 'Closed' : `${fmtTime12h(d.open)} – ${fmtTime12h(d.close)}`;
-    const last = rows[rows.length - 1];
-    if (last && last.hours === hours) last.days.push(TIMING_DAY_LABELS[key]);
-    else rows.push({ days: [TIMING_DAY_LABELS[key]], hours });
-  }
-  return rows.map((r) => ({ label: r.days.length > 1 ? `${r.days[0]}–${r.days[r.days.length - 1]}` : r.days[0], hours: r.hours }));
-}
+import { groupVenueTimings } from '../lib/venueTimings';
 
 export default function VenueDetail() {
   const { id } = useParams();
