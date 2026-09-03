@@ -788,6 +788,13 @@ export const livePayments = {
     >('/admin/payments/organizer-withdrawals'),
   markOrganizerWithdrawalPaid: (id: string, utr: string) =>
     liveFetch<{ id: string; withdrawalPaidOut: boolean; withdrawalPaidUtr: string | null }>(`/admin/payments/organizer-withdrawals/${id}/mark-paid`, { method: 'POST', body: { utr } }),
+  /** Real sale/refund ledger, platform-wide — replaces the old "Transactions"
+   * placeholder. Merges OrganizerLedgerTx + VenueLedgerTx, newest first,
+   * capped at 300 rows. */
+  transactions: (eventId?: string) =>
+    liveFetch<{ id: string; type: string; amount: number; eventId: string | null; eventTitle: string | null; createdAt: string; payeeType: 'organizer' | 'venue'; payeeName: string }[]>(
+      `/admin/payments/transactions${eventId ? `?eventId=${encodeURIComponent(eventId)}` : ''}`
+    ),
   /** Organizer -> promoter money, platform-wide — same real transfer-happens-
    * outside-Prebooze caveat as everything else here; status is whatever the
    * promoter has self-attested (PromoterEventSettlement), admin can't mark it. */

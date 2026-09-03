@@ -8,9 +8,9 @@ const LIVE_BOOKING_STATUSES: BookingStatus[] = ['confirmed', 'refund_requested']
 /** prebooze-admin's /payments page — distinct from Reports (platform P&L)
  * and Ledger (internal income/expense book): this is the per-event,
  * per-organizer payout register with a literal "run the batch" action.
- * Only the "Payouts due" tab is built — the mock's other three tabs
- * (Transactions, Refunds, Disputes) are its own self-admitted placeholders
- * ("coming with backend integration"), not something this slice reproduces. */
+ * "Payouts due", "Withdrawal requests" and "Transactions" are real;
+ * "Refunds" and "Disputes" remain the mock's self-admitted placeholders
+ * ("coming with backend integration"). */
 @Injectable()
 export class PaymentsService {
   constructor(
@@ -139,6 +139,33 @@ export class PaymentsService {
     if (!row || row.type !== 'withdrawal') throw new BadRequestException('Withdrawal request not found');
     if (row.withdrawalPaidOut) throw new BadRequestException('Already marked paid');
     return this.prisma.organizerLedgerTx.update({ where: { id }, data: { withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim() } });
+  }
+
+  /** Platform-wide sale/refund ledger — closes the "Transactions" tab,
+   * which was a bare "coming with backend integration" placeholder despite
+   * OrganizerLedgerTx/VenueLedgerTx already recording every real sale and
+   * refund (BookingsService writes both on every paid/refunded booking).
+   * Withdrawals aren't included — those already have their own dedicated
+   * tab above. Merges both ledgers since a sale can credit either an
+   * organizer or a solo venue-hosted event, same payeeType split as
+   * payoutsDue(). Capped at the most recent 300 — this is a real-time feed
+   * to check, not a full export. */
+  async transactions(eventId?: string) {
+    const [orgRows, venueRows] = await Promise.all([
+      this.prisma.organizerLedgerTx.findMany({
+        where: { type: { in: ['sale', 'refund'] }, ...(eventId ? { eventId } : {}) },
+        select: { id: true, type: true, amount: true, eventId: true, eventTitle: true, createdAt: true, organizer: { select: { brandName: true } } },
+      }),
+      this.prisma.venueLedgerTx.findMany({
+        where: { type: { in: ['sale', 'refund'] }, ...(eventId ? { eventId } : {}) },
+        select: { id: true, type: true, amount: true, eventId: true, eventTitle: true, createdAt: true, venue: { select: { name: true } } },
+      }),
+    ]);
+    const rows = [
+      ...orgRows.map((r) => ({ id: r.id, type: r.type, amount: r.amount, eventId: r.eventId, eventTitle: r.eventTitle, createdAt: r.createdAt, payeeType: 'organizer' as const, payeeName: r.organizer?.brandName ?? '—' })),
+      ...venueRows.map((r) => ({ id: r.id, type: r.type, amount: r.amount, eventId: r.eventId, eventTitle: r.eventTitle, createdAt: r.createdAt, payeeType: 'venue' as const, payeeName: r.venue?.name ?? '—' })),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return rows.slice(0, 300);
   }
 
   /** Platform-wide view of the organizer→promoter revenue-share/per-head

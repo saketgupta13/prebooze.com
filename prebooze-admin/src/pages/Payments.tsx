@@ -14,13 +14,17 @@ interface OrganizerWithdrawal {
   id: string; organizerId: string; organizerName: string; amount: number; paidOut: boolean; paidUtr: string | null;
   bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string;
 }
+interface PaymentTx {
+  id: string; type: string; amount: number; eventId: string | null; eventTitle: string | null; createdAt: string;
+  payeeType: 'organizer' | 'venue'; payeeName: string;
+}
 
 /** Real per-event payout register (PaymentsService.due/markPaid) — "due"
  * only ever lists events that have actually finished, and marking one paid
  * requires the real UTR from a transfer you already made yourself; nothing
- * here moves money or invents a reference number. "Payouts due" is the only
- * tab with a real backend; the rest stay the same placeholder they always
- * were. */
+ * here moves money or invents a reference number. "Payouts due",
+ * "Withdrawal requests" and "Transactions" all have real backends now;
+ * "Refunds"/"Disputes" stay the same placeholder they always were. */
 export default function Payments() {
   const session = useLiveSession();
   const { token } = session;
@@ -37,6 +41,7 @@ export default function Payments() {
   // `rows`/`summary` above (per-event payouts due). Loaded alongside since
   // this page is the one place staff now check for both.
   const [withdrawals, setWithdrawals] = useState<OrganizerWithdrawal[]>([]);
+  const [transactions, setTransactions] = useState<PaymentTx[]>([]);
 
   // Bank details expand inline, right in the row, instead of navigating to
   // the standalone Payment details page — staff evaluating a batch of
@@ -102,6 +107,7 @@ export default function Payments() {
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
     livePayments.organizerWithdrawals().then(setWithdrawals).catch(() => {});
+    livePayments.transactions().then(setTransactions).catch(() => {});
   };
 
   useEffect(() => {
@@ -298,6 +304,28 @@ export default function Payments() {
             </div>
             );
           })}
+        </div>
+      ) : tab === 'Transactions' ? (
+        <div className="tblwrap">
+          <div className="thead" style={{ minWidth: 600 }}>
+            <span style={{ flex: 1.4 }}>Payee</span>
+            <span style={{ flex: 1.6 }}>Event</span>
+            <span style={{ flex: 1 }}>Amount</span>
+            <span style={{ flex: 0.8 }}>Type</span>
+            <span style={{ flex: 1 }}>Date</span>
+          </div>
+          {transactions.length === 0 && !loading && <div className="trow muted">No transactions yet.</div>}
+          {transactions.map((t) => (
+            <div key={t.id} className="trow" style={{ minWidth: 600 }}>
+              <span style={{ flex: 1.4, fontWeight: 700 }}>{t.payeeName}</span>
+              <span style={{ flex: 1.6 }} className="muted small">{t.eventTitle ?? '—'}</span>
+              <span style={{ flex: 1, fontWeight: 700 }} className={t.amount < 0 ? 'red' : 'green'}>{t.amount < 0 ? '-' : ''}₹{fmt(Math.abs(t.amount))}</span>
+              <span style={{ flex: 0.8 }}>
+                <span className={`tag ${t.type === 'refund' ? 'tag-red' : 'tag-green'}`}>{t.type === 'refund' ? 'Refund' : 'Sale'}</span>
+              </span>
+              <span style={{ flex: 1 }} className="tiny muted">{new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="ph" style={{ height: 120, borderRadius: 10 }}>{tab} — coming with backend integration</div>
