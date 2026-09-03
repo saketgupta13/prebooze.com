@@ -41,6 +41,12 @@ export class AdminPaymentsController {
     return this.payments.transactions(eventId);
   }
 
+  @Get('refunds')
+  @RequirePermission(MODULE, 'view')
+  refunds() {
+    return this.payments.refunds();
+  }
+
   @Get('promoter-payouts')
   @RequirePermission(MODULE, 'view')
   promoterPayoutsAll() {

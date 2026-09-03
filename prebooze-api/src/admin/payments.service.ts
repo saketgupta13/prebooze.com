@@ -8,9 +8,10 @@ const LIVE_BOOKING_STATUSES: BookingStatus[] = ['confirmed', 'refund_requested']
 /** prebooze-admin's /payments page — distinct from Reports (platform P&L)
  * and Ledger (internal income/expense book): this is the per-event,
  * per-organizer payout register with a literal "run the batch" action.
- * "Payouts due", "Withdrawal requests" and "Transactions" are real;
- * "Refunds" and "Disputes" remain the mock's self-admitted placeholders
- * ("coming with backend integration"). */
+ * "Payouts due", "Withdrawal requests", "Transactions" and "Refunds" are
+ * real; "Disputes" remains the mock's self-admitted placeholder ("coming
+ * with backend integration") — there's no dispute/chargeback concept
+ * anywhere in the system to back it (no model, no Razorpay webhook). */
 @Injectable()
 export class PaymentsService {
   constructor(
@@ -166,6 +167,28 @@ export class PaymentsService {
       ...venueRows.map((r) => ({ id: r.id, type: r.type, amount: r.amount, eventId: r.eventId, eventTitle: r.eventTitle, createdAt: r.createdAt, payeeType: 'venue' as const, payeeName: r.venue?.name ?? '—' })),
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return rows.slice(0, 300);
+  }
+
+  /** Platform-wide refund register — closes the "Refunds" tab, another bare
+   * placeholder despite a full, real refund flow already existing
+   * (BookingsService.cancel/adminApproveRefund/adminDeclineRefund/
+   * retryRefund) and an identical query already built for Reports
+   * (ReportsService.refunds, date-range-scoped there; this is the same
+   * shape but all-time, capped at the most recent 300). Read-only — no
+   * approve/decline here, those stay on the booking detail page (a
+   * different permission module, 'Refunds', not 'Payments & payouts'); this
+   * is a feed to check, same as Transactions above. */
+  async refunds() {
+    const rows = await this.prisma.booking.findMany({
+      where: { status: { in: ['refund_requested', 'refunded'] } },
+      select: { id: true, mainGuest: true, total: true, status: true, refundedTo: true, refundFailedAt: true, createdAt: true, event: { select: { title: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 300,
+    });
+    return rows.map((r) => ({
+      id: r.id, guest: r.mainGuest, eventTitle: r.event.title, amount: r.total, status: r.status,
+      refundedTo: r.refundedTo, failed: !!r.refundFailedAt, createdAt: r.createdAt,
+    }));
   }
 
   /** Platform-wide view of the organizer→promoter revenue-share/per-head

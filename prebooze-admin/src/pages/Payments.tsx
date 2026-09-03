@@ -4,7 +4,8 @@ import { livePayments, liveOrganizers, liveVenues, LiveApiError, type LivePayout
 import { PaymentProfileCard } from '../components/PaymentProfileFields';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
-import { Kpi } from '../components/ui';
+import { Kpi, Tag } from '../components/ui';
+import { Link } from 'react-router-dom';
 
 const TITLE = 'Payments & payouts';
 const TABS = ['Payouts due', 'Withdrawal requests', 'Transactions', 'Refunds', 'Disputes'];
@@ -18,13 +19,19 @@ interface PaymentTx {
   id: string; type: string; amount: number; eventId: string | null; eventTitle: string | null; createdAt: string;
   payeeType: 'organizer' | 'venue'; payeeName: string;
 }
+interface PaymentRefund {
+  id: string; guest: string; eventTitle: string; amount: number; status: 'refund_requested' | 'refunded';
+  refundedTo: string | null; failed: boolean; createdAt: string;
+}
 
 /** Real per-event payout register (PaymentsService.due/markPaid) — "due"
  * only ever lists events that have actually finished, and marking one paid
  * requires the real UTR from a transfer you already made yourself; nothing
  * here moves money or invents a reference number. "Payouts due",
- * "Withdrawal requests" and "Transactions" all have real backends now;
- * "Refunds"/"Disputes" stay the same placeholder they always were. */
+ * "Withdrawal requests", "Transactions" and "Refunds" all have real
+ * backends now; "Disputes" stays the same placeholder it always was —
+ * unlike the others, there's no real dispute/chargeback concept anywhere
+ * in the system yet (no model, no Razorpay webhook, nothing to surface). */
 export default function Payments() {
   const session = useLiveSession();
   const { token } = session;
@@ -42,6 +49,7 @@ export default function Payments() {
   // this page is the one place staff now check for both.
   const [withdrawals, setWithdrawals] = useState<OrganizerWithdrawal[]>([]);
   const [transactions, setTransactions] = useState<PaymentTx[]>([]);
+  const [refunds, setRefunds] = useState<PaymentRefund[]>([]);
 
   // Bank details expand inline, right in the row, instead of navigating to
   // the standalone Payment details page — staff evaluating a batch of
@@ -108,6 +116,7 @@ export default function Payments() {
       .finally(() => setLoading(false));
     livePayments.organizerWithdrawals().then(setWithdrawals).catch(() => {});
     livePayments.transactions().then(setTransactions).catch(() => {});
+    livePayments.refunds().then(setRefunds).catch(() => {});
   };
 
   useEffect(() => {
@@ -326,6 +335,29 @@ export default function Payments() {
               <span style={{ flex: 1 }} className="tiny muted">{new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
             </div>
           ))}
+        </div>
+      ) : tab === 'Refunds' ? (
+        <div className="tblwrap">
+          <div className="thead" style={{ minWidth: 680 }}>
+            <span style={{ flex: 1 }}>Booking</span>
+            <span style={{ flex: 1.4 }}>Guest</span>
+            <span style={{ flex: 1.4 }}>Event</span>
+            <span style={{ flex: 0.8 }}>Amount</span>
+            <span style={{ flex: 1 }}>Status</span>
+          </div>
+          {refunds.length === 0 && !loading && <div className="trow muted">No refund activity.</div>}
+          {refunds.map((r) => (
+            <Link key={r.id} to={`/bookings/${encodeURIComponent(r.id)}`} className="trow" style={{ minWidth: 680 }}>
+              <span style={{ flex: 1 }} className="muted">{r.id}</span>
+              <span style={{ flex: 1.4, fontWeight: 700 }}>{r.guest}</span>
+              <span style={{ flex: 1.4 }} className="muted">{r.eventTitle}</span>
+              <span style={{ flex: 0.8 }}>₹{fmt(r.amount)}</span>
+              <span style={{ flex: 1 }}>
+                {r.status === 'refund_requested' ? <Tag label="Requested" cls="tag-red" /> : r.failed ? <Tag label="Refund failed" cls="tag-red" /> : <Tag label="Refunded" cls="tag-dim" />}
+              </span>
+            </Link>
+          ))}
+          <div className="tiny hint">approve/decline/retry a refund from the booking's own page · click any row above</div>
         </div>
       ) : (
         <div className="ph" style={{ height: 120, borderRadius: 10 }}>{tab} — coming with backend integration</div>

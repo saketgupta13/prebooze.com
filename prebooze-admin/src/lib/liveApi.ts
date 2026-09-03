@@ -795,6 +795,13 @@ export const livePayments = {
     liveFetch<{ id: string; type: string; amount: number; eventId: string | null; eventTitle: string | null; createdAt: string; payeeType: 'organizer' | 'venue'; payeeName: string }[]>(
       `/admin/payments/transactions${eventId ? `?eventId=${encodeURIComponent(eventId)}` : ''}`
     ),
+  /** Real refund register, platform-wide — replaces the old "Refunds"
+   * placeholder. Read-only; approve/decline/retry stay on the booking
+   * detail page (a different permission module). */
+  refunds: () =>
+    liveFetch<{ id: string; guest: string; eventTitle: string; amount: number; status: 'refund_requested' | 'refunded'; refundedTo: string | null; failed: boolean; createdAt: string }[]>(
+      '/admin/payments/refunds'
+    ),
   /** Organizer -> promoter money, platform-wide — same real transfer-happens-
    * outside-Prebooze caveat as everything else here; status is whatever the
    * promoter has self-attested (PromoterEventSettlement), admin can't mark it. */
