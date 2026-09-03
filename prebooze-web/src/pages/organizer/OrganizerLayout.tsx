@@ -4,7 +4,7 @@ import { useApp } from '../../store/AppContext';
 import PendingReview, { RejectedReview } from '../../components/PendingReview';
 import { PageLoader } from '../../components/Loader';
 import {
-  LayoutDashboard, Ticket, Users, Camera, ClipboardList, Radio, Star, Tag, ShoppingCart, Banknote, Megaphone,
+  LayoutDashboard, Ticket, Users, Camera, ClipboardList, Radio, Star, Tag, ShoppingCart, Banknote, Receipt, Megaphone,
   ShieldCheck, Award, Settings as SettingsIcon, MoreHorizontal, X, type LucideIcon,
 } from 'lucide-react';
 
@@ -25,6 +25,7 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; module?
   { to: '/organizer/coupons', label: 'Promo codes', icon: Tag, module: 'Coupons' },
   { to: '/organizer/carts', label: 'Abandoned carts', icon: ShoppingCart, module: 'Events & wizard' },
   { to: '/organizer/payouts', label: 'Payouts', icon: Banknote, module: 'Payouts & withdrawals' },
+  { to: '/organizer/transactions', label: 'Transactions', icon: Receipt, module: 'Payouts & withdrawals' },
   { to: '/organizer/promoters', label: 'Promoters', icon: Megaphone, module: 'Payouts & withdrawals' },
   { to: '/organizer/team', label: 'Team & roles', icon: ShieldCheck, module: 'Settings & team' },
   { to: '/organizer/billing', label: 'Featured & billing', icon: Award, module: 'owner' },

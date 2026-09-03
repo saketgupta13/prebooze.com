@@ -63,6 +63,7 @@ const Attendees = lazy(() => import('./pages/organizer/Attendees'));
 const Scanner = lazy(() => import('./pages/organizer/Scanner'));
 const Coupons = lazy(() => import('./pages/organizer/Coupons'));
 const Payouts = lazy(() => import('./pages/organizer/Payouts'));
+const Transactions = lazy(() => import('./pages/organizer/Transactions'));
 const OrganizerPromoters = lazy(() => import('./pages/organizer/OrganizerPromoters'));
 const Settings = lazy(() => import('./pages/organizer/Settings'));
 const OrganizerVerification = lazy(() => import('./pages/organizer/OrganizerVerification'));
@@ -428,6 +429,7 @@ export default function App() {
           <Route path="carts" element={<OrgAbandonedCarts />} />
           <Route path="payouts" element={<Payouts />} />
           <Route path="payouts/withdraw" element={<Withdraw />} />
+          <Route path="transactions" element={<Transactions />} />
           <Route path="promoters" element={<OrganizerPromoters />} />
           <Route path="guestlist" element={<OrgGuestList />} />
           <Route path="live" element={<OrgLiveMonitor />} />
