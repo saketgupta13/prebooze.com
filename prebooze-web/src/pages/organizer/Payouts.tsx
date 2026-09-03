@@ -49,16 +49,20 @@ export default function Payouts() {
       .finally(() => setLoading(false));
   }, []);
 
-  const lifetimePaidOut = ledger.filter((t) => t.type === 'withdrawal').reduce((a, t) => a + Math.abs(t.amount), 0);
+  const [tab, setTab] = useState<'payouts' | 'transactions'>('payouts');
+  const payoutRows = ledger.filter((t) => t.type === 'withdrawal');
+  const transactionRows = ledger.filter((t) => t.type !== 'withdrawal');
+  const lifetimePaidOut = payoutRows.reduce((a, t) => a + Math.abs(t.amount), 0);
+  const rows = tab === 'payouts' ? payoutRows : transactionRows;
 
   const exportCsv = () => {
     const csv = [
       'date,type,event,amount',
-      ...ledger.map((t) => `${t.createdAt},${t.type},"${t.eventTitle ?? ''}",${t.amount}`),
+      ...rows.map((t) => `${t.createdAt},${t.type},"${t.eventTitle ?? ''}",${t.amount}`),
     ].join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = 'payouts.csv';
+    a.download = tab === 'payouts' ? 'payout-history.csv' : 'transactions.csv';
     a.click();
   };
 
@@ -127,7 +131,15 @@ export default function Payouts() {
       )}
 
       <div className="card tbl-wrap">
-        <h3 style={{ marginBottom: 10 }}>Payout history</h3>
+        <div className="tabs" style={{ marginBottom: 10 }}>
+          <button className={tab === 'payouts' ? 'on' : ''} onClick={() => setTab('payouts')}>Payout history ({payoutRows.length})</button>
+          <button className={tab === 'transactions' ? 'on' : ''} onClick={() => setTab('transactions')}>Transactions ({transactionRows.length})</button>
+        </div>
+        {tab === 'transactions' && (
+          <p className="tiny muted-2" style={{ marginBottom: 12 }}>
+            Every sale and refund that builds your balance. Withdrawals themselves are under Payout history.
+          </p>
+        )}
         <table className="tbl">
           <thead>
             <tr>
@@ -138,7 +150,7 @@ export default function Payouts() {
             </tr>
           </thead>
           <tbody>
-            {ledger.map((t) => (
+            {rows.map((t) => (
               <tr key={t.id}>
                 <td>{fmtDate(t.createdAt)}</td>
                 <td className="bold">{t.eventTitle ?? (t.type === 'withdrawal' ? 'Manual withdrawal' : '—')}</td>
@@ -150,13 +162,13 @@ export default function Payouts() {
                 </td>
               </tr>
             ))}
-            {ledger.length === 0 && (
-              <tr><td colSpan={4} className="muted center">No transactions yet.</td></tr>
+            {rows.length === 0 && (
+              <tr><td colSpan={4} className="muted center">{tab === 'payouts' ? 'No withdrawals yet.' : 'No transactions yet.'}</td></tr>
             )}
           </tbody>
         </table>
-        <button className="btn btn-ghost btn-sm" style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={exportCsv} disabled={!ledger.length}>
-          <Download size={14} /> Download statement (CSV)
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={exportCsv} disabled={!rows.length}>
+          <Download size={14} /> Download {tab === 'payouts' ? 'payout history' : 'transactions'} (CSV)
         </button>
       </div>
     </div>
