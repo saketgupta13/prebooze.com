@@ -14,7 +14,7 @@ import { REFERRAL_REFERRER_REWARD, uniqueReferralCodeFor } from '../referrals/re
 import { NotificationsService } from '../admin/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { effectiveTierPrice, tierWindowState } from '../common/ticket-tier-pricing';
-import { partySizeFromTierName } from '../common/party-size';
+import { partySizeFromTierName, isCoupleTierName } from '../common/party-size';
 import { requiredAgeFor } from '../common/age-gate';
 import { normalizePhone } from '../auth/auth.service';
 import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from '../auth/guest-username';
@@ -490,6 +490,32 @@ export class BookingsService {
     const providedHeadcount = 1 + (input.guests ?? []).length;
     if (providedHeadcount !== expectedHeadcount) {
       throw new BadRequestException(`This booking needs a name for all ${expectedHeadcount} attendee${expectedHeadcount > 1 ? 's' : ''} — got ${providedHeadcount}`);
+    }
+
+    // Couple tiers specifically (not any 2-person tier) are priced on the
+    // door policy most Indian nightlife venues run: exactly one male + one
+    // female per pair, to keep an all-male "stag" group from entering at
+    // the discounted Couple rate — real incident: a 3× Couple booking's 6
+    // guests, across 3 pairs, were all recorded Male. Checked as flat
+    // position-pairs across every line in booking order, same indexing the
+    // headcount check above already guarantees lines up 1:1.
+    {
+      const flatGenders = [input.mainGuestGender, ...(input.guests ?? []).map((g) => g.gender)];
+      let cursor = 0;
+      for (const l of lines) {
+        const per = partySizeFromTierName(l.tier.name);
+        if (isCoupleTierName(l.tier.name)) {
+          for (let t = 0; t < l.qty; t++) {
+            const pair = flatGenders.slice(cursor, cursor + 2);
+            if (!(pair.includes('Male') && pair.includes('Female'))) {
+              throw new BadRequestException(`"${l.tier.name}" tickets need one male and one female guest per pair`);
+            }
+            cursor += 2;
+          }
+        } else {
+          cursor += l.qty * per;
+        }
+      }
     }
 
     // Age gate — only for an 18+/21+ event (requiredAge is null otherwise,

@@ -15,7 +15,7 @@ import { cityBrowse, eventCity, eventPath } from '../lib/urls';
 import { formatPrice } from '../lib/formatPrice';
 import { displayTierPrice, tierCountdownLabel } from '../lib/ticketTierPricing';
 import { useTicker } from '../lib/useTicker';
-import { partySizeFromTierName } from '../lib/partySize';
+import { partySizeFromTierName, isCoupleTierName } from '../lib/partySize';
 import { requiredAgeFor } from '../lib/ageGate';
 import { Clock, Lock, AlertTriangle, CheckCircle2, User, Camera, Ticket, XCircle, CreditCard, Wallet, Hourglass, Smartphone } from 'lucide-react';
 
@@ -713,6 +713,31 @@ export default function Checkout() {
       if (!(guestNames[i] ?? '').trim() || !guestGenders[i]) {
         failAttendee(`Guest ${i + 2}'s name and gender are required`);
         return;
+      }
+    }
+    // Couple tiers specifically (not any 2-person tier) run the door policy
+    // most Indian nightlife venues use: exactly one male + one female per
+    // pair, to keep an all-male "stag" group from entering at the
+    // discounted Couple rate — real incident: a 3× Couple booking's 6
+    // guests, across 3 pairs, were all Male. Checked as flat position-pairs
+    // across every line in the same order attendeeSlots/extraSlots use.
+    {
+      const flatGenders = [gender, ...guestGenders];
+      let cursor = 0;
+      for (const l of lines) {
+        const per = partySizeFromTierName(l.tier.name);
+        if (isCoupleTierName(l.tier.name)) {
+          for (let t = 0; t < l.qty; t++) {
+            const pair = flatGenders.slice(cursor, cursor + 2);
+            if (!(pair.includes('Male') && pair.includes('Female'))) {
+              failAttendee(`"${l.tier.name}" tickets need one male and one female guest per pair`);
+              return;
+            }
+            cursor += 2;
+          }
+        } else {
+          cursor += l.qty * per;
+        }
       }
     }
     // Email is optional too — only the emailed PDF depends on it (WhatsApp
