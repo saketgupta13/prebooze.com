@@ -16,8 +16,6 @@ type ScanState =
   | { mode: 'valid-guestlist'; row: OrgGuestListEntry }
   | { mode: 'invalid'; reason: string };
 
-type EntryMode = 'paid' | 'guestlist';
-
 interface PaidMatch {
   main: OrgAttendee;
   matchedName: string;
@@ -97,7 +95,13 @@ function guestListMatches(promoterGuests: OrgPromoterGuest[], orgGuests: OrgGues
  * accepts either the owning organizer OR the owning venue (see the
  * ownership-check comment there), so this page needs no new backend route,
  * only venuePartner.* in place of organizer.* for loading event/attendee
- * data. */
+ * data.
+ *
+ * QR type is auto-detected from the scanned string's own shape (see
+ * organizer/Scanner.tsx's doc comment for the full reasoning — same real
+ * door feedback, House of Aura, applies here identically): a paid booking's
+ * signed JWT always has two `.` separators, a VIP invite is `vip-<id>`,
+ * anything else is a promoter pass. No mode to pick before scanning. */
 export default function VenueScanner() {
   const [events, setEvents] = useState<Event[]>([]);
   const [eventId, setEventId] = useState('');
@@ -106,7 +110,6 @@ export default function VenueScanner() {
   const [orgGuestList, setOrgGuestList] = useState<OrgGuestListEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [state, setState] = useState<ScanState>({ mode: 'idle' });
-  const [entryMode, setEntryMode] = useState<EntryMode>('paid');
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [useCamera, setUseCamera] = useState(true);
@@ -136,7 +139,7 @@ export default function VenueScanner() {
 
   const onQrScanned = async (raw: string) => {
     if (busy || state.mode !== 'idle') return;
-    if (entryMode === 'paid') {
+    if (raw.includes('.')) {
       setBusy(true);
       try {
         const updated = await bookings.checkIn(raw);
@@ -209,8 +212,8 @@ export default function VenueScanner() {
   const checkedInTotal = attendees.filter((a) => a.checkedIn).length + promoterGuests.filter((g) => g.arrived).length;
   const total = attendees.length + promoterGuests.length;
 
-  const paidResults = entryMode === 'paid' ? paidMatches(attendees, search) : [];
-  const guestResults = entryMode === 'guestlist' ? guestListMatches(promoterGuests, orgGuestList, event, search) : [];
+  const paidResults = paidMatches(attendees, search);
+  const guestResults = guestListMatches(promoterGuests, orgGuestList, event, search);
 
   if (!loading && events.length === 0) {
     return <div className="muted small">No live hosted events yet — the scanner works once one is approved.</div>;
@@ -222,6 +225,7 @@ export default function VenueScanner() {
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick"><CheckCircle2 size={30} /></div>
+          <div className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Ticket size={12} /> Paid booking</div>
           <h2>Checked in</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Booking</span><span className="bold">{b.id}</span></div>
@@ -252,6 +256,7 @@ export default function VenueScanner() {
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick"><CheckCircle2 size={30} /></div>
+          <div className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Gift size={12} /> Guest list</div>
           <h2>Free entry — valid</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Guest</span><span className="bold">{g.name}</span></div>
@@ -277,6 +282,7 @@ export default function VenueScanner() {
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick"><CheckCircle2 size={30} /></div>
+          <div className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Gift size={12} /> Guest list</div>
           <h2>Guest list — valid</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Guest</span><span className="bold">{g.name}</span></div>
@@ -302,6 +308,7 @@ export default function VenueScanner() {
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick"><CheckCircle2 size={30} /></div>
+          <div className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Ticket size={12} /> Paid booking</div>
           <h2>Valid ticket</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Booking</span><span className="bold">{row.bookingId}</span></div>
@@ -353,17 +360,6 @@ export default function VenueScanner() {
       </div>
 
       <div style={{ padding: '0 16px 16px' }}>
-        <div className="chip-row" style={{ marginBottom: 14 }}>
-          <button type="button" className={`chip ${entryMode === 'paid' ? 'on' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => { setEntryMode('paid'); setSearch(''); }}>
-            <Ticket size={13} /> Paid booking
-          </button>
-          <button type="button" className={`chip ${entryMode === 'guestlist' ? 'on' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => { setEntryMode('guestlist'); setSearch(''); }}>
-            <Gift size={13} /> Guest list
-          </button>
-        </div>
-      </div>
-
-      <div style={{ padding: '0 16px 16px' }}>
         {useCamera ? (
           <>
             <CameraQRScanner onScan={onQrScanned} active={state.mode === 'idle' && !busy} />
@@ -374,18 +370,18 @@ export default function VenueScanner() {
         ) : (
           <>
             <input
-              placeholder={entryMode === 'paid' ? 'Search by name or booking #' : 'Search guest name'}
+              placeholder="Search name, booking # or guest list"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               autoFocus
             />
             {search.trim().length >= MIN_QUERY && (
               <div className="card" style={{ marginTop: 8, padding: 6 }}>
-                {entryMode === 'paid' ? (
-                  paidResults.length === 0 ? (
-                    <div className="tiny muted center" style={{ padding: 10 }}>No matches</div>
-                  ) : (
-                    paidResults.map((r) => (
+                {paidResults.length === 0 && guestResults.length === 0 ? (
+                  <div className="tiny muted center" style={{ padding: 10 }}>No matches</div>
+                ) : (
+                  <>
+                    {paidResults.map((r) => (
                       <button
                         key={r.main.bookingId}
                         type="button"
@@ -395,30 +391,28 @@ export default function VenueScanner() {
                         onClick={() => setState({ mode: 'valid-booking', row: r.main })}
                       >
                         <div className="bold small">{r.main.name}{r.extra > 0 ? ` +${r.extra} more` : ''}</div>
-                        <div className="tiny muted">
+                        <div className="tiny muted" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Ticket size={11} /> Paid ·{' '}
                           {r.matchedName !== r.main.name && `matched "${r.matchedName}" · `}
                           {r.main.bookingId} · {r.main.tierName}
                           {r.reason ? ` · ${r.reason}` : ''}
                         </div>
                       </button>
-                    ))
-                  )
-                ) : guestResults.length === 0 ? (
-                  <div className="tiny muted center" style={{ padding: 10 }}>No matches</div>
-                ) : (
-                  guestResults.map((r) => (
-                    <button
-                      key={r.key}
-                      type="button"
-                      className="btn btn-ghost btn-block"
-                      style={{ textAlign: 'left', opacity: r.disabled ? 0.5 : 1, display: 'block', padding: '10px 12px' }}
-                      disabled={r.disabled}
-                      onClick={() => setState(r.kind === 'promoter' ? { mode: 'valid-promoter', row: r.row as OrgPromoterGuest } : { mode: 'valid-guestlist', row: r.row as OrgGuestListEntry })}
-                    >
-                      <div className="bold small">{r.name}</div>
-                      <div className="tiny muted">{r.sub}{r.reason ? ` · ${r.reason}` : ''}</div>
-                    </button>
-                  ))
+                    ))}
+                    {guestResults.map((r) => (
+                      <button
+                        key={r.key}
+                        type="button"
+                        className="btn btn-ghost btn-block"
+                        style={{ textAlign: 'left', opacity: r.disabled ? 0.5 : 1, display: 'block', padding: '10px 12px' }}
+                        disabled={r.disabled}
+                        onClick={() => setState(r.kind === 'promoter' ? { mode: 'valid-promoter', row: r.row as OrgPromoterGuest } : { mode: 'valid-guestlist', row: r.row as OrgGuestListEntry })}
+                      >
+                        <div className="bold small">{r.name}</div>
+                        <div className="tiny muted" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Gift size={11} /> Guest list · {r.sub}{r.reason ? ` · ${r.reason}` : ''}</div>
+                      </button>
+                    ))}
+                  </>
                 )}
               </div>
             )}
@@ -432,9 +426,7 @@ export default function VenueScanner() {
         </div>
         {useCamera && (
           <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-            {entryMode === 'paid'
-              ? 'camera scans check in instantly'
-              : "camera scans a promoter's free-entry pass or a VIP invite QR"}
+            scans a paid ticket or a guest-list pass — no need to pick one first
           </div>
         )}
       </div>

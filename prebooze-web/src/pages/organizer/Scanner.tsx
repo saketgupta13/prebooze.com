@@ -16,8 +16,6 @@ type ScanState =
   | { mode: 'valid-guestlist'; row: OrgGuestListEntry }
   | { mode: 'invalid'; reason: string };
 
-type EntryMode = 'paid' | 'guestlist';
-
 /** One row per booking (not per guest) for live search — attendees comes
  * back one row per individual guest sharing a bookingId (see
  * OrganizerService.attendees), so a 3-guest party needs grouping back
@@ -92,22 +90,24 @@ function guestListMatches(promoterGuests: OrgPromoterGuest[], orgGuests: OrgGues
   return [...fromPromoter, ...fromOrgList].slice(0, 8);
 }
 
-/** Real gate check-in — camera scan decodes the guest's real signed-JWT QR
- * (via jsQR) and checks it in atomically through POST /bookings/check-in,
- * which now verifies the scanning organizer actually owns the ticket's
- * event (see the ownership-check comment on BookingsService.checkIn — that
- * was a real gap before this). Manual entry (live name/booking-# search)
- * stays as a fallback for when the camera isn't practical.
+/** Real gate check-in — camera scan decodes the guest's real QR (via jsQR)
+ * and checks it in atomically. Auto-detects which of the three real QR
+ * formats it just scanned purely from the string's own shape — a paid
+ * booking's signed JWT always has two `.` separators (header.payload.
+ * signature), an organizer-added VIP invite is a static `vip-<entryId>`
+ * (VipPass.tsx, never expires), anything else is a promoter free-entry pass
+ * (GuestPass.tsx's rotating `${pass.id}-${rotation}`, rotation stripped by
+ * taking everything before the last hyphen — the rotation suffix is a
+ * screenshot deterrent only, nothing the server validates).
  *
- * Paid booking / Guest list is a real toggle, not just a manual-entry
- * filter — it also changes what the camera expects to scan. Guest list
- * covers two different sources, both with their own QR now: promoter
- * free-entry passes (GuestPass.tsx's rotating `${pass.id}-${rotation}`
- * value — the rotation suffix is a screenshot deterrent only, nothing the
- * server validates) and the organizer's own manually-added guest list
- * (VipPass.tsx's static `vip-${entryId}` — never expires, so there's no
- * rotation to add). Camera scanning tells the two apart by the `vip-`
- * prefix; anything else is treated as a promoter pass. */
+ * This used to require picking "Paid booking" or "Guest list" mode BEFORE
+ * scanning, and scanning the wrong QR for whichever mode was selected
+ * failed with a misleading "not recognized"/"invalid" error instead of the
+ * real problem — real door feedback (House of Aura): staff don't have time
+ * to switch tabs mid-queue at the gate. Since the three formats are
+ * unambiguous by shape alone, the camera now accepts any of them at any
+ * time with no mode to pick first; manual search below is unified the same
+ * way, searching paid bookings and the guest list together in one pass. */
 export default function Scanner() {
   const [events, setEvents] = useState<Event[]>([]);
   const [eventId, setEventId] = useState('');
@@ -116,7 +116,6 @@ export default function Scanner() {
   const [orgGuestList, setOrgGuestList] = useState<OrgGuestListEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [state, setState] = useState<ScanState>({ mode: 'idle' });
-  const [entryMode, setEntryMode] = useState<EntryMode>('paid');
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [useCamera, setUseCamera] = useState(true);
@@ -146,7 +145,10 @@ export default function Scanner() {
 
   const onQrScanned = async (raw: string) => {
     if (busy || state.mode !== 'idle') return;
-    if (entryMode === 'paid') {
+    // Shape alone tells the three real QR formats apart — no mode to pick
+    // first (see the doc comment above this component for why that used to
+    // be required and what it broke at the door).
+    if (raw.includes('.')) {
       setBusy(true);
       try {
         const updated = await bookings.checkIn(raw);
@@ -159,12 +161,6 @@ export default function Scanner() {
       }
       return;
     }
-    // Guest list mode — two possible QR sources now. VipPass.tsx's own
-    // invites are a static `vip-<entryId>` (no rotation — this pass never
-    // expires, so there's no screenshot-window to protect against the way
-    // a time-limited promoter pass has). Anything else is assumed to be a
-    // promoter pass QR (`<passId>-<rotation>`, rotation stripped by taking
-    // everything before the last hyphen).
     if (raw.startsWith('vip-')) {
       const entryId = raw.slice(4);
       const entry = orgGuestList.find((g) => g.id === entryId);
@@ -225,8 +221,8 @@ export default function Scanner() {
   const checkedInTotal = attendees.filter((a) => a.checkedIn).length + promoterGuests.filter((g) => g.arrived).length;
   const total = attendees.length + promoterGuests.length;
 
-  const paidResults = entryMode === 'paid' ? paidMatches(attendees, search) : [];
-  const guestResults = entryMode === 'guestlist' ? guestListMatches(promoterGuests, orgGuestList, event, search) : [];
+  const paidResults = paidMatches(attendees, search);
+  const guestResults = guestListMatches(promoterGuests, orgGuestList, event, search);
 
   if (!loading && events.length === 0) {
     return <div className="muted small">No live events yet — the scanner works once an event is approved.</div>;
@@ -238,6 +234,7 @@ export default function Scanner() {
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick"><Check size={30} /></div>
+          <div className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Ticket size={12} /> Paid booking</div>
           <h2>Checked in</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Booking</span><span className="bold">{b.id}</span></div>
@@ -268,6 +265,7 @@ export default function Scanner() {
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick"><Check size={30} /></div>
+          <div className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Gift size={12} /> Guest list</div>
           <h2>Free entry — valid</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Guest</span><span className="bold">{g.name}</span></div>
@@ -297,6 +295,7 @@ export default function Scanner() {
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick"><Check size={30} /></div>
+          <div className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Gift size={12} /> Guest list</div>
           <h2>Guest list — valid</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Guest</span><span className="bold">{g.name}</span></div>
@@ -325,6 +324,7 @@ export default function Scanner() {
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick"><Check size={30} /></div>
+          <div className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Ticket size={12} /> Paid booking</div>
           <h2>Valid ticket</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Booking</span><span className="bold">{row.bookingId}</span></div>
@@ -376,17 +376,6 @@ export default function Scanner() {
       </div>
 
       <div style={{ padding: '0 16px 16px' }}>
-        <div className="chip-row" style={{ marginBottom: 14 }}>
-          <button type="button" className={`chip ${entryMode === 'paid' ? 'on' : ''}`} onClick={() => { setEntryMode('paid'); setSearch(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Ticket size={13} /> Paid booking
-          </button>
-          <button type="button" className={`chip ${entryMode === 'guestlist' ? 'on' : ''}`} onClick={() => { setEntryMode('guestlist'); setSearch(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Gift size={13} /> Guest list
-          </button>
-        </div>
-      </div>
-
-      <div style={{ padding: '0 16px 16px' }}>
         {useCamera ? (
           <>
             <CameraQRScanner onScan={onQrScanned} active={state.mode === 'idle' && !busy} />
@@ -397,18 +386,18 @@ export default function Scanner() {
         ) : (
           <>
             <input
-              placeholder={entryMode === 'paid' ? 'Search by name or booking #' : 'Search guest name'}
+              placeholder="Search name, booking # or guest list"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               autoFocus
             />
             {search.trim().length >= MIN_QUERY && (
               <div className="card" style={{ marginTop: 8, padding: 6 }}>
-                {entryMode === 'paid' ? (
-                  paidResults.length === 0 ? (
-                    <div className="tiny muted center" style={{ padding: 10 }}>No matches</div>
-                  ) : (
-                    paidResults.map((r) => (
+                {paidResults.length === 0 && guestResults.length === 0 ? (
+                  <div className="tiny muted center" style={{ padding: 10 }}>No matches</div>
+                ) : (
+                  <>
+                    {paidResults.map((r) => (
                       <button
                         key={r.main.bookingId}
                         type="button"
@@ -418,30 +407,28 @@ export default function Scanner() {
                         onClick={() => setState({ mode: 'valid-booking', row: r.main })}
                       >
                         <div className="bold small">{r.main.name}{r.extra > 0 ? ` +${r.extra} more` : ''}</div>
-                        <div className="tiny muted">
+                        <div className="tiny muted" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Ticket size={11} /> Paid ·{' '}
                           {r.matchedName !== r.main.name && `matched "${r.matchedName}" · `}
                           {r.main.bookingId} · {r.main.tierName}
                           {r.reason ? ` · ${r.reason}` : ''}
                         </div>
                       </button>
-                    ))
-                  )
-                ) : guestResults.length === 0 ? (
-                  <div className="tiny muted center" style={{ padding: 10 }}>No matches</div>
-                ) : (
-                  guestResults.map((r) => (
-                    <button
-                      key={r.key}
-                      type="button"
-                      className="btn btn-ghost btn-block"
-                      style={{ textAlign: 'left', opacity: r.disabled ? 0.5 : 1, display: 'block', padding: '10px 12px' }}
-                      disabled={r.disabled}
-                      onClick={() => setState(r.kind === 'promoter' ? { mode: 'valid-promoter', row: r.row as OrgPromoterGuest } : { mode: 'valid-guestlist', row: r.row as OrgGuestListEntry })}
-                    >
-                      <div className="bold small">{r.name}</div>
-                      <div className="tiny muted" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>{r.sub}{r.reason ? ` · ${r.reason}` : ''}</div>
-                    </button>
-                  ))
+                    ))}
+                    {guestResults.map((r) => (
+                      <button
+                        key={r.key}
+                        type="button"
+                        className="btn btn-ghost btn-block"
+                        style={{ textAlign: 'left', opacity: r.disabled ? 0.5 : 1, display: 'block', padding: '10px 12px' }}
+                        disabled={r.disabled}
+                        onClick={() => setState(r.kind === 'promoter' ? { mode: 'valid-promoter', row: r.row as OrgPromoterGuest } : { mode: 'valid-guestlist', row: r.row as OrgGuestListEntry })}
+                      >
+                        <div className="bold small">{r.name}</div>
+                        <div className="tiny muted" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Gift size={11} /> Guest list · {r.sub}{r.reason ? ` · ${r.reason}` : ''}</div>
+                      </button>
+                    ))}
+                  </>
                 )}
               </div>
             )}
@@ -455,9 +442,7 @@ export default function Scanner() {
         </div>
         {useCamera && (
           <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
-            {entryMode === 'paid'
-              ? 'camera scans check in instantly'
-              : "camera scans a promoter's free-entry pass or a VIP invite QR"}
+            scans a paid ticket or a guest-list pass — no need to pick one first
           </div>
         )}
       </div>
