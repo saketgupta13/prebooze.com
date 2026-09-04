@@ -366,6 +366,7 @@ export interface Booking {
   whatsapp: string;
   createdAt: string;
   promoterRef?: string; // promoter slug credited with this sale (affiliate commission)
+  promoterName?: string; // resolved server-side from promoterRef — present only where the API attaches it (e.g. checkIn())
   event?: Event; // embedded event+venue — present on real (live-backend) bookings only
   qrToken?: string;
 }

@@ -133,7 +133,15 @@ export class OrganizerService {
   async promoterGuests(userId: string, eventId: string) {
     await this.orgAccess.require(userId, 'Guest list', 'view');
     await this.myEvent(userId, eventId);
-    return this.prisma.promoterGuest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
+    const rows = await this.prisma.promoterGuest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
+    // promoterSlug is the URL-style slug (e.g. "dj-ritik-promo"), not
+    // necessarily readable — resolve the real brand name for the scanner
+    // to show, same as attendees() does for a paid booking's promoterRef.
+    const slugs = [...new Set(rows.map((r) => r.promoterSlug))];
+    const names = slugs.length
+      ? new Map((await this.prisma.promoter.findMany({ where: { slug: { in: slugs } }, select: { slug: true, name: true } })).map((p) => [p.slug, p.name]))
+      : new Map<string, string>();
+    return rows.map((r) => ({ ...r, promoterName: names.get(r.promoterSlug) }));
   }
 
   // ---------- gate ops: live monitor (reuses AdminLiveMonitorService) ----------
@@ -462,6 +470,15 @@ export class OrganizerService {
       orderBy: { createdAt: 'desc' },
       include: { user: { select: { username: true, avatarUrl: true, discoverable: true } } },
     });
+    // promoterRef is a bare slug, not a Prisma relation — batch-resolved
+    // once for every distinct slug in this event's bookings (same pattern
+    // promoterPayouts() below already uses) rather than one lookup per
+    // booking, so the scanner can show which promoter gets credit for a
+    // paid sale, not just for the separate free-entry-pass guest list.
+    const promoterSlugs = [...new Set(bookings.map((b) => b.promoterRef).filter((s): s is string => !!s))];
+    const promoterNames = promoterSlugs.length
+      ? new Map((await this.prisma.promoter.findMany({ where: { slug: { in: promoterSlugs } }, select: { slug: true, name: true } })).map((p) => [p.slug, p.name]))
+      : new Map<string, string>();
     return bookings.flatMap((b) => {
       // Check-in happens once per booking (one QR, scanned at the gate for
       // the whole party) — the real BookingsService.checkIn only ever flips
@@ -498,6 +515,12 @@ export class OrganizerService {
         checkedIn: b.checkedIn,
         coverCharge: b.coverCharge,
         total: b.total,
+        // The tier's own price at purchase, unaffected by a coupon/wallet
+        // credit that later zeroed out `total` — the scanner uses this
+        // (not total) to tell a genuinely free tier apart from a paid tier
+        // discounted to ₹0, which is still a real paid-tier sale.
+        subtotal: b.subtotal,
+        promoterName: b.promoterRef ? promoterNames.get(b.promoterRef) : undefined,
         // Self-checkout (guest paid via Razorpay) sets paymentId, never
         // paymentMethod; staff-recorded manual/comp bookings are the
         // reverse (BookingsService.create vs .adminCreate) — the two

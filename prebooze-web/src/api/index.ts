@@ -489,6 +489,11 @@ export interface OrgAttendee {
   checkedIn: boolean;
   coverCharge: number;
   total: number;
+  // The tier's own price at purchase, unaffected by a coupon/wallet credit
+  // that later zeroed out `total` — the scanner uses this (not total) to
+  // tell a genuinely free tier apart from a paid tier discounted to ₹0.
+  subtotal: number;
+  promoterName?: string;
   paymentMethod: string;
 }
 export interface OrgLedgerTx {
@@ -598,6 +603,7 @@ export interface OrgPromoterGuest {
   id: string;
   eventId: string;
   promoterSlug: string;
+  promoterName?: string; // resolved real brand name — promoterSlug is the URL-style slug, not necessarily readable
   name: string;
   phone: string;
   age?: string;

@@ -376,6 +376,11 @@ export class VenueService {
       orderBy: { createdAt: 'desc' },
       include: { user: { select: { username: true, avatarUrl: true } } },
     });
+    // Same batch promoterRef->name resolution as OrganizerService.attendees.
+    const promoterSlugs = [...new Set(bookings.map((b) => b.promoterRef).filter((s): s is string => !!s))];
+    const promoterNames = promoterSlugs.length
+      ? new Map((await this.prisma.promoter.findMany({ where: { slug: { in: promoterSlugs } }, select: { slug: true, name: true } })).map((p) => [p.slug, p.name]))
+      : new Map<string, string>();
     return bookings.flatMap((b) => {
       const guests = b.guests as { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
       return guests.map((g, i) => ({
@@ -394,6 +399,8 @@ export class VenueService {
         checkedIn: b.checkedIn,
         coverCharge: b.coverCharge,
         total: b.total,
+        subtotal: b.subtotal,
+        promoterName: b.promoterRef ? promoterNames.get(b.promoterRef) : undefined,
         paymentMethod: b.paymentId ? 'Online' : b.paymentMethod ?? '—',
       }));
     });
@@ -448,7 +455,13 @@ export class VenueService {
   async promoterGuests(userId: string, eventId: string) {
     const venue = await this.venueAccess.require(userId, 'Guest list', 'view');
     await this.myHostedEvent(venue, eventId);
-    return this.prisma.promoterGuest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
+    const rows = await this.prisma.promoterGuest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
+    // Same slug->name resolution as OrganizerService.promoterGuests.
+    const slugs = [...new Set(rows.map((r) => r.promoterSlug))];
+    const names = slugs.length
+      ? new Map((await this.prisma.promoter.findMany({ where: { slug: { in: slugs } }, select: { slug: true, name: true } })).map((p) => [p.slug, p.name]))
+      : new Map<string, string>();
+    return rows.map((r) => ({ ...r, promoterName: names.get(r.promoterSlug) }));
   }
 
   // ---------- gate ops: live monitor (mirrors OrganizerService, reuses

@@ -67,7 +67,7 @@ function guestListMatches(promoterGuests: OrgPromoterGuest[], orgGuests: OrgGues
       kind: 'promoter' as const,
       key: g.id,
       name: g.name,
-      sub: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Megaphone size={11} /> brought by @{g.promoterSlug}</span>,
+      sub: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Megaphone size={11} /> brought by {g.promoterName ?? `@${g.promoterSlug}`}</span>,
       disabled: g.arrived || !valid,
       reason: g.arrived ? 'Already checked in' : !valid ? 'Free-entry window closed' : undefined,
       row: g,
@@ -221,11 +221,19 @@ export default function VenueScanner() {
 
   if (state.mode === 'checked-in') {
     const b = state.booking;
+    // Same "genuinely free tier, not a real purchase" check as
+    // organizer/Scanner.tsx — subtotal, not total (a coupon/wallet credit
+    // can zero total on a real paid tier too).
+    const isFree = b.subtotal === 0;
     return (
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick"><CheckCircle2 size={30} /></div>
-          <div className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Ticket size={12} /> Paid booking</div>
+          {isFree ? (
+            <div className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Gift size={12} /> Guest list</div>
+          ) : (
+            <div className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Ticket size={12} /> Paid booking</div>
+          )}
           <h2>Checked in</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Booking</span><span className="bold">{b.id}</span></div>
@@ -233,6 +241,9 @@ export default function VenueScanner() {
             <div className="kv"><span className="k">Tickets</span><span>{b.tierName} · {b.qty}</span></div>
             <div className="kv"><span className="k">Total paid</span><span className="bold">₹{b.total}</span></div>
             <div className="kv"><span className="k">Payment</span><span>{b.paymentId ? 'Online' : (b.paymentMethod || '—')}</span></div>
+            {b.promoterName && (
+              <div className="kv"><span className="k">Promoter</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Megaphone size={13} /> {b.promoterName}</span></div>
+            )}
           </div>
           <div style={{ textAlign: 'left', margin: '14px 0', paddingTop: 14, borderTop: '1px dashed var(--border-dash)' }}>
             <div className="tiny muted" style={{ marginBottom: 6 }}>What's included in this ticket</div>
@@ -260,7 +271,7 @@ export default function VenueScanner() {
           <h2>Free entry — valid</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Guest</span><span className="bold">{g.name}</span></div>
-            <div className="kv"><span className="k">Brought by</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Megaphone size={13} /> {g.promoterSlug}</span></div>
+            <div className="kv"><span className="k">Brought by</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Megaphone size={13} /> {g.promoterName ?? g.promoterSlug}</span></div>
             <div className="kv"><span className="k">Age · gender</span><span>{g.age} · {g.gender}</span></div>
             <div className="kv"><span className="k">Event</span><span>{event?.title}</span></div>
           </div>
@@ -304,11 +315,16 @@ export default function VenueScanner() {
   if (state.mode === 'valid-booking') {
     const row = state.row;
     const partyNames = attendees.filter((a) => a.bookingId === row.bookingId).map((a) => a.name);
+    const isFree = row.subtotal === 0;
     return (
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick"><CheckCircle2 size={30} /></div>
-          <div className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Ticket size={12} /> Paid booking</div>
+          {isFree ? (
+            <div className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Gift size={12} /> Guest list</div>
+          ) : (
+            <div className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Ticket size={12} /> Paid booking</div>
+          )}
           <h2>Valid ticket</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Booking</span><span className="bold">{row.bookingId}</span></div>
@@ -317,6 +333,9 @@ export default function VenueScanner() {
             <div className="kv"><span className="k">Tickets</span><span>{row.tierName}</span></div>
             <div className="kv"><span className="k">Total paid</span><span className="bold">₹{row.total}</span></div>
             <div className="kv"><span className="k">Payment</span><span>{row.paymentMethod}</span></div>
+            {row.promoterName && (
+              <div className="kv"><span className="k">Promoter</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Megaphone size={13} /> {row.promoterName}</span></div>
+            )}
           </div>
           <div style={{ textAlign: 'left', margin: '14px 0', paddingTop: 14, borderTop: '1px dashed var(--border-dash)' }}>
             <div className="tiny muted" style={{ marginBottom: 6 }}>What's included in this ticket</div>
@@ -392,7 +411,7 @@ export default function VenueScanner() {
                       >
                         <div className="bold small">{r.main.name}{r.extra > 0 ? ` +${r.extra} more` : ''}</div>
                         <div className="tiny muted" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <Ticket size={11} /> Paid ·{' '}
+                          {r.main.subtotal === 0 ? <><Gift size={11} /> Guest list</> : <><Ticket size={11} /> Paid</>} ·{' '}
                           {r.matchedName !== r.main.name && `matched "${r.matchedName}" · `}
                           {r.main.bookingId} · {r.main.tierName}
                           {r.reason ? ` · ${r.reason}` : ''}

@@ -1345,7 +1345,12 @@ export class BookingsService {
     }
     const updated = await this.prisma.booking.findUniqueOrThrow({ where: { id: booking.id } });
     await this.logCheckIn({ ok: true, reason: 'checked in', eventId: booking.eventId, bookingId: booking.id, guestName: booking.mainGuest, tierName: booking.tierName, headcount: booking.qty });
-    return updated;
+    // promoterRef is a bare slug, not a Prisma relation (see adminGet's
+    // identical lookup) — resolved here so the scanner's confirmation
+    // screen can show which promoter gets credit for this sale, same as
+    // the promoter-guest-list flow already shows for a free-entry pass.
+    const promoter = updated.promoterRef ? await this.prisma.promoter.findUnique({ where: { slug: updated.promoterRef }, select: { name: true } }) : null;
+    return { ...updated, promoterName: promoter?.name };
   }
 
   /** Feeds the admin Live Monitor's gate feed + "rejected QRs" KPI — written
