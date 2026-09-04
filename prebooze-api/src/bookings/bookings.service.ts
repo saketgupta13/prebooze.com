@@ -15,6 +15,7 @@ import { NotificationsService } from '../admin/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { effectiveTierPrice, tierWindowState } from '../common/ticket-tier-pricing';
 import { partySizeFromTierName, isCoupleTierName } from '../common/party-size';
+import { normalizeGender } from '../common/coupon-gender';
 import { requiredAgeFor } from '../common/age-gate';
 import { normalizePhone } from '../auth/auth.service';
 import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from '../auth/guest-username';
@@ -222,7 +223,7 @@ export class BookingsService {
       }
       if (couponRow.gender !== 'all') {
         const buyer = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-        if (buyer.gender.toLowerCase() !== couponRow.gender.toLowerCase()) {
+        if (normalizeGender(buyer.gender) !== normalizeGender(couponRow.gender)) {
           throw new BadRequestException('This promo code is not available for your profile');
         }
       }
@@ -303,7 +304,7 @@ export class BookingsService {
     const eligible: { code: string; type: string; value: number; maxDiscount: number | null; description: string | null }[] = [];
     for (const c of candidates) {
       if (c.used >= c.usageLimit) continue;
-      if (c.gender !== 'all' && (buyer.gender || '').toLowerCase() !== c.gender.toLowerCase()) continue;
+      if (c.gender !== 'all' && normalizeGender(buyer.gender) !== normalizeGender(c.gender)) continue;
       if (c.firstTimeOnly) {
         const priorBookings = await this.prisma.booking.count({ where: { userId } });
         if (priorBookings > 0) continue;
