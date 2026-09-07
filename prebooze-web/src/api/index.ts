@@ -4,7 +4,8 @@
 import { apiFetch, apiUpload, API_URL, getToken, ApiError } from './client';
 import type {
   Booking, CareerJob, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, FeaturedSubscription, HelpTicket,
-  Invoice, JobApplication, LineupProfile, Organizer, PayMethod, PaymentProfile, Person, PersonDetail, PromoterProfile, User, Venue, WaitlistEntry,
+  Invoice, JobApplication, LineupProfile, MarketingAnalytics, MarketingOrder, MarketingRates, MarketingSubscription, Organizer, PayMethod, PaymentProfile,
+  Person, PersonDetail, PromoterProfile, User, Venue, WaitlistEntry,
 } from '../types';
 import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, WalletTx } from '../store/AppContext';
 
@@ -505,6 +506,22 @@ export interface OrgLedgerTx {
   note?: string;
   createdAt: string;
 }
+/** Shared client for the organizer/venue-paid Meta ad marketing endpoints —
+ * identical shape on both sides (see MarketingController/
+ * VenueMarketingController), only the route base differs. */
+const marketingApi = (base: string) => ({
+  rates: () => apiFetch<MarketingRates>(`${base}/rates`),
+  request: (eventId: string) =>
+    apiFetch<{ id: string; amount: number; razorpayOrder: { orderId: string; amount: number; keyId?: string } }>(`${base}/request`, { body: { eventId } }),
+  confirmPayment: (id: string, proof: { paymentId: string; signature: string }) =>
+    apiFetch<MarketingOrder>(`${base}/${id}/confirm-payment`, { body: proof }),
+  orders: () => apiFetch<MarketingOrder[]>(`${base}/orders`),
+  subscribe: () => apiFetch<{ ok: boolean; requiresAuthorization: boolean; shortUrl?: string; subscriptionId?: string; keyId?: string }>(`${base}/subscribe`, { body: {} }),
+  cancelSubscription: () => apiFetch<{ ok: boolean }>(`${base}/subscription/cancel`, { body: {} }),
+  mySubscription: () => apiFetch<MarketingSubscription | null>(`${base}/subscription`),
+  analytics: (eventId: string) => apiFetch<MarketingAnalytics>(`${base}/analytics`, { query: { eventId } }),
+});
+
 export const organizer = {
   me: () => apiFetch<Organizer>('/organizer/me'),
   updateMe: (patch: { brandName?: string; username?: string; city?: string; country?: string; state?: string; pincode?: string; logoUrl?: string; about?: string; socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) =>
@@ -536,6 +553,7 @@ export const organizer = {
   }) => apiFetch<Event>('/organizer/events', { body: e }),
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),
   bookings: () => apiFetch<OrgBooking[]>('/organizer/bookings'),
+  marketing: marketingApi('/organizer/marketing'),
   coupons: () => apiFetch<Coupon[]>('/organizer/coupons'),
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/organizer/coupons', { body: c }),
   payouts: () => apiFetch<{ balance: number; ledger: OrgLedgerTx[] }>('/organizer/payouts'),
@@ -840,6 +858,7 @@ export const venuePartner = {
   // hosted events instead of an organizer's ----
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/venue/hosting/events/${eventId}/attendees`),
   bookings: () => apiFetch<OrgBooking[]>('/venue/hosting/bookings'),
+  marketing: marketingApi('/venue/hosting/marketing'),
   abandonedCarts: () => apiFetch<CartRecord[]>('/venue/hosting/carts'),
   remindCart: (id: string) => apiFetch<void>(`/venue/hosting/carts/${id}/remind`, { method: 'POST' }),
   guestList: (eventId: string) => apiFetch<{ entries: OrgGuestListEntry[]; namesCount: number; totalHeads: number; arrived: number }>(`/venue/hosting/events/${eventId}/guest-list`),

@@ -8,6 +8,7 @@ import Bookings from './pages/Bookings';
 import BookingDetail from './pages/BookingDetail';
 import AbandonedCarts from './pages/AbandonedCarts';
 import Featured from './pages/Featured';
+import Marketing from './pages/Marketing';
 import Referrals from './pages/Referrals';
 import Locations from './pages/Locations';
 import CareersAdmin from './pages/CareersAdmin';
@@ -82,6 +83,7 @@ export default function App() {
         <Route path="/bookings/:id" element={<BookingDetail />} />
         <Route path="/abandoned" element={<AbandonedCarts />} />
         <Route path="/featured" element={<Featured />} />
+        <Route path="/marketing" element={<Marketing />} />
         <Route path="/referrals" element={<Referrals />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/customers/new" element={<AddCustomer />} />

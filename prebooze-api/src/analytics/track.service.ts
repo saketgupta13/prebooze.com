@@ -31,6 +31,9 @@ interface TrackInput {
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+  // Standardized city param for ad-campaign attribution (2026-09-05) — see
+  // FunnelEvent.utmCity's doc comment; `event_city` is no longer read.
+  utmCity?: string;
   siteSource?: string;
   landingPath?: string;
 }
@@ -129,6 +132,7 @@ export class TrackService {
           utmSource: input.utmSource?.slice(0, 100),
           utmMedium: input.utmMedium?.slice(0, 100),
           utmCampaign: input.utmCampaign?.slice(0, 100),
+          utmCity: input.utmCity?.slice(0, 100),
           siteSource: input.siteSource?.slice(0, 100),
           landingPath: input.landingPath?.slice(0, 300),
           geoCountry,

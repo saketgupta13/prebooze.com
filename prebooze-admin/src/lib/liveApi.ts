@@ -159,6 +159,54 @@ export const liveFeatured = {
   subscriptions: () => liveFetch<LiveFeaturedSubscription[]>('/admin/featured/subscriptions'),
 };
 
+export interface LiveMarketingOrder {
+  id: string;
+  ownerType: 'organizer' | 'venue';
+  organizerId: string | null;
+  venueId: string | null;
+  entityName: string | null;
+  eventId: string | null;
+  eventTitle: string | null;
+  amount: number;
+  marginPct: number;
+  status: 'pending' | 'active' | 'rejected' | 'expired';
+  metaCampaignId: string | null;
+  paymentId: string | null;
+  createdAt: string;
+  marketingSubscriptionId: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+}
+export interface LiveMarketingSubscription {
+  id: string;
+  ownerType: 'organizer' | 'venue';
+  organizerId: string | null;
+  venueId: string | null;
+  entityName: string | null;
+  amountPerCycle: number;
+  marginPct: number;
+  status: string;
+  currentStart: string | null;
+  currentEnd: string | null;
+  paidCount: number;
+  updatedAt: string;
+}
+export interface LiveMarketingRates { perEvent: number; monthly: number; marginPct: number; }
+
+/** Admin visibility + the Meta-campaign handoff for the organizer/venue-paid
+ * ads product (MarketingService) — same read-only-plus-review-queue
+ * boundary as liveFeatured: the owner's own request/subscribe/cancel stay
+ * on their own console, admin can only see the queue, reject, and record
+ * the real Meta campaign id once it's been set up by hand. */
+export const liveMarketing = {
+  orders: (status?: string) => liveFetch<LiveMarketingOrder[]>('/admin/marketing/orders' + (status ? `?status=${status}` : '')),
+  subscriptions: () => liveFetch<LiveMarketingSubscription[]>('/admin/marketing/subscriptions'),
+  setCampaign: (id: string, metaCampaignId: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/campaign`, { method: 'PATCH', body: { metaCampaignId } }),
+  reject: (id: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/reject`, { method: 'POST' }),
+  rates: () => liveFetch<LiveMarketingRates>('/admin/marketing/rates'),
+  updateRates: (body: Partial<LiveMarketingRates>) => liveFetch<LiveMarketingRates>('/admin/marketing/rates', { method: 'PATCH', body }),
+};
+
 export interface LiveTicketTier {
   id: string;
   name: string;
@@ -970,7 +1018,7 @@ export const liveSettlements = {
 export const PERM_MODULES = [
   'Dashboard', 'Events & approvals', 'Event commission (per event)', 'Bookings', 'Refunds',
   'Payments & payouts', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
-  'Verifications (KYC)', 'Reviews', 'Locations', 'Abandoned carts', 'Featured', 'Content',
+  'Verifications (KYC)', 'Reviews', 'Locations', 'Abandoned carts', 'Featured', 'Marketing campaigns', 'Content',
   'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Reports', 'Leads',
 ] as const;
 export type PermKey = 'view' | 'edit' | 'approve';

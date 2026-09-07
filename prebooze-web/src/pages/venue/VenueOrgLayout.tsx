@@ -5,7 +5,7 @@ import PendingReview, { RejectedReview } from '../../components/PendingReview';
 import { PageLoader } from '../../components/Loader';
 import { venuePartner } from '../../api';
 import {
-  LayoutDashboard, Ticket, Users, QrCode, ClipboardList, Activity, Percent, ShoppingCart, Banknote, Megaphone, Shield, Settings, MoreHorizontal, X,
+  LayoutDashboard, Ticket, Users, QrCode, ClipboardList, Activity, Percent, ShoppingCart, Banknote, Megaphone, Shield, Settings, MoreHorizontal, X, Rocket,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -14,7 +14,11 @@ import type { LucideIcon } from 'lucide-react';
 // PERM_MODULES / the backend's VENUE_ORG_PERM_MODULES — must match exactly).
 // Same shape as OrganizerLayout's NAV, minus Team & roles duplication logic
 // and minus Reviews (kept solely on the venue panel — see VenueReviews.tsx).
-const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; module?: string }[] = [
+// `'owner'` = never shown to a team member at all, real venue owner only —
+// same reasoning as OrganizerLayout's Featured & billing (money, not
+// delegated via any role); MarketingService itself enforces this
+// server-side via User.venueId, a team member's own userId never matches.
+const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; module?: string | 'owner' }[] = [
   { to: '/venue/hosting', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/venue/hosting/events', label: 'Events', icon: Ticket, module: 'Events & wizard' },
   { to: '/venue/hosting/bookings', label: 'Bookings', icon: Users, module: 'Attendees & check-in' },
@@ -24,6 +28,7 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; module?
   { to: '/venue/hosting/coupons', label: 'Promo codes', icon: Percent, module: 'Coupons' },
   { to: '/venue/hosting/carts', label: 'Abandoned carts', icon: ShoppingCart, module: 'Events & wizard' },
   { to: '/venue/hosting/ledger', label: 'Payouts', icon: Banknote, module: 'Payouts & withdrawals' },
+  { to: '/venue/hosting/marketing', label: 'Marketing', icon: Rocket, module: 'owner' },
   { to: '/venue/hosting/promoters', label: 'Promoters', icon: Megaphone, module: 'Payouts & withdrawals' },
   { to: '/venue/hosting/team', label: 'Team & roles', icon: Shield, module: 'Settings & team' },
   { to: '/venue/hosting/settings', label: 'Settings', icon: Settings, module: 'Settings & team' },
@@ -95,7 +100,7 @@ export default function VenueOrgLayout() {
 }
 
 function TeamConsole({ access }: { access: NonNullable<ReturnType<typeof useApp>['venueTeamAccess']> }) {
-  const canView = (module?: string) => module === undefined || !!access.permissions[module]?.view;
+  const canView = (module?: string | 'owner') => module === undefined || (module !== 'owner' && !!access.permissions[module]?.view);
   const visibleNav = NAV.filter((n) => canView(n.module));
 
   return (

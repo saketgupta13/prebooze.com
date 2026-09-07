@@ -29,6 +29,11 @@ interface Attribution {
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+  // Standardized city param for ad-campaign attribution (2026-09-05) — the
+  // Nagpur campaign was sending `event_city` instead of `utm_city`, and
+  // neither was ever actually read here before this. Only `utm_city` going
+  // forward; ad campaigns should be updated to send that name.
+  utmCity?: string;
   landingPath?: string;
   // Meta's {{site_source_name}} dynamic param — resolves to "fb"/"ig" at
   // click time. Live campaigns append it as fb_platform; site_source kept
@@ -57,6 +62,7 @@ function attribution(): Attribution {
     utmSource: params.get('utm_source') ?? undefined,
     utmMedium: params.get('utm_medium') ?? undefined,
     utmCampaign: params.get('utm_campaign') ?? undefined,
+    utmCity: params.get('utm_city') ?? undefined,
     siteSource: params.get('fb_platform') ?? params.get('site_source') ?? undefined,
     landingPath: window.location.pathname,
   };

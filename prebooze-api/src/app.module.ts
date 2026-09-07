@@ -15,6 +15,7 @@ import { PromoterModule } from './promoter/promoter.module';
 import { VenueModule } from './venue/venue.module';
 import { LineupModule } from './lineup/lineup.module';
 import { FeaturedModule } from './featured/featured.module';
+import { MarketingModule } from './marketing/marketing.module';
 import { SupportModule } from './support/support.module';
 import { CareersModule } from './careers/careers.module';
 import { AdminModule } from './admin/admin.module';
@@ -40,6 +41,7 @@ import { SitemapModule } from './sitemap/sitemap.module';
     VenueModule,
     LineupModule,
     FeaturedModule,
+    MarketingModule,
     SupportModule,
     CareersModule,
     AdminModule,

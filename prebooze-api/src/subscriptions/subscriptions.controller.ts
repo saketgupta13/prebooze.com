@@ -4,6 +4,7 @@ import type { Request } from 'express';
 import { SubscriptionsService } from './subscriptions.service';
 import { RazorpayService } from '../payments/razorpay.service';
 import { FeaturedService } from '../featured/featured.service';
+import { MarketingService } from '../marketing/marketing.service';
 import { BookingsService } from '../bookings/bookings.service';
 
 /** Razorpay's server-to-server callback for subscription lifecycle events —
@@ -24,6 +25,7 @@ export class RazorpayWebhookController {
   constructor(
     private subs: SubscriptionsService,
     private featured: FeaturedService,
+    private marketing: MarketingService,
     private razorpay: RazorpayService,
     private bookings: BookingsService,
   ) {}
@@ -44,6 +46,7 @@ export class RazorpayWebhookController {
     if (body?.event) {
       await this.subs.handleWebhookEvent(body.event, body.payload);
       await this.featured.handleWebhookEvent(body.event, body.payload);
+      await this.marketing.handleWebhookEvent(body.event, body.payload);
       // Closes the "no Razorpay webhook handler for one-time payments" gap
       // this file's own doc comment used to flag — see the 2026-08-27
       // incident (payment captured, booking never created because the

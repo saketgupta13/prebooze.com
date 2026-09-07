@@ -26,6 +26,7 @@ export class TrackController {
       utmSource?: string;
       utmMedium?: string;
       utmCampaign?: string;
+      utmCity?: string;
       siteSource?: string;
       landingPath?: string;
     },

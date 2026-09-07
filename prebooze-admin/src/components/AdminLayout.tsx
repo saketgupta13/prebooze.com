@@ -11,7 +11,7 @@ import {
   Megaphone, Star, Gift, MapPin, Landmark, Globe, Mic, Wallet, Banknote, Receipt,
   CircleDollarSign, Building2, Tag, TrendingUp, BarChart3, Image, Film, MessageCircle,
   HelpCircle, FolderTree, Tags, PenLine, FileText, ScrollText, Compass, UserCog, Mail,
-  Settings, User, Search, Bell, ArrowRight, X, MoreHorizontal, Radio, Sparkles,
+  Settings, User, Search, Bell, ArrowRight, X, MoreHorizontal, Radio, Sparkles, Rocket,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -34,6 +34,7 @@ const MAIN_NAV: { to: string; icon: LucideIcon; label: string; end?: boolean }[]
   { to: '/organizers', icon: Briefcase, label: 'Organizers' },
   { to: '/promoters', icon: Megaphone, label: 'Promoters' },
   { to: '/featured', icon: Star, label: 'Featured' },
+  { to: '/marketing', icon: Rocket, label: 'Marketing' },
   { to: '/referrals', icon: Gift, label: 'Refer & earn' },
   { to: '/venues', icon: MapPin, label: 'Venues' },
   { to: '/venue-hosting', icon: Landmark, label: 'Venue hosting' },
@@ -115,6 +116,7 @@ const NAV_MODULE: Record<string, string> = {
   '/organizers': 'Organizers',
   '/promoters': 'Promoters',
   '/featured': 'Featured',
+  '/marketing': 'Marketing campaigns',
   '/referrals': 'Payments & payouts',
   '/venues': 'Venues',
   '/venue-hosting': 'Venues',

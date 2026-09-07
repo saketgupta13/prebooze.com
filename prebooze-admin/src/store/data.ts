@@ -244,6 +244,7 @@ export const PERM_MODULES = [
   'Locations',
   'Abandoned carts',
   'Featured',
+  'Marketing campaigns',
   'Content',
   'Careers',
   'Reels',
