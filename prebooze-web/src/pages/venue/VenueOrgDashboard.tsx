@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Loader from '../../components/Loader';
+import MarketingPromoCard from '../../components/MarketingPromoCard';
 import { venuePartner, type OrgAttendee, type VenueLedgerTx } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event } from '../../types';
@@ -120,6 +121,8 @@ export default function VenueOrgDashboard() {
           <div className="v">{transactions.filter((t) => t.type === 'sale').length.toLocaleString()}</div>
         </div>
       </div>
+
+      <MarketingPromoCard to="/venue/hosting/marketing" />
 
       <div className="card" style={{ marginBottom: 18 }}>
         <h3 style={{ marginBottom: 10 }}>Top selling events</h3>

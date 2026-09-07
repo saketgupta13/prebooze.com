@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PromoteCard from '../../components/PromoteCard';
+import MarketingPromoCard from '../../components/MarketingPromoCard';
 import Loader from '../../components/Loader';
 import { organizer, type OrgAttendee } from '../../api';
 import { ApiError } from '../../api/client';
@@ -125,6 +126,8 @@ export default function Dashboard() {
           <div className="v">{ledger.filter((t) => t.type === 'sale').length.toLocaleString()}</div>
         </div>
       </div>
+
+      <MarketingPromoCard to="/organizer/marketing" />
 
       {profile && (
         <PromoteCard type="organizer" refId={profile.id} city={profile.city || 'All'} label="your brand" />

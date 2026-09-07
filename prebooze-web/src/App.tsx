@@ -78,6 +78,7 @@ const OrgReviews = lazy(() => import('./pages/organizer/OrgReviews'));
 const OrgTeamRoles = lazy(() => import('./pages/organizer/OrgTeamRoles'));
 const OrganizerBilling = lazy(() => import('./pages/organizer/OrganizerBilling'));
 const HostLanding = lazy(() => import('./pages/static/HostLanding'));
+const Advertise = lazy(() => import('./pages/static/Advertise'));
 const About = lazy(() => import('./pages/static/About'));
 const Contact = lazy(() => import('./pages/static/Contact'));
 const Legal = lazy(() => import('./pages/static/Legal'));
@@ -503,6 +504,7 @@ export default function App() {
 
         {/* Company / static */}
         <Route path="/host" element={<HostLanding />} />
+        <Route path="/advertise" element={<Advertise />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/faqs" element={<Faqs />} />

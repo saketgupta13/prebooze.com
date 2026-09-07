@@ -8,13 +8,16 @@ import { RequirePermission } from '../admin/permission.decorator';
 type AuthedReq = { user: { sub: string } };
 
 /** Organizer-side paid-marketing endpoints — same route-root pattern as
- * Bookings (nested under /organizer, JwtAuthGuard on the class). Every
- * handler here forces ownerType: 'organizer' server-side; the venue mirror
- * below is the only other caller of the same MarketingService, forcing
- * 'venue' instead — the route itself is what decides which side of the
- * marketplace is acting, never a client-supplied field. */
+ * Bookings (nested under /organizer). Guard moved to each method
+ * individually (not the class) so `rates()` can stay public — same
+ * exception FeaturedController's own `/featured/rates` already carries,
+ * needed so the public /advertise landing page can show real pricing to a
+ * logged-out visitor before they ever sign in. Every other handler here
+ * forces ownerType: 'organizer' server-side; the venue mirror below is the
+ * only other caller of the same MarketingService, forcing 'venue' instead
+ * — the route itself is what decides which side of the marketplace is
+ * acting, never a client-supplied field. */
 @Controller('organizer/marketing')
-@UseGuards(JwtAuthGuard)
 export class MarketingController {
   constructor(private marketing: MarketingService) {}
 
@@ -24,36 +27,43 @@ export class MarketingController {
   }
 
   @Post('request')
+  @UseGuards(JwtAuthGuard)
   request(@Req() req: AuthedReq, @Body('eventId') eventId: string) {
     return this.marketing.requestForEvent(req.user.sub, 'organizer', eventId);
   }
 
   @Post(':id/confirm-payment')
+  @UseGuards(JwtAuthGuard)
   confirmPayment(@Req() req: AuthedReq, @Param('id') id: string, @Body() body: { paymentId: string; signature: string }) {
     return this.marketing.confirmPayment(req.user.sub, 'organizer', id, body);
   }
 
   @Get('orders')
+  @UseGuards(JwtAuthGuard)
   myOrders(@Req() req: AuthedReq) {
     return this.marketing.myOrders(req.user.sub, 'organizer');
   }
 
   @Post('subscribe')
+  @UseGuards(JwtAuthGuard)
   subscribe(@Req() req: AuthedReq) {
     return this.marketing.subscribe(req.user.sub, 'organizer');
   }
 
   @Post('subscription/cancel')
+  @UseGuards(JwtAuthGuard)
   cancelSubscription(@Req() req: AuthedReq) {
     return this.marketing.cancelSubscription(req.user.sub, 'organizer');
   }
 
   @Get('subscription')
+  @UseGuards(JwtAuthGuard)
   mySubscription(@Req() req: AuthedReq) {
     return this.marketing.mySubscription(req.user.sub, 'organizer');
   }
 
   @Get('analytics')
+  @UseGuards(JwtAuthGuard)
   analytics(@Req() req: AuthedReq, @Query('eventId') eventId: string) {
     return this.marketing.analyticsFor(req.user.sub, 'organizer', eventId);
   }
@@ -62,7 +72,6 @@ export class MarketingController {
 /** Identical shape, venue side — matches VenueController's own
  * `hosting/bookings` etc. route-naming convention. */
 @Controller('venue/hosting/marketing')
-@UseGuards(JwtAuthGuard)
 export class VenueMarketingController {
   constructor(private marketing: MarketingService) {}
 
@@ -72,36 +81,43 @@ export class VenueMarketingController {
   }
 
   @Post('request')
+  @UseGuards(JwtAuthGuard)
   request(@Req() req: AuthedReq, @Body('eventId') eventId: string) {
     return this.marketing.requestForEvent(req.user.sub, 'venue', eventId);
   }
 
   @Post(':id/confirm-payment')
+  @UseGuards(JwtAuthGuard)
   confirmPayment(@Req() req: AuthedReq, @Param('id') id: string, @Body() body: { paymentId: string; signature: string }) {
     return this.marketing.confirmPayment(req.user.sub, 'venue', id, body);
   }
 
   @Get('orders')
+  @UseGuards(JwtAuthGuard)
   myOrders(@Req() req: AuthedReq) {
     return this.marketing.myOrders(req.user.sub, 'venue');
   }
 
   @Post('subscribe')
+  @UseGuards(JwtAuthGuard)
   subscribe(@Req() req: AuthedReq) {
     return this.marketing.subscribe(req.user.sub, 'venue');
   }
 
   @Post('subscription/cancel')
+  @UseGuards(JwtAuthGuard)
   cancelSubscription(@Req() req: AuthedReq) {
     return this.marketing.cancelSubscription(req.user.sub, 'venue');
   }
 
   @Get('subscription')
+  @UseGuards(JwtAuthGuard)
   mySubscription(@Req() req: AuthedReq) {
     return this.marketing.mySubscription(req.user.sub, 'venue');
   }
 
   @Get('analytics')
+  @UseGuards(JwtAuthGuard)
   analytics(@Req() req: AuthedReq, @Query('eventId') eventId: string) {
     return this.marketing.analyticsFor(req.user.sub, 'venue', eventId);
   }
