@@ -53,7 +53,7 @@ const DEFAULT_RULES: RuleDraft[] = [
  * flows, not something an organizer can spin up inline. Pick from the real
  * roster. */
 export default function CreateEvent() {
-  const { user } = useApp();
+  const { user, city: browsingCity } = useApp();
   const { id: editId } = useParams();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -493,7 +493,21 @@ export default function CreateEvent() {
           </div>
           <div className="field">
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
-              <input type="checkbox" checked={privateAddress} onChange={(e) => setPrivateAddress(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={privateAddress}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setPrivateAddress(checked);
+                  // Pre-fill from the organizer's own registered city (falling
+                  // back to whatever city they're currently browsing as) so
+                  // there's usually nothing to type — still a real
+                  // SearchableSelect underneath, so they can pick a different
+                  // city if this event's private address is elsewhere. Never
+                  // overwrites a value they (or a loaded draft) already set.
+                  if (checked && !privateCity.trim()) setPrivateCity(user?.city || browsingCity);
+                }}
+              />
               Keep exact address private — I'll share it with guests myself
             </label>
           </div>
