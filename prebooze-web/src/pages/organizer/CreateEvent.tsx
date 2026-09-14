@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { fmtDate, fmtTime } from '../../data/mock';
@@ -87,6 +87,14 @@ export default function CreateEvent() {
   const [liveCities, setLiveCities] = useState<string[]>([]);
   const [privateCity, setPrivateCity] = useState('');
   const [privateLocality, setPrivateLocality] = useState('');
+  // venueId defaults to the first fetched venue on a new event (below) even
+  // when the organizer never touched the Venue field — left alone, that
+  // stale id keeps `venue` truthy after switching to private-address mode,
+  // so the preview/submit-for-approval screens kept showing that default
+  // venue instead of the private city/locality. Cleared the moment private
+  // mode is turned on; this ref remembers it so unchecking restores it
+  // instead of forcing a re-pick.
+  const prevVenueIdRef = useRef('');
 
   // Step 0 — media (real uploads, POST /organizer/upload)
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
@@ -499,13 +507,24 @@ export default function CreateEvent() {
                 onChange={(e) => {
                   const checked = e.target.checked;
                   setPrivateAddress(checked);
-                  // Pre-fill from the organizer's own registered city (falling
-                  // back to whatever city they're currently browsing as) so
-                  // there's usually nothing to type — still a real
-                  // SearchableSelect underneath, so they can pick a different
-                  // city if this event's private address is elsewhere. Never
-                  // overwrites a value they (or a loaded draft) already set.
-                  if (checked && !privateCity.trim()) setPrivateCity(user?.city || browsingCity);
+                  if (checked) {
+                    // Clear the (possibly default-selected) venue so `venue`
+                    // stops resolving truthy — otherwise the preview/submit
+                    // screens keep showing that venue instead of the private
+                    // city/locality below, even though buildPayload() already
+                    // sends privateCity/privateLocality correctly.
+                    prevVenueIdRef.current = venueId;
+                    setVenueId('');
+                    // Pre-fill from the organizer's own registered city
+                    // (falling back to whatever city they're currently
+                    // browsing as) so there's usually nothing to type — still
+                    // a real SearchableSelect underneath, so they can pick a
+                    // different city if this event's private address is
+                    // elsewhere. Never overwrites a value they already set.
+                    if (!privateCity.trim()) setPrivateCity(user?.city || browsingCity);
+                  } else if (!venueId && prevVenueIdRef.current) {
+                    setVenueId(prevVenueIdRef.current);
+                  }
                 }}
               />
               Keep exact address private — I'll share it with guests myself
