@@ -196,7 +196,10 @@ export default function CreateHostedEvent() {
   );
 
   const step1Valid = Boolean(title.trim() && date);
-  const tiersValid = tiers.length > 0 && tiers.every((t) => t.name.trim() && +t.price >= 0 && +t.quantity > 0 && (!t.freeCutoff || (+t.lateFeePrice > 0)));
+  // t.price.trim() guards against a Paid-ticket tier left blank after
+  // switching off Free — +'' === 0 would otherwise silently validate as a
+  // free tier the venue never actually chose.
+  const tiersValid = tiers.length > 0 && tiers.every((t) => t.name.trim() && t.price.trim() !== '' && +t.price >= 0 && +t.quantity > 0 && (!t.freeCutoff || (+t.lateFeePrice > 0)));
   const canSubmit = step1Valid && tiersValid;
 
   const buildPayload = (status: 'draft' | 'pending') => ({
@@ -388,6 +391,13 @@ export default function CreateHostedEvent() {
         <h3 style={{ marginBottom: 12 }}>Ticket tiers</h3>
         {tiers.map((t, i) => (
           <div key={i} className="card" style={{ background: 'var(--surface-2)', marginBottom: 12, padding: 16 }}>
+            {/* Same explicit free/paid choice as organizer's CreateEvent.tsx —
+                still just drives the existing +t.price === 0 branching below,
+                no new field. */}
+            <div className="chip-row" style={{ marginBottom: 10 }}>
+              <button className={`chip chip-tap ${+t.price === 0 ? 'on' : ''}`} onClick={() => setTier(i, { price: '0' })}>Free guest list</button>
+              <button className={`chip chip-tap ${+t.price === 0 ? '' : 'on'}`} onClick={() => setTier(i, { price: +t.price === 0 ? '' : t.price })}>Paid ticket</button>
+            </div>
             <div className="form-row">
               <div className="field">
                 <span>Tier name</span>
@@ -395,7 +405,11 @@ export default function CreateHostedEvent() {
               </div>
               <div className="field">
                 <span>Price ₹</span>
-                <input value={t.price} onChange={(e) => setTier(i, { price: e.target.value })} inputMode="numeric" />
+                {+t.price === 0 ? (
+                  <input value="0 · Free" disabled />
+                ) : (
+                  <input value={t.price} onChange={(e) => setTier(i, { price: e.target.value })} inputMode="numeric" placeholder="e.g. 499" />
+                )}
               </div>
               <div className="field">
                 <span>Qty</span>
