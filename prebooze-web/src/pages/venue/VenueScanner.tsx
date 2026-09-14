@@ -4,6 +4,7 @@ import { bookings, venuePartner, promoter, type OrgAttendee, type OrgGuestListEn
 import { ApiError } from '../../api/client';
 import type { Booking, Event } from '../../types';
 import { isPassValid } from '../../lib/promoterPass';
+import { isEventOver } from '../../data/mock';
 import CameraQRScanner from '../../components/CameraQRScanner';
 import type { ReactNode } from 'react';
 import { Megaphone, Star, CheckCircle2, Martini, Ticket, X, Gift, Keyboard, Camera, Check } from 'lucide-react';
@@ -118,7 +119,7 @@ export default function VenueScanner() {
     venuePartner
       .hostedEvents()
       .then((evs) => {
-        const live = evs.filter((e) => e.status === 'approved');
+        const live = evs.filter((e) => e.status === 'approved' && !isEventOver(e));
         setEvents(live);
         if (live.length) setEventId(live[0].id);
         else setLoading(false);

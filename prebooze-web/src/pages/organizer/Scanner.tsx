@@ -4,6 +4,7 @@ import { bookings, organizer, promoter, type OrgAttendee, type OrgGuestListEntry
 import { ApiError } from '../../api/client';
 import type { Booking, Event } from '../../types';
 import { isPassValid } from '../../lib/promoterPass';
+import { isEventOver } from '../../data/mock';
 import CameraQRScanner from '../../components/CameraQRScanner';
 import type { ReactNode } from 'react';
 import { Megaphone, Star, Check, X, ArrowRight, ArrowLeft, Martini, Ticket, Gift, Keyboard, Camera } from 'lucide-react';
@@ -124,7 +125,7 @@ export default function Scanner() {
     organizer
       .events()
       .then((evs) => {
-        const live = evs.filter((e) => e.status === 'approved');
+        const live = evs.filter((e) => e.status === 'approved' && !isEventOver(e));
         setEvents(live);
         if (live.length) setEventId(live[0].id);
         else setLoading(false);

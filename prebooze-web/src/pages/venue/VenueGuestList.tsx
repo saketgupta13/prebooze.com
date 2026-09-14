@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { venuePartner, promoter, type OrgGuestListEntry, type OrgPromoterGuest } from '../../api';
 import { ApiError } from '../../api/client';
 import { cutoffDate, countdownLabel } from '../../lib/promoterPass';
+import { isEventOver } from '../../data/mock';
 import type { Event } from '../../types';
 import { AlertCircle, Check, X, Megaphone } from 'lucide-react';
 
@@ -25,8 +26,9 @@ export default function VenueGuestList() {
     venuePartner
       .hostedEvents()
       .then((evs) => {
-        setEvents(evs);
-        if (evs.length) setEventId(evs[0].id);
+        const live = evs.filter((e) => e.status === 'approved' && !isEventOver(e));
+        setEvents(live);
+        if (live.length) setEventId(live[0].id);
         else setLoading(false);
       })
       .catch((e) => { setErr(e instanceof ApiError ? e.message : 'Failed to load'); setLoading(false); });

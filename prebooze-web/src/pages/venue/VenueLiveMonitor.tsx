@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { venuePartner, type OrgLiveMonitor } from '../../api';
 import { ApiError } from '../../api/client';
 import type { Event } from '../../types';
+import { isEventOver } from '../../data/mock';
 import Loader from '../../components/Loader';
 import { AlertCircle, Check, Radio } from 'lucide-react';
 
@@ -34,7 +35,7 @@ export default function VenueLiveMonitor() {
     venuePartner
       .hostedEvents()
       .then((evs) => {
-        const live = evs.filter((e) => e.status === 'approved');
+        const live = evs.filter((e) => e.status === 'approved' && !isEventOver(e));
         setEvents(live);
         if (live.length) setEventId(live[0].id);
         else setLoading(false);
