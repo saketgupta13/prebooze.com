@@ -608,22 +608,28 @@ export default function CreateEvent() {
           <h3 style={{ marginBottom: 12 }}>Ticket tiers</h3>
           {tiers.map((t, i) => (
             <div key={i} className="card" style={{ background: 'var(--surface-2)', marginBottom: 12, padding: 16 }}>
-              {/* Entry-type choice drives the same +t.price === 0 branching this
-                  whole step already had — this doesn't add a new field, it
-                  just makes the free/paid split an explicit upfront choice
-                  instead of an implicit side-effect of typing "0" into Price.
-                  Switching to Paid clears a 0 price so they must enter a real
-                  one; switching to Free sets it straight to '0'. */}
+              {/* Entry-type choice drives the same free/paid branching this whole
+                  step already had — this doesn't add a new field, it just makes
+                  the split an explicit upfront choice instead of an implicit
+                  side-effect of typing "0" into Price. isFree checks the exact
+                  string '0', not +t.price === 0 — that coercion treats a blank
+                  price (t.price === '') as free too, which meant switching to
+                  Paid (clearing the price to '') silently stayed in free-mode
+                  display until a real number was typed. */}
+              {(() => {
+                const isFree = t.price === '0';
+                return (
+                <>
               <div className="chip-row" style={{ marginBottom: 10 }}>
                 <button
-                  className={`chip chip-tap ${+t.price === 0 ? 'on' : ''}`}
+                  className={`chip chip-tap ${isFree ? 'on' : ''}`}
                   onClick={() => setTier(i, { price: '0' })}
                 >
                   Free guest list
                 </button>
                 <button
-                  className={`chip chip-tap ${+t.price === 0 ? '' : 'on'}`}
-                  onClick={() => setTier(i, { price: +t.price === 0 ? '' : t.price })}
+                  className={`chip chip-tap ${isFree ? '' : 'on'}`}
+                  onClick={() => setTier(i, { price: isFree ? '' : t.price })}
                 >
                   Paid ticket
                 </button>
@@ -635,7 +641,7 @@ export default function CreateEvent() {
                 </div>
                 <div className="field">
                   <span>Price ₹</span>
-                  {+t.price === 0 ? (
+                  {isFree ? (
                     <input value="0 · Free" disabled />
                   ) : (
                     <input
@@ -700,7 +706,7 @@ export default function CreateEvent() {
                   the always-₹0 base price. A booking made in the free window
                   still gets no redeemable credit (see bookings.service.ts). */}
               {(() => {
-                const effectivePrice = +t.price === 0 && t.freeCutoff && +t.lateFeePrice > 0 ? +t.lateFeePrice : +t.price || 0;
+                const effectivePrice = isFree && t.freeCutoff && +t.lateFeePrice > 0 ? +t.lateFeePrice : +t.price || 0;
                 return (
                   <>
                     {t.coverCharge.trim() && +t.coverCharge > effectivePrice && (
@@ -711,13 +717,13 @@ export default function CreateEvent() {
                     {t.coverCharge.trim() && +t.coverCharge > 0 && !(+t.coverCharge > effectivePrice) && (
                       <div className="tiny muted" style={{ marginBottom: 6 }}>
                         Guests see this ticket includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote.trim() ? ` (${t.coverChargeNote.trim()})` : ''}
-                        {+t.price === 0 && t.freeCutoff ? ' — only for bookings made after the free window closes.' : '.'}
+                        {isFree && t.freeCutoff ? ' — only for bookings made after the free window closes.' : '.'}
                       </div>
                     )}
                   </>
                 );
               })()}
-              {+t.price === 0 && (
+              {isFree && (
                 <div className="form-row" style={{ marginBottom: 6 }}>
                   <div className="field">
                     <span>Free until (optional)</span>
@@ -744,16 +750,19 @@ export default function CreateEvent() {
                   )}
                 </div>
               )}
-              {+t.price === 0 && t.freeCutoff && +t.lateFeePrice > 0 && (
+              {isFree && t.freeCutoff && +t.lateFeePrice > 0 && (
                 <div className="tiny muted" style={{ marginBottom: 6 }}>
                   Free until {t.freeCutoff}, then new bookings are ₹{t.lateFeePrice}. Guests who already booked free and run up to 15 min late — letting them in is your call at the door, Prebooze doesn't guarantee it.
                 </div>
               )}
-              {+t.price === 0 && t.freeCutoff && !(+t.lateFeePrice > 0) && (
+              {isFree && t.freeCutoff && !(+t.lateFeePrice > 0) && (
                 <div className="tiny danger-text" style={{ marginBottom: 6 }}>
                   Set a price after the grace period, or clear the cutoff time
                 </div>
               )}
+              </>
+                );
+              })()}
               <div className="chip-row">
                 {Array.from(new Set([...INCLUDE_OPTIONS, ...t.includes])).map((opt) => (
                   <button

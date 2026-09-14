@@ -389,14 +389,21 @@ export default function CreateHostedEvent() {
 
       <div className="card" style={{ marginTop: 16 }}>
         <h3 style={{ marginBottom: 12 }}>Ticket tiers</h3>
-        {tiers.map((t, i) => (
+        {tiers.map((t, i) => {
+          // isFree checks the exact string '0', not +t.price === 0 — that
+          // coercion treats a blank price (t.price === '') as free too,
+          // which meant switching to Paid (clearing the price to '')
+          // silently stayed in free-mode display until a real number was
+          // typed.
+          const isFree = t.price === '0';
+          return (
           <div key={i} className="card" style={{ background: 'var(--surface-2)', marginBottom: 12, padding: 16 }}>
             {/* Same explicit free/paid choice as organizer's CreateEvent.tsx —
-                still just drives the existing +t.price === 0 branching below,
+                still just drives the existing isFree branching below,
                 no new field. */}
             <div className="chip-row" style={{ marginBottom: 10 }}>
-              <button className={`chip chip-tap ${+t.price === 0 ? 'on' : ''}`} onClick={() => setTier(i, { price: '0' })}>Free guest list</button>
-              <button className={`chip chip-tap ${+t.price === 0 ? '' : 'on'}`} onClick={() => setTier(i, { price: +t.price === 0 ? '' : t.price })}>Paid ticket</button>
+              <button className={`chip chip-tap ${isFree ? 'on' : ''}`} onClick={() => setTier(i, { price: '0' })}>Free guest list</button>
+              <button className={`chip chip-tap ${isFree ? '' : 'on'}`} onClick={() => setTier(i, { price: isFree ? '' : t.price })}>Paid ticket</button>
             </div>
             <div className="form-row">
               <div className="field">
@@ -405,7 +412,7 @@ export default function CreateHostedEvent() {
               </div>
               <div className="field">
                 <span>Price ₹</span>
-                {+t.price === 0 ? (
+                {isFree ? (
                   <input value="0 · Free" disabled />
                 ) : (
                   <input value={t.price} onChange={(e) => setTier(i, { price: e.target.value })} inputMode="numeric" placeholder="e.g. 499" />
@@ -437,7 +444,7 @@ export default function CreateHostedEvent() {
                 the always-₹0 base price. A booking made in the free window
                 still gets no redeemable credit (see bookings.service.ts). */}
             {(() => {
-              const effectivePrice = +t.price === 0 && t.freeCutoff && +t.lateFeePrice > 0 ? +t.lateFeePrice : +t.price || 0;
+              const effectivePrice = isFree && t.freeCutoff && +t.lateFeePrice > 0 ? +t.lateFeePrice : +t.price || 0;
               return (
                 <>
                   {t.coverCharge.trim() && +t.coverCharge > effectivePrice && (
@@ -446,13 +453,13 @@ export default function CreateHostedEvent() {
                   {t.coverCharge.trim() && +t.coverCharge > 0 && !(+t.coverCharge > effectivePrice) && (
                     <div className="tiny muted" style={{ marginBottom: 6 }}>
                       Guests see this ticket includes ₹{t.coverCharge} redeemable at the venue{t.coverChargeNote.trim() ? ` (${t.coverChargeNote.trim()})` : ''}
-                      {+t.price === 0 && t.freeCutoff ? ' — only for bookings made after the free window closes.' : '.'}
+                      {isFree && t.freeCutoff ? ' — only for bookings made after the free window closes.' : '.'}
                     </div>
                   )}
                 </>
               );
             })()}
-            {+t.price === 0 && (
+            {isFree && (
               <div className="form-row" style={{ marginBottom: 6 }}>
                 <div className="field">
                   <span>Free until (optional)</span>
@@ -474,12 +481,12 @@ export default function CreateHostedEvent() {
                 )}
               </div>
             )}
-            {+t.price === 0 && t.freeCutoff && +t.lateFeePrice > 0 && (
+            {isFree && t.freeCutoff && +t.lateFeePrice > 0 && (
               <div className="tiny muted" style={{ marginBottom: 6 }}>
                 Free until {t.freeCutoff}, then new bookings are ₹{t.lateFeePrice}. Guests who already booked free and run up to 15 min late — letting them in is your call at the door, Prebooze doesn't guarantee it.
               </div>
             )}
-            {+t.price === 0 && t.freeCutoff && !(+t.lateFeePrice > 0) && (
+            {isFree && t.freeCutoff && !(+t.lateFeePrice > 0) && (
               <div className="tiny danger-text" style={{ marginBottom: 6 }}>Set a price after the grace period, or clear the cutoff time</div>
             )}
             <div className="chip-row">
@@ -501,7 +508,8 @@ export default function CreateHostedEvent() {
               <button type="button" className="chip chip-tap" style={{ fontSize: 12, padding: '4px 11px' }} onClick={() => addCustomInclude(i)}>+ Add</button>
             </div>
           </div>
-        ))}
+          );
+        })}
         <div className="chip-row" style={{ marginBottom: 6 }}>
           <button className="chip" onClick={() => setTiers((prev) => [...prev, { name: 'VIP', price: '79', quantity: '50', includes: ['Entry', 'Lounge access'], description: '', coverCharge: '', coverChargeNote: '', freeCutoff: '', lateFeePrice: '' }])}>+ Add tier</button>
         </div>
