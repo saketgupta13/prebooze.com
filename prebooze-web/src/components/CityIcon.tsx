@@ -245,6 +245,51 @@ function GujaratiSchool(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+// Shaniwar Wada's Delhi Darwaza (Pune) — redrawn against a real photo
+// (Wikimedia Commons, "Main gate, Shaniwar Wada, Pune.jpg"): two thick
+// flanking stone bastions, the massive iron-studded pointed-arch door
+// (studs as a dot grid, same technique HawaMahal uses for its jali), a
+// band of small blind-arch niches above the door, then the wooden
+// colonnaded balcony (five cusped arches) under a flat overhanging roof.
+function ShaniwarWada(props: SVGProps<SVGSVGElement>) {
+  const studCols = [10, 11, 12, 13, 14];
+  const studRows = [15.4, 16.6, 17.8, 19];
+  return (
+    <svg {...base} {...props} strokeWidth={0.85}>
+      <line x1="2" y1="21" x2="22" y2="21" />
+      <path d="M2.3 21V8.6h3.4V21" />
+      <path d="M18.3 21V8.6h3.4V21" />
+      <line x1="2.3" y1="8.6" x2="5.7" y2="8.6" />
+      <line x1="18.3" y1="8.6" x2="21.7" y2="8.6" />
+      <path d="M5.7 21V9.6h12.6V21" />
+      <path d="M8.8 21v-4.6a3.2 3.4 0 0 1 6.4 0V21" />
+      {studRows.flatMap((y) =>
+        studCols
+          .filter((x) => {
+            const dx = x - 12;
+            const dy = y - 16.4;
+            return dx * dx / 9 + dy * dy / 12.5 <= 1.05;
+          })
+          .map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="0.28" fill={GREEN} stroke="none" />)
+      )}
+      <path d="M6.3 9.6c0.7-0.6 1.3-0.6 2 0c0.7-0.6 1.3-0.6 2 0c0.7-0.6 1.3-0.6 2 0c0.7-0.6 1.3-0.6 2 0c0.7-0.6 1.3-0.6 2 0c0.7-0.6 1.3-0.6 2 0" />
+      <line x1="6.3" y1="7.4" x2="17.7" y2="7.4" />
+      <path d="M6.9 7.4V4.6h10.2v2.8" />
+      <line x1="9" y1="4.6" x2="9" y2="7.4" />
+      <line x1="11" y1="4.6" x2="11" y2="7.4" />
+      <line x1="13" y1="4.6" x2="13" y2="7.4" />
+      <line x1="15" y1="4.6" x2="15" y2="7.4" />
+      <path d="M7.3 4.6a0.85 0.85 0 0 1 1.7 0" />
+      <path d="M9.3 4.6a0.85 0.85 0 0 1 1.7 0" />
+      <path d="M11.3 4.6a0.85 0.85 0 0 1 1.7 0" />
+      <path d="M13.3 4.6a0.85 0.85 0 0 1 1.7 0" />
+      <path d="M15.3 4.6a0.85 0.85 0 0 1 1.7 0" />
+      <line x1="6" y1="3" x2="18" y2="3" />
+      <path d="M5.3 3.3L6 2.3h12l0.7 1" />
+    </svg>
+  );
+}
+
 function CitySkyline(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base} {...props}>
@@ -271,6 +316,7 @@ const CITY_LANDMARKS: Record<string, (p: SVGProps<SVGSVGElement>) => ReactElemen
   Nagpur: Deekshabhoomi,
   Jaipur: HawaMahal,
   Ahmedabad: Kite,
+  Pune: ShaniwarWada,
 };
 
 /** A real landmark silhouette for known cities, generic skyline fallback
