@@ -4,6 +4,7 @@ import Loader from '../../components/Loader';
 import MarketingPromoCard from '../../components/MarketingPromoCard';
 import { venuePartner, type OrgAttendee, type VenueLedgerTx } from '../../api';
 import { ApiError } from '../../api/client';
+import { isEventOver } from '../../data/mock';
 import type { Event } from '../../types';
 import VenueHosting from './VenueHosting';
 
@@ -24,6 +25,13 @@ export default function VenueOrgDashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [transactions, setTransactions] = useState<VenueLedgerTx[]>([]);
   const [attendees, setAttendees] = useState<OrgAttendee[]>([]);
+  // Scoped separately from `attendees` (which stays all-time, for
+  // uniqueCustomers below) — the Ticket statistics card's own subtitle
+  // ("across your N live events") makes this one specifically live-scoped.
+  // OrgAttendee rows carry no eventId to filter the flattened list by after
+  // the fact, so this is computed while the per-event fetch is still keyed
+  // by event below.
+  const [liveCheckedInCount, setLiveCheckedInCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
@@ -39,9 +47,17 @@ export default function VenueOrgDashboard() {
         ]);
         setEvents(evs);
         setTransactions(ledger.transactions);
-        const live = evs.filter((e) => e.status === 'approved');
-        const perEvent = await Promise.all(live.map((e) => venuePartner.attendees(e.id).catch(() => [] as OrgAttendee[])));
+        // All approved events, not just still-live ones — "Your customers"
+        // below is an all-time count, so narrowing this to live events
+        // would silently drop it to 0 for any venue whose hosted events
+        // have all already happened.
+        const approved = evs.filter((e) => e.status === 'approved');
+        const perEvent = await Promise.all(approved.map((e) => venuePartner.attendees(e.id).catch(() => [] as OrgAttendee[])));
         setAttendees(perEvent.flat());
+        const liveNow = new Set(approved.filter((e) => !isEventOver(e)).map((e) => e.id));
+        setLiveCheckedInCount(
+          approved.reduce((sum, e, i) => sum + (liveNow.has(e.id) ? perEvent[i].filter((a) => a.checkedIn).length : 0), 0)
+        );
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load dashboard'))
       .finally(() => { setStatusLoaded(true); setLoading(false); });
@@ -50,7 +66,12 @@ export default function VenueOrgDashboard() {
   if (!statusLoaded || loading) return <Loader />;
   if (!hostingEnabled) return <VenueHosting />;
 
-  const live = events.filter((e) => e.status === 'approved');
+  // Real bug fix: this used to be every approved event regardless of
+  // whether it had already happened, so a past-but-approved event still
+  // showed under "Upcoming events" (and inflated "Live events"/Ticket
+  // statistics). isEventOver is the same date+durationHrs math used
+  // elsewhere (Bookings.tsx, Scanner.tsx, etc.), not just event.date.
+  const live = events.filter((e) => e.status === 'approved' && !isEventOver(e));
   const liveIds = new Set(live.map((e) => e.id));
 
   const topPool = live
@@ -62,7 +83,6 @@ export default function VenueOrgDashboard() {
 
   const capAll = live.reduce((a, e) => a + e.tiers.reduce((x, t) => x + t.quantity, 0), 0);
   const soldAll = live.reduce((a, e) => a + e.tiers.reduce((x, t) => x + t.sold, 0), 0);
-  const checkedIn = attendees.filter((a) => a.checkedIn).length;
   const refundedCount = transactions.filter((t) => t.type === 'refund' && (!t.eventId || liveIds.has(t.eventId))).length;
   const uniqueCustomers = new Set(attendees.map((a) => a.whatsapp)).size;
 
@@ -152,7 +172,7 @@ export default function VenueOrgDashboard() {
           [
             ['Sold', soldAll, 'var(--accent)'],
             ['Available', Math.max(0, capAll - soldAll), 'rgba(155,225,61,.35)'],
-            ['Checked in', checkedIn, '#8ab4f8'],
+            ['Checked in', liveCheckedInCount, '#8ab4f8'],
             ['Refunded', refundedCount, 'var(--danger)'],
           ] as [string, number, string][]
         ).map(([label, v, color]) => (
@@ -168,7 +188,7 @@ export default function VenueOrgDashboard() {
         ))}
         <div className="tiny muted-2">
           sell-through {capAll ? Math.round((soldAll / capAll) * 100) : 0}%
-          {soldAll ? ` · check-in rate ${Math.round((checkedIn / soldAll) * 100)}%` : ''}
+          {soldAll ? ` · check-in rate ${Math.round((liveCheckedInCount / soldAll) * 100)}%` : ''}
         </div>
       </div>
 
