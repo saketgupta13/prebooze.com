@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fmtMoney } from '../../data/mock';
+import { fmtMoney, isEventOver } from '../../data/mock';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
 import type { CartRecord } from '../../store/AppContext';
@@ -26,12 +26,17 @@ const ago = (iso: string) => {
  * the cart list, but that duplicated Transactions.tsx exactly — same ledger
  * data, minus the real filtering/export Transactions.tsx actually has —
  * dropped per organizer feedback (2026-09-15), same fix already made in the
- * RN organizer app. */
+ * RN organizer app. Live/Past split (also per organizer feedback,
+ * 2026-09-15) uses the same date+durationHrs isEventOver() math as
+ * Bookings.tsx, not just event.date — a cart for an event currently in
+ * progress still counts as Live, since a reminder can still land before it
+ * actually ends, not just before it starts. */
 export default function OrgAbandonedCarts() {
   const [events, setEvents] = useState<Event[]>([]);
   const [carts, setCarts] = useState<CartRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [scope, setScope] = useState<'live' | 'past'>('live');
   const [eventF, setEventF] = useState('all');
   const [reminding, setReminding] = useState<string | null>(null);
 
@@ -43,7 +48,22 @@ export default function OrgAbandonedCarts() {
   };
   useEffect(load, []);
 
-  const mine = carts.filter((c) => eventF === 'all' || c.eventId === eventF).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const switchScope = (s: 'live' | 'past') => {
+    setScope(s);
+    setEventF('all');
+  };
+
+  const eventsById = new Map(events.map((e) => [e.id, e]));
+  // A cart whose event has since been removed (rare) stays visible under
+  // Live rather than silently vanishing under Past.
+  const cartEventOver = (c: CartRecord) => {
+    const e = eventsById.get(c.eventId);
+    return e ? isEventOver(e) : false;
+  };
+
+  const eventsInScope = events.filter((e) => (scope === 'live' ? !isEventOver(e) : isEventOver(e)));
+  const scoped = carts.filter((c) => (scope === 'live' ? !cartEventOver(c) : cartEventOver(c)));
+  const mine = scoped.filter((c) => eventF === 'all' || c.eventId === eventF).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const recoverable = mine.reduce((a, c) => a + c.total, 0);
 
   const remind = async (id: string) => {
@@ -66,11 +86,17 @@ export default function OrgAbandonedCarts() {
         </h1>
         <select value={eventF} onChange={(e) => setEventF(e.target.value)} style={{ maxWidth: 240 }}>
           <option value="all">All events</option>
-          {events.map((e) => (
+          {eventsInScope.map((e) => (
             <option key={e.id} value={e.id}>{e.title}</option>
           ))}
         </select>
       </div>
+
+      <div className="tabs" style={{ marginBottom: 16 }}>
+        <button className={scope === 'live' ? 'on' : ''} onClick={() => switchScope('live')}>Live</button>
+        <button className={scope === 'past' ? 'on' : ''} onClick={() => switchScope('past')}>Past</button>
+      </div>
+
       {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
 
       <div className="kpis" style={{ marginBottom: 16 }}>
@@ -80,12 +106,17 @@ export default function OrgAbandonedCarts() {
 
       <div className="card tbl-wrap" style={{ marginBottom: 18 }}>
         <p className="tiny muted-2" style={{ marginBottom: 12 }}>
-          These guests reached checkout but didn't pay before their hold lapsed — you already have their WhatsApp. A
-          nudge often brings them back.
+          {scope === 'live'
+            ? "These guests reached checkout but didn't pay before their hold lapsed — you already have their WhatsApp. A nudge often brings them back before the event happens."
+            : "These carts are for events that have already ended — a reminder can't recover them anymore, kept here just for the record."}
         </p>
         {loading && <div className="muted small">Loading…</div>}
         {!loading && mine.length === 0 ? (
-          <div className="muted small">No abandoned carts right now — nice. They'll appear here when a guest leaves checkout without paying.</div>
+          <div className="muted small">
+            {scope === 'live'
+              ? "No abandoned carts right now — nice. They'll appear here when a guest leaves checkout without paying."
+              : 'No abandoned carts from past events.'}
+          </div>
         ) : (
           <table className="tbl">
             <thead>
