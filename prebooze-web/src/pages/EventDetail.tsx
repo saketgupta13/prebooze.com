@@ -93,7 +93,19 @@ export default function EventDetail() {
           setReviewsLoading(true);
           social.organizerReviews(e.organizerId).then((r) => { if (!cancelled) setLiveReviews(r); }).catch(() => {}).finally(() => { if (!cancelled) setReviewsLoading(false); });
         }
-        catalog.events({ city }).then((all) => { if (!cancelled) setLiveRecommended(all.filter((x) => x.id !== e.id).slice(0, 4)); }).catch(() => {});
+        // The event's own city, not the visitor's globally-browsed city —
+        // those can genuinely differ (a guest arrives here from a link/
+        // search while still "browsing" a different city in the header),
+        // and this only reconciles a moment later via useCityReconcile
+        // below, by which point a city-keyed fetch here would already be
+        // stale. Real bug: this used the outer `city` (useApp()'s global
+        // browsing city) — the heading correctly relabelled itself once
+        // reconciliation ran, but the already-fetched "recommended" list
+        // never refetched (this effect deliberately excludes `city` from
+        // its deps, see below), so it kept showing whatever other city's
+        // events matched that stale value — e.g. a Kolkata event listed
+        // under "Recommended events in Nagpur".
+        catalog.events({ city: eventCity(e) }).then((all) => { if (!cancelled) setLiveRecommended(all.filter((x) => x.id !== e.id).slice(0, 4)); }).catch(() => {});
       })
       .catch(() => { if (!cancelled) setLiveEvent(null); })
       .finally(() => { if (!cancelled) setLoaded(true); });
@@ -758,8 +770,8 @@ export default function EventDetail() {
         {recommended.length > 0 && (
           <section className="section">
             <div className="section-hd">
-              <h2>Recommended events in {city}</h2>
-              <Link to={cityBrowse(city)}>See all →</Link>
+              <h2>Recommended events in {eventCityName ?? city}</h2>
+              <Link to={cityBrowse(eventCityName ?? city)}>See all →</Link>
             </div>
             <div className="grid-4">
               {recommended.map((e) => (
