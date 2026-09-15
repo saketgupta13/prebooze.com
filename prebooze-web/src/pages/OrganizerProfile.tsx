@@ -16,7 +16,7 @@ import { useEntitySeo } from '../lib/useEntitySeo';
 import { useJsonLd } from '../lib/useJsonLd';
 import { buildOrganizerSchema, buildBreadcrumbSchema } from '../lib/schema';
 import { useCityReconcile } from '../lib/useCityReconcile';
-import { organizerPath, cityHome, cityOrganizers } from '../lib/urls';
+import { organizerPath, cityHome, cityOrganizers, eventCity } from '../lib/urls';
 import { formatLocation } from '../lib/formatLocation';
 import { Headphones, BadgeCheck, CheckCircle2, Star } from 'lucide-react';
 
@@ -33,6 +33,13 @@ export default function OrganizerProfile() {
   // CatalogService.events' showPast).
   const [searchParams] = useSearchParams();
   const reviewEventId = searchParams.get('event') ?? undefined;
+
+  // A touring organizer (running events across several cities, not just
+  // their registered home city) needs a way to narrow this grid down to one
+  // city — otherwise a 5-city tour dumps every event into one undifferentiated
+  // list. Only shown at all once there's actually more than one city to
+  // choose between (see cities below); empty string means "All".
+  const [cityFilter, setCityFilter] = useState('');
 
   // Single-entity fetches (GET /organizers/:id + GET /events?organizerId=)
   // — this used to fetch every organizer and every event in the whole
@@ -87,9 +94,11 @@ export default function OrganizerProfile() {
   // organizerId=) — only the mock fallback still needs the client-side filter.
   const orgEvents = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => (e.organizer?.id ?? e.organizerId) === org.id && e.status === 'approved'));
   const reviewEventTitle = reviewEventId ? orgEvents.find((e) => e.id === reviewEventId)?.title : undefined;
+  const eventCities = [...new Set(orgEvents.map((e) => eventCity(e)).filter((c): c is string => !!c))].sort();
+  const cityScoped = cityFilter ? orgEvents.filter((e) => eventCity(e) === cityFilter) : orgEvents;
   const now = Date.now();
-  const upcoming = orgEvents.filter((e) => new Date(e.date).getTime() >= now);
-  const past = orgEvents.filter((e) => new Date(e.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date));
+  const upcoming = cityScoped.filter((e) => new Date(e.date).getTime() >= now);
+  const past = cityScoped.filter((e) => new Date(e.date).getTime() < now).sort((a, b) => b.date.localeCompare(a.date));
   const isFollowing = following.includes(org.id);
   const isOwnProfile = user?.isOrganizer && user.orgUsername?.toLowerCase() === org.username.toLowerCase();
 
@@ -178,6 +187,19 @@ export default function OrganizerProfile() {
           </div>
 
           <div>
+            {eventCities.length > 1 && (
+              <div className="chip-row" style={{ marginBottom: 16 }}>
+                <button className={`chip ${cityFilter === '' ? 'on' : ''}`} onClick={() => setCityFilter('')}>
+                  All cities
+                </button>
+                {eventCities.map((c) => (
+                  <button key={c} className={`chip ${cityFilter === c ? 'on' : ''}`} onClick={() => setCityFilter(cityFilter === c ? '' : c)}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <section className="section" style={{ marginTop: 0 }}>
               <div className="section-hd">
                 <h2>Upcoming events ({upcoming.length})</h2>
