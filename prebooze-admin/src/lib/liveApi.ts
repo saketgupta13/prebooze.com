@@ -484,6 +484,11 @@ export interface LiveOrganizer {
   rating: number; reviewCount: number; eventsHosted: number; followers: number; following: number;
   about: string; logoHue: number; logoUrl: string | null; contact: string; contactPerson: string | null; phone: string | null;
   eventTypes: string | null; socialLinks: { instagram?: string; facebook?: string; other?: string[] } | null; seo: Seo | null;
+  // Distinct cities of this organizer's approved events — separate from
+  // `city` (their registered address). A touring organizer (full-India tour,
+  // say) is registered in one home city but needs to surface when staff
+  // filter by any city they're actually playing.
+  eventCities: string[];
 }
 // GSTIN/PAN/bank live here now, not on LiveOrganizer — see PaymentProfile
 // (prebooze-api). Self-serve, plural, no admin review — this admin surface

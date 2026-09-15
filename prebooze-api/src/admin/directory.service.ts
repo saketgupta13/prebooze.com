@@ -24,8 +24,24 @@ export class DirectoryService {
   constructor(private prisma: PrismaService) {}
 
   // ---------- organizers ----------
+  // eventCities backs the admin city filter's touring-organizer case — an
+  // organizer registered in one city (Organizer.city) but running approved
+  // events in others (a full-India tour, say) must still surface when staff
+  // filter by any of those other cities, not just their registered one.
   async listOrganizers() {
-    return this.prisma.organizer.findMany({ orderBy: { createdAt: 'desc' } });
+    const rows = await this.prisma.organizer.findMany({ orderBy: { createdAt: 'desc' } });
+    const events = await this.prisma.event.findMany({
+      where: { organizerId: { in: rows.map((r) => r.id) }, status: 'approved' },
+      select: { organizerId: true, privateCity: true, venue: { select: { city: true } } },
+    });
+    const citiesByOrg = new Map<string, Set<string>>();
+    for (const e of events) {
+      const eventCity = e.venue?.city ?? e.privateCity;
+      if (!eventCity || !e.organizerId) continue;
+      if (!citiesByOrg.has(e.organizerId)) citiesByOrg.set(e.organizerId, new Set());
+      citiesByOrg.get(e.organizerId)!.add(eventCity);
+    }
+    return rows.map((o) => ({ ...o, eventCities: [...(citiesByOrg.get(o.id) ?? [])] }));
   }
 
   async createOrganizer(body: { brandName?: string; city?: string; state?: string; country?: string; pincode?: string; contact?: string }) {

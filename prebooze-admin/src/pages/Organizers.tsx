@@ -29,7 +29,10 @@ export default function Organizers() {
   };
   useEffect(() => { if (token) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [token]);
 
-  const cities = useMemo(() => [...new Set(organizers.map((o) => o.city).filter(Boolean))].sort(), [organizers]);
+  const cities = useMemo(
+    () => [...new Set(organizers.flatMap((o) => [o.city, ...o.eventCities]).filter(Boolean))].sort(),
+    [organizers]
+  );
 
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
@@ -39,7 +42,7 @@ export default function Organizers() {
     try { await liveOrganizers.setVerified(o.id, !o.verified); load(); } catch (err2) { setErr(err2 instanceof LiveApiError ? err2.message : 'Failed to update'); }
   };
 
-  const list = cityF === 'All' ? organizers : organizers.filter((o) => o.city === cityF);
+  const list = cityF === 'All' ? organizers : organizers.filter((o) => o.city === cityF || o.eventCities.includes(cityF));
 
   return (
     <div className="stack fade" style={{ maxWidth: 1100 }}>
@@ -79,7 +82,12 @@ export default function Organizers() {
               {o.brandName}
             </span>
             <span style={{ flex: 1.6 }} className="muted">{o.contact || '—'}</span>
-            <span style={{ flex: 1 }} className="muted">{o.city}</span>
+            <span style={{ flex: 1 }} className="muted">
+              {o.city}
+              {o.eventCities.filter((c) => c !== o.city).length > 0 && (
+                <div className="tiny muted-2">+ {o.eventCities.filter((c) => c !== o.city).join(', ')}</div>
+              )}
+            </span>
             <span style={{ flex: 0.8 }}>{o.eventsHosted}</span>
             <span style={{ flex: 1 }}>
               {o.verified ? <Tag label="Verified" cls="tag-green" /> : <Tag label="Unverified" cls="" />}

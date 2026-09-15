@@ -206,9 +206,16 @@ export class CatalogService {
     return { ...venue, followers: counts.get(`venue:${venue.id}`) ?? 0 };
   }
 
+  // A touring organizer (e.g. a full-India tour) is registered under one
+  // home city but runs approved events in others — they must still show up
+  // in every city they're actually playing, not just their home city's
+  // directory. Same OR-on-venue-city-or-privateCity shape events() already
+  // uses at the event level, one level up at the organizer level.
   async organizers(city?: string) {
     const rows = await this.prisma.organizer.findMany({
-      where: city ? { city } : {},
+      where: city
+        ? { OR: [{ city }, { events: { some: { status: 'approved', OR: [{ venue: { city } }, { privateCity: city }] } } }] }
+        : {},
       orderBy: { eventsHosted: 'desc' },
       select: PUBLIC_ORGANIZER_SELECT,
     });

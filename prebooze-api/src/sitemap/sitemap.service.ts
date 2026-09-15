@@ -47,7 +47,7 @@ export class SitemapService {
 
   async build(): Promise<string> {
     const [events, venues, organizers, promoters, lineups, pages, blogs] = await Promise.all([
-      this.prisma.event.findMany({ where: { status: 'approved' }, select: { slug: true, updatedAt: true, privateCity: true, venue: { select: { city: true } } } }),
+      this.prisma.event.findMany({ where: { status: 'approved' }, select: { slug: true, updatedAt: true, privateCity: true, organizerId: true, venue: { select: { city: true } } } }),
       this.prisma.venue.findMany({ select: { id: true, updatedAt: true, city: true } }),
       this.prisma.organizer.findMany({ select: { id: true, updatedAt: true, city: true } }),
       this.prisma.promoter.findMany({ select: { slug: true, updatedAt: true, city: true } }),
@@ -65,9 +65,25 @@ export class SitemapService {
 
     const eventCities = new Set(eventsWithCity.map((e) => e.city));
     const venueCities = new Set(venues.map((v) => v.city));
-    const organizerCities = new Set(organizers.map((o) => o.city));
+    // Same touring-organizer reasoning as eventCitiesByOrganizer below — the
+    // /:city/organizers listing page itself must exist for a city even if
+    // no organizer is registered there, as long as one is actually playing
+    // an approved event there.
+    const organizerCities = new Set([...organizers.map((o) => o.city), ...eventsWithCity.map((e) => e.city)]);
     const promoterCities = new Set(promoters.map((p) => p.city));
     const lineupCities = new Set(lineups.map((l) => l.city));
+
+    // A touring organizer (full-India tour, say) is registered under one
+    // home city but has approved events in others — they need an indexable
+    // /:city/organizers/:id entry for every city they're actually playing,
+    // not just their registered one, or local search in those other cities
+    // never finds them.
+    const eventCitiesByOrganizer = new Map<string, Set<string>>();
+    for (const e of eventsWithCity) {
+      if (!e.organizerId) continue;
+      if (!eventCitiesByOrganizer.has(e.organizerId)) eventCitiesByOrganizer.set(e.organizerId, new Set());
+      eventCitiesByOrganizer.get(e.organizerId)!.add(e.city);
+    }
 
     const urls: SitemapUrl[] = [
       ...STATIC_URLS,
@@ -80,7 +96,10 @@ export class SitemapService {
       ...cityListingUrls(lineupCities, 'lineups', 'weekly', 0.8),
       ...eventsWithCity.map((e) => ({ loc: `/${toCitySlug(e.city)}/events/${e.slug}`, lastmod: e.updatedAt.toISOString(), changefreq: 'weekly', priority: 0.8 })),
       ...venues.map((v) => ({ loc: `/${toCitySlug(v.city)}/venues/${v.id}`, lastmod: v.updatedAt.toISOString(), changefreq: 'weekly', priority: 0.7 })),
-      ...organizers.map((o) => ({ loc: `/${toCitySlug(o.city)}/organizers/${o.id}`, lastmod: o.updatedAt.toISOString(), changefreq: 'weekly', priority: 0.7 })),
+      ...organizers.flatMap((o) => {
+        const cities = new Set([o.city, ...(eventCitiesByOrganizer.get(o.id) ?? [])]);
+        return [...cities].map((city) => ({ loc: `/${toCitySlug(city)}/organizers/${o.id}`, lastmod: o.updatedAt.toISOString(), changefreq: 'weekly', priority: 0.7 }));
+      }),
       ...promoters.map((p) => ({ loc: `/${toCitySlug(p.city)}/promoter/${p.slug}`, lastmod: p.updatedAt.toISOString(), changefreq: 'weekly', priority: 0.6 })),
       ...lineups.map((l) => ({ loc: `/${toCitySlug(l.city)}/lineup/${l.slug}`, lastmod: l.updatedAt.toISOString(), changefreq: 'weekly', priority: 0.6 })),
       ...pages.map((p) => ({ loc: `/legal/${p.slug}`, lastmod: p.updatedAt.toISOString(), changefreq: 'yearly', priority: 0.3 })),
