@@ -821,6 +821,13 @@ export interface LivePayoutRow {
   net: number;
   paidOut: boolean;
   payoutUtr: string | null;
+  // The payee's real current ledger balance (2026-09-17) — null once
+  // paidOut (no longer relevant) or if there's no payee at all. `net` can
+  // exceed this when the payee has already self-withdrawn some or all of
+  // it via the organizer/venue app — markPaid() itself refuses to exceed
+  // this, so it's shown here too rather than only surfacing as an error
+  // after the fact.
+  payeeBalance: number | null;
 }
 export interface LivePromoterPayoutRow {
   eventId: string; eventTitle: string; eventDate: string; organizerBrand: string;
@@ -832,15 +839,18 @@ export const livePayments = {
   /** Records a real transfer you already made yourself — there's no bank
    * integration behind this, so it never moves money or invents a UTR. */
   markPaid: (eventId: string, utr: string) => liveFetch<{ id: string; paidOut: boolean; payoutUtr: string | null }>('/admin/payments/mark-paid', { body: { eventId, utr } }),
-  /** Organizer self-serve ledger withdrawals — instant debits, no approval
-   * step or status field (see OrganizerService.withdraw) — this is
-   * visibility only, same as everything else here. */
-  organizerWithdrawals: () =>
+  /** Organizer AND venue self-serve ledger withdrawals, merged — instant
+   * debits, no approval step or status field (see OrganizerService.withdraw
+   * / VenueService.withdraw) — this is visibility only, same as everything
+   * else here. Venue rows are real as of 2026-09-17 — previously this only
+   * ever queried the organizer ledger, so a venue that self-withdrew had
+   * zero admin visibility at all. */
+  withdrawalRequests: () =>
     liveFetch<
-      { id: string; organizerId: string; organizerName: string; amount: number; paidOut: boolean; paidUtr: string | null; bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string }[]
-    >('/admin/payments/organizer-withdrawals'),
-  markOrganizerWithdrawalPaid: (id: string, utr: string) =>
-    liveFetch<{ id: string; withdrawalPaidOut: boolean; withdrawalPaidUtr: string | null }>(`/admin/payments/organizer-withdrawals/${id}/mark-paid`, { method: 'POST', body: { utr } }),
+      { id: string; payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string; amount: number; paidOut: boolean; paidUtr: string | null; bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string }[]
+    >('/admin/payments/withdrawal-requests'),
+  markWithdrawalPaid: (payeeType: 'organizer' | 'venue', id: string, utr: string) =>
+    liveFetch<{ id: string; withdrawalPaidOut: boolean; withdrawalPaidUtr: string | null }>(`/admin/payments/withdrawal-requests/${payeeType}/${id}/mark-paid`, { method: 'POST', body: { utr } }),
   /** Real sale/refund ledger, platform-wide — replaces the old "Transactions"
    * placeholder. Merges OrganizerLedgerTx + VenueLedgerTx, newest first,
    * capped at 300 rows. */

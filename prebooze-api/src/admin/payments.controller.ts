@@ -23,16 +23,16 @@ export class AdminPaymentsController {
     return this.payments.markPaid(eventId, utr);
   }
 
-  @Get('organizer-withdrawals')
+  @Get('withdrawal-requests')
   @RequirePermission(MODULE, 'view')
-  organizerWithdrawals() {
-    return this.payments.organizerWithdrawals();
+  withdrawalRequests() {
+    return this.payments.withdrawalRequests();
   }
 
-  @Post('organizer-withdrawals/:id/mark-paid')
+  @Post('withdrawal-requests/:payeeType/:id/mark-paid')
   @RequirePermission(MODULE, 'edit')
-  markOrganizerWithdrawalPaid(@Param('id') id: string, @Body('utr') utr: string) {
-    return this.payments.markOrganizerWithdrawalPaid(id, utr);
+  markWithdrawalPaid(@Param('payeeType') payeeType: 'organizer' | 'venue', @Param('id') id: string, @Body('utr') utr: string) {
+    return this.payments.markWithdrawalPaid(payeeType, id, utr);
   }
 
   @Get('transactions')

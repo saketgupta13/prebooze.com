@@ -11,8 +11,8 @@ const TITLE = 'Payments & payouts';
 const TABS = ['Payouts due', 'Withdrawal requests', 'Transactions', 'Refunds', 'Disputes'];
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
 
-interface OrganizerWithdrawal {
-  id: string; organizerId: string; organizerName: string; amount: number; paidOut: boolean; paidUtr: string | null;
+interface WithdrawalRequest {
+  id: string; payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string; amount: number; paidOut: boolean; paidUtr: string | null;
   bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string;
 }
 interface PaymentTx {
@@ -44,10 +44,12 @@ export default function Payments() {
   const [payingId, setPayingId] = useState<string | null>(null);
   const [utrDraft, setUtrDraft] = useState('');
 
-  // Organizer self-serve ledger withdrawals — a separate money flow from
-  // `rows`/`summary` above (per-event payouts due). Loaded alongside since
-  // this page is the one place staff now check for both.
-  const [withdrawals, setWithdrawals] = useState<OrganizerWithdrawal[]>([]);
+  // Organizer + venue self-serve ledger withdrawals — a separate money flow
+  // from `rows`/`summary` above (per-event payouts due), now netted against
+  // it server-side (see PaymentsService.payoutsDue's payeeBalance capping)
+  // so the two can't silently drift apart the way they used to. Loaded
+  // alongside since this page is the one place staff now check for both.
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [transactions, setTransactions] = useState<PaymentTx[]>([]);
   const [refunds, setRefunds] = useState<PaymentRefund[]>([]);
 
@@ -85,7 +87,7 @@ export default function Payments() {
   // Payouts due below (startPay/confirmPay) — same requirement, a real UTR
   // before this can be marked paid, just against a different endpoint.
   const [confirmingWithdrawal, setConfirmingWithdrawal] = useState(false);
-  const confirmWithdrawalPay = async (id: string) => {
+  const confirmWithdrawalPay = async (id: string, payeeType: 'organizer' | 'venue') => {
     if (!utrDraft.trim()) {
       setErr('Enter the UTR / reference number from the transfer you made');
       return;
@@ -93,7 +95,7 @@ export default function Payments() {
     setErr('');
     setConfirmingWithdrawal(true);
     try {
-      await livePayments.markOrganizerWithdrawalPaid(id, utrDraft.trim());
+      await livePayments.markWithdrawalPaid(payeeType, id, utrDraft.trim());
       setWithdrawals((prev) => prev.map((w) => (w.id === id ? { ...w, paidOut: true, paidUtr: utrDraft.trim() } : w)));
       setPayingId(null);
     } catch (e) {
@@ -114,7 +116,7 @@ export default function Payments() {
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
-    livePayments.organizerWithdrawals().then(setWithdrawals).catch(() => {});
+    livePayments.withdrawalRequests().then(setWithdrawals).catch(() => {});
     livePayments.transactions().then(setTransactions).catch(() => {});
     livePayments.refunds().then(setRefunds).catch(() => {});
   };
@@ -208,12 +210,24 @@ export default function Payments() {
               <span style={{ flex: 1, fontWeight: 700 }} className="green">
                 ₹{fmt(r.net)}
                 {r.paidOut && r.payoutUtr && <span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>{r.payoutUtr}</span>}
+                {/* Real-picture fix (2026-09-17): a payee can self-withdraw
+                    ahead of admin ever marking an event paid — this net
+                    figure is what the event's own revenue×commission math
+                    says is owed, but payeeBalance is what's actually still
+                    sitting uncollected. When they differ, mark-paid would
+                    refuse to exceed the real balance, so surface that here
+                    up front instead of only as an error after clicking. */}
+                {!r.paidOut && r.payeeBalance !== null && r.payeeBalance < r.net && (
+                  <span className="tiny" style={{ display: 'block', fontWeight: 400, color: 'var(--red)' }}>
+                    already withdrawn — only ₹{fmt(r.payeeBalance)} left to mark paid
+                  </span>
+                )}
               </span>
               <span style={{ flex: 0.9, display: 'flex', justifyContent: 'flex-end' }}>
                 {r.paidOut ? (
                   <span className="tag tag-green" title={r.payoutUtr ?? undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>Paid <Check size={11} /></span>
                 ) : payingId === r.id ? null : (
-                  <button className="btn btn-ghost btn-sm" onClick={() => startPay(r.id)}>
+                  <button className="btn btn-ghost btn-sm" disabled={r.payeeBalance === 0} onClick={() => startPay(r.id)}>
                     Mark paid…
                   </button>
                 )}
@@ -248,7 +262,7 @@ export default function Payments() {
       ) : tab === 'Withdrawal requests' ? (
         <div className="tblwrap">
           <div className="thead" style={{ minWidth: 700 }}>
-            <span style={{ flex: 1.4 }}>Organizer</span>
+            <span style={{ flex: 1.4 }}>Organizer / venue</span>
             <span style={{ flex: 1 }}>Amount</span>
             <span style={{ flex: 1.4 }}>Bank</span>
             <span style={{ flex: 1 }}>Date</span>
@@ -256,18 +270,18 @@ export default function Payments() {
           </div>
           {withdrawals.length === 0 && !loading && <div className="trow muted">No withdrawal requests yet.</div>}
           {withdrawals.map((w) => {
-            const detailsKey = `organizer:${w.organizerId}`;
+            const detailsKey = `${w.payeeType}:${w.payeeId}`;
             const detailsOpen = bankDetailsOpen === detailsKey;
             return (
             <div key={w.id} className="trow" style={{ minWidth: 700, flexWrap: detailsOpen || payingId === w.id ? 'wrap' : undefined }}>
               <span style={{ flex: 1.4, fontWeight: 700 }}>
                 <button
                   type="button"
-                  onClick={() => toggleBankDetails('organizer', w.organizerId)}
+                  onClick={() => toggleBankDetails(w.payeeType, w.payeeId)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--green)', font: 'inherit', fontWeight: 700 }}
                   title="Show bank details"
                 >
-                  {w.organizerName} <Landmark size={12} style={{ opacity: 0.6 }} /> {detailsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  {w.payeeName} <Tag label={w.payeeType === 'organizer' ? 'Organizer' : 'Venue'} cls="tag-dim" /> <Landmark size={12} style={{ opacity: 0.6 }} /> {detailsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 </button>
               </span>
               <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(w.amount)}</span>
@@ -297,7 +311,7 @@ export default function Payments() {
                     onChange={(e) => setUtrDraft(e.target.value)}
                     autoFocus
                   />
-                  <button className="btn btn-pri btn-sm" disabled={confirmingWithdrawal} onClick={() => confirmWithdrawalPay(w.id)}>{confirmingWithdrawal ? 'Marking…' : 'Confirm'}</button>
+                  <button className="btn btn-pri btn-sm" disabled={confirmingWithdrawal} onClick={() => confirmWithdrawalPay(w.id, w.payeeType)}>{confirmingWithdrawal ? 'Marking…' : 'Confirm'}</button>
                   <button className="btn btn-ghost btn-sm" onClick={() => setPayingId(null)}>Cancel</button>
                 </div>
               )}
@@ -305,7 +319,7 @@ export default function Payments() {
                 <div style={{ flex: '1 0 100%', marginTop: 8 }}>
                   {loadingProfile === detailsKey && <div className="tiny muted">Loading bank details…</div>}
                   {loadingProfile !== detailsKey && (profileCache[detailsKey]?.length ?? 0) === 0 && (
-                    <div className="tiny muted">No payment profile on file — {w.organizerName} hasn't added one yet.</div>
+                    <div className="tiny muted">No payment profile on file — {w.payeeName} hasn't added one yet.</div>
                   )}
                   {profileCache[detailsKey]?.map((p) => <PaymentProfileCard key={p.id} profile={p} />)}
                 </div>

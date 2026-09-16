@@ -419,6 +419,15 @@ model VenueLedgerTx {
   payoutBankLast4         String?
   payoutAccountHolderName String?
   payoutIfsc              String?
+
+  // Same "has admin actually paid this out yet" tracking as
+  // OrganizerLedgerTx's identical fields (2026-09-17 — this used to be
+  // "deliberately left unaddressed" here, which meant venue withdrawal
+  // requests had zero admin visibility at all: no query anywhere surfaced
+  // them, so nobody would even know to send a venue their money). Only
+  // meaningful for type:'withdrawal' rows.
+  withdrawalPaidOut Boolean @default(false)
+  withdrawalPaidUtr String?
 }
 
 // Bank accounts a venue can withdraw its hosting revenue to — plural,

@@ -19,6 +19,25 @@ export class PaymentsService {
     private notifications: NotificationsService,
   ) {}
 
+  /** Real current withdrawable balance for one payee — the actual source of
+   * truth (sale/refund/withdrawal, all-time), same aggregate
+   * OrganizerService.withdraw/VenueService.withdraw themselves check before
+   * letting a self-serve withdrawal through. Used below to cap "due" at
+   * what's genuinely still sitting uncollected, and to gate markPaid() —
+   * see the 2026-09-17 fix note on markPaid for why this exists. */
+  private async payeeBalance(payeeType: 'organizer' | 'venue', payeeId: string): Promise<number> {
+    const agg = payeeType === 'organizer'
+      ? await this.prisma.organizerLedgerTx.aggregate({ where: { organizerId: payeeId }, _sum: { amount: true } })
+      : await this.prisma.venueLedgerTx.aggregate({ where: { venueId: payeeId }, _sum: { amount: true } });
+    return agg._sum.amount ?? 0;
+  }
+
+  private async defaultPaymentProfile(payeeType: 'organizer' | 'venue', payeeId: string) {
+    return payeeType === 'organizer'
+      ? this.prisma.paymentProfile.findFirst({ where: { organizerId: payeeId, isDefault: true } })
+      : this.prisma.venuePaymentProfile.findFirst({ where: { venueId: payeeId, isDefault: true } });
+  }
+
   async payoutsDue() {
     // A payout is only ever due once the event has actually happened — an
     // organizer can't be paid out on ticket sales for a show that hasn't
@@ -65,12 +84,43 @@ export class PaymentsService {
       };
     });
 
+    // Real-picture fix (2026-09-17): this used to sum every not-yet-paidOut
+    // event's `net` regardless of whether the payee had already pulled that
+    // exact money out via self-serve withdraw (OrganizerService.withdraw /
+    // VenueService.withdraw) — a completely separate, unlinked flow. Two
+    // organizers were found with real production data confirming staff had
+    // to manually notice the overlap themselves (reusing the same UTR by
+    // hand across both admin screens) — nothing in the system actually
+    // prevented double-counting or double-paying. Capping each payee's
+    // total "due" at their real current ledger balance (which already nets
+    // out any self-serve withdrawal) is what makes this figure trustworthy
+    // — it can now never overstate what's genuinely still uncollected.
     const due = rows.filter((r) => !r.paidOut);
+    const payeeKeys = [...new Set(due.filter((r) => r.payeeType && r.payeeId).map((r) => `${r.payeeType}:${r.payeeId}`))];
+    const balanceByPayee = new Map<string, number>();
+    await Promise.all(payeeKeys.map(async (key) => {
+      const [payeeType, payeeId] = key.split(':') as ['organizer' | 'venue', string];
+      balanceByPayee.set(key, await this.payeeBalance(payeeType, payeeId));
+    }));
+    const naiveDueByPayee = new Map<string, number>();
+    for (const r of due) {
+      if (!r.payeeType || !r.payeeId) continue;
+      const key = `${r.payeeType}:${r.payeeId}`;
+      naiveDueByPayee.set(key, (naiveDueByPayee.get(key) ?? 0) + r.net);
+    }
+    const realDueByPayee = new Map<string, number>();
+    for (const [key, naive] of naiveDueByPayee) realDueByPayee.set(key, Math.max(0, Math.min(naive, balanceByPayee.get(key) ?? 0)));
+
+    const rowsWithRealDue = rows.map((r) => {
+      if (r.paidOut || !r.payeeType || !r.payeeId) return { ...r, payeeBalance: null as number | null };
+      return { ...r, payeeBalance: balanceByPayee.get(`${r.payeeType}:${r.payeeId}`) ?? 0 };
+    });
+
     const collected = rows.reduce((a, r) => a + r.revenue, 0);
     const commissionKept = rows.reduce((a, r) => a + r.commissionAmt, 0);
-    const dueTotal = due.reduce((a, r) => a + r.net, 0);
+    const dueTotal = [...realDueByPayee.values()].reduce((a, v) => a + v, 0);
 
-    return { rows, collected, commissionKept, dueTotal };
+    return { rows: rowsWithRealDue, collected, commissionKept, dueTotal };
   }
 
   /** Manual only, one real transfer at a time — there's no real bank/IMPS
@@ -79,7 +129,20 @@ export class PaymentsService {
    * including for events that hadn't even happened yet via the auto-payout
    * cron. Now it just records the UTR the admin got from actually sending
    * the money themselves, after the fact — this is bookkeeping, not a
-   * payment rail. */
+   * payment rail.
+   *
+   * 2026-09-17 fix: this used to be its own completely separate state
+   * machine from OrganizerLedgerTx/VenueLedgerTx — nothing here ever
+   * checked whether the payee had already self-withdrawn this exact money,
+   * and marking an event paid never touched the ledger at all. Confirmed
+   * via real production data that staff were already hitting this: an
+   * organizer self-withdrew, then admin separately (and correctly, by
+   * coincidence of careful manual bookkeeping) marked the same money paid
+   * per-event. Now this checks the payee's real current balance first —
+   * refusing outright if it doesn't cover the amount, which is exactly the
+   * case where the money's already gone out via self-withdraw — and, on
+   * success, writes a real ledger withdrawal row alongside the event flag
+   * so the two can never drift apart again. */
   async markPaid(eventId: string, utr: string) {
     if (!utr?.trim()) throw new BadRequestException('Enter the real UTR / transaction reference for this transfer');
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
@@ -88,58 +151,125 @@ export class PaymentsService {
     if (new Date(event.date).getTime() + event.durationHrs * 3600_000 > Date.now()) {
       throw new BadRequestException("This event hasn't happened yet — payouts can only be marked paid after the event completes");
     }
-    const updated = await this.prisma.event.update({ where: { id: eventId }, data: { paidOut: true, payoutUtr: utr.trim() } });
+    const payeeType: 'organizer' | 'venue' | null = event.organizerId ? 'organizer' : event.venueId ? 'venue' : null;
+    const payeeId = event.organizerId ?? event.venueId ?? null;
+    if (!payeeType || !payeeId) throw new BadRequestException('This event has no organizer or venue to pay out to');
+
+    const revenueAgg = await this.prisma.booking.aggregate({
+      where: { eventId, status: { in: LIVE_BOOKING_STATUSES } },
+      _sum: { subtotal: true },
+    });
+    const revenue = revenueAgg._sum.subtotal ?? 0;
+    const commissionAmt = Math.round((revenue * (event.commission ?? 0)) / 100);
+    const net = revenue - commissionAmt;
+
+    const profile = await this.defaultPaymentProfile(payeeType, payeeId);
+    if (!profile) {
+      throw new BadRequestException(
+        `Bank details not present — this ${payeeType} hasn't added a payment profile yet, so there's nowhere on file to record this payout against. Ask them to add one (Settings → Payment profiles) first.`
+      );
+    }
+
+    const balance = await this.payeeBalance(payeeType, payeeId);
+    if (net > balance) {
+      const already = net - balance;
+      throw new BadRequestException(
+        already > 0
+          ? `This event's payout is ₹${net.toLocaleString('en-IN')}, but only ₹${balance.toLocaleString('en-IN')} of that is still uncollected — the rest (₹${already.toLocaleString('en-IN')}) looks like it's already been self-withdrawn. Check the Withdrawal requests tab before marking this paid.`
+          : `This event's payout (₹${net.toLocaleString('en-IN')}) exceeds this ${payeeType}'s current balance (₹${balance.toLocaleString('en-IN')}) — can't mark it paid.`
+      );
+    }
+
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.event.update({ where: { id: eventId }, data: { paidOut: true, payoutUtr: utr.trim() } }),
+      payeeType === 'organizer'
+        ? this.prisma.organizerLedgerTx.create({
+            data: {
+              organizerId: payeeId, type: 'withdrawal', amount: -net, eventId, eventTitle: event.title,
+              note: `Payout for "${event.title}" (admin-initiated)`,
+              paymentProfileId: profile.id, payoutBankLast4: profile.bankLast4, payoutAccountHolderName: profile.accountHolderName, payoutIfsc: profile.ifsc,
+              withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim(),
+            },
+          })
+        : this.prisma.venueLedgerTx.create({
+            data: {
+              venueId: payeeId, type: 'withdrawal', amount: -net, eventId, eventTitle: event.title,
+              note: `Payout for "${event.title}" (admin-initiated)`,
+              paymentProfileId: profile.id, payoutBankLast4: profile.bankLast4, payoutAccountHolderName: profile.accountHolderName, payoutIfsc: profile.ifsc,
+              withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim(),
+            },
+          }),
+    ]);
     await this.notifications.notify('💸', `Payout marked paid — "${event.title}" · ${utr.trim()}`, '/admin/payments');
     return updated;
   }
 
-  /** Organizers can self-serve withdraw their ledger balance any time, for
-   * any amount, capped at what they've actually earned (see
-   * OrganizerService.withdraw) — an instant debit with no approval step
-   * and, until now, zero admin visibility: nothing surfaced these requests
-   * anywhere in admin. This is that missing view — every real
-   * OrganizerLedgerTx row of type 'withdrawal', newest first, with the
-   * bank-details snapshot the organizer's default PaymentProfile had at the
-   * moment they withdrew (payoutBankLast4/payoutAccountHolderName/
-   * payoutIfsc — captured on the ledger row itself, so it stays accurate
-   * even if they later change their default profile), plus withdrawalPaidOut
-   * so admin can actually track which of these they've sent the money for.
-   * `amount` is stored negative (a debit); returned positive here since
-   * admin only ever wants to see "how much did they take out." */
-  async organizerWithdrawals() {
-    const rows = await this.prisma.organizerLedgerTx.findMany({
-      where: { type: 'withdrawal' },
-      select: {
-        id: true, organizerId: true, amount: true, createdAt: true,
-        payoutBankLast4: true, payoutAccountHolderName: true, payoutIfsc: true,
-        withdrawalPaidOut: true, withdrawalPaidUtr: true,
-        organizer: { select: { brandName: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    return rows.map((r) => ({
-      id: r.id,
-      organizerId: r.organizerId,
-      organizerName: r.organizer?.brandName ?? '—',
-      amount: Math.abs(r.amount),
-      paidOut: r.withdrawalPaidOut,
-      paidUtr: r.withdrawalPaidUtr,
-      bankLast4: r.payoutBankLast4,
-      accountHolderName: r.payoutAccountHolderName,
-      ifsc: r.payoutIfsc,
-      createdAt: r.createdAt,
-    }));
+  /** Organizers AND venues can both self-serve withdraw their ledger balance
+   * any time, for any amount, capped at what they've actually earned (see
+   * OrganizerService.withdraw / VenueService.withdraw) — an instant debit
+   * with no approval step. Until 2026-09-06 there was zero admin visibility
+   * into either; until this 2026-09-17 fix, venue withdrawals specifically
+   * still had none — this method only ever queried OrganizerLedgerTx, so a
+   * venue that self-withdrew simply never showed up anywhere in admin at
+   * all. Now merges both ledgers, newest first, each row carrying the
+   * bank-details snapshot from whichever PaymentProfile/VenuePaymentProfile
+   * was default at the moment they withdrew (stays accurate even if they
+   * later change their default profile). `amount` is stored negative (a
+   * debit); returned positive here since admin only ever wants to see "how
+   * much did they take out." */
+  async withdrawalRequests() {
+    const [orgRows, venueRows] = await Promise.all([
+      this.prisma.organizerLedgerTx.findMany({
+        where: { type: 'withdrawal' },
+        select: {
+          id: true, organizerId: true, amount: true, createdAt: true,
+          payoutBankLast4: true, payoutAccountHolderName: true, payoutIfsc: true,
+          withdrawalPaidOut: true, withdrawalPaidUtr: true,
+          organizer: { select: { brandName: true } },
+        },
+      }),
+      this.prisma.venueLedgerTx.findMany({
+        where: { type: 'withdrawal' },
+        select: {
+          id: true, venueId: true, amount: true, createdAt: true,
+          payoutBankLast4: true, payoutAccountHolderName: true, payoutIfsc: true,
+          withdrawalPaidOut: true, withdrawalPaidUtr: true,
+          venue: { select: { name: true } },
+        },
+      }),
+    ]);
+    const rows = [
+      ...orgRows.map((r) => ({
+        id: r.id, payeeType: 'organizer' as const, payeeId: r.organizerId, payeeName: r.organizer?.brandName ?? '—',
+        amount: Math.abs(r.amount), paidOut: r.withdrawalPaidOut, paidUtr: r.withdrawalPaidUtr,
+        bankLast4: r.payoutBankLast4, accountHolderName: r.payoutAccountHolderName, ifsc: r.payoutIfsc, createdAt: r.createdAt,
+      })),
+      ...venueRows.map((r) => ({
+        id: r.id, payeeType: 'venue' as const, payeeId: r.venueId, payeeName: r.venue?.name ?? '—',
+        amount: Math.abs(r.amount), paidOut: r.withdrawalPaidOut, paidUtr: r.withdrawalPaidUtr,
+        bankLast4: r.payoutBankLast4, accountHolderName: r.payoutAccountHolderName, ifsc: r.payoutIfsc, createdAt: r.createdAt,
+      })),
+    ];
+    return rows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   /** Same UTR requirement as PaymentsService.markPaid's per-event flow —
    * this is bookkeeping only, never moves money, so a real transfer
-   * reference is what makes the record actually mean something. */
-  async markOrganizerWithdrawalPaid(id: string, utr: string) {
+   * reference is what makes the record actually mean something. One method
+   * for both payee types (2026-09-17 — previously organizer-only, which is
+   * exactly how venue withdrawals ended up with no mark-paid path at all). */
+  async markWithdrawalPaid(payeeType: 'organizer' | 'venue', id: string, utr: string) {
     if (!utr?.trim()) throw new BadRequestException('Enter the real UTR / transaction reference for this transfer');
-    const row = await this.prisma.organizerLedgerTx.findUnique({ where: { id } });
+    if (payeeType === 'organizer') {
+      const row = await this.prisma.organizerLedgerTx.findUnique({ where: { id } });
+      if (!row || row.type !== 'withdrawal') throw new BadRequestException('Withdrawal request not found');
+      if (row.withdrawalPaidOut) throw new BadRequestException('Already marked paid');
+      return this.prisma.organizerLedgerTx.update({ where: { id }, data: { withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim() } });
+    }
+    const row = await this.prisma.venueLedgerTx.findUnique({ where: { id } });
     if (!row || row.type !== 'withdrawal') throw new BadRequestException('Withdrawal request not found');
     if (row.withdrawalPaidOut) throw new BadRequestException('Already marked paid');
-    return this.prisma.organizerLedgerTx.update({ where: { id }, data: { withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim() } });
+    return this.prisma.venueLedgerTx.update({ where: { id }, data: { withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim() } });
   }
 
   /** Platform-wide sale/refund ledger — closes the "Transactions" tab,
