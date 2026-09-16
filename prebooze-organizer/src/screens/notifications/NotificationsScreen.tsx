@@ -102,6 +102,12 @@ export default function NotificationsScreen() {
           </Pressable>
         )}
       </View>
+      {/* TEMPORARY — moved out of the empty-state-only spot so it's reachable
+          for re-testing even with existing rows. Remove with the rest of the
+          seed-demo dev tooling. */}
+      <Pressable onPress={seedDemo} disabled={seeding} style={styles.seedButtonHeader}>
+        <Txt style={styles.link}>{seeding ? 'Adding examples…' : 'Reset with example notifications (dev)'}</Txt>
+      </Pressable>
 
       <ScrollView style={styles.contentScroll} contentContainerStyle={styles.content}>
         {!!err && (
@@ -114,12 +120,7 @@ export default function NotificationsScreen() {
         <Card style={styles.listCard}>
           {loading && <Muted style={styles.centerNote}>Loading…</Muted>}
           {!loading && rows.length === 0 && (
-            <View style={styles.centerNote}>
-              <Muted>Nothing here yet — you'll see updates like event approvals here.</Muted>
-              <Pressable onPress={seedDemo} disabled={seeding} style={styles.seedButton}>
-                <Txt style={styles.link}>{seeding ? 'Adding examples…' : 'Preview with example notifications (dev)'}</Txt>
-              </Pressable>
-            </View>
+            <Muted style={styles.centerNote}>Nothing here yet — you'll see updates like event approvals here.</Muted>
           )}
           {rows.map((n, i) => {
             const kind = KIND_ICON[n.icon];
@@ -155,8 +156,8 @@ const styles = StyleSheet.create({
   content: { padding: spacing.l, paddingTop: 0, paddingBottom: spacing.xxl },
   errRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.s },
   listCard: { padding: spacing.l },
-  centerNote: { alignItems: 'center', padding: spacing.l, gap: spacing.m },
-  seedButton: { padding: spacing.s },
+  centerNote: { textAlign: 'center', padding: spacing.l },
+  seedButtonHeader: { paddingHorizontal: spacing.l, paddingBottom: spacing.m },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.m, paddingVertical: spacing.m },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.borderDash, borderStyle: 'dashed' },
   iconWrap: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
