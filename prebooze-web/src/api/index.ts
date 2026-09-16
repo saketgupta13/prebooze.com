@@ -499,12 +499,17 @@ export interface OrgAttendee {
 }
 export interface OrgLedgerTx {
   id: string;
-  type: 'sale' | 'refund' | 'withdrawal';
+  type: 'sale' | 'refund' | 'withdrawal' | 'withdrawal_reversal';
   amount: number;
   eventId?: string;
   eventTitle?: string;
   note?: string;
   createdAt: string;
+  // Real request→received→initiated→processed→complete pipeline (or
+  // rejected), 2026-09-18 — only meaningful for type:'withdrawal' rows.
+  withdrawalStatus?: 'requested' | 'received' | 'initiated' | 'processed' | 'complete' | 'rejected';
+  withdrawalRejectedReason?: string;
+  withdrawalPaidUtr?: string;
 }
 /** Shared client for the organizer/venue-paid Meta ad marketing endpoints —
  * identical shape on both sides (see MarketingController/
@@ -778,12 +783,17 @@ export const platform = {
 
 export interface VenueLedgerTx {
   id: string;
-  type: 'sale' | 'refund' | 'withdrawal';
+  type: 'sale' | 'refund' | 'withdrawal' | 'withdrawal_reversal';
   amount: number;
   eventId?: string;
   eventTitle?: string;
   note?: string;
   createdAt: string;
+  // Same real pipeline as OrgLedgerTx's identical fields (2026-09-18) —
+  // only meaningful for type:'withdrawal' rows.
+  withdrawalStatus?: 'requested' | 'received' | 'initiated' | 'processed' | 'complete' | 'rejected';
+  withdrawalRejectedReason?: string;
+  withdrawalPaidUtr?: string;
 }
 export interface VenueHostingRequest {
   id: string;

@@ -428,6 +428,34 @@ model VenueLedgerTx {
   // meaningful for type:'withdrawal' rows.
   withdrawalPaidOut Boolean @default(false)
   withdrawalPaidUtr String?
+
+  // Same real operational pipeline as OrganizerLedgerTx's identical fields
+  // (2026-09-18) — see the comment there for the full state-machine notes.
+  withdrawalStatus         String  @default("requested")
+  withdrawalRejectedReason String?
+}
+
+// Real timeline behind OrganizerLedgerTx/VenueLedgerTx.withdrawalStatus
+// (2026-09-18) — the ledger row only ever holds the CURRENT status; this is
+// the append-only log of every transition, so both the admin payout-detail
+// page and the organizer/venue's own payout history can show a real "here's
+// what actually happened and when," not just a single flag. No Prisma
+// relation to either ledger table (ledgerTxId is polymorphic across two
+// tables, same pattern as payeeType/payeeId used throughout
+// admin/payments.service.ts) — always queried by ledgerTxId directly.
+model PayoutStatusEvent {
+  id         String   @id @default(cuid())
+  payeeType  String // organizer | venue
+  payeeId    String
+  ledgerTxId String // OrganizerLedgerTx.id or VenueLedgerTx.id
+  status     String // requested | received | initiated | processed | complete | rejected
+  reason     String? // set when status is 'rejected'
+  utr        String? // set when status is 'complete'
+  staffEmail String? // which admin made this transition; null for the initial 'requested' event, which the organizer/venue themselves triggered
+  createdAt  DateTime @default(now())
+
+  @@index([ledgerTxId])
+  @@index([payeeType, payeeId])
 }
 
 // Bank accounts a venue can withdraw its hosting revenue to — plural,
@@ -1755,6 +1783,23 @@ model OrganizerLedgerTx {
   // mark-paid time — same requirement as Event.payoutUtr's mark-paid flow
   // (PaymentsService.markPaid). Only set once withdrawalPaidOut is true.
   withdrawalPaidUtr String?
+
+  // Real operational pipeline (2026-09-18) — withdrawalPaidOut above was a
+  // bare boolean with no way to show an organizer/venue (or admin) where
+  // their request actually stood before it was fully paid. Only meaningful
+  // for type:'withdrawal' rows: requested (self-serve withdraw() call, or
+  // set to complete immediately for an admin-initiated per-event payout —
+  // see PaymentsService.markPaid) → received → initiated → processed →
+  // complete, or rejected at any point before complete. The full sequence
+  // of transitions is in PayoutStatusEvent below (this field is just the
+  // current one, for fast list/filter queries).
+  withdrawalStatus String @default("requested")
+  // Set only when withdrawalStatus is 'rejected' — required at reject time
+  // (PaymentsService.advanceWithdrawal) so the organizer/venue always knows
+  // why, never a silent decline. Rejecting reverses the original debit via
+  // a new positive type:'withdrawal_reversal' row rather than deleting or
+  // mutating this one, so the ledger stays a real append-only record.
+  withdrawalRejectedReason String?
 }
 
 // Organizer's own team/permissions system — same view/edit-per-module shape

@@ -272,11 +272,27 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
   },
   {
     id: 'payout_processed', name: 'Payout processed', category: 'Roles',
-    trigger: 'An organizer or promoter withdraws their balance',
+    trigger: 'A promoter withdraws their balance, or an organizer/venue\'s withdrawal request is marked complete by admin (PaymentsService.advanceWithdrawal)',
     preheader: 'Your withdrawal was processed',
     defaultSubject: 'Payout sent — {{amount}}',
     defaultBody: `<p>Hey {{name}},</p><p><b>{{amount}}</b> is on its way to your bank account. As an active {{role}} on Prebooze, thanks for hosting with us.</p>`,
     tokens: ['name', 'amount', 'role'],
+  },
+  {
+    id: 'payout_requested', name: 'Payout requested', category: 'Roles',
+    trigger: 'An organizer or venue submits a self-serve withdrawal request (2026-09-18 — previously this fired the "processed" email immediately, before any real transfer had happened)',
+    preheader: 'We\'ve received your withdrawal request',
+    defaultSubject: 'Withdrawal request received — {{amount}}',
+    defaultBody: `<p>Hey {{name}},</p><p>We've received your request to withdraw <b>{{amount}}</b>. Our team processes these manually — you'll get another email the moment it's actually sent, with the bank reference. You can track its status any time on your Payouts page.</p>`,
+    tokens: ['name', 'amount', 'role'],
+  },
+  {
+    id: 'payout_rejected', name: 'Payout rejected', category: 'Roles',
+    trigger: 'Admin rejects an organizer/venue\'s withdrawal request (PaymentsService.advanceWithdrawal) — the amount is credited straight back to their balance, never just dropped',
+    preheader: 'Your withdrawal request needs attention',
+    defaultSubject: 'Your withdrawal request needs attention — {{amount}}',
+    defaultBody: `<p>Hey {{name}},</p><p>We weren't able to process your withdrawal of <b>{{amount}}</b>: <b>{{reason}}</b></p><p>The full amount is back in your available balance — nothing was lost. Fix the issue above and submit a new request whenever you're ready.</p>`,
+    tokens: ['name', 'amount', 'reason', 'role'],
   },
   {
     id: 'promoter_payout_reminder', name: 'Promoter payout reminder', category: 'Roles',

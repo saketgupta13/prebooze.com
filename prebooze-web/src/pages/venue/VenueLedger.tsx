@@ -8,6 +8,15 @@ import { AlertCircle } from 'lucide-react';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
+// Real request→received→initiated→processed→complete pipeline (or
+// rejected), 2026-09-18 — see organizer/Payouts.tsx's identical mapping.
+const WITHDRAWAL_STATUS_LABEL: Record<string, string> = {
+  requested: 'Requested', received: 'Received', initiated: 'Initiated', processed: 'Processing', complete: 'Paid', rejected: 'Rejected',
+};
+const WITHDRAWAL_STATUS_CLS: Record<string, string> = {
+  requested: 'badge-pending', received: 'badge-accent', initiated: 'badge-accent', processed: 'badge-accent', complete: 'badge-ok', rejected: 'badge-danger',
+};
+
 /** Ledger for this venue's own hosted events — GET /venue/hosting/ledger
  * (VenueService.myLedger), with a real self-service withdraw (POST
  * /venue/hosting/withdraw), same shape as organizer/Payouts.tsx+Withdraw.tsx.
@@ -65,13 +74,18 @@ export default function VenueLedger() {
           <tbody>
             {ledger.map((t) => (
               <tr key={t.id}>
-                <td>{fmtDate(t.createdAt)}</td>
-                <td className="bold">{t.eventTitle ?? '—'}</td>
+                <td>
+                  {fmtDate(t.createdAt)}
+                  {t.type === 'withdrawal' && t.withdrawalStatus === 'complete' && t.withdrawalPaidUtr && <div className="tiny muted-2">{t.withdrawalPaidUtr}</div>}
+                  {t.type === 'withdrawal' && t.withdrawalStatus === 'rejected' && t.withdrawalRejectedReason && <div className="tiny danger-text">{t.withdrawalRejectedReason}</div>}
+                </td>
+                <td className="bold">{t.type === 'withdrawal' ? 'Manual withdrawal' : t.type === 'withdrawal_reversal' ? 'Withdrawal refunded' : t.eventTitle ?? '—'}</td>
                 <td className={t.amount < 0 ? 'danger-text' : ''}>{t.amount < 0 ? '-' : ''}{fmtMoney(Math.abs(t.amount))}</td>
                 <td>
                   {t.type === 'sale' && <span className="badge badge-ok">Sale</span>}
                   {t.type === 'refund' && <span className="badge badge-danger">Refund</span>}
-                  {t.type === 'withdrawal' && <span className="badge badge-pending">Withdrawal</span>}
+                  {t.type === 'withdrawal' && <span className={`badge ${WITHDRAWAL_STATUS_CLS[t.withdrawalStatus ?? 'requested']}`}>{WITHDRAWAL_STATUS_LABEL[t.withdrawalStatus ?? 'requested']}</span>}
+                  {t.type === 'withdrawal_reversal' && <span className="badge badge-accent">Refunded to balance</span>}
                 </td>
               </tr>
             ))}

@@ -9,6 +9,17 @@ import type { ReactNode } from 'react';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
+// Real request→received→initiated→processed→complete pipeline (or
+// rejected), 2026-09-18 — this used to just say "Withdrawal" with no status
+// at all, so there was no way to tell a just-submitted request apart from
+// one that had actually been paid.
+const WITHDRAWAL_STATUS_LABEL: Record<string, string> = {
+  requested: 'Requested', received: 'Received', initiated: 'Initiated', processed: 'Processing', complete: 'Paid', rejected: 'Rejected',
+};
+const WITHDRAWAL_STATUS_CLS: Record<string, string> = {
+  requested: 'badge-pending', received: 'badge-accent', initiated: 'badge-accent', processed: 'badge-accent', complete: 'badge-ok', rejected: 'badge-danger',
+};
+
 interface PromoterPayoutRow {
   eventId: string; eventTitle: string; eventDate: string; promoterId: string; promoterName: string;
   // perHead: guest-list headcount payout (event's perHeadPayout toggle).
@@ -49,13 +60,13 @@ export default function Payouts() {
       .finally(() => setLoading(false));
   }, []);
 
-  const payoutRows = ledger.filter((t) => t.type === 'withdrawal');
-  const lifetimePaidOut = payoutRows.reduce((a, t) => a + Math.abs(t.amount), 0);
+  const payoutRows = ledger.filter((t) => t.type === 'withdrawal' || t.type === 'withdrawal_reversal');
+  const lifetimePaidOut = payoutRows.filter((t) => t.type === 'withdrawal' && t.withdrawalStatus === 'complete').reduce((a, t) => a + Math.abs(t.amount), 0);
 
   const exportCsv = () => {
     const csv = [
-      'date,type,event,amount',
-      ...payoutRows.map((t) => `${t.createdAt},${t.type},"${t.eventTitle ?? ''}",${t.amount}`),
+      'date,type,status,amount',
+      ...payoutRows.map((t) => `${t.createdAt},${t.type},${t.type === 'withdrawal' ? (t.withdrawalStatus ?? 'requested') : 'refunded_to_balance'},${t.amount}`),
     ].join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -133,22 +144,36 @@ export default function Payouts() {
           <thead>
             <tr>
               <th>Date</th>
-              <th>Event</th>
               <th>Amount</th>
-              <th>Type</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {payoutRows.map((t) => (
               <tr key={t.id}>
-                <td>{fmtDate(t.createdAt)}</td>
-                <td className="bold">Manual withdrawal</td>
-                <td className="danger-text">-{fmtMoney(Math.abs(t.amount))}</td>
-                <td><span className="badge badge-pending">Withdrawal</span></td>
+                <td>
+                  {fmtDate(t.createdAt)}
+                  {t.type === 'withdrawal' && t.withdrawalStatus === 'complete' && t.withdrawalPaidUtr && (
+                    <div className="tiny muted-2">{t.withdrawalPaidUtr}</div>
+                  )}
+                  {t.type === 'withdrawal' && t.withdrawalStatus === 'rejected' && t.withdrawalRejectedReason && (
+                    <div className="tiny danger-text">{t.withdrawalRejectedReason}</div>
+                  )}
+                </td>
+                <td className={t.type === 'withdrawal_reversal' ? 'bold' : 'danger-text'}>
+                  {t.type === 'withdrawal_reversal' ? '+' : '-'}{fmtMoney(Math.abs(t.amount))}
+                </td>
+                <td>
+                  {t.type === 'withdrawal_reversal' ? (
+                    <span className="badge badge-accent">Refunded to balance</span>
+                  ) : (
+                    <span className={`badge ${WITHDRAWAL_STATUS_CLS[t.withdrawalStatus ?? 'requested']}`}>{WITHDRAWAL_STATUS_LABEL[t.withdrawalStatus ?? 'requested']}</span>
+                  )}
+                </td>
               </tr>
             ))}
             {payoutRows.length === 0 && (
-              <tr><td colSpan={4} className="muted center">No withdrawals yet.</td></tr>
+              <tr><td colSpan={3} className="muted center">No withdrawals yet.</td></tr>
             )}
           </tbody>
         </table>

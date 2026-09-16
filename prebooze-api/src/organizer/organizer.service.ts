@@ -990,23 +990,33 @@ export class OrganizerService {
 
     // Snapshot which account this specific payout went to — a later edit or
     // deletion of the profile must never change the historical record of
-    // where this withdrawal actually landed.
-    await this.prisma.organizerLedgerTx.create({
+    // where this withdrawal actually landed. Born at withdrawalStatus
+    // 'requested' (the default) — this is a request for admin to actually
+    // send, not a completed payout yet (see PaymentsService.advanceWithdrawal
+    // for the real request→received→initiated→processed→complete pipeline).
+    const tx = await this.prisma.organizerLedgerTx.create({
       data: {
         organizerId: org.id, type: 'withdrawal', amount: -amount, note: 'Withdrawal to bank',
         paymentProfileId: profile.id, payoutBankLast4: profile.bankLast4,
         payoutAccountHolderName: profile.accountHolderName, payoutIfsc: profile.ifsc,
       },
     });
+    await this.prisma.payoutStatusEvent.create({
+      data: { payeeType: 'organizer', payeeId: org.id, ledgerTxId: tx.id, status: 'requested' },
+    });
 
     // Notify the account owner, not whoever triggered it — the payout lands
     // in the owner's bank account regardless of which team member with
     // "Payouts & withdrawals" edit access clicked withdraw, so that's who
-    // needs to know it happened.
+    // needs to know it happened. This is a request-received notice, not a
+    // "your money is on its way" one (2026-09-18 — it used to fire the
+    // 'payout_processed' template here, immediately, before any real
+    // transfer had happened; that email now only fires once admin actually
+    // marks the request complete).
     const user = org.userId ? await this.prisma.user.findUnique({ where: { id: org.userId } }) : null;
     if (user) {
       await this.wa.send(user.phone, 'organizer_payout', [String(amount)]).catch(() => {});
-      await this.email.sendTemplate(user.email, 'payout_processed', {
+      await this.email.sendTemplate(user.email, 'payout_requested', {
         name: user.name, amount: money(amount), role: 'organizer',
       }).catch(() => {});
     }

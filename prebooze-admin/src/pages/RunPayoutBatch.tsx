@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Landmark } from 'lucide-react';
 import { Kpi } from '../components/ui';
-import { livePayments, LiveApiError, type LivePayoutRow } from '../lib/liveApi';
+import { livePayments, LiveApiError, type LivePayeeEventRow } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
@@ -20,7 +20,7 @@ export default function RunPayoutBatch() {
   const { token } = session;
   const navigate = useNavigate();
 
-  const [due, setDue] = useState<LivePayoutRow[]>([]);
+  const [due, setDue] = useState<LivePayeeEventRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [utrs, setUtrs] = useState<Record<string, string>>({});
   const [confirming, setConfirming] = useState(false);
@@ -33,11 +33,10 @@ export default function RunPayoutBatch() {
     setLoading(true);
     setErr('');
     livePayments
-      .due()
-      .then(({ rows }) => {
-        const outstanding = rows.filter((r) => !r.paidOut);
-        setDue(outstanding);
-        setSelected(new Set(outstanding.filter((d) => d.revenue > 0).map((d) => d.id)));
+      .dueEvents()
+      .then((rows) => {
+        setDue(rows);
+        setSelected(new Set(rows.filter((d) => d.revenue > 0).map((d) => d.id)));
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));

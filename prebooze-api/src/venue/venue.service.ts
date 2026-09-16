@@ -883,18 +883,23 @@ export class VenueService {
     const balance = agg._sum.amount ?? 0;
     if (amount > balance) throw new BadRequestException('More than your available balance');
 
-    await this.prisma.venueLedgerTx.create({
+    // Born at withdrawalStatus 'requested' — see OrganizerService.withdraw's
+    // identical comment for the full request→...→complete pipeline notes.
+    const tx = await this.prisma.venueLedgerTx.create({
       data: {
         venueId: venue.id, type: 'withdrawal', amount: -amount, note: 'Withdrawal to bank',
         paymentProfileId: profile.id, payoutBankLast4: profile.bankLast4,
         payoutAccountHolderName: profile.accountHolderName, payoutIfsc: profile.ifsc,
       },
     });
+    await this.prisma.payoutStatusEvent.create({
+      data: { payeeType: 'venue', payeeId: venue.id, ledgerTxId: tx.id, status: 'requested' },
+    });
 
     const user = venue.userId ? await this.prisma.user.findUnique({ where: { id: venue.userId } }) : null;
     if (user) {
       if (user.phone) await this.wa.send(user.phone, 'organizer_payout', [String(amount)]).catch(() => {});
-      if (user.email) await this.email.sendTemplate(user.email, 'payout_processed', {
+      if (user.email) await this.email.sendTemplate(user.email, 'payout_requested', {
         name: user.name, amount: money(amount), role: 'venue',
       }).catch(() => {});
     }

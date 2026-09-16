@@ -1,10 +1,12 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
 import { RequirePermission } from './permission.decorator';
+import type { StaffTokenPayload } from './staff-auth.guard';
 
 const MODULE = 'Payments & payouts'; // exact fit
+type StaffReq = { staff: StaffTokenPayload };
 
 @Controller('admin/payments')
 @UseGuards(StaffAuthGuard, PermissionGuard)
@@ -17,10 +19,22 @@ export class AdminPaymentsController {
     return this.payments.payoutsDue();
   }
 
+  @Get('due-events')
+  @RequirePermission(MODULE, 'view')
+  payoutsDueEvents() {
+    return this.payments.payoutsDueEvents();
+  }
+
+  @Get('payee/:payeeType/:payeeId')
+  @RequirePermission(MODULE, 'view')
+  payeeDetail(@Param('payeeType') payeeType: 'organizer' | 'venue', @Param('payeeId') payeeId: string) {
+    return this.payments.payeeDetail(payeeType, payeeId);
+  }
+
   @Post('mark-paid')
   @RequirePermission(MODULE, 'edit')
-  markPaid(@Body('eventId') eventId: string, @Body('utr') utr: string) {
-    return this.payments.markPaid(eventId, utr);
+  markPaid(@Body('eventId') eventId: string, @Body('utr') utr: string, @Req() req: StaffReq) {
+    return this.payments.markPaid(eventId, utr, req.staff.email);
   }
 
   @Get('withdrawal-requests')
@@ -29,10 +43,15 @@ export class AdminPaymentsController {
     return this.payments.withdrawalRequests();
   }
 
-  @Post('withdrawal-requests/:payeeType/:id/mark-paid')
+  @Post('withdrawal-requests/:payeeType/:id/advance')
   @RequirePermission(MODULE, 'edit')
-  markWithdrawalPaid(@Param('payeeType') payeeType: 'organizer' | 'venue', @Param('id') id: string, @Body('utr') utr: string) {
-    return this.payments.markWithdrawalPaid(payeeType, id, utr);
+  advanceWithdrawal(
+    @Param('payeeType') payeeType: 'organizer' | 'venue',
+    @Param('id') id: string,
+    @Body() body: { status: string; utr?: string; reason?: string },
+    @Req() req: StaffReq,
+  ) {
+    return this.payments.advanceWithdrawal(payeeType, id, body, req.staff.email);
   }
 
   @Get('transactions')

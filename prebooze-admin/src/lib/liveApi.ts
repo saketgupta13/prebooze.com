@@ -806,28 +806,36 @@ export const liveAnalytics = {
     liveFetch<AnalyticsFilters>('/admin/analytics/filters' + (eventScope ? `?eventScope=${eventScope}` : '')),
 };
 
-export interface LivePayoutRow {
-  id: string;
-  title: string;
-  organizer: string;
-  // Who actually gets paid — an organizer-run event's real organizerId, or
-  // a solo venue-hosted event's venueId. null only if an event somehow has
-  // neither (shouldn't happen — every event has one or the other).
-  payeeType: 'organizer' | 'venue' | null;
-  payeeId: string | null;
-  revenue: number;
-  commission: number | null;
-  commissionAmt: number;
-  net: number;
-  paidOut: boolean;
-  payoutUtr: string | null;
-  // The payee's real current ledger balance (2026-09-17) — null once
-  // paidOut (no longer relevant) or if there's no payee at all. `net` can
-  // exceed this when the payee has already self-withdrawn some or all of
-  // it via the organizer/venue app — markPaid() itself refuses to exceed
-  // this, so it's shown here too rather than only surfacing as an error
-  // after the fact.
+/** One row per payee, not per event (2026-09-18) — see
+ * PaymentsService.payoutsDue's own comment. Click through to
+ * /payments/:payeeType/:payeeId for the event-wise breakdown + bank details
+ * + withdrawal tracking. */
+export interface LivePayeeDueRow {
+  payeeType: 'organizer' | 'venue';
+  payeeId: string;
+  payeeName: string;
+  eventCount: number;
+  due: number;
+  payeeBalance: number;
+}
+export type PayoutPipelineStatus = 'requested' | 'received' | 'initiated' | 'processed' | 'complete' | 'rejected';
+export interface LivePayoutStatusEvent {
+  id: string; status: PayoutPipelineStatus; reason: string | null; utr: string | null; staffEmail: string | null; createdAt: string;
+}
+export interface LiveWithdrawalRow {
+  id: string; payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string; amount: number;
+  status: PayoutPipelineStatus; rejectedReason: string | null; utr: string | null;
+  bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string;
+}
+export interface LivePayeeEventRow {
+  id: string; title: string; organizer: string; payeeType: 'organizer' | 'venue' | null; payeeId: string | null;
+  revenue: number; commission: number | null; commissionAmt: number; net: number; paidOut: boolean; payoutUtr: string | null;
   payeeBalance: number | null;
+}
+export interface LivePayeeDetail {
+  payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string; balance: number; dueTotal: number; hasOpenWithdrawal: boolean;
+  events: LivePayeeEventRow[];
+  withdrawals: (Omit<LiveWithdrawalRow, 'payeeType' | 'payeeId' | 'payeeName'> & { statusEvents: LivePayoutStatusEvent[] })[];
 }
 export interface LivePromoterPayoutRow {
   eventId: string; eventTitle: string; eventDate: string; organizerBrand: string;
@@ -835,22 +843,32 @@ export interface LivePromoterPayoutRow {
   status: 'pending' | 'reminder_sent' | 'received';
 }
 export const livePayments = {
-  due: () => liveFetch<{ rows: LivePayoutRow[]; collected: number; commissionKept: number; dueTotal: number }>('/admin/payments/due'),
+  due: () => liveFetch<{ rows: LivePayeeDueRow[]; collected: number; commissionKept: number; dueTotal: number }>('/admin/payments/due'),
+  /** Flat per-event feed behind /payments/run's bulk tool — see
+   * PaymentsService.payoutsDueEvents for why this stays separate from the
+   * payee-grouped due() above. */
+  dueEvents: () => liveFetch<LivePayeeEventRow[]>('/admin/payments/due-events'),
+  /** Everything for one payee in one screen — bank details are fetched
+   * separately (liveOrganizers/liveVenues.paymentProfiles, same call the
+   * old inline bank-details expander already used), this brings the
+   * event-wise commission breakdown and the full withdrawal/status
+   * timeline together instead. */
+  payeeDetail: (payeeType: 'organizer' | 'venue', payeeId: string) =>
+    liveFetch<LivePayeeDetail>(`/admin/payments/payee/${payeeType}/${encodeURIComponent(payeeId)}`),
   /** Records a real transfer you already made yourself — there's no bank
    * integration behind this, so it never moves money or invents a UTR. */
   markPaid: (eventId: string, utr: string) => liveFetch<{ id: string; paidOut: boolean; payoutUtr: string | null }>('/admin/payments/mark-paid', { body: { eventId, utr } }),
-  /** Organizer AND venue self-serve ledger withdrawals, merged — instant
-   * debits, no approval step or status field (see OrganizerService.withdraw
-   * / VenueService.withdraw) — this is visibility only, same as everything
-   * else here. Venue rows are real as of 2026-09-17 — previously this only
-   * ever queried the organizer ledger, so a venue that self-withdrew had
-   * zero admin visibility at all. */
-  withdrawalRequests: () =>
-    liveFetch<
-      { id: string; payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string; amount: number; paidOut: boolean; paidUtr: string | null; bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string }[]
-    >('/admin/payments/withdrawal-requests'),
-  markWithdrawalPaid: (payeeType: 'organizer' | 'venue', id: string, utr: string) =>
-    liveFetch<{ id: string; withdrawalPaidOut: boolean; withdrawalPaidUtr: string | null }>(`/admin/payments/withdrawal-requests/${payeeType}/${id}/mark-paid`, { method: 'POST', body: { utr } }),
+  /** Organizer AND venue self-serve ledger withdrawals, merged, each with
+   * its real requested→received→initiated→processed→complete (or rejected)
+   * status (2026-09-18) — see OrganizerService.withdraw / VenueService.withdraw
+   * for where these are born, and PaymentsService.advanceWithdrawal for how
+   * they move forward. */
+  withdrawalRequests: () => liveFetch<LiveWithdrawalRow[]>('/admin/payments/withdrawal-requests'),
+  /** Moves one withdrawal request forward one or more pipeline stages, or
+   * rejects it (reason required — the amount is credited straight back to
+   * the payee's balance server-side, never just dropped). */
+  advanceWithdrawal: (payeeType: 'organizer' | 'venue', id: string, next: { status: PayoutPipelineStatus; utr?: string; reason?: string }) =>
+    liveFetch<{ ok: true }>(`/admin/payments/withdrawal-requests/${payeeType}/${id}/advance`, { method: 'POST', body: next }),
   /** Real sale/refund ledger, platform-wide — replaces the old "Transactions"
    * placeholder. Merges OrganizerLedgerTx + VenueLedgerTx, newest first,
    * capped at 300 rows. */

@@ -2,8 +2,17 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import type { BookingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { NotificationsService } from './notifications.service';
+import { EmailService } from '../notifications/email';
+import { money } from '../notifications/email-templates';
 
 const LIVE_BOOKING_STATUSES: BookingStatus[] = ['confirmed', 'refund_requested'];
+
+// The real operational pipeline behind every self-serve withdrawal request
+// (2026-09-18) — see OrganizerLedgerTx.withdrawalStatus in schema.prisma for
+// the full design note. Forward-only; 'rejected' is reachable from any
+// non-terminal status but never appears in this order (see advanceWithdrawal).
+const PIPELINE_ORDER = ['requested', 'received', 'initiated', 'processed', 'complete'] as const;
+type PipelineStatus = (typeof PIPELINE_ORDER)[number];
 
 /** prebooze-admin's /payments page — distinct from Reports (platform P&L)
  * and Ledger (internal income/expense book): this is the per-event,
@@ -17,6 +26,7 @@ export class PaymentsService {
   constructor(
     private prisma: PrismaService,
     private notifications: NotificationsService,
+    private email: EmailService,
   ) {}
 
   /** Real current withdrawable balance for one payee — the actual source of
@@ -38,12 +48,21 @@ export class PaymentsService {
       : this.prisma.venuePaymentProfile.findFirst({ where: { venueId: payeeId, isDefault: true } });
   }
 
-  async payoutsDue() {
-    // A payout is only ever due once the event has actually happened — an
-    // organizer can't be paid out on ticket sales for a show that hasn't
-    // run yet (see BACKEND.md — this used to include every non-draft event
-    // regardless of date, which let the auto-payout cron mark events as
-    // "paid" days before they even took place).
+  /** organizerId/venueId → the userId to notify — a real transfer or a
+   * rejection both need to reach the actual person, not just update a row. */
+  private async payeeUser(payeeType: 'organizer' | 'venue', payeeId: string) {
+    const row = payeeType === 'organizer'
+      ? await this.prisma.organizer.findUnique({ where: { id: payeeId }, select: { userId: true } })
+      : await this.prisma.venue.findUnique({ where: { id: payeeId }, select: { userId: true } });
+    if (!row?.userId) return null;
+    return this.prisma.user.findUnique({ where: { id: row.userId } });
+  }
+
+  /** Every non-draft, already-happened event's own revenue/commission/net —
+   * the one real computation both payoutsDue() (grouped by payee) and
+   * payeeDetail() (scoped to one payee) build on, so the two screens can
+   * never show different numbers for the same event. */
+  private async eventPayoutRows() {
     const events = await this.prisma.event.findMany({
       where: { status: { not: 'draft' }, commission: { not: null } },
       select: { id: true, title: true, date: true, durationHrs: true, commission: true, paidOut: true, payoutUtr: true, organizerId: true, venueId: true, organizer: { select: { brandName: true } }, venue: { select: { name: true } }, hostedByVenue: true },
@@ -55,33 +74,15 @@ export class PaymentsService {
     });
     const revMap = new Map(revenueByEvent.map((r) => [r.eventId, r._sum.subtotal ?? 0]));
 
-    // Real-picture fix (2026-09-17, round 2): a payee who has already filed
-    // a self-serve withdrawal request that admin hasn't marked paid yet
-    // shouldn't also show up here — that's the exact "two screens for the
-    // same money" confusion this whole fix was about. Once their open
-    // request is resolved (see markWithdrawalPaid), any of their events
-    // still genuinely due reappear here normally.
-    const [openOrgWithdrawals, openVenueWithdrawals] = await Promise.all([
-      this.prisma.organizerLedgerTx.findMany({ where: { type: 'withdrawal', withdrawalPaidOut: false }, select: { organizerId: true } }),
-      this.prisma.venueLedgerTx.findMany({ where: { type: 'withdrawal', withdrawalPaidOut: false }, select: { venueId: true } }),
-    ]);
-    const openWithdrawalPayees = new Set<string>([
-      ...openOrgWithdrawals.map((r) => `organizer:${r.organizerId}`),
-      ...openVenueWithdrawals.map((r) => `venue:${r.venueId}`),
-    ]);
-
     // Prebooze isn't GST-registered, so nothing is withheld from an
     // organizer's payout beyond its own commission — `net` here is exactly
     // what OrganizerLedgerTx already credits them (see BookingsService),
     // so this on-screen figure and the real ledger balance always agree.
-    const rows = events.map((e) => {
+    return events.map((e) => {
       const revenue = revMap.get(e.id) ?? 0;
       const commissionAmt = Math.round((revenue * (e.commission as number)) / 100);
       // Solo venue-hosted event (no organizer) — this is who staff actually
-      // need to pay out for this event's commission. payeeType/payeeId let
-      // the frontend jump straight to that payee's real bank details
-      // (Payment details page) instead of just showing a display name with
-      // nowhere to click through to.
+      // need to pay out for this event's commission.
       const payeeType: 'organizer' | 'venue' | null = e.organizerId ? 'organizer' : e.venueId ? 'venue' : null;
       const payeeId = e.organizerId ?? e.venueId ?? null;
       return {
@@ -98,50 +99,154 @@ export class PaymentsService {
         payoutUtr: e.payoutUtr,
       };
     });
+  }
 
-    // Real-picture fix (2026-09-17): this used to sum every not-yet-paidOut
-    // event's `net` regardless of whether the payee had already pulled that
-    // exact money out via self-serve withdraw (OrganizerService.withdraw /
-    // VenueService.withdraw) — a completely separate, unlinked flow. Two
-    // organizers were found with real production data confirming staff had
-    // to manually notice the overlap themselves (reusing the same UTR by
-    // hand across both admin screens) — nothing in the system actually
-    // prevented double-counting or double-paying. Capping each payee's
-    // total "due" at their real current ledger balance (which already nets
-    // out any self-serve withdrawal) is what makes this figure trustworthy
-    // — it can now never overstate what's genuinely still uncollected.
-    // Rows for a payee with an open withdrawal request are hidden from the
-    // list outright (not just excluded from the total) — see the fetch
-    // above. A row that's already paidOut, or has no payee at all, is
-    // always visible regardless.
-    const visibleRows = rows.filter((r) => r.paidOut || !r.payeeType || !r.payeeId || !openWithdrawalPayees.has(`${r.payeeType}:${r.payeeId}`));
+  /** organizerId/venueId → payees with a self-serve withdrawal request admin
+   * hasn't resolved yet (not yet 'complete' or 'rejected') — see
+   * payoutsDue's use of this for why these get hidden from that list. */
+  private async openWithdrawalPayees(): Promise<Set<string>> {
+    const [openOrg, openVenue] = await Promise.all([
+      this.prisma.organizerLedgerTx.findMany({ where: { type: 'withdrawal', withdrawalStatus: { notIn: ['complete', 'rejected'] } }, select: { organizerId: true } }),
+      this.prisma.venueLedgerTx.findMany({ where: { type: 'withdrawal', withdrawalStatus: { notIn: ['complete', 'rejected'] } }, select: { venueId: true } }),
+    ]);
+    return new Set<string>([
+      ...openOrg.map((r) => `organizer:${r.organizerId}`),
+      ...openVenue.map((r) => `venue:${r.venueId}`),
+    ]);
+  }
 
-    const due = visibleRows.filter((r) => !r.paidOut);
-    const payeeKeys = [...new Set(due.filter((r) => r.payeeType && r.payeeId).map((r) => `${r.payeeType}:${r.payeeId}`))];
+  /** One row per payee, not per event (2026-09-18) — a payee with ten small
+   * events used to mean ten separate "Payouts due" rows to individually
+   * click "Mark paid" on; now it's one entry with an event count, and the
+   * per-event commission breakdown lives on that payee's own detail page
+   * (payeeDetail below) instead of cluttering this work queue. */
+  async payoutsDue() {
+    const rows = await this.eventPayoutRows();
+
+    // Real-picture fix (2026-09-17, round 2): a payee who has already filed
+    // a self-serve withdrawal request admin hasn't resolved yet shouldn't
+    // also show up here — that's the exact "two screens for the same money"
+    // confusion this whole fix was about. Once their open request is
+    // resolved (see advanceWithdrawal), any of their events still genuinely
+    // due reappear here normally.
+    const openWithdrawalPayees = await this.openWithdrawalPayees();
+    const due = rows.filter((r) => !r.paidOut && r.payeeType && r.payeeId && !openWithdrawalPayees.has(`${r.payeeType}:${r.payeeId}`));
+
+    const payeeKeys = [...new Set(due.map((r) => `${r.payeeType}:${r.payeeId}`))];
     const balanceByPayee = new Map<string, number>();
     await Promise.all(payeeKeys.map(async (key) => {
       const [payeeType, payeeId] = key.split(':') as ['organizer' | 'venue', string];
       balanceByPayee.set(key, await this.payeeBalance(payeeType, payeeId));
     }));
-    const naiveDueByPayee = new Map<string, number>();
-    for (const r of due) {
-      if (!r.payeeType || !r.payeeId) continue;
-      const key = `${r.payeeType}:${r.payeeId}`;
-      naiveDueByPayee.set(key, (naiveDueByPayee.get(key) ?? 0) + r.net);
-    }
-    const realDueByPayee = new Map<string, number>();
-    for (const [key, naive] of naiveDueByPayee) realDueByPayee.set(key, Math.max(0, Math.min(naive, balanceByPayee.get(key) ?? 0)));
 
-    const rowsWithRealDue = visibleRows.map((r) => {
-      if (r.paidOut || !r.payeeType || !r.payeeId) return { ...r, payeeBalance: null as number | null };
-      return { ...r, payeeBalance: balanceByPayee.get(`${r.payeeType}:${r.payeeId}`) ?? 0 };
-    });
+    // Real-picture fix (2026-09-17): this used to sum every not-yet-paidOut
+    // event's `net` regardless of whether the payee had already pulled that
+    // exact money out via self-serve withdraw — a completely separate,
+    // unlinked flow. Capping each payee's total "due" at their real current
+    // ledger balance (which already nets out any self-serve withdrawal) is
+    // what makes this figure trustworthy — it can now never overstate
+    // what's genuinely still uncollected.
+    const grouped = new Map<string, { payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string; eventCount: number; naiveNet: number }>();
+    for (const r of due) {
+      const key = `${r.payeeType}:${r.payeeId}`;
+      const g = grouped.get(key) ?? { payeeType: r.payeeType as 'organizer' | 'venue', payeeId: r.payeeId as string, payeeName: r.organizer, eventCount: 0, naiveNet: 0 };
+      g.eventCount += 1;
+      g.naiveNet += r.net;
+      grouped.set(key, g);
+    }
+
+    const payeeRows = [...grouped.values()].map((g) => {
+      const key = `${g.payeeType}:${g.payeeId}`;
+      const payeeBalance = balanceByPayee.get(key) ?? 0;
+      return {
+        payeeType: g.payeeType,
+        payeeId: g.payeeId,
+        payeeName: g.payeeName,
+        eventCount: g.eventCount,
+        due: Math.max(0, Math.min(g.naiveNet, payeeBalance)),
+        payeeBalance,
+      };
+    }).filter((r) => r.due > 0); // nothing left to actually pay this payee (e.g. every one of their events nets to ₹0) isn't a queue item
 
     const collected = rows.reduce((a, r) => a + r.revenue, 0);
     const commissionKept = rows.reduce((a, r) => a + r.commissionAmt, 0);
-    const dueTotal = [...realDueByPayee.values()].reduce((a, v) => a + v, 0);
+    const dueTotal = payeeRows.reduce((a, r) => a + r.due, 0);
 
-    return { rows: rowsWithRealDue, collected, commissionKept, dueTotal };
+    return { rows: payeeRows, collected, commissionKept, dueTotal };
+  }
+
+  /** Flat per-event feed behind /payments/run's bulk "select several, enter
+   * a UTR for each, confirm all at once" tool — payoutsDue() above groups by
+   * payee for the main work queue, but batch-processing several DIFFERENT
+   * events (each its own real bank transfer, so each still needs its own
+   * UTR either way) is still a real, distinct workflow worth keeping a flat
+   * list for. Same visibility rules as payoutsDue (event happened, not
+   * already paid, payee has no open self-serve withdrawal request). */
+  async payoutsDueEvents() {
+    const rows = await this.eventPayoutRows();
+    const openWithdrawalPayees = await this.openWithdrawalPayees();
+    const due = rows.filter((r) => !r.paidOut && r.payeeType && r.payeeId && !openWithdrawalPayees.has(`${r.payeeType}:${r.payeeId}`));
+    const payeeKeys = [...new Set(due.map((r) => `${r.payeeType}:${r.payeeId}`))];
+    const balanceByPayee = new Map<string, number>();
+    await Promise.all(payeeKeys.map(async (key) => {
+      const [payeeType, payeeId] = key.split(':') as ['organizer' | 'venue', string];
+      balanceByPayee.set(key, await this.payeeBalance(payeeType, payeeId));
+    }));
+    return due.map((r) => ({ ...r, payeeBalance: balanceByPayee.get(`${r.payeeType}:${r.payeeId}`) ?? 0 }));
+  }
+
+  /** Everything staff need for one payee in one screen (2026-09-18) — bank
+   * details (fetched by the frontend from the existing payment-profiles
+   * endpoint, same data admin already had), every event's own commission
+   * breakdown (paid and due, so this is the real historical record that
+   * used to live in the flat "Payouts due" list), and the full self-serve
+   * withdrawal history with its real status timeline. */
+  async payeeDetail(payeeType: 'organizer' | 'venue', payeeId: string) {
+    const allRows = await this.eventPayoutRows();
+    const events = allRows.filter((r) => r.payeeType === payeeType && r.payeeId === payeeId);
+    const balance = await this.payeeBalance(payeeType, payeeId);
+    const payeeName = events[0]?.organizer ?? (payeeType === 'organizer'
+      ? (await this.prisma.organizer.findUnique({ where: { id: payeeId }, select: { brandName: true } }))?.brandName
+      : (await this.prisma.venue.findUnique({ where: { id: payeeId }, select: { name: true } }))?.name) ?? '—';
+
+    const naiveDue = events.filter((r) => !r.paidOut).reduce((a, r) => a + r.net, 0);
+    const dueTotal = Math.max(0, Math.min(naiveDue, balance));
+
+    const withdrawals = await this.payeeWithdrawals(payeeType, payeeId);
+    const hasOpenWithdrawal = withdrawals.some((w) => w.status !== 'complete' && w.status !== 'rejected');
+
+    return {
+      payeeType, payeeId, payeeName, balance, dueTotal, hasOpenWithdrawal,
+      events: events.map((r) => ({ ...r, payeeBalance: r.paidOut ? null : balance })),
+      withdrawals,
+    };
+  }
+
+  /** This one payee's self-serve withdrawal ledger rows, each carrying its
+   * full PayoutStatusEvent timeline (oldest first, so the UI can render it
+   * as a real chronological history) — the shared piece behind both
+   * payeeDetail (admin) and, in shape, what the organizer/venue's own
+   * payout-history page shows about themselves. */
+  private async payeeWithdrawals(payeeType: 'organizer' | 'venue', payeeId: string) {
+    const rows = payeeType === 'organizer'
+      ? await this.prisma.organizerLedgerTx.findMany({ where: { organizerId: payeeId, type: 'withdrawal' }, orderBy: { createdAt: 'desc' } })
+      : await this.prisma.venueLedgerTx.findMany({ where: { venueId: payeeId, type: 'withdrawal' }, orderBy: { createdAt: 'desc' } });
+    if (!rows.length) return [];
+    const events = await this.prisma.payoutStatusEvent.findMany({ where: { ledgerTxId: { in: rows.map((r) => r.id) } }, orderBy: { createdAt: 'asc' } });
+    const eventsByTx = new Map<string, typeof events>();
+    for (const e of events) eventsByTx.set(e.ledgerTxId, [...(eventsByTx.get(e.ledgerTxId) ?? []), e]);
+    return rows.map((r) => ({
+      id: r.id,
+      amount: Math.abs(r.amount),
+      status: r.withdrawalStatus,
+      rejectedReason: r.withdrawalRejectedReason,
+      utr: r.withdrawalPaidUtr,
+      bankLast4: r.payoutBankLast4,
+      accountHolderName: r.payoutAccountHolderName,
+      ifsc: r.payoutIfsc,
+      createdAt: r.createdAt,
+      statusEvents: eventsByTx.get(r.id) ?? [],
+    }));
   }
 
   /** Manual only, one real transfer at a time — there's no real bank/IMPS
@@ -164,7 +269,7 @@ export class PaymentsService {
    * case where the money's already gone out via self-withdraw — and, on
    * success, writes a real ledger withdrawal row alongside the event flag
    * so the two can never drift apart again. */
-  async markPaid(eventId: string, utr: string) {
+  async markPaid(eventId: string, utr: string, staffEmail: string) {
     if (!utr?.trim()) throw new BadRequestException('Enter the real UTR / transaction reference for this transfer');
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new BadRequestException('Event not found');
@@ -201,7 +306,13 @@ export class PaymentsService {
       );
     }
 
-    const [updated] = await this.prisma.$transaction([
+    // Born already at 'complete' — unlike a self-serve withdrawal, admin has
+    // just told us the real transfer already happened (that's what the UTR
+    // is), so there's no request→...→processed pipeline to walk through
+    // here. Still gets one PayoutStatusEvent so it appears in this payee's
+    // tracking timeline alongside their self-serve requests, not just as a
+    // silent ledger row.
+    const [updated, ledgerTx] = await this.prisma.$transaction([
       this.prisma.event.update({ where: { id: eventId }, data: { paidOut: true, payoutUtr: utr.trim() } }),
       payeeType === 'organizer'
         ? this.prisma.organizerLedgerTx.create({
@@ -209,7 +320,7 @@ export class PaymentsService {
               organizerId: payeeId, type: 'withdrawal', amount: -net, eventId, eventTitle: event.title,
               note: `Payout for "${event.title}" (admin-initiated)`,
               paymentProfileId: profile.id, payoutBankLast4: profile.bankLast4, payoutAccountHolderName: profile.accountHolderName, payoutIfsc: profile.ifsc,
-              withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim(),
+              withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim(), withdrawalStatus: 'complete',
             },
           })
         : this.prisma.venueLedgerTx.create({
@@ -217,10 +328,13 @@ export class PaymentsService {
               venueId: payeeId, type: 'withdrawal', amount: -net, eventId, eventTitle: event.title,
               note: `Payout for "${event.title}" (admin-initiated)`,
               paymentProfileId: profile.id, payoutBankLast4: profile.bankLast4, payoutAccountHolderName: profile.accountHolderName, payoutIfsc: profile.ifsc,
-              withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim(),
+              withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim(), withdrawalStatus: 'complete',
             },
           }),
     ]);
+    await this.prisma.payoutStatusEvent.create({
+      data: { payeeType, payeeId, ledgerTxId: ledgerTx.id, status: 'complete', utr: utr.trim(), staffEmail },
+    });
     await this.notifications.notify('💸', `Payout marked paid — "${event.title}" · ${utr.trim()}`, '/admin/payments');
     return updated;
   }
@@ -245,7 +359,7 @@ export class PaymentsService {
         select: {
           id: true, organizerId: true, amount: true, createdAt: true,
           payoutBankLast4: true, payoutAccountHolderName: true, payoutIfsc: true,
-          withdrawalPaidOut: true, withdrawalPaidUtr: true,
+          withdrawalStatus: true, withdrawalRejectedReason: true, withdrawalPaidUtr: true,
           organizer: { select: { brandName: true } },
         },
       }),
@@ -254,7 +368,7 @@ export class PaymentsService {
         select: {
           id: true, venueId: true, amount: true, createdAt: true,
           payoutBankLast4: true, payoutAccountHolderName: true, payoutIfsc: true,
-          withdrawalPaidOut: true, withdrawalPaidUtr: true,
+          withdrawalStatus: true, withdrawalRejectedReason: true, withdrawalPaidUtr: true,
           venue: { select: { name: true } },
         },
       }),
@@ -262,35 +376,99 @@ export class PaymentsService {
     const rows = [
       ...orgRows.map((r) => ({
         id: r.id, payeeType: 'organizer' as const, payeeId: r.organizerId, payeeName: r.organizer?.brandName ?? '—',
-        amount: Math.abs(r.amount), paidOut: r.withdrawalPaidOut, paidUtr: r.withdrawalPaidUtr,
+        amount: Math.abs(r.amount), status: r.withdrawalStatus, rejectedReason: r.withdrawalRejectedReason, utr: r.withdrawalPaidUtr,
         bankLast4: r.payoutBankLast4, accountHolderName: r.payoutAccountHolderName, ifsc: r.payoutIfsc, createdAt: r.createdAt,
       })),
       ...venueRows.map((r) => ({
         id: r.id, payeeType: 'venue' as const, payeeId: r.venueId, payeeName: r.venue?.name ?? '—',
-        amount: Math.abs(r.amount), paidOut: r.withdrawalPaidOut, paidUtr: r.withdrawalPaidUtr,
+        amount: Math.abs(r.amount), status: r.withdrawalStatus, rejectedReason: r.withdrawalRejectedReason, utr: r.withdrawalPaidUtr,
         bankLast4: r.payoutBankLast4, accountHolderName: r.payoutAccountHolderName, ifsc: r.payoutIfsc, createdAt: r.createdAt,
       })),
     ];
     return rows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
-  /** Same UTR requirement as PaymentsService.markPaid's per-event flow —
-   * this is bookkeeping only, never moves money, so a real transfer
-   * reference is what makes the record actually mean something. One method
-   * for both payee types (2026-09-17 — previously organizer-only, which is
-   * exactly how venue withdrawals ended up with no mark-paid path at all). */
-  async markWithdrawalPaid(payeeType: 'organizer' | 'venue', id: string, utr: string) {
-    if (!utr?.trim()) throw new BadRequestException('Enter the real UTR / transaction reference for this transfer');
+  /** Advances one self-serve withdrawal request through the real pipeline —
+   * requested → received → initiated → processed → complete — or rejects it
+   * outright (2026-09-18, replacing the old binary markWithdrawalPaid).
+   * Forward-only: each call must name a status strictly later than the
+   * row's current one, so staff can't accidentally un-do progress, but MAY
+   * skip stages (e.g. requested straight to complete) for a small team that
+   * doesn't need every intermediate step tracked on every request.
+   * Rejecting is allowed from any non-terminal status and requires a real
+   * reason — the payee sees it verbatim — and reverses the original debit
+   * with a new positive ledger row rather than deleting anything, so the
+   * ledger stays a real append-only record and the balance is exactly
+   * right afterwards (nothing is ever just silently dropped). */
+  async advanceWithdrawal(payeeType: 'organizer' | 'venue', id: string, next: { status: string; utr?: string; reason?: string }, staffEmail: string) {
     if (payeeType === 'organizer') {
       const row = await this.prisma.organizerLedgerTx.findUnique({ where: { id } });
       if (!row || row.type !== 'withdrawal') throw new BadRequestException('Withdrawal request not found');
-      if (row.withdrawalPaidOut) throw new BadRequestException('Already marked paid');
-      return this.prisma.organizerLedgerTx.update({ where: { id }, data: { withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim() } });
+      return this.advance(row, payeeType, row.organizerId, next, staffEmail,
+        (data) => this.prisma.organizerLedgerTx.update({ where: { id }, data }),
+        (amount, note) => this.prisma.organizerLedgerTx.create({ data: { organizerId: row.organizerId, type: 'withdrawal_reversal', amount, eventId: row.eventId, eventTitle: row.eventTitle, note } }),
+      );
     }
     const row = await this.prisma.venueLedgerTx.findUnique({ where: { id } });
     if (!row || row.type !== 'withdrawal') throw new BadRequestException('Withdrawal request not found');
-    if (row.withdrawalPaidOut) throw new BadRequestException('Already marked paid');
-    return this.prisma.venueLedgerTx.update({ where: { id }, data: { withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim() } });
+    return this.advance(row, payeeType, row.venueId, next, staffEmail,
+      (data) => this.prisma.venueLedgerTx.update({ where: { id }, data }),
+      (amount, note) => this.prisma.venueLedgerTx.create({ data: { venueId: row.venueId, type: 'withdrawal_reversal', amount, eventId: row.eventId, eventTitle: row.eventTitle, note } }),
+    );
+  }
+
+  /** Shared transition logic for advanceWithdrawal, generic over which
+   * ledger table `row` came from via the two closures — organizerId/venueId
+   * live on different columns so the create/update calls can't be unified
+   * any more directly than this without losing Prisma's own type-checking. */
+  private async advance(
+    row: { id: string; amount: number; withdrawalStatus: string },
+    payeeType: 'organizer' | 'venue',
+    payeeId: string,
+    next: { status: string; utr?: string; reason?: string },
+    staffEmail: string,
+    update: (data: { withdrawalStatus: string; withdrawalPaidOut?: boolean; withdrawalPaidUtr?: string; withdrawalRejectedReason?: string }) => Promise<unknown>,
+    createReversal: (amount: number, note: string) => Promise<unknown>,
+  ) {
+    if (row.withdrawalStatus === 'complete') throw new BadRequestException('This request is already complete');
+    if (row.withdrawalStatus === 'rejected') throw new BadRequestException('This request was already rejected');
+    const amount = Math.abs(row.amount);
+
+    if (next.status === 'rejected') {
+      const reason = next.reason?.trim();
+      if (!reason) throw new BadRequestException('Enter a reason so the payee knows what happened');
+      await Promise.all([
+        update({ withdrawalStatus: 'rejected', withdrawalRejectedReason: reason }),
+        createReversal(amount, `Withdrawal request rejected — reversed: ${reason}`),
+      ]);
+      await this.prisma.payoutStatusEvent.create({ data: { payeeType, payeeId, ledgerTxId: row.id, status: 'rejected', reason, staffEmail } });
+      const user = await this.payeeUser(payeeType, payeeId);
+      if (user) await this.email.sendTemplate(user.email, 'payout_rejected', { name: user.name, amount: money(amount), reason, role: payeeType }).catch(() => {});
+      await this.notifications.notify('❌', `Withdrawal request rejected — ₹${amount.toLocaleString('en-IN')} (${reason})`, '/admin/payments');
+      return { ok: true };
+    }
+
+    const currentIdx = PIPELINE_ORDER.indexOf(row.withdrawalStatus as PipelineStatus);
+    const nextIdx = PIPELINE_ORDER.indexOf(next.status as PipelineStatus);
+    if (nextIdx === -1 || nextIdx <= currentIdx) throw new BadRequestException('Invalid status — must move forward in the pipeline');
+
+    if (next.status === 'complete') {
+      const utr = next.utr?.trim();
+      if (!utr) throw new BadRequestException('Enter the real UTR / transaction reference for this transfer');
+      await update({ withdrawalStatus: 'complete', withdrawalPaidOut: true, withdrawalPaidUtr: utr });
+      await this.prisma.payoutStatusEvent.create({ data: { payeeType, payeeId, ledgerTxId: row.id, status: 'complete', utr, staffEmail } });
+      const user = await this.payeeUser(payeeType, payeeId);
+      if (user) await this.email.sendTemplate(user.email, 'payout_processed', { name: user.name, amount: money(amount), role: payeeType }).catch(() => {});
+      await this.notifications.notify('💸', `Withdrawal marked complete — ₹${amount.toLocaleString('en-IN')} · ${utr}`, '/admin/payments');
+      return { ok: true };
+    }
+
+    // received / initiated / processed — pure status bookkeeping, no money
+    // movement and no notification (the payee already got a 'requested'
+    // email; the next one they get is 'complete' or 'rejected').
+    await update({ withdrawalStatus: next.status });
+    await this.prisma.payoutStatusEvent.create({ data: { payeeType, payeeId, ledgerTxId: row.id, status: next.status, staffEmail } });
+    return { ok: true };
   }
 
   /** Platform-wide sale/refund ledger — closes the "Transactions" tab,

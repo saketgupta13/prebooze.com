@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react';
-import { Check, Landmark, ChevronDown, ChevronUp } from 'lucide-react';
-import { livePayments, liveOrganizers, liveVenues, LiveApiError, type LivePayoutRow, type LivePaymentProfile, type LiveVenuePaymentProfile } from '../lib/liveApi';
-import { PaymentProfileCard } from '../components/PaymentProfileFields';
+import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
+import { livePayments, LiveApiError, type LivePayeeDueRow, type LiveWithdrawalRow } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import { Kpi, Tag } from '../components/ui';
-import { Link } from 'react-router-dom';
 
 const TITLE = 'Payments & payouts';
-const TABS = ['Payouts due', 'Withdrawal requests', 'Transactions', 'Refunds', 'Disputes'];
+const TABS = ['Payouts due', 'Withdrawal requests', 'Completed', 'Transactions', 'Refunds', 'Disputes'];
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
-interface WithdrawalRequest {
-  id: string; payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string; amount: number; paidOut: boolean; paidUtr: string | null;
-  bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string;
-}
+const STATUS_LABEL: Record<string, string> = {
+  requested: 'Requested', received: 'Received', initiated: 'Initiated', processed: 'Processed', complete: 'Complete', rejected: 'Rejected',
+};
+const STATUS_CLS: Record<string, string> = {
+  requested: 'tag-dim', received: 'tag-amber', initiated: 'tag-amber', processed: 'tag-amber', complete: 'tag-green', rejected: 'tag-red',
+};
+
 interface PaymentTx {
   id: string; type: string; amount: number; eventId: string | null; eventTitle: string | null; createdAt: string;
   payeeType: 'organizer' | 'venue'; payeeName: string;
@@ -24,96 +27,33 @@ interface PaymentRefund {
   refundedTo: string | null; failed: boolean; createdAt: string;
 }
 
-/** Real per-event payout register (PaymentsService.due/markPaid) — "due"
- * only ever lists events that have actually finished, and marking one paid
- * requires the real UTR from a transfer you already made yourself; nothing
- * here moves money or invents a reference number. "Payouts due",
- * "Withdrawal requests", "Transactions" and "Refunds" all have real
- * backends now; "Disputes" stays the same placeholder it always was —
- * unlike the others, there's no real dispute/chargeback concept anywhere
- * in the system yet (no model, no Razorpay webhook, nothing to surface). */
+/** Real per-payee payout register (PaymentsService.due/payeeDetail) — one
+ * row per organizer/venue, not per event (2026-09-18); click a name to open
+ * that payee's own page with bank details, the full event-wise commission
+ * breakdown, and their withdrawal-request status tracking all together —
+ * that's where every actual "mark paid" / "advance status" / "reject"
+ * action now happens, so this page itself is a set of real, read-only
+ * queues: who's owed money right now, whose self-serve request is still
+ * open, and what's already been resolved (paid or rejected). */
 export default function Payments() {
   const session = useLiveSession();
   const { token } = session;
   const [tab, setTab] = useState(TABS[0]);
 
-  const [rows, setRows] = useState<LivePayoutRow[]>([]);
+  const [rows, setRows] = useState<LivePayeeDueRow[]>([]);
   const [summary, setSummary] = useState({ collected: 0, commissionKept: 0, dueTotal: 0 });
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState('');
-  const [payingId, setPayingId] = useState<string | null>(null);
-  const [utrDraft, setUtrDraft] = useState('');
-
-  // Organizer + venue self-serve ledger withdrawals — a separate money flow
-  // from `rows`/`summary` above (per-event payouts due), now netted against
-  // it server-side (see PaymentsService.payoutsDue's payeeBalance capping)
-  // so the two can't silently drift apart the way they used to. Loaded
-  // alongside since this page is the one place staff now check for both.
-  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
+  const [withdrawals, setWithdrawals] = useState<LiveWithdrawalRow[]>([]);
   const [transactions, setTransactions] = useState<PaymentTx[]>([]);
   const [refunds, setRefunds] = useState<PaymentRefund[]>([]);
-
-  // Bank details expand inline, right in the row, instead of navigating to
-  // the standalone Payment details page — staff evaluating a batch of
-  // payouts here shouldn't have to leave the page to check an account
-  // number. Keyed by "type:id" so switching between an organizer and a
-  // venue row never collides, and a profile fetched once is cached rather
-  // than re-fetched every time the same row is toggled open again.
-  const [bankDetailsOpen, setBankDetailsOpen] = useState<string | null>(null);
-  const [profileCache, setProfileCache] = useState<Record<string, (LivePaymentProfile | LiveVenuePaymentProfile)[]>>({});
-  const [loadingProfile, setLoadingProfile] = useState<string | null>(null);
-
-  const toggleBankDetails = async (payeeType: 'organizer' | 'venue', payeeId: string) => {
-    const key = `${payeeType}:${payeeId}`;
-    if (bankDetailsOpen === key) {
-      setBankDetailsOpen(null);
-      return;
-    }
-    setBankDetailsOpen(key);
-    if (!profileCache[key]) {
-      setLoadingProfile(key);
-      try {
-        const profiles = payeeType === 'organizer' ? await liveOrganizers.paymentProfiles(payeeId) : await liveVenues.paymentProfiles(payeeId);
-        setProfileCache((prev) => ({ ...prev, [key]: profiles }));
-      } catch (e) {
-        setErr(e instanceof LiveApiError ? e.message : 'Failed to load bank details');
-      } finally {
-        setLoadingProfile(null);
-      }
-    }
-  };
-
-  // Reuses the exact same payingId/utrDraft expand-and-enter-UTR flow as
-  // Payouts due below (startPay/confirmPay) — same requirement, a real UTR
-  // before this can be marked paid, just against a different endpoint.
-  const [confirmingWithdrawal, setConfirmingWithdrawal] = useState(false);
-  const confirmWithdrawalPay = async (id: string, payeeType: 'organizer' | 'venue') => {
-    if (!utrDraft.trim()) {
-      setErr('Enter the UTR / reference number from the transfer you made');
-      return;
-    }
-    setErr('');
-    setConfirmingWithdrawal(true);
-    try {
-      await livePayments.markWithdrawalPaid(payeeType, id, utrDraft.trim());
-      setWithdrawals((prev) => prev.map((w) => (w.id === id ? { ...w, paidOut: true, paidUtr: utrDraft.trim() } : w)));
-      setPayingId(null);
-    } catch (e) {
-      setErr(e instanceof LiveApiError ? e.message : 'Failed to mark paid');
-    } finally {
-      setConfirmingWithdrawal(false);
-    }
-  };
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
   const load = () => {
     setLoading(true);
     setErr('');
     livePayments
       .due()
-      .then(({ rows: r, ...s }) => {
-        setRows(r);
-        setSummary(s);
-      })
+      .then(({ rows: r, ...s }) => { setRows(r); setSummary(s); })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
     livePayments.withdrawalRequests().then(setWithdrawals).catch(() => {});
@@ -129,26 +69,15 @@ export default function Payments() {
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
 
-  const startPay = (id: string) => {
-    setPayingId(id);
-    setUtrDraft('');
-    setErr('');
-  };
+  // Once a withdrawal is marked complete (or rejected), it moves out of the
+  // "Withdrawal requests" queue and into "Completed" — a resolved request
+  // isn't something staff need to keep looking at in the action queue.
+  const openWithdrawals = withdrawals.filter((w) => w.status !== 'complete' && w.status !== 'rejected');
+  const resolvedWithdrawals = withdrawals.filter((w) => w.status === 'complete' || w.status === 'rejected');
 
-  const confirmPay = async (id: string) => {
-    if (!utrDraft.trim()) {
-      setErr('Enter the UTR / reference number from the transfer you made');
-      return;
-    }
-    setErr('');
-    try {
-      await livePayments.markPaid(id, utrDraft.trim());
-      setPayingId(null);
-      load();
-    } catch (e) {
-      setErr(e instanceof LiveApiError ? e.message : 'Failed to record payout');
-    }
-  };
+  const PayeeLink = ({ type, id, name }: { type: 'organizer' | 'venue'; id: string; name: string }) => (
+    <Link to={`/payments/payee/${type}/${id}`} className="link" style={{ fontWeight: 700, color: 'var(--green)' }}>{name}</Link>
+  );
 
   return (
     <div className="stack fade" style={{ maxWidth: 1100 }}>
@@ -175,158 +104,79 @@ export default function Payments() {
       {tab === 'Payouts due' ? (
         <div className="tblwrap">
           <div className="thead" style={{ minWidth: 640 }}>
-            <span style={{ flex: 1.6 }}>Organizer</span>
-            <span style={{ flex: 1.6 }}>Event</span>
-            <span style={{ flex: 1 }}>Gross</span>
-            <span style={{ flex: 1.1 }}>Commission</span>
-            <span style={{ flex: 1 }}>Net payout</span>
+            <span style={{ flex: 1.6 }}>Name</span>
+            <span style={{ flex: 0.9 }}>Type</span>
+            <span style={{ flex: 0.9 }}>Events</span>
+            <span style={{ flex: 1 }}>Due</span>
             <span style={{ flex: 0.9 }} />
           </div>
           {rows.length === 0 && !loading && <div className="trow muted">No payouts due — events only show up here once they've actually happened.</div>}
-          {rows.map((r) => {
-            const detailsKey = r.payeeType && r.payeeId ? `${r.payeeType}:${r.payeeId}` : null;
-            const detailsOpen = detailsKey !== null && bankDetailsOpen === detailsKey;
-            return (
-            <div key={r.id} className="trow" style={{ minWidth: 640, flexWrap: payingId === r.id || detailsOpen ? 'wrap' : undefined }}>
-              <span style={{ flex: 1.6, fontWeight: 700 }}>
-                {r.payeeType && r.payeeId ? (
-                  <button
-                    type="button"
-                    onClick={() => toggleBankDetails(r.payeeType!, r.payeeId!)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--green)', font: 'inherit', fontWeight: 700 }}
-                    title="Show bank details"
-                  >
-                    {r.organizer} <Landmark size={12} style={{ opacity: 0.6 }} /> {detailsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                  </button>
-                ) : (
-                  r.organizer
-                )}
-              </span>
-              <span style={{ flex: 1.6 }} className="muted">{r.title}</span>
-              <span style={{ flex: 1 }}>₹{fmt(r.revenue)}</span>
-              <span style={{ flex: 1.1 }}>
-                ₹{fmt(r.commissionAmt)} <span className="muted">({r.commission ?? 0}%)</span>
-              </span>
+          {rows.map((r) => (
+            <div key={`${r.payeeType}:${r.payeeId}`} className="trow" style={{ minWidth: 640 }}>
+              <span style={{ flex: 1.6 }}><PayeeLink type={r.payeeType} id={r.payeeId} name={r.payeeName} /></span>
+              <span style={{ flex: 0.9 }}><Tag label={r.payeeType === 'organizer' ? 'Organizer' : 'Venue'} cls="tag-dim" /></span>
+              <span style={{ flex: 0.9 }} className="muted">{r.eventCount}</span>
               <span style={{ flex: 1, fontWeight: 700 }} className="green">
-                ₹{fmt(r.net)}
-                {r.paidOut && r.payoutUtr && <span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>{r.payoutUtr}</span>}
-                {/* Real-picture fix (2026-09-17): a payee can self-withdraw
-                    ahead of admin ever marking an event paid — this net
-                    figure is what the event's own revenue×commission math
-                    says is owed, but payeeBalance is what's actually still
-                    sitting uncollected. When they differ, mark-paid would
-                    refuse to exceed the real balance, so surface that here
-                    up front instead of only as an error after clicking. */}
-                {!r.paidOut && r.payeeBalance !== null && r.payeeBalance < r.net && (
-                  <span className="tiny" style={{ display: 'block', fontWeight: 400, color: 'var(--red)' }}>
-                    already withdrawn — only ₹{fmt(r.payeeBalance)} left to mark paid
-                  </span>
-                )}
+                ₹{fmt(r.due)}
+                {r.payeeBalance < r.due && <span className="tiny" style={{ display: 'block', fontWeight: 400, color: 'var(--red)' }}>only ₹{fmt(r.payeeBalance)} left uncollected</span>}
               </span>
               <span style={{ flex: 0.9, display: 'flex', justifyContent: 'flex-end' }}>
-                {r.paidOut ? (
-                  <span className="tag tag-green" title={r.payoutUtr ?? undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>Paid <Check size={11} /></span>
-                ) : payingId === r.id ? null : (
-                  <button className="btn btn-ghost btn-sm" disabled={r.payeeBalance === 0} onClick={() => startPay(r.id)}>
-                    Mark paid…
-                  </button>
-                )}
+                <Link to={`/payments/payee/${r.payeeType}/${r.payeeId}`} className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  View <ArrowRight size={12} />
+                </Link>
               </span>
-              {detailsOpen && (
-                <div style={{ flex: '1 0 100%', marginTop: 8 }}>
-                  {loadingProfile === detailsKey && <div className="tiny muted">Loading bank details…</div>}
-                  {loadingProfile !== detailsKey && (profileCache[detailsKey!]?.length ?? 0) === 0 && (
-                    <div className="tiny muted">No payment profile on file — {r.organizer} hasn't added one yet.</div>
-                  )}
-                  {profileCache[detailsKey!]?.map((p) => <PaymentProfileCard key={p.id} profile={p} />)}
-                </div>
-              )}
-              {!r.paidOut && payingId === r.id && (
-                <div style={{ flex: '1 0 100%', display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-                  <input
-                    className="input"
-                    style={{ flex: 1 }}
-                    placeholder="Real UTR / transaction reference from the transfer you made"
-                    value={utrDraft}
-                    onChange={(e) => setUtrDraft(e.target.value)}
-                    autoFocus
-                  />
-                  <button className="btn btn-pri btn-sm" onClick={() => confirmPay(r.id)}>Confirm</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setPayingId(null)}>Cancel</button>
-                </div>
-              )}
             </div>
-            );
-          })}
+          ))}
         </div>
       ) : tab === 'Withdrawal requests' ? (
         <div className="tblwrap">
           <div className="thead" style={{ minWidth: 700 }}>
-            <span style={{ flex: 1.4 }}>Organizer / venue</span>
+            <span style={{ flex: 1.4 }}>Name</span>
+            <span style={{ flex: 0.9 }}>Type</span>
             <span style={{ flex: 1 }}>Amount</span>
-            <span style={{ flex: 1.4 }}>Bank</span>
             <span style={{ flex: 1 }}>Date</span>
-            <span style={{ flex: 1 }} />
+            <span style={{ flex: 1 }}>Status</span>
+            <span style={{ flex: 0.8 }} />
           </div>
-          {withdrawals.length === 0 && !loading && <div className="trow muted">No withdrawal requests yet.</div>}
-          {withdrawals.map((w) => {
-            const detailsKey = `${w.payeeType}:${w.payeeId}`;
-            const detailsOpen = bankDetailsOpen === detailsKey;
-            return (
-            <div key={w.id} className="trow" style={{ minWidth: 700, flexWrap: detailsOpen || payingId === w.id || (w.paidOut && !!w.paidUtr) ? 'wrap' : undefined }}>
-              <span style={{ flex: 1.4, fontWeight: 700 }}>
-                <button
-                  type="button"
-                  onClick={() => toggleBankDetails(w.payeeType, w.payeeId)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--green)', font: 'inherit', fontWeight: 700 }}
-                  title="Show bank details"
-                >
-                  {w.payeeName} <Tag label={w.payeeType === 'organizer' ? 'Organizer' : 'Venue'} cls="tag-dim" /> <Landmark size={12} style={{ opacity: 0.6 }} /> {detailsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                </button>
-              </span>
+          {openWithdrawals.length === 0 && !loading && <div className="trow muted">No open withdrawal requests.</div>}
+          {openWithdrawals.map((w) => (
+            <div key={w.id} className="trow" style={{ minWidth: 700 }}>
+              <span style={{ flex: 1.4 }}><PayeeLink type={w.payeeType} id={w.payeeId} name={w.payeeName} /></span>
+              <span style={{ flex: 0.9 }}><Tag label={w.payeeType === 'organizer' ? 'Organizer' : 'Venue'} cls="tag-dim" /></span>
               <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(w.amount)}</span>
-              <span style={{ flex: 1.4 }} className="muted small">
-                {w.accountHolderName ? `${w.accountHolderName} · ` : ''}{w.bankLast4 ? `•••• ${w.bankLast4}` : '—'}{w.ifsc ? ` · ${w.ifsc}` : ''}
+              <span style={{ flex: 1 }} className="tiny muted">{fmtDate(w.createdAt)}</span>
+              <span style={{ flex: 1 }}><Tag label={STATUS_LABEL[w.status]} cls={STATUS_CLS[w.status]} /></span>
+              <span style={{ flex: 0.8, display: 'flex', justifyContent: 'flex-end' }}>
+                <Link to={`/payments/payee/${w.payeeType}/${w.payeeId}`} className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  Act <ArrowRight size={12} />
+                </Link>
               </span>
-              <span style={{ flex: 1 }} className="tiny muted">{new Date(w.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-              <span style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-                {w.paidOut ? (
-                  <span className="tag tag-green" title={w.paidUtr ?? undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>Paid <Check size={11} /></span>
-                ) : payingId === w.id ? null : (
-                  <button className="btn btn-ghost btn-sm" onClick={() => startPay(w.id)}>
-                    Mark paid…
-                  </button>
-                )}
-              </span>
-              {w.paidOut && w.paidUtr && (
-                <span style={{ flex: '1 0 100%', textAlign: 'right' }} className="tiny muted">{w.paidUtr}</span>
-              )}
-              {!w.paidOut && payingId === w.id && (
-                <div style={{ flex: '1 0 100%', display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-                  <input
-                    className="input"
-                    style={{ flex: 1 }}
-                    placeholder="Real UTR / transaction reference from the transfer you made"
-                    value={utrDraft}
-                    onChange={(e) => setUtrDraft(e.target.value)}
-                    autoFocus
-                  />
-                  <button className="btn btn-pri btn-sm" disabled={confirmingWithdrawal} onClick={() => confirmWithdrawalPay(w.id, w.payeeType)}>{confirmingWithdrawal ? 'Marking…' : 'Confirm'}</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setPayingId(null)}>Cancel</button>
-                </div>
-              )}
-              {detailsOpen && (
-                <div style={{ flex: '1 0 100%', marginTop: 8 }}>
-                  {loadingProfile === detailsKey && <div className="tiny muted">Loading bank details…</div>}
-                  {loadingProfile !== detailsKey && (profileCache[detailsKey]?.length ?? 0) === 0 && (
-                    <div className="tiny muted">No payment profile on file — {w.payeeName} hasn't added one yet.</div>
-                  )}
-                  {profileCache[detailsKey]?.map((p) => <PaymentProfileCard key={p.id} profile={p} />)}
-                </div>
-              )}
             </div>
-            );
-          })}
+          ))}
+        </div>
+      ) : tab === 'Completed' ? (
+        <div className="tblwrap">
+          <div className="thead" style={{ minWidth: 700 }}>
+            <span style={{ flex: 1.4 }}>Name</span>
+            <span style={{ flex: 0.9 }}>Type</span>
+            <span style={{ flex: 1 }}>Amount</span>
+            <span style={{ flex: 1 }}>Date</span>
+            <span style={{ flex: 1.4 }}>Result</span>
+          </div>
+          {resolvedWithdrawals.length === 0 && !loading && <div className="trow muted">Nothing resolved yet.</div>}
+          {resolvedWithdrawals.map((w) => (
+            <div key={w.id} className="trow" style={{ minWidth: 700 }}>
+              <span style={{ flex: 1.4 }}><PayeeLink type={w.payeeType} id={w.payeeId} name={w.payeeName} /></span>
+              <span style={{ flex: 0.9 }}><Tag label={w.payeeType === 'organizer' ? 'Organizer' : 'Venue'} cls="tag-dim" /></span>
+              <span style={{ flex: 1, fontWeight: 700 }}>₹{fmt(w.amount)}</span>
+              <span style={{ flex: 1 }} className="tiny muted">{fmtDate(w.createdAt)}</span>
+              <span style={{ flex: 1.4 }}>
+                <Tag label={STATUS_LABEL[w.status]} cls={STATUS_CLS[w.status]} />
+                {w.status === 'complete' && w.utr && <span className="tiny muted" style={{ display: 'block', marginTop: 2 }}>{w.utr}</span>}
+                {w.status === 'rejected' && w.rejectedReason && <span className="tiny" style={{ display: 'block', marginTop: 2, color: 'var(--red)' }}>{w.rejectedReason}</span>}
+              </span>
+            </div>
+          ))}
         </div>
       ) : tab === 'Transactions' ? (
         <div className="tblwrap">
@@ -346,7 +196,7 @@ export default function Payments() {
               <span style={{ flex: 0.8 }}>
                 <span className={`tag ${t.type === 'refund' ? 'tag-red' : 'tag-green'}`}>{t.type === 'refund' ? 'Refund' : 'Sale'}</span>
               </span>
-              <span style={{ flex: 1 }} className="tiny muted">{new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              <span style={{ flex: 1 }} className="tiny muted">{fmtDate(t.createdAt)}</span>
             </div>
           ))}
         </div>

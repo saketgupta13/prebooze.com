@@ -52,10 +52,12 @@ export class CronService {
 
     try {
       const due = await this.payments.payoutsDue();
-      const outstanding = due.rows.filter((r) => !r.paidOut);
-      if (!outstanding.length) return;
+      // payoutsDue() now groups by payee and already excludes anyone with
+      // nothing left to pay (due <= 0) — every row here is a real payee
+      // still owed money, no separate `paidOut` filter needed any more.
+      if (!due.rows.length) return;
       await this.staffAlerts.alert(
-        `💸 ${outstanding.length} payout${outstanding.length === 1 ? '' : 's'} due today — ₹${Math.round(due.dueTotal).toLocaleString('en-IN')} total. Review and pay in /admin/payments.`,
+        `💸 ${due.rows.length} payout${due.rows.length === 1 ? '' : 's'} due today — ₹${Math.round(due.dueTotal).toLocaleString('en-IN')} total. Review and pay in /admin/payments.`,
       ).catch(() => {});
     } catch (err) {
       this.log.error(`Payout reminder failed: ${(err as Error).message}`);
