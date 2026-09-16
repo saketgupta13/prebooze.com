@@ -76,12 +76,15 @@ export class OrgNotificationsService {
    * notification "kind" this app will eventually raise into the CALLING
    * user's own inbox, via the same real notify() path (so a real push
    * fires too — this is meant to be checked against both the in-app panel
-   * AND the Android system tray). Deletes any previously-seeded rows with
-   * matching text first, so pressing the trigger more than once (including
-   * a genuine double-fire from a fast double-tap) replaces rather than
-   * duplicates. Remove this method + its controller route once the
-   * organizer has looked — it's not a real feature, just a one-time way to
-   * preview the UI without a raw DB write. */
+   * AND the Android system tray). Wipes this user's ENTIRE inbox first (not
+   * just text-matched rows — simpler and means a second press always shows
+   * a clean, predictable set instead of accumulating stale copies with
+   * outdated sample text from an earlier version of this method), so
+   * pressing the trigger more than once — including a genuine double-fire
+   * from a fast double-tap — replaces rather than duplicates. Remove this
+   * method + its controller route once the organizer has looked — it's not
+   * a real feature, just a one-time way to preview the UI without a raw DB
+   * write. */
   async seedDemo(userId: string): Promise<{ seeded: number }> {
     const samples: { kind: string; text: string; to?: string; minutesAgo: number; read: boolean }[] = [
       { kind: 'approved', text: '"Rooftop Sundown Sessions" was approved — it\'s live now', to: '/events', minutesAgo: 5, read: false },
@@ -91,7 +94,7 @@ export class OrgNotificationsService {
       { kind: 'review', text: 'New 5-star review on "Acoustic Sundowner"', to: '/reviews', minutesAgo: 2880, read: true },
       { kind: 'team', text: 'Manager accepted your team invite and can now manage the door', to: '/team-roles', minutesAgo: 4320, read: true },
     ];
-    await this.prisma.orgNotification.deleteMany({ where: { userId, text: { in: samples.map((s) => s.text) } } });
+    await this.prisma.orgNotification.deleteMany({ where: { userId } });
     for (const s of samples) {
       await this.prisma.orgNotification.create({
         data: { userId, icon: s.kind, text: s.text, to: s.to, read: s.read, createdAt: new Date(Date.now() - s.minutesAgo * 60_000) },
