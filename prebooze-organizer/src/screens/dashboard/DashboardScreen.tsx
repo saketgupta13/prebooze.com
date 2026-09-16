@@ -283,7 +283,11 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.l, marginTop: spacing.s },
   title: {},
   bellButton: { padding: spacing.xs, backgroundColor: colors.accent, borderRadius: 999 },
-  bellBadge: { position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  // Sits mostly OUTSIDE the green circle, just clipping its corner — the
+  // previous top:2/right:2 placed it almost fully inside the icon's own
+  // small padding box, covering most of the bell glyph (organizer feedback
+  // 2026-09-17). Negative offsets push it out to a normal badge position.
+  bellBadge: { position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.bg },
   bellBadgeText: { fontSize: 9, color: '#fff', fontFamily: fontFamily.bold },
   errCard: { borderColor: colors.danger, marginBottom: spacing.m },
   kpiGrid: { flexDirection: 'row', gap: spacing.s, marginBottom: spacing.s },

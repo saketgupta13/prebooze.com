@@ -1117,7 +1117,7 @@ export class OrganizerService {
           name: owner.name, eventTitle: updated.title, eventSlug: updated.slug,
         }).catch(() => {});
       }
-      await this.orgNotifications.notify(owner.userId, '✅', `"${updated.title}" was approved — it's live now`, '/events');
+      await this.orgNotifications.notify(owner.userId, 'approved', `"${updated.title}" was approved — it's live now`, '/events');
     }
     return updated;
   }
@@ -1136,7 +1136,7 @@ export class OrganizerService {
           name: owner.name, eventTitle: updated.title, reasonBlock,
         }).catch(() => {});
       }
-      await this.orgNotifications.notify(owner.userId, '❌', `"${updated.title}" was rejected${reason ? ` — ${reason}` : ''}`, '/events');
+      await this.orgNotifications.notify(owner.userId, 'rejected', `"${updated.title}" was rejected${reason ? ` — ${reason}` : ''}`, '/events');
     }
     return updated;
   }
