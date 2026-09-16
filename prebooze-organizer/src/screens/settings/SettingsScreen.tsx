@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Notifications from 'expo-notifications';
 import { BadgeCheck, ChevronDown, ChevronRight, ChevronUp, ExternalLink, X } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
+import { notifications as notificationsApi } from '../../api/notifications';
 import { auth } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext';
 import { ApiError } from '../../api/client';
@@ -38,18 +39,18 @@ const draftFrom = (o: Organizer): Draft => ({
  * web's own source comment: inline team management (lives only on the
  * Team & Roles screen), refund-policy defaults, self-deactivation — none of
  * these had a real backend behind them. The Notifications row below is new
- * for this app (2026-09-16, not a web port) — it deliberately shows the
- * real OS permission status rather than an in-app on/off toggle, since
- * there's no per-category preference to store yet (only one real trigger —
- * event approved/rejected — exists so far) and a toggle with nothing real
- * to gate would repeat the exact fake-toggle mistake web already backed
- * out of once. */
+ * for this app (2026-09-16, not a web port) — a real per-user mute switch
+ * (User.notificationsEnabled, checked inside OrgNotificationsService.notify()
+ * before writing anything) alongside the real OS permission status, not a
+ * fake toggle with nothing to gate. */
 export default function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<MoreStackParamList>>();
   const { user } = useAuth();
   const [org, setOrg] = useState<Organizer | null>(null);
   const [profiles, setProfiles] = useState<PaymentProfile[]>([]);
   const [notifPermission, setNotifPermission] = useState<Notifications.PermissionStatus | null>(null);
+  const [notifEnabled, setNotifEnabled] = useState<boolean | null>(null);
+  const [notifSaving, setNotifSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
@@ -84,9 +85,22 @@ export default function SettingsScreen() {
     useCallback(() => {
       let cancelled = false;
       Notifications.getPermissionsAsync().then((p) => { if (!cancelled) setNotifPermission(p.status); }).catch(() => {});
+      notificationsApi.getPrefs().then((p) => { if (!cancelled) setNotifEnabled(p.enabled); }).catch(() => {});
       return () => { cancelled = true; };
     }, []),
   );
+
+  const toggleNotifications = async (value: boolean) => {
+    setNotifEnabled(value);
+    setNotifSaving(true);
+    try {
+      await notificationsApi.setPrefs(value);
+    } catch {
+      setNotifEnabled(!value); // revert on failure, same optimistic-then-revert pattern as the permission grid
+    } finally {
+      setNotifSaving(false);
+    }
+  };
 
   const saveBrand = async () => {
     if (!draft) return;
@@ -258,13 +272,27 @@ export default function SettingsScreen() {
             <View style={{ flex: 1, minWidth: 0 }}>
               <Txt style={styles.bold}>Notifications</Txt>
               <Muted style={styles.tiny}>
-                {notifPermission === 'granted' ? 'Enabled — you\'ll get a push when something needs your attention' : 'Disabled — turn on to get pushes when something needs your attention'}
+                {notifEnabled === false
+                  ? "Turned off — you won't be notified about anything"
+                  : notifPermission === 'granted'
+                    ? "Enabled — you'll get a push when something needs your attention"
+                    : "On, but blocked by your phone's settings"}
               </Muted>
             </View>
-            {notifPermission !== 'granted' && (
-              <Pressable onPress={() => Linking.openSettings()}><Txt style={styles.link}>Open settings →</Txt></Pressable>
-            )}
+            <Switch
+              value={notifEnabled ?? true}
+              onValueChange={toggleNotifications}
+              disabled={notifSaving}
+              trackColor={{ false: colors.border3, true: colors.accent }}
+              thumbColor={colors.text}
+            />
           </View>
+          {notifEnabled !== false && notifPermission !== 'granted' && (
+            <View style={styles.staticRow}>
+              <Muted style={styles.tiny}>Your phone is blocking pushes from this app.</Muted>
+              <Pressable onPress={() => Linking.openSettings()}><Txt style={styles.link}>Open settings →</Txt></Pressable>
+            </View>
+          )}
         </Card>
       </ScrollView>
     </Screen>

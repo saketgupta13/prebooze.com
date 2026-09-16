@@ -120,6 +120,12 @@ model User {
   // POST me/marketing-consent for an already-existing account.
   marketingConsent     Boolean              @default(false)
   autoRenew            Boolean              @default(false)
+  // Real per-user mute switch, checked inside OrgNotificationsService.notify()
+  // before writing an OrgNotification row or sending a push — when false,
+  // skips both entirely rather than writing a row nobody wanted. Distinct
+  // from the OS-level permission (Settings can be enabled here but still
+  // blocked at the OS if the organizer denied the permission prompt).
+  notificationsEnabled Boolean              @default(true)
 
   // deterministic from phone ("PB" + base36 of the last 8 digits) — set once
   // at first login, see AuthService — lets /referrals/claim resolve a code

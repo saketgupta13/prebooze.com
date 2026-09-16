@@ -9,4 +9,6 @@ export const notifications = {
   unreadCount: () => apiFetch<{ count: number }>('/organizer/notifications/unread-count'),
   markRead: (id: string) => apiFetch<OrgNotification>(`/organizer/notifications/${id}/read`, { method: 'POST' }),
   markAllRead: () => apiFetch<{ ok: true }>('/organizer/notifications/read-all', { method: 'POST' }),
+  getPrefs: () => apiFetch<{ enabled: boolean }>('/organizer/notification-prefs'),
+  setPrefs: (enabled: boolean) => apiFetch<{ enabled: boolean }>('/organizer/notification-prefs', { method: 'PATCH', body: { enabled } }),
 };

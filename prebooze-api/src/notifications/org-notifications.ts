@@ -28,12 +28,31 @@ export class OrgNotificationsService {
     return { ok: true };
   }
 
+  async getPrefs(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { notificationsEnabled: true } });
+    return { enabled: user?.notificationsEnabled ?? true };
+  }
+
+  async setPrefs(userId: string, enabled: boolean) {
+    // Explicit `select` — an unscoped update() implicitly returns every
+    // column, which breaks on a local dev DB with drift vs the schema (see
+    // prebooze_local_prisma_drift memory); scoping to just the one column
+    // we changed avoids that regardless of drift.
+    await this.prisma.user.update({ where: { id: userId }, data: { notificationsEnabled: enabled }, select: { id: true } });
+    return { enabled };
+  }
+
   /** Real entry point for raising an organizer notification — writes the
    * in-app inbox row AND fans out a real push in the same call, so every
    * future trigger point (event approved, booking received, ...) only
    * needs this one method rather than remembering both halves separately.
-   * Fire-and-forget: never blocks or throws into the caller's own action. */
+   * Checks the real per-user mute switch first and skips entirely (no row,
+   * no push) when off — someone who turned notifications off shouldn't
+   * still get a silent inbox entry piling up. Fire-and-forget either way:
+   * never blocks or throws into the caller's own action. */
   async notify(userId: string, icon: string, text: string, to?: string): Promise<void> {
+    const { enabled } = await this.getPrefs(userId).catch(() => ({ enabled: true }));
+    if (!enabled) return;
     await this.prisma.orgNotification.create({ data: { userId, icon, text, to } }).catch(() => {});
     await this.push.send(userId, `${icon} Prebooze`, text).catch(() => {});
   }
