@@ -1,0 +1,90 @@
+{
+  "expo": {
+    "name": "Prebooze Organizer",
+    "slug": "prebooze-organizer",
+    "scheme": "prebooze-organizer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#1a1c17",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.prebooze.organizer",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Prebooze needs camera access to scan attendee tickets and QR codes at the door.",
+        "NSPhotoLibraryUsageDescription": "Prebooze needs photo library access to upload event posters, gallery images, and your brand logo.",
+        "UIApplicationSceneManifest": {
+          "UIApplicationSupportsMultipleScenes": false,
+          "UISceneConfigurations": {
+            "UIWindowSceneSessionRoleApplication": [
+              {
+                "UISceneConfigurationName": "Default Configuration",
+                "UISceneDelegateClassName": "$(PRODUCT_MODULE_NAME).SceneDelegate"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "android": {
+      "package": "com.prebooze.organizer",
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "backgroundColor": "#1a1c17",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-image",
+      "expo-font",
+      "expo-web-browser",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#1a1c17"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Prebooze needs camera access to scan attendee tickets and QR codes at the door."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Prebooze needs photo library access to upload event posters, gallery images, and your brand logo."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-foreground.png",
+          "color": "#9be13d"
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f09a66c0-8033-4f3f-a999-b91c1565e48a"
+      }
+    },
+    "owner": "prebooze"
+  }
+}

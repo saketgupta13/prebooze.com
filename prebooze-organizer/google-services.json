@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "860196893301",
+    "project_id": "pragmatic-ratio-505012-j6",
+    "storage_bucket": "pragmatic-ratio-505012-j6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:860196893301:android:192c170d51672012113e3c",
+        "android_client_info": {
+          "package_name": "com.prebooze.organizer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWKEF2c4CEXC2ca-55tDKKSZ6H2FEdNhU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
