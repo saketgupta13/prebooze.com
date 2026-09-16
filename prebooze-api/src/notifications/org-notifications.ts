@@ -2,16 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { PushService } from './push';
 
-// `icon` on OrgNotification stores one of these short kind slugs, not a raw
-// emoji/glyph — the RN app maps each to a real lucide-react-native icon +
-// color in its panel (a text emoji looked out of place next to the rest of
-// the app's vector iconography). This map supplies just the emoji used in
-// the *push notification title* (the OS tray itself is a fine place for a
-// decorative glyph — Android renders it natively either way).
-const KIND_EMOJI: Record<string, string> = {
-  approved: '✅', rejected: '❌', booking: '🎟️', payout: '💸', review: '⭐', team: '🛡️',
-};
-
 /** Per-user in-app notification inbox for organizers — same shape as the
  * admin side's shared NotificationsService (icon/text/to/read), except
  * scoped to one userId instead of one shared panel everyone sees. */
@@ -56,10 +46,11 @@ export class OrgNotificationsService {
    * in-app inbox row AND fans out a real push in the same call, so every
    * future trigger point (event approved, booking received, ...) only
    * needs this one method rather than remembering both halves separately.
-   * `kind` is a short slug (see KIND_EMOJI above / the RN panel's own icon
-   * map) — not a raw emoji — so the in-app panel can render a real vector
-   * icon instead of a text glyph; the push title still gets a decorative
-   * emoji prefix via KIND_EMOJI, since that's normal for an OS tray entry.
+   * `kind` is a short slug (see the RN panel's own icon map) — not a raw
+   * emoji — so the in-app panel can render a real vector icon instead of a
+   * text glyph; the push title stays a plain "Prebooze" for the same
+   * reason (no emoji anywhere, organizer feedback 2026-09-17) — the OS
+   * tray already shows the app's own real icon next to it.
    * Checks the real per-user mute switch first and skips entirely (no row,
    * no push) when off — someone who turned notifications off shouldn't
    * still get a silent inbox entry piling up. Fire-and-forget either way:
@@ -68,8 +59,7 @@ export class OrgNotificationsService {
     const { enabled } = await this.getPrefs(userId).catch(() => ({ enabled: true }));
     if (!enabled) return;
     await this.prisma.orgNotification.create({ data: { userId, icon: kind, text, to } }).catch(() => {});
-    const emoji = KIND_EMOJI[kind] ?? '🔔';
-    await this.push.send(userId, `${emoji} Prebooze`, text).catch(() => {});
+    await this.push.send(userId, 'Prebooze', text).catch(() => {});
   }
 
   /** TEMPORARY, self-serve only — drops one realistic example row per
@@ -102,8 +92,7 @@ export class OrgNotificationsService {
       // Real push per sample (not the batched notify() call) so each one
       // arrives as its own Android system-tray entry, same as it would from
       // a genuine trigger — the whole point of this preview.
-      const emoji = KIND_EMOJI[s.kind] ?? '🔔';
-      await this.push.send(userId, `${emoji} Prebooze`, s.text).catch(() => {});
+      await this.push.send(userId, 'Prebooze', s.text).catch(() => {});
     }
     return { seeded: samples.length };
   }
