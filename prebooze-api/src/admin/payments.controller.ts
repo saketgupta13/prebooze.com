@@ -54,6 +54,17 @@ export class AdminPaymentsController {
     return this.payments.advanceWithdrawal(payeeType, id, body, req.staff.email);
   }
 
+  @Post('withdrawal-requests/:payeeType/:id/resolve-rejection')
+  @RequirePermission(MODULE, 'edit')
+  resolveRejection(
+    @Param('payeeType') payeeType: 'organizer' | 'venue',
+    @Param('id') id: string,
+    @Body('note') note: string | undefined,
+    @Req() req: StaffReq,
+  ) {
+    return this.payments.resolveRejection(payeeType, id, note, req.staff.email);
+  }
+
   @Get('transactions')
   @RequirePermission(MODULE, 'view')
   transactions(@Query('eventId') eventId?: string) {

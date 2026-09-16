@@ -50,6 +50,8 @@ export default function PayoutDetail() {
   const [advanceUtr, setAdvanceUtr] = useState('');
   const [rejecting, setRejecting] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [resolvingId, setResolvingId] = useState<string | null>(null); // rejected withdrawal id currently showing the "mark followed up" form
+  const [resolveNote, setResolveNote] = useState('');
 
   const load = () => {
     if (!payeeType || !payeeId) return;
@@ -107,6 +109,18 @@ export default function PayoutDetail() {
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to reject');
+    } finally { setBusy(false); }
+  };
+
+  const resolveRejection = async (withdrawalId: string) => {
+    if (!payeeType) return;
+    setErr(''); setBusy(true);
+    try {
+      await livePayments.resolveRejection(payeeType, withdrawalId, resolveNote.trim() || undefined);
+      setResolvingId(null); setResolveNote('');
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to mark resolved');
     } finally { setBusy(false); }
   };
 
@@ -223,6 +237,25 @@ export default function PayoutDetail() {
                 )}
                 {w.status === 'complete' && w.utr && (
                   <div className="tiny muted" style={{ marginBottom: 10 }}>UTR: {w.utr}</div>
+                )}
+
+                {w.status === 'rejected' && (
+                  <div style={{ marginBottom: 10 }}>
+                    {w.rejectionResolved ? (
+                      <Tag label="Follow-up resolved" cls="tag-dim" />
+                    ) : resolvingId === w.id ? (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <input className="input" style={{ flex: 1, minWidth: 200 }} placeholder="Optional note — how was this resolved?" value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} autoFocus />
+                        <button className="btn btn-pri btn-sm" disabled={busy} onClick={() => resolveRejection(w.id)}>{busy ? 'Saving…' : 'Confirm resolved'}</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setResolvingId(null)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <Tag label="Needs follow-up" cls="tag-amber" />
+                        <button className="btn btn-ghost btn-sm" onClick={() => { setResolvingId(w.id); setResolveNote(''); setErr(''); }}>Mark followed up…</button>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 <details style={{ marginBottom: isOpen ? 10 : 0 }}>

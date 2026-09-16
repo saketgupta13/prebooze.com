@@ -820,11 +820,14 @@ export interface LivePayeeDueRow {
 }
 export type PayoutPipelineStatus = 'requested' | 'received' | 'initiated' | 'processed' | 'complete' | 'rejected';
 export interface LivePayoutStatusEvent {
-  id: string; status: PayoutPipelineStatus; reason: string | null; utr: string | null; staffEmail: string | null; createdAt: string;
+  // 'rejection_resolved' is a follow-up marker (PaymentsService.resolveRejection),
+  // not a pipeline stage itself — it can appear in a withdrawal's history
+  // after 'rejected' but is never a value of withdrawalStatus.
+  id: string; status: PayoutPipelineStatus | 'rejection_resolved'; reason: string | null; utr: string | null; staffEmail: string | null; createdAt: string;
 }
 export interface LiveWithdrawalRow {
   id: string; payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string; amount: number;
-  status: PayoutPipelineStatus; rejectedReason: string | null; utr: string | null;
+  status: PayoutPipelineStatus; rejectedReason: string | null; rejectionResolved: boolean; utr: string | null;
   bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string;
 }
 export interface LivePayeeEventRow {
@@ -869,6 +872,12 @@ export const livePayments = {
    * the payee's balance server-side, never just dropped). */
   advanceWithdrawal: (payeeType: 'organizer' | 'venue', id: string, next: { status: PayoutPipelineStatus; utr?: string; reason?: string }) =>
     liveFetch<{ ok: true }>(`/admin/payments/withdrawal-requests/${payeeType}/${id}/advance`, { method: 'POST', body: next }),
+  /** Marks a rejected request's underlying issue as actually followed up on
+   * (2026-09-18) — separate from the rejection itself, which stays terminal
+   * (money's already back in their balance); this is purely "has anyone
+   * checked whether the payee fixed whatever caused it." */
+  resolveRejection: (payeeType: 'organizer' | 'venue', id: string, note?: string) =>
+    liveFetch<{ ok: true }>(`/admin/payments/withdrawal-requests/${payeeType}/${id}/resolve-rejection`, { method: 'POST', body: { note } }),
   /** Real sale/refund ledger, platform-wide — replaces the old "Transactions"
    * placeholder. Merges OrganizerLedgerTx + VenueLedgerTx, newest first,
    * capped at 300 rows. */

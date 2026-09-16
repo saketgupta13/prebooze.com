@@ -433,6 +433,9 @@ model VenueLedgerTx {
   // (2026-09-18) — see the comment there for the full state-machine notes.
   withdrawalStatus         String  @default("requested")
   withdrawalRejectedReason String?
+  // Whether staff have actually followed up on a rejection yet (2026-09-18,
+  // round 2) — see OrganizerLedgerTx's identical field for the full note.
+  withdrawalRejectionResolved Boolean @default(false)
 }
 
 // Real timeline behind OrganizerLedgerTx/VenueLedgerTx.withdrawalStatus
@@ -1800,6 +1803,16 @@ model OrganizerLedgerTx {
   // a new positive type:'withdrawal_reversal' row rather than deleting or
   // mutating this one, so the ledger stays a real append-only record.
   withdrawalRejectedReason String?
+  // Whether staff have actually followed up on this rejection yet
+  // (2026-09-18, round 2) — a rejection usually means something needs
+  // fixing on the payee's end (bad bank details, a duplicate request, a
+  // compliance question), and without this a rejected request could just
+  // sit there forever with nobody checking whether it was ever actually
+  // resolved. Deliberately separate from withdrawalStatus itself: 'rejected'
+  // stays the terminal pipeline state (the money's already back in their
+  // balance, nothing further to do to the ledger), this is purely "has
+  // anyone followed up." Set via PaymentsService.resolveRejection.
+  withdrawalRejectionResolved Boolean @default(false)
 }
 
 // Organizer's own team/permissions system — same view/edit-per-module shape

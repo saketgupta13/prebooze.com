@@ -240,6 +240,7 @@ export class PaymentsService {
       amount: Math.abs(r.amount),
       status: r.withdrawalStatus,
       rejectedReason: r.withdrawalRejectedReason,
+      rejectionResolved: r.withdrawalRejectionResolved,
       utr: r.withdrawalPaidUtr,
       bankLast4: r.payoutBankLast4,
       accountHolderName: r.payoutAccountHolderName,
@@ -359,7 +360,7 @@ export class PaymentsService {
         select: {
           id: true, organizerId: true, amount: true, createdAt: true,
           payoutBankLast4: true, payoutAccountHolderName: true, payoutIfsc: true,
-          withdrawalStatus: true, withdrawalRejectedReason: true, withdrawalPaidUtr: true,
+          withdrawalStatus: true, withdrawalRejectedReason: true, withdrawalRejectionResolved: true, withdrawalPaidUtr: true,
           organizer: { select: { brandName: true } },
         },
       }),
@@ -368,7 +369,7 @@ export class PaymentsService {
         select: {
           id: true, venueId: true, amount: true, createdAt: true,
           payoutBankLast4: true, payoutAccountHolderName: true, payoutIfsc: true,
-          withdrawalStatus: true, withdrawalRejectedReason: true, withdrawalPaidUtr: true,
+          withdrawalStatus: true, withdrawalRejectedReason: true, withdrawalRejectionResolved: true, withdrawalPaidUtr: true,
           venue: { select: { name: true } },
         },
       }),
@@ -376,12 +377,12 @@ export class PaymentsService {
     const rows = [
       ...orgRows.map((r) => ({
         id: r.id, payeeType: 'organizer' as const, payeeId: r.organizerId, payeeName: r.organizer?.brandName ?? '—',
-        amount: Math.abs(r.amount), status: r.withdrawalStatus, rejectedReason: r.withdrawalRejectedReason, utr: r.withdrawalPaidUtr,
+        amount: Math.abs(r.amount), status: r.withdrawalStatus, rejectedReason: r.withdrawalRejectedReason, rejectionResolved: r.withdrawalRejectionResolved, utr: r.withdrawalPaidUtr,
         bankLast4: r.payoutBankLast4, accountHolderName: r.payoutAccountHolderName, ifsc: r.payoutIfsc, createdAt: r.createdAt,
       })),
       ...venueRows.map((r) => ({
         id: r.id, payeeType: 'venue' as const, payeeId: r.venueId, payeeName: r.venue?.name ?? '—',
-        amount: Math.abs(r.amount), status: r.withdrawalStatus, rejectedReason: r.withdrawalRejectedReason, utr: r.withdrawalPaidUtr,
+        amount: Math.abs(r.amount), status: r.withdrawalStatus, rejectedReason: r.withdrawalRejectedReason, rejectionResolved: r.withdrawalRejectionResolved, utr: r.withdrawalPaidUtr,
         bankLast4: r.payoutBankLast4, accountHolderName: r.payoutAccountHolderName, ifsc: r.payoutIfsc, createdAt: r.createdAt,
       })),
     ];
@@ -468,6 +469,34 @@ export class PaymentsService {
     // email; the next one they get is 'complete' or 'rejected').
     await update({ withdrawalStatus: next.status });
     await this.prisma.payoutStatusEvent.create({ data: { payeeType, payeeId, ledgerTxId: row.id, status: next.status, staffEmail } });
+    return { ok: true };
+  }
+
+  /** Marks a rejected withdrawal request's underlying issue as actually
+   * followed up on (2026-09-18) — deliberately separate from the rejection
+   * itself: 'rejected' is the terminal ledger state (the money's already
+   * back in the payee's balance, nothing more to do there), but staff still
+   * need a real way to track whether anyone actually chased down WHY it was
+   * rejected — bad bank details, a duplicate request, a compliance question
+   * — rather than a reason sitting in history that nobody's checked back
+   * on. `note` is optional context for how it was resolved (e.g. "organizer
+   * updated their bank details, confirmed by phone"). */
+  async resolveRejection(payeeType: 'organizer' | 'venue', id: string, note: string | undefined, staffEmail: string) {
+    if (payeeType === 'organizer') {
+      const row = await this.prisma.organizerLedgerTx.findUnique({ where: { id } });
+      if (!row || row.type !== 'withdrawal') throw new BadRequestException('Withdrawal request not found');
+      if (row.withdrawalStatus !== 'rejected') throw new BadRequestException('This request was never rejected');
+      if (row.withdrawalRejectionResolved) throw new BadRequestException('Already marked resolved');
+      await this.prisma.organizerLedgerTx.update({ where: { id }, data: { withdrawalRejectionResolved: true } });
+      await this.prisma.payoutStatusEvent.create({ data: { payeeType, payeeId: row.organizerId, ledgerTxId: id, status: 'rejection_resolved', reason: note?.trim() || undefined, staffEmail } });
+      return { ok: true };
+    }
+    const row = await this.prisma.venueLedgerTx.findUnique({ where: { id } });
+    if (!row || row.type !== 'withdrawal') throw new BadRequestException('Withdrawal request not found');
+    if (row.withdrawalStatus !== 'rejected') throw new BadRequestException('This request was never rejected');
+    if (row.withdrawalRejectionResolved) throw new BadRequestException('Already marked resolved');
+    await this.prisma.venueLedgerTx.update({ where: { id }, data: { withdrawalRejectionResolved: true } });
+    await this.prisma.payoutStatusEvent.create({ data: { payeeType, payeeId: row.venueId, ledgerTxId: id, status: 'rejection_resolved', reason: note?.trim() || undefined, staffEmail } });
     return { ok: true };
   }
 

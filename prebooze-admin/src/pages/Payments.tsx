@@ -7,7 +7,7 @@ import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import { Kpi, Tag } from '../components/ui';
 
 const TITLE = 'Payments & payouts';
-const TABS = ['Payouts due', 'Withdrawal requests', 'Completed', 'Transactions', 'Refunds', 'Disputes'];
+const TABS = ['Payouts due', 'Withdrawal requests', 'Paid', 'Rejected', 'Transactions', 'Refunds', 'Disputes'];
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -69,11 +69,16 @@ export default function Payments() {
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
 
-  // Once a withdrawal is marked complete (or rejected), it moves out of the
-  // "Withdrawal requests" queue and into "Completed" — a resolved request
-  // isn't something staff need to keep looking at in the action queue.
+  // Once a withdrawal is marked complete or rejected, it moves out of the
+  // "Withdrawal requests" queue — a resolved request isn't something staff
+  // need to keep looking at in the action queue. Paid and rejected are kept
+  // as two separate tabs (not one "Completed" bucket) — a successful payout
+  // and a declined request aren't the same kind of "done," and lumping them
+  // together buried the ones that actually need a human to follow up.
   const openWithdrawals = withdrawals.filter((w) => w.status !== 'complete' && w.status !== 'rejected');
-  const resolvedWithdrawals = withdrawals.filter((w) => w.status === 'complete' || w.status === 'rejected');
+  const paidWithdrawals = withdrawals.filter((w) => w.status === 'complete');
+  const rejectedWithdrawals = withdrawals.filter((w) => w.status === 'rejected');
+  const unresolvedRejections = rejectedWithdrawals.filter((w) => !w.rejectionResolved).length;
 
   const PayeeLink = ({ type, id, name }: { type: 'organizer' | 'venue'; id: string; name: string }) => (
     <Link to={`/payments/payee/${type}/${id}`} className="link" style={{ fontWeight: 700, color: 'var(--green)' }}>{name}</Link>
@@ -97,7 +102,9 @@ export default function Payments() {
 
       <div className="tabs">
         {TABS.map((t) => (
-          <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>
+          <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>
+            {t}{t === 'Rejected' && unresolvedRejections > 0 ? ` (${unresolvedRejections})` : ''}
+          </button>
         ))}
       </div>
 
@@ -154,26 +161,52 @@ export default function Payments() {
             </div>
           ))}
         </div>
-      ) : tab === 'Completed' ? (
+      ) : tab === 'Paid' ? (
         <div className="tblwrap">
-          <div className="thead" style={{ minWidth: 700 }}>
+          <div className="thead" style={{ minWidth: 650 }}>
             <span style={{ flex: 1.4 }}>Name</span>
             <span style={{ flex: 0.9 }}>Type</span>
             <span style={{ flex: 1 }}>Amount</span>
             <span style={{ flex: 1 }}>Date</span>
-            <span style={{ flex: 1.4 }}>Result</span>
+            <span style={{ flex: 1.4 }}>UTR</span>
           </div>
-          {resolvedWithdrawals.length === 0 && !loading && <div className="trow muted">Nothing resolved yet.</div>}
-          {resolvedWithdrawals.map((w) => (
-            <div key={w.id} className="trow" style={{ minWidth: 700 }}>
+          {paidWithdrawals.length === 0 && !loading && <div className="trow muted">Nothing paid yet.</div>}
+          {paidWithdrawals.map((w) => (
+            <div key={w.id} className="trow" style={{ minWidth: 650 }}>
               <span style={{ flex: 1.4 }}><PayeeLink type={w.payeeType} id={w.payeeId} name={w.payeeName} /></span>
               <span style={{ flex: 0.9 }}><Tag label={w.payeeType === 'organizer' ? 'Organizer' : 'Venue'} cls="tag-dim" /></span>
-              <span style={{ flex: 1, fontWeight: 700 }}>₹{fmt(w.amount)}</span>
+              <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(w.amount)}</span>
               <span style={{ flex: 1 }} className="tiny muted">{fmtDate(w.createdAt)}</span>
-              <span style={{ flex: 1.4 }}>
-                <Tag label={STATUS_LABEL[w.status]} cls={STATUS_CLS[w.status]} />
-                {w.status === 'complete' && w.utr && <span className="tiny muted" style={{ display: 'block', marginTop: 2 }}>{w.utr}</span>}
-                {w.status === 'rejected' && w.rejectedReason && <span className="tiny" style={{ display: 'block', marginTop: 2, color: 'var(--red)' }}>{w.rejectedReason}</span>}
+              <span style={{ flex: 1.4 }} className="tiny muted">{w.utr ?? '—'}</span>
+            </div>
+          ))}
+        </div>
+      ) : tab === 'Rejected' ? (
+        <div className="tblwrap">
+          <div className="thead" style={{ minWidth: 750 }}>
+            <span style={{ flex: 1.3 }}>Name</span>
+            <span style={{ flex: 0.9 }}>Type</span>
+            <span style={{ flex: 0.9 }}>Amount</span>
+            <span style={{ flex: 0.9 }}>Date</span>
+            <span style={{ flex: 1.6 }}>Reason</span>
+            <span style={{ flex: 1 }}>Follow-up</span>
+            <span style={{ flex: 0.8 }} />
+          </div>
+          {rejectedWithdrawals.length === 0 && !loading && <div className="trow muted">Nothing rejected — good.</div>}
+          {rejectedWithdrawals.map((w) => (
+            <div key={w.id} className="trow" style={{ minWidth: 750 }}>
+              <span style={{ flex: 1.3 }}><PayeeLink type={w.payeeType} id={w.payeeId} name={w.payeeName} /></span>
+              <span style={{ flex: 0.9 }}><Tag label={w.payeeType === 'organizer' ? 'Organizer' : 'Venue'} cls="tag-dim" /></span>
+              <span style={{ flex: 0.9, fontWeight: 700 }}>₹{fmt(w.amount)}</span>
+              <span style={{ flex: 0.9 }} className="tiny muted">{fmtDate(w.createdAt)}</span>
+              <span style={{ flex: 1.6 }} className="tiny">{w.rejectedReason ?? '—'}</span>
+              <span style={{ flex: 1 }}>
+                {w.rejectionResolved ? <Tag label="Resolved" cls="tag-dim" /> : <Tag label="Needs follow-up" cls="tag-amber" />}
+              </span>
+              <span style={{ flex: 0.8, display: 'flex', justifyContent: 'flex-end' }}>
+                <Link to={`/payments/payee/${w.payeeType}/${w.payeeId}`} className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {w.rejectionResolved ? 'View' : 'Follow up'} <ArrowRight size={12} />
+                </Link>
               </span>
             </div>
           ))}
