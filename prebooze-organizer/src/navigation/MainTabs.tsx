@@ -1,6 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Calendar, LayoutDashboard, MoreHorizontal, ScanLine, Users } from 'lucide-react-native';
-import DashboardScreen from '../screens/dashboard/DashboardScreen';
+import DashboardStack from './DashboardStack';
 import EventsStack from './EventsStack';
 import ScannerScreen from '../screens/scanner/ScannerScreen';
 import BookingsScreen from '../screens/bookings/BookingsScreen';
@@ -24,7 +24,7 @@ export default function MainTabs() {
         tabBarInactiveTintColor: colors.muted,
       }}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} /> }} />
+      <Tab.Screen name="Dashboard" component={DashboardStack} options={{ tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} /> }} />
       <Tab.Screen name="Events" component={EventsStack} options={{ tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} /> }} />
       <Tab.Screen name="Scan" component={ScannerScreen} options={{ tabBarIcon: ({ color, size }) => <ScanLine color={color} size={size} /> }} />
       <Tab.Screen name="Bookings" component={BookingsScreen} options={{ tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />

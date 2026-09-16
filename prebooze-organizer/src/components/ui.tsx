@@ -268,7 +268,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface2,
     borderWidth: 1,
     borderColor: colors.border3,
-    alignSelf: 'flex-start',
   },
   badgeSuccess: {
     backgroundColor: 'rgba(31,138,91,0.16)',

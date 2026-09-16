@@ -16,6 +16,18 @@ export interface KycSubmission {
   createdAt: string;
 }
 
+// Real Prisma OrgNotification shape (src/notifications/org-notifications.ts)
+// — an organizer-scoped in-app inbox row, same fields as admin's shared
+// AdminNotification, raised on real triggers (event approved/rejected so far).
+export interface OrgNotification {
+  id: string;
+  icon: string;
+  text: string;
+  to: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
 export interface SocialLinks {
   instagram?: string;
   facebook?: string;

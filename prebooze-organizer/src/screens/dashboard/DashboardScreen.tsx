@@ -1,14 +1,21 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useFocusEffect, useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { ArrowRight } from 'lucide-react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ArrowRight, Bell } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
+import { notifications } from '../../api/notifications';
 import { ApiError } from '../../api/client';
 import { Bar, Card, Chip, H1, H2, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import type { Event, OrgAttendee, OrgLedgerTx, Organizer } from '../../types';
-import type { MainTabParamList } from '../../navigation/types';
+import type { DashboardStackParamList, MainTabParamList } from '../../navigation/types';
+
+type Nav = CompositeNavigationProp<
+  NativeStackNavigationProp<DashboardStackParamList>,
+  BottomTabNavigationProp<MainTabParamList>
+>;
 
 const fmtMoney = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN');
 const DAY_MS = 86400000;
@@ -25,9 +32,10 @@ const isEventOver = (e: { date: string; durationHrs: number }) => new Date(e.dat
  * and the header's "+ Create event" link is omitted until Phase 2's event
  * wizard exists. */
 export default function DashboardScreen() {
-  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const navigation = useNavigation<Nav>();
   const [profile, setProfile] = useState<Organizer | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [ledger, setLedger] = useState<OrgLedgerTx[]>([]);
   const [attendees, setAttendees] = useState<OrgAttendee[]>([]);
   const [liveCheckedInCount, setLiveCheckedInCount] = useState(0);
@@ -85,6 +93,17 @@ export default function DashboardScreen() {
     }, []),
   );
 
+  // Separate from the main load above so a refocus after reading
+  // notifications (e.g. coming back from the Notifications screen) updates
+  // just the badge count, not the whole dashboard.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      notifications.unreadCount().then((r) => { if (!cancelled) setUnreadCount(r.count); }).catch(() => {});
+      return () => { cancelled = true; };
+    }, []),
+  );
+
   const live = events.filter((e) => e.status === 'approved' && !isEventOver(e));
   const liveIds = new Set(live.map((e) => e.id));
   const cities = ['All', ...new Set(live.map((e) => e.venue?.city).filter(Boolean) as string[])];
@@ -137,7 +156,17 @@ export default function DashboardScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
-        <H1 style={styles.title}>Dashboard</H1>
+        <View style={styles.titleRow}>
+          <H1 style={styles.title}>Dashboard</H1>
+          <Pressable onPress={() => navigation.navigate('Notifications')} style={styles.bellButton}>
+            <Bell size={20} color={colors.onAccent} />
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Txt style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Txt>
+              </View>
+            )}
+          </Pressable>
+        </View>
         {!!err && (
           <Card style={styles.errCard}>
             <Txt style={{ color: colors.danger }}>{err}</Txt>
@@ -251,7 +280,11 @@ const fontStyleSmall = { fontSize: fontSize.s };
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.l },
-  title: { marginBottom: spacing.l, marginTop: spacing.s },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.l, marginTop: spacing.s },
+  title: {},
+  bellButton: { padding: spacing.xs, backgroundColor: colors.accent, borderRadius: 999 },
+  bellBadge: { position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  bellBadgeText: { fontSize: 9, color: '#fff', fontFamily: fontFamily.bold },
   errCard: { borderColor: colors.danger, marginBottom: spacing.m },
   kpiGrid: { flexDirection: 'row', gap: spacing.s, marginBottom: spacing.s },
   kpi: { flex: 1, padding: spacing.m },

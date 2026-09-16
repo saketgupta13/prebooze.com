@@ -25,6 +25,16 @@ export type EventsStackParamList = {
   EventWizard: { eventId?: string } | undefined;
 };
 
+// New nesting under the Dashboard tab (2026-09-16) so the header bell icon
+// can push a real Notifications screen without hiding the bottom tab bar —
+// same reasoning as EventsStack/MoreStack above. Dashboard itself has no
+// params, only its own web console never had a notification bell at all —
+// this is new product surface, not a web port.
+export type DashboardStackParamList = {
+  DashboardHome: undefined;
+  Notifications: undefined;
+};
+
 export type MoreStackParamList = {
   MoreHome: undefined;
   // No param on either — like Scanner, each picks its own default event via

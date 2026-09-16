@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as Notifications from 'expo-notifications';
 import { BadgeCheck, ChevronDown, ChevronRight, ChevronUp, ExternalLink, X } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { auth } from '../../api/auth';
@@ -35,13 +36,20 @@ const draftFrom = (o: Organizer): Draft => ({
  * of collapsible sections (Brand profile, Verification, Payment profiles,
  * Team & roles) plus a phone-number-change flow. Deliberately dropped, per
  * web's own source comment: inline team management (lives only on the
- * Team & Roles screen), notification prefs, refund-policy defaults,
- * self-deactivation — none of these had a real backend behind them. */
+ * Team & Roles screen), refund-policy defaults, self-deactivation — none of
+ * these had a real backend behind them. The Notifications row below is new
+ * for this app (2026-09-16, not a web port) — it deliberately shows the
+ * real OS permission status rather than an in-app on/off toggle, since
+ * there's no per-category preference to store yet (only one real trigger —
+ * event approved/rejected — exists so far) and a toggle with nothing real
+ * to gate would repeat the exact fake-toggle mistake web already backed
+ * out of once. */
 export default function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<MoreStackParamList>>();
   const { user } = useAuth();
   const [org, setOrg] = useState<Organizer | null>(null);
   const [profiles, setProfiles] = useState<PaymentProfile[]>([]);
+  const [notifPermission, setNotifPermission] = useState<Notifications.PermissionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
@@ -66,6 +74,16 @@ export default function SettingsScreen() {
         .then((p) => { if (!cancelled && p) setProfiles(p); })
         .catch((e) => { if (!cancelled) setErr(e instanceof ApiError ? e.message : 'Failed to load settings'); })
         .finally(() => { if (!cancelled) setLoading(false); });
+      return () => { cancelled = true; };
+    }, []),
+  );
+
+  // Reflects reality if the organizer flips this in the OS settings and
+  // comes back — refetched on every focus, not just mount.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      Notifications.getPermissionsAsync().then((p) => { if (!cancelled) setNotifPermission(p.status); }).catch(() => {});
       return () => { cancelled = true; };
     }, []),
   );
@@ -234,6 +252,18 @@ export default function SettingsScreen() {
               <Muted style={styles.tiny}>door-scan access, managers</Muted>
             </View>
             <Pressable onPress={() => navigation.navigate('TeamRoles')}><Txt style={styles.link}>Manage →</Txt></Pressable>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.staticRow}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Txt style={styles.bold}>Notifications</Txt>
+              <Muted style={styles.tiny}>
+                {notifPermission === 'granted' ? 'Enabled — you\'ll get a push when something needs your attention' : 'Disabled — turn on to get pushes when something needs your attention'}
+              </Muted>
+            </View>
+            {notifPermission !== 'granted' && (
+              <Pressable onPress={() => Linking.openSettings()}><Txt style={styles.link}>Open settings →</Txt></Pressable>
+            )}
           </View>
         </Card>
       </ScrollView>
