@@ -158,6 +158,7 @@ model User {
   orgStaffMemberships   OrgStaff[] // organizer team invites this phone has accepted (possibly more than one org)
   venueStaffMemberships VenueStaff[] // venue hosting-team invites this phone has accepted (possibly more than one venue)
   pushTokens            PushToken[] // one row per device — a user can be logged into more than one phone
+  orgNotifications      OrgNotification[] // in-app inbox rows raised for this user via OrgNotificationsService.notify — currently organizer-only, see that model's own comment
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -205,6 +206,24 @@ model PushToken {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Per-user in-app notification inbox — same shape as the admin-side
+// AdminNotification (icon/text/to/read), except scoped to one userId
+// instead of being one shared panel. Currently only raised for organizers
+// (event approved/rejected, see OrganizerService.adminApprove/adminReject)
+// via OrgNotificationsService.notify, which also fans out a real push
+// through PushService in the same call — every future trigger point only
+// needs that one method rather than remembering both halves separately.
+model OrgNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  icon      String
+  text      String
+  to        String? // deep-link hint, e.g. "/events" — same convention as AdminNotification.to
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 // ============================================================================

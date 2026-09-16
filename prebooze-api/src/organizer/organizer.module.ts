@@ -17,9 +17,10 @@ import { LiveMonitorService } from '../admin/live-monitor.service';
 import { StorageService } from '../kyc/storage.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { PushService } from '../notifications/push';
+import { OrgNotificationsService } from '../notifications/org-notifications';
 
 @Module({
   controllers: [OrganizerController, AdminEventsController, OrgTeamController, OrgRolesController, VipPassController],
-  providers: [OrganizerService, OrgTeamService, OrgAccessService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, GuestListService, LiveMonitorService, StorageService, InvoicesService, PushService],
+  providers: [OrganizerService, OrgTeamService, OrgAccessService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, GuestListService, LiveMonitorService, StorageService, InvoicesService, PushService, OrgNotificationsService],
 })
 export class OrganizerModule {}

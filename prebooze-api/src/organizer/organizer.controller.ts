@@ -12,6 +12,7 @@ import { StorageService } from '../kyc/storage.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { GuestListService } from '../admin/guestlist.service';
 import { PushService } from '../notifications/push';
+import { OrgNotificationsService } from '../notifications/org-notifications';
 
 type AuthedReq = { user: { sub: string; phone: string } };
 
@@ -24,6 +25,7 @@ export class OrganizerController {
     private invoices: InvoicesService,
     private orgAccess: OrgAccessService,
     private push: PushService,
+    private orgNotifications: OrgNotificationsService,
   ) {}
 
   @Get('me')
@@ -67,6 +69,26 @@ export class OrganizerController {
   unregisterPushToken(@Body() body: { token: string }) {
     if (!body?.token) throw new BadRequestException('token is required');
     return this.push.unregister(body.token);
+  }
+
+  @Get('notifications')
+  listNotifications(@Req() req: AuthedReq) {
+    return this.orgNotifications.list(req.user.sub);
+  }
+
+  @Get('notifications/unread-count')
+  async unreadNotificationCount(@Req() req: AuthedReq) {
+    return { count: await this.orgNotifications.unreadCount(req.user.sub) };
+  }
+
+  @Post('notifications/:id/read')
+  markNotificationRead(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.orgNotifications.markRead(req.user.sub, id);
+  }
+
+  @Post('notifications/read-all')
+  markAllNotificationsRead(@Req() req: AuthedReq) {
+    return this.orgNotifications.markAllRead(req.user.sub);
   }
 
   /** Real Featured billing history — same Invoice rows admin sees, filtered

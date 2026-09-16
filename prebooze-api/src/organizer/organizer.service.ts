@@ -7,6 +7,7 @@ import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { NotificationsService } from '../admin/notifications.service';
+import { OrgNotificationsService } from '../notifications/org-notifications';
 import { GuestListService } from '../admin/guestlist.service';
 import { LiveMonitorService } from '../admin/live-monitor.service';
 import { OrgAccessService } from './org-access.service';
@@ -72,6 +73,7 @@ export class OrganizerService {
     private wa: WhatsappService,
     private email: EmailService,
     private notifications: NotificationsService,
+    private orgNotifications: OrgNotificationsService,
     private guestListSvc: GuestListService,
     private liveMonitorSvc: LiveMonitorService,
     private orgAccess: OrgAccessService,
@@ -1011,18 +1013,24 @@ export class OrganizerService {
    * solo venue-hosted event (Event.hostedByVenue, no organizer) has no
    * Organizer row to look up at all — falls back to the venue's own
    * owning user in that case. */
-  private async notifyEventOwner(event: { organizerId: string | null; hostedByVenue: boolean; venueId: string | null }): Promise<{ email: string; name: string } | null> {
+  // `email` stays optional here on purpose — organizers sign up phone/OTP-
+  // first and often have no email set at all (User.email defaults to '').
+  // The old email-only version of this helper gated its whole return on a
+  // present email, which would have silently skipped the new push/in-app
+  // notify() call below for any organizer without one. userId is always
+  // real whenever a matching User row exists, so gate only on that.
+  private async notifyEventOwner(event: { organizerId: string | null; hostedByVenue: boolean; venueId: string | null }): Promise<{ userId: string; email: string; name: string } | null> {
     if (!event.organizerId) {
       if (!event.hostedByVenue || !event.venueId) return null;
       const venue = await this.prisma.venue.findUnique({ where: { id: event.venueId } });
       if (!venue?.userId) return null;
       const user = await this.prisma.user.findUnique({ where: { id: venue.userId } });
-      return user?.email ? { email: user.email, name: user.name } : null;
+      return user ? { userId: user.id, email: user.email, name: user.name } : null;
     }
     const org = await this.prisma.organizer.findUnique({ where: { id: event.organizerId } });
     if (!org?.userId) return null;
     const user = await this.prisma.user.findUnique({ where: { id: org.userId } });
-    return user?.email ? { email: user.email, name: user.name } : null;
+    return user ? { userId: user.id, email: user.email, name: user.name } : null;
   }
 
   async adminApprove(eventId: string) {
@@ -1031,9 +1039,12 @@ export class OrganizerService {
     const updated = await this.prisma.event.update({ where: { id: eventId }, data: { status: 'approved', rejectionReason: null } });
     const owner = await this.notifyEventOwner(event);
     if (owner) {
-      await this.email.sendTemplate(owner.email, 'event_approved', {
-        name: owner.name, eventTitle: updated.title, eventSlug: updated.slug,
-      }).catch(() => {});
+      if (owner.email) {
+        await this.email.sendTemplate(owner.email, 'event_approved', {
+          name: owner.name, eventTitle: updated.title, eventSlug: updated.slug,
+        }).catch(() => {});
+      }
+      await this.orgNotifications.notify(owner.userId, '✅', `"${updated.title}" was approved — it's live now`, '/events');
     }
     return updated;
   }
@@ -1044,12 +1055,15 @@ export class OrganizerService {
     const updated = await this.prisma.event.update({ where: { id: eventId }, data: { status: 'rejected', rejectionReason: reason ?? '' } });
     const owner = await this.notifyEventOwner(event);
     if (owner) {
-      const reasonBlock = reason
-        ? `<p style="background:rgba(255,107,94,.08);border:1px solid rgba(255,107,94,.25);border-radius:8px;padding:10px 12px;">${reason}</p>`
-        : '';
-      await this.email.sendTemplate(owner.email, 'event_rejected', {
-        name: owner.name, eventTitle: updated.title, reasonBlock,
-      }).catch(() => {});
+      if (owner.email) {
+        const reasonBlock = reason
+          ? `<p style="background:rgba(255,107,94,.08);border:1px solid rgba(255,107,94,.25);border-radius:8px;padding:10px 12px;">${reason}</p>`
+          : '';
+        await this.email.sendTemplate(owner.email, 'event_rejected', {
+          name: owner.name, eventTitle: updated.title, reasonBlock,
+        }).catch(() => {});
+      }
+      await this.orgNotifications.notify(owner.userId, '❌', `"${updated.title}" was rejected${reason ? ` — ${reason}` : ''}`, '/events');
     }
     return updated;
   }
