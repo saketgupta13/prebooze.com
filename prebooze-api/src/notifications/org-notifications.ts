@@ -56,4 +56,30 @@ export class OrgNotificationsService {
     await this.prisma.orgNotification.create({ data: { userId, icon, text, to } }).catch(() => {});
     await this.push.send(userId, `${icon} Prebooze`, text).catch(() => {});
   }
+
+  /** TEMPORARY, self-serve only — drops a handful of realistic example rows
+   * (one per notification "kind" this app will eventually raise) into the
+   * CALLING user's own inbox only, so they can see the range of what the
+   * panel looks like before every real trigger exists. Writes rows directly
+   * (skips push) so checking this out doesn't fire a burst of real phone
+   * notifications. Remove this method + its controller route once the
+   * organizer has looked — it's not a real feature, just a one-time way to
+   * preview the UI without a raw DB write. */
+  async seedDemo(userId: string): Promise<{ seeded: number }> {
+    const samples: { icon: string; text: string; to?: string; minutesAgo: number; read: boolean }[] = [
+      { icon: '✅', text: '"Rooftop Sundown Sessions" was approved — it\'s live now', to: '/events', minutesAgo: 5, read: false },
+      { icon: '❌', text: '"Warehouse Techno Night" was rejected — poster resolution too low, please re-upload', to: '/events', minutesAgo: 240, read: false },
+      { icon: '🎟️', text: 'New booking — 2 tickets sold for "Rooftop Sundown Sessions" (₹1,800)', to: '/bookings', minutesAgo: 30, read: false },
+      { icon: '💸', text: 'Payout of ₹12,045 was marked paid to your bank account', to: '/payouts', minutesAgo: 1440, read: true },
+      { icon: '⭐', text: 'New 5-star review on "Acoustic Sundowner"', to: '/reviews', minutesAgo: 2880, read: true },
+      { icon: '🛡️', text: 'Manager accepted your team invite and can now manage the door', to: '/team-roles', minutesAgo: 4320, read: true },
+    ];
+    await this.prisma.orgNotification.createMany({
+      data: samples.map((s) => ({
+        userId, icon: s.icon, text: s.text, to: s.to, read: s.read,
+        createdAt: new Date(Date.now() - s.minutesAgo * 60_000),
+      })),
+    });
+    return { seeded: samples.length };
+  }
 }
