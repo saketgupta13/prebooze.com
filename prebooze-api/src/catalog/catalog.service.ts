@@ -57,6 +57,10 @@ const PUBLIC_EVENT_SELECT = {
   socialBanners: true, salesPaused: true, posterUrl: true, galleryUrls: true, teaserVideoUrl: true,
   createdAt: true, updatedAt: true,
   tiers: true, venue: true, organizer: { select: PUBLIC_ORGANIZER_SELECT },
+  // Raw ids only here — resolved into real, linkable organizer objects by
+  // attachCollaborators() below, same "batch-resolve a denormalized id
+  // array" pattern as the admin directory's eventCities computation.
+  collaboratorOrganizerIds: true,
 } as const;
 
 @Injectable()
@@ -87,6 +91,22 @@ export class CatalogService {
     return new Map(rows.map((r) => [r.followeeKey, r._count]));
   }
 
+  /** Resolves each event's raw collaboratorOrganizerIds into real, public
+   * organizer objects (real registered co-organizers only — see
+   * Event.collaboratorOrganizerIds/OrganizerService.saveEvent, which is
+   * the actual enforcement point; every id here is guaranteed to resolve).
+   * A single batch query regardless of how many events are passed in. */
+  private async attachCollaborators<T extends { collaboratorOrganizerIds: string[] }>(events: T[]) {
+    type PublicOrganizer = Awaited<ReturnType<typeof this.prisma.organizer.findFirstOrThrow<{ select: typeof PUBLIC_ORGANIZER_SELECT }>>>;
+    const ids = [...new Set(events.flatMap((e) => e.collaboratorOrganizerIds))];
+    const byId = new Map<string, PublicOrganizer>();
+    if (ids.length) {
+      const rows = await this.prisma.organizer.findMany({ where: { id: { in: ids } }, select: PUBLIC_ORGANIZER_SELECT });
+      for (const o of rows) byId.set(o.id, o);
+    }
+    return events.map((e) => ({ ...e, collaborators: e.collaboratorOrganizerIds.map((id) => byId.get(id)).filter((o): o is PublicOrganizer => !!o) }));
+  }
+
   /** An event is "over" once its window (date → date + durationHrs) has
    * fully elapsed — same definition Admin API's dashboard "live now" stat
    * uses. Filtered in application code, not the Prisma `where`, since the
@@ -100,11 +120,18 @@ export class CatalogService {
     const events = await this.prisma.event.findMany({
       where: {
         status: 'approved',
-        ...(q.city ? { OR: [{ venue: { city: q.city } }, { privateCity: q.city }] } : {}),
+        // city and organizerId each need their own OR clause (venue-city-or-
+        // privateCity; owner-or-collaborator) — combined via AND rather than
+        // both spreading a same-named `OR` key into one object, which would
+        // silently let the second overwrite the first if both are ever
+        // passed together.
+        AND: [
+          ...(q.city ? [{ OR: [{ venue: { city: q.city } }, { privateCity: q.city }] }] : []),
+          ...(q.organizerId ? [{ OR: [{ organizerId: q.organizerId }, { collaboratorOrganizerIds: { has: q.organizerId } }] }] : []),
+        ],
         ...(q.cat ? { category: q.cat } : {}),
         ...(q.sub ? { subCategory: q.sub } : {}),
         ...(q.search ? { title: { contains: q.search, mode: 'insensitive' } } : {}),
-        ...(q.organizerId ? { organizerId: q.organizerId } : {}),
         ...(q.venueId ? { venueId: q.venueId } : {}),
       },
       select: PUBLIC_EVENT_SELECT,
@@ -134,7 +161,7 @@ export class CatalogService {
       const featured = await this.activeFeaturedRefs('event', q.city);
       sorted = this.sortFeaturedFirst(sorted, (e) => e.id, featured);
     }
-    return sorted;
+    return this.attachCollaborators(sorted);
   }
 
   /** Deliberately doesn't gate on isEventOver — a past event's own detail
@@ -155,7 +182,8 @@ export class CatalogService {
       throw new NotFoundException('Event not found');
     }
     const recentActivity = await this.recentBookingActivity(event.id);
-    return { ...event, recentActivity };
+    const [withCollaborators] = await this.attachCollaborators([event]);
+    return { ...withCollaborators, recentActivity };
   }
 
   /** Real recency signal for the event page ("3 booked today") — tries a

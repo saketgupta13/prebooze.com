@@ -550,7 +550,13 @@ export const organizer = {
     conditions?: string[]; rules?: unknown; lineup?: unknown; seo?: unknown; promoterConfig?: unknown;
     posterUrl?: string | null; galleryUrls?: string[]; teaserVideoUrl?: string | null; socialBanners?: { postUrl?: string; storyUrl?: string };
     tiers?: { id?: string; name: string; price: number; quantity: number; includes?: string[]; description?: string }[];
+    collaboratorOrganizerIds?: string[];
   }) => apiFetch<Event>('/organizer/events', { body: e }),
+  // Real, registered organizers this organizer can tag as a co-organizer —
+  // not gated on `verified`, unlike venuePartner.collaboratorOptions below
+  // (that one's a lighter, read-only credit; this one grants full access,
+  // but the bar decided for it was "registered", not "verified").
+  collaboratorOptions: () => apiFetch<VenueCollaboratorOption[]>('/organizer/collaborator-options'),
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),
   bookings: () => apiFetch<OrgBooking[]>('/organizer/bookings'),
   marketing: marketingApi('/organizer/marketing'),

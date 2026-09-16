@@ -91,6 +91,17 @@ export class OrganizerController {
     return this.orgNotifications.markAllRead(req.user.sub);
   }
 
+  @Get('notification-prefs')
+  getNotificationPrefs(@Req() req: AuthedReq) {
+    return this.orgNotifications.getPrefs(req.user.sub);
+  }
+
+  @Patch('notification-prefs')
+  setNotificationPrefs(@Req() req: AuthedReq, @Body('enabled') enabled: boolean) {
+    if (typeof enabled !== 'boolean') throw new BadRequestException('enabled must be a boolean');
+    return this.orgNotifications.setPrefs(req.user.sub, enabled);
+  }
+
   /** Real Featured billing history — same Invoice rows admin sees, filtered
    * to this organizer's own phone number (see InvoicesService.mine).
    * Owner-only: billing/invoices don't map onto any team-role permission
@@ -117,6 +128,11 @@ export class OrganizerController {
   @Get('events')
   events(@Req() req: AuthedReq) {
     return this.organizer.events(req.user.sub);
+  }
+
+  @Get('collaborator-options')
+  collaboratorOptions(@Req() req: AuthedReq) {
+    return this.organizer.collaboratorOptions(req.user.sub);
   }
 
   @Post('events')

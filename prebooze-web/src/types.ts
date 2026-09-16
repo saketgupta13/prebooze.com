@@ -52,6 +52,14 @@ export interface Event {
   // hosting solo (hostedByVenue true, no collaborating organizer picked).
   // Still always set for every event created the normal organizer way.
   organizerId?: string | null;
+  // Real, registered co-organizers — raw ids (organizer-console reads of an
+  // event this org owns or collaborates on) and/or resolved public objects
+  // (guest-facing reads, for the "in collaboration with" link). Never both
+  // populated from the same fetch; check whichever one the calling
+  // endpoint actually returns. A collaborator gets full access to this one
+  // event only — see OrganizerService.canAccessEvent.
+  collaboratorOrganizerIds?: string[];
+  collaborators?: Organizer[];
   // true = venue is the actual host/owner of this event (see venueId),
   // not just a booked location an organizer picked. Absent/false for
   // every event created the normal organizer way.

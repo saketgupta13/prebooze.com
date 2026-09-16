@@ -58,6 +58,14 @@ export interface EventInput {
   socialBanners?: unknown;
   posterUrl?: string | null;
   tiers?: TierInput[];
+  // Real, registered co-organizers on this event — Organizer.id strings
+  // only, resolved via search-and-select in the wizard, never free text.
+  // Validated against the real Organizer table in saveEvent() below; an
+  // id that doesn't resolve to a real row is rejected outright, which is
+  // what actually enforces "both orgs must be registered" (there's no
+  // fallback to a name-only credit). Omitting this on an edit leaves the
+  // existing list untouched, same convention as tags/conditions.
+  collaboratorOrganizerIds?: string[];
 }
 
 function slugifyBase(s: string): string {
@@ -95,7 +103,7 @@ export class OrganizerService {
   private async myEvent(userId: string, eventId: string) {
     const org = await this.myOrganizer(userId);
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
-    if (!event || event.organizerId !== org.id) throw new ForbiddenException("Not your event");
+    if (!event || !this.canAccessEvent(event, org.id)) throw new ForbiddenException("Not your event");
     return event;
   }
 
@@ -233,6 +241,19 @@ export class OrganizerService {
     return (await this.orgAccess.resolve(userId)).org;
   }
 
+  /** A tagged collaborator (Event.collaboratorOrganizerIds) gets full
+   * access to THIS event — same as the real owner — everywhere this is
+   * used: the events list, gate ops (guest list/live monitor/check-in/
+   * promoter guests via myEvent), attendees, bookings, abandoned carts.
+   * Deliberately never widens account-wide surfaces (payouts/ledger
+   * balance, coupons, payment profiles) — a collaborator sees this
+   * event's own numbers (tiers.sold, Event.commission, this event's
+   * bookings/attendees), never the creator's other events or their
+   * withdrawable balance. */
+  private canAccessEvent(event: { organizerId: string | null; collaboratorOrganizerIds: string[] }, orgId: string): boolean {
+    return event.organizerId === orgId || event.collaboratorOrganizerIds.includes(orgId);
+  }
+
   private async uniqueSlug(base: string) {
     let candidate = base;
     let n = 1;
@@ -245,8 +266,10 @@ export class OrganizerService {
   // ---------- events ----------
   async events(userId: string) {
     const org = await this.orgAccess.require(userId, 'Events & wizard', 'view');
+    // Includes events this organizer is a tagged collaborator on, not just
+    // their own — same full access as the owner (see canAccessEvent).
     return this.prisma.event.findMany({
-      where: { organizerId: org.id },
+      where: { OR: [{ organizerId: org.id }, { collaboratorOrganizerIds: { has: org.id } }] },
       include: { tiers: true, venue: true },
       orderBy: { createdAt: 'desc' },
     });
@@ -313,6 +336,28 @@ export class OrganizerService {
       throw new BadRequestException('Pick a venue, or set both a city and locality for a private-address event');
     }
 
+    // Real, registered co-organizers only — this is the actual enforcement
+    // point for "both orgs must be registered." Every id must resolve to a
+    // real Organizer row, or the whole save is rejected (no silent drop,
+    // no fallback to a name-only credit). Deduped and never includes the
+    // event's own organizerId. Omitting the field on an edit leaves the
+    // existing list untouched, same merge convention as everything else
+    // here.
+    let collaboratorOrganizerIds: string[];
+    if (input.collaboratorOrganizerIds !== undefined) {
+      const ids = [...new Set(input.collaboratorOrganizerIds.filter((id) => id && id !== organizerId))];
+      if (ids.length) {
+        const found = await this.prisma.organizer.findMany({ where: { id: { in: ids } }, select: { id: true } });
+        if (found.length !== ids.length) {
+          const missing = ids.filter((id) => !found.some((f) => f.id === id));
+          throw new BadRequestException(`Unknown organizer(s): ${missing.join(', ')}`);
+        }
+      }
+      collaboratorOrganizerIds = ids;
+    } else {
+      collaboratorOrganizerIds = existing?.collaboratorOrganizerIds ?? [];
+    }
+
     // An edit is a merge onto the existing row, not a wholesale replace —
     // fields the client didn't send (e.g. a quick "approve my draft" resend
     // that only touches status) must not wipe out what's already saved.
@@ -329,6 +374,7 @@ export class OrganizerService {
       privateCity,
       privateLocality,
       organizerId,
+      collaboratorOrganizerIds,
       status: status as never,
       conditions: input.conditions ?? existing?.conditions ?? [],
       rules: (input.rules ?? existing?.rules ?? []) as Prisma.InputJsonValue,
@@ -362,13 +408,38 @@ export class OrganizerService {
     return this.prisma.event.findUniqueOrThrow({ where: { id: eventId }, include: { tiers: true, venue: true } });
   }
 
+  /** Real, registered organizers this organizer can tag as a co-organizer —
+   * any real Organizer row, not gated on `verified` (the venue side's own
+   * collaboratorOptions() restricts to verified organizers for a lighter,
+   * read-only credit with "no consent needed"; the bar decided for this
+   * full-access feature was "registered", not "verified" — deliberately
+   * not the stricter check). Excludes the caller's own organizer — never
+   * useful to collaborate with yourself, and saveEvent() strips it anyway
+   * if it slipped through. */
+  async collaboratorOptions(userId: string) {
+    const org = await this.myOrganizer(userId);
+    return this.prisma.organizer.findMany({
+      where: { id: { not: org.id } },
+      select: { id: true, brandName: true, username: true, city: true },
+      orderBy: { brandName: 'asc' },
+    });
+  }
+
   async upsertEvent(userId: string, input: EventInput) {
     const org = await this.orgAccess.require(userId, 'Events & wizard', 'edit');
-    if (input.id) {
-      const existing = await this.prisma.event.findUnique({ where: { id: input.id } });
-      if (existing && existing.organizerId !== org.id) throw new ForbiddenException();
-    }
-    return this.saveEvent(org.id, org.brandName, input);
+    if (!input.id) return this.saveEvent(org.id, org.brandName, input);
+
+    const existing = await this.prisma.event.findUnique({ where: { id: input.id } });
+    if (!existing) throw new NotFoundException('Event not found');
+    if (!this.canAccessEvent(existing, org.id)) throw new ForbiddenException();
+    if (existing.organizerId === org.id) return this.saveEvent(org.id, org.brandName, input);
+
+    // A collaborator editing this event must never reassign ownership to
+    // themselves via this path — saveEvent's first param sets
+    // Event.organizerId unconditionally on save, so the TRUE owner's id
+    // (not the caller's) is what gets passed through here.
+    const owner = existing.organizerId ? await this.prisma.organizer.findUnique({ where: { id: existing.organizerId } }) : null;
+    return this.saveEvent(existing.organizerId, owner?.brandName ?? 'the organizer', input);
   }
 
   /** Admin "god mode" create/edit — closes the gap left by slice 3's
@@ -465,7 +536,7 @@ export class OrganizerService {
     const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'view');
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    if (event.organizerId !== org.id) throw new ForbiddenException();
+    if (!this.canAccessEvent(event, org.id)) throw new ForbiddenException();
 
     const bookings = await this.prisma.booking.findMany({
       where: { eventId },
@@ -542,7 +613,7 @@ export class OrganizerService {
   async bookings(userId: string) {
     const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'view');
     return this.prisma.booking.findMany({
-      where: { event: { organizerId: org.id } },
+      where: { event: { OR: [{ organizerId: org.id }, { collaboratorOrganizerIds: { has: org.id } }] } },
       select: {
         id: true, mainGuest: true, whatsapp: true, tierName: true, qty: true, total: true, status: true, checkedIn: true, createdAt: true,
         event: { select: { id: true, title: true, date: true, durationHrs: true } },
@@ -948,7 +1019,9 @@ export class OrganizerService {
    * by a background job (there's no cron infra yet — see BACKEND.md). */
   async carts(userId: string) {
     const org = await this.orgAccess.require(userId, 'Events & wizard', 'view');
-    const eventIds = (await this.prisma.event.findMany({ where: { organizerId: org.id }, select: { id: true } })).map((e) => e.id);
+    const eventIds = (
+      await this.prisma.event.findMany({ where: { OR: [{ organizerId: org.id }, { collaboratorOrganizerIds: { has: org.id } }] }, select: { id: true } })
+    ).map((e) => e.id);
     if (!eventIds.length) return [];
 
     const cutoff = new Date(Date.now() - HOLD_TTL_MS);
@@ -1119,7 +1192,7 @@ export class OrganizerService {
     const org = await this.orgAccess.require(userId, 'Events & wizard', 'edit');
     const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: { include: { venue: true } } } });
     if (!cart) throw new NotFoundException('Cart not found');
-    if (cart.event.organizerId !== org.id) throw new ForbiddenException();
+    if (!this.canAccessEvent(cart.event, org.id)) throw new ForbiddenException();
 
     await this.prisma.cart.update({ where: { id }, data: { remindedAt: new Date() } });
     const city = cart.event.venue?.city ?? cart.event.privateCity;

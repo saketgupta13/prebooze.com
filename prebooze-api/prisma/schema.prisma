@@ -826,6 +826,22 @@ model Event {
   // hostedByVenue is true if the venue picked a collaborating organizer.
   organizerId         String?
   organizer           Organizer?                @relation(fields: [organizerId], references: [id])
+  // Real registered co-organizers on this event — deliberately just a list
+  // of Organizer.id strings (not a relation table), same pattern as
+  // Event.tags/conditions. Populated only via a search-and-select of the
+  // real organizer roster (never free text), which is what actually
+  // enforces "both orgs must be registered" — there is no code path that
+  // accepts an unregistered name here. A tagged collaborator gets full
+  // visibility/control over THIS event only (bookings, attendees, revenue,
+  // commission) via OrgAccessService — never the creator's other events,
+  // dashboard, or withdraw ability (withdrawal draws from the creator's
+  // own account-wide ledger balance, which stays untouched). No revenue
+  // split happens in Prebooze — payouts still go to the creator's own
+  // PaymentProfile only; splitting is between the two orgs, outside the
+  // platform. The event creator (organizerId above) remains the sole
+  // owner of record for liability (refunds, cancellations, compliance)
+  // regardless of collaborator access.
+  collaboratorOrganizerIds String[]             @default([])
   // true = venueId is the actual host/owner of this event (via
   // VenueService), not just a location an organizer booked. Determines
   // which ledger gets credited and who the public "hosted by" line

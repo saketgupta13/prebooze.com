@@ -10,7 +10,7 @@ import Accordion from '../../components/Accordion';
 import WysiwygEditor from '../../components/WysiwygEditor';
 import SearchableSelect from '../../components/SearchableSelect';
 import { RealUploadBox, RealGalleryUploadBox, RealVideoUploadBox } from '../../components/RealUploadBox';
-import { organizer, catalog } from '../../api';
+import { organizer, catalog, type VenueCollaboratorOption } from '../../api';
 import { ApiError } from '../../api/client';
 import { stripHtml } from '../../lib/richtext';
 import {
@@ -65,6 +65,8 @@ export default function CreateEvent() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [lineups, setLineups] = useState<LineupProfile[]>([]);
   const [promoters, setPromoters] = useState<PromoterProfile[]>([]);
+  const [collaboratorOptions, setCollaboratorOptions] = useState<VenueCollaboratorOption[]>([]);
+  const [collaboratorSel, setCollaboratorSel] = useState<string[]>([]);
   const [editing, setEditing] = useState<Event | undefined>(undefined);
 
   // Step 1 — basics
@@ -169,14 +171,17 @@ export default function CreateEvent() {
       catalog.promoters(),
       catalog.categories(),
       catalog.cities(),
+      organizer.collaboratorOptions().catch(() => [] as VenueCollaboratorOption[]),
       editId ? organizer.events().then((evs) => evs.find((e) => e.id === editId)) : Promise.resolve(undefined),
     ])
-      .then(([vs, ls, ps, cats, cities, ev]) => {
+      .then(([vs, ls, ps, cats, cities, collabs, ev]) => {
         setVenues(vs);
         setLineups(ls);
         setPromoters(ps);
         setCategories(cats);
         setLiveCities(cities.map((c) => c.name).sort());
+        setCollaboratorOptions(collabs);
+        if (ev) setCollaboratorSel(ev.collaboratorOrganizerIds ?? []);
         const subsForCat = (cat: string) => cats.find((c) => c.name === cat)?.subs ?? [];
         if (!ev) setSubCategory(subsForCat(category)[0] ?? '');
         if (ev) {
@@ -283,6 +288,7 @@ export default function CreateEvent() {
     conditions: conditions.split('\n').filter(Boolean),
     rules: rules.filter((r) => r.title.trim() || r.body.trim()),
     lineup: lineupSel,
+    collaboratorOrganizerIds: collaboratorSel,
     posterUrl,
     galleryUrls,
     teaserVideoUrl,
@@ -913,6 +919,44 @@ export default function CreateEvent() {
                     {l.name} ({l.role}) <X size={11} />
                   </button>
                 ))}
+              </div>
+            )}
+          </div>
+          <div className="field">
+            <span>Co-organizers — pick from registered Prebooze organizers only</span>
+            <SearchableSelect
+              value=""
+              onChange={(name) => {
+                const c = collaboratorOptions.find((x) => x.brandName === name);
+                if (!c || collaboratorSel.includes(c.id)) return;
+                setCollaboratorSel((prev) => [...prev, c.id]);
+              }}
+              options={collaboratorOptions.filter((c) => !collaboratorSel.includes(c.id)).map((c) => c.brandName)}
+              placeholder="search organizers to add as a co-host…"
+              icon
+            />
+            <div className="tiny muted-2" style={{ margin: '8px 0' }}>
+              A tagged co-organizer gets full access to this event — bookings, attendees, revenue, and commission — and it
+              shows on both your public profiles. Not registered on Prebooze yet? They can't be tagged; mention them in the
+              description instead.
+            </div>
+            {collaboratorSel.length > 0 && (
+              <div className="chip-row">
+                {collaboratorSel.map((id) => {
+                  const c = collaboratorOptions.find((x) => x.id === id);
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      className="chip on"
+                      onClick={() => setCollaboratorSel((prev) => prev.filter((x) => x !== id))}
+                      title="Remove co-organizer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                    >
+                      {c?.brandName ?? id} <X size={11} />
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -369,6 +369,33 @@ export default function EventDetail() {
                     </Link>
                   )}
 
+                  {/* Real, registered co-organizers (Event.collaboratorOrganizerIds)
+                      — a full-access collaboration, distinct from the
+                      hostedByVenue single-collaborator case above. One
+                      linked card per co-organizer, same treatment as the
+                      primary organizer's own card. */}
+                  {(event.collaborators ?? []).map((c) => (
+                    <Link
+                      key={c.id}
+                      to={organizerPath(c.city, c.id)}
+                      className="evrow"
+                      style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
+                    >
+                      {c.logoUrl ? (
+                        <img src={c.logoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
+                      ) : (
+                        <span className="avatar"><Headphones size={20} /></span>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="tiny muted-2">In collaboration with</div>
+                        <div className="bold small">
+                          {c.brandName} {c.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span>}
+                        </div>
+                      </div>
+                      <span className="link small">View →</span>
+                    </Link>
+                  ))}
+
                   {venue ? (
                     <Link
                       to={venuePath(venue.city, venue.id)}
