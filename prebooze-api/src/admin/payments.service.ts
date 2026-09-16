@@ -55,6 +55,21 @@ export class PaymentsService {
     });
     const revMap = new Map(revenueByEvent.map((r) => [r.eventId, r._sum.subtotal ?? 0]));
 
+    // Real-picture fix (2026-09-17, round 2): a payee who has already filed
+    // a self-serve withdrawal request that admin hasn't marked paid yet
+    // shouldn't also show up here — that's the exact "two screens for the
+    // same money" confusion this whole fix was about. Once their open
+    // request is resolved (see markWithdrawalPaid), any of their events
+    // still genuinely due reappear here normally.
+    const [openOrgWithdrawals, openVenueWithdrawals] = await Promise.all([
+      this.prisma.organizerLedgerTx.findMany({ where: { type: 'withdrawal', withdrawalPaidOut: false }, select: { organizerId: true } }),
+      this.prisma.venueLedgerTx.findMany({ where: { type: 'withdrawal', withdrawalPaidOut: false }, select: { venueId: true } }),
+    ]);
+    const openWithdrawalPayees = new Set<string>([
+      ...openOrgWithdrawals.map((r) => `organizer:${r.organizerId}`),
+      ...openVenueWithdrawals.map((r) => `venue:${r.venueId}`),
+    ]);
+
     // Prebooze isn't GST-registered, so nothing is withheld from an
     // organizer's payout beyond its own commission — `net` here is exactly
     // what OrganizerLedgerTx already credits them (see BookingsService),
@@ -95,7 +110,13 @@ export class PaymentsService {
     // total "due" at their real current ledger balance (which already nets
     // out any self-serve withdrawal) is what makes this figure trustworthy
     // — it can now never overstate what's genuinely still uncollected.
-    const due = rows.filter((r) => !r.paidOut);
+    // Rows for a payee with an open withdrawal request are hidden from the
+    // list outright (not just excluded from the total) — see the fetch
+    // above. A row that's already paidOut, or has no payee at all, is
+    // always visible regardless.
+    const visibleRows = rows.filter((r) => r.paidOut || !r.payeeType || !r.payeeId || !openWithdrawalPayees.has(`${r.payeeType}:${r.payeeId}`));
+
+    const due = visibleRows.filter((r) => !r.paidOut);
     const payeeKeys = [...new Set(due.filter((r) => r.payeeType && r.payeeId).map((r) => `${r.payeeType}:${r.payeeId}`))];
     const balanceByPayee = new Map<string, number>();
     await Promise.all(payeeKeys.map(async (key) => {
@@ -111,7 +132,7 @@ export class PaymentsService {
     const realDueByPayee = new Map<string, number>();
     for (const [key, naive] of naiveDueByPayee) realDueByPayee.set(key, Math.max(0, Math.min(naive, balanceByPayee.get(key) ?? 0)));
 
-    const rowsWithRealDue = rows.map((r) => {
+    const rowsWithRealDue = visibleRows.map((r) => {
       if (r.paidOut || !r.payeeType || !r.payeeId) return { ...r, payeeBalance: null as number | null };
       return { ...r, payeeBalance: balanceByPayee.get(`${r.payeeType}:${r.payeeId}`) ?? 0 };
     });

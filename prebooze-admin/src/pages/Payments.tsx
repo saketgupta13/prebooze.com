@@ -273,7 +273,7 @@ export default function Payments() {
             const detailsKey = `${w.payeeType}:${w.payeeId}`;
             const detailsOpen = bankDetailsOpen === detailsKey;
             return (
-            <div key={w.id} className="trow" style={{ minWidth: 700, flexWrap: detailsOpen || payingId === w.id ? 'wrap' : undefined }}>
+            <div key={w.id} className="trow" style={{ minWidth: 700, flexWrap: detailsOpen || payingId === w.id || (w.paidOut && !!w.paidUtr) ? 'wrap' : undefined }}>
               <span style={{ flex: 1.4, fontWeight: 700 }}>
                 <button
                   type="button"
