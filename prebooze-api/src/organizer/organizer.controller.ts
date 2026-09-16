@@ -11,6 +11,7 @@ import { RequirePermission } from '../admin/permission.decorator';
 import { StorageService } from '../kyc/storage.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { GuestListService } from '../admin/guestlist.service';
+import { PushService } from '../notifications/push';
 
 type AuthedReq = { user: { sub: string; phone: string } };
 
@@ -22,6 +23,7 @@ export class OrganizerController {
     private storage: StorageService,
     private invoices: InvoicesService,
     private orgAccess: OrgAccessService,
+    private push: PushService,
   ) {}
 
   @Get('me')
@@ -46,6 +48,25 @@ export class OrganizerController {
   @Patch('me')
   updateMe(@Req() req: AuthedReq, @Body() body: Parameters<OrganizerService['updateMe']>[1]) {
     return this.organizer.updateMe(req.user.sub, body);
+  }
+
+  /** Registers/refreshes this device's Expo push token against the logged-in
+   * user — no organizer/permission check needed beyond being authenticated,
+   * same as `me`. Upsert-by-token so re-registering (app relaunch, token
+   * refresh, or a different account logging into the same physical device)
+   * is always a safe no-op/reassignment rather than growing duplicate rows. */
+  @Post('push-token')
+  registerPushToken(@Req() req: AuthedReq, @Body() body: { token: string; platform: string }) {
+    if (!body?.token || !body?.platform) throw new BadRequestException('token and platform are required');
+    return this.push.register(req.user.sub, body.token, body.platform);
+  }
+
+  /** Called on logout so a signed-out device stops receiving this account's
+   * pushes if a different person logs into the same phone next. */
+  @Delete('push-token')
+  unregisterPushToken(@Body() body: { token: string }) {
+    if (!body?.token) throw new BadRequestException('token is required');
+    return this.push.unregister(body.token);
   }
 
   /** Real Featured billing history — same Invoice rows admin sees, filtered

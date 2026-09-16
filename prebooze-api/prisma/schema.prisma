@@ -157,6 +157,7 @@ model User {
   helpTickets         HelpTicket[]
   orgStaffMemberships   OrgStaff[] // organizer team invites this phone has accepted (possibly more than one org)
   venueStaffMemberships VenueStaff[] // venue hosting-team invites this phone has accepted (possibly more than one venue)
+  pushTokens            PushToken[] // one row per device — a user can be logged into more than one phone
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -184,6 +185,26 @@ model KycSubmission {
   reviewedAt DateTime?
 
   createdAt DateTime @default(now())
+}
+
+// One row per device (Expo push token), not per user — the same phone can
+// switch accounts (token reassigned to the new user on re-register) and the
+// same user can be logged into more than one device at once. `token` is
+// globally unique so a re-registration from a different account on the same
+// physical device just reassigns the row instead of leaving a stale
+// duplicate pointing at the old owner. Currently only the organizer app
+// registers these (see OrganizerController.registerPushToken) — kept
+// generic/role-agnostic here rather than under the Organizer model so any
+// other role's app can reuse it later without a schema change.
+model PushToken {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  token    String @unique // Expo push token, e.g. "ExponentPushToken[xxxx]"
+  platform String // ios | android
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ============================================================================
