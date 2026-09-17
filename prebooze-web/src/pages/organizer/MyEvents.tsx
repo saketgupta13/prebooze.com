@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { FEATURED_PRICING, fmtDate, venueById } from '../../data/mock';
+import { FEATURED_PRICING, fmtDate, isEventOver, venueById } from '../../data/mock';
 import { findFeatured } from '../../lib/featured';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
@@ -20,12 +20,20 @@ const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'draft', label: 'Drafts' },
 ];
 
-const STATUS_BADGE: Record<EventStatus, { cls: string; label: ReactNode }> = {
-  approved: { cls: 'badge-ok', label: <>Approved <CheckCircle2 size={11} /> · Live</> },
+// 'approved' is a function, not a static entry — the same event stays
+// "Approved" forever, but whether it's actually still Live depends on
+// whether it's already happened (date + durationHrs), same isEventOver
+// check already used by Bookings.tsx/Dashboard.tsx/Scanner.tsx. Without
+// this, a past-dated approved event showed "Live" weeks after it ended.
+const STATUS_BADGE: Record<Exclude<EventStatus, 'approved'>, { cls: string; label: ReactNode }> = {
   pending: { cls: 'badge-pending', label: 'Pending review ◌' },
   rejected: { cls: 'badge-danger', label: <>Rejected <X size={11} /></> },
   draft: { cls: 'badge-outline', label: 'Draft' },
 };
+const approvedBadge = (e: Event) => ({
+  cls: 'badge-ok',
+  label: isEventOver(e) ? <>Approved <CheckCircle2 size={11} /> · Ended</> : <>Approved <CheckCircle2 size={11} /> · Live</>,
+});
 
 /** Real event list (GET /organizer/events) — commission is admin-set and
  * read-only (see BACKEND.md), so an honest display needs real data, not the
@@ -63,10 +71,9 @@ export default function MyEvents() {
     toast(`Payment of ₹${FEATURED_PRICING.perEvent.toLocaleString('en-IN')} received — "${e.title}" sent for featured review ✓`);
   };
 
-  const now = Date.now();
   const byStatus = tab === 'all' ? events : events.filter((e) => e.status === tab);
   const list = byStatus
-    .filter((e) => (scope === 'upcoming' ? new Date(e.date).getTime() >= now : new Date(e.date).getTime() < now))
+    .filter((e) => (scope === 'upcoming' ? !isEventOver(e) : isEventOver(e)))
     .sort((a, b) => (scope === 'upcoming' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date)));
 
   return (
@@ -102,7 +109,7 @@ export default function MyEvents() {
           {list.map((e) => {
             const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
             const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
-            const badge = STATUS_BADGE[e.status];
+            const badge = e.status === 'approved' ? approvedBadge(e) : STATUS_BADGE[e.status];
             const feat = findFeatured(featured, 'event', e.id);
             return (
               <div key={e.id} className="ecard" style={{ position: 'relative' }}>
