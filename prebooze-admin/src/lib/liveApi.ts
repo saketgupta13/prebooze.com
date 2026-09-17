@@ -266,6 +266,12 @@ export interface LiveEvent {
   venue: { id: string; name: string; city: string } | null;
   organizer: { id: string; brandName: string } | null;
   tiers: LiveTicketTier[];
+  // Real, registered co-organizers — full access to this one event (bookings,
+  // attendees, revenue, commission), shown on both public profiles, no
+  // revenue split. Always real Organizer ids, never free text. Only ever
+  // set by OrganizerService.saveEvent, shared by both the organizer's own
+  // upsertEvent and this admin editor.
+  collaboratorOrganizerIds?: string[];
 }
 export interface LiveEventInput {
   id?: string;
@@ -295,6 +301,7 @@ export interface LiveEventInput {
   teaserVideoUrl?: string | null;
   socialBanners?: { postUrl?: string; storyUrl?: string };
   tiers?: { id?: string; name: string; price: number; quantity: number; description?: string; includes?: string[]; coverCharge?: number; coverChargeNote?: string; freeCutoff?: string; lateFeePrice?: number }[];
+  collaboratorOrganizerIds?: string[];
 }
 export const liveEvents = {
   list: (status?: string) => liveFetch<LiveEvent[]>('/admin/events' + (status ? `?status=${status}` : '')),

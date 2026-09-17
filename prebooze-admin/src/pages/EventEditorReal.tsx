@@ -90,6 +90,7 @@ export default function EventEditorReal() {
   const [privateLoc, setPrivateLoc] = useState({ country: 'India', state: '', city: '' });
   const [privateLocality, setPrivateLocality] = useState('');
   const [organizerId, setOrganizerId] = useState('');
+  const [collaboratorIds, setCollaboratorIds] = useState<string[]>([]);
   const [dateTime, setDateTime] = useState('');
   const [durationHrs, setDurationHrs] = useState('4');
   const [ageLimit, setAgeLimit] = useState('18+');
@@ -159,6 +160,7 @@ export default function EventEditorReal() {
                 setPrivateLocality(found.privateLocality ?? '');
               }
               setOrganizerId(found.organizerId ?? '');
+              setCollaboratorIds(found.collaboratorOrganizerIds ?? []);
               setDateTime(found.date ? toLocalDateTimeInput(found.date) : '');
               setDurationHrs(String(found.durationHrs ?? 4));
               setAgeLimit(found.ageLimit ?? '18+');
@@ -218,6 +220,7 @@ export default function EventEditorReal() {
 
   const buildInput = (): Omit<LiveEventInput, 'id'> => ({
     organizerId: organizerId || undefined,
+    collaboratorOrganizerIds: collaboratorIds,
     title: title.trim(),
     description,
     category,
@@ -473,6 +476,16 @@ export default function EventEditorReal() {
               selectedId={organizerId}
               onChange={setOrganizerId}
               placeholder="Search organizers…"
+            />
+          </div>
+          <div className="field">
+            <label>Co-organizers — full access to this event, shown on both public profiles, no revenue split</label>
+            <MultiSelectSearch
+              placeholder="Search registered organizers…"
+              emptyHint="No other organizers registered yet."
+              items={organizers.filter((o) => o.id !== organizerId).map((o) => ({ id: o.id, label: o.brandName, sub: o.city }))}
+              selectedIds={collaboratorIds}
+              onChange={setCollaboratorIds}
             />
           </div>
           <div className="field">
