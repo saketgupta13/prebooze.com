@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type AuthStackParamList = {
   PhoneEntry: undefined;
   OtpEntry: { phone: string; requestId: string; devCode?: string; existingName?: string };
@@ -5,12 +7,16 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Dashboard: undefined;
-  Events: undefined;
+  // NavigatorScreenParams (not plain `undefined`) lets a caller elsewhere in
+  // the app — e.g. NotificationsScreen's tap-to-navigate — target a specific
+  // nested screen inside this tab's own stack in one typed call, instead of
+  // only being able to land on the tab's root screen.
+  Events: NavigatorScreenParams<EventsStackParamList> | undefined;
   Scan: undefined;
   // Optional eventId — Dashboard's "Attendees →" row deep-links into a
   // single event's booking list, mirroring web's `/organizer/bookings?event=`.
   Bookings: { eventId?: string } | undefined;
-  More: undefined;
+  More: NavigatorScreenParams<MoreStackParamList> | undefined;
 };
 
 // Each of these nests inside its own MainTabParamList tab (see MainTabs.tsx)

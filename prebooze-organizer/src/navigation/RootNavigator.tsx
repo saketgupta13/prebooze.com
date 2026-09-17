@@ -7,6 +7,7 @@ import OtpEntryScreen from '../screens/auth/OtpEntryScreen';
 import { NotOrganizerScreen, PendingReviewScreen, RejectedReviewScreen } from '../screens/auth/StatusScreens';
 import MainTabs from './MainTabs';
 import { colors } from '../theme/tokens';
+import { navigationRef } from './navigationRef';
 import type { AuthStackParamList } from './types';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -31,7 +32,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       {accessState.kind === 'owner' || accessState.kind === 'team' ? (
         <MainTabs />
       ) : accessState.kind === 'pending' ? (

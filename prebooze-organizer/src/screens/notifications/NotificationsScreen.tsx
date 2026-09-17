@@ -1,15 +1,22 @@
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Banknote, CheckCircle2, ShieldCheck, Star, Ticket, XCircle, ArrowLeft, X, type LucideIcon } from 'lucide-react-native';
 import { notifications } from '../../api/notifications';
 import { ApiError } from '../../api/client';
 import { Card, H1, IconButton, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { timeAgo } from '../../lib/format';
-import type { DashboardStackParamList } from '../../navigation/types';
+import { navigateToNotificationTarget } from '../../lib/notificationNav';
+import type { DashboardStackParamList, MainTabParamList } from '../../navigation/types';
 import type { OrgNotification } from '../../types';
+
+type Nav = CompositeNavigationProp<
+  NativeStackNavigationProp<DashboardStackParamList>,
+  BottomTabNavigationProp<MainTabParamList>
+>;
 
 // Mirrors the backend's KIND_EMOJI map (org-notifications.ts) — the `icon`
 // field is a short kind slug, not a raw emoji, so the panel can render a
@@ -37,7 +44,7 @@ const KIND_ICON: Record<string, { Icon: LucideIcon; color: string; bg: string }>
  * trigger points (new booking, payout processed, etc.) can call the same
  * OrgNotificationsService.notify() later without any new screen work. */
 export default function NotificationsScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<DashboardStackParamList>>();
+  const navigation = useNavigation<Nav>();
   const [rows, setRows] = useState<OrgNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -127,7 +134,15 @@ export default function NotificationsScreen() {
             return (
             <Pressable
               key={n.id}
-              onPress={() => !n.read && markRead(n.id)}
+              onPress={() => {
+                // Real bug found live: tapping a row only ever marked it
+                // read (and only when unread) — it never used the `to`
+                // field the backend already sends, so every tap just sat
+                // on the Notifications screen instead of opening the
+                // relevant screen (organizer feedback 2026-09-17).
+                if (!n.read) markRead(n.id);
+                navigateToNotificationTarget(navigation, n.to);
+              }}
               style={[styles.row, i < rows.length - 1 && styles.rowBorder]}
             >
               <View style={[styles.iconWrap, { backgroundColor: kind?.bg ?? colors.surface2 }]}>
