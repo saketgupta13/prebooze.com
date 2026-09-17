@@ -6,6 +6,7 @@ export const PERM_MODULES = [
   'Bookings',
   'Refunds',
   'Payments & payouts',
+  'Transactions',
   'Customers',
   'Organizers',
   'Promoters',

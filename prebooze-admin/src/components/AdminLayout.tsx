@@ -11,7 +11,7 @@ import {
   Megaphone, Star, Gift, MapPin, Landmark, Globe, Mic, Wallet, Banknote, Receipt,
   CircleDollarSign, Building2, Tag, TrendingUp, BarChart3, Image, Film, MessageCircle,
   HelpCircle, FolderTree, Tags, PenLine, FileText, ScrollText, Compass, UserCog, Mail,
-  Settings, User, Search, Bell, ArrowRight, X, MoreHorizontal, Radio, Sparkles, Rocket,
+  Settings, User, Search, Bell, ArrowRight, X, MoreHorizontal, Radio, Sparkles, Rocket, ArrowLeftRight,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -41,6 +41,7 @@ const MAIN_NAV: { to: string; icon: LucideIcon; label: string; end?: boolean }[]
   { to: '/locations', icon: Globe, label: 'Locations' },
   { to: '/lineups', icon: Mic, label: 'Line-ups' },
   { to: '/payments', icon: Wallet, label: 'Payments' },
+  { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/promoter-payouts', icon: Banknote, label: 'Promoter payouts' },
   { to: '/invoices', icon: Receipt, label: 'Invoices' },
   { to: '/finance', icon: CircleDollarSign, label: 'Income & expenses' },
@@ -123,6 +124,7 @@ const NAV_MODULE: Record<string, string> = {
   '/locations': 'Locations',
   '/lineups': 'Lineups',
   '/payments': 'Payments & payouts',
+  '/transactions': 'Transactions',
   '/promoter-payouts': 'Payments & payouts',
   '/invoices': 'Payments & payouts',
   '/finance': 'Payments & payouts',

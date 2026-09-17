@@ -24,6 +24,8 @@ import AddOrganizer from './pages/AddOrganizer';
 import { AddVenue, VenueDetail, Venues, VenueHostingRequests } from './pages/Venues';
 import Payments from './pages/Payments';
 import PayoutDetail from './pages/PayoutDetail';
+import Transactions from './pages/Transactions';
+import TransactionsPayeeDetail from './pages/TransactionsPayeeDetail';
 import PaymentDetails from './pages/PaymentDetails';
 import PromoterPayouts from './pages/PromoterPayouts';
 import Promos from './pages/Promos';
@@ -114,6 +116,8 @@ export default function App() {
         <Route path="/payments" element={<Payments />} />
         <Route path="/payments/details" element={<PaymentDetails />} />
         <Route path="/payments/payee/:payeeType/:payeeId" element={<PayoutDetail />} />
+        <Route path="/transactions" element={<Transactions />} />
+        <Route path="/transactions/payee/:payeeType/:payeeId" element={<TransactionsPayeeDetail />} />
         <Route path="/promoter-payouts" element={<PromoterPayouts />} />
         <Route path="/payments/run" element={<RunPayoutBatch />} />
         <Route path="/promos" element={<Promos />} />

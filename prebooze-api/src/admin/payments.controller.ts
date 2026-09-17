@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
@@ -65,16 +65,10 @@ export class AdminPaymentsController {
     return this.payments.resolveRejection(payeeType, id, note, req.staff.email);
   }
 
-  @Get('transactions')
+  @Get('all-events')
   @RequirePermission(MODULE, 'view')
-  transactions(@Query('eventId') eventId?: string) {
-    return this.payments.transactions(eventId);
-  }
-
-  @Get('refunds')
-  @RequirePermission(MODULE, 'view')
-  refunds() {
-    return this.payments.refunds();
+  allEventsPayout() {
+    return this.payments.allEventsPayout();
   }
 
   @Get('promoter-payouts')

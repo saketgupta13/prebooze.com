@@ -831,7 +831,7 @@ export interface LiveWithdrawalRow {
   bankLast4: string | null; accountHolderName: string | null; ifsc: string | null; createdAt: string;
 }
 export interface LivePayeeEventRow {
-  id: string; title: string; organizer: string; payeeType: 'organizer' | 'venue' | null; payeeId: string | null;
+  id: string; title: string; date: string; organizer: string; payeeType: 'organizer' | 'venue' | null; payeeId: string | null;
   revenue: number; commission: number | null; commissionAmt: number; net: number; paidOut: boolean; payoutUtr: string | null;
   payeeBalance: number | null;
 }
@@ -878,20 +878,11 @@ export const livePayments = {
    * checked whether the payee fixed whatever caused it." */
   resolveRejection: (payeeType: 'organizer' | 'venue', id: string, note?: string) =>
     liveFetch<{ ok: true }>(`/admin/payments/withdrawal-requests/${payeeType}/${id}/resolve-rejection`, { method: 'POST', body: { note } }),
-  /** Real sale/refund ledger, platform-wide — replaces the old "Transactions"
-   * placeholder. Merges OrganizerLedgerTx + VenueLedgerTx, newest first,
-   * capped at 300 rows. */
-  transactions: (eventId?: string) =>
-    liveFetch<{ id: string; type: string; amount: number; eventId: string | null; eventTitle: string | null; createdAt: string; payeeType: 'organizer' | 'venue'; payeeName: string }[]>(
-      `/admin/payments/transactions${eventId ? `?eventId=${encodeURIComponent(eventId)}` : ''}`
-    ),
-  /** Real refund register, platform-wide — replaces the old "Refunds"
-   * placeholder. Read-only; approve/decline/retry stay on the booking
-   * detail page (a different permission module). */
-  refunds: () =>
-    liveFetch<{ id: string; guest: string; eventTitle: string; amount: number; status: 'refund_requested' | 'refunded'; refundedTo: string | null; failed: boolean; createdAt: string }[]>(
-      '/admin/payments/refunds'
-    ),
+  /** Every finished event's own revenue/commission/payout, all-time — not
+   * just what's currently due. See PaymentsService.allEventsPayout for why
+   * it doesn't return its own "paid out" total (the one real all-time
+   * figure lives in Payments.tsx, computed from the withdrawal ledger). */
+  allEventsPayout: () => liveFetch<{ rows: LivePayeeEventRow[]; collected: number; commissionKept: number }>('/admin/payments/all-events'),
   /** Organizer -> promoter money, platform-wide — same real transfer-happens-
    * outside-Prebooze caveat as everything else here; status is whatever the
    * promoter has self-attested (PromoterEventSettlement), admin can't mark it. */
@@ -903,6 +894,43 @@ export const livePayments = {
    * promoter at once. */
   platformCommissionDue: () => liveFetch<{ promoterId: string; promoterName: string; due: number }[]>('/admin/payments/promoter-platform-commission-due'),
   markPlatformCommissionPaid: (promoterId: string) => liveFetch<{ ok: true; bookingsMarked: number }>(`/admin/payments/promoter-platform-commission/${promoterId}/mark-paid`, { method: 'POST' }),
+};
+
+export interface LiveTxPayeeSummary {
+  payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string;
+  salesCount: number; salesTotal: number;
+  refundsCount: number; refundsTotal: number; commissionReversed: number; pendingRefundsCount: number;
+  net: number;
+}
+export interface LiveTxEventRow {
+  eventId: string; eventTitle: string; eventDate: string;
+  salesCount: number; salesTotal: number;
+  refundsCount: number; refundsTotal: number; commissionReversed: number; pendingRefundsCount: number;
+  net: number;
+}
+export interface LiveTxSaleRow { id: string; guest: string; amount: number; commission: number; net: number; createdAt: string }
+export interface LiveTxRefundRow {
+  id: string; guest: string; amount: number; commissionReversed: number; net: number;
+  status: 'refund_requested' | 'refunded'; refundedTo: string | null; failed: boolean; createdAt: string;
+}
+
+/** Standalone Transactions section (2026-09-18) — deliberately its own admin
+ * module, not part of "Payments & payouts": a sale/refund ledger view never
+ * touches who gets paid or when, it's a different concern. Grouped by payee
+ * → that payee's events → a specific event's real Sales/Refunds tabs (built
+ * off `Booking` rows, not the ledger, so a refund can show exactly how much
+ * commission it gave up with zero derivation — see TransactionsService). */
+export const liveTransactions = {
+  payeesSummary: (from?: string, to?: string) => {
+    const q = new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString();
+    return liveFetch<{ rows: LiveTxPayeeSummary[]; totals: { salesTotal: number; refundsTotal: number; net: number } }>(`/admin/transactions${q ? `?${q}` : ''}`);
+  },
+  payeeEvents: (payeeType: 'organizer' | 'venue', payeeId: string, from?: string, to?: string) => {
+    const q = new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString();
+    return liveFetch<{ payeeName: string; rows: LiveTxEventRow[] }>(`/admin/transactions/payee/${payeeType}/${encodeURIComponent(payeeId)}${q ? `?${q}` : ''}`);
+  },
+  eventTransactions: (eventId: string) =>
+    liveFetch<{ eventTitle: string; sales: LiveTxSaleRow[]; refunds: LiveTxRefundRow[] }>(`/admin/transactions/event/${encodeURIComponent(eventId)}`),
 };
 
 export const LEAD_SOURCES = ['Instagram', 'WhatsApp', 'Phone call', 'Referral / walk-in', 'Website inquiry', 'Other social', 'Other'] as const;
@@ -1059,7 +1087,7 @@ export const liveSettlements = {
 
 export const PERM_MODULES = [
   'Dashboard', 'Events & approvals', 'Event commission (per event)', 'Bookings', 'Refunds',
-  'Payments & payouts', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
+  'Payments & payouts', 'Transactions', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
   'Verifications (KYC)', 'Reviews', 'Locations', 'Abandoned carts', 'Featured', 'Marketing campaigns', 'Content',
   'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Reports', 'Leads',
 ] as const;

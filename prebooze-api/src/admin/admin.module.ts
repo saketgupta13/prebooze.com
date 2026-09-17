@@ -22,6 +22,8 @@ import { AdminVenueTypesController } from './venue-types.controller';
 import { AdminAmenitiesController } from './amenities.controller';
 import { AdminCartsController } from './carts.controller';
 import { AdminPaymentsController } from './payments.controller';
+import { AdminTransactionsController } from './transactions.controller';
+import { TransactionsService } from './transactions.service';
 import { MediaController } from './media.controller';
 import { AdminSubTiersController } from './sub-tiers.controller';
 import { AdminEmailTemplatesController } from './email-templates-admin.controller';
@@ -111,6 +113,7 @@ import { redisProvider } from '../redis.provider';
     AdminAmenitiesController,
     AdminCartsController,
     AdminPaymentsController,
+    AdminTransactionsController,
     MediaController,
     AdminSubTiersController,
     AdminEmailTemplatesController,
@@ -145,6 +148,7 @@ import { redisProvider } from '../redis.provider';
     AmenitiesService,
     CartsService,
     PaymentsService,
+    TransactionsService,
     SubTiersService,
     EmailTemplatesAdminService,
     InvoicesService,

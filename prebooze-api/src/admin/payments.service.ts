@@ -88,6 +88,7 @@ export class PaymentsService {
       return {
         id: e.id,
         title: e.title,
+        date: e.date,
         organizer: e.organizer?.brandName ?? e.venue?.name ?? '—',
         payeeType,
         payeeId,
@@ -99,6 +100,29 @@ export class PaymentsService {
         payoutUtr: e.payoutUtr,
       };
     });
+  }
+
+  /** Every finished event's own revenue/commission/payout, all-time, not
+   * just what's currently due (2026-09-18) — "Payouts due" is a work queue
+   * (only unpaid, only visible payees), this is the real full accounting
+   * record: what we've collected and kept as commission, event by event,
+   * since day one. Newest first.
+   *
+   * Deliberately does NOT return a "total paid out" figure here — summing
+   * this list's own `paidOut` flags would undercount: a self-serve
+   * withdrawal (OrganizerService.withdraw / VenueService.withdraw) doesn't
+   * set any event's `paidOut` flag at all, it's not tied to one specific
+   * event. The one real "how much have we actually sent out, all-time"
+   * number lives on the page's shared KPI row, computed from the withdrawal
+   * ledger itself (every 'complete' row, whichever route it came through)
+   * — see Payments.tsx — precisely so there's never two different
+   * "paid out" totals on the same screen that can quietly drift apart. */
+  async allEventsPayout() {
+    const rows = await this.eventPayoutRows();
+    const collected = rows.reduce((a, r) => a + r.revenue, 0);
+    const commissionKept = rows.reduce((a, r) => a + r.commissionAmt, 0);
+    const sorted = [...rows].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return { rows: sorted, collected, commissionKept };
   }
 
   /** organizerId/venueId → payees with a self-serve withdrawal request admin
@@ -498,55 +522,6 @@ export class PaymentsService {
     await this.prisma.venueLedgerTx.update({ where: { id }, data: { withdrawalRejectionResolved: true } });
     await this.prisma.payoutStatusEvent.create({ data: { payeeType, payeeId: row.venueId, ledgerTxId: id, status: 'rejection_resolved', reason: note?.trim() || undefined, staffEmail } });
     return { ok: true };
-  }
-
-  /** Platform-wide sale/refund ledger — closes the "Transactions" tab,
-   * which was a bare "coming with backend integration" placeholder despite
-   * OrganizerLedgerTx/VenueLedgerTx already recording every real sale and
-   * refund (BookingsService writes both on every paid/refunded booking).
-   * Withdrawals aren't included — those already have their own dedicated
-   * tab above. Merges both ledgers since a sale can credit either an
-   * organizer or a solo venue-hosted event, same payeeType split as
-   * payoutsDue(). Capped at the most recent 300 — this is a real-time feed
-   * to check, not a full export. */
-  async transactions(eventId?: string) {
-    const [orgRows, venueRows] = await Promise.all([
-      this.prisma.organizerLedgerTx.findMany({
-        where: { type: { in: ['sale', 'refund'] }, ...(eventId ? { eventId } : {}) },
-        select: { id: true, type: true, amount: true, eventId: true, eventTitle: true, createdAt: true, organizer: { select: { brandName: true } } },
-      }),
-      this.prisma.venueLedgerTx.findMany({
-        where: { type: { in: ['sale', 'refund'] }, ...(eventId ? { eventId } : {}) },
-        select: { id: true, type: true, amount: true, eventId: true, eventTitle: true, createdAt: true, venue: { select: { name: true } } },
-      }),
-    ]);
-    const rows = [
-      ...orgRows.map((r) => ({ id: r.id, type: r.type, amount: r.amount, eventId: r.eventId, eventTitle: r.eventTitle, createdAt: r.createdAt, payeeType: 'organizer' as const, payeeName: r.organizer?.brandName ?? '—' })),
-      ...venueRows.map((r) => ({ id: r.id, type: r.type, amount: r.amount, eventId: r.eventId, eventTitle: r.eventTitle, createdAt: r.createdAt, payeeType: 'venue' as const, payeeName: r.venue?.name ?? '—' })),
-    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return rows.slice(0, 300);
-  }
-
-  /** Platform-wide refund register — closes the "Refunds" tab, another bare
-   * placeholder despite a full, real refund flow already existing
-   * (BookingsService.cancel/adminApproveRefund/adminDeclineRefund/
-   * retryRefund) and an identical query already built for Reports
-   * (ReportsService.refunds, date-range-scoped there; this is the same
-   * shape but all-time, capped at the most recent 300). Read-only — no
-   * approve/decline here, those stay on the booking detail page (a
-   * different permission module, 'Refunds', not 'Payments & payouts'); this
-   * is a feed to check, same as Transactions above. */
-  async refunds() {
-    const rows = await this.prisma.booking.findMany({
-      where: { status: { in: ['refund_requested', 'refunded'] } },
-      select: { id: true, mainGuest: true, total: true, status: true, refundedTo: true, refundFailedAt: true, createdAt: true, event: { select: { title: true } } },
-      orderBy: { createdAt: 'desc' },
-      take: 300,
-    });
-    return rows.map((r) => ({
-      id: r.id, guest: r.mainGuest, eventTitle: r.event.title, amount: r.total, status: r.status,
-      refundedTo: r.refundedTo, failed: !!r.refundFailedAt, createdAt: r.createdAt,
-    }));
   }
 
   /** Platform-wide view of the organizer→promoter revenue-share/per-head

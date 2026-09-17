@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-import { livePayments, LiveApiError, type LivePayeeDueRow, type LiveWithdrawalRow } from '../lib/liveApi';
+import { livePayments, LiveApiError, type LivePayeeDueRow, type LivePayeeEventRow, type LiveWithdrawalRow } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import { Kpi, Tag } from '../components/ui';
 
 const TITLE = 'Payments & payouts';
-const TABS = ['Payouts due', 'Withdrawal requests', 'Paid', 'Rejected', 'Transactions', 'Refunds', 'Disputes'];
+const TABS = ['Payouts due', 'All events', 'Withdrawal requests', 'Paid', 'Rejected', 'Disputes'];
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -18,15 +18,6 @@ const STATUS_CLS: Record<string, string> = {
   requested: 'tag-dim', received: 'tag-amber', initiated: 'tag-amber', processed: 'tag-amber', complete: 'tag-green', rejected: 'tag-red',
 };
 
-interface PaymentTx {
-  id: string; type: string; amount: number; eventId: string | null; eventTitle: string | null; createdAt: string;
-  payeeType: 'organizer' | 'venue'; payeeName: string;
-}
-interface PaymentRefund {
-  id: string; guest: string; eventTitle: string; amount: number; status: 'refund_requested' | 'refunded';
-  refundedTo: string | null; failed: boolean; createdAt: string;
-}
-
 /** Real per-payee payout register (PaymentsService.due/payeeDetail) — one
  * row per organizer/venue, not per event (2026-09-18); click a name to open
  * that payee's own page with bank details, the full event-wise commission
@@ -34,7 +25,10 @@ interface PaymentRefund {
  * that's where every actual "mark paid" / "advance status" / "reject"
  * action now happens, so this page itself is a set of real, read-only
  * queues: who's owed money right now, whose self-serve request is still
- * open, and what's already been resolved (paid or rejected). */
+ * open, and what's already been resolved (paid or rejected). The raw
+ * sale/refund ledger used to live here too ("Transactions"/"Refunds" tabs)
+ * but moved to its own standalone /transactions section (2026-09-18) — a
+ * ledger feed isn't a payout concern, it never touches who gets paid. */
 export default function Payments() {
   const session = useLiveSession();
   const { token } = session;
@@ -42,9 +36,8 @@ export default function Payments() {
 
   const [rows, setRows] = useState<LivePayeeDueRow[]>([]);
   const [summary, setSummary] = useState({ collected: 0, commissionKept: 0, dueTotal: 0 });
+  const [allEvents, setAllEvents] = useState<LivePayeeEventRow[]>([]);
   const [withdrawals, setWithdrawals] = useState<LiveWithdrawalRow[]>([]);
-  const [transactions, setTransactions] = useState<PaymentTx[]>([]);
-  const [refunds, setRefunds] = useState<PaymentRefund[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -56,9 +49,8 @@ export default function Payments() {
       .then(({ rows: r, ...s }) => { setRows(r); setSummary(s); })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
+    livePayments.allEventsPayout().then(({ rows: r }) => setAllEvents(r)).catch(() => {});
     livePayments.withdrawalRequests().then(setWithdrawals).catch(() => {});
-    livePayments.transactions().then(setTransactions).catch(() => {});
-    livePayments.refunds().then(setRefunds).catch(() => {});
   };
 
   useEffect(() => {
@@ -80,6 +72,14 @@ export default function Payments() {
   const rejectedWithdrawals = withdrawals.filter((w) => w.status === 'rejected');
   const unresolvedRejections = rejectedWithdrawals.filter((w) => !w.rejectionResolved).length;
 
+  // The one real "how much have we actually sent out, all-time" figure —
+  // deliberately summed from the withdrawal ledger's own 'complete' rows
+  // (whichever route the money went out through, admin-push or self-serve
+  // pull), not from any event's own paidOut flag — see
+  // PaymentsService.allEventsPayout's comment for why those two would
+  // silently disagree if used interchangeably.
+  const paidOutAllTime = paidWithdrawals.reduce((a, w) => a + w.amount, 0);
+
   const PayeeLink = ({ type, id, name }: { type: 'organizer' | 'venue'; id: string; name: string }) => (
     <Link to={`/payments/payee/${type}/${id}`} className="link" style={{ fontWeight: 700, color: 'var(--green)' }}>{name}</Link>
   );
@@ -95,8 +95,9 @@ export default function Payments() {
       </div>
 
       <div className="kpi-grid">
-        <Kpi label="Collected" value={`₹${fmt(summary.collected)}`} />
-        <Kpi label="Commission kept" value={`₹${fmt(summary.commissionKept)}`} />
+        <Kpi label="Collected (all-time)" value={`₹${fmt(summary.collected)}`} />
+        <Kpi label="Our earning — commission kept (all-time)" value={`₹${fmt(summary.commissionKept)}`} />
+        <Kpi label="Paid out (all-time)" value={`₹${fmt(paidOutAllTime)}`} />
         <Kpi label="Due total" value={<span className="red">₹{fmt(summary.dueTotal)}</span>} alert />
       </div>
 
@@ -131,6 +132,36 @@ export default function Payments() {
                 <Link to={`/payments/payee/${r.payeeType}/${r.payeeId}`} className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   View <ArrowRight size={12} />
                 </Link>
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : tab === 'All events' ? (
+        <div className="tblwrap">
+          <div className="thead" style={{ minWidth: 700 }}>
+            <span style={{ flex: 1.3 }}>Event</span>
+            <span style={{ flex: 1.2 }}>Organizer / venue</span>
+            <span style={{ flex: 0.8 }}>Date</span>
+            <span style={{ flex: 0.9 }}>Gross</span>
+            <span style={{ flex: 1 }}>Our earning</span>
+            <span style={{ flex: 1 }}>Payout</span>
+          </div>
+          {allEvents.length === 0 && !loading && <div className="trow muted">No finished events yet.</div>}
+          {allEvents.map((r) => (
+            <div key={r.id} className="trow" style={{ minWidth: 700 }}>
+              <span style={{ flex: 1.3 }} className="muted small">{r.title}</span>
+              <span style={{ flex: 1.2, fontWeight: 700 }}>
+                {r.payeeType && r.payeeId ? <Link to={`/payments/payee/${r.payeeType}/${r.payeeId}`} className="link" style={{ color: 'var(--green)' }}>{r.organizer}</Link> : r.organizer}
+              </span>
+              <span style={{ flex: 0.8 }} className="tiny muted">{fmtDate(r.date)}</span>
+              <span style={{ flex: 0.9 }}>₹{fmt(r.revenue)}</span>
+              <span style={{ flex: 1 }}>₹{fmt(r.commissionAmt)} <span className="muted">({r.commission ?? 0}%)</span></span>
+              <span style={{ flex: 1 }}>
+                {r.paidOut ? (
+                  <span className="tag tag-green">Paid{r.payoutUtr ? ` · ${r.payoutUtr}` : ''}</span>
+                ) : (
+                  <span className="tag tag-dim">₹{fmt(r.net)} due</span>
+                )}
               </span>
             </div>
           ))}
@@ -211,56 +242,11 @@ export default function Payments() {
             </div>
           ))}
         </div>
-      ) : tab === 'Transactions' ? (
-        <div className="tblwrap">
-          <div className="thead" style={{ minWidth: 600 }}>
-            <span style={{ flex: 1.4 }}>Payee</span>
-            <span style={{ flex: 1.6 }}>Event</span>
-            <span style={{ flex: 1 }}>Amount</span>
-            <span style={{ flex: 0.8 }}>Type</span>
-            <span style={{ flex: 1 }}>Date</span>
-          </div>
-          {transactions.length === 0 && !loading && <div className="trow muted">No transactions yet.</div>}
-          {transactions.map((t) => (
-            <div key={t.id} className="trow" style={{ minWidth: 600 }}>
-              <span style={{ flex: 1.4, fontWeight: 700 }}>{t.payeeName}</span>
-              <span style={{ flex: 1.6 }} className="muted small">{t.eventTitle ?? '—'}</span>
-              <span style={{ flex: 1, fontWeight: 700 }} className={t.amount < 0 ? 'red' : 'green'}>{t.amount < 0 ? '-' : ''}₹{fmt(Math.abs(t.amount))}</span>
-              <span style={{ flex: 0.8 }}>
-                <span className={`tag ${t.type === 'refund' ? 'tag-red' : 'tag-green'}`}>{t.type === 'refund' ? 'Refund' : 'Sale'}</span>
-              </span>
-              <span style={{ flex: 1 }} className="tiny muted">{fmtDate(t.createdAt)}</span>
-            </div>
-          ))}
-        </div>
-      ) : tab === 'Refunds' ? (
-        <div className="tblwrap">
-          <div className="thead" style={{ minWidth: 680 }}>
-            <span style={{ flex: 1 }}>Booking</span>
-            <span style={{ flex: 1.4 }}>Guest</span>
-            <span style={{ flex: 1.4 }}>Event</span>
-            <span style={{ flex: 0.8 }}>Amount</span>
-            <span style={{ flex: 1 }}>Status</span>
-          </div>
-          {refunds.length === 0 && !loading && <div className="trow muted">No refund activity.</div>}
-          {refunds.map((r) => (
-            <Link key={r.id} to={`/bookings/${encodeURIComponent(r.id)}`} className="trow" style={{ minWidth: 680 }}>
-              <span style={{ flex: 1 }} className="muted">{r.id}</span>
-              <span style={{ flex: 1.4, fontWeight: 700 }}>{r.guest}</span>
-              <span style={{ flex: 1.4 }} className="muted">{r.eventTitle}</span>
-              <span style={{ flex: 0.8 }}>₹{fmt(r.amount)}</span>
-              <span style={{ flex: 1 }}>
-                {r.status === 'refund_requested' ? <Tag label="Requested" cls="tag-red" /> : r.failed ? <Tag label="Refund failed" cls="tag-red" /> : <Tag label="Refunded" cls="tag-dim" />}
-              </span>
-            </Link>
-          ))}
-          <div className="tiny hint">approve/decline/retry a refund from the booking's own page · click any row above</div>
-        </div>
       ) : (
         <div className="ph" style={{ height: 120, borderRadius: 10 }}>{tab} — coming with backend integration</div>
       )}
       <div className="tiny hint">
-        commission % per row comes from each event's own rate — set in the event editor.
+        commission % per row comes from each event's own rate — set in the event editor · sale/refund ledger moved to its own <Link to="/transactions" className="link">Transactions</Link> section.
       </div>
     </div>
   );

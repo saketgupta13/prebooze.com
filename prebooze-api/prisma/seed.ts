@@ -272,7 +272,7 @@ const SEED_GUEST_LIST = [
 // as always.
 const PERM_MODULES = [
   'Dashboard', 'Events & approvals', 'Event commission (per event)', 'Bookings', 'Refunds',
-  'Payments & payouts', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
+  'Payments & payouts', 'Transactions', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
   'Verifications (KYC)', 'Reviews', 'Locations', 'Abandoned carts', 'Featured', 'Content',
   'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Reports',
 ];
@@ -289,7 +289,7 @@ const SEED_ROLES: Record<string, Record<string, { view: boolean; edit: boolean; 
   Finance: {
     Dashboard: perm(true, false, false), 'Events & approvals': perm(true, false, false),
     'Event commission (per event)': perm(true, true, false), Bookings: perm(true, true, true),
-    Refunds: perm(true, true, true), 'Payments & payouts': perm(true, true, true),
+    Refunds: perm(true, true, true), 'Payments & payouts': perm(true, true, true), Transactions: perm(true, false, false),
     Customers: perm(true, false, false), Organizers: perm(true, false, false), Promoters: perm(true, false, false),
     Lineups: perm(true, false, false), Venues: perm(true, false, false), 'Verifications (KYC)': perm(true, false, false),
     Reviews: perm(true, false, false), Locations: perm(true, false, false), 'Abandoned carts': perm(true, false, false),
@@ -300,7 +300,7 @@ const SEED_ROLES: Record<string, Record<string, { view: boolean; edit: boolean; 
   Content: {
     Dashboard: perm(true, false, false), 'Events & approvals': perm(true, false, false),
     'Event commission (per event)': perm(false, false, false), Bookings: perm(false, false, false),
-    Refunds: perm(false, false, false), 'Payments & payouts': perm(false, false, false),
+    Refunds: perm(false, false, false), 'Payments & payouts': perm(false, false, false), Transactions: perm(false, false, false),
     Customers: perm(true, false, false), Organizers: perm(true, false, false), Promoters: perm(true, false, false),
     Lineups: perm(true, false, false), Venues: perm(true, false, false), 'Verifications (KYC)': perm(true, false, false),
     Reviews: perm(true, false, false), Locations: perm(true, false, false), 'Abandoned carts': perm(true, false, false),
@@ -311,7 +311,7 @@ const SEED_ROLES: Record<string, Record<string, { view: boolean; edit: boolean; 
   Support: {
     Dashboard: perm(true, false, false), 'Events & approvals': perm(true, false, false),
     'Event commission (per event)': perm(false, false, false), Bookings: perm(false, false, false),
-    Refunds: perm(true, true, false), 'Payments & payouts': perm(false, false, false),
+    Refunds: perm(true, true, false), 'Payments & payouts': perm(false, false, false), Transactions: perm(false, false, false),
     Customers: perm(true, true, false), Organizers: perm(true, true, false), Promoters: perm(true, true, false),
     Lineups: perm(true, true, false), Venues: perm(true, true, false), 'Verifications (KYC)': perm(true, true, false),
     Reviews: perm(true, true, false), Locations: perm(true, true, false), 'Abandoned carts': perm(true, true, false),
@@ -322,7 +322,7 @@ const SEED_ROLES: Record<string, Record<string, { view: boolean; edit: boolean; 
   'Scanner only': {
     Dashboard: perm(true, false, false), 'Events & approvals': perm(false, false, false),
     'Event commission (per event)': perm(false, false, false), Bookings: perm(false, false, false),
-    Refunds: perm(false, false, false), 'Payments & payouts': perm(false, false, false),
+    Refunds: perm(false, false, false), 'Payments & payouts': perm(false, false, false), Transactions: perm(false, false, false),
     Customers: perm(false, false, false), Organizers: perm(false, false, false), Promoters: perm(false, false, false),
     Lineups: perm(false, false, false), Venues: perm(false, false, false), 'Verifications (KYC)': perm(false, false, false),
     Reviews: perm(false, false, false), Locations: perm(false, false, false), 'Abandoned carts': perm(false, false, false),
