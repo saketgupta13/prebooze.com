@@ -205,6 +205,21 @@ export interface Event {
   minPrice?: number;
   commission?: number | null;
   recentActivity?: { count: number; window: 'today' | 'week' } | null;
+  // Real registered co-organizers tagged on this event — Organizer.id
+  // strings only (see saveEvent's validation against the real Organizer
+  // table); always an array on read, never undefined (Prisma default []).
+  collaboratorOrganizerIds: string[];
+}
+
+// Real shape from organizer.service.ts's collaboratorOptions() — every
+// other registered Organizer this one can tag as a co-organizer (not
+// gated on `verified` — web's identically-shaped venue-side option list
+// is stricter, but this feature's bar is deliberately just "registered").
+export interface CollaboratorOption {
+  id: string;
+  brandName: string;
+  username: string;
+  city: string;
 }
 
 // Real shape from prisma/schema.prisma's Coupon model — the previous

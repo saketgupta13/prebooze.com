@@ -3,7 +3,7 @@
  * already serving the web console. Field names match exactly. */
 import { apiFetch, apiUpload } from './client';
 import type {
-  CartRecord, Coupon, Event, OrgAttendee, OrgBooking, OrgGuestListEntry, OrgLedgerTx, OrgLiveMonitor, OrgModulePerms,
+  CartRecord, CollaboratorOption, Coupon, Event, OrgAttendee, OrgBooking, OrgGuestListEntry, OrgLedgerTx, OrgLiveMonitor, OrgModulePerms,
   OrgPermKey, OrgPromoterGuest, OrgPromoterPayoutRow, OrgPromoterRosterEntry, OrgStaffMember, OrgTeamAccess, Organizer, PaymentProfile,
 } from '../types';
 
@@ -41,7 +41,14 @@ export const organizer = {
     // here before (a guessed/trimmed type), silently dropping them from
     // every save.
     tiers?: { id?: string; name: string; price: number; quantity: number; includes?: string[]; description?: string; coverCharge?: number; coverChargeNote?: string; freeCutoff?: string; lateFeePrice?: number }[];
+    // Real registered co-organizers — omitting this on an edit preserves
+    // the existing list server-side (saveEvent checks `!== undefined`);
+    // the wizard always sends it explicitly (even []) so removing every
+    // collaborator is possible, matching how it already treats rules/
+    // promoterConfig/etc.
+    collaboratorOrganizerIds?: string[];
   }) => apiFetch<Event>('/organizer/events', { body: e }),
+  collaboratorOptions: () => apiFetch<CollaboratorOption[]>('/organizer/collaborator-options'),
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),
   bookings: () => apiFetch<OrgBooking[]>('/organizer/bookings'),
   coupons: () => apiFetch<Coupon[]>('/organizer/coupons'),

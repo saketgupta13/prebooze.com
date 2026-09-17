@@ -15,7 +15,7 @@ import Accordion from '../../components/Accordion';
 import ImageUploadBox from '../../components/ImageUploadBox';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../theme/tokens';
 import type { EventsStackParamList } from '../../navigation/types';
-import type { Event, LineupProfile, PromoterProfile, Venue } from '../../types';
+import type { CollaboratorOption, Event, LineupProfile, PromoterProfile, Venue } from '../../types';
 
 // Rules/Promoters/SEO are edit-only (per organizer feedback 2026-09-15) —
 // during creation those default silently (empty rules stay DEFAULT_RULES,
@@ -85,6 +85,8 @@ export default function EventWizardScreen() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [lineups, setLineups] = useState<LineupProfile[]>([]);
   const [promoters, setPromoters] = useState<PromoterProfile[]>([]);
+  const [collaboratorOptions, setCollaboratorOptions] = useState<CollaboratorOption[]>([]);
+  const [collaboratorSel, setCollaboratorSel] = useState<string[]>([]);
   const [editing, setEditing] = useState<Event | undefined>(undefined);
 
   const [title, setTitle] = useState('');
@@ -167,12 +169,14 @@ export default function EventWizardScreen() {
       catalog.promoters(),
       catalog.categories(),
       catalog.cities(),
+      organizer.collaboratorOptions().catch(() => [] as CollaboratorOption[]),
       editId ? organizer.events().then((evs) => evs.find((e) => e.id === editId)) : Promise.resolve(undefined),
     ])
-      .then(([vs, ls, ps, cats, cities, ev]) => {
+      .then(([vs, ls, ps, cats, cities, collabs, ev]) => {
         setVenues(vs);
         setLineups(ls);
         setPromoters(ps);
+        setCollaboratorOptions(collabs);
         setCategories(cats);
         setLiveCities(cities.map((c) => c.name).sort());
         const subsForCat = (cat: string) => cats.find((c) => c.name === cat)?.subs ?? [];
@@ -204,6 +208,7 @@ export default function EventWizardScreen() {
           setConditions(ev.conditions.join('\n'));
           setRules(ev.rules.length ? ev.rules.map((r) => ({ title: r.title, body: r.body })) : DEFAULT_RULES);
           setLineupSel(ev.lineup);
+          setCollaboratorSel(ev.collaboratorOrganizerIds);
           const pc = ev.promoterConfig;
           if (pc) {
             setPromoEnabled(pc.enabled);
@@ -257,6 +262,7 @@ export default function EventWizardScreen() {
     status,
     conditions: conditions.split('\n').filter(Boolean),
     rules: rules.filter((r) => r.title.trim() || r.body.trim()),
+    collaboratorOrganizerIds: collaboratorSel,
     lineup: lineupSel,
     posterUrl,
     galleryUrls,
@@ -708,6 +714,45 @@ export default function EventWizardScreen() {
                 <View style={{ marginBottom: spacing.l }}>
                   <Chip label="+ Add rule" onPress={() => setRules((prev) => [...prev, { title: '', body: '' }])} />
                 </View>
+
+                {/* New for this app (2026-09-17), ported from web's
+                    CreateEvent.tsx — edit-only here same as Rules above,
+                    matching the create-mode-stays-minimal precedent (Round 2:
+                    Rules/Promoters/SEO default silently on create, filled in
+                    later via Edit) since tagging another real business as a
+                    full co-owner is a deliberate, occasional action, not
+                    something a fast create flow needs to force upfront. */}
+                <Txt style={styles.stepTitle}>Co-organizers</Txt>
+                <SearchableSelect
+                  value=""
+                  onChange={(name) => {
+                    const c = collaboratorOptions.find((x) => x.brandName === name);
+                    if (!c || collaboratorSel.includes(c.id)) return;
+                    setCollaboratorSel((prev) => [...prev, c.id]);
+                  }}
+                  options={collaboratorOptions.filter((c) => !collaboratorSel.includes(c.id)).map((c) => c.brandName)}
+                  placeholder="search organizers to add as a co-host…"
+                />
+                <Muted style={[styles.tiny, { marginVertical: spacing.s }]}>
+                  A tagged co-organizer gets full access to this event — bookings, attendees, revenue, and commission —
+                  and it shows on both your public profiles. Not registered on Prebooze yet? They can't be tagged;
+                  mention them in the description instead.
+                </Muted>
+                {collaboratorSel.length > 0 && (
+                  <ChipWrap>
+                    {collaboratorSel.map((id) => {
+                      const c = collaboratorOptions.find((x) => x.id === id);
+                      return (
+                        <Chip
+                          key={id}
+                          label={`${c?.brandName ?? id} ✕`}
+                          active
+                          onPress={() => setCollaboratorSel((prev) => prev.filter((x) => x !== id))}
+                        />
+                      );
+                    })}
+                  </ChipWrap>
+                )}
               </>
             )}
 
