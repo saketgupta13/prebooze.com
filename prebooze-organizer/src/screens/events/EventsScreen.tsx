@@ -21,11 +21,25 @@ const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'draft', label: 'Drafts' },
 ];
 
-const STATUS_BADGE: Record<EventStatus, { label: string; tone: 'success' | 'default' | 'danger' }> = {
-  approved: { label: 'Approved · Live', tone: 'success' },
-  pending: { label: 'Pending review', tone: 'default' },
-  rejected: { label: 'Rejected', tone: 'danger' },
-  draft: { label: 'Draft', tone: 'default' },
+// Matches Bookings.tsx's isEventOver — an event is "over" once its end
+// time (date + durationHrs) has passed, not just its start time.
+const isEventOver = (e: { date: string; durationHrs: number }) => new Date(e.date).getTime() + e.durationHrs * 3600_000 < Date.now();
+
+// Real bug (2026-09-17): 'approved' always said "Approved · Live" even for
+// events long over — an approved event's actual live/ended state depends
+// on whether it's already happened, not just its moderation status, so the
+// label is computed per-event now instead of being a static lookup.
+const STATUS_BADGE = (e: Event): { label: string; tone: 'success' | 'default' | 'danger' } => {
+  switch (e.status) {
+    case 'approved':
+      return isEventOver(e) ? { label: 'Approved · Ended', tone: 'default' } : { label: 'Approved · Live', tone: 'success' };
+    case 'pending':
+      return { label: 'Pending review', tone: 'default' };
+    case 'rejected':
+      return { label: 'Rejected', tone: 'danger' };
+    case 'draft':
+      return { label: 'Draft', tone: 'default' };
+  }
 };
 
 const fmtDate = (isoStr: string) => new Date(isoStr).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -60,10 +74,9 @@ export default function EventsScreen() {
     }, []),
   );
 
-  const now = Date.now();
   const byStatus = tab === 'all' ? events : events.filter((e) => e.status === tab);
   const list = byStatus
-    .filter((e) => (scope === 'upcoming' ? new Date(e.date).getTime() >= now : new Date(e.date).getTime() < now))
+    .filter((e) => (scope === 'upcoming' ? !isEventOver(e) : isEventOver(e)))
     .sort((a, b) => (scope === 'upcoming' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date)));
 
   return (
@@ -108,7 +121,7 @@ export default function EventsScreen() {
           {list.map((e) => {
             const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
             const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
-            const badge = STATUS_BADGE[e.status];
+            const badge = STATUS_BADGE(e);
             const city = eventCity(e);
             return (
               <View key={e.id} style={styles.cardWrap}>
