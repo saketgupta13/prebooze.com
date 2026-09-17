@@ -59,7 +59,11 @@ export class OrgNotificationsService {
     const { enabled } = await this.getPrefs(userId).catch(() => ({ enabled: true }));
     if (!enabled) return;
     await this.prisma.orgNotification.create({ data: { userId, icon: kind, text, to } }).catch(() => {});
-    await this.push.send(userId, 'Prebooze', text).catch(() => {});
+    // `to` also rides along as push data — the RN app reads it to open the
+    // right screen on tap instead of just landing on the Dashboard
+    // (organizer feedback 2026-09-17: tapping a tray notification did
+    // nothing screen-specific at all).
+    await this.push.send(userId, 'Prebooze', text, to ? { to } : undefined).catch(() => {});
   }
 
   /** TEMPORARY, self-serve only — drops one realistic example row per
@@ -91,8 +95,10 @@ export class OrgNotificationsService {
       });
       // Real push per sample (not the batched notify() call) so each one
       // arrives as its own Android system-tray entry, same as it would from
-      // a genuine trigger — the whole point of this preview.
-      await this.push.send(userId, 'Prebooze', s.text).catch(() => {});
+      // a genuine trigger — the whole point of this preview. Includes `to`
+      // in the push data too, so tapping it from the tray deep-links the
+      // same way an in-app tap does.
+      await this.push.send(userId, 'Prebooze', s.text, s.to ? { to: s.to } : undefined).catch(() => {});
     }
     return { seeded: samples.length };
   }
