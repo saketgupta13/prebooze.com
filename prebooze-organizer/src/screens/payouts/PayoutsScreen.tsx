@@ -17,6 +17,15 @@ const STATUS_LABEL: Record<OrgPromoterPayoutRow['status'], string> = {
   received: 'Promoter confirmed received ✓',
 };
 
+// Real request→received→initiated→processed→complete pipeline (or
+// rejected), 2026-09-18 — ports web's WITHDRAWAL_STATUS_LABEL/_CLS.
+const WITHDRAWAL_STATUS_LABEL: Record<string, string> = {
+  requested: 'Requested', received: 'Received', initiated: 'Initiated', processed: 'Processing', complete: 'Paid', rejected: 'Rejected',
+};
+const WITHDRAWAL_STATUS_TONE: Record<string, 'default' | 'success' | 'danger' | 'accent'> = {
+  requested: 'default', received: 'accent', initiated: 'accent', processed: 'accent', complete: 'success', rejected: 'danger',
+};
+
 /** Faithful port of prebooze-web/src/pages/organizer/Payouts.tsx. Balance
  * is always the server-recomputed ledger aggregate — never trust a cached
  * number, always refetch after a withdrawal (see WithdrawScreen). CSV
@@ -48,12 +57,15 @@ export default function PayoutsScreen() {
     }, []),
   );
 
-  const withdrawals = ledger.filter((t) => t.type === 'withdrawal');
-  const lifetimePaidOut = withdrawals.reduce((a, t) => a + Math.abs(t.amount), 0);
+  const payoutRows = ledger.filter((t) => t.type === 'withdrawal' || t.type === 'withdrawal_reversal');
+  const lifetimePaidOut = payoutRows.filter((t) => t.type === 'withdrawal' && t.withdrawalStatus === 'complete').reduce((a, t) => a + Math.abs(t.amount), 0);
   const bankLast4 = defaultProfile?.bankAccountNumber.slice(-4) ?? null;
 
   const exportCsv = () => {
-    const csv = ['date,type,event,amount', ...withdrawals.map((t) => `${t.createdAt},withdrawal,Manual withdrawal,${t.amount}`)].join('\n');
+    const csv = [
+      'date,type,status,amount',
+      ...payoutRows.map((t) => `${t.createdAt},${t.type},${t.type === 'withdrawal' ? (t.withdrawalStatus ?? 'requested') : 'refunded_to_balance'},${t.amount}`),
+    ].join('\n');
     Share.share({ message: csv, title: 'payouts.csv' });
   };
 
@@ -132,13 +144,26 @@ export default function PayoutsScreen() {
           <Txt style={styles.link} onPress={exportCsv}><Download size={12} color={colors.accent} /> CSV</Txt>
         </View>
         <Card style={styles.section}>
-          {!loading && withdrawals.length === 0 && <Muted style={styles.centerNote}>No withdrawals yet.</Muted>}
-          {withdrawals.map((t, i) => (
-            <View key={t.id} style={[styles.historyRow, i < withdrawals.length - 1 && styles.rowBorder]}>
-              <Muted style={styles.tiny}>{fmtDate(t.createdAt)}</Muted>
-              <Txt style={[styles.tiny, { flex: 1 }]} numberOfLines={1}>Manual withdrawal</Txt>
-              <Txt style={[styles.tiny, styles.bold, { color: colors.danger }]}>-{fmtMoney(Math.abs(t.amount))}</Txt>
-              <Badge label="Withdrawal" />
+          {!loading && payoutRows.length === 0 && <Muted style={styles.centerNote}>No withdrawals yet.</Muted>}
+          {payoutRows.map((t, i) => (
+            <View key={t.id} style={[styles.historyRow, i < payoutRows.length - 1 && styles.rowBorder]}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Muted style={styles.tiny}>{fmtDate(t.createdAt)}</Muted>
+                {t.type === 'withdrawal' && t.withdrawalStatus === 'complete' && !!t.withdrawalPaidUtr && (
+                  <Muted style={styles.tiny} numberOfLines={1}>{t.withdrawalPaidUtr}</Muted>
+                )}
+                {t.type === 'withdrawal' && t.withdrawalStatus === 'rejected' && !!t.withdrawalRejectedReason && (
+                  <Txt style={[styles.tiny, { color: colors.danger }]} numberOfLines={2}>{t.withdrawalRejectedReason}</Txt>
+                )}
+              </View>
+              <Txt style={[styles.tiny, styles.bold, { color: t.type === 'withdrawal_reversal' ? colors.text : colors.danger }]}>
+                {t.type === 'withdrawal_reversal' ? '+' : '-'}{fmtMoney(Math.abs(t.amount))}
+              </Txt>
+              {t.type === 'withdrawal_reversal' ? (
+                <Badge label="Refunded to balance" tone="accent" />
+              ) : (
+                <Badge label={WITHDRAWAL_STATUS_LABEL[t.withdrawalStatus ?? 'requested']} tone={WITHDRAWAL_STATUS_TONE[t.withdrawalStatus ?? 'requested']} />
+              )}
             </View>
           ))}
         </Card>

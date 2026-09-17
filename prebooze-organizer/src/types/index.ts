@@ -305,12 +305,17 @@ export interface OrgBooking {
 // Real shape from prebooze-web/src/api/index.ts's OrgLedgerTx.
 export interface OrgLedgerTx {
   id: string;
-  type: 'sale' | 'refund' | 'withdrawal';
+  type: 'sale' | 'refund' | 'withdrawal' | 'withdrawal_reversal';
   amount: number;
   eventId?: string;
   eventTitle?: string;
   note?: string;
   createdAt: string;
+  // Real request→received→initiated→processed→complete pipeline (or
+  // rejected), 2026-09-18 — only meaningful for type:'withdrawal' rows.
+  withdrawalStatus?: 'requested' | 'received' | 'initiated' | 'processed' | 'complete' | 'rejected';
+  withdrawalRejectedReason?: string;
+  withdrawalPaidUtr?: string;
 }
 
 // Real shape from prebooze-web/src/types.ts — full booking record, returned

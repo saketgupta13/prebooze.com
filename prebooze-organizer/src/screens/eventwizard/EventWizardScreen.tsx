@@ -23,7 +23,7 @@ import type { CollaboratorOption, Event, LineupProfile, PromoterProfile, Venue }
 // organizer can fill them in later via Edit. Line-up stays in the create
 // flow. Editing an existing event keeps the full original 6-step flow so
 // nothing already set is hidden.
-const CREATE_STEPS = ['1 Basics', '2 Media', '3 Tickets', '4 Line-up'];
+const CREATE_STEPS = ['1 Basics', '2 Media', '3 Tickets', '4 Co-hosts & line-up'];
 const EDIT_STEPS = ['1 Basics', '2 Media', '3 Tickets', '4 Rules & line-up', '5 Promoters', '6 SEO & publish'];
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
 const AGE_LIMITS = ['All ages', '18+', '21+'];
@@ -688,7 +688,7 @@ export default function EventWizardScreen() {
             />
             <View style={styles.navRow}>
               <Button label="Back" variant="ghost" onPress={() => setStep(1)} style={{ flex: 1 }} />
-              <Button label={isEdit ? 'Next: Rules & line-up' : 'Next: Line-up'} disabled={!tiersValid} onPress={() => setStep(3)} style={{ flex: 1 }} />
+              <Button label={isEdit ? 'Next: Rules & line-up' : 'Next: Co-hosts & line-up'} disabled={!tiersValid} onPress={() => setStep(3)} style={{ flex: 1 }} />
             </View>
           </Card>
         )}
@@ -714,46 +714,44 @@ export default function EventWizardScreen() {
                 <View style={{ marginBottom: spacing.l }}>
                   <Chip label="+ Add rule" onPress={() => setRules((prev) => [...prev, { title: '', body: '' }])} />
                 </View>
-
-                {/* New for this app (2026-09-17), ported from web's
-                    CreateEvent.tsx — edit-only here same as Rules above,
-                    matching the create-mode-stays-minimal precedent (Round 2:
-                    Rules/Promoters/SEO default silently on create, filled in
-                    later via Edit) since tagging another real business as a
-                    full co-owner is a deliberate, occasional action, not
-                    something a fast create flow needs to force upfront. */}
-                <Txt style={styles.stepTitle}>Co-organizers</Txt>
-                <SearchableSelect
-                  value=""
-                  onChange={(name) => {
-                    const c = collaboratorOptions.find((x) => x.brandName === name);
-                    if (!c || collaboratorSel.includes(c.id)) return;
-                    setCollaboratorSel((prev) => [...prev, c.id]);
-                  }}
-                  options={collaboratorOptions.filter((c) => !collaboratorSel.includes(c.id)).map((c) => c.brandName)}
-                  placeholder="search organizers to add as a co-host…"
-                />
-                <Muted style={[styles.tiny, { marginVertical: spacing.s }]}>
-                  A tagged co-organizer gets full access to this event — bookings, attendees, revenue, and commission —
-                  and it shows on both your public profiles. Not registered on Prebooze yet? They can't be tagged;
-                  mention them in the description instead.
-                </Muted>
-                {collaboratorSel.length > 0 && (
-                  <ChipWrap>
-                    {collaboratorSel.map((id) => {
-                      const c = collaboratorOptions.find((x) => x.id === id);
-                      return (
-                        <Chip
-                          key={id}
-                          label={`${c?.brandName ?? id} ✕`}
-                          active
-                          onPress={() => setCollaboratorSel((prev) => prev.filter((x) => x !== id))}
-                        />
-                      );
-                    })}
-                  </ChipWrap>
-                )}
               </>
+            )}
+
+            {/* New for this app (2026-09-17), ported from web's
+                CreateEvent.tsx — shown in both create and edit (per explicit
+                user request 2026-09-17: unlike Rules/Promoters/SEO, a
+                co-host is worth surfacing upfront since revenue/commission
+                start splitting from the very first sale). */}
+            <Txt style={styles.stepTitle}>Co-organizers</Txt>
+            <SearchableSelect
+              value=""
+              onChange={(name) => {
+                const c = collaboratorOptions.find((x) => x.brandName === name);
+                if (!c || collaboratorSel.includes(c.id)) return;
+                setCollaboratorSel((prev) => [...prev, c.id]);
+              }}
+              options={collaboratorOptions.filter((c) => !collaboratorSel.includes(c.id)).map((c) => c.brandName)}
+              placeholder="search organizers to add as a co-host…"
+            />
+            <Muted style={[styles.tiny, { marginVertical: spacing.s }]}>
+              A tagged co-organizer gets full access to this event — bookings, attendees, revenue, and commission —
+              and it shows on both your public profiles. Not registered on Prebooze yet? They can't be tagged;
+              mention them in the description instead.
+            </Muted>
+            {collaboratorSel.length > 0 && (
+              <ChipWrap>
+                {collaboratorSel.map((id) => {
+                  const c = collaboratorOptions.find((x) => x.id === id);
+                  return (
+                    <Chip
+                      key={id}
+                      label={`${c?.brandName ?? id} ✕`}
+                      active
+                      onPress={() => setCollaboratorSel((prev) => prev.filter((x) => x !== id))}
+                    />
+                  );
+                })}
+              </ChipWrap>
             )}
 
             <Txt style={styles.stepTitle}>Line-up & partners</Txt>
