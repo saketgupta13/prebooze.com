@@ -88,8 +88,12 @@ export default function WithdrawScreen() {
                 <Muted style={{ marginTop: spacing.m }}>
                   Add a payment profile before withdrawing — tell us where the money should go.
                 </Muted>
-                <Button label="Add a payment profile →" variant="ghost" onPress={() => {}} style={{ marginTop: spacing.m }} disabled />
-                <Muted style={styles.tiny}>Payment profiles land in Settings (Phase 4) — not available in this app build yet.</Muted>
+                {/* Real bug (2026-09-18): this was a disabled placeholder
+                    left over from Phase 3, when Payment profiles (Phase 4)
+                    didn't exist in this app yet — a real dead end for any
+                    organizer with a balance but no bank on file. Phase 4
+                    landed 2026-09-16; wire it for real. */}
+                <Button label="Add a payment profile →" variant="ghost" onPress={() => navigation.navigate('PaymentProfiles')} style={{ marginTop: spacing.m }} />
               </>
             ) : (
               <>

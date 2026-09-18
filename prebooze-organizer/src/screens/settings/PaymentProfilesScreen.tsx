@@ -181,7 +181,9 @@ function ProfileForm({ draft, setDraft, valid, saving, onSave, onCancel }: {
           <Input value={draft.gstin} onChangeText={(t) => set({ gstin: t.toUpperCase() })} maxLength={15} autoCapitalize="characters" editable={!draft.noGst} style={[styles.fieldGap, draft.noGst && styles.fieldDisabled]} />
         </View>
       </View>
-      <Checkbox checked={draft.noGst} onChange={(v) => set({ noGst: v })} label="I don't have a GSTIN" />
+      <View style={{ marginTop: spacing.s }}>
+        <Checkbox checked={draft.noGst} onChange={(v) => set({ noGst: v })} label="I don't have a GSTIN" />
+      </View>
 
       <View style={[styles.row2, { marginTop: spacing.m }]}>
         <View style={styles.flex1}>
