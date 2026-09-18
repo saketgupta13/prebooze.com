@@ -480,8 +480,42 @@ export class BookingsService {
     if (buyer.blocked) throw new ForbiddenException('This account is blocked from booking — contact support');
     if (!input.mainGuest?.trim()) throw new BadRequestException('Attendee name is required');
 
-    const { event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies, fee, discount, couponRow, walletCreditUsed, total } =
-      await this.priceHold(userId, input.holdId, input.couponCode, input.walletCredit, input.promoterRef);
+    let priced: Awaited<ReturnType<typeof this.priceHold>>;
+    try {
+      priced = await this.priceHold(userId, input.holdId, input.couponCode, input.walletCredit, input.promoterRef);
+    } catch (e) {
+      // PhonePe's real, full-page redirect can easily outlast the 8-min
+      // Redis hold TTL (bank-app switch, guest hesitation, a slow network)
+      // in a way Razorpay's embedded modal never could — that modal never
+      // left the tab the hold was ticking in. A guest whose payment
+      // genuinely completed must not lose their booking just because the
+      // hold itself expired first while they were away on PhonePe's page.
+      // Reopen it from the durable Cart row (same recovery HoldsService.
+      // reopen already does for the Razorpay webhook fallback below) before
+      // giving up — real incident caught 2026-09-19 during PhonePe cutover
+      // verification: a completed ₹1 payment had no booking to show for it.
+      if (!input.phonepe) throw e;
+      const cart = await this.prisma.cart.findUnique({ where: { holdId: input.holdId } });
+      if (!cart || cart.userId !== userId) throw e;
+      try {
+        await this.holds.reopen(input.holdId, userId, cart.eventId, cart.qtyMap as Record<string, number>);
+        priced = await this.priceHold(userId, input.holdId, input.couponCode, input.walletCredit, input.promoterRef);
+      } catch (reopenErr) {
+        // The hold expired AND the recovery attempt also failed (most
+        // likely sold out in the meantime) — there's no PhonePe webhook
+        // configured yet to catch this asynchronously later (unlike
+        // Razorpay's reconcilePayment below), so this needs a human now,
+        // same alerting precedent as that fallback's own failure branch.
+        const status = await this.phonepe.getOrderStatus(input.phonepe.merchantOrderId).catch(() => null);
+        if (status?.state === 'COMPLETED') {
+          await this.staffAlerts
+            .alert(`⚠ PhonePe order ${input.phonepe.merchantOrderId} completed (₹${(status.amount / 100).toFixed(2)}) but its hold couldn't be recovered to create a booking: ${(reopenErr as Error).message}. Needs manual recovery — check the PhonePe dashboard and reach out to the guest.`)
+            .catch(() => {});
+        }
+        throw reopenErr;
+      }
+    }
+    const { event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies, fee, discount, couponRow, walletCreditUsed, total } = priced;
 
     // Prebooze's own promoter-referral commission — completely separate
     // from promoterCommission above (organizer-funded, requires
