@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp, CART_HOLD_MINUTES } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
@@ -58,6 +58,24 @@ export default function Checkout() {
   const phonepeReturnHoldId = searchParams.get('phonepe_return') === '1' ? searchParams.get('holdId') : null;
   const [resumingPhonePe, setResumingPhonePe] = useState(Boolean(phonepeReturnHoldId));
   const [resumeErr, setResumeErr] = useState<string | null>(null);
+  // Mobile browsers commonly restore the PRE-redirect Checkout instance from
+  // back-forward cache instead of truly remounting it when PhonePe redirects
+  // back — the useState initializer above never re-runs on a bfcache
+  // restore, so a resumed session could get stuck with resumingPhonePe at
+  // its stale original value (false) while everything URL-driven
+  // (phonepeReturnHoldId, the resume effect below) correctly reflects the
+  // return. That stale false let the render fall through to this same
+  // component's OTHER checks using equally stale state — genuinely expired
+  // by then — flashing "Your hold expired" for a frame before the resume
+  // effect's own navigate() (once the booking actually completes) replaced
+  // it. Real bug hit 2026-09-19. Keeping this reactive to the URL, not just
+  // the initial mount, is what actually keeps it in sync either way.
+  // useLayoutEffect (not useEffect) — runs before the browser paints, so a
+  // bfcache-restored instance never gets a single visible frame of the
+  // stale UI first.
+  useLayoutEffect(() => {
+    if (phonepeReturnHoldId) setResumingPhonePe(true);
+  }, [phonepeReturnHoldId]);
   // afterBookingSuccess/finishCreate below need `lines`/`finalTotal`, only
   // computed further down this render — this ref lets the effect (declared
   // here, so it can depend on `event` without a temporal-dead-zone issue)
@@ -105,6 +123,15 @@ export default function Checkout() {
   // ---- real hold (Redis-backed, 8-min TTL) — only for real events, needs a logged-in guest ----
   const [holdId, setHoldId] = useState<string | null>(phonepeReturnHoldId);
   const [holdErr, setHoldErr] = useState<string | null>(null);
+  // Same reactive-resync reasoning as resumingPhonePe above — without this,
+  // a render where phonepeReturnHoldId arrives after this initializer
+  // already ran would leave holdId null, and the hold-creation effect right
+  // below would misread that as a genuinely NEW checkout and create a
+  // second, wasted hold instead of reusing the one PhonePe actually charged.
+  useLayoutEffect(() => {
+    if (phonepeReturnHoldId && holdId !== phonepeReturnHoldId) setHoldId(phonepeReturnHoldId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phonepeReturnHoldId]);
   useEffect(() => {
     // Resuming a PhonePe redirect reuses the exact hold its order was
     // created against — a fresh bookings.hold() here would create a
