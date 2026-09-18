@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
+import { PageLoader } from '../components/Loader';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import { bookings as bookingsApi } from '../api';
 import { isBackendEnabled } from '../api/client';
@@ -36,13 +37,7 @@ export default function Confirmation() {
     : undefined;
 
   if (loading) {
-    return (
-      <main className="page">
-        <div className="container center" style={{ padding: '80px 0' }}>
-          <h1>Loading your ticket…</h1>
-        </div>
-      </main>
-    );
+    return <PageLoader />;
   }
 
   if (!booking || !event) {

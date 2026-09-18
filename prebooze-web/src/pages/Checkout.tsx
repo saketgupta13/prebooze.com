@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp, CART_HOLD_MINUTES } from '../store/AppContext';
+import Loader, { PageLoader } from '../components/Loader';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import type { Booking, Event, PayMethod } from '../types';
 import { auth, bookings, catalog, wallet, type AvailableCoupon, type BookingQuote, type CreateBookingInput } from '../api';
@@ -487,7 +488,8 @@ export default function Checkout() {
     return (
       <main className="page">
         <div className="container center" style={{ padding: '80px 0' }}>
-          <h1>Confirming your payment…</h1>
+          <Loader size={56} />
+          <h1 style={{ marginTop: 16 }}>Confirming your payment…</h1>
           <p className="muted" style={{ margin: '10px 0 0' }}>Don't close this tab — this only takes a few seconds.</p>
         </div>
       </main>
@@ -525,13 +527,7 @@ export default function Checkout() {
   }
 
   if (wantsLive && !liveEvent && !holdErr) {
-    return (
-      <main className="page">
-        <div className="container center" style={{ padding: '80px 0' }}>
-          <h1>Loading your checkout…</h1>
-        </div>
-      </main>
-    );
+    return <PageLoader />;
   }
 
   if (!event || !selection || lines.length === 0) {
