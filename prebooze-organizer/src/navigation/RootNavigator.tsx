@@ -1,11 +1,11 @@
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import PhoneEntryScreen from '../screens/auth/PhoneEntryScreen';
 import OtpEntryScreen from '../screens/auth/OtpEntryScreen';
 import { NotOrganizerScreen, PendingReviewScreen, RejectedReviewScreen } from '../screens/auth/StatusScreens';
 import MainTabs from './MainTabs';
+import SplashOverlay from '../components/SplashOverlay';
 import { colors } from '../theme/tokens';
 import { navigationRef } from './navigationRef';
 import type { AuthStackParamList } from './types';
@@ -24,11 +24,7 @@ export default function RootNavigator() {
   const { accessState } = useAuth();
 
   if (accessState.kind === 'loading') {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={colors.accent} size="large" />
-      </View>
-    );
+    return <SplashOverlay />;
   }
 
   return (

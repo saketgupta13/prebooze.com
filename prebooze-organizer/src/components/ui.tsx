@@ -188,6 +188,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.l,
     padding: spacing.l,
+    // A real lift, not just a border — every card read as flat paper
+    // against the bg before this (organizer feedback 2026-09-18), ports
+    // the wireframe reference's card/panel drop-shadow language.
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 14,
+    elevation: 4,
   },
   text: {
     color: colors.text,
@@ -226,6 +234,13 @@ const styles = StyleSheet.create({
   },
   btnPrimary: {
     backgroundColor: colors.accent,
+    // Matches the wireframe reference's accent-glow shadow on its primary
+    // pill/button states, rather than a flat solid fill.
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 5,
   },
   btnGhost: {
     backgroundColor: colors.surface2,
@@ -300,6 +315,11 @@ const styles = StyleSheet.create({
   chipOn: {
     backgroundColor: colors.accent,
     borderColor: colors.accent,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 3,
   },
   chipLabel: {
     fontFamily: fontFamily.medium,
