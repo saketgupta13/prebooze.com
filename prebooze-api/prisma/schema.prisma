@@ -1741,6 +1741,14 @@ model Cart {
   // arrived. Null for anything that never reached Pay, or a free/mock
   // checkout that has no Razorpay leg to reconcile.
   bookingPayload Json?
+  // The exact merchantOrderId quote() minted for the PhonePe order this
+  // cart's guest was sent off to pay — never the same as holdId (see
+  // BookingsService.quote's comment: PhonePe rejects re-creating an order
+  // under an id already used, so a fresh one is minted every quote() call).
+  // The PhonePe webhook fallback (BookingsService.reconcilePhonePePayment)
+  // looks a cart up by this, the only place that id is durably recorded
+  // outside the guest's own sessionStorage.
+  phonepeMerchantOrderId String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 }

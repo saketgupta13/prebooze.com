@@ -353,6 +353,10 @@ export class BookingsService {
       const order = await this.phonepe.createOrder(merchantOrderId, p.total * 100, returnUrl);
       phonepeRedirectUrl = order.redirectUrl;
       phonepeMerchantOrderId = merchantOrderId;
+      // Durable record of this exact id, for the PhonePe webhook fallback
+      // (reconcilePhonePePayment) to look this cart up by — best-effort,
+      // must never block a real quote over a tracking write.
+      await this.prisma.cart.updateMany({ where: { holdId }, data: { phonepeMerchantOrderId: merchantOrderId } }).catch(() => {});
     }
     return {
       subtotal: p.subtotal, fee: p.fee, discount: p.discount, walletCreditUsed: p.walletCreditUsed, total: p.total,
@@ -487,6 +491,63 @@ export class BookingsService {
       if ((e as { code?: string })?.code === 'P2002') return;
       await this.staffAlerts
         .alert(`⚠ Razorpay captured payment ${paymentId} (₹${(amountPaise / 100).toFixed(2)}, guest ${payload.mainGuest} / ${payload.whatsapp}) but auto-creating the booking failed: ${(e as Error).message}. Needs manual recovery.`)
+        .catch(() => {});
+    }
+  }
+
+  /** PhonePe webhook fallback for a completed order (PhonePeWebhookController)
+   * — same reasoning as reconcilePayment above, adapted for PhonePe's real
+   * shape: there's no separate gateway payment id to look an order up by
+   * (Razorpay's getOrder(orderId).receipt), so the cart is found directly
+   * by the merchantOrderId quote() recorded on it (see Cart.
+   * phonepeMerchantOrderId's doc comment) instead. Idempotent the same way,
+   * via Booking.paymentId's unique constraint. */
+  async reconcilePhonePePayment(merchantOrderId: string, amountPaise: number) {
+    const existing = await this.prisma.booking.findUnique({ where: { paymentId: merchantOrderId } });
+    if (existing) return; // client's own call (or an earlier webhook delivery) already handled this
+
+    const cart = await this.prisma.cart.findFirst({ where: { phonepeMerchantOrderId: merchantOrderId } });
+    const payload = cart?.bookingPayload as {
+      mainGuest: string; mainGuestGender: string | null; age: number | null; whatsapp: string; guests: { name: string; gender?: string; whatsapp?: string }[];
+      couponCode: string | null; walletCredit: number; promoterRef: string | null; promoterVia: string | null; payMethodId: string | null;
+    } | null;
+
+    if (!cart || !payload) {
+      // Same "can't safely fabricate a name/tier" reasoning as the Razorpay
+      // fallback — this needs a human.
+      await this.staffAlerts
+        .alert(`⚠ PhonePe order ${merchantOrderId} completed (₹${(amountPaise / 100).toFixed(2)}) with no matching booking and no recoverable cart. Check the PhonePe dashboard and reach out to the guest directly.`)
+        .catch(() => {});
+      return;
+    }
+
+    try {
+      await this.holds.reopen(cart.holdId, cart.userId, cart.eventId, cart.qtyMap as Record<string, number>);
+      const booking = await this.create(cart.userId, {
+        holdId: cart.holdId,
+        mainGuest: payload.mainGuest,
+        mainGuestGender: payload.mainGuestGender ?? undefined,
+        age: payload.age ?? undefined,
+        whatsapp: payload.whatsapp,
+        guests: payload.guests,
+        couponCode: payload.couponCode ?? undefined,
+        walletCredit: payload.walletCredit,
+        promoterRef: payload.promoterRef ?? undefined,
+        promoterVia: payload.promoterVia ?? undefined,
+        payMethodId: payload.payMethodId ?? undefined,
+        phonepe: { merchantOrderId },
+      });
+      await this.staffAlerts
+        .alert(`✓ Auto-recovered a booking via the PhonePe webhook — ${payload.mainGuest}'s own confirmation never arrived (likely their browser never made it back from PhonePe's page) but payment ${merchantOrderId} was real, so Booking ${booking.id} was created automatically.`)
+        .catch(() => {});
+    } catch (e) {
+      // A P2002 on Booking.paymentId means the client's own call landed in
+      // the same moment this ran — genuinely not a failure, just a race
+      // this constraint exists to resolve safely. Anything else (sold out
+      // in the meantime, event no longer on sale, etc.) needs a human.
+      if ((e as { code?: string })?.code === 'P2002') return;
+      await this.staffAlerts
+        .alert(`⚠ PhonePe order ${merchantOrderId} completed (₹${(amountPaise / 100).toFixed(2)}, guest ${payload.mainGuest} / ${payload.whatsapp}) but auto-creating the booking failed: ${(e as Error).message}. Needs manual recovery.`)
         .catch(() => {});
     }
   }
