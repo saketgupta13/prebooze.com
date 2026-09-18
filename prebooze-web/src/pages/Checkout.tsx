@@ -387,7 +387,15 @@ export default function Checkout() {
       try {
         const booking = await bookings.create({ ...payload, holdId: holdIdToResume, phonepe: { merchantOrderId: phonepeMerchantOrderId } });
         sessionStorage.removeItem(`pb_phonepe_${holdIdToResume}`);
-        setResumingPhonePe(false);
+        // Deliberately NOT setResumingPhonePe(false) here — afterBookingSuccess
+        // navigates away immediately below, but navigate() doesn't swap the
+        // route synchronously, so a render in between would otherwise fall
+        // through this component's other early-return checks (e.g. the
+        // now-stale "hold expired" countdown, since real time has passed
+        // during the PhonePe round trip) and flash that screen for one
+        // frame before the confirmation page takes over. Real bug seen
+        // 2026-09-19: a genuinely successful payment flickered an "expired"
+        // screen before landing on the real confirmation + QR code.
         afterBookingSuccess(booking.id);
         return;
       } catch {
@@ -397,7 +405,6 @@ export default function Checkout() {
         const existing = await bookings.list().then((list) => list.find((b) => b.paymentId === phonepeMerchantOrderId)).catch(() => undefined);
         if (existing) {
           sessionStorage.removeItem(`pb_phonepe_${holdIdToResume}`);
-          setResumingPhonePe(false);
           afterBookingSuccess(existing.id);
           return;
         }
