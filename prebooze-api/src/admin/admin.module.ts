@@ -71,6 +71,7 @@ import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { RazorpayService } from '../payments/razorpay.service';
+import { PhonePeService } from '../payments/phonepe.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { WalletService } from '../wallet/wallet.service';
 import { FeaturedService } from '../featured/featured.service';
@@ -158,6 +159,7 @@ import { redisProvider } from '../redis.provider';
     EmailService,
     StaffAlertsService,
     RazorpayService,
+    PhonePeService,
     SubscriptionsService,
     FeaturedService,
     BookingsService,
