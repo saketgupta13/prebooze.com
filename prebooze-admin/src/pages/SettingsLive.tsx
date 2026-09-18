@@ -145,7 +145,7 @@ export default function SettingsLive() {
           </div>
         </div>
         <div className="tiny hint">
-          % of the discounted ticket price, not a flat ₹ amount — sized to cover Razorpay's cut plus the WhatsApp confirmation cost.
+          % of the discounted ticket price, not a flat ₹ amount — sized to cover the payment gateway's cut plus the WhatsApp confirmation cost.
         </div>
         <div className="tiny hint">
           Prebooze isn't GST-registered, so no GST is charged or shown anywhere — invoices print as a plain "Invoice".

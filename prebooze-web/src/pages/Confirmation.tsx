@@ -88,7 +88,10 @@ export default function Confirmation() {
         <h1 style={{ fontSize: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>You're going! <PartyPopper size={24} /></h1>
         <p className="muted" style={{ margin: '8px 0 22px' }}>
           Ticket sent to WhatsApp {booking.whatsapp}
-          {booking.total > 0 ? ` · paid ${formatPrice(booking.total)} via Razorpay` : ' · Free entry'}
+          {/* paymentId's 'pay_' prefix is Razorpay's own real id format (pre-
+              PhonePe-cutover bookings only) — same discriminator
+              BookingsService.refundViaGateway uses server-side. */}
+          {booking.total > 0 ? ` · paid ${formatPrice(booking.total)} via ${booking.paymentId?.startsWith('pay_') ? 'Razorpay' : 'PhonePe'}` : ' · Free entry'}
         </p>
 
         <div className="card card-shadow" style={{ textAlign: 'center' }}>

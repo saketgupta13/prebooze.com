@@ -127,7 +127,8 @@ export default function BookingDetail() {
       // Real error this time, not a silent failure — the whole point of
       // this button — so it's worth surfacing clearly, not just the
       // generic err banner other actions on this page use.
-      setErr(`Refund retry failed again: ${e instanceof LiveApiError ? e.message : 'unknown error'} — check the Razorpay dashboard directly before trying once more.`);
+      const gateway = booking.paymentId?.startsWith('pay_') ? 'Razorpay' : 'PhonePe';
+      setErr(`Refund retry failed again: ${e instanceof LiveApiError ? e.message : 'unknown error'} — check the ${gateway} dashboard directly before trying once more.`);
     } finally {
       setRetryingRefund(false);
     }
@@ -236,7 +237,10 @@ export default function BookingDetail() {
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, paddingTop: 6, borderTop: '1px solid rgba(139,195,74,.15)' }}>
           <span>Paid</span><span className="green">₹{fmt(booking.total)}</span>
         </div>
-        {booking.paymentId && <div className="tiny hint">Razorpay ref: {booking.paymentId}</div>}
+        {/* 'pay_' is Razorpay's own real id format (pre-PhonePe-cutover
+            bookings only) — same discriminator BookingsService.
+            refundViaGateway uses server-side to route a refund correctly. */}
+        {booking.paymentId && <div className="tiny hint">{booking.paymentId.startsWith('pay_') ? 'Razorpay' : 'PhonePe'} ref: {booking.paymentId}</div>}
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
