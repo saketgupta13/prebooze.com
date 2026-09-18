@@ -52,8 +52,20 @@ export default function App() {
     Manrope_800ExtraBold,
   });
 
-  const onLayout = useCallback(async () => {
-    if (fontsLoaded) await SplashScreen.hideAsync();
+  // Real bug found live (2026-09-18): hiding the native splash right on
+  // layout left a flash of pure black between it and SplashOverlay's own
+  // first frame — confirmed by sampling the gap frame's pixels (#000000,
+  // not our own bg color), a known Android compositor gap where `onLayout`
+  // fires a frame or two before the GPU actually presents. Two rAFs force
+  // a real committed paint of what's underneath before the native splash
+  // tears down, so the handoff to the glow splash is instant.
+  const onLayout = useCallback(() => {
+    if (!fontsLoaded) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        SplashScreen.hideAsync().catch(() => {});
+      });
+    });
   }, [fontsLoaded]);
 
   useEffect(() => {
