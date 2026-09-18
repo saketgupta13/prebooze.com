@@ -337,14 +337,30 @@ export class BookingsService {
   async quote(userId: string, holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string) {
     const p = await this.priceHold(userId, holdId, couponCode, walletCredit, promoterRef);
     const returnUrl = `${process.env.WEB_APP_URL || 'https://prebooze.com'}/checkout?holdId=${encodeURIComponent(holdId)}&phonepe_return=1`;
-    const order = p.total > 0 ? await this.phonepe.createOrder(holdId, p.total * 100, returnUrl) : null;
+    // A fresh, disposable merchantOrderId on every call — never holdId
+    // itself. The checkout page's quote effect legitimately re-fires more
+    // than once per session (a coupon applied, wallet-credit toggled), and
+    // this used to be safe under Razorpay because createOrder always minted
+    // its own new order id with no caller input; PhonePe's merchantOrderId
+    // is caller-chosen and must be unique, so reusing holdId here made the
+    // *second* quote() call for the same hold 500 — real bug hit
+    // 2026-09-18, confirmed against a live re-quote of an already-ordered
+    // hold. Unpaid stray orders simply expire on PhonePe's own side.
+    let phonepeRedirectUrl: string | undefined;
+    let phonepeMerchantOrderId: string | undefined;
+    if (p.total > 0) {
+      const merchantOrderId = `${holdId}-${randomBytes(6).toString('hex')}`;
+      const order = await this.phonepe.createOrder(merchantOrderId, p.total * 100, returnUrl);
+      phonepeRedirectUrl = order.redirectUrl;
+      phonepeMerchantOrderId = merchantOrderId;
+    }
     return {
       subtotal: p.subtotal, fee: p.fee, discount: p.discount, walletCreditUsed: p.walletCreditUsed, total: p.total,
       promoterMarkupApplies: p.promoterMarkupApplies,
       promoterShare: p.promoterMarkupApplies ? p.promoterCommission : 0,
       platformShare: p.promoterMarkupApplies ? p.commission : 0,
-      phonepeRedirectUrl: order?.redirectUrl,
-      phonepeMerchantOrderId: order ? holdId : undefined,
+      phonepeRedirectUrl,
+      phonepeMerchantOrderId,
     };
   }
 
@@ -591,6 +607,18 @@ export class BookingsService {
       if (input.phonepe) {
         const status = await this.phonepe.getOrderStatus(input.phonepe.merchantOrderId);
         if (!status || status.state !== 'COMPLETED') throw new BadRequestException('Payment verification failed');
+        // The order was created against whatever `total` quote() computed
+        // at that moment — if a coupon/wallet-credit choice changed between
+        // then and now (a slow guest, a coupon expiring mid-checkout), this
+        // create() call would otherwise book at a DIFFERENT price than what
+        // PhonePe actually collected, silently over/under-charging. Refuse
+        // rather than guess; this needs a human, not an automatic booking.
+        if (status.amount !== total * 100) {
+          await this.staffAlerts
+            .alert(`⚠ PhonePe order ${input.phonepe.merchantOrderId} collected ₹${(status.amount / 100).toFixed(2)} but this booking now prices at ₹${total} — refused rather than auto-created. Needs manual review (likely a coupon/credit change mid-checkout).`)
+            .catch(() => {});
+          throw new BadRequestException(`This booking's price changed since you paid — contact support with reference ${input.phonepe.merchantOrderId}`);
+        }
         paymentId = input.phonepe.merchantOrderId;
       } else if (!this.phonepe.live) {
         // dev convenience: simulate a completed payment so the flow is curl-testable

@@ -266,7 +266,13 @@ export default function Checkout() {
   const [quote, setQuote] = useState<BookingQuote | null>(null);
   const [quoting, setQuoting] = useState(false);
   useEffect(() => {
-    if (!holdId) return;
+    // Resuming a PhonePe redirect must never re-quote — quote() creates a
+    // brand-new PhonePe order every time it runs, and this holdId's order
+    // is already paid. Real bug hit 2026-09-18: this fired anyway (holdId
+    // is seeded from the URL immediately on resume), tried to create a
+    // second order against the same already-completed merchantOrderId, and
+    // the resulting 500 spammed the console throughout the resume flow.
+    if (!holdId || phonepeReturnHoldId) return;
     let cancelled = false;
     setQuoting(true);
     bookings
@@ -309,6 +315,97 @@ export default function Checkout() {
   const platformShare = quote?.platformShare ?? 0;
 
   const cartId = user && selection ? `${user.phone}::${selection.eventId}` : null;
+
+  const afterBookingSuccess = (id: string) => {
+    track('booking_completed', { eventId: event?.id, meta: { bookingId: id } });
+    // GA4's standard "purchase" event — using its recommended param shape
+    // (transaction_id/value/currency/items) instead of a custom event name
+    // is what unlocks GA4's built-in Ecommerce reports for this instead of
+    // needing a hand-built one.
+    pushEvent('purchase', {
+      transaction_id: id,
+      value: finalTotal,
+      currency: 'INR',
+      items: lines.map((l) => ({
+        item_id: l.tier.id,
+        item_name: event ? `${event.title} — ${l.tier.name}` : l.tier.name,
+        price: event ? displayTierPrice(l.tier, event.date) : l.tier.price,
+        quantity: l.qty,
+      })),
+    });
+    trackMeta(
+      'Purchase',
+      {
+        value: finalTotal,
+        currency: 'INR',
+        content_type: 'product',
+        content_ids: lines.map((l) => l.tier.id),
+        num_items: lines.reduce((sum, l) => sum + l.qty, 0),
+      },
+      id,
+    );
+    if (cartId) setCartStatus(cartId, 'completed');
+    setSelection(null);
+    clearHold();
+    if (event?.id) clearPromoterRefForEvent(event.id);
+    refreshWallet(); // a live purchase may have just spent real wallet credit
+    navigate('/confirmation/' + encodeURIComponent(id));
+  };
+
+  // Assigned fresh every render so the effect declared near the top (which
+  // fires once `event` is ready) always calls this with up-to-date
+  // `afterBookingSuccess`/state. Reads back the attendee-details form
+  // payLive() stashed in sessionStorage right before the PhonePe redirect —
+  // there's no other way to recover it, a full browser navigation away and
+  // back loses all React state. `getOrderStatus` can briefly still report
+  // PENDING right after redirect-back (PhonePe's own S2S confirmation
+  // hasn't landed yet), so this retries a few times before giving up —
+  // same "payment definitely happened, don't let the guest re-pick
+  // tickets" caution the existing Razorpay-webhook-race handling already
+  // uses below, since real money may already have moved.
+  //
+  // MUST be assigned before the resumingPhonePe/resumeErr early returns
+  // below — those return JSX on the very first render (resumingPhonePe
+  // starts true whenever the URL carries phonepe_return=1), which would
+  // otherwise skip this assignment forever and leave resumePhonePeRef.
+  // current permanently null, silently no-opping the resume effect and
+  // stranding the guest on "Confirming your payment…" — real bug hit
+  // 2026-09-18 during PhonePe cutover verification, a completed real
+  // payment never turned into a booking because of exactly this.
+  resumePhonePeRef.current = async () => {
+    const holdIdToResume = phonepeReturnHoldId;
+    if (!holdIdToResume) return;
+    const raw = sessionStorage.getItem(`pb_phonepe_${holdIdToResume}`);
+    if (!raw) {
+      setResumingPhonePe(false);
+      setResumeErr("We couldn't find your booking details to finish this automatically — check My Bookings, or contact support if this was a real payment.");
+      return;
+    }
+    const { phonepeMerchantOrderId, ...payload } = JSON.parse(raw) as Omit<CreateBookingInput, 'holdId' | 'razorpay' | 'phonepe'> & { phonepeMerchantOrderId: string };
+    for (let attempt = 0; attempt < 6; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
+      try {
+        const booking = await bookings.create({ ...payload, holdId: holdIdToResume, phonepe: { merchantOrderId: phonepeMerchantOrderId } });
+        sessionStorage.removeItem(`pb_phonepe_${holdIdToResume}`);
+        setResumingPhonePe(false);
+        afterBookingSuccess(booking.id);
+        return;
+      } catch {
+        // could be a genuinely still-PENDING order (retry) or an already-
+        // completed booking from a previous attempt at this same resume —
+        // check for the latter before continuing to retry.
+        const existing = await bookings.list().then((list) => list.find((b) => b.paymentId === phonepeMerchantOrderId)).catch(() => undefined);
+        if (existing) {
+          sessionStorage.removeItem(`pb_phonepe_${holdIdToResume}`);
+          setResumingPhonePe(false);
+          afterBookingSuccess(existing.id);
+          return;
+        }
+      }
+    }
+    setResumingPhonePe(false);
+    setResumeErr(`If your payment went through, we're still finalizing your booking — check My Bookings in a minute. If it's not there, contact support with reference ${holdIdToResume}.`);
+  };
 
   // Capture the cart on checkout entry (abandoned-cart recovery) — we already have
   // the guest's name + WhatsApp from login.
@@ -498,88 +595,6 @@ export default function Checkout() {
     setCouponMsg({ ok: true, text: `${code} applied — you save ₹${save}` });
   };
 
-  const afterBookingSuccess = (id: string) => {
-    track('booking_completed', { eventId: event?.id, meta: { bookingId: id } });
-    // GA4's standard "purchase" event — using its recommended param shape
-    // (transaction_id/value/currency/items) instead of a custom event name
-    // is what unlocks GA4's built-in Ecommerce reports for this instead of
-    // needing a hand-built one.
-    pushEvent('purchase', {
-      transaction_id: id,
-      value: finalTotal,
-      currency: 'INR',
-      items: lines.map((l) => ({
-        item_id: l.tier.id,
-        item_name: event ? `${event.title} — ${l.tier.name}` : l.tier.name,
-        price: event ? displayTierPrice(l.tier, event.date) : l.tier.price,
-        quantity: l.qty,
-      })),
-    });
-    trackMeta(
-      'Purchase',
-      {
-        value: finalTotal,
-        currency: 'INR',
-        content_type: 'product',
-        content_ids: lines.map((l) => l.tier.id),
-        num_items: lines.reduce((sum, l) => sum + l.qty, 0),
-      },
-      id,
-    );
-    if (cartId) setCartStatus(cartId, 'completed');
-    setSelection(null);
-    clearHold();
-    if (event?.id) clearPromoterRefForEvent(event.id);
-    refreshWallet(); // a live purchase may have just spent real wallet credit
-    navigate('/confirmation/' + encodeURIComponent(id));
-  };
-
-  // Assigned fresh every render so the effect declared near the top (which
-  // fires once `event` is ready) always calls this with up-to-date
-  // `afterBookingSuccess`/state. Reads back the attendee-details form
-  // payLive() stashed in sessionStorage right before the PhonePe redirect —
-  // there's no other way to recover it, a full browser navigation away and
-  // back loses all React state. `getOrderStatus` can briefly still report
-  // PENDING right after redirect-back (PhonePe's own S2S confirmation
-  // hasn't landed yet), so this retries a few times before giving up —
-  // same "payment definitely happened, don't let the guest re-pick
-  // tickets" caution the existing Razorpay-webhook-race handling already
-  // uses below, since real money may already have moved.
-  resumePhonePeRef.current = async () => {
-    const holdIdToResume = phonepeReturnHoldId;
-    if (!holdIdToResume) return;
-    const raw = sessionStorage.getItem(`pb_phonepe_${holdIdToResume}`);
-    if (!raw) {
-      setResumingPhonePe(false);
-      setResumeErr("We couldn't find your booking details to finish this automatically — check My Bookings, or contact support if this was a real payment.");
-      return;
-    }
-    const payload = JSON.parse(raw) as Omit<CreateBookingInput, 'holdId' | 'razorpay' | 'phonepe'>;
-    for (let attempt = 0; attempt < 6; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
-      try {
-        const booking = await bookings.create({ ...payload, holdId: holdIdToResume, phonepe: { merchantOrderId: holdIdToResume } });
-        sessionStorage.removeItem(`pb_phonepe_${holdIdToResume}`);
-        setResumingPhonePe(false);
-        afterBookingSuccess(booking.id);
-        return;
-      } catch {
-        // could be a genuinely still-PENDING order (retry) or an already-
-        // completed booking from a previous attempt at this same resume —
-        // check for the latter before continuing to retry.
-        const existing = await bookings.list().then((list) => list.find((b) => b.paymentId === holdIdToResume)).catch(() => undefined);
-        if (existing) {
-          sessionStorage.removeItem(`pb_phonepe_${holdIdToResume}`);
-          setResumingPhonePe(false);
-          afterBookingSuccess(existing.id);
-          return;
-        }
-      }
-    }
-    setResumingPhonePe(false);
-    setResumeErr(`If your payment went through, we're still finalizing your booking — check My Bookings in a minute. If it's not there, contact support with reference ${holdIdToResume}.`);
-  };
-
   const payLive = async () => {
     if (!holdId) return;
     setPaying(true);
@@ -640,7 +655,13 @@ export default function Checkout() {
           promoterVia: event?.id ? promoterViaByEvent[event.id] : undefined,
           payMethodId: (livePayMethods ?? []).some((m) => m.id === payMethod) ? payMethod : undefined,
         };
-        sessionStorage.setItem(`pb_phonepe_${holdId}`, JSON.stringify(attendeePayload));
+        // phonepeMerchantOrderId is a fresh id minted by THIS quote() call,
+        // never holdId itself (quote() can re-run more than once per
+        // session — a coupon applied, wallet-credit toggled — and PhonePe
+        // rejects re-creating an order under an id that already exists, so
+        // each quote() call mints its own). The resume flow on return must
+        // confirm THIS exact order, not guess at holdId.
+        sessionStorage.setItem(`pb_phonepe_${holdId}`, JSON.stringify({ ...attendeePayload, phonepeMerchantOrderId: q.phonepeMerchantOrderId }));
         // Fire-and-forget snapshot, same safety net as before — closes the
         // gap where the browser never makes it back from PhonePe at all
         // (not just backgrounded) once a webhook is wired up server-side.
