@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -73,29 +73,6 @@ export default function NotificationsScreen() {
     notifications.markAllRead().catch(() => {});
   };
 
-  // TEMPORARY — only tappable dev entry point for the matching temporary
-  // backend route (see OrgNotificationsService.seedDemo's own comment).
-  // Remove this button + its handler together with that route once the
-  // organizer has previewed the panel.
-  const [seeding, setSeeding] = useState(false);
-  // A real bug hit live: a single tap fired this handler twice (12 rows
-  // instead of 6, timestamps 1ms apart) — `disabled={seeding}` alone isn't
-  // enough because the state update that flips it isn't applied before a
-  // near-simultaneous second touch event is processed. A ref-backed guard
-  // is checked and set synchronously, before React's render cycle is even
-  // involved, so a second rapid tap is dropped regardless of timing.
-  const seedingRef = useRef(false);
-  const seedDemo = () => {
-    if (seedingRef.current) return;
-    seedingRef.current = true;
-    setSeeding(true);
-    notifications.seedDemo()
-      .then(() => notifications.list())
-      .then(setRows)
-      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to seed demo notifications'))
-      .finally(() => { seedingRef.current = false; setSeeding(false); });
-  };
-
   return (
     <Screen>
       <View style={styles.header}>
@@ -109,12 +86,6 @@ export default function NotificationsScreen() {
           </Pressable>
         )}
       </View>
-      {/* TEMPORARY — moved out of the empty-state-only spot so it's reachable
-          for re-testing even with existing rows. Remove with the rest of the
-          seed-demo dev tooling. */}
-      <Pressable onPress={seedDemo} disabled={seeding} style={styles.seedButtonHeader}>
-        <Txt style={styles.link}>{seeding ? 'Adding examples…' : 'Reset with example notifications (dev)'}</Txt>
-      </Pressable>
 
       <ScrollView style={styles.contentScroll} contentContainerStyle={styles.content}>
         {!!err && (
@@ -172,7 +143,6 @@ const styles = StyleSheet.create({
   errRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.s },
   listCard: { padding: spacing.l },
   centerNote: { textAlign: 'center', padding: spacing.l },
-  seedButtonHeader: { paddingHorizontal: spacing.l, paddingBottom: spacing.m },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.m, paddingVertical: spacing.m },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.borderDash, borderStyle: 'dashed' },
   iconWrap: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },

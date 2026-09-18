@@ -102,13 +102,6 @@ export class OrganizerController {
     return this.orgNotifications.setPrefs(req.user.sub, enabled);
   }
 
-  // TEMPORARY — see OrgNotificationsService.seedDemo's own comment. Remove
-  // this route + that method once the organizer has previewed the panel.
-  @Post('notifications/seed-demo')
-  seedDemoNotifications(@Req() req: AuthedReq) {
-    return this.orgNotifications.seedDemo(req.user.sub);
-  }
-
   /** Real Featured billing history — same Invoice rows admin sees, filtered
    * to this organizer's own phone number (see InvoicesService.mine).
    * Owner-only: billing/invoices don't map onto any team-role permission

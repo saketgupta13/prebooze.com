@@ -65,41 +65,4 @@ export class OrgNotificationsService {
     // nothing screen-specific at all).
     await this.push.send(userId, 'Prebooze', text, to ? { to } : undefined).catch(() => {});
   }
-
-  /** TEMPORARY, self-serve only — drops one realistic example row per
-   * notification "kind" this app will eventually raise into the CALLING
-   * user's own inbox, via the same real notify() path (so a real push
-   * fires too — this is meant to be checked against both the in-app panel
-   * AND the Android system tray). Wipes this user's ENTIRE inbox first (not
-   * just text-matched rows — simpler and means a second press always shows
-   * a clean, predictable set instead of accumulating stale copies with
-   * outdated sample text from an earlier version of this method), so
-   * pressing the trigger more than once — including a genuine double-fire
-   * from a fast double-tap — replaces rather than duplicates. Remove this
-   * method + its controller route once the organizer has looked — it's not
-   * a real feature, just a one-time way to preview the UI without a raw DB
-   * write. */
-  async seedDemo(userId: string): Promise<{ seeded: number }> {
-    const samples: { kind: string; text: string; to?: string; minutesAgo: number; read: boolean }[] = [
-      { kind: 'approved', text: '"Rooftop Sundown Sessions" was approved — it\'s live now', to: '/events', minutesAgo: 5, read: false },
-      { kind: 'rejected', text: '"Warehouse Techno Night" was rejected — poster resolution too low, please re-upload', to: '/events', minutesAgo: 240, read: false },
-      { kind: 'booking', text: 'Priya Sharma bought 2x General Entry for "Rooftop Sundown Sessions" — ₹1,800', to: '/bookings', minutesAgo: 30, read: false },
-      { kind: 'payout', text: 'Payout of ₹12,045 was marked paid to your bank account', to: '/payouts', minutesAgo: 1440, read: true },
-      { kind: 'review', text: 'New 5-star review on "Acoustic Sundowner"', to: '/reviews', minutesAgo: 2880, read: true },
-      { kind: 'team', text: 'Manager accepted your team invite and can now manage the door', to: '/team-roles', minutesAgo: 4320, read: true },
-    ];
-    await this.prisma.orgNotification.deleteMany({ where: { userId } });
-    for (const s of samples) {
-      await this.prisma.orgNotification.create({
-        data: { userId, icon: s.kind, text: s.text, to: s.to, read: s.read, createdAt: new Date(Date.now() - s.minutesAgo * 60_000) },
-      });
-      // Real push per sample (not the batched notify() call) so each one
-      // arrives as its own Android system-tray entry, same as it would from
-      // a genuine trigger — the whole point of this preview. Includes `to`
-      // in the push data too, so tapping it from the tray deep-links the
-      // same way an in-app tap does.
-      await this.push.send(userId, 'Prebooze', s.text, s.to ? { to: s.to } : undefined).catch(() => {});
-    }
-    return { seeded: samples.length };
-  }
 }
