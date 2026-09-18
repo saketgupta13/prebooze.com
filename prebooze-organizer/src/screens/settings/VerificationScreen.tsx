@@ -3,7 +3,8 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
-import { ArrowLeft, BadgeCheck, Check, Shield, X } from 'lucide-react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import { ArrowLeft, BadgeCheck, Check, FileText, Shield, X } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { kyc } from '../../api/kyc';
 import { ApiError } from '../../api/client';
@@ -18,11 +19,10 @@ type Doc = { uri: string; name: string; mimeType: string } | null;
 
 /** Faithful port of prebooze-web/src/pages/organizer/OrganizerVerification.tsx
  * — identity-only badge (doesn't affect withdrawals, see PaymentProfiles for
- * that). One deliberate platform difference: web accepts "image/*,.pdf" for
- * documents via a browser file input; RN only has expo-image-picker
- * installed (no document-picker yet), so documents here are photo/gallery
- * only — a real PDF upload would need a native rebuild to add
- * expo-document-picker, not done here since it wasn't asked for. */
+ * that). Aadhaar/registration docs use expo-document-picker (image or PDF,
+ * matching web's `accept="image/*,.pdf"`); the selfie stays image-only via
+ * expo-image-picker, matching web's camera-oriented "capture or upload a
+ * selfie" copy. */
 export default function VerificationScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<MoreStackParamList>>();
   const [org, setOrg] = useState<Organizer | null>(null);
@@ -63,6 +63,16 @@ export default function VerificationScreen() {
     if (result.canceled || !result.assets[0]) return;
     const a = result.assets[0];
     setter({ uri: a.uri, name: a.fileName ?? `upload-${Date.now()}.jpg`, mimeType: a.mimeType ?? 'image/jpeg' });
+  };
+
+  // Aadhaar/registration docs — image or PDF, matching web's
+  // accept="image/*,.pdf" (a firm's registration certificate is often
+  // issued as a PDF).
+  const pickDoc = async (setter: (d: Doc) => void) => {
+    const result = await DocumentPicker.getDocumentAsync({ type: ['image/*', 'application/pdf'], copyToCacheDirectory: true });
+    if (result.canceled || !result.assets[0]) return;
+    const a = result.assets[0];
+    setter({ uri: a.uri, name: a.name, mimeType: a.mimeType ?? 'application/octet-stream' });
   };
 
   const docsValid = entityType === 'individual' ? !!aadhaar : entityType === 'firm' ? !!registration && !!ownerAadhaar : false;
@@ -166,11 +176,11 @@ export default function VerificationScreen() {
             <Muted style={styles.tiny}>We don't have a way to validate these automatically — a real person on our team reviews them.</Muted>
             <View style={styles.docsRow}>
               {entityType === 'individual' ? (
-                <DocBox label="Aadhaar card" doc={aadhaar} onPick={() => pick(setAadhaar)} />
+                <DocBox label="Aadhaar card" doc={aadhaar} onPick={() => pickDoc(setAadhaar)} />
               ) : (
                 <>
-                  <DocBox label="Business registration" doc={registration} onPick={() => pick(setRegistration)} />
-                  <DocBox label="Owner's Aadhaar card" doc={ownerAadhaar} onPick={() => pick(setOwnerAadhaar)} />
+                  <DocBox label="Business registration" doc={registration} onPick={() => pickDoc(setRegistration)} />
+                  <DocBox label="Owner's Aadhaar card" doc={ownerAadhaar} onPick={() => pickDoc(setOwnerAadhaar)} />
                 </>
               )}
               <DocBox label="Selfie" doc={selfie} onPick={() => pick(setSelfie)} />
@@ -212,16 +222,25 @@ export default function VerificationScreen() {
 }
 
 function DocBox({ label, doc, onPick }: { label: string; doc: Doc; onPick: () => void }) {
+  const isPdf = doc?.mimeType === 'application/pdf';
   return (
     <Pressable style={styles.docBox} onPress={onPick}>
       {doc ? (
-        <>
-          <Image source={{ uri: doc.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-          <View style={styles.docOverlay}>
-            <Check size={13} color="#fff" />
-            <Txt style={styles.docOverlayLabel} numberOfLines={1}>uploaded — tap to replace</Txt>
+        isPdf ? (
+          <View style={styles.docPdf}>
+            <FileText size={22} color={colors.accent} />
+            <Txt style={styles.docPdfName} numberOfLines={2}>{doc.name}</Txt>
+            <Txt style={styles.docOverlayLabel2}>tap to replace</Txt>
           </View>
-        </>
+        ) : (
+          <>
+            <Image source={{ uri: doc.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <View style={styles.docOverlay}>
+              <Check size={13} color="#fff" />
+              <Txt style={styles.docOverlayLabel} numberOfLines={1}>uploaded — tap to replace</Txt>
+            </View>
+          </>
+        )
       ) : (
         <Txt style={styles.docLabel}>{label}</Txt>
       )}
@@ -250,6 +269,9 @@ const styles = StyleSheet.create({
   docLabel: { fontSize: 11, textAlign: 'center', color: colors.muted },
   docOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)', flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 5 },
   docOverlayLabel: { fontSize: 9.5, color: '#fff', flex: 1 },
+  docPdf: { alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 6 },
+  docPdfName: { fontSize: 10, textAlign: 'center', color: colors.text },
+  docOverlayLabel2: { fontSize: 9.5, color: colors.muted },
   fieldLabel: { fontSize: fontSize.s, marginBottom: 6, marginTop: spacing.s },
   fieldGap: { marginBottom: 0 },
   formActions: { flexDirection: 'row', gap: spacing.s, marginTop: spacing.s },

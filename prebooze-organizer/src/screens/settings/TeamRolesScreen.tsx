@@ -202,15 +202,13 @@ export default function TeamRolesScreen() {
           {!loading && staff.length === 0 && <Muted style={[styles.centerNote, { marginTop: spacing.s }]}>No team members yet — invite one above.</Muted>}
           {staff.map((m, i) => (
             <View key={m.id} style={[styles.staffRow, i < staff.length - 1 && styles.rowBorder]}>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Txt style={styles.bold} numberOfLines={1}>{m.name}</Txt>
-                <Muted style={styles.tiny}>{m.phone ?? 'no phone on file'} · {m.scan ? 'door-scan access' : 'no scan access'}</Muted>
-              </View>
+              <Txt style={styles.bold} numberOfLines={1}>{m.name}</Txt>
+              <Muted style={styles.tiny} numberOfLines={1}>{m.phone ?? 'no phone on file'} · {m.scan ? 'door-scan access' : 'no scan access'}</Muted>
               {m.roleName === 'Owner' ? (
                 <Txt style={styles.ownerBadge}>Owner</Txt>
               ) : (
                 <View style={styles.staffActions}>
-                  <View style={styles.chipRow}>
+                  <View style={[styles.chipRow, { flex: 1 }]}>
                     {roleNames.filter((r) => r !== 'Owner').map((r) => (
                       <Chip key={r} label={r} active={m.roleName === r} onPress={() => changeRole(m.id, r)} />
                     ))}
@@ -298,10 +296,18 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: fontSize.s, marginBottom: 6, marginTop: spacing.s },
   fieldGap: { marginBottom: 0 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.s },
-  staffRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s, paddingVertical: spacing.m },
+  // Real bug (2026-09-17): this used to be a single flexDirection:'row'
+  // with the name/phone in a flex:1 box next to the role chips + remove
+  // button — three role chips plus a remove button don't fit next to a
+  // phone number on a phone-width screen, so the flex:1 box got squeezed
+  // to near-zero width and its text wrapped one or two characters per
+  // line. Web gets away with this via a compact native <select> instead of
+  // a chip row; stacking vertically here avoids the squeeze regardless of
+  // how many roles exist.
+  staffRow: { paddingVertical: spacing.m, gap: 4 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.borderDash, borderStyle: 'dashed' },
-  ownerBadge: { fontSize: 11, fontFamily: fontFamily.bold, color: colors.accent, backgroundColor: 'rgba(155,225,61,0.14)', borderColor: colors.accent, borderWidth: 1, paddingHorizontal: spacing.s, paddingVertical: 4, borderRadius: 999 },
-  staffActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.s, flexShrink: 1, justifyContent: 'flex-end', flexWrap: 'wrap' },
+  ownerBadge: { alignSelf: 'flex-start', marginTop: spacing.xs, fontSize: 11, fontFamily: fontFamily.bold, color: colors.accent, backgroundColor: 'rgba(155,225,61,0.14)', borderColor: colors.accent, borderWidth: 1, paddingHorizontal: spacing.s, paddingVertical: 4, borderRadius: 999 },
+  staffActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.s, marginTop: spacing.xs },
   footerNote: { fontSize: 11, marginTop: spacing.s, marginBottom: spacing.l },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.m },
   sectionTitle: { fontSize: fontSize.l },

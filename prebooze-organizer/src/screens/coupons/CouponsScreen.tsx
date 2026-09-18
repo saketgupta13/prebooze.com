@@ -7,6 +7,7 @@ import { ArrowLeft, Calendar, Check, X } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { ApiError } from '../../api/client';
 import { Badge, Button, Card, Checkbox, Chip, H1, IconButton, Input, Muted, Screen, Txt } from '../../components/ui';
+import SearchableSelect from '../../components/SearchableSelect';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import type { MoreStackParamList } from '../../navigation/types';
 import type { Coupon, Event } from '../../types';
@@ -212,12 +213,12 @@ export default function CouponsScreen() {
             </View>
 
             <FieldLabel>Events</FieldLabel>
-            <View style={styles.chipRow}>
-              <Chip label="All" active={eventScope === 'all'} onPress={() => setEventScope('all')} />
-              {approvedEvents.map((e) => (
-                <Chip key={e.id} label={e.title} active={eventScope === e.title} onPress={() => setEventScope(e.title)} />
-              ))}
-            </View>
+            <SearchableSelect
+              value={eventScope === 'all' ? 'All' : eventScope}
+              onChange={(v) => setEventScope(v === 'All' ? 'all' : v)}
+              options={['All', ...approvedEvents.map((e) => e.title)]}
+              placeholder="select an event…"
+            />
 
             <FieldLabel>Valid till</FieldLabel>
             <Pressable style={[styles.pickerField, styles.fieldGap]} onPress={openDatePicker}>
