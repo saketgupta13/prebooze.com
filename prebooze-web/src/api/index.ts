@@ -203,8 +203,13 @@ export interface BookingQuote {
   promoterMarkupApplies?: boolean;
   promoterShare?: number;
   platformShare?: number;
-  razorpayOrderId?: string;
-  razorpayKeyId?: string;
+  // PhonePe redirects the whole browser to this hosted checkout page — no
+  // embedded widget, no client key needed (unlike Razorpay's orderId+keyId
+  // pair). phonepeMerchantOrderId is the same value as the holdId the quote
+  // was made for; carried separately so the return page doesn't need to
+  // parse it back out of the URL by convention.
+  phonepeRedirectUrl?: string;
+  phonepeMerchantOrderId?: string;
 }
 export interface AvailableCoupon {
   code: string;
@@ -231,6 +236,10 @@ export interface CreateBookingInput {
   promoterVia?: string;
   payMethodId?: string;
   razorpay?: { orderId: string; paymentId: string; signature: string };
+  // No client-reported signature for PhonePe — the backend independently
+  // confirms real payment itself via getOrderStatus, this is just which
+  // order to check. See PhonePeService's doc comment.
+  phonepe?: { merchantOrderId: string };
 }
 export const bookings = {
   hold: (eventId: string, qty: Record<string, number>) => apiFetch<{ holdId: string; expiresAt: string }>('/bookings/hold', { body: { eventId, qty } }),

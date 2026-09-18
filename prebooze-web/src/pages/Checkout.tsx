@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp, CART_HOLD_MINUTES } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import type { Booking, Event, PayMethod } from '../types';
-import { auth, bookings, catalog, wallet, type AvailableCoupon, type BookingQuote } from '../api';
+import { auth, bookings, catalog, wallet, type AvailableCoupon, type BookingQuote, type CreateBookingInput } from '../api';
 import { isBackendEnabled } from '../api/client';
 import { existingRole, roleHome, roleLabel } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
@@ -27,24 +27,6 @@ const ABSORBED_NOTE: Record<string, string> = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function loadRazorpayScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if ((window as unknown as { Razorpay?: unknown }).Razorpay) return resolve();
-    const existing = document.getElementById('razorpay-checkout-js') as HTMLScriptElement | null;
-    if (existing) {
-      existing.addEventListener('load', () => resolve());
-      existing.addEventListener('error', () => reject(new Error('Could not load the payment widget — check your connection')));
-      return;
-    }
-    const script = document.createElement('script');
-    script.id = 'razorpay-checkout-js';
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Could not load the payment widget — check your connection'));
-    document.body.appendChild(script);
-  });
-}
-
 export default function Checkout() {
   const {
     user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, setHold, clearHold,
@@ -53,6 +35,7 @@ export default function Checkout() {
   } = useApp();
   const navigate = useNavigate();
   const { feeLabel, absorbedBy, bookingFee, socials } = usePlatformInfo();
+  const [searchParams] = useSearchParams();
 
   const wantsLive = Boolean(selection?.eventSlug) && isBackendEnabled();
 
@@ -64,6 +47,28 @@ export default function Checkout() {
   }, [selection?.eventSlug]);
 
   const event = liveEvent ?? (selection ? (eventById(selection.eventId) ?? myEvents.find((e) => e.id === selection.eventId)) : undefined);
+
+  // ---- resuming after a PhonePe redirect (real full-page checkout, not an
+  // embedded widget — see PhonePeService's doc comment) ----
+  // holdId + the attendee form the guest already filled in don't survive
+  // the round trip in React state, so they're read back from the URL
+  // (holdId) and sessionStorage (everything else, stashed by payLive()
+  // right before redirecting, keyed by holdId so a stale/reused key from a
+  // different hold can never cross-apply).
+  const phonepeReturnHoldId = searchParams.get('phonepe_return') === '1' ? searchParams.get('holdId') : null;
+  const [resumingPhonePe, setResumingPhonePe] = useState(Boolean(phonepeReturnHoldId));
+  const [resumeErr, setResumeErr] = useState<string | null>(null);
+  // afterBookingSuccess/finishCreate below need `lines`/`finalTotal`, only
+  // computed further down this render — this ref lets the effect (declared
+  // here, so it can depend on `event` without a temporal-dead-zone issue)
+  // always call whatever the freshest version of that logic is, assigned
+  // just before the JSX return.
+  const resumePhonePeRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (!phonepeReturnHoldId || !event) return;
+    resumePhonePeRef.current?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phonepeReturnHoldId, event?.id]);
 
   // Real duplicate-booking catch: a real guest booked the same free tier
   // for the same event twice, 18 minutes apart, under the identical name —
@@ -98,9 +103,13 @@ export default function Checkout() {
   }, [event?.id, liveEvent]);
 
   // ---- real hold (Redis-backed, 8-min TTL) — only for real events, needs a logged-in guest ----
-  const [holdId, setHoldId] = useState<string | null>(null);
+  const [holdId, setHoldId] = useState<string | null>(phonepeReturnHoldId);
   const [holdErr, setHoldErr] = useState<string | null>(null);
   useEffect(() => {
+    // Resuming a PhonePe redirect reuses the exact hold its order was
+    // created against — a fresh bookings.hold() here would create a
+    // *second*, unrelated hold and orphan the one PhonePe actually charged.
+    if (phonepeReturnHoldId) return;
     if (!liveEvent || !selection || !user || holdId) return;
     bookings
       .hold(liveEvent.id, selection.qty)
@@ -111,7 +120,7 @@ export default function Checkout() {
       })
       .catch((e) => setHoldErr(e.message ?? 'Could not hold your tickets — they may have sold out'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveEvent, selection, user]);
+  }, [liveEvent, selection, user, phonepeReturnHoldId]);
 
   // logged-out guest landed here with a real-event selection (e.g. a stale
   // persisted selection) — send them to login first, same as EventDetail's book()
@@ -209,7 +218,7 @@ export default function Checkout() {
   // field or the Pay button.
   const [attendeeErr, setAttendeeErr] = useState('');
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
-  const [payMethod, setPayMethod] = useState(() => payMethods.find((m) => m.isDefault)?.id ?? 'razorpay');
+  const [payMethod, setPayMethod] = useState(() => payMethods.find((m) => m.isDefault)?.id ?? 'phonepe');
   const [paying, setPaying] = useState(false);
 
   const lines = useMemo(() => {
@@ -342,6 +351,31 @@ export default function Checkout() {
     if (expired && cartId) setCartStatus(cartId, 'abandoned');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expired]);
+
+  if (resumingPhonePe) {
+    return (
+      <main className="page">
+        <div className="container center" style={{ padding: '80px 0' }}>
+          <h1>Confirming your payment…</h1>
+          <p className="muted" style={{ margin: '10px 0 0' }}>Don't close this tab — this only takes a few seconds.</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (resumeErr) {
+    return (
+      <main className="page">
+        <div className="container center" style={{ padding: '72px 0' }}>
+          <div className="card card-shadow" style={{ maxWidth: 460, margin: '0 auto', textAlign: 'center' }}>
+            <div className="confirm-tick" style={{ background: 'var(--danger)', color: '#fff' }}><AlertTriangle size={30} /></div>
+            <h1 style={{ fontSize: 22, marginTop: 8 }}>{resumeErr}</h1>
+            <Link to="/bookings" className="btn btn-pri btn-lg" style={{ marginTop: 8 }}>Go to My Bookings →</Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   const heldRole = existingRole(user);
   if (heldRole) {
@@ -500,6 +534,52 @@ export default function Checkout() {
     navigate('/confirmation/' + encodeURIComponent(id));
   };
 
+  // Assigned fresh every render so the effect declared near the top (which
+  // fires once `event` is ready) always calls this with up-to-date
+  // `afterBookingSuccess`/state. Reads back the attendee-details form
+  // payLive() stashed in sessionStorage right before the PhonePe redirect —
+  // there's no other way to recover it, a full browser navigation away and
+  // back loses all React state. `getOrderStatus` can briefly still report
+  // PENDING right after redirect-back (PhonePe's own S2S confirmation
+  // hasn't landed yet), so this retries a few times before giving up —
+  // same "payment definitely happened, don't let the guest re-pick
+  // tickets" caution the existing Razorpay-webhook-race handling already
+  // uses below, since real money may already have moved.
+  resumePhonePeRef.current = async () => {
+    const holdIdToResume = phonepeReturnHoldId;
+    if (!holdIdToResume) return;
+    const raw = sessionStorage.getItem(`pb_phonepe_${holdIdToResume}`);
+    if (!raw) {
+      setResumingPhonePe(false);
+      setResumeErr("We couldn't find your booking details to finish this automatically — check My Bookings, or contact support if this was a real payment.");
+      return;
+    }
+    const payload = JSON.parse(raw) as Omit<CreateBookingInput, 'holdId' | 'razorpay' | 'phonepe'>;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
+      try {
+        const booking = await bookings.create({ ...payload, holdId: holdIdToResume, phonepe: { merchantOrderId: holdIdToResume } });
+        sessionStorage.removeItem(`pb_phonepe_${holdIdToResume}`);
+        setResumingPhonePe(false);
+        afterBookingSuccess(booking.id);
+        return;
+      } catch {
+        // could be a genuinely still-PENDING order (retry) or an already-
+        // completed booking from a previous attempt at this same resume —
+        // check for the latter before continuing to retry.
+        const existing = await bookings.list().then((list) => list.find((b) => b.paymentId === holdIdToResume)).catch(() => undefined);
+        if (existing) {
+          sessionStorage.removeItem(`pb_phonepe_${holdIdToResume}`);
+          setResumingPhonePe(false);
+          afterBookingSuccess(existing.id);
+          return;
+        }
+      }
+    }
+    setResumingPhonePe(false);
+    setResumeErr(`If your payment went through, we're still finalizing your booking — check My Bookings in a minute. If it's not there, contact support with reference ${holdIdToResume}.`);
+  };
+
   const payLive = async () => {
     if (!holdId) return;
     setPaying(true);
@@ -524,7 +604,9 @@ export default function Checkout() {
       // number whenever needsAgeConfirm is true — safe to parse again here.
       const confirmedAge = needsAgeConfirm ? parseInt(ageInput, 10) : undefined;
 
-      const finishCreate = (razorpay?: { orderId: string; paymentId: string; signature: string }) =>
+      // Only reached for a ₹0 booking now (real paid checkout redirects to
+      // PhonePe below instead) — no payment proof to attach.
+      const finishCreate = () =>
         bookings.create({
           holdId,
           mainGuest: name.trim(),
@@ -537,18 +619,16 @@ export default function Checkout() {
           promoterRef: event?.id ? promoterRefByEvent[event.id] : undefined,
           promoterVia: event?.id ? promoterViaByEvent[event.id] : undefined,
           payMethodId: (livePayMethods ?? []).some((m) => m.id === payMethod) ? payMethod : undefined,
-          razorpay,
         });
 
-      if (q.total > 0 && q.razorpayOrderId && q.razorpayKeyId) {
-        // Fire-and-forget — a UPI app-switch can background/kill this tab
-        // for long enough that it never comes back to run the `handler`
-        // below, even though Razorpay genuinely captured the payment. This
-        // snapshot is what lets the payment webhook finish the booking
-        // anyway. Never awaited/blocking: if it fails, the real payment
-        // flow below is completely unaffected.
-        bookings.prepare({
-          holdId,
+      if (q.total > 0 && q.phonepeRedirectUrl && q.phonepeMerchantOrderId) {
+        // PhonePe is a real full-page redirect, not an embedded widget —
+        // this tab navigates away entirely and a fresh load of this same
+        // page (with ?phonepe_return=1) picks up where this left off (see
+        // the resume effect/ref near the top of this component). Stash the
+        // attendee-details form here since a full navigation loses all
+        // React state — sessionStorage is the only thing that survives it.
+        const attendeePayload: Omit<CreateBookingInput, 'holdId' | 'razorpay' | 'phonepe'> = {
           mainGuest: name.trim(),
           mainGuestGender: gender || undefined,
           age: confirmedAge,
@@ -559,66 +639,17 @@ export default function Checkout() {
           promoterRef: event?.id ? promoterRefByEvent[event.id] : undefined,
           promoterVia: event?.id ? promoterViaByEvent[event.id] : undefined,
           payMethodId: (livePayMethods ?? []).some((m) => m.id === payMethod) ? payMethod : undefined,
-        }).catch(() => {});
-        await loadRazorpayScript();
-        const Razorpay = (window as unknown as { Razorpay: new (opts: Record<string, unknown>) => { open: () => void; on: (evt: string, cb: (e: unknown) => void) => void } }).Razorpay;
-        const rzp = new Razorpay({
-          key: q.razorpayKeyId,
-          order_id: q.razorpayOrderId,
-          amount: q.total * 100,
-          currency: 'INR',
-          name: 'Prebooze',
-          description: event.title,
-          prefill: { name: name.trim(), contact: whatsapp.trim(), email: email.trim() || undefined },
-          theme: { color: '#9be13d' },
-          handler: async (resp: unknown) => {
-            track('payment_submitted', { eventId: event.id });
-            const r = resp as { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
-            try {
-              const booking = await finishCreate({ orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature });
-              afterBookingSuccess(booking.id);
-            } catch {
-              // The payment webhook can reconcile and create the booking
-              // before this call arrives — it releases the same hold this
-              // call needs, so this fails with a generic "hold expired"
-              // error even though the guest is already booked. Poll for
-              // that real booking by payment id — a few attempts, since the
-              // webhook can take a few seconds — before showing anything.
-              let existing;
-              for (let attempt = 0; attempt < 5 && !existing; attempt++) {
-                if (attempt > 0) await new Promise((r2) => setTimeout(r2, 1500));
-                existing = await bookings.list().then((list) => list.find((b) => b.paymentId === r.razorpay_payment_id)).catch(() => undefined);
-              }
-              if (existing) {
-                afterBookingSuccess(existing.id);
-                return;
-              }
-              // Money has already left the guest's account at this point —
-              // never suggest picking tickets again here, that risks a
-              // second charge. The webhook will still complete this
-              // shortly; support can also finish it manually from the
-              // payment id if it somehow doesn't.
-              setPaying(false);
-              setCouponMsg({ ok: false, text: `Payment received — we're finalizing your booking, check My Bookings in a minute. If it's not there, contact support with payment ID ${r.razorpay_payment_id}.` });
-            }
-          },
-          modal: {
-            ondismiss: () => {
-              setPaying(false);
-              track('payment_failed', { eventId: event.id, meta: { reason: 'user_cancelled' } });
-            },
-          },
-        });
-        rzp.on('payment.failed', (e: unknown) => {
-          setPaying(false);
-          setCouponMsg({ ok: false, text: 'Payment failed or was cancelled' });
-          const err = (e as { error?: { reason?: string; description?: string } })?.error;
-          track('payment_failed', { eventId: event.id, meta: { reason: err?.reason ?? err?.description ?? 'unknown' } });
-        });
+        };
+        sessionStorage.setItem(`pb_phonepe_${holdId}`, JSON.stringify(attendeePayload));
+        // Fire-and-forget snapshot, same safety net as before — closes the
+        // gap where the browser never makes it back from PhonePe at all
+        // (not just backgrounded) once a webhook is wired up server-side.
+        bookings.prepare({ holdId, ...attendeePayload }).catch(() => {});
         track('payment_widget_opened', { eventId: event.id });
-        rzp.open();
+        window.location.href = q.phonepeRedirectUrl;
+        return; // this component instance is about to be torn down by the navigation
       } else {
-        const booking = await finishCreate(undefined);
+        const booking = await finishCreate();
         afterBookingSuccess(booking.id);
       }
     } catch (e) {
@@ -1046,7 +1077,7 @@ export default function Checkout() {
               <h3 style={{ marginBottom: 14 }}>Pay with</h3>
               {[
                 ...displayPayMethods.map((m) => ({ id: m.id, icon: m.type === 'upi' ? <Smartphone size={14} /> : <CreditCard size={14} />, label: `${m.label}${m.isDefault ? ' · default' : ''} (saved)` })),
-                { id: 'razorpay', icon: null, label: 'Razorpay — UPI / cards / netbanking' },
+                { id: 'phonepe', icon: null, label: 'PhonePe — UPI / cards / netbanking' },
                 ...(liveEvent ? [] : [{ id: 'card', icon: null, label: 'Card •••• 4242' }, { id: 'wallet', icon: null, label: 'Apple / Google Pay' }]),
               ].map((m) => (
                 <label key={m.id} className={`payopt ${payMethod === m.id ? 'on' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1132,7 +1163,7 @@ export default function Checkout() {
             </button>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
               {finalSubtotal > 0
-                ? <><Lock size={11} style={{ verticalAlign: -1 }} /> secured by Razorpay · <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link></>
+                ? <><Lock size={11} style={{ verticalAlign: -1 }} /> secured by PhonePe · <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link></>
                 : <Link to="/legal/refund-policy" className="link">cancel any time before the event</Link>}
             </div>
             {socials.whatsapp && (

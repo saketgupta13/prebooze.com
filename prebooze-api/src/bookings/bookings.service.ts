@@ -1,10 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { randomInt } from 'crypto';
+import { randomInt, randomBytes } from 'crypto';
 import type { Prisma, Booking } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { HoldsService } from './holds.service';
 import { RazorpayService } from '../payments/razorpay.service';
+import { PhonePeService } from '../payments/phonepe.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { money, moneyOrFree } from '../notifications/email-templates';
@@ -60,6 +61,11 @@ export interface CreateBookingInput {
   promoterVia?: string;
   payMethodId?: string; // saved card/UPI used at checkout — becomes the default
   razorpay?: { orderId: string; paymentId: string; signature: string };
+  // PhonePe has no client-reported signature to verify (see PhonePeService's
+  // doc comment) — the guest's browser hands back only the merchantOrderId
+  // it was redirected with; create() independently confirms real payment by
+  // calling PhonePeService.getOrderStatus itself, never trusting this alone.
+  phonepe?: { merchantOrderId: string };
 }
 
 @Injectable()
@@ -68,6 +74,7 @@ export class BookingsService {
     private prisma: PrismaService,
     private holds: HoldsService,
     private razorpay: RazorpayService,
+    private phonepe: PhonePeService,
     private jwt: JwtService,
     private wa: WhatsappService,
     private email: EmailService,
@@ -318,19 +325,26 @@ export class BookingsService {
     return eligible;
   }
 
-  /** Called before showing the Razorpay checkout widget — creates the order
-   * with the *final* (post-coupon, post-wallet-credit) amount, since Razorpay
-   * requires the order amount to match what's actually charged. */
+  /** Called before sending the guest to checkout — creates the PhonePe order
+   * with the *final* (post-coupon, post-wallet-credit) amount, since the
+   * gateway requires the order amount to match what's actually charged.
+   * `holdId` doubles as PhonePe's `merchantOrderId` — PhonePe doesn't
+   * generate its own order identifier the way Razorpay did, we hand it one,
+   * so there's no separate id to track or reverse-lookup later (see
+   * PhonePeService's doc comment). Real end-to-end checkout is now a
+   * browser redirect to `redirectUrl`, not an embedded widget — the
+   * frontend must navigate there directly, not open it in a modal. */
   async quote(userId: string, holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string) {
     const p = await this.priceHold(userId, holdId, couponCode, walletCredit, promoterRef);
-    const order = p.total > 0 ? await this.razorpay.createOrder(p.total * 100, holdId) : null;
+    const returnUrl = `${process.env.WEB_APP_URL || 'https://prebooze.com'}/checkout?holdId=${encodeURIComponent(holdId)}&phonepe_return=1`;
+    const order = p.total > 0 ? await this.phonepe.createOrder(holdId, p.total * 100, returnUrl) : null;
     return {
       subtotal: p.subtotal, fee: p.fee, discount: p.discount, walletCreditUsed: p.walletCreditUsed, total: p.total,
       promoterMarkupApplies: p.promoterMarkupApplies,
       promoterShare: p.promoterMarkupApplies ? p.promoterCommission : 0,
       platformShare: p.promoterMarkupApplies ? p.commission : 0,
-      razorpayOrderId: order?.orderId,
-      razorpayKeyId: process.env.RAZORPAY_KEY_ID || undefined,
+      phonepeRedirectUrl: order?.redirectUrl,
+      phonepeMerchantOrderId: order ? holdId : undefined,
     };
   }
 
@@ -533,15 +547,20 @@ export class BookingsService {
     }
 
     // ---- payment ----
+    // PhonePe has no client-reported signature — the only trustworthy
+    // confirmation is our own server calling getOrderStatus and requiring
+    // state === 'COMPLETED'. paymentId is the merchantOrderId itself
+    // (== holdId) since PhonePe never hands back a separate payment id the
+    // way Razorpay did — nothing else to store.
     let paymentId: string | null = null;
     if (total > 0) {
-      if (input.razorpay) {
-        const ok = this.razorpay.verifyPaymentSignature(input.razorpay.orderId, input.razorpay.paymentId, input.razorpay.signature);
-        if (!ok) throw new BadRequestException('Payment verification failed');
-        paymentId = input.razorpay.paymentId;
-      } else if (!this.razorpay.live) {
+      if (input.phonepe) {
+        const status = await this.phonepe.getOrderStatus(input.phonepe.merchantOrderId);
+        if (!status || status.state !== 'COMPLETED') throw new BadRequestException('Payment verification failed');
+        paymentId = input.phonepe.merchantOrderId;
+      } else if (!this.phonepe.live) {
         // dev convenience: simulate a completed payment so the flow is curl-testable
-        paymentId = this.razorpay.devFakePaymentId();
+        paymentId = this.phonepe.devFakeMerchantOrderId();
       } else {
         throw new BadRequestException('Payment is required to complete this booking');
       }
@@ -549,7 +568,11 @@ export class BookingsService {
       // WalletService.saveUsedMethod) — swallows its own errors, same as
       // every other post-payment side effect here; a save failure must
       // never fail a booking that already genuinely completed payment.
-      await this.razorpay.getPayment(paymentId).then((p) => this.wallet.saveUsedMethod(userId, p)).catch(() => {});
+      // PhonePe only exposes a real, mappable method for UPI payments
+      // (a real vpa) — card/netbanking don't expose reusable last4/network
+      // the way Razorpay's payment object did, so those are silently
+      // skipped here rather than guessed at.
+      await this.phonepe.getPaymentMethod(paymentId).then((p) => p && this.wallet.saveUsedMethod(userId, p)).catch(() => {});
     }
 
     const id = '#TKT-' + randomInt(10000, 99999);
@@ -1091,7 +1114,7 @@ export class BookingsService {
       let refundSucceeded = false;
       if (booking.paymentId) {
         try {
-          await this.razorpay.refund(booking.paymentId, refundAmount * 100);
+          await this.refundViaGateway(booking.paymentId, refundAmount * 100);
           refundSucceeded = true;
         } catch {
           // fall through — refundSucceeded stays false
@@ -1156,7 +1179,7 @@ export class BookingsService {
     // recomputed here rather than stored, since it's deterministic off
     // booking.total/paymentId and this only ever retries a 'source' refund.
     const refundAmount = Math.max(0, booking.total - this.refundDeductionFor(booking, 'source'));
-    await this.razorpay.refund(booking.paymentId, refundAmount * 100);
+    await this.refundViaGateway(booking.paymentId, refundAmount * 100);
     await this.prisma.booking.update({ where: { id }, data: { refundFailedAt: null } });
 
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: booking.userId } });
@@ -1168,17 +1191,38 @@ export class BookingsService {
     return { ok: true };
   }
 
+  /** Routes a refund to whichever gateway actually processed the original
+   * payment — needed during and after the PhonePe cutover, since bookings
+   * made before it still carry a real Razorpay `pay_...` id in
+   * `Booking.paymentId` and must keep refunding through Razorpay, while
+   * every booking made after carries a PhonePe merchantOrderId (a bare hex
+   * string, no prefix — see HoldsService.create) and refunds through
+   * PhonePe. `merchantRefundId` is a fresh id per attempt (not reused
+   * across a real refund + a later retry of a failed one), since PhonePe
+   * requires a distinct id per refund attempt even against the same order. */
+  private async refundViaGateway(paymentId: string, amountPaise: number) {
+    if (paymentId.startsWith('pay_')) {
+      await this.razorpay.refund(paymentId, amountPaise);
+      return;
+    }
+    await this.phonepe.refund(`rfnd-${randomBytes(8).toString('hex')}`, paymentId, amountPaise);
+  }
+
   /** Daily cron (CronService.razorpayFeeReconcileTick) — the "Razorpay
    * commission" ledger entry is posted at sale time using a flat 2.36%
    * estimate (see RAZORPAY_FEE_PCT), since the real fee isn't always known
    * yet at that exact moment. Once Razorpay's finalized it, this replaces
    * the estimate with the real number by adjusting the ledger for just the
    * difference — never re-posting the full amount, which would double it.
-   * razorpayFeeReconciled gates each booking to exactly one adjustment. */
+   * razorpayFeeReconciled gates each booking to exactly one adjustment.
+   * Post-cutover bookings carry a PhonePe merchantOrderId, not a Razorpay
+   * `pay_...` id — explicitly excluded here rather than let Razorpay's API
+   * 404 on an id it never issued. PhonePe's own fee reconciliation (if
+   * needed) is a separate follow-up, not this cron. */
   async reconcileRazorpayFees() {
     if (!this.razorpay.live) return { reconciled: 0 };
     const candidates = await this.prisma.booking.findMany({
-      where: { razorpayFeeReconciled: false, paymentId: { not: null } },
+      where: { razorpayFeeReconciled: false, paymentId: { startsWith: 'pay_' } },
       include: { event: { select: { id: true, title: true } } },
     });
     let reconciled = 0;

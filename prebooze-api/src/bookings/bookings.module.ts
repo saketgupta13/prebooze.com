@@ -3,6 +3,7 @@ import { BookingsController, AdminBookingsController } from './bookings.controll
 import { BookingsService } from './bookings.service';
 import { HoldsService } from './holds.service';
 import { RazorpayService } from '../payments/razorpay.service';
+import { PhonePeService } from '../payments/phonepe.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { PrismaService } from '../prisma.service';
@@ -21,7 +22,7 @@ import { LeadsService } from '../admin/leads.service';
 // already available here without importing it again (see kyc.module.ts).
 @Module({
   controllers: [BookingsController, AdminBookingsController],
-  providers: [BookingsService, HoldsService, RazorpayService, WhatsappService, EmailService, PrismaService, redisProvider, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService, InvoicesService, StaffAlertsService, WalletService, MetaConversionsService, LeadsService],
+  providers: [BookingsService, HoldsService, RazorpayService, PhonePeService, WhatsappService, EmailService, PrismaService, redisProvider, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService, InvoicesService, StaffAlertsService, WalletService, MetaConversionsService, LeadsService],
   // RazorpayWebhookController (SubscriptionsModule) calls
   // BookingsService.reconcilePayment for the payment.captured fallback.
   exports: [BookingsService],
