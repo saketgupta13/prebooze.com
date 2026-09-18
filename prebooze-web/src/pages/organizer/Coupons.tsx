@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
+import { isEventOver } from '../../data/mock';
 import type { Coupon, Event } from '../../types';
 import { X, Check, Pencil } from 'lucide-react';
 
@@ -159,7 +160,7 @@ export default function Coupons() {
               <span>Events</span>
               <select value={scope} onChange={(e) => setScope(e.target.value)}>
                 <option value="all">All</option>
-                {events.filter((e) => e.status === 'approved').map((e) => (
+                {events.filter((e) => e.status === 'approved' && !isEventOver(e)).map((e) => (
                   <option key={e.id} value={e.title}>
                     {e.title}
                   </option>

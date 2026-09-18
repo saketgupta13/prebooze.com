@@ -14,6 +14,10 @@ import type { Coupon, Event } from '../../types';
 
 const formatDateDMY = (d: Date) => `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
 
+// Matches Bookings.tsx's isEventOver — an event is "over" once its end
+// time (date + durationHrs) has passed, not just its start time.
+const isEventOver = (e: { date: string; durationHrs: number }) => new Date(e.date).getTime() + e.durationHrs * 3600_000 < Date.now();
+
 const GENDER_OPTIONS: { key: Coupon['gender']; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'women', label: 'Women' },
@@ -145,7 +149,11 @@ export default function CouponsScreen() {
     });
   };
 
-  const approvedEvents = events.filter((e) => e.status === 'approved');
+  // Real bug (2026-09-18): a new coupon is only ever useful against a
+  // still-bookable event, but this included events long over — same
+  // isEventOver (date + durationHrs) check already used by Bookings.tsx/
+  // Dashboard.tsx/EventsScreen.tsx/etc.
+  const approvedEvents = events.filter((e) => e.status === 'approved' && !isEventOver(e));
 
   return (
     <Screen>
