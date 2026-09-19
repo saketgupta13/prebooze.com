@@ -19,8 +19,8 @@ export class FeaturedController {
 
   @Post(':id/confirm-payment')
   @UseGuards(JwtAuthGuard)
-  confirmPayment(@Req() req: AuthedReq, @Param('id') id: string, @Body() body: { paymentId: string; signature: string }) {
-    return this.featured.confirmPayment(req.user.sub, id, body);
+  confirmPayment(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.featured.confirmPayment(req.user.sub, id);
   }
 
   @Get('mine')

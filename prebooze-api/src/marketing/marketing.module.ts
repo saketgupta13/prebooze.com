@@ -9,6 +9,7 @@ import { EmailService } from '../notifications/email';
 import { WhatsappService } from '../notifications/whatsapp';
 import { InvoicesService } from '../invoices/invoices.service';
 import { RazorpayService } from '../payments/razorpay.service';
+import { PhonePeService } from '../payments/phonepe.service';
 import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { AnalyticsReportService } from '../analytics/analytics-report.service';
@@ -17,7 +18,7 @@ import { AnalyticsReportService } from '../analytics/analytics-report.service';
   controllers: [MarketingController, VenueMarketingController, AdminMarketingController],
   providers: [
     MarketingService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard,
-    EmailService, WhatsappService, InvoicesService, RazorpayService, WalletService, StaffAlertsService, AnalyticsReportService,
+    EmailService, WhatsappService, InvoicesService, RazorpayService, PhonePeService, WalletService, StaffAlertsService, AnalyticsReportService,
   ],
   exports: [MarketingService],
 })

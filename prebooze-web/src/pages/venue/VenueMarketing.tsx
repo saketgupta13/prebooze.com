@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Rocket } from 'lucide-react';
 import { venuePartner } from '../../api';
 import type { Event as PbEvent } from '../../types';
 import { ApiError } from '../../api/client';
 import { fmtMoney } from '../../data/mock';
-import { loadRazorpayScript, getRazorpay } from '../../lib/razorpay';
+import { PageLoader } from '../../components/Loader';
 import type { MarketingOrder, MarketingSubscription, MarketingRates } from '../../types';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -20,11 +20,13 @@ const STATUS_LABEL: Record<MarketingOrder['status'], string> = {
  * only what was PAID, never the real ad spend or Prebooze's margin (see
  * MarketingService's own doc comment) — for actual performance numbers,
  * see MarketingAnalytics.tsx, which only unlocks per event once it has an
- * active/completed order here. One-time purchases use the real Razorpay
- * Checkout widget (same as guest ticket payments); the subscription reuses
- * the hosted-shortUrl + poll pattern PromoteCard already established for
- * Featured placements. */
+ * active/completed order here. One-time purchases redirect to PhonePe's
+ * real hosted checkout (same pattern as guest ticket payments — see
+ * Checkout.tsx); the subscription reuses the hosted-shortUrl + poll pattern
+ * PromoteCard already established for Featured placements (still Razorpay,
+ * unmigrated — see the payment-gateway migration plan). */
 export default function Marketing() {
+  const [searchParams] = useSearchParams();
   const [events, setEvents] = useState<PbEvent[]>([]);
   const [orders, setOrders] = useState<MarketingOrder[]>([]);
   const [sub, setSub] = useState<MarketingSubscription | null>(null);
@@ -35,6 +37,47 @@ export default function Marketing() {
   const [subBusy, setSubBusy] = useState(false);
   const [awaitingAuth, setAwaitingAuth] = useState<{ shortUrl: string } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ---- resuming after a PhonePe redirect (real full-page checkout, not an
+  // embedded widget — see Checkout.tsx, the original of this pattern) ----
+  // No attendee-details-style payload to stash here — confirmPayment takes
+  // no client-supplied proof at all, PhonePe's own getOrderStatus is the
+  // sole source of truth server-side, so the orderId in the return URL is
+  // all the resume handler needs.
+  const phonepeReturnOrderId = searchParams.get('phonepe_return') === '1' ? searchParams.get('orderId') : null;
+  const [resumingPhonePe, setResumingPhonePe] = useState(Boolean(phonepeReturnOrderId));
+  // Reactive resync, not just a one-time initializer — a bfcache-restored
+  // instance or a router-hydration-timing gap can otherwise leave this
+  // stuck false while the URL already reflects a real return. Real bug
+  // found and fixed this exact way in Checkout.tsx (2026-09-19); applying
+  // it here from the start rather than rediscovering it.
+  useLayoutEffect(() => {
+    if (phonepeReturnOrderId) setResumingPhonePe(true);
+  }, [phonepeReturnOrderId]);
+  useEffect(() => {
+    if (!phonepeReturnOrderId) return;
+    let cancelled = false;
+    (async () => {
+      for (let attempt = 0; attempt < 6; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
+        try {
+          await venuePartner.marketing.confirmPayment(phonepeReturnOrderId);
+          if (cancelled) return;
+          setResumingPhonePe(false);
+          load();
+          return;
+        } catch {
+          // could be a genuinely still-PENDING order — retry a few times
+          // before giving up, same reasoning as Checkout.tsx's resume loop.
+        }
+      }
+      if (cancelled) return;
+      setResumingPhonePe(false);
+      setErr(`If your payment went through, check back in a minute — if it's still not showing, contact support with reference ${phonepeReturnOrderId}.`);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phonepeReturnOrderId]);
 
   const load = () => {
     setErr('');
@@ -51,6 +94,7 @@ export default function Marketing() {
   useEffect(load, []);
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
+  if (resumingPhonePe) return <PageLoader />;
   if (loading) return <div className="stack fade"><p className="muted">Loading…</p></div>;
 
   const now = Date.now();
@@ -62,31 +106,9 @@ export default function Marketing() {
     setErr('');
     setBusyEventId(eventId);
     try {
-      const { id, razorpayOrder } = await venuePartner.marketing.request(eventId);
-      await loadRazorpayScript();
-      const Razorpay = getRazorpay();
-      const rzp = new Razorpay({
-        key: razorpayOrder.keyId,
-        order_id: razorpayOrder.orderId,
-        amount: razorpayOrder.amount,
-        currency: 'INR',
-        name: 'Prebooze',
-        description: 'Marketing campaign for your event',
-        theme: { color: '#9be13d' },
-        handler: async (resp: unknown) => {
-          const r = resp as { razorpay_payment_id: string; razorpay_signature: string };
-          try {
-            await venuePartner.marketing.confirmPayment(id, { paymentId: r.razorpay_payment_id, signature: r.razorpay_signature });
-          } catch (e) {
-            setErr(e instanceof ApiError ? e.message : 'Payment succeeded but confirmation failed — contact support with your payment id.');
-          } finally {
-            setBusyEventId(null);
-            load();
-          }
-        },
-        modal: { ondismiss: () => setBusyEventId(null) },
-      });
-      rzp.open();
+      const { phonepeRedirectUrl } = await venuePartner.marketing.request(eventId);
+      window.location.href = phonepeRedirectUrl;
+      // this component instance is about to be torn down by the navigation
     } catch (e) {
       setBusyEventId(null);
       setErr(e instanceof ApiError ? e.message : 'Could not start payment — try again');

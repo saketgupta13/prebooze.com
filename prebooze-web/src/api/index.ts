@@ -526,9 +526,11 @@ export interface OrgLedgerTx {
 const marketingApi = (base: string) => ({
   rates: () => apiFetch<MarketingRates>(`${base}/rates`),
   request: (eventId: string) =>
-    apiFetch<{ id: string; amount: number; razorpayOrder: { orderId: string; amount: number; keyId?: string } }>(`${base}/request`, { body: { eventId } }),
-  confirmPayment: (id: string, proof: { paymentId: string; signature: string }) =>
-    apiFetch<MarketingOrder>(`${base}/${id}/confirm-payment`, { body: proof }),
+    apiFetch<{ id: string; amount: number; phonepeRedirectUrl: string }>(`${base}/request`, { body: { eventId } }),
+  // No proof body — PhonePe's own getOrderStatus is the sole source of
+  // truth server-side, same as guest ticket checkout.
+  confirmPayment: (id: string) =>
+    apiFetch<MarketingOrder>(`${base}/${id}/confirm-payment`, { body: {} }),
   orders: () => apiFetch<MarketingOrder[]>(`${base}/orders`),
   subscribe: () => apiFetch<{ ok: boolean; requiresAuthorization: boolean; shortUrl?: string; subscriptionId?: string; keyId?: string }>(`${base}/subscribe`, { body: {} }),
   cancelSubscription: () => apiFetch<{ ok: boolean }>(`${base}/subscription/cancel`, { body: {} }),
@@ -728,9 +730,11 @@ export const lineup = {
 // ---------- featured ----------
 export const featured = {
   request: (input: { type: Featured['type']; refId: string; billing: 'per_event' | 'monthly' }) =>
-    apiFetch<Featured & { razorpayOrder: { orderId: string; amount: number; keyId?: string } }>('/featured/request', { body: input }),
-  confirmPayment: (id: string, proof: { paymentId: string; signature: string }) =>
-    apiFetch<Featured>(`/featured/${id}/confirm-payment`, { body: proof }),
+    apiFetch<Featured & { phonepeRedirectUrl: string }>('/featured/request', { body: input }),
+  // No proof body anymore — PhonePe's own getOrderStatus is the sole source
+  // of truth server-side, same as guest ticket checkout.
+  confirmPayment: (id: string) =>
+    apiFetch<Featured>(`/featured/${id}/confirm-payment`, { body: {} }),
   mine: (type: Featured['type'], refId: string) => apiFetch<Featured | null>('/featured/mine', { query: { type, refId } }),
   rates: () => apiFetch<{ perEvent: number; organizerMonthly: number; promoterMonthly: number; lineupMonthly: number; venueMonthly: number }>('/featured/rates'),
   // Real Razorpay Subscription (e-mandate) — auto-renews monthly, no manual

@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { EmailService } from '../notifications/email';
 import { InvoicesService } from '../invoices/invoices.service';
 import { RazorpayService } from '../payments/razorpay.service';
+import { PhonePeService } from '../payments/phonepe.service';
 import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { AnalyticsReportService } from '../analytics/analytics-report.service';
@@ -39,6 +40,7 @@ export class MarketingService {
     private email: EmailService,
     private invoices: InvoicesService,
     private razorpay: RazorpayService,
+    private phonepe: PhonePeService,
     private wallet: WalletService,
     private staffAlerts: StaffAlertsService,
     private analyticsReport: AnalyticsReportService,
@@ -142,27 +144,35 @@ export class MarketingService {
       },
     });
 
-    const { orderId } = await this.razorpay.createOrder(amount * 100, row.id);
-    await this.prisma.marketingOrder.update({ where: { id: row.id }, data: { razorpayOrderId: orderId } });
+    // Return path differs by owner type — organizer/venue each have their
+    // own Marketing page (Marketing.tsx / VenueMarketing.tsx), both reading
+    // the same orderId query param to resume.
+    const returnPath = ownerType === 'organizer' ? '/organizer/marketing' : '/venue/hosting/marketing';
+    const returnUrl = `${process.env.WEB_APP_URL || 'https://prebooze.com'}${returnPath}?phonepe_return=1&orderId=${encodeURIComponent(row.id)}`;
+    const order = await this.phonepe.createOrder(row.id, amount * 100, returnUrl);
+    await this.prisma.marketingOrder.update({ where: { id: row.id }, data: { phonepeMerchantOrderId: row.id } });
 
-    return { id: row.id, amount, razorpayOrder: { orderId, amount: amount * 100, keyId: process.env.RAZORPAY_KEY_ID || undefined } };
+    return { id: row.id, amount, phonepeRedirectUrl: order.redirectUrl };
   }
 
-  async confirmPayment(userId: string, ownerType: MarketingOwnerType, id: string, proof: { paymentId: string; signature: string }) {
+  async confirmPayment(userId: string, ownerType: MarketingOwnerType, id: string) {
     const row = await this.prisma.marketingOrder.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Marketing order not found');
     const owner = await this.resolveOwner(userId, ownerType);
     const ownerId = this.ownerIdOf(ownerType, owner);
     if (row.ownerType !== ownerType || (ownerType === 'organizer' ? row.organizerId : row.venueId) !== ownerId) throw new ForbiddenException();
-    if (!row.razorpayOrderId) throw new BadRequestException('This order has no payment to confirm');
+    if (!row.phonepeMerchantOrderId) throw new BadRequestException('This order has no payment to confirm');
     if (row.paymentId) return this.toPublicOrder(row); // already confirmed
 
-    const valid = this.razorpay.verifyPaymentSignature(row.razorpayOrderId, proof.paymentId, proof.signature);
-    if (!valid) throw new BadRequestException('Payment verification failed');
+    const status = await this.phonepe.getOrderStatus(row.phonepeMerchantOrderId);
+    if (!status || status.state !== 'COMPLETED') throw new BadRequestException('Payment verification failed');
+    if (status.amount !== row.amount * 100) {
+      throw new BadRequestException(`This order's price changed since payment — contact support with reference ${row.phonepeMerchantOrderId}`);
+    }
 
-    const updated = await this.prisma.marketingOrder.update({ where: { id }, data: { paymentId: proof.paymentId } });
+    const updated = await this.prisma.marketingOrder.update({ where: { id }, data: { paymentId: row.phonepeMerchantOrderId } });
 
-    await this.razorpay.getPayment(proof.paymentId).then((p) => this.wallet.saveUsedMethod(userId, p)).catch(() => {});
+    await this.phonepe.getPaymentMethod(row.phonepeMerchantOrderId).then((p) => p && this.wallet.saveUsedMethod(userId, p)).catch(() => {});
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (user) {

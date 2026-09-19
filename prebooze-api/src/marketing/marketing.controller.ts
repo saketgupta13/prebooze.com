@@ -34,8 +34,8 @@ export class MarketingController {
 
   @Post(':id/confirm-payment')
   @UseGuards(JwtAuthGuard)
-  confirmPayment(@Req() req: AuthedReq, @Param('id') id: string, @Body() body: { paymentId: string; signature: string }) {
-    return this.marketing.confirmPayment(req.user.sub, 'organizer', id, body);
+  confirmPayment(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.marketing.confirmPayment(req.user.sub, 'organizer', id);
   }
 
   @Get('orders')
@@ -88,8 +88,8 @@ export class VenueMarketingController {
 
   @Post(':id/confirm-payment')
   @UseGuards(JwtAuthGuard)
-  confirmPayment(@Req() req: AuthedReq, @Param('id') id: string, @Body() body: { paymentId: string; signature: string }) {
-    return this.marketing.confirmPayment(req.user.sub, 'venue', id, body);
+  confirmPayment(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.marketing.confirmPayment(req.user.sub, 'venue', id);
   }
 
   @Get('orders')

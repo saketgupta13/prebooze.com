@@ -5,6 +5,7 @@ import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { InvoicesService } from '../invoices/invoices.service';
 import { RazorpayService } from '../payments/razorpay.service';
+import { PhonePeService } from '../payments/phonepe.service';
 import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 
@@ -36,6 +37,7 @@ export class FeaturedService {
     private email: EmailService,
     private invoices: InvoicesService,
     private razorpay: RazorpayService,
+    private phonepe: PhonePeService,
     private wallet: WalletService,
     private staffAlerts: StaffAlertsService,
   ) {}
@@ -110,8 +112,16 @@ export class FeaturedService {
       data: { type: input.type as never, refId: input.refId, city, billing: input.billing as never, amount, expiresAt, gstPct: 0, gstAmount: 0, total },
     });
 
-    const { orderId } = await this.razorpay.createOrder(total * 100, row.id);
-    row = await this.prisma.featured.update({ where: { id: row.id }, data: { razorpayOrderId: orderId } });
+    // Only ever reached for type 'event' (the validation above requires
+    // 'per_event' billing exclusively for that type) — no live frontend
+    // caller exists yet for this path (organizer/promoter/lineup/venue all
+    // only ever go through subscribe() below), so /organizer/events is a
+    // reasonable placeholder landing page; whoever wires up a real "feature
+    // this event" UI later can point returnUrl anywhere else, the
+    // featuredId query param is all a resume handler needs regardless.
+    const returnUrl = `${process.env.WEB_APP_URL || 'https://prebooze.com'}/organizer/events?phonepe_return=1&featuredId=${encodeURIComponent(row.id)}`;
+    const order = await this.phonepe.createOrder(row.id, total * 100, returnUrl);
+    row = await this.prisma.featured.update({ where: { id: row.id }, data: { phonepeMerchantOrderId: row.id } });
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (user) {
@@ -122,32 +132,37 @@ export class FeaturedService {
       }).catch(() => {});
     }
 
-    return { ...row, razorpayOrder: { orderId, amount: total * 100, keyId: process.env.RAZORPAY_KEY_ID || undefined } };
+    return { ...row, phonepeRedirectUrl: order.redirectUrl };
   }
 
-  /** Verifies the checkout-returned signature against the order created in
-   * `request()` and marks the placement payable-for-review. Re-checks
-   * ownership the same way `request()` did — Featured has no userId column
-   * (refId + type is the only link back to an owner), so this is the only
-   * way to confirm the caller confirming payment is the same one who made
-   * the request. The real Invoice is created here, once, only on the branch
-   * where the signature actually verifies. */
-  async confirmPayment(userId: string, id: string, proof: { paymentId: string; signature: string }) {
+  /** Confirms the PhonePe order created in `request()` and marks the
+   * placement payable-for-review. Re-checks ownership the same way
+   * `request()` did — Featured has no userId column (refId + type is the
+   * only link back to an owner), so this is the only way to confirm the
+   * caller confirming payment is the same one who made the request. No
+   * client-supplied proof anymore — PhonePe's own getOrderStatus is the
+   * sole source of truth, same reasoning as bookings.service.ts's create().
+   * The real Invoice is created here, once, only on the branch where the
+   * order actually completed. */
+  async confirmPayment(userId: string, id: string) {
     const row = await this.prisma.featured.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Featured request not found');
     await this.resolveTarget(userId, row.type as FeaturedType, row.refId); // throws if not the owner
-    if (!row.razorpayOrderId) throw new BadRequestException('This request has no payment to confirm');
+    if (!row.phonepeMerchantOrderId) throw new BadRequestException('This request has no payment to confirm');
     if (row.paid) return row;
 
-    const valid = this.razorpay.verifyPaymentSignature(row.razorpayOrderId, proof.paymentId, proof.signature);
-    if (!valid) throw new BadRequestException('Payment verification failed');
+    const status = await this.phonepe.getOrderStatus(row.phonepeMerchantOrderId);
+    if (!status || status.state !== 'COMPLETED') throw new BadRequestException('Payment verification failed');
+    if (status.amount !== (row.total ?? 0) * 100) {
+      throw new BadRequestException(`This request's price changed since payment — contact support with reference ${row.phonepeMerchantOrderId}`);
+    }
 
-    const updated = await this.prisma.featured.update({ where: { id }, data: { paid: true, paymentId: proof.paymentId } });
+    const updated = await this.prisma.featured.update({ where: { id }, data: { paid: true, paymentId: row.phonepeMerchantOrderId } });
 
     // Auto-save the method this real payment actually used — same
     // WalletService.saveUsedMethod dedup-by-matchKey path a guest checkout
     // uses; Featured payments already carry the caller's own real userId.
-    await this.razorpay.getPayment(proof.paymentId).then((p) => this.wallet.saveUsedMethod(userId, p)).catch(() => {});
+    await this.phonepe.getPaymentMethod(row.phonepeMerchantOrderId).then((p) => p && this.wallet.saveUsedMethod(userId, p)).catch(() => {});
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (user) {
