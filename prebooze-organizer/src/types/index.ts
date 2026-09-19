@@ -9,10 +9,25 @@ export interface KycSubmission {
   userId: string;
   kind: 'guest' | 'organizer' | 'promoter' | 'lineup' | 'venue';
   status: 'pending' | 'approved' | 'rejected';
+  // Real shape for kind==='organizer' rows — see
+  // KycService.submitOrganizerVerification's own `payload` write. Other
+  // kinds have a differently-shaped payload; only read this when
+  // kind==='organizer'.
+  payload: {
+    entityType?: 'individual' | 'firm';
+    contactName?: string; contactPhone?: string; contactEmail?: string;
+    contactRole?: 'Owner' | 'Manager' | 'Accountant' | 'Other'; contactRoleOther?: string;
+  };
+  documents: { type: string; path: string }[];
   autoScore: number | null;
   reviewedBy: string | null;
   reviewNote: string | null;
   reviewedAt: string | null;
+  // Which specific uploaded document(s) (matching `documents[].type`) caused
+  // a rejection, e.g. ["selfie"] — only meaningful when status is
+  // 'rejected'. Empty means the whole submission was rejected for a reason
+  // unrelated to any one document (see reviewNote alone).
+  rejectedDocTypes: string[];
   createdAt: string;
 }
 

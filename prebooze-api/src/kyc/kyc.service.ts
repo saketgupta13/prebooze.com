@@ -205,6 +205,15 @@ export class KycService {
       contactName?: string; contactPhone?: string; contactEmail?: string;
       contactRole?: 'Owner' | 'Manager' | 'Accountant' | 'Other'; contactRoleOther?: string;
       docLabels?: string[];
+      // Resubmitting after a rejection: carry forward whichever required
+      // documents weren't re-uploaded this time (i.e. everything except
+      // what was actually flagged in rejectedDocTypes) by copying their
+      // already-stored {type, path} straight from the old row — files are
+      // never deleted on rejection (see StorageService), so this needs no
+      // re-upload and never re-exposes the bytes to the client. Ownership
+      // is checked below so a submission id can't be used to pull another
+      // organizer's documents.
+      previousSubmissionId?: string;
     },
     files: Express.Multer.File[],
   ) {
@@ -225,10 +234,22 @@ export class KycService {
       throw new BadRequestException('Describe the contact person\'s role');
     }
 
-    const documents = await Promise.all(files.map(async (f, i) => ({
+    const uploaded = await Promise.all(files.map(async (f, i) => ({
       type: payload.docLabels?.[i] ?? `doc_${i + 1}`,
       path: await this.storage.save(f),
     })));
+    const uploadedTypes = new Set(uploaded.map((d) => d.type));
+
+    let carried: { type: string; path: string }[] = [];
+    if (payload.previousSubmissionId) {
+      const prev = await this.prisma.kycSubmission.findUnique({ where: { id: payload.previousSubmissionId } });
+      if (prev && prev.userId === userId && prev.kind === 'organizer') {
+        const prevDocs = (prev.documents as { type: string; path: string }[] | null) ?? [];
+        carried = prevDocs.filter((d) => !uploadedTypes.has(d.type));
+      }
+    }
+    const documents = [...uploaded, ...carried];
+
     const types = new Set(documents.map((d) => d.type));
     const required = payload.entityType === 'individual' ? ['aadhaar', 'selfie'] : ['registration', 'ownerAadhaar', 'selfie'];
     const missing = required.filter((t) => !types.has(t));
@@ -859,7 +880,7 @@ export class KycService {
     };
   }
 
-  async reject(id: string, reviewedBy: string, reason: string) {
+  async reject(id: string, reviewedBy: string, reason: string, docTypes: string[] = []) {
     const sub = await this.prisma.kycSubmission.findUnique({ where: { id } });
     if (!sub) throw new NotFoundException();
     if (sub.kind === 'guest') throw new BadRequestException('Guest verification is automatic, nothing to reject');
@@ -867,7 +888,7 @@ export class KycService {
     await this.prisma.$transaction([
       this.prisma.kycSubmission.update({
         where: { id },
-        data: { status: 'rejected', reviewedBy, reviewedAt: new Date(), reviewNote: reason },
+        data: { status: 'rejected', reviewedBy, reviewedAt: new Date(), reviewNote: reason, rejectedDocTypes: docTypes },
       }),
       this.prisma.user.update({ where: { id: sub.userId }, data: { roleStatus: 'rejected' } }),
     ]);

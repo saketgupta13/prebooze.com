@@ -194,8 +194,13 @@ export class AdminKycController {
 
   @Post(':id/reject')
   @RequirePermission('Verifications (KYC)', 'approve')
-  reject(@Param('id') id: string, @Body('reason') reason: string, @Req() req: { staff: StaffTokenPayload }) {
-    return this.kyc.reject(id, req.staff.email, reason ?? '');
+  reject(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @Body('docTypes') docTypes: string[] | undefined,
+    @Req() req: { staff: StaffTokenPayload },
+  ) {
+    return this.kyc.reject(id, req.staff.email, reason ?? '', docTypes ?? []);
   }
 
   /** Verification team only — GSTIN/PAN/bank details, collected once they've

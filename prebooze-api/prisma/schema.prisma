@@ -191,6 +191,15 @@ model KycSubmission {
   reviewNote String?
   reviewedAt DateTime?
 
+  // Which specific document(s) (matching `documents[].type` above) caused a
+  // rejection — e.g. ["selfie"] or ["aadhaar"] — so the applicant's own app
+  // can highlight exactly what to fix on resubmission instead of a bare
+  // free-text reason with no way to tell which upload was the problem. Only
+  // meaningful when status is 'rejected'; empty means the whole submission
+  // was rejected for a reason unrelated to any specific document (see
+  // reviewNote). Set by the admin reject flow alongside reviewNote.
+  rejectedDocTypes String[] @default([])
+
   createdAt DateTime @default(now())
 }
 

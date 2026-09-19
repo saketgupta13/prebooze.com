@@ -15,6 +15,11 @@ export const kyc = {
       contactRole: string;
       contactRoleOther?: string;
       docLabels: string[];
+      // Resubmitting after a rejection — carries forward whichever
+      // required documents weren't freshly re-uploaded this time (server
+      // copies them from this submission's own stored files, no re-upload
+      // needed). Omit on a first-time submission.
+      previousSubmissionId?: string;
     },
     docs: { uri: string; name: string; mimeType: string }[],
   ) => {
