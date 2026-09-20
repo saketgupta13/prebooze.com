@@ -286,18 +286,110 @@ export class SettlementsService {
     };
   }
 
-  /**
-   * Fee reconciliation: compare estimated fees (posted at booking time) vs actual fees (from settlement).
-   * This is a future enhancement. For now, estimated fees are posted at booking creation and can be
-   * manually reviewed against the settlement file details for discrepancies.
-   *
-   * Implementation notes for future:
-   * - Query LedgerEntry for 'Payment gateway fee' category with bookingId
-   * - Compare estimated amount vs actual amount from PhonePeSettlementItem
-   * - Post 'Payment gateway fee adjustment' entries for discrepancies
-   * - Requires linking LedgerEntry to bookings (may need schema change)
-   */
-  async reconcilePhonePeFeesAgainstSettlement(settlementFileId: string): Promise<void> {
-    this.log.log(`Fee reconciliation for settlement ${settlementFileId}: placeholder for future implementation`);
+  /** Reconcile estimated fees (posted at booking time) vs actual fees from PhonePe settlement.
+   * For each booking in the settlement, compares what was estimated during booking creation
+   * against what PhonePe actually charged. Creates adjustment entries for discrepancies. */
+  async reconcilePhonePeFeesAgainstSettlement(settlementFileId: string): Promise<{
+    bookingsReconciled: number;
+    totalEstimatedFee: number;
+    totalActualFee: number;
+    discrepancies: Array<{ bookingId: string; estimated: number; actual: number; adjustment: number }>;
+  }> {
+    const file = await this.prisma.phonePeSettlementFile.findUnique({
+      where: { id: settlementFileId },
+      include: { items: true },
+    });
+
+    if (!file) throw new NotFoundException('Settlement file not found');
+
+    const discrepancies: Array<{
+      bookingId: string;
+      estimated: number;
+      actual: number;
+      adjustment: number;
+    }> = [];
+    let totalEstimatedFee = 0;
+    let totalActualFee = 0;
+
+    // Get all bookings referenced in this settlement
+    const bookingIds = file.items
+      .filter((i) => i.bookingId)
+      .map((i) => i.bookingId!);
+
+    if (bookingIds.length === 0) {
+      this.log.log(`Settlement ${settlementFileId} has no bookings to reconcile`);
+      return {
+        bookingsReconciled: 0,
+        totalEstimatedFee: 0,
+        totalActualFee: 0,
+        discrepancies: [],
+      };
+    }
+
+    const bookings = await this.prisma.booking.findMany({
+      where: { id: { in: bookingIds } },
+      select: { id: true, total: true, eventId: true, event: { select: { title: true } } },
+    });
+
+    const bookingMap = new Map(bookings.map((b) => [b.id, b]));
+
+    // For each settlement item, calculate estimated vs actual fees
+    for (const item of file.items) {
+      if (!item.bookingId) continue;
+
+      const booking = bookingMap.get(item.bookingId);
+      if (!booking) continue;
+
+      // Estimated fee is what was posted to ledger during booking creation
+      // We estimate it using the same logic: calculateGatewayFee with the booking amount
+      const { baseFee: estimatedFee } = calculateGatewayFee(
+        booking.total * 100,
+        'PHONEPE',
+        (item.paymentMethod as PaymentMethod) || 'UPI',
+      );
+
+      const actualFee = Number(item.fee) / 100; // Convert paise to rupees
+      totalEstimatedFee += estimatedFee / 100; // Convert paise to rupees
+      totalActualFee += actualFee;
+
+      if (Math.abs(estimatedFee - Number(item.fee)) > 1) {
+        // More than 1 paise difference = discrepancy
+        discrepancies.push({
+          bookingId: item.bookingId,
+          estimated: estimatedFee / 100,
+          actual: actualFee,
+          adjustment: actualFee - estimatedFee / 100,
+        });
+
+        // If there's a discrepancy, post an adjustment entry
+        if (discrepancies.length > 0 && Math.abs(estimatedFee - Number(item.fee)) > 1) {
+          const adjustment = Number(item.fee) - estimatedFee;
+          if (adjustment !== 0) {
+            await this.prisma.ledgerEntry.create({
+              data: {
+                kind: adjustment > 0 ? 'expense' : 'income',
+                category: 'Payment gateway fee adjustment',
+                amount: Math.abs(adjustment),
+                note: `Reconciliation: Booking ${item.bookingId} settlement fee adjustment from PhonePe (settlement: ${settlementFileId})`,
+                auto: true,
+                eventId: booking.eventId,
+              },
+            });
+          }
+        }
+      }
+    }
+
+    this.log.log(
+      `Fee reconciliation complete for settlement ${settlementFileId}: ` +
+        `${bookingIds.length} bookings, ${discrepancies.length} discrepancies found`,
+    );
+
+    return {
+      bookingsReconciled: bookingIds.length,
+      totalEstimatedFee,
+      totalActualFee,
+      discrepancies,
+    };
   }
 }
