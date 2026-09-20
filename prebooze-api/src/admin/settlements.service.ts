@@ -285,4 +285,19 @@ export class SettlementsService {
       totalGST: Number(settlementFile.totalGST) / 100,
     };
   }
+
+  /**
+   * Fee reconciliation: compare estimated fees (posted at booking time) vs actual fees (from settlement).
+   * This is a future enhancement. For now, estimated fees are posted at booking creation and can be
+   * manually reviewed against the settlement file details for discrepancies.
+   *
+   * Implementation notes for future:
+   * - Query LedgerEntry for 'Payment gateway fee' category with bookingId
+   * - Compare estimated amount vs actual amount from PhonePeSettlementItem
+   * - Post 'Payment gateway fee adjustment' entries for discrepancies
+   * - Requires linking LedgerEntry to bookings (may need schema change)
+   */
+  async reconcilePhonePeFeesAgainstSettlement(settlementFileId: string): Promise<void> {
+    this.log.log(`Fee reconciliation for settlement ${settlementFileId}: placeholder for future implementation`);
+  }
 }
