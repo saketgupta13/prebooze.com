@@ -1509,9 +1509,10 @@ model Booking {
   // retry actually succeeds. Null for a normal, successful refund.
   refundFailedAt DateTime?
 
-  // Manual/admin booking creation slice — null means "the normal guest
-  // checkout flow" (Razorpay/dev-stub, implied by paymentId). Set only for
-  // staff-recorded phone orders/walk-ups/comps (BookingsService.adminCreate).
+  // Payment method used on this booking. For admin bookings: set manually.
+  // For guest checkouts: 'UPI'|'CARD'|'NETBANKING'|'WALLET'|'EMI' (PhonePe)
+  // or null (Razorpay). Used in fee calculations to discriminate between
+  // PhonePe UPI (0% fee) vs card/netbanking (1.99% + 18% GST).
   paymentMethod String?
 
   qrToken     String // signed JWT — POST /bookings/check-in validates this server-side
@@ -2350,6 +2351,42 @@ model RazorpaySettlementItem {
   paidAt       DateTime // the payment's own created_at, not settledAt
 
   @@index([settlementId])
+}
+
+// PhonePe settlement files (async CSV imports, T+1/T+2 payout cycle)
+model PhonePeSettlementFile {
+  id            String   @id @default(cuid())
+  fileDate      DateTime // Date this settlement covers
+  downloadedAt  DateTime // When we fetched it
+  filename      String   // Settlement file name from PhonePe
+  totalAmount   BigInt   // Total settled (paise)
+  totalFee      BigInt
+  totalGST      BigInt
+  status        String   @default("DOWNLOADED") // 'DOWNLOADED' | 'PROCESSING' | 'RECONCILED'
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items PhonePeSettlementItem[]
+}
+
+model PhonePeSettlementItem {
+  id                String   @id @default(cuid())
+  settlementFileId  String
+  settlementFile    PhonePeSettlementFile @relation(fields: [settlementFileId], references: [id], onDelete: Cascade)
+
+  bookingId         String?  // Links to Booking if this is a booking payment
+  featuredId        String?  // Links to Featured if this is a featured payment
+  paymentId         String   // PhonePe merchantOrderId or order reference
+  amount            BigInt   // Transaction amount (paise)
+  fee               BigInt   // Actual fee charged by PhonePe (paise)
+  gst               BigInt   // Actual GST (paise)
+  paymentMethod     String   // 'UPI' | 'CARD' | 'NETBANKING' | 'WALLET' | 'EMI'
+  createdAt         DateTime @default(now())
+
+  @@index([settlementFileId])
+  @@index([bookingId])
+  @@index([paymentId])
 }
 
 // ============================================================================

@@ -8,6 +8,7 @@ import { RazorpayService } from '../payments/razorpay.service';
 import { PhonePeService } from '../payments/phonepe.service';
 import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
+import { calculateGatewayFee, type PaymentMethod } from '../payments/gateway-fee';
 
 interface RazorpaySubEntity {
   id: string;
@@ -157,12 +158,18 @@ export class FeaturedService {
       throw new BadRequestException(`This request's price changed since payment — contact support with reference ${row.phonepeMerchantOrderId}`);
     }
 
-    const updated = await this.prisma.featured.update({ where: { id }, data: { paid: true, paymentId: row.phonepeMerchantOrderId } });
+    // Fetch payment method for fee calculations and wallet save
+    let paymentMethod: string | null = null;
+    const methodResult = await this.phonepe.getPaymentMethod(row.phonepeMerchantOrderId).catch(() => null);
+    if (methodResult) {
+      paymentMethod = methodResult.method;
+      // Auto-save the method this real payment actually used — same
+      // WalletService.saveUsedMethod dedup-by-matchKey path a guest checkout
+      // uses; Featured payments already carry the caller's own real userId.
+      await this.wallet.saveUsedMethod(userId, methodResult).catch(() => {});
+    }
 
-    // Auto-save the method this real payment actually used — same
-    // WalletService.saveUsedMethod dedup-by-matchKey path a guest checkout
-    // uses; Featured payments already carry the caller's own real userId.
-    await this.phonepe.getPaymentMethod(row.phonepeMerchantOrderId).then((p) => p && this.wallet.saveUsedMethod(userId, p)).catch(() => {});
+    const updated = await this.prisma.featured.update({ where: { id }, data: { paid: true, paymentId: row.phonepeMerchantOrderId } });
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (user) {

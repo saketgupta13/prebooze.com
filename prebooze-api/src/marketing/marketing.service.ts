@@ -7,6 +7,7 @@ import { PhonePeService } from '../payments/phonepe.service';
 import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { AnalyticsReportService } from '../analytics/analytics-report.service';
+import { calculateGatewayFee, type PaymentMethod } from '../payments/gateway-fee';
 
 export type MarketingOwnerType = 'organizer' | 'venue';
 
@@ -170,9 +171,16 @@ export class MarketingService {
       throw new BadRequestException(`This order's price changed since payment — contact support with reference ${row.phonepeMerchantOrderId}`);
     }
 
-    const updated = await this.prisma.marketingOrder.update({ where: { id }, data: { paymentId: row.phonepeMerchantOrderId } });
+    // Fetch payment method for fee calculations and wallet save
+    let paymentMethod: string | null = null;
+    const methodResult = await this.phonepe.getPaymentMethod(row.phonepeMerchantOrderId).catch(() => null);
+    if (methodResult) {
+      paymentMethod = methodResult.method;
+      // Auto-save the method this real payment actually used
+      await this.wallet.saveUsedMethod(userId, methodResult).catch(() => {});
+    }
 
-    await this.phonepe.getPaymentMethod(row.phonepeMerchantOrderId).then((p) => p && this.wallet.saveUsedMethod(userId, p)).catch(() => {});
+    const updated = await this.prisma.marketingOrder.update({ where: { id }, data: { paymentId: row.phonepeMerchantOrderId } });
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (user) {

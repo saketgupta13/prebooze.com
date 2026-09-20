@@ -24,6 +24,7 @@ import { missingProfileFields } from '../auth/profile-completeness';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { LeadsService } from '../admin/leads.service';
+import { getGatewayAndMethod, calculateGatewayFee, getGatewayFeeLostOnRefund, type PaymentMethod } from '../payments/gateway-fee';
 
 const FALLBACK_FEE_PCT = 3; // % — used only if PlatformSettings row is somehow missing
 const RAZORPAY_FEE_PCT = 2.36; // confirmed against real live payments 2026-08-27
@@ -109,26 +110,13 @@ export class BookingsService {
    * booking confirmation — 1 for wallet (refund_wallet) or 2 for
    * refund-to-source (refund_requested at cancel time + refund_source at
    * approval) — same per-message cost used to size the booking fee itself. */
-  private refundDeductionFor(booking: { total: number; paymentId: string | null }, refundTo: 'wallet' | 'source'): number {
+  private refundDeductionFor(
+    booking: { total: number; paymentId: string | null; paymentMethod?: string | null },
+    refundTo: 'wallet' | 'source',
+  ): number {
     const msgCount = refundTo === 'source' ? 2 : 1;
-    return Math.round(this.gatewayFeeLostOn(booking) + msgCount * WHATSAPP_MSG_COST);
-  }
-
-  /** Processing fee Prebooze genuinely loses on a sale and never gets back,
-   * as real rupees — deducted from what a guest receives on a refund.
-   * Razorpay's ~2.36% is confirmed against a real refunded payment (the fee
-   * stayed deducted after the refund went through). PhonePe is a flat 0:
-   * every real order status checked since the 2026-09-19 cutover comes back
-   * with feeAmount 0 (UPI carries zero MDR by regulation), so there is no
-   * fee to pass on. Card/netbanking through PhonePe may eventually carry a
-   * real fee — deliberately left at 0 rather than guessed at, since a wrong
-   * non-zero estimate would silently over-deduct from real guests' refunds;
-   * revisit only against PhonePe's actual fee schedule. 'pay_' is Razorpay's
-   * own id format — the same discriminator refundViaGateway uses to route a
-   * refund to the right gateway in the first place. */
-  private gatewayFeeLostOn(booking: { total: number; paymentId: string | null }): number {
-    if (!booking.paymentId?.startsWith('pay_')) return 0;
-    return booking.total * (RAZORPAY_FEE_PCT / 100);
+    const { feeLost, gstLost } = getGatewayFeeLostOnRefund(booking);
+    return Math.round(feeLost + gstLost + msgCount * WHATSAPP_MSG_COST);
   }
 
   /** The organizer-configured revenue-share % for this promoter on this
@@ -680,6 +668,7 @@ export class BookingsService {
     // (== holdId) since PhonePe never hands back a separate payment id the
     // way Razorpay did — nothing else to store.
     let paymentId: string | null = null;
+    let paymentMethod: PaymentMethod | null = null;
     if (total > 0) {
       if (input.phonepe) {
         const status = await this.phonepe.getOrderStatus(input.phonepe.merchantOrderId);
@@ -697,21 +686,22 @@ export class BookingsService {
           throw new BadRequestException(`This booking's price changed since you paid — contact support with reference ${input.phonepe.merchantOrderId}`);
         }
         paymentId = input.phonepe.merchantOrderId;
+        // Fetch and store payment method for fee calculations
+        const methodResult = await this.phonepe.getPaymentMethod(paymentId).catch(() => null);
+        if (methodResult) {
+          paymentMethod = methodResult.method as PaymentMethod;
+          // Auto-save the method this real payment actually used (see
+          // WalletService.saveUsedMethod) — swallows its own errors, same as
+          // every other post-payment side effect here; a save failure must
+          // never fail a booking that already genuinely completed payment.
+          await this.wallet.saveUsedMethod(userId, methodResult).catch(() => {});
+        }
       } else if (!this.phonepe.live) {
         // dev convenience: simulate a completed payment so the flow is curl-testable
         paymentId = this.phonepe.devFakeMerchantOrderId();
       } else {
         throw new BadRequestException('Payment is required to complete this booking');
       }
-      // Auto-save the method this real payment actually used (see
-      // WalletService.saveUsedMethod) — swallows its own errors, same as
-      // every other post-payment side effect here; a save failure must
-      // never fail a booking that already genuinely completed payment.
-      // PhonePe only exposes a real, mappable method for UPI payments
-      // (a real vpa) — card/netbanking don't expose reusable last4/network
-      // the way Razorpay's payment object did, so those are silently
-      // skipped here rather than guessed at.
-      await this.phonepe.getPaymentMethod(paymentId).then((p) => p && this.wallet.saveUsedMethod(userId, p)).catch(() => {});
     }
 
     const id = '#TKT-' + randomInt(10000, 99999);
@@ -755,6 +745,7 @@ export class BookingsService {
           promoterPlatformCommission,
           walletCreditUsed,
           paymentId: paymentId ?? undefined,
+          paymentMethod: paymentMethod ?? undefined,
           qrToken,
           // Locked in now, same reasoning as promoterCommission above — a
           // later edit to a tier's cover charge never changes what this
@@ -830,11 +821,18 @@ export class BookingsService {
       await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
       // Real cost of this sale, previously invisible — only deducted from a
       // later refund (see refundDeductionFor), never recorded as its own
-      // expense on the sale itself until now. input.razorpay (not just
-      // paymentId, which is also set on the dev-fake-payment path) is the
-      // real signal a genuine Razorpay payment happened.
-      if (input.razorpay) {
-        await this.postEventLedger(tx, event.id, event.title, 'Razorpay commission', 'expense', Math.round(total * (RAZORPAY_FEE_PCT / 100)));
+      // expense on the sale itself until now. Post gateway fees based on
+      // payment method: Razorpay posts one combined 2.36% fee; PhonePe posts
+      // 0% for UPI and 1.99% + 18% GST for card/netbanking.
+      if (paymentId && total > 0) {
+        const { gateway, method } = getGatewayAndMethod(paymentId);
+        const { baseFee, gst } = calculateGatewayFee(total * 100, gateway, paymentMethod || (method as PaymentMethod));
+        if (baseFee > 0) {
+          await this.postEventLedger(tx, event.id, event.title, 'Payment gateway fee', 'expense', baseFee);
+        }
+        if (gst > 0) {
+          await this.postEventLedger(tx, event.id, event.title, 'Payment gateway GST', 'expense', gst);
+        }
       }
       // Rounded up to a whole rupee per message — LedgerEntry.amount has no
       // paise support like every other ₹ field in this system, and the real

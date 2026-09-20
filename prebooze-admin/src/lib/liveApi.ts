@@ -1091,6 +1091,8 @@ export const liveSettlements = {
   // API more often than settlements actually change).
   list: () => liveFetch<{ settlements: LiveSettlement[]; total: number }>('/admin/settlements'),
   detail: (id: string) => liveFetch<LiveSettlementDetail>(`/admin/settlements/${encodeURIComponent(id)}`),
+  listPhonePe: () => liveFetch<{ settlements: any[]; total: number }>('/admin/settlements/phonepe/list'),
+  detailPhonePe: (id: string) => liveFetch<any>(`/admin/settlements/phonepe/${encodeURIComponent(id)}`),
 };
 
 export const PERM_MODULES = [

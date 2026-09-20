@@ -52,6 +52,7 @@ import { BlogEditor, BlogCategories } from './pages/BlogEditor';
 import Finance from './pages/Finance';
 import Settlements from './pages/Settlements';
 import SettlementDetail from './pages/SettlementDetail';
+import PhonePeSettlementDetail from './pages/PhonePeSettlementDetail';
 import ManualBooking from './pages/ManualBooking';
 import GuestList from './pages/GuestList';
 import { Lineups, LineupEdit } from './pages/Lineups';
@@ -128,6 +129,7 @@ export default function App() {
         <Route path="/finance" element={<Finance />} />
         <Route path="/settlements" element={<Settlements />} />
         <Route path="/settlements/:id" element={<SettlementDetail />} />
+        <Route path="/settlements/phonepe/:id" element={<PhonePeSettlementDetail />} />
         <Route path="/testimonials" element={<Testimonials />} />
         <Route path="/faqs" element={<Faqs />} />
         <Route path="/policies" element={<Policies />} />
