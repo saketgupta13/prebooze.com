@@ -399,8 +399,9 @@ export interface LiveBooking {
   // normal successful refund.
   refundFailedAt: string | null;
   // Only present once a refund's actually been attempted — what
-  // retryRefund() will send, net of Razorpay/WhatsApp deductions. Not the
-  // same as `total`.
+  // retryRefund() will send, net of gateway-fee/WhatsApp deductions (the
+  // gateway-fee part is Razorpay-only; PhonePe UPI costs nothing to
+  // process, see BookingsService.gatewayFeeLostOn). Not the same as `total`.
   pendingRefundAmount?: number;
   createdAt: string;
   checkedIn: boolean;

@@ -110,9 +110,25 @@ export class BookingsService {
    * refund-to-source (refund_requested at cancel time + refund_source at
    * approval) — same per-message cost used to size the booking fee itself. */
   private refundDeductionFor(booking: { total: number; paymentId: string | null }, refundTo: 'wallet' | 'source'): number {
-    const razorpayFee = booking.paymentId ? booking.total * (RAZORPAY_FEE_PCT / 100) : 0;
     const msgCount = refundTo === 'source' ? 2 : 1;
-    return Math.round(razorpayFee + msgCount * WHATSAPP_MSG_COST);
+    return Math.round(this.gatewayFeeLostOn(booking) + msgCount * WHATSAPP_MSG_COST);
+  }
+
+  /** Processing fee Prebooze genuinely loses on a sale and never gets back,
+   * as real rupees — deducted from what a guest receives on a refund.
+   * Razorpay's ~2.36% is confirmed against a real refunded payment (the fee
+   * stayed deducted after the refund went through). PhonePe is a flat 0:
+   * every real order status checked since the 2026-09-19 cutover comes back
+   * with feeAmount 0 (UPI carries zero MDR by regulation), so there is no
+   * fee to pass on. Card/netbanking through PhonePe may eventually carry a
+   * real fee — deliberately left at 0 rather than guessed at, since a wrong
+   * non-zero estimate would silently over-deduct from real guests' refunds;
+   * revisit only against PhonePe's actual fee schedule. 'pay_' is Razorpay's
+   * own id format — the same discriminator refundViaGateway uses to route a
+   * refund to the right gateway in the first place. */
+  private gatewayFeeLostOn(booking: { total: number; paymentId: string | null }): number {
+    if (!booking.paymentId?.startsWith('pay_')) return 0;
+    return booking.total * (RAZORPAY_FEE_PCT / 100);
   }
 
   /** The organizer-configured revenue-share % for this promoter on this
@@ -1206,9 +1222,12 @@ export class BookingsService {
 
       // reverse the platform's own income the same way — the refund gives
       // back the fee+commission revenue in full (gross, not netted against
-      // `deduction`): the Razorpay/WhatsApp costs `deduction` withholds have
-      // their own explicit "Razorpay commission"/"WhatsApp message charges"
-      // expense lines (posted at sale time, and again below for the extra
+      // `deduction`): the gateway-fee/WhatsApp costs `deduction` withholds
+      // have their own explicit "Razorpay commission"/"WhatsApp message
+      // charges" expense lines (the former only ever posted for a real
+      // Razorpay sale — PhonePe UPI carries no fee to record, so a
+      // PhonePe booking's deduction is WhatsApp-only) — posted at sale
+      // time, and again below for the extra
       // refund-time WhatsApp sends) — netting them in here too would count
       // the same real cost twice. Recorded as a separate "Refund losses"
       // expense (aggregated per event, same as the income side) rather than
