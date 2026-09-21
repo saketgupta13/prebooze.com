@@ -103,6 +103,12 @@ export default function EventWizardScreen() {
     return d;
   });
   const [duration, setDuration] = useState('3');
+  // A festival/workshop running over several days — the event stays
+  // bookable/live through the end of seriesEndDate instead of ending after
+  // just the first day's date+durationHrs (see lib/events.ts's isEventOver).
+  // Faithful port of the admin EventEditorReal.tsx pattern.
+  const [isMultiDay, setIsMultiDay] = useState(false);
+  const [seriesEndDate, setSeriesEndDate] = useState<Date | null>(null);
   const [venueId, setVenueId] = useState('');
   const [venueCity, setVenueCity] = useState(user?.city ?? '');
   const [privateAddress, setPrivateAddress] = useState(false);
@@ -190,6 +196,8 @@ export default function EventWizardScreen() {
           setAgeLimit(ev.ageLimit);
           setEventDate(new Date(ev.date));
           setDuration(String(ev.durationHrs));
+          setIsMultiDay(!!ev.seriesEndDate);
+          setSeriesEndDate(ev.seriesEndDate ? new Date(ev.seriesEndDate) : null);
           if (ev.venueId) {
             setVenueId(ev.venueId);
             const evVenue = vs.find((v) => v.id === ev.venueId);
@@ -258,6 +266,7 @@ export default function EventWizardScreen() {
     tags: [category === 'Concerts' ? 'Concert' : category, ageLimit],
     date: eventDate.toISOString(),
     durationHrs: +duration,
+    seriesEndDate: isMultiDay && seriesEndDate ? new Date(seriesEndDate.getFullYear(), seriesEndDate.getMonth(), seriesEndDate.getDate(), 23, 59, 59).toISOString() : null,
     ...(privateAddress ? { privateCity: privateCity.trim(), privateLocality: privateLocality.trim() } : { venueId }),
     status,
     conditions: conditions.split('\n').filter(Boolean),
@@ -360,6 +369,16 @@ export default function EventWizardScreen() {
             return d;
           });
         }
+      },
+    });
+  };
+  const openSeriesEndDatePicker = () => {
+    DateTimePickerAndroid.open({
+      value: seriesEndDate ?? eventDate,
+      mode: 'date',
+      minimumDate: eventDate,
+      onChange: (event, selected) => {
+        if (event.type === 'set' && selected) setSeriesEndDate(selected);
       },
     });
   };
@@ -490,7 +509,7 @@ export default function EventWizardScreen() {
                 </Pressable>
               </View>
               <View style={styles.flex1}>
-                <FieldLabel>Start</FieldLabel>
+                <FieldLabel>Time</FieldLabel>
                 <Pressable style={[styles.pickerField, styles.fieldGap]} onPress={openTimePicker}>
                   <Txt>{formatTime12h(eventDate)}</Txt>
                   <Clock size={16} color={colors.muted} />
@@ -499,6 +518,23 @@ export default function EventWizardScreen() {
             </View>
             <FieldLabel>Total duration (hours)</FieldLabel>
             <Input value={duration} onChangeText={(v) => setDuration(v.replace(/[^0-9.]/g, '').slice(0, 4))} placeholder="e.g. 5 or 6.5" keyboardType="decimal-pad" style={styles.fieldGap} />
+            <Muted style={styles.tiny}>
+              For a single-day event, this is the whole session length. For a multi-day series, this is just the daily session length (e.g. 1 hour for a nightly 8-9 PM class) — the date above is the first day's start.
+            </Muted>
+
+            <View style={{ marginTop: spacing.m }}>
+              <Checkbox checked={isMultiDay} onChange={setIsMultiDay} label="Multi-day event (workshop/series running over several days)" />
+            </View>
+            {isMultiDay && (
+              <>
+                <FieldLabel>Series ends on</FieldLabel>
+                <Pressable style={[styles.pickerField, styles.fieldGap]} onPress={openSeriesEndDatePicker}>
+                  <Txt>{seriesEndDate ? formatDateDMY(seriesEndDate) : 'select the last day…'}</Txt>
+                  <Calendar size={16} color={colors.muted} />
+                </Pressable>
+                <Muted style={styles.tiny}>The event stays bookable and "live" (not sold out/ended) until the end of this day, regardless of the daily session's short duration above.</Muted>
+              </>
+            )}
 
             <Checkbox checked={privateAddress} onChange={setPrivateAddress} label="Keep exact address private — I'll share it with guests myself" />
 
