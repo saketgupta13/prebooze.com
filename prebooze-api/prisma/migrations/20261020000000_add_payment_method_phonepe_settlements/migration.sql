@@ -1,6 +1,3 @@
--- Add paymentMethod to Booking
-ALTER TABLE "Booking" ADD COLUMN "paymentMethod" TEXT;
-
 -- Create PhonePe settlement tables
 CREATE TABLE "PhonePeSettlementFile" (
   "id" TEXT NOT NULL PRIMARY KEY,
