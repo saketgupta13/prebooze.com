@@ -197,8 +197,14 @@ export interface BookingQuote {
   fee: number;
   // GST (real GSTIN activated 2026-09-21) on the booking fee only — both 0
   // whenever PlatformSettings.gstEnabled is false, unchanged from before.
+  // igstAmount>0 means an inter-state supply (single IGST line); 0 means
+  // intra-state, split into cgstAmount+sgstAmount instead — same
+  // commonGst.ts convention the Invoice PDF uses.
   gstPct?: number;
   gst?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
   discount: number;
   walletCreditUsed: number;
   total: number;

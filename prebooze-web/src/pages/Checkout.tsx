@@ -333,6 +333,12 @@ export default function Checkout() {
   const finalFee = quote?.fee ?? fee;
   const finalGst = quote?.gst ?? gstEstimate;
   const finalGstPct = quote?.gstPct ?? gstPct;
+  // Pre-quote estimate defaults to same-state (CGST+SGST split) — same safe
+  // default computeGst.ts itself uses server-side; snaps to the real
+  // CGST+SGST/IGST split the instant quote() resolves.
+  const finalIgst = quote?.igstAmount ?? 0;
+  const finalCgst = quote ? (quote.cgstAmount ?? 0) : Math.round(gstEstimate / 2);
+  const finalSgst = quote ? (quote.sgstAmount ?? 0) : gstEstimate - Math.round(gstEstimate / 2);
   const finalDiscount = quote?.discount ?? discount;
   const finalCredit = quote?.walletCreditUsed ?? creditApplied;
   const finalTotal = quote?.total ?? total;
@@ -1193,10 +1199,23 @@ export default function Checkout() {
               <span>₹{finalFee}</span>
             </div>
             {finalGst > 0 && (
-              <div className="kv">
-                <span className="k">GST ({finalGstPct}% on {feeLabel.toLowerCase()})</span>
-                <span>₹{finalGst}</span>
-              </div>
+              finalIgst > 0 ? (
+                <div className="kv">
+                  <span className="k">IGST ({finalGstPct}% on {feeLabel.toLowerCase()})</span>
+                  <span>₹{finalIgst}</span>
+                </div>
+              ) : (
+                <>
+                  <div className="kv">
+                    <span className="k">CGST ({finalGstPct / 2}% on {feeLabel.toLowerCase()})</span>
+                    <span>₹{finalCgst}</span>
+                  </div>
+                  <div className="kv">
+                    <span className="k">SGST ({finalGstPct / 2}% on {feeLabel.toLowerCase()})</span>
+                    <span>₹{finalSgst}</span>
+                  </div>
+                </>
+              )
             )}
             {finalDiscount > 0 && (
               <div className="kv">

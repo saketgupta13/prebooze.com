@@ -164,7 +164,7 @@ export class BookingsService {
     const hold = await this.holds.get(holdId);
     if (hold.userId !== userId) throw new ForbiddenException('This hold belongs to a different session');
 
-    const event = await this.prisma.event.findUnique({ where: { id: hold.eventId }, include: { tiers: true } });
+    const event = await this.prisma.event.findUnique({ where: { id: hold.eventId }, include: { tiers: true, venue: true } });
     if (!event) throw new NotFoundException('Event not found');
     // re-checked here (not just at hold creation) since a hold can sit for up
     // to HOLD_TTL_S before quote()/create() actually runs — same "over"
@@ -278,12 +278,21 @@ export class BookingsService {
     // doc comment — false (the default, and every pre-launch booking)
     // behaves exactly like the old always-0 code. */
     const gstPct = settings?.gstEnabled ? (settings?.gstPct ?? 0) : 0;
+    // Place of supply for event-admission services is the event's own
+    // location (IGST Act s.12(6)) — same resolution create()'s invoice
+    // creation uses below, just done here too so the checkout quote can
+    // show the real CGST+SGST/IGST split before payment, not just the
+    // combined amount.
+    const eventState = event.venue?.state
+      ?? (event.privateCity ? (await this.prisma.city.findUnique({ where: { name: event.privateCity }, include: { state: true } }).catch(() => null))?.state?.name : null)
+      ?? null;
     // Named bookingGst, not gst — create()'s own gateway-fee accounting
     // below already uses `gst` for a completely different thing (the
     // payment gateway's own GST on ITS processing fee, an expense to
     // Prebooze, not this — the GST Prebooze charges the guest on its
     // booking fee, real revenue owed to the government).
-    const bookingGst = Math.round((fee * gstPct) / 100);
+    const gstSplit = computeGst(fee, gstPct, eventState);
+    const bookingGst = gstSplit.gstAmount;
 
     // ---- wallet credit ----
     const balance = await this.walletBalance(userId);
@@ -293,7 +302,8 @@ export class BookingsService {
     const total = subtotal + fee + bookingGst - discount - walletCreditUsed;
     return {
       hold, event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies,
-      fee, gstPct, bookingGst, discount, couponRow, walletCreditUsed, total,
+      fee, gstPct, bookingGst, cgstAmount: gstSplit.cgstAmount, sgstAmount: gstSplit.sgstAmount, igstAmount: gstSplit.igstAmount,
+      discount, couponRow, walletCreditUsed, total,
     };
   }
 
@@ -380,7 +390,9 @@ export class BookingsService {
       await this.prisma.cart.updateMany({ where: { holdId }, data: { phonepeMerchantOrderId: merchantOrderId } }).catch(() => {});
     }
     return {
-      subtotal: p.subtotal, fee: p.fee, gstPct: p.gstPct, gst: p.bookingGst, discount: p.discount, walletCreditUsed: p.walletCreditUsed, total: p.total,
+      subtotal: p.subtotal, fee: p.fee, gstPct: p.gstPct, gst: p.bookingGst,
+      cgstAmount: p.cgstAmount, sgstAmount: p.sgstAmount, igstAmount: p.igstAmount,
+      discount: p.discount, walletCreditUsed: p.walletCreditUsed, total: p.total,
       promoterMarkupApplies: p.promoterMarkupApplies,
       promoterShare: p.promoterMarkupApplies ? p.promoterCommission : 0,
       platformShare: p.promoterMarkupApplies ? p.commission : 0,
@@ -613,7 +625,7 @@ export class BookingsService {
         throw reopenErr;
       }
     }
-    const { event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies, fee, gstPct, bookingGst, discount, couponRow, walletCreditUsed, total } = priced;
+    const { event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies, fee, gstPct, bookingGst, igstAmount: bookingIgst, discount, couponRow, walletCreditUsed, total } = priced;
 
     // Prebooze's own promoter-referral commission — completely separate
     // from promoterCommission above (organizer-funded, requires
@@ -918,21 +930,14 @@ export class BookingsService {
     // only — see priceHold()'s own doc comment. gstPct/bookingGst are both 0
     // on any booking made while PlatformSettings.gstEnabled is false, so
     // this stays a plain Invoice (never "Tax Invoice") until the switch is
-    // flipped. Place of supply for event-admission services is the event's
-    // own location (IGST Act s.12(6)) — venue.state when there's a real
-    // venue, else a City-table lookup on privateCity for a private-address
-    // event; computeGst's own doc comment covers the unresolved-state
-    // fallback. */
+    // flipped. igstAmount already resolved once, in priceHold() — reused
+    // here rather than re-resolving the event's state a second time. */
     if (subtotal > 0) {
-      const eventState = ticketVenue?.state
-        ?? (event.privateCity ? (await this.prisma.city.findUnique({ where: { name: event.privateCity }, include: { state: true } }).catch(() => null))?.state?.name : null)
-        ?? null;
-      const gstSplit = computeGst(fee, gstPct, eventState);
       await this.invoices.create({
         type: 'booking', refId: id, role: 'guest',
         payerName: input.mainGuest.trim(), payerEmail: user.email, payerPhone: input.whatsapp,
         city: ticketVenue?.city, description: `${qty}× ${event.title}`,
-        subtotal, fee, gstPct: gstSplit.gstPct, gstAmount: gstSplit.gstAmount, igstAmount: gstSplit.igstAmount,
+        subtotal, fee, gstPct, gstAmount: bookingGst, igstAmount: bookingIgst,
         discount, walletCredit: walletCreditUsed, total,
       }).catch(() => {});
     }
