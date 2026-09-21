@@ -1109,8 +1109,6 @@ model SubTier {
   price          Int // ₹/month
   guests         Int? // promoter-only monthly guest-list quota (-1 = unlimited); null for other roles
   razorpayPlanId String? // lazily created via RazorpayService.createPlan on first real subscribe — a plan is only created with Razorpay once someone actually tries to pay for this tier
-
-  subscriptions RoleSubscription[]
 }
 
 /**
