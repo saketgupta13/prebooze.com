@@ -3,13 +3,13 @@ import { Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Notifications from 'expo-notifications';
-import { BadgeCheck, ChevronDown, ChevronRight, ChevronUp, ExternalLink, X } from 'lucide-react-native';
+import { ArrowLeft, BadgeCheck, ChevronDown, ChevronRight, ChevronUp, ExternalLink, X } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { notifications as notificationsApi } from '../../api/notifications';
 import { auth } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext';
 import { ApiError } from '../../api/client';
-import { Button, Card, Chip, H1, Input, Muted, Screen, Txt } from '../../components/ui';
+import { Button, Card, Chip, H1, IconButton, Input, Muted, Screen, Txt } from '../../components/ui';
 import ImageUploadBox from '../../components/ImageUploadBox';
 import LocationPicker, { type LocationValue } from '../../components/LocationPicker';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
@@ -139,6 +139,9 @@ export default function SettingsScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.titleRow}>
+          <IconButton onPress={() => navigation.goBack()}>
+            <ArrowLeft size={18} color={colors.text} />
+          </IconButton>
           <H1 style={styles.title}>Settings</H1>
           <Pressable onPress={() => Linking.openURL(`${SITE_ORIGIN}${organizerPath(org.city, org.id)}`)} style={styles.viewProfileLink}>
             <Txt style={styles.link}>View public profile</Txt>
@@ -394,8 +397,8 @@ function FieldLabel({ children }: { children: string }) {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.l, paddingBottom: spacing.xxl },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.l, marginTop: spacing.s },
-  title: { fontSize: fontSize.display },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s, marginBottom: spacing.l, marginTop: spacing.s },
+  title: { flex: 1, fontSize: fontSize.display },
   viewProfileLink: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   link: { color: colors.accent, fontFamily: fontFamily.medium, fontSize: 12.5 },
   errRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.s },
