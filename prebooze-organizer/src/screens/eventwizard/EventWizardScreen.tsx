@@ -14,6 +14,7 @@ import SearchableSelect from '../../components/SearchableSelect';
 import Accordion from '../../components/Accordion';
 import ImageUploadBox from '../../components/ImageUploadBox';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../theme/tokens';
+import { htmlToPlainText, plainTextToHtml } from '../../lib/richtext';
 import type { EventsStackParamList } from '../../navigation/types';
 import type { CollaboratorOption, Event, LineupProfile, PromoterProfile, Venue } from '../../types';
 
@@ -190,7 +191,7 @@ export default function EventWizardScreen() {
         if (ev) {
           setEditing(ev);
           setTitle(ev.title);
-          setDescription(ev.description);
+          setDescription(htmlToPlainText(ev.description));
           setCategory(ev.category);
           setSubCategory(ev.subCategory ?? subsForCat(ev.category)[0] ?? '');
           setAgeLimit(ev.ageLimit);
@@ -310,7 +311,11 @@ export default function EventWizardScreen() {
     if (mediaUploading) { setErr('Media is still uploading — wait for it to finish before saving'); return; }
     setSaving(true);
     try {
-      await organizer.upsertEvent(buildPayload(status));
+      // buildPayload's description is plain text (also used as-is for the
+      // Preview screen's own display) — convert to the div-per-line HTML
+      // shape only at the actual save boundary, not inside buildPayload
+      // itself, so Preview never shows raw tags.
+      await organizer.upsertEvent({ ...buildPayload(status), description: plainTextToHtml(description.trim()) });
       navigation.goBack();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Failed to save event');
