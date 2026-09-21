@@ -11,11 +11,8 @@ import { Badge, Button, Card, H1, H2, Input, Muted, Screen, Txt } from '../../co
 import SearchableSelect from '../../components/SearchableSelect';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../theme/tokens';
 import { isPassValid } from '../../lib/promoterPass';
+import { isEventOver } from '../../lib/events';
 import type { Booking, Event, OrgAttendee, OrgGuestListEntry, OrgPromoterGuest } from '../../types';
-
-// Matches Bookings.tsx's isEventOver — an event is "over" once its end
-// time (date + durationHrs) has passed, not just its start time.
-const isEventOver = (e: { date: string; durationHrs: number }) => new Date(e.date).getTime() + e.durationHrs * 3600_000 < Date.now();
 
 type ScanState =
   | { mode: 'idle' }

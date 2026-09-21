@@ -9,6 +9,7 @@ import { notifications } from '../../api/notifications';
 import { ApiError } from '../../api/client';
 import { Bar, Card, Chip, H1, H2, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
+import { isEventOver } from '../../lib/events';
 import type { Event, OrgAttendee, OrgLedgerTx, Organizer } from '../../types';
 import type { DashboardStackParamList, MainTabParamList } from '../../navigation/types';
 
@@ -19,9 +20,6 @@ type Nav = CompositeNavigationProp<
 
 const fmtMoney = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN');
 const DAY_MS = 86400000;
-// Matches Bookings.tsx's isEventOver — an event is "over" once its end
-// time (date + durationHrs) has passed, not just its start time.
-const isEventOver = (e: { date: string; durationHrs: number }) => new Date(e.date).getTime() + e.durationHrs * 3600_000 < Date.now();
 
 /** Faithful port of prebooze-web/src/pages/organizer/Dashboard.tsx. Same
  * data sources (organizer.me/events/payouts + per-live-event attendees()),

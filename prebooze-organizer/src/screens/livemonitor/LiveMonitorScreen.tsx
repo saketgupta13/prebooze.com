@@ -8,11 +8,9 @@ import { ApiError } from '../../api/client';
 import { Badge, Bar, Button, Card, H1, IconButton, Input, Kpi, Muted, Screen, Stepper, Txt } from '../../components/ui';
 import SearchableSelect from '../../components/SearchableSelect';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
+import { isEventOver } from '../../lib/events';
 import type { MoreStackParamList } from '../../navigation/types';
 import type { Event, OrgLiveMonitor } from '../../types';
-
-// Matches Bookings.tsx's isEventOver.
-const isEventOver = (e: { date: string; durationHrs: number }) => new Date(e.date).getTime() + e.durationHrs * 3600_000 < Date.now();
 
 const ago = (iso: string) => {
   const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));

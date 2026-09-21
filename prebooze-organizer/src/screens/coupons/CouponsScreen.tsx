@@ -9,14 +9,11 @@ import { ApiError } from '../../api/client';
 import { Badge, Button, Card, Checkbox, Chip, H1, IconButton, Input, Muted, Screen, Txt } from '../../components/ui';
 import SearchableSelect from '../../components/SearchableSelect';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
+import { isEventOver } from '../../lib/events';
 import type { MoreStackParamList } from '../../navigation/types';
 import type { Coupon, Event } from '../../types';
 
 const formatDateDMY = (d: Date) => `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
-
-// Matches Bookings.tsx's isEventOver — an event is "over" once its end
-// time (date + durationHrs) has passed, not just its start time.
-const isEventOver = (e: { date: string; durationHrs: number }) => new Date(e.date).getTime() + e.durationHrs * 3600_000 < Date.now();
 
 const GENDER_OPTIONS: { key: Coupon['gender']; label: string }[] = [
   { key: 'all', label: 'All' },

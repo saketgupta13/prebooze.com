@@ -9,13 +9,9 @@ import { Card, H1, IconButton, Kpi, Muted, Screen, Txt } from '../../components/
 import SearchableSelect from '../../components/SearchableSelect';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { fmtMoney, timeAgo } from '../../lib/format';
+import { isEventOver } from '../../lib/events';
 import type { MoreStackParamList } from '../../navigation/types';
 import type { CartRecord, Event } from '../../types';
-
-// Matches Bookings.tsx's isEventOver — an event is "over" once its end
-// time (date + durationHrs) has passed, not just its start time. Same
-// helper already used by Scanner/GuestList/LiveMonitor.
-const isEventOver = (e: { date: string; durationHrs: number }) => new Date(e.date).getTime() + e.durationHrs * 3600_000 < Date.now();
 
 /** Faithful port of prebooze-web/src/pages/organizer/OrgAbandonedCarts.tsx
  * — same lazy "abandoned" computation (most-recent active cart per

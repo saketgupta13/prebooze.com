@@ -10,11 +10,9 @@ import { Badge, Button, Card, Chip, H1, IconButton, Input, Kpi, Muted, Screen, S
 import SearchableSelect from '../../components/SearchableSelect';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { countdownLabel, cutoffDate } from '../../lib/promoterPass';
+import { isEventOver } from '../../lib/events';
 import type { MoreStackParamList } from '../../navigation/types';
 import type { Event, OrgGuestListEntry, OrgPromoterGuest } from '../../types';
-
-// Matches Bookings.tsx's isEventOver.
-const isEventOver = (e: { date: string; durationHrs: number }) => new Date(e.date).getTime() + e.durationHrs * 3600_000 < Date.now();
 
 /** Faithful port of prebooze-web/src/pages/organizer/OrgGuestList.tsx. Same
  * two sections: the organizer's own free-entry guest list (add/toggle-

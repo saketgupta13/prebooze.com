@@ -10,6 +10,7 @@ import CategoryIcon from '../../components/CategoryIcon';
 import Poster from '../../components/Poster';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { eventCity, eventPath, SITE_ORIGIN } from '../../lib/urls';
+import { isEventOver } from '../../lib/events';
 import type { EventsStackParamList } from '../../navigation/types';
 import type { Event, EventStatus } from '../../types';
 
@@ -20,10 +21,6 @@ const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'rejected', label: 'Rejected' },
   { key: 'draft', label: 'Drafts' },
 ];
-
-// Matches Bookings.tsx's isEventOver — an event is "over" once its end
-// time (date + durationHrs) has passed, not just its start time.
-const isEventOver = (e: { date: string; durationHrs: number }) => new Date(e.date).getTime() + e.durationHrs * 3600_000 < Date.now();
 
 // Real bug (2026-09-17): 'approved' always said "Approved · Live" even for
 // events long over — an approved event's actual live/ended state depends

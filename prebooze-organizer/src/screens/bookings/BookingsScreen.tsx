@@ -7,6 +7,7 @@ import { organizer } from '../../api/organizer';
 import { ApiError } from '../../api/client';
 import { Badge, Card, Chip, H1, Input, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
+import { isEventOver } from '../../lib/events';
 import type { OrgBooking } from '../../types';
 import type { MainTabParamList } from '../../navigation/types';
 
@@ -16,8 +17,6 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day
 
 type RowStatus = 'checked-in' | OrgBooking['status'];
 const rowStatus = (b: OrgBooking): RowStatus => (b.checkedIn ? 'checked-in' : b.status);
-const isEventOver = (e: { date: string; durationHrs: number }) => new Date(e.date).getTime() + e.durationHrs * 3600_000 < Date.now();
-
 /** Faithful port of prebooze-web/src/pages/organizer/Bookings.tsx. Same
  * event-grouped-summary-first UX, same Live/Past split, same drill-down
  * with search + status filter. Status filter/event picker use Chip rows

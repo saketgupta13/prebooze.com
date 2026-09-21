@@ -196,6 +196,12 @@ export interface Event {
   ageLimit: string;
   tags: string[];
   date: string;
+  // Multi-day series (a festival/workshop spanning several days) — when
+  // set, the event's live window extends through the end of this date
+  // instead of ending after just the first day's date+durationHrs. See
+  // isEventOver in lib/events.ts, which is the only place that should ever
+  // read this.
+  seriesEndDate?: string | null;
   durationHrs: number;
   venueId?: string | null;
   privateCity?: string | null;
