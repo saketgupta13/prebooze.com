@@ -62,7 +62,7 @@ export default function Footer() {
           <div>
             <h3>Company</h3>
             <Link to="/about">About us</Link>
-            <Link to="/host">Host with us</Link>
+            <Link to="/host">Join us</Link>
             <Link to="/advertise">Advertise your event</Link>
             <Link to="/careers">Careers</Link>
             <Link to="/contact">Contact</Link>
