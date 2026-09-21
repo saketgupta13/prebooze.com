@@ -1,16 +1,16 @@
 -- Create PhonePe settlement tables
 CREATE TABLE "PhonePeSettlementFile" (
   "id" TEXT NOT NULL PRIMARY KEY,
-  "fileDate" DATETIME NOT NULL,
-  "downloadedAt" DATETIME NOT NULL,
+  "fileDate" TIMESTAMP NOT NULL,
+  "downloadedAt" TIMESTAMP NOT NULL,
   "filename" TEXT NOT NULL,
   "totalAmount" BIGINT NOT NULL,
   "totalFee" BIGINT NOT NULL,
   "totalGST" BIGINT NOT NULL,
   "status" TEXT NOT NULL DEFAULT 'DOWNLOADED',
   "errorMessage" TEXT,
-  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updatedAt" DATETIME NOT NULL
+  "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP NOT NULL
 );
 
 CREATE TABLE "PhonePeSettlementItem" (
@@ -23,7 +23,7 @@ CREATE TABLE "PhonePeSettlementItem" (
   "fee" BIGINT NOT NULL,
   "gst" BIGINT NOT NULL,
   "paymentMethod" TEXT NOT NULL,
-  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY ("settlementFileId") REFERENCES "PhonePeSettlementFile" ("id"),
   FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id"),
   FOREIGN KEY ("featuredId") REFERENCES "Featured" ("id")
