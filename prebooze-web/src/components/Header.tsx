@@ -224,7 +224,7 @@ export default function Header() {
         <nav className="hdr-links">
           <Link to={cityBrowse(city)}>Events</Link>
           <Link to={cityVenues(city)}>Venues</Link>
-          {!heldRole && <Link to="/host">Host with us</Link>}
+          {!heldRole && <Link to="/host">Join us</Link>}
           {user && !heldRole && <Link to="/bookings">My Bookings</Link>}
         </nav>
 
@@ -301,7 +301,7 @@ export default function Header() {
                 )}
                 {!heldRole && (
                   <Link to="/host" onClick={() => setMenuOpen(false)}>
-                    <Mic size={15} /> Host with us
+                    <Mic size={15} /> Join us
                   </Link>
                 )}
                 <div className="sep" />
@@ -337,16 +337,16 @@ export default function Header() {
         <button className="hdr-city hdr-city-mobile" onClick={() => setCityOpen(true)}>
           <MapPin size={14} /> {city} <Caret />
         </button>
-        {/* .hdr-links (Events/Venues/Host with us/My Bookings) hides
+        {/* .hdr-links (Events/Venues/Join us/My Bookings) hides
             entirely on mobile — see index.css — and there's no hamburger/
             bottom-nav in this app to fall back on, so a logged-out mobile
-            visitor previously had no way to reach Host with us from the
+            visitor previously had no way to reach Join us from the
             header at all. Same !heldRole gate as the desktop link/menu
             entry — an existing organizer/promoter/venue/lineup doesn't
             need to see it again. */}
         {!heldRole && (
           <Link to="/host" className="hdr-host-mobile">
-            <Mic size={14} /> Host
+            <Mic size={14} /> Join us
           </Link>
         )}
       </div>
