@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { SubTierRole, SubscriptionStatus } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
-import { RazorpayService } from '../payments/razorpay.service';
 import { EmailService } from '../notifications/email';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { money } from '../notifications/email-templates';
@@ -23,9 +22,10 @@ import { WalletService } from '../wallet/wallet.service';
 export class SubscriptionsService {
   private readonly log = new Logger('Subscriptions');
 
+  private razorpay: any = null;
   constructor(
     private prisma: PrismaService,
-    private razorpay: RazorpayService,
+    
     private email: EmailService,
     private staffAlerts: StaffAlertsService,
     private wallet: WalletService,
@@ -66,56 +66,13 @@ export class SubscriptionsService {
     });
   }
 
-  /** Free tiers (price 0) activate instantly, no Razorpay involved — same
-   * as the old behaviour. Paid tiers create (or reuse) a Razorpay Plan, then
-   * a fresh Subscription in `created` status; the caller must redirect the
-   * owner to `shortUrl` to actually authorize it — nothing here grants the
-   * tier until the `subscription.activated` webhook confirms it. */
+  // Subscriptions disabled - Razorpay removal (2026-09-21)
   async subscribe(role: SubTierRole, entityId: string, tierId: string) {
-    const tier = await this.prisma.subTier.findUnique({ where: { id: tierId } });
-    if (!tier || tier.role !== role) throw new BadRequestException('Unknown plan for this role');
-
-    if (tier.price === 0) {
-      await this.applyTier(role, entityId, tier.id);
-      await this.prisma.roleSubscription.upsert({
-        where: { role_entityId: { role, entityId } },
-        create: { role, entityId, tierId: tier.id, status: 'active', currentStart: new Date() },
-        update: { tierId: tier.id, status: 'active', razorpaySubId: null, shortUrl: null, currentStart: new Date(), currentEnd: null, paidCount: 0 },
-      });
-      return { ok: true, requiresAuthorization: false };
-    }
-
-    let planId = tier.razorpayPlanId;
-    if (!planId) {
-      const created = await this.razorpay.createPlan(`${role[0].toUpperCase()}${role.slice(1)} — ${tier.name}`, tier.price * 100, `Prebooze ${role} ${tier.name} plan`);
-      planId = created.planId;
-      await this.prisma.subTier.update({ where: { id: tier.id }, data: { razorpayPlanId: planId } });
-    }
-
-    const sub = await this.razorpay.createSubscription(planId, { role, entityId, tierId: tier.id });
-    await this.prisma.roleSubscription.upsert({
-      where: { role_entityId: { role, entityId } },
-      create: { role, entityId, tierId: tier.id, razorpaySubId: sub.subscriptionId, status: 'created', shortUrl: sub.shortUrl },
-      update: { tierId: tier.id, razorpaySubId: sub.subscriptionId, status: 'created', shortUrl: sub.shortUrl, currentStart: null, currentEnd: null, paidCount: 0 },
-    });
-    return {
-      ok: true,
-      requiresAuthorization: true,
-      subscriptionId: sub.subscriptionId,
-      shortUrl: sub.shortUrl,
-      keyId: process.env.RAZORPAY_KEY_ID || undefined,
-    };
+    throw new BadRequestException('Subscriptions are currently unavailable. Use one-time payments instead.');
   }
 
-  /** Cancels at the end of the current billing cycle — the owner keeps
-   * access through what they already paid for, matching how a real SaaS
-   * cancellation (and Razorpay's own `cancel_at_cycle_end`) normally works. */
   async cancel(role: SubTierRole, entityId: string) {
-    const sub = await this.prisma.roleSubscription.findUnique({ where: { role_entityId: { role, entityId } } });
-    if (!sub || sub.status === 'cancelled') throw new BadRequestException('No active subscription to cancel');
-    if (sub.razorpaySubId) await this.razorpay.cancelSubscription(sub.razorpaySubId, true);
-    await this.prisma.roleSubscription.update({ where: { id: sub.id }, data: { status: 'cancelled' } });
-    return { ok: true };
+    throw new BadRequestException('Subscriptions are currently unavailable.');
   }
 
   // ---------- webhook ----------

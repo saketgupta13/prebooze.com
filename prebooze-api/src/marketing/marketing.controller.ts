@@ -44,23 +44,24 @@ export class MarketingController {
     return this.marketing.myOrders(req.user.sub, 'organizer');
   }
 
-  @Post('subscribe')
-  @UseGuards(JwtAuthGuard)
-  subscribe(@Req() req: AuthedReq) {
-    return this.marketing.subscribe(req.user.sub, 'organizer');
-  }
+  // Subscriptions disabled - Razorpay removal (2026-09-21)
+  // @Post('subscribe')
+  // @UseGuards(JwtAuthGuard)
+  // subscribe(@Req() req: AuthedReq) {
+  //   return this.marketing.subscribe(req.user.sub, 'organizer');
+  // }
 
-  @Post('subscription/cancel')
-  @UseGuards(JwtAuthGuard)
-  cancelSubscription(@Req() req: AuthedReq) {
-    return this.marketing.cancelSubscription(req.user.sub, 'organizer');
-  }
+  // @Post('subscription/cancel')
+  // @UseGuards(JwtAuthGuard)
+  // cancelSubscription(@Req() req: AuthedReq) {
+  //   return this.marketing.cancelSubscription(req.user.sub, 'organizer');
+  // }
 
-  @Get('subscription')
-  @UseGuards(JwtAuthGuard)
-  mySubscription(@Req() req: AuthedReq) {
-    return this.marketing.mySubscription(req.user.sub, 'organizer');
-  }
+  // @Get('subscription')
+  // @UseGuards(JwtAuthGuard)
+  // mySubscription(@Req() req: AuthedReq) {
+  //   return this.marketing.mySubscription(req.user.sub, 'organizer');
+  // }
 
   @Get('analytics')
   @UseGuards(JwtAuthGuard)
@@ -98,23 +99,24 @@ export class VenueMarketingController {
     return this.marketing.myOrders(req.user.sub, 'venue');
   }
 
-  @Post('subscribe')
-  @UseGuards(JwtAuthGuard)
-  subscribe(@Req() req: AuthedReq) {
-    return this.marketing.subscribe(req.user.sub, 'venue');
-  }
+  // Subscriptions disabled - Razorpay removal (2026-09-21)
+  // @Post('subscribe')
+  // @UseGuards(JwtAuthGuard)
+  // subscribe(@Req() req: AuthedReq) {
+  //   return this.marketing.subscribe(req.user.sub, 'venue');
+  // }
 
-  @Post('subscription/cancel')
-  @UseGuards(JwtAuthGuard)
-  cancelSubscription(@Req() req: AuthedReq) {
-    return this.marketing.cancelSubscription(req.user.sub, 'venue');
-  }
+  // @Post('subscription/cancel')
+  // @UseGuards(JwtAuthGuard)
+  // cancelSubscription(@Req() req: AuthedReq) {
+  //   return this.marketing.cancelSubscription(req.user.sub, 'venue');
+  // }
 
-  @Get('subscription')
-  @UseGuards(JwtAuthGuard)
-  mySubscription(@Req() req: AuthedReq) {
-    return this.marketing.mySubscription(req.user.sub, 'venue');
-  }
+  // @Get('subscription')
+  // @UseGuards(JwtAuthGuard)
+  // mySubscription(@Req() req: AuthedReq) {
+  //   return this.marketing.mySubscription(req.user.sub, 'venue');
+  // }
 
   @Get('analytics')
   @UseGuards(JwtAuthGuard)
@@ -138,11 +140,12 @@ export class AdminMarketingController {
     return this.marketing.listOrdersForAdmin(status);
   }
 
-  @Get('subscriptions')
-  @RequirePermission('Marketing campaigns', 'view')
-  listSubscriptions() {
-    return this.marketing.listSubscriptionsForAdmin();
-  }
+  // Subscriptions disabled - Razorpay removal (2026-09-21)
+  // @Get('subscriptions')
+  // @RequirePermission('Marketing campaigns', 'view')
+  // listSubscriptions() {
+  //   return this.marketing.listSubscriptionsForAdmin();
+  // }
 
   @Patch(':id/campaign')
   @RequirePermission('Marketing campaigns', 'edit')

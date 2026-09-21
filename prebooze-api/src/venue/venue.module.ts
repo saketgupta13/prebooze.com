@@ -9,7 +9,7 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { EmailService } from '../notifications/email';
 import { WhatsappService } from '../notifications/whatsapp';
 import { StaffAlertsService } from '../notifications/staff-alerts';
-import { RazorpayService } from '../payments/razorpay.service';
+
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { StorageService } from '../kyc/storage.service';
 import { InvoicesService } from '../invoices/invoices.service';
@@ -25,7 +25,7 @@ import { LiveMonitorService } from '../admin/live-monitor.service';
 @Module({
   controllers: [VenueController, AdminVenueHostingController, VenueTeamController, VenueRolesController],
   providers: [
-    VenueService, PrismaService, JwtAuthGuard, EmailService, WhatsappService, StaffAlertsService, RazorpayService,
+    VenueService, PrismaService, JwtAuthGuard, EmailService, WhatsappService, StaffAlertsService,
     SubscriptionsService, StorageService, InvoicesService, WalletService, NotificationsService, StaffAuthGuard, PermissionGuard,
     MetaConversionsService, LeadsService, GuestListService, LiveMonitorService, VenueAccessService, VenueTeamService,
   ],

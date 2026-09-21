@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Rocket } from 'lucide-react';
 import { venuePartner } from '../../api';
@@ -6,10 +6,9 @@ import type { Event as PbEvent } from '../../types';
 import { ApiError } from '../../api/client';
 import { fmtMoney } from '../../data/mock';
 import { PageLoader } from '../../components/Loader';
-import type { MarketingOrder, MarketingSubscription, MarketingRates } from '../../types';
+import type { MarketingOrder, MarketingRates } from '../../types';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-const POLL_MS = 3000;
 
 const STATUS_LABEL: Record<MarketingOrder['status'], string> = {
   pending: 'awaiting campaign setup', active: 'running', rejected: 'declined', expired: 'ended',
@@ -29,14 +28,10 @@ export default function Marketing() {
   const [searchParams] = useSearchParams();
   const [events, setEvents] = useState<PbEvent[]>([]);
   const [orders, setOrders] = useState<MarketingOrder[]>([]);
-  const [sub, setSub] = useState<MarketingSubscription | null>(null);
   const [rates, setRates] = useState<MarketingRates | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
-  const [subBusy, setSubBusy] = useState(false);
-  const [awaitingAuth, setAwaitingAuth] = useState<{ shortUrl: string } | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ---- resuming after a PhonePe redirect (real full-page checkout, not an
   // embedded widget — see Checkout.tsx, the original of this pattern) ----
@@ -81,18 +76,16 @@ export default function Marketing() {
 
   const load = () => {
     setErr('');
-    Promise.all([venuePartner.hostedEvents(), venuePartner.marketing.orders(), venuePartner.marketing.mySubscription(), venuePartner.marketing.rates()])
-      .then(([e, o, s, r]) => {
+    Promise.all([venuePartner.hostedEvents(), venuePartner.marketing.orders(), venuePartner.marketing.rates()])
+      .then(([e, o, r]) => {
         setEvents(e);
         setOrders(o);
-        setSub(s);
         setRates(r);
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   };
   useEffect(load, []);
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   if (resumingPhonePe) return <PageLoader />;
   if (loading) return <div className="stack fade"><p className="muted">Loading…</p></div>;
@@ -115,61 +108,6 @@ export default function Marketing() {
     }
   };
 
-  const startPolling = (shortUrl: string) => {
-    setAwaitingAuth({ shortUrl });
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      try {
-        const s = await venuePartner.marketing.mySubscription();
-        setSub(s);
-        if (s && s.status !== 'created' && s.status !== 'authenticated') {
-          clearInterval(pollRef.current!);
-          pollRef.current = null;
-          setAwaitingAuth(null);
-          setSubBusy(false);
-          load();
-        }
-      } catch {
-        // transient — keep polling
-      }
-    }, POLL_MS);
-  };
-
-  const subscribe = async () => {
-    setErr('');
-    setSubBusy(true);
-    try {
-      const res = await venuePartner.marketing.subscribe();
-      if (res.requiresAuthorization && res.shortUrl) {
-        window.open(res.shortUrl, '_blank', 'noopener');
-        startPolling(res.shortUrl);
-      } else {
-        setSubBusy(false);
-        load();
-      }
-    } catch (e) {
-      setSubBusy(false);
-      setErr(e instanceof ApiError ? e.message : 'Could not start subscription — try again');
-    }
-  };
-
-  const cancelSub = async () => {
-    if (!window.confirm('Stop auto-renewing your marketing subscription? Campaigns already running stay active until the current 30-day period ends.')) return;
-    setSubBusy(true);
-    try {
-      await venuePartner.marketing.cancelSubscription();
-      load();
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'Could not cancel — try again');
-    } finally {
-      setSubBusy(false);
-    }
-  };
-
-  const subActive = sub?.status === 'active';
-  const subHalted = sub?.status === 'halted';
-  const subPending = sub?.status === 'created' || sub?.status === 'authenticated' || sub?.status === 'pending';
-
   return (
     <div className="stack fade" style={{ maxWidth: 760, gap: 16 }}>
       <div className="page-hd">
@@ -182,50 +120,6 @@ export default function Marketing() {
       </p>
       {err && <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>{err}</div>}
 
-      {/* Subscription */}
-      <div className="card" style={{ borderColor: subActive ? 'var(--accent)' : undefined }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-          <div>
-            <h3>30-day marketing subscription</h3>
-            <p className="muted small" style={{ marginTop: 4, maxWidth: 440 }}>
-              Covers every event you run during each 30-day billing period. Renews automatically.
-            </p>
-          </div>
-          {subActive ? (
-            <span className="badge badge-accent">Active · renews {sub!.currentEnd ? fmtDate(sub!.currentEnd) : ''}</span>
-          ) : subPending ? (
-            <button className="btn btn-pri" disabled={subBusy} onClick={subscribe}>
-              {subBusy ? 'Opening payment…' : 'Complete authorization →'}
-            </button>
-          ) : (
-            <button className="btn btn-pri" disabled={subBusy || !rates} onClick={subscribe}>
-              {subBusy ? 'Opening payment…' : `Subscribe for ${rates ? fmtMoney(rates.monthly) : ''}/30 days →`}
-            </button>
-          )}
-        </div>
-        {subActive && (
-          <div className="tiny muted-2" style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <span>{sub!.paidCount} payment{sub!.paidCount === 1 ? '' : 's'} so far</span>
-            <button className="btn btn-ghost btn-sm" disabled={subBusy} onClick={cancelSub}>Cancel auto-renew</button>
-          </div>
-        )}
-        {subHalted && (
-          <div className="card" style={{ marginTop: 12, borderColor: 'var(--danger)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <div className="tiny danger-text">Auto-renewal payment failed — your subscription has paused.</div>
-            <button className="btn btn-pri btn-sm" disabled={subBusy} onClick={subscribe}>
-              {subBusy ? 'Opening payment…' : 'Resubscribe →'}
-            </button>
-          </div>
-        )}
-        {awaitingAuth && (
-          <div className="card" style={{ marginTop: 12, background: 'var(--surface-2)' }}>
-            <p className="muted small" style={{ margin: 0 }}>
-              Complete the authorization in the tab that just opened — this updates automatically.{' '}
-              <a href={awaitingAuth.shortUrl} target="_blank" rel="noopener noreferrer" className="link">Reopen the payment page</a>
-            </p>
-          </div>
-        )}
-      </div>
 
       {/* Pay per event */}
       <div className="card">

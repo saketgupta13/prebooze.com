@@ -34,23 +34,24 @@ export class FeaturedController {
     return this.featured.rates();
   }
 
-  @Post('subscribe')
-  @UseGuards(JwtAuthGuard)
-  subscribe(@Req() req: AuthedReq, @Body() body: Parameters<FeaturedService['subscribe']>[1]) {
-    return this.featured.subscribe(req.user.sub, body);
-  }
+  // Subscriptions disabled - Razorpay removal (2026-09-21)
+  // @Post('subscribe')
+  // @UseGuards(JwtAuthGuard)
+  // subscribe(@Req() req: AuthedReq, @Body() body: Parameters<FeaturedService['subscribe']>[1]) {
+  //   return this.featured.subscribe(req.user.sub, body);
+  // }
 
-  @Post('subscription/cancel')
-  @UseGuards(JwtAuthGuard)
-  cancelSubscription(@Req() req: AuthedReq, @Body() body: { type: Parameters<FeaturedService['mine']>[1]; refId: string }) {
-    return this.featured.cancelSubscription(req.user.sub, body.type, body.refId);
-  }
+  // @Post('subscription/cancel')
+  // @UseGuards(JwtAuthGuard)
+  // cancelSubscription(@Req() req: AuthedReq, @Body() body: { type: Parameters<FeaturedService['mine']>[1]; refId: string }) {
+  //   return this.featured.cancelSubscription(req.user.sub, body.type, body.refId);
+  // }
 
-  @Get('mine-subscription')
-  @UseGuards(JwtAuthGuard)
-  mySubscription(@Req() req: AuthedReq, @Query('type') type: Parameters<FeaturedService['mine']>[1], @Query('refId') refId: string) {
-    return this.featured.mySubscription(req.user.sub, type, refId);
-  }
+  // @Get('mine-subscription')
+  // @UseGuards(JwtAuthGuard)
+  // mySubscription(@Req() req: AuthedReq, @Query('type') type: Parameters<FeaturedService['mine']>[1], @Query('refId') refId: string) {
+  //   return this.featured.mySubscription(req.user.sub, type, refId);
+  // }
 }
 
 /** Minimal review queue, same reasoning as /admin/events (Phase 6). Rates
@@ -67,11 +68,12 @@ export class AdminFeaturedController {
     return this.featured.listForAdmin(status);
   }
 
-  @Get('subscriptions')
-  @RequirePermission('Featured', 'view')
-  listSubscriptions() {
-    return this.featured.listSubscriptionsForAdmin();
-  }
+  // Subscriptions disabled - Razorpay removal (2026-09-21)
+  // @Get('subscriptions')
+  // @RequirePermission('Featured', 'view')
+  // listSubscriptions() {
+  //   return this.featured.listSubscriptionsForAdmin();
+  // }
 
   @Post(':id/approve')
   @RequirePermission('Featured', 'approve')

@@ -8,7 +8,6 @@ import { PermissionGuard } from '../admin/permission.guard';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { InvoicesService } from '../invoices/invoices.service';
-import { RazorpayService } from '../payments/razorpay.service';
 import { PhonePeService } from '../payments/phonepe.service';
 import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
@@ -17,7 +16,7 @@ import { StaffAlertsService } from '../notifications/staff-alerts';
   controllers: [FeaturedController, AdminFeaturedController],
   providers: [
     FeaturedService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard,
-    WhatsappService, EmailService, InvoicesService, RazorpayService, PhonePeService, WalletService, StaffAlertsService,
+    WhatsappService, EmailService, InvoicesService, PhonePeService, WalletService, StaffAlertsService,
   ],
   exports: [FeaturedService],
 })

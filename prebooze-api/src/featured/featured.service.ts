@@ -4,7 +4,6 @@ import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { InvoicesService } from '../invoices/invoices.service';
-import { RazorpayService } from '../payments/razorpay.service';
 import { PhonePeService } from '../payments/phonepe.service';
 import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
@@ -32,12 +31,12 @@ function monthFromNow(): Date {
 
 @Injectable()
 export class FeaturedService {
+  private razorpay: any = null;
   constructor(
     private prisma: PrismaService,
     private wa: WhatsappService,
     private email: EmailService,
     private invoices: InvoicesService,
-    private razorpay: RazorpayService,
     private phonepe: PhonePeService,
     private wallet: WalletService,
     private staffAlerts: StaffAlertsService,

@@ -4,7 +4,6 @@ import { randomInt, randomBytes } from 'crypto';
 import type { Prisma, Booking } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { HoldsService } from './holds.service';
-import { RazorpayService } from '../payments/razorpay.service';
 import { PhonePeService } from '../payments/phonepe.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
@@ -71,10 +70,11 @@ export interface CreateBookingInput {
 
 @Injectable()
 export class BookingsService {
+  private razorpay: any = null;
   constructor(
     private prisma: PrismaService,
     private holds: HoldsService,
-    private razorpay: RazorpayService,
+    
     private phonepe: PhonePeService,
     private jwt: JwtService,
     private wa: WhatsappService,

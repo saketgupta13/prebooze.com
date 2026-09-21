@@ -1,15 +1,15 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { RazorpayService } from '../payments/razorpay.service';
 import { calculateGatewayFee, type PaymentMethod } from '../payments/gateway-fee';
 
 @Injectable()
 export class SettlementsService {
   private readonly log = new Logger('Settlements');
 
+  private razorpay: any = null;
   constructor(
     private prisma: PrismaService,
-    private razorpay: RazorpayService,
+    
   ) {}
 
   /** This Razorpay account had real activity on it before Prebooze ever

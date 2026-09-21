@@ -2,7 +2,6 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../prisma.service';
 import { EmailService } from '../notifications/email';
 import { InvoicesService } from '../invoices/invoices.service';
-import { RazorpayService } from '../payments/razorpay.service';
 import { PhonePeService } from '../payments/phonepe.service';
 import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
@@ -36,11 +35,12 @@ function in30Days(): Date {
  */
 @Injectable()
 export class MarketingService {
+  private razorpay: any = null;
   constructor(
     private prisma: PrismaService,
     private email: EmailService,
     private invoices: InvoicesService,
-    private razorpay: RazorpayService,
+    
     private phonepe: PhonePeService,
     private wallet: WalletService,
     private staffAlerts: StaffAlertsService,
