@@ -23,7 +23,7 @@ export const PERM_MODULES = [
   'Reels',
   'Promo codes',
   'Gate check-in',
-  'Reports',
+  'Analytics',
   'Leads',
 ] as const;
 
@@ -50,5 +50,17 @@ const NONE: PermSet = { view: false, edit: false, approve: false };
 export function resolvePermissions(role: { permissions: unknown; defaultOpen: boolean }): Record<string, PermSet> {
   const stored = (role.permissions as Record<string, PermSet>) ?? {};
   const fallback = role.defaultOpen ? FULL : NONE;
-  return Object.fromEntries(PERM_MODULES.map((m) => [m, stored[m] ?? fallback]));
+  return Object.fromEntries(
+    PERM_MODULES.map((m) => [
+      m,
+      // 'Analytics' used to be a real PERM_MODULES entry named 'Reports'
+      // (renamed 2026-09-21 — it never gated anything else, the real
+      // Reports/P&L page has always used 'Payments & payouts') — an
+      // existing role's stored JSON still has the old key under 'Reports',
+      // not 'Analytics', so this falls back to that exact old value before
+      // falling all the way back to defaultOpen. Keeps every existing
+      // role's Analytics access exactly what its Reports access already was.
+      m === 'Analytics' ? (stored.Analytics ?? stored.Reports ?? fallback) : (stored[m] ?? fallback),
+    ]),
+  );
 }

@@ -1115,7 +1115,7 @@ export const PERM_MODULES = [
   'Dashboard', 'Events & approvals', 'Event commission (per event)', 'Bookings', 'Refunds',
   'Payments & payouts', 'Transactions', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
   'Verifications (KYC)', 'Reviews', 'Locations', 'Abandoned carts', 'Featured', 'Marketing campaigns', 'Content',
-  'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Reports', 'Leads',
+  'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Analytics', 'Leads',
 ] as const;
 export type PermKey = 'view' | 'edit' | 'approve';
 export type Perms = Record<string, Record<PermKey, boolean>>;

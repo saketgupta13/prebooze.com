@@ -132,7 +132,7 @@ const NAV_MODULE: Record<string, string> = {
   '/promos': 'Promo codes',
   '/reviews': 'Reviews',
   '/reports': 'Payments & payouts',
-  '/analytics': 'Reports',
+  '/analytics': 'Analytics',
   '/banners': 'Content',
   '/reels': 'Reels',
   '/careers': 'Careers',

@@ -4,7 +4,7 @@ import { StaffAuthGuard } from '../admin/staff-auth.guard';
 import { PermissionGuard } from '../admin/permission.guard';
 import { RequirePermission } from '../admin/permission.decorator';
 
-const MODULE = 'Reports'; // a real PERM_MODULES entry that nothing else gated on yet
+const MODULE = 'Analytics';
 
 @Controller('admin/analytics')
 @UseGuards(StaffAuthGuard, PermissionGuard)
