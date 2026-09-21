@@ -16,6 +16,15 @@ export function pushEvent(name: string, params?: Record<string, unknown>): void 
   window.dataLayer.push({ event: name, ...params });
 }
 
+/** Tracks page views for a React Router SPA — GA4 expects a page_view
+ * event on navigation, not just on initial load. Call this on pathname change. */
+export function trackPageView(pathname: string, title?: string): void {
+  pushEvent('page_view', {
+    page_path: pathname,
+    page_title: title || document.title,
+  });
+}
+
 /** GTM's own click auto-tracking ({{Click URL}}/{{Click Text}}/{{Click
  * Classes}}) reads those live off the clicked DOM element when the tag
  * actually fires — which in a React Router SPA can be after the element's

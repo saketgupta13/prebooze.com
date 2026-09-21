@@ -8,6 +8,7 @@ import { useJsonLd } from './lib/useJsonLd';
 import { buildOrganizationSchema } from './lib/schema';
 import { useCityList } from './lib/useCityList';
 import { toCitySlug, cityHome, SITE_ORIGIN } from './lib/urls';
+import { trackPageView } from './lib/gtm';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
@@ -217,6 +218,14 @@ function ScrollToTop() {
   return null;
 }
 
+function PageViewTracker() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    trackPageView(pathname);
+  }, [pathname]);
+  return null;
+}
+
 /** Keeps <link rel="canonical"> in sync with the real route on every
  * navigation — index.html's copy was a single static tag (the homepage
  * URL) that silently applied to every page, telling search engines every
@@ -273,6 +282,7 @@ export default function App() {
   return (
     <ComingSoonGate>
       <ScrollToTop />
+      <PageViewTracker />
       <CanonicalUrl />
       <OrganizationSchema />
       <Header />
