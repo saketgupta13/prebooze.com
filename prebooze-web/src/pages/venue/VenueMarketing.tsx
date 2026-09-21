@@ -4,7 +4,7 @@ import { Rocket } from 'lucide-react';
 import { venuePartner } from '../../api';
 import type { Event as PbEvent } from '../../types';
 import { ApiError } from '../../api/client';
-import { fmtMoney } from '../../data/mock';
+import { fmtMoney, isEventOver } from '../../data/mock';
 import { PageLoader } from '../../components/Loader';
 import type { MarketingOrder, MarketingRates } from '../../types';
 
@@ -90,8 +90,7 @@ export default function Marketing() {
   if (resumingPhonePe) return <PageLoader />;
   if (loading) return <div className="stack fade"><p className="muted">Loading…</p></div>;
 
-  const now = Date.now();
-  const upcoming = events.filter((e) => new Date(e.date).getTime() + e.durationHrs * 3600_000 > now);
+  const upcoming = events.filter((e) => !isEventOver(e));
   const eventsWithOrder = new Set(orders.filter((o) => o.status === 'pending' || o.status === 'active').map((o) => o.eventId));
   const eligibleEvents = upcoming.filter((e) => !eventsWithOrder.has(e.id));
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fmtDate } from '../../data/mock';
+import { fmtDate, isEventOver } from '../../data/mock';
 import { useApp } from '../../store/AppContext';
 import { venuePartner } from '../../api';
 import { ApiError } from '../../api/client';
@@ -20,8 +20,7 @@ const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'draft', label: 'Drafts' },
 ];
 
-const STATUS_BADGE: Record<EventStatus, { cls: string; label: string; icon?: LucideIcon }> = {
-  approved: { cls: 'badge-ok', label: 'Approved · Live', icon: Check },
+const STATUS_BADGE: Record<Exclude<EventStatus, 'approved'>, { cls: string; label: string; icon?: LucideIcon }> = {
   pending: { cls: 'badge-pending', label: 'Pending review', icon: Clock },
   rejected: { cls: 'badge-danger', label: 'Rejected', icon: X },
   draft: { cls: 'badge-outline', label: 'Draft' },
@@ -48,10 +47,9 @@ export default function VenueHostedEvents() {
       .finally(() => setLoading(false));
   }, []);
 
-  const now = Date.now();
   const byStatus = tab === 'all' ? events : events.filter((e) => e.status === tab);
   const list = byStatus
-    .filter((e) => (scope === 'upcoming' ? new Date(e.date).getTime() >= now : new Date(e.date).getTime() < now))
+    .filter((e) => (scope === 'upcoming' ? !isEventOver(e) : isEventOver(e)))
     .sort((a, b) => (scope === 'upcoming' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date)));
 
   if (loading) return <Loader />;
@@ -86,7 +84,9 @@ export default function VenueHostedEvents() {
           {list.map((e) => {
             const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
             const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
-            const badge = STATUS_BADGE[e.status];
+            const badge = e.status === 'approved'
+              ? (isEventOver(e) ? { cls: 'badge-outline', label: 'Approved · Ended', icon: Check } : { cls: 'badge-ok', label: 'Approved · Live', icon: Check })
+              : STATUS_BADGE[e.status];
             const BadgeIcon = badge.icon;
             return (
               <div key={e.id} className="ecard" style={{ position: 'relative' }}>

@@ -15,7 +15,13 @@ const STATUS_TABS: { key: 'all' | LiveEvent['status']; label: string }[] = [
   { key: 'draft', label: 'Draft' },
 ];
 
-const isPastEvent = (e: LiveEvent) => new Date(e.date).getTime() < Date.now();
+// Same formula as prebooze-api's CatalogService.isEventOver — a multi-day
+// event (seriesEndDate set) only counts as past once the series itself
+// ends, not right after the first day's date+durationHrs elapses.
+const isPastEvent = (e: LiveEvent) => {
+  if (e.seriesEndDate) return new Date(e.seriesEndDate).getTime() + 24 * 3600000 < Date.now();
+  return new Date(e.date).getTime() + e.durationHrs * 3600000 < Date.now();
+};
 
 /** Real event list — merges the old mock Events.tsx (filters/search) and
  * EventsLive.tsx (real approve/reject/commission) into one real page. No
