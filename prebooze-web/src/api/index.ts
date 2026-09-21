@@ -53,7 +53,15 @@ export const kyc = {
     documents.forEach((f) => form.append('documents', f));
     return apiUpload<{ status: 'pending'; user: User }>('/kyc/role', form);
   },
-  myStatus: () => apiFetch<{ id: string; kind: string; status: string; createdAt: string; reviewNote?: string }[]>('/kyc/me'),
+  // documents/rejectedDocTypes/payload all come through with no extra
+  // params — needed by the rejected-resubmission flow (OrganizerVerification.tsx
+  // and its counterparts) to show exactly what's wrong and pre-fill the rest.
+  myStatus: () => apiFetch<{
+    id: string; kind: string; status: string; createdAt: string; reviewNote?: string;
+    documents: { type: string; path: string }[];
+    rejectedDocTypes: string[];
+    payload: Record<string, unknown>;
+  }[]>('/kyc/me'),
   quickSignupOrganizer: (payload: {
     brand: string;
     city: string; state?: string; country?: string; pincode?: string;
@@ -70,6 +78,11 @@ export const kyc = {
       contactName: string; contactPhone: string; contactEmail: string;
       contactRole: 'Owner' | 'Manager' | 'Accountant' | 'Other'; contactRoleOther?: string;
       docLabels: string[];
+      // Resubmitting after a rejection — carries forward every required
+      // document NOT freshly re-uploaded this time (i.e. not flagged in
+      // rejectedDocTypes) by copying it straight from this prior submission
+      // server-side. See KycService.submitOrganizerVerification.
+      previousSubmissionId?: string;
     },
     docs: File[],
   ) => {

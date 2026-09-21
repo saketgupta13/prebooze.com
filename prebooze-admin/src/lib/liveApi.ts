@@ -346,6 +346,11 @@ export interface LiveKycApplication {
   status: 'pending' | 'approved' | 'rejected';
   payload: Record<string, unknown>;
   documents: { type: string; path: string }[];
+  // Which specific documents.type caused a rejection — set by the reviewer
+  // on reject() below. Lets the applicant's own resubmission form show
+  // exactly what's wrong instead of wiping everything (see
+  // OrganizerVerification.tsx's rejectedSub handling).
+  rejectedDocTypes: string[];
   createdAt: string;
   reviewedBy: string | null;
   reviewNote: string | null;
@@ -354,7 +359,7 @@ export interface LiveKycApplication {
 export const liveKyc = {
   list: (status?: string) => liveFetch<LiveKycApplication[]>('/admin/kyc' + (status ? `?status=${status}` : '')),
   approve: (id: string) => liveFetch<{ ok: true }>(`/admin/kyc/${id}/approve`, { method: 'POST' }),
-  reject: (id: string, reason: string) => liveFetch<{ ok: true }>(`/admin/kyc/${id}/reject`, { method: 'POST', body: { reason } }),
+  reject: (id: string, reason: string, docTypes?: string[]) => liveFetch<{ ok: true }>(`/admin/kyc/${id}/reject`, { method: 'POST', body: { reason, docTypes } }),
   // Lead team — "Start Onboarding". Only what a sales call would realistically
   // produce; no GSTIN/PAN/bank/documents here at all, see the two below.
   startOrganizerOnboarding: (

@@ -38,6 +38,7 @@ export default function VerificationDetail() {
   const [err, setErr] = useState('');
   const [reason, setReason] = useState('');
   const [rejecting, setRejecting] = useState(false);
+  const [flaggedDocTypes, setFlaggedDocTypes] = useState<Set<string>>(new Set());
   const [verifForm, setVerifForm] = useState({ gstin: '', pan: '', bankName: '', bankAccount: '', accountHolderName: '', bankIfsc: '' });
   const [verifSaving, setVerifSaving] = useState(false);
   const [verifSaved, setVerifSaved] = useState(false);
@@ -107,12 +108,20 @@ export default function VerificationDetail() {
   const submitReject = async () => {
     if (!app || !reason.trim()) return;
     try {
-      await liveKyc.reject(app.id, reason.trim());
+      await liveKyc.reject(app.id, reason.trim(), [...flaggedDocTypes]);
       navigate('/verifications');
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to reject');
     }
   };
+
+  const toggleFlaggedDoc = (type: string) =>
+    setFlaggedDocTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
 
   const saveVerifDetails = async () => {
     if (!app) return;
@@ -300,6 +309,12 @@ export default function VerificationDetail() {
                 <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 4 }} onClick={() => downloadFile(url, `${d.type}${url.slice(url.lastIndexOf('.'))}`)}>
                   ⬇ {isPdf ? 'Open PDF' : 'Download'}
                 </button>
+                {rejecting && (
+                  <label className="tiny" style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6, color: flaggedDocTypes.has(d.type) ? 'var(--red)' : undefined }}>
+                    <input type="checkbox" checked={flaggedDocTypes.has(d.type)} onChange={() => toggleFlaggedDoc(d.type)} />
+                    This document is the problem
+                  </label>
+                )}
               </div>
             );
           })}
@@ -358,10 +373,15 @@ export default function VerificationDetail() {
               <button className="btn btn-pri" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={missing.length > 0} onClick={approve}>
                 <CheckCircle2 size={14} /> Approve &amp; activate
               </button>
-              <button className="btn btn-danger" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={() => setRejecting((v) => !v)}>
+              <button className="btn btn-danger" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={() => { setRejecting((v) => !v); setFlaggedDocTypes(new Set()); }}>
                 <X size={14} /> Reject
               </button>
             </div>
+            {rejecting && (
+              <div className="tiny muted">
+                Check off which document(s) above are actually the problem — the applicant only has to redo those, everything else carries forward automatically.
+              </div>
+            )}
             {rejecting && (
               <div style={{ display: 'flex', gap: 8 }}>
                 <input className="input" style={{ flex: 1 }} placeholder="Reason for rejection…" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
