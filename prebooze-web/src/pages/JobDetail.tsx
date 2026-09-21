@@ -4,6 +4,8 @@ import { useApp } from '../store/AppContext';
 import { CAREER_JOBS } from '../data/mock';
 import { careers as careersApi } from '../api';
 import { isBackendEnabled } from '../api/client';
+import { useJsonLd } from '../lib/useJsonLd';
+import { buildJobSchema } from '../lib/schema';
 import type { CareerJob } from '../types';
 import { PageLoader } from '../components/Loader';
 import { MapPin, CheckCircle2, Upload } from 'lucide-react';
@@ -28,6 +30,8 @@ export default function JobDetail() {
   const [cv, setCv] = useState<File | null>(null);
   const [open, setOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+
+  useJsonLd(job ? buildJobSchema(job) : undefined);
 
   useEffect(() => {
     if (open) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });

@@ -219,6 +219,45 @@ export function buildBlogPostSchema(post: CmsBlog) {
   };
 }
 
+/** Job posting — enables Google's job search rich result integration,
+ * letting Prebooze career postings surface in dedicated job-search UIs. */
+export function buildJobSchema(job: any) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'JobPosting',
+    title: job.title,
+    description: stripHtml(job.description),
+    datePosted: job.createdAt,
+    validThrough: job.expiryDate || undefined,
+    employmentType: ['FULL_TIME', 'PART_TIME', 'CONTRACT'].includes(job.type) ? job.type : undefined,
+    jobLocation: {
+      '@type': 'Place',
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: job.city || 'India',
+        addressCountry: 'IN',
+      },
+    },
+    hiringOrganization: {
+      '@type': 'Organization',
+      name: 'Prebooze',
+      url: SITE_ORIGIN,
+    },
+  };
+}
+
+/** Guest profile — Person schema, lets search engines understand guest
+ * profiles as real people with presence on the platform. */
+export function buildPersonSchema(person: any) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: person.name,
+    image: person.photoUrl || undefined,
+    url: absoluteUrl(`/u/${person.username}`),
+  };
+}
+
 export interface Crumb {
   name: string;
   path: string;

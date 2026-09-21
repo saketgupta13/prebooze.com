@@ -7,6 +7,8 @@ import { ApiError } from '../api/client';
 import { useApp } from '../store/AppContext';
 import { PageLoader } from '../components/Loader';
 import { useSeo } from '../lib/useSeo';
+import { useJsonLd } from '../lib/useJsonLd';
+import { buildPersonSchema } from '../lib/schema';
 import { stripHtml } from '../lib/richtext';
 import { eventLocation } from '../lib/venue';
 import type { Event, Person, PersonDetail } from '../types';
@@ -105,6 +107,7 @@ export default function PersonProfile() {
   }, [username]);
 
   useSeo(person?.bio ? { description: stripHtml(person.bio) } : null, person?.name, person?.avatarUrl);
+  useJsonLd(person ? buildPersonSchema(person) : undefined);
 
   if (loading) return <PageLoader />;
 
