@@ -15,6 +15,10 @@ export const colors = {
   onAccent: '#14150f',
   danger: '#ff5c49',
   success: '#1f8a5b',
+  // New here, not ported from web (no equivalent token exists there) —
+  // added for the Notice component's warning tone, same amber already used
+  // ad hoc for the review-star icon in NotificationsScreen.
+  warning: '#f5c04a',
   whatsapp: '#25d366',
   shadow: 'rgba(0,0,0,0.45)',
 } as const;

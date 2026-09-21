@@ -4,7 +4,7 @@ import {
   type TextInputProps, type TextProps, type ViewProps,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check } from 'lucide-react-native';
+import { AlertCircle, AlertTriangle, Check, Info } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, radius, spacing } from '../theme/tokens';
 
 // Every screen renders its own header (native stack/tab headers are off
@@ -112,6 +112,24 @@ export function Badge({ label, tone = 'default' }: { label: string; tone?: 'defa
   return (
     <View style={[styles.badge, tone === 'success' && styles.badgeSuccess, tone === 'danger' && styles.badgeDanger, tone === 'accent' && styles.badgeAccent]}>
       <Text style={[styles.badgeLabel, tone === 'accent' && styles.badgeLabelAccent]}>{label}</Text>
+    </View>
+  );
+}
+
+// A real inline banner for a sentence-length note/warning/error — distinct
+// from Badge (a short label pill, never meant for a full sentence) and from
+// the tiny errRow pattern duplicated across every screen (icon + plain red
+// text, no card, suited to terse validation errors). Added 2026-09-21 after
+// EventWizard's "edits resubmit for approval" notice was jammed into a
+// Badge and looked wrong — every future full-sentence notice should use
+// this instead of reaching for Badge or a one-off inline View.
+export function Notice({ tone = 'info', children }: { tone?: 'info' | 'warning' | 'error'; children: ReactNode }) {
+  const Icon = tone === 'error' ? AlertCircle : tone === 'warning' ? AlertTriangle : Info;
+  const color = tone === 'error' ? colors.danger : tone === 'warning' ? colors.warning : colors.accent;
+  return (
+    <View style={[styles.notice, tone === 'error' && styles.noticeError, tone === 'warning' && styles.noticeWarning]}>
+      <Icon size={16} color={color} style={styles.noticeIcon} />
+      {typeof children === 'string' ? <Txt style={[styles.noticeText, { color }]}>{children}</Txt> : children}
     </View>
   );
 }
@@ -304,6 +322,32 @@ const styles = StyleSheet.create({
   },
   badgeLabelAccent: {
     color: colors.accent,
+  },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.s,
+    padding: spacing.m,
+    borderRadius: radius.m,
+    backgroundColor: 'rgba(155,225,61,0.08)',
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  noticeWarning: {
+    backgroundColor: 'rgba(245,192,74,0.1)',
+    borderColor: colors.warning,
+  },
+  noticeError: {
+    backgroundColor: 'rgba(255,92,73,0.08)',
+    borderColor: colors.danger,
+  },
+  noticeIcon: {
+    marginTop: 1,
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: fontSize.s,
+    lineHeight: 18,
   },
   chip: {
     borderWidth: 1.5,

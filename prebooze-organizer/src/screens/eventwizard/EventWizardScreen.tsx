@@ -9,7 +9,7 @@ import { organizer } from '../../api/organizer';
 import { catalog } from '../../api/catalog';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import { Badge, Button, Card, Checkbox, Chip, IconButton, Input, Muted, Screen, Txt } from '../../components/ui';
+import { Badge, Button, Card, Checkbox, Chip, IconButton, Input, Muted, Notice, Screen, Txt } from '../../components/ui';
 import SearchableSelect from '../../components/SearchableSelect';
 import Accordion from '../../components/Accordion';
 import ImageUploadBox from '../../components/ImageUploadBox';
@@ -455,7 +455,11 @@ export default function EventWizardScreen() {
         </IconButton>
         <Txt style={styles.headerTitle} numberOfLines={1}>{editing ? `Edit — ${editing.title}` : 'Create event'}</Txt>
       </View>
-      {editing && <Badge label="edits resubmit for approval" tone="accent" />}
+      {editing && (
+        <View style={styles.editNoticeWrap}>
+          <Notice tone="warning">Submitting these edits sends the event back for admin review — it won't be live again until it's re-approved.</Notice>
+        </View>
+      )}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.stepRowScroll} contentContainerStyle={styles.stepRow}>
         {WIZARD_STEPS.map((s, i) => (
@@ -951,6 +955,7 @@ const styles = StyleSheet.create({
   // 2026-09-15: "same top space and font size like dashboard").
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.s, paddingHorizontal: spacing.l, paddingTop: spacing.l + spacing.s, paddingBottom: spacing.l },
   headerTitle: { flex: 1, fontFamily: fontFamily.extrabold, fontSize: fontSize.display },
+  editNoticeWrap: { paddingHorizontal: spacing.l, paddingBottom: spacing.m },
   // alignItems defaults to 'stretch' for a flex row's children — without
   // overriding it, each pill stretches to match the ScrollView's own
   // (sometimes oversized) cross-axis height instead of sizing to its own
