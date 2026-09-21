@@ -1,5 +1,5 @@
 -- Create PhonePe settlement tables
-CREATE TABLE "PhonePeSettlementFile" (
+CREATE TABLE IF NOT EXISTS "PhonePeSettlementFile" (
   "id" TEXT NOT NULL PRIMARY KEY,
   "fileDate" TIMESTAMP NOT NULL,
   "downloadedAt" TIMESTAMP NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE "PhonePeSettlementFile" (
   "updatedAt" TIMESTAMP NOT NULL
 );
 
-CREATE TABLE "PhonePeSettlementItem" (
+CREATE TABLE IF NOT EXISTS "PhonePeSettlementItem" (
   "id" TEXT NOT NULL PRIMARY KEY,
   "settlementFileId" TEXT NOT NULL,
   "bookingId" TEXT,
@@ -29,6 +29,6 @@ CREATE TABLE "PhonePeSettlementItem" (
   FOREIGN KEY ("featuredId") REFERENCES "Featured" ("id")
 );
 
-CREATE INDEX "PhonePeSettlementItem_settlementFileId" ON "PhonePeSettlementItem"("settlementFileId");
-CREATE INDEX "PhonePeSettlementItem_bookingId" ON "PhonePeSettlementItem"("bookingId");
-CREATE INDEX "PhonePeSettlementItem_paymentId" ON "PhonePeSettlementItem"("paymentId");
+CREATE INDEX IF NOT EXISTS "PhonePeSettlementItem_settlementFileId" ON "PhonePeSettlementItem"("settlementFileId");
+CREATE INDEX IF NOT EXISTS "PhonePeSettlementItem_bookingId" ON "PhonePeSettlementItem"("bookingId");
+CREATE INDEX IF NOT EXISTS "PhonePeSettlementItem_paymentId" ON "PhonePeSettlementItem"("paymentId");
