@@ -706,6 +706,19 @@ export class OrganizerService {
     });
   }
 
+  // Coupon has no redemption join table — `used` is just a counter and
+  // Booking stores the applied code as a plain string, not a foreign key —
+  // so a hard delete here is safe (no orphaned rows to worry about, unlike
+  // deleting an Event).
+  async deleteCoupon(userId: string, id: string) {
+    const org = await this.orgAccess.require(userId, 'Coupons', 'edit');
+    const existing = await this.prisma.coupon.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Coupon not found');
+    if (existing.organizerId !== org.id) throw new ForbiddenException();
+    await this.prisma.coupon.delete({ where: { id } });
+    return { ok: true };
+  }
+
   // ---------- payouts ----------
   async payouts(userId: string) {
     const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'view');

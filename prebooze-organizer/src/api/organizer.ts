@@ -53,6 +53,7 @@ export const organizer = {
   bookings: () => apiFetch<OrgBooking[]>('/organizer/bookings'),
   coupons: () => apiFetch<Coupon[]>('/organizer/coupons'),
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/organizer/coupons', { body: c }),
+  deleteCoupon: (id: string) => apiFetch<{ ok: true }>(`/organizer/coupons/${id}`, { method: 'DELETE' }),
   payouts: () => apiFetch<{ balance: number; ledger: OrgLedgerTx[] }>('/organizer/payouts'),
   promoterPayouts: () => apiFetch<OrgPromoterPayoutRow[]>('/organizer/promoter-payouts'),
   promoters: () => apiFetch<OrgPromoterRosterEntry[]>('/organizer/promoters'),

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -26,9 +26,11 @@ const audienceLabel = (g: Coupon['gender']) => (g === 'women' ? 'women only' : g
 const defaultValidTill = () => { const d = new Date(); d.setDate(d.getDate() + 30); return d; };
 
 /** Faithful port of prebooze-web/src/pages/organizer/Coupons.tsx — same
- * upsert-only endpoint (no delete; "pause" is the only way to retire a
- * code), same eventScope-matched-by-title semantics (server-enforced,
- * not client), same defaults. */
+ * eventScope-matched-by-title semantics (server-enforced, not client), same
+ * defaults. A real DELETE /organizer/coupons/:id was added 2026-09-21 (a
+ * user ask, not a web port) — pause was the only retirement option until
+ * then; Coupon has no redemption join table so a hard delete is safe. Web
+ * doesn't have this yet — flag the same addition there if asked. */
 export default function CouponsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<MoreStackParamList>>();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -135,6 +137,22 @@ export default function CouponsScreen() {
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Failed to update');
     }
+  };
+
+  const remove = (c: Coupon) => {
+    Alert.alert('Delete this promo code?', `"${c.code}" will stop working immediately — this can't be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await organizer.deleteCoupon(c.id);
+            await reload();
+          } catch (e) {
+            setErr(e instanceof ApiError ? e.message : 'Failed to delete');
+          }
+        },
+      },
+    ]);
   };
 
   const openDatePicker = () => {
@@ -278,6 +296,7 @@ export default function CouponsScreen() {
                 <View style={styles.couponActions}>
                   <Chip label={c.status === 'active' ? 'Pause' : 'Resume'} onPress={() => toggleStatus(c)} />
                   <Chip label="Edit" onPress={() => startEdit(c)} />
+                  <Chip label="Delete" onPress={() => remove(c)} />
                 </View>
               </View>
             </View>

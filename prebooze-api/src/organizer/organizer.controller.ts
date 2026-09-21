@@ -160,6 +160,11 @@ export class OrganizerController {
     return this.organizer.upsertCoupon(req.user.sub, body);
   }
 
+  @Delete('coupons/:id')
+  deleteCoupon(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.organizer.deleteCoupon(req.user.sub, id);
+  }
+
   @Get('payouts')
   payouts(@Req() req: AuthedReq) {
     return this.organizer.payouts(req.user.sub);
