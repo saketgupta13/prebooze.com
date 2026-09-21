@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import type { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma.service';
+import { CatalogService } from '../catalog/catalog.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
@@ -174,16 +175,15 @@ export class PromoterService {
         OR: [{ venue: { city: promoter.city } }, { privateCity: promoter.city }],
       },
       select: {
-        id: true, slug: true, title: true, posterUrl: true, date: true, durationHrs: true,
+        id: true, slug: true, title: true, posterUrl: true, date: true, durationHrs: true, seriesEndDate: true,
         venue: { select: { name: true, city: true } }, privateCity: true,
         organizer: { select: { brandName: true } },
         tiers: { select: { price: true } },
       },
       orderBy: { date: 'asc' },
     });
-    const now = Date.now();
     return events
-      .filter((e) => new Date(e.date).getTime() + e.durationHrs * 3600000 >= now)
+      .filter((e) => !CatalogService.isEventOver(e))
       .map((e) => ({
         id: e.id, slug: e.slug, title: e.title, posterUrl: e.posterUrl, date: e.date, durationHrs: e.durationHrs,
         city: e.venue?.city ?? e.privateCity ?? promoter.city,

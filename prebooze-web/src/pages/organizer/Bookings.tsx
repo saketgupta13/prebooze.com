@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { organizer, type OrgBooking } from '../../api';
 import { ApiError } from '../../api/client';
-import { fmtMoney } from '../../data/mock';
+import { fmtMoney, isEventOver } from '../../data/mock';
 import { X, Search, Download, Camera, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 const STATUS_FILTERS = ['All', 'Checked in', 'Confirmed', 'Refund requested', 'Refunded', 'Cancelled'];
@@ -10,7 +10,6 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day
 
 type RowStatus = 'checked-in' | OrgBooking['status'];
 const rowStatus = (b: OrgBooking): RowStatus => (b.checkedIn ? 'checked-in' : b.status);
-const isEventOver = (e: { date: string; durationHrs: number }) => new Date(e.date).getTime() + e.durationHrs * 3600_000 < Date.now();
 
 /** Real bookings across every event this organizer runs — one row per
  * booking (a Couple/Group ticket is one row, not one per guest; see
@@ -46,9 +45,9 @@ export default function Bookings() {
   const scopedEvent = eventF ? bookings.find((b) => b.event.id === eventF)?.event : undefined;
 
   const eventsSummary = useMemo(() => {
-    const m = new Map<string, { title: string; date: string; durationHrs: number; count: number; qty: number; revenue: number }>();
+    const m = new Map<string, { title: string; date: string; durationHrs: number; seriesEndDate?: string | null; count: number; qty: number; revenue: number }>();
     for (const b of bookings) {
-      const cur = m.get(b.event.id) ?? { title: b.event.title, date: b.event.date, durationHrs: b.event.durationHrs, count: 0, qty: 0, revenue: 0 };
+      const cur = m.get(b.event.id) ?? { title: b.event.title, date: b.event.date, durationHrs: b.event.durationHrs, seriesEndDate: (b.event as { seriesEndDate?: string | null }).seriesEndDate, count: 0, qty: 0, revenue: 0 };
       cur.count += 1;
       cur.qty += b.qty;
       if (b.status === 'confirmed' || b.status === 'refund_requested') cur.revenue += b.total;

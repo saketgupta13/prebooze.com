@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { BookingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { CatalogService } from '../catalog/catalog.service';
 import { NotificationsService } from './notifications.service';
 import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
@@ -65,8 +66,8 @@ export class PaymentsService {
   private async eventPayoutRows() {
     const events = await this.prisma.event.findMany({
       where: { status: { not: 'draft' }, commission: { not: null } },
-      select: { id: true, title: true, date: true, durationHrs: true, commission: true, paidOut: true, payoutUtr: true, organizerId: true, venueId: true, organizer: { select: { brandName: true } }, venue: { select: { name: true } }, hostedByVenue: true },
-    }).then((rows) => rows.filter((e) => new Date(e.date).getTime() + e.durationHrs * 3600_000 <= Date.now()));
+      select: { id: true, title: true, date: true, durationHrs: true, seriesEndDate: true, commission: true, paidOut: true, payoutUtr: true, organizerId: true, venueId: true, organizer: { select: { brandName: true } }, venue: { select: { name: true } }, hostedByVenue: true },
+    }).then((rows) => rows.filter((e) => CatalogService.isEventOver(e)));
     const revenueByEvent = await this.prisma.booking.groupBy({
       by: ['eventId'],
       where: { status: { in: LIVE_BOOKING_STATUSES } },
@@ -299,7 +300,7 @@ export class PaymentsService {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new BadRequestException('Event not found');
     if (event.paidOut) throw new BadRequestException('This event is already marked paid');
-    if (new Date(event.date).getTime() + event.durationHrs * 3600_000 > Date.now()) {
+    if (!CatalogService.isEventOver(event)) {
       throw new BadRequestException("This event hasn't happened yet — payouts can only be marked paid after the event completes");
     }
     const payeeType: 'organizer' | 'venue' | null = event.organizerId ? 'organizer' : event.venueId ? 'venue' : null;

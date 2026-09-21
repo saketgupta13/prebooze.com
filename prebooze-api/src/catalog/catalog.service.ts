@@ -51,7 +51,7 @@ const PUBLIC_VENUE_SELECT = {
 // via a bare `include` that pulled every raw Event column.
 const PUBLIC_EVENT_SELECT = {
   id: true, slug: true, title: true, description: true, category: true, subCategory: true,
-  ageLimit: true, tags: true, date: true, durationHrs: true, venueId: true, status: true,
+  ageLimit: true, tags: true, date: true, durationHrs: true, seriesEndDate: true, venueId: true, status: true,
   privateCity: true, privateLocality: true, hostedByVenue: true,
   conditions: true, rules: true, lineup: true, posterHue: true, seo: true, promoterConfig: true,
   socialBanners: true, salesPaused: true, posterUrl: true, galleryUrls: true, teaserVideoUrl: true,
@@ -107,11 +107,14 @@ export class CatalogService {
     return events.map((e) => ({ ...e, collaborators: e.collaboratorOrganizerIds.map((id) => byId.get(id)).filter((o): o is PublicOrganizer => !!o) }));
   }
 
-  /** An event is "over" once its window (date → date + durationHrs) has
-   * fully elapsed — same definition Admin API's dashboard "live now" stat
-   * uses. Filtered in application code, not the Prisma `where`, since the
-   * cutoff depends on each row's own durationHrs. */
-  static isEventOver(e: { date: Date; durationHrs: number }, now = new Date()): boolean {
+  /** An event is "over" once its window has fully elapsed — same definition
+   * Admin API's dashboard "live now" stat uses. Filtered in application
+   * code, not the Prisma `where`, since the cutoff depends on each row's own
+   * durationHrs. For a multi-day series (seriesEndDate set), the window
+   * extends through the end of that day instead of just the first
+   * session's date+durationHrs — see Event.seriesEndDate's own doc comment. */
+  static isEventOver(e: { date: Date; durationHrs: number; seriesEndDate?: Date | null }, now = new Date()): boolean {
+    if (e.seriesEndDate) return new Date(e.seriesEndDate.getTime() + 24 * 3600000) < now;
     return new Date(e.date.getTime() + e.durationHrs * 3600000) < now;
   }
 
@@ -368,7 +371,7 @@ export class CatalogService {
     const bookings = visibleIds.length
       ? await this.prisma.booking.findMany({
           where: { userId: { in: visibleIds }, status: 'confirmed' },
-          select: { userId: true, event: { select: { id: true, slug: true, title: true, date: true, durationHrs: true } } },
+          select: { userId: true, event: { select: { id: true, slug: true, title: true, date: true, durationHrs: true, seriesEndDate: true } } },
         })
       : [];
     const goingByUser = new Map<string, { id: string; slug: string; title: string }[]>();

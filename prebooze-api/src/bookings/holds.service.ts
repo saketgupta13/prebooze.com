@@ -5,6 +5,7 @@ import type { Prisma } from '@prisma/client';
 import { REDIS } from '../redis.provider';
 import { PrismaService } from '../prisma.service';
 import { effectiveTierPrice } from '../common/ticket-tier-pricing';
+import { CatalogService } from '../catalog/catalog.service';
 
 const HOLD_TTL_S = 8 * 60; // 8 minutes, matches prebooze-web's CART_HOLD_MINUTES
 
@@ -29,7 +30,7 @@ export class HoldsService {
     const event = await this.prisma.event.findUnique({ where: { id: eventId }, include: { tiers: true } });
     if (!event || event.status !== 'approved') throw new NotFoundException('Event not found');
     // same "over" definition as CatalogService.isEventOver / the admin dashboard's "live now" stat
-    if (new Date(event.date.getTime() + event.durationHrs * 3600000) < new Date()) {
+    if (CatalogService.isEventOver(event)) {
       throw new BadRequestException('This event has already happened — tickets are no longer on sale');
     }
 

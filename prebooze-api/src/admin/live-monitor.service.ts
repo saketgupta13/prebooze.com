@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { BookingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { CatalogService } from '../catalog/catalog.service';
 
 const LIVE_BOOKING_STATUSES: BookingStatus[] = ['confirmed', 'refund_requested'];
 const HISTOGRAM_BUCKETS = 10;
@@ -77,11 +78,11 @@ export class LiveMonitorService {
     const events = await this.prisma.event.findMany({
       where: { status: 'approved' },
       select: {
-        id: true, title: true, date: true, durationHrs: true, salesPaused: true,
+        id: true, title: true, date: true, durationHrs: true, seriesEndDate: true, salesPaused: true,
         venue: { select: { name: true, city: true } }, privateCity: true,
       },
     });
-    const relevant = events.filter((e) => e.date.getTime() + e.durationHrs * 3600000 >= now);
+    const relevant = events.filter((e) => !CatalogService.isEventOver(e, new Date(now)));
     if (!relevant.length) return [];
 
     const eventIds = relevant.map((e) => e.id);

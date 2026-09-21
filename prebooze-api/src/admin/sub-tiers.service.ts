@@ -44,11 +44,11 @@ export class SubTiersService {
     return this.prisma.subTier.update({ where: { id }, data: body });
   }
 
+  // No RoleSubscription rows can exist anymore (table dropped alongside
+  // Razorpay recurring billing, 2026-09-21) — every tier is safe to delete.
   async remove(id: string) {
     const tier = await this.prisma.subTier.findUnique({ where: { id } });
     if (!tier) throw new NotFoundException('Subscription tier not found');
-    const inUse = await this.prisma.roleSubscription.findFirst({ where: { tierId: id, status: { notIn: ['cancelled', 'expired'] } } });
-    if (inUse) throw new BadRequestException('Cannot delete a tier with active subscribers — cancel or migrate them first');
     await this.prisma.subTier.delete({ where: { id } });
     return { ok: true };
   }

@@ -861,6 +861,14 @@ model Event {
   tags                String[]                  @default([])
   date                DateTime
   durationHrs         Float
+  // Optional — for a multi-day series (a workshop running daily over N days,
+  // a festival spanning a weekend), `date` stays the FIRST session's start
+  // (still drives tier pricing windows, countdown labels, listing sort) but
+  // the event only counts as "over" once seriesEndDate passes, not right
+  // after the first day's date+durationHrs — see isEventOver below and its
+  // client-side mirror in prebooze-web/src/data/mock.ts. Null means a normal
+  // single-day/single-session event, unchanged from before this field existed.
+  seriesEndDate       DateTime?
   // Optional — an organizer running a secret/guest-list-only event can skip
   // registering a real Venue partner entirely and instead set privateCity/
   // privateLocality below. Guests then only ever see "{locality}, {city}",

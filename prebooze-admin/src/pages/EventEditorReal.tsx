@@ -93,6 +93,8 @@ export default function EventEditorReal() {
   const [collaboratorIds, setCollaboratorIds] = useState<string[]>([]);
   const [dateTime, setDateTime] = useState('');
   const [durationHrs, setDurationHrs] = useState('4');
+  const [isMultiDay, setIsMultiDay] = useState(false);
+  const [seriesEndDate, setSeriesEndDate] = useState('');
   const [ageLimit, setAgeLimit] = useState('18+');
   const [tiers, setTiers] = useState<TierDraft[]>([emptyTier()]);
   const [customIncludeInputs, setCustomIncludeInputs] = useState<Record<number, string>>({});
@@ -163,6 +165,8 @@ export default function EventEditorReal() {
               setCollaboratorIds(found.collaboratorOrganizerIds ?? []);
               setDateTime(found.date ? toLocalDateTimeInput(found.date) : '');
               setDurationHrs(String(found.durationHrs ?? 4));
+              setIsMultiDay(Boolean(found.seriesEndDate));
+              setSeriesEndDate(found.seriesEndDate ? found.seriesEndDate.slice(0, 10) : '');
               setAgeLimit(found.ageLimit ?? '18+');
               setTiers(
                 found.tiers.length
@@ -228,6 +232,7 @@ export default function EventEditorReal() {
     ageLimit,
     date: dateTime ? new Date(dateTime).toISOString() : undefined,
     durationHrs: parseFloat(durationHrs) || undefined,
+    seriesEndDate: isMultiDay && seriesEndDate ? new Date(seriesEndDate + 'T23:59:59').toISOString() : null,
     ...(privateAddress ? { privateCity: privateLoc.city, privateLocality: privateLocality.trim() } : { venueId }),
     conditions: conditions.split('\n').map((s) => s.trim()).filter(Boolean),
     rules: rules.filter((r) => r.title.trim() || r.body.trim()),
@@ -495,7 +500,21 @@ export default function EventEditorReal() {
           <div className="field">
             <label>Duration (hours)</label>
             <input className="input" inputMode="decimal" value={durationHrs} onChange={(e) => setDurationHrs(e.target.value)} />
+            <span className="hint">For a single-day event, this is the whole session length. For a multi-day series, this is just the daily session length (e.g. 1 hour for a nightly 8-9 PM class) — the date above is the first day's start.</span>
           </div>
+          <div className="field">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input type="checkbox" checked={isMultiDay} onChange={(e) => setIsMultiDay(e.target.checked)} />
+              Multi-day event (workshop/series running over several days)
+            </label>
+          </div>
+          {isMultiDay && (
+            <div className="field">
+              <label>Series ends on</label>
+              <input className="input" type="date" value={seriesEndDate} onChange={(e) => setSeriesEndDate(e.target.value)} />
+              <span className="hint">The event stays bookable and "live" (not sold out/ended) until the end of this day, regardless of the daily session's short duration above.</span>
+            </div>
+          )}
         </div>
       )}
 

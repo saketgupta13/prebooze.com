@@ -4,6 +4,7 @@ import { randomInt, randomBytes } from 'crypto';
 import type { Prisma, Booking } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { HoldsService } from './holds.service';
+import { CatalogService } from '../catalog/catalog.service';
 import { PhonePeService } from '../payments/phonepe.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
@@ -167,7 +168,7 @@ export class BookingsService {
     // re-checked here (not just at hold creation) since a hold can sit for up
     // to HOLD_TTL_S before quote()/create() actually runs — same "over"
     // definition as CatalogService.isEventOver / HoldsService.create.
-    if (new Date(event.date.getTime() + event.durationHrs * 3600000) < new Date()) {
+    if (CatalogService.isEventOver(event)) {
       throw new BadRequestException('This event has already happened — tickets are no longer on sale');
     }
 

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { BookingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { CatalogService } from '../catalog/catalog.service';
 import { ReportsService } from './reports.service';
 import { leadPhoneKeySet, phoneKey } from './lead-phone-match.util';
 import { istDateKey } from '../common/ist-date';
@@ -66,8 +67,8 @@ export class DashboardService {
       this.prisma.booking.count(),
     ]);
 
-    const approvedEvents = await this.prisma.event.findMany({ where: { status: 'approved' }, select: { id: true, date: true, durationHrs: true } });
-    const liveNow = approvedEvents.filter((e) => e.date <= now && new Date(e.date.getTime() + e.durationHrs * 3600000) >= now).length;
+    const approvedEvents = await this.prisma.event.findMany({ where: { status: 'approved' }, select: { id: true, date: true, durationHrs: true, seriesEndDate: true } });
+    const liveNow = approvedEvents.filter((e) => e.date <= now && !CatalogService.isEventOver(e, now)).length;
 
     // ---- top selling events (by tickets sold), optionally city-filtered ----
     const events = await this.prisma.event.findMany({

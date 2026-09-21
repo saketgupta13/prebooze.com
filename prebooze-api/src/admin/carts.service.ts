@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { toCitySlug } from '../common/city-slug';
+import { CatalogService } from '../catalog/catalog.service';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService/OrganizerService — a cart still `active` past this is abandoned
 
@@ -15,9 +16,7 @@ const TEST_PHONE_NUMBERS = ['+91 9579573727', '+91 8788003601'];
 // Same formula as CatalogService.isEventOver — a cart for an event that's
 // already finished isn't a recoverable abandonment, there's nothing left
 // to nudge the guest back to book.
-function isEventOver(e: { date: Date; durationHrs: number }): boolean {
-  return new Date(e.date.getTime() + e.durationHrs * 3600000) < new Date();
-}
+const isEventOver = CatalogService.isEventOver;
 
 @Injectable()
 export class CartsService {
@@ -48,7 +47,7 @@ export class CartsService {
     // and Abandoned carts here because of the gap).
     const rows = await this.prisma.cart.findMany({
       where: { user: { phone: { notIn: TEST_PHONE_NUMBERS } }, ...(eventId ? { eventId } : {}) },
-      include: { user: { select: { name: true, phone: true } }, event: { select: { title: true, date: true, durationHrs: true } } },
+      include: { user: { select: { name: true, phone: true } }, event: { select: { title: true, date: true, durationHrs: true, seriesEndDate: true } } },
       orderBy: { createdAt: 'desc' },
     });
     const seen = new Set<string>();
@@ -81,7 +80,7 @@ export class CartsService {
     // down the recovery rate even though their later attempt completed.
     const rows = await this.prisma.cart.findMany({
       where: { user: { phone: { notIn: TEST_PHONE_NUMBERS } } },
-      select: { userId: true, eventId: true, status: true, total: true, createdAt: true, event: { select: { date: true, durationHrs: true } } },
+      select: { userId: true, eventId: true, status: true, total: true, createdAt: true, event: { select: { date: true, durationHrs: true, seriesEndDate: true } } },
       orderBy: { createdAt: 'desc' },
     });
     const seen = new Set<string>();
@@ -146,7 +145,7 @@ export class CartsService {
     const cutoff = new Date(Date.now() - HOLD_TTL_MS);
     const candidates = await this.prisma.cart.findMany({
       where: { status: 'active', remindedAt: null, createdAt: { lt: cutoff }, user: { phone: { notIn: TEST_PHONE_NUMBERS } } },
-      select: { id: true, userId: true, eventId: true, createdAt: true, event: { select: { date: true, durationHrs: true } } },
+      select: { id: true, userId: true, eventId: true, createdAt: true, event: { select: { date: true, durationHrs: true, seriesEndDate: true } } },
     });
     // A candidate can be a stale first attempt that a later hold for the
     // same user+event superseded — including one that already converted to

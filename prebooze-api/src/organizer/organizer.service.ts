@@ -39,6 +39,13 @@ export interface EventInput {
   tags?: string[];
   date?: string;
   durationHrs?: number;
+  // Optional — for a multi-day series (a workshop running daily over N
+  // days), `date` stays the first session's start but the event only
+  // counts as "over" once seriesEndDate passes — see Event.seriesEndDate's
+  // own doc comment in schema.prisma. Omitting on an edit leaves the
+  // event's existing value untouched; explicit null clears it back to a
+  // normal single-day event.
+  seriesEndDate?: string | null;
   // Exactly one of venueId or privateCity+privateLocality should be sent —
   // whichever is present (checked via `!== undefined`, so the other mode's
   // fields must be entirely omitted, not sent as ''/null) decides the mode.
@@ -370,6 +377,7 @@ export class OrganizerService {
       tags: input.tags ?? existing?.tags ?? [],
       date: input.date ? new Date(input.date) : (existing?.date ?? new Date()),
       durationHrs: input.durationHrs ?? existing?.durationHrs ?? 0,
+      seriesEndDate: input.seriesEndDate !== undefined ? (input.seriesEndDate ? new Date(input.seriesEndDate) : null) : (existing?.seriesEndDate ?? null),
       venueId,
       privateCity,
       privateLocality,

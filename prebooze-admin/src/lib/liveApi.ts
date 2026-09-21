@@ -235,6 +235,11 @@ export interface LiveEvent {
   tags: string[];
   date: string;
   durationHrs: number;
+  // Optional — for a multi-day series (a workshop running daily over N
+  // days), `date` stays the first session's start but the event only
+  // counts as "over" once seriesEndDate passes. Null for a normal
+  // single-day/single-session event.
+  seriesEndDate: string | null;
   status: 'draft' | 'pending' | 'approved' | 'rejected';
   rejectionReason: string | null;
   conditions: string[];
@@ -286,6 +291,7 @@ export interface LiveEventInput {
   ageLimit?: string;
   date?: string;
   durationHrs?: number;
+  seriesEndDate?: string | null;
   venueId?: string;
   privateCity?: string;
   privateLocality?: string;

@@ -10,16 +10,6 @@ import { calculateGatewayFee, type PaymentMethod } from '../payments/gateway-fee
 
 export type MarketingOwnerType = 'organizer' | 'venue';
 
-interface RazorpaySubEntity {
-  id: string;
-  current_start?: number | null;
-  current_end?: number | null;
-}
-
-function in30Days(): Date {
-  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-}
-
 /**
  * Organizer/venue-paid Meta ad marketing — pay-per-event (one-time) or a
  * rolling 30-day subscription covering all their events, mirroring
@@ -66,10 +56,6 @@ export class MarketingService {
     return id;
   }
 
-  private subUniqueWhere(ownerType: MarketingOwnerType, ownerId: string) {
-    return ownerType === 'organizer' ? { organizerId: ownerId } : { venueId: ownerId };
-  }
-
   /** Confirms the event actually belongs to the caller's own organizer/venue
    * — never trusts a client-supplied eventId alone. Same ownership rule
    * VenueService already uses for its own hosted events (event.venueId +
@@ -110,16 +96,14 @@ export class MarketingService {
   /** Strips everything that isn't meant for organizer/venue eyes —
    * marginPct, metaCampaignId, and the raw Razorpay ids never leave this
    * service. Only what they paid, for what, and its status. */
-  private toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; status: string; createdAt: Date; marketingSubscriptionId: string | null; periodStart: Date | null; periodEnd: Date | null }) {
+  // isSubscriptionPeriod/periodEnd stay in the response only for legacy rows
+  // from the now-removed Razorpay auto-renewal (marketingSubscriptionId set)
+  // — every new one-time order this service creates leaves both null.
+  private toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; status: string; createdAt: Date; marketingSubscriptionId: string | null; periodEnd: Date | null }) {
     return {
       id: row.id, eventId: row.eventId, eventTitle: row.eventTitle, amount: row.amount, status: row.status,
-      createdAt: row.createdAt, isSubscriptionPeriod: !!row.marketingSubscriptionId, periodStart: row.periodStart, periodEnd: row.periodEnd,
+      createdAt: row.createdAt, isSubscriptionPeriod: !!row.marketingSubscriptionId, periodEnd: row.periodEnd,
     };
-  }
-
-  private toPublicSubscription(row: { id: string; amountPerCycle: number; status: string; currentStart: Date | null; currentEnd: Date | null; paidCount: number; shortUrl: string | null } | null) {
-    if (!row) return null;
-    return { id: row.id, amountPerCycle: row.amountPerCycle, status: row.status, currentStart: row.currentStart, currentEnd: row.currentEnd, paidCount: row.paidCount, shortUrl: row.shortUrl };
   }
 
   // ---------- pay-per-event (one-time) ----------
@@ -209,178 +193,29 @@ export class MarketingService {
   }
 
   // ---------- auto-renewing subscription (org-wide, rolling 30-day) ----------
-
-  async subscribe(userId: string, ownerType: MarketingOwnerType) {
-    const owner = await this.resolveOwner(userId, ownerType);
-    const ownerId = this.ownerIdOf(ownerType, owner);
-    const rates = await this.rates();
-    const amount = rates.monthly;
-
-    const { planId } = await this.razorpay.createPlan(`Marketing — ${ownerType}`, amount * 100, `Prebooze marketing subscription (${ownerType}, auto-renews every 30 days)`);
-    const sub = await this.razorpay.createSubscription(planId, { ownerType, ownerId });
-
-    const row = await this.prisma.marketingSubscription.upsert({
-      where: this.subUniqueWhere(ownerType, ownerId),
-      create: {
-        ownerType: ownerType as never,
-        organizerId: ownerType === 'organizer' ? ownerId : undefined,
-        venueId: ownerType === 'venue' ? ownerId : undefined,
-        amountPerCycle: amount, marginPct: rates.marginPct,
-        razorpaySubId: sub.subscriptionId, status: 'created', shortUrl: sub.shortUrl,
-      },
-      update: {
-        amountPerCycle: amount, marginPct: rates.marginPct, razorpaySubId: sub.subscriptionId,
-        status: 'created', shortUrl: sub.shortUrl, currentStart: null, currentEnd: null, paidCount: 0,
-      },
-    });
-
-    return { ok: true, requiresAuthorization: true, id: row.id, subscriptionId: sub.subscriptionId, shortUrl: sub.shortUrl, keyId: process.env.RAZORPAY_KEY_ID || undefined };
+  // Real Razorpay Subscriptions recurring billing removed 2026-09-21 (see
+  // prebooze_razorpay_complete_removal memory) — MarketingSubscription
+  // table dropped, zero active rows at removal time. subscribe()/
+  // cancelSubscription()/mySubscription() now just refuse/return empty;
+  // will be rebuilt on PhonePe AutoPay once that's available.
+  async subscribe(_userId: string, _ownerType: MarketingOwnerType) {
+    throw new BadRequestException('Subscriptions are currently unavailable. Use one-time payments instead.');
   }
 
-  async cancelSubscription(userId: string, ownerType: MarketingOwnerType) {
-    const owner = await this.resolveOwner(userId, ownerType);
-    const ownerId = this.ownerIdOf(ownerType, owner);
-    const sub = await this.prisma.marketingSubscription.findUnique({ where: this.subUniqueWhere(ownerType, ownerId) });
-    if (!sub || sub.status === 'cancelled') throw new BadRequestException('No active auto-renewing marketing subscription to cancel');
-    if (sub.razorpaySubId) await this.razorpay.cancelSubscription(sub.razorpaySubId, true);
-    await this.prisma.marketingSubscription.update({ where: { id: sub.id }, data: { status: 'cancelled' } });
-    return { ok: true };
+  async cancelSubscription(_userId: string, _ownerType: MarketingOwnerType) {
+    throw new BadRequestException('Subscriptions are currently unavailable.');
   }
 
-  async mySubscription(userId: string, ownerType: MarketingOwnerType) {
-    const owner = await this.resolveOwner(userId, ownerType);
-    const ownerId = this.ownerIdOf(ownerType, owner);
-    const sub = await this.prisma.marketingSubscription.findUnique({ where: this.subUniqueWhere(ownerType, ownerId) });
-    return this.toPublicSubscription(sub);
-  }
-
-  /** Dispatches a verified Razorpay webhook event — identical shape to
-   * FeaturedService.handleWebhookEvent, keyed against
-   * MarketingSubscription.razorpaySubId instead. Silently no-ops when the
-   * subscription id isn't ours (see RazorpayWebhookController). */
-  async handleWebhookEvent(event: string, payload: unknown) {
-    const subEntity = (payload as { subscription?: { entity?: RazorpaySubEntity } })?.subscription?.entity;
-    if (!subEntity?.id) return;
-
-    const record = await this.prisma.marketingSubscription.findUnique({ where: { razorpaySubId: subEntity.id } });
-    if (!record) return; // not ours
-
-    const currentStart = subEntity.current_start ? new Date(subEntity.current_start * 1000) : undefined;
-    const currentEnd = subEntity.current_end ? new Date(subEntity.current_end * 1000) : undefined;
-
-    switch (event) {
-      case 'subscription.authenticated':
-        await this.prisma.marketingSubscription.update({ where: { id: record.id }, data: { status: 'authenticated' } });
-        break;
-
-      case 'subscription.activated': {
-        const updated = await this.prisma.marketingSubscription.update({
-          where: { id: record.id },
-          data: { status: 'active', currentStart: currentStart ?? new Date(), currentEnd, shortUrl: null },
-        });
-        await this.startPeriod(updated, currentEnd);
-        await this.notifyOwner(record, 'marketing_subscription_activated');
-        break;
-      }
-
-      case 'subscription.charged': {
-        const payment = (payload as { payment?: { entity?: { id?: string; status?: string } } })?.payment?.entity;
-        const updated = await this.prisma.marketingSubscription.update({
-          where: { id: record.id },
-          data: { status: 'active', paidCount: { increment: 1 }, currentStart, currentEnd },
-        });
-        if (payment?.status === 'captured') {
-          await this.startPeriod(updated, currentEnd, payment.id);
-          await this.notifyOwner(record, 'marketing_subscription_renewed');
-          const ownerUserId = await this.resolveOwnerUserId(record);
-          if (payment.id && ownerUserId) await this.razorpay.getPayment(payment.id).then((p) => this.wallet.saveUsedMethod(ownerUserId, p)).catch(() => {});
-        }
-        break;
-      }
-
-      case 'subscription.pending':
-        await this.prisma.marketingSubscription.update({ where: { id: record.id }, data: { status: 'pending' } });
-        break;
-
-      case 'subscription.halted':
-        await this.prisma.marketingSubscription.update({ where: { id: record.id }, data: { status: 'halted' } });
-        await this.notifyOwner(record, 'marketing_subscription_halted');
-        await this.staffAlerts.alert(`⚠️ Marketing auto-renewal halted — ${record.ownerType} ${record.organizerId ?? record.venueId}`).catch(() => {});
-        break;
-
-      case 'subscription.cancelled':
-      case 'subscription.completed':
-      case 'subscription.expired':
-        await this.prisma.marketingSubscription.update({ where: { id: record.id }, data: { status: event.split('.')[1] as never } });
-        break;
-    }
-  }
-
-  /** Creates the immutable billing-history row for one charged cycle
-   * (periodStart/periodEnd define the 30-day window whose events become
-   * eligible for the Analytics screen) and, since no admin re-review is
-   * needed for an already-subscribed arrangement, an invoice right
-   * alongside it — same reasoning as FeaturedService.startPeriod. */
-  private async startPeriod(
-    sub: { id: string; ownerType: string; organizerId: string | null; venueId: string | null; amountPerCycle: number; marginPct: number },
-    currentEnd: Date | undefined,
-    paymentId?: string,
-  ) {
-    const periodEnd = currentEnd ?? in30Days();
-    const period = await this.prisma.marketingOrder.create({
-      data: {
-        ownerType: sub.ownerType as never, organizerId: sub.organizerId, venueId: sub.venueId,
-        amount: sub.amountPerCycle, marginPct: sub.marginPct, status: 'active', paymentId,
-        marketingSubscriptionId: sub.id, periodStart: new Date(), periodEnd,
-      },
-    });
-
-    const target = await this.resolveOwnerContact(sub);
-    if (target) {
-      const business = await this.resolveBillingIdentity(sub.ownerType as MarketingOwnerType, (sub.organizerId ?? sub.venueId)!);
-      await this.invoices.create({
-        type: 'marketing', refId: period.id, role: sub.ownerType as never,
-        payerName: target.name, payerEmail: target.email ?? undefined, payerPhone: target.phone ?? undefined,
-        payerBrand: business?.brand, payerGstin: business?.gstin, payerPan: business?.pan,
-        description: `Marketing subscription (auto-renews every 30 days) — ${target.brand}`,
-        subtotal: sub.amountPerCycle, gstPct: 0, gstAmount: 0, total: sub.amountPerCycle,
-      }).catch(() => {});
-    }
-    return period;
-  }
-
-  private async resolveOwnerContact(sub: { ownerType: string; organizerId: string | null; venueId: string | null }): Promise<{ email: string | null; phone: string | null; userId: string | null; name: string; brand: string } | null> {
-    if (sub.ownerType === 'organizer' && sub.organizerId) {
-      const org = await this.prisma.organizer.findUnique({ where: { id: sub.organizerId } });
-      if (!org) return null;
-      const owner = org.userId ? await this.prisma.user.findUnique({ where: { id: org.userId } }) : null;
-      return { email: owner?.email ?? null, phone: owner?.phone ?? null, userId: owner?.id ?? null, name: owner?.name ?? org.brandName, brand: org.brandName };
-    }
-    if (sub.ownerType === 'venue' && sub.venueId) {
-      const venue = await this.prisma.venue.findUnique({ where: { id: sub.venueId } });
-      if (!venue) return null;
-      const owner = await this.prisma.user.findFirst({ where: { venueId: sub.venueId } });
-      return { email: owner?.email ?? null, phone: owner?.phone ?? null, userId: owner?.id ?? null, name: owner?.name ?? venue.name, brand: venue.name };
-    }
+  async mySubscription(_userId: string, _ownerType: MarketingOwnerType) {
     return null;
   }
 
-  private async notifyOwner(sub: { ownerType: string; organizerId: string | null; venueId: string | null }, templateId: 'marketing_subscription_activated' | 'marketing_subscription_renewed' | 'marketing_subscription_halted') {
-    const target = await this.resolveOwnerContact(sub);
-    if (!target?.email) return;
-    await this.email.sendTemplate(target.email, templateId, { name: target.name, brand: target.brand }).catch(() => {});
-  }
-
-  private async resolveOwnerUserId(sub: { ownerType: string; organizerId: string | null; venueId: string | null }): Promise<string | null> {
-    const target = await this.resolveOwnerContact(sub);
-    return target?.userId ?? null;
-  }
-
   /** Is this specific event currently covered by a paid marketing
-   * arrangement — an active/completed one-time MarketingOrder for it, or
-   * falling inside an active MarketingSubscription's current 30-day window?
-   * The one gate the new Analytics endpoint checks before calling into
-   * AnalyticsReportService — see MarketingController. */
+   * arrangement — an active/completed one-time MarketingOrder for it. The
+   * one gate the Analytics endpoint checks before calling into
+   * AnalyticsReportService — see MarketingController. (Previously also
+   * checked an active MarketingSubscription's current 30-day window —
+   * removed alongside recurring billing, see subscribe() above.) */
   async isEventCovered(ownerType: MarketingOwnerType, ownerId: string, eventId: string): Promise<boolean> {
     const order = await this.prisma.marketingOrder.findFirst({
       where: {
@@ -389,13 +224,7 @@ export class MarketingService {
         ...(ownerType === 'organizer' ? { organizerId: ownerId } : { venueId: ownerId }),
       },
     });
-    if (order) return true;
-
-    const event = await this.prisma.event.findUnique({ where: { id: eventId }, select: { date: true } });
-    if (!event) return false;
-    const sub = await this.prisma.marketingSubscription.findUnique({ where: this.subUniqueWhere(ownerType, ownerId) });
-    if (!sub || sub.status !== 'active' || !sub.currentStart || !sub.currentEnd) return false;
-    return event.date >= sub.currentStart && event.date <= sub.currentEnd;
+    return !!order;
   }
 
   /** The "Analytics" screen's one data source — reuses
@@ -440,9 +269,7 @@ export class MarketingService {
   }
 
   async listSubscriptionsForAdmin() {
-    const rows = await this.prisma.marketingSubscription.findMany({ orderBy: { updatedAt: 'desc' } });
-    const names = await Promise.all(rows.map((r) => this.resolveEntityName(r.ownerType as MarketingOwnerType, r.organizerId ?? r.venueId!)));
-    return rows.map((r, i) => ({ ...r, entityName: names[i] ?? (r.organizerId ?? r.venueId) }));
+    return [];
   }
 
   private async resolveEntityName(ownerType: MarketingOwnerType, ownerId: string): Promise<string | null> {

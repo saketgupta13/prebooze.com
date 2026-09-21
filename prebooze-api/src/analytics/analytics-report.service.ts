@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { CatalogService } from '../catalog/catalog.service';
 import { FUNNEL_TYPES } from './track.service';
 import { istDateKey, istDayStart, istDayEnd } from '../common/ist-date';
 
@@ -87,11 +88,12 @@ export class AnalyticsReportService {
   constructor(private prisma: PrismaService) {}
 
   /** No EventStatus for "completed" — an event's end time is always derived
-   * from date + durationHrs, same as Dashboard's `liveNow` calc, never a
-   * stored flag. "Live" here means hasn't ended yet (covers both upcoming
-   * and currently in progress); "past" means it has. */
-  private hasEnded(e: { date: Date; durationHrs: number }, now: number): boolean {
-    return e.date.getTime() + e.durationHrs * 3600000 < now;
+   * from date + durationHrs (or seriesEndDate for a multi-day event), same
+   * as Dashboard's `liveNow` calc, never a stored flag. "Live" here means
+   * hasn't ended yet (covers both upcoming and currently in progress);
+   * "past" means it has. */
+  private hasEnded(e: { date: Date; durationHrs: number; seriesEndDate?: Date | null }, now: number): boolean {
+    return CatalogService.isEventOver(e, new Date(now));
   }
 
   /** City/organizer/eventScope filters go through Event (FunnelEvent has no
@@ -106,7 +108,7 @@ export class AnalyticsReportService {
         ...(organizerId ? { organizerId } : {}),
         ...(city ? { OR: [{ privateCity: city }, { venue: { city } }] } : {}),
       },
-      select: { id: true, date: true, durationHrs: true },
+      select: { id: true, date: true, durationHrs: true, seriesEndDate: true },
     });
     const now = Date.now();
     const scoped =
@@ -457,7 +459,7 @@ export class AnalyticsReportService {
    * stable metadata, not "past data" in the sense that prompted this. */
   async filters(eventScope?: string) {
     const allEvents = await this.prisma.event.findMany({
-      select: { id: true, title: true, organizerId: true, privateCity: true, date: true, durationHrs: true, venue: { select: { city: true } } },
+      select: { id: true, title: true, organizerId: true, privateCity: true, date: true, durationHrs: true, seriesEndDate: true, venue: { select: { city: true } } },
       orderBy: { date: 'desc' },
     });
     const now = Date.now();

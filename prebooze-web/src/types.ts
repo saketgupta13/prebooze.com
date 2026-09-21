@@ -41,6 +41,11 @@ export interface Event {
   tags: string[];
   date: string; // ISO
   durationHrs: number;
+  // Optional — for a multi-day series (a workshop running daily over N
+  // days), `date` stays the first session's start but the event only
+  // counts as "over" once seriesEndDate passes — see isEventOver in
+  // data/mock.ts. Null means a normal single-day/single-session event.
+  seriesEndDate?: string | null;
   // Optional — a private-address event (organizer keeps the exact venue
   // off the platform, tells booked guests themselves) has no venueId at
   // all; privateCity/privateLocality are set instead and that's all guests

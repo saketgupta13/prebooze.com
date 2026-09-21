@@ -9,12 +9,6 @@ import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { calculateGatewayFee, type PaymentMethod } from '../payments/gateway-fee';
 
-interface RazorpaySubEntity {
-  id: string;
-  current_start?: number | null;
-  current_end?: number | null;
-}
-
 /** Mirrors prebooze-web's FEATURED_PRICING (src/data/mock.ts), including
  * venueMonthly (the frontend contract, src/api/index.ts featured.rates(),
  * already includes it too). Used only as the seed default now — real rates
@@ -235,183 +229,23 @@ export class FeaturedService {
   }
 
   // ---------- auto-renewing subscription (organizer/promoter/lineup/venue only — never 'event') ----------
-
-  /** Starts (or restarts, if a previous one lapsed/was cancelled) a real
-   * Razorpay Subscription for this placement — same e-mandate rails as
-   * SubscriptionsService.subscribe(), just billing a Featured placement
-   * instead of a role's plan tier. The rate is locked in right now and
-   * reused for every future renewal (see FeaturedSubscription doc comment);
-   * nothing here goes live until the `subscription.activated` webhook
-   * confirms the owner actually authorized it. */
-  async subscribe(userId: string, input: { type: FeaturedType; refId: string }) {
-    if (input.type === 'event') throw new BadRequestException('Events are featured per-event, not by subscription');
-    const { city } = await this.resolveTarget(userId, input.type, input.refId);
-    const rates = await this.rates();
-    const amount = rates[`${input.type}Monthly` as keyof typeof rates];
-    const total = amount; // no GST — see request()'s doc comment above
-
-    const typeLabel = input.type[0].toUpperCase() + input.type.slice(1);
-    const { planId } = await this.razorpay.createPlan(`Featured — ${typeLabel}`, total * 100, `Prebooze Featured placement (${input.type}, auto-renews monthly)`);
-    const sub = await this.razorpay.createSubscription(planId, { type: input.type, refId: input.refId });
-
-    const row = await this.prisma.featuredSubscription.upsert({
-      where: { type_refId: { type: input.type as never, refId: input.refId } },
-      create: {
-        type: input.type as never, refId: input.refId, city, amount, gstPct: 0, gstAmount: 0, total,
-        razorpaySubId: sub.subscriptionId, status: 'created', shortUrl: sub.shortUrl,
-      },
-      update: {
-        city, amount, gstPct: 0, gstAmount: 0, total, razorpaySubId: sub.subscriptionId,
-        status: 'created', shortUrl: sub.shortUrl, currentStart: null, currentEnd: null, paidCount: 0,
-      },
-    });
-
-    return {
-      ok: true,
-      requiresAuthorization: true,
-      id: row.id,
-      subscriptionId: sub.subscriptionId,
-      shortUrl: sub.shortUrl,
-      keyId: process.env.RAZORPAY_KEY_ID || undefined,
-    };
+  // Real Razorpay Subscriptions recurring billing removed 2026-09-21 (see
+  // prebooze_razorpay_complete_removal memory) — FeaturedSubscription table
+  // dropped, zero active rows at removal time. subscribe()/
+  // cancelSubscription() now just refuse; mySubscription() returns null.
+  // Historical featuredSubscriptionId/paid one-time Featured rows are
+  // untouched — see request()/confirmPayment() above. Will be rebuilt on
+  // PhonePe AutoPay once that's available.
+  async subscribe(_userId: string, _input: { type: FeaturedType; refId: string }) {
+    throw new BadRequestException('Subscriptions are currently unavailable. Use one-time payments instead.');
   }
 
-  /** Cancels at the end of the current billing cycle — same reasoning as
-   * SubscriptionsService.cancel(): the owner keeps the placement live
-   * through what they already paid for, then it stops (no new period gets
-   * created once `subscription.cancelled` actually fires). */
-  async cancelSubscription(userId: string, type: FeaturedType, refId: string) {
-    await this.resolveTarget(userId, type, refId);
-    const sub = await this.prisma.featuredSubscription.findUnique({ where: { type_refId: { type: type as never, refId } } });
-    if (!sub || sub.status === 'cancelled') throw new BadRequestException('No active auto-renewing subscription to cancel');
-    if (sub.razorpaySubId) await this.razorpay.cancelSubscription(sub.razorpaySubId, true);
-    await this.prisma.featuredSubscription.update({ where: { id: sub.id }, data: { status: 'cancelled' } });
-    return { ok: true };
+  async cancelSubscription(_userId: string, _type: FeaturedType, _refId: string) {
+    throw new BadRequestException('Subscriptions are currently unavailable.');
   }
 
-  async mySubscription(userId: string, type: FeaturedType, refId: string) {
-    await this.resolveTarget(userId, type, refId);
-    return this.prisma.featuredSubscription.findUnique({ where: { type_refId: { type: type as never, refId } } });
-  }
-
-  /** Dispatches a verified Razorpay webhook event for a Featured
-   * subscription — identical shape to SubscriptionsService.handleWebhookEvent,
-   * just keyed against FeaturedSubscription.razorpaySubId instead of
-   * RoleSubscription's. Both handlers run on every webhook call (see
-   * RazorpayWebhookController); each silently no-ops when the subscription
-   * id isn't theirs, so they never need to coordinate. */
-  async handleWebhookEvent(event: string, payload: unknown) {
-    const subEntity = (payload as { subscription?: { entity?: RazorpaySubEntity } })?.subscription?.entity;
-    if (!subEntity?.id) return;
-
-    const record = await this.prisma.featuredSubscription.findUnique({ where: { razorpaySubId: subEntity.id } });
-    if (!record) return; // not ours
-
-    const type = record.type as FeaturedType;
-    const currentStart = subEntity.current_start ? new Date(subEntity.current_start * 1000) : undefined;
-    const currentEnd = subEntity.current_end ? new Date(subEntity.current_end * 1000) : undefined;
-
-    switch (event) {
-      case 'subscription.authenticated':
-        await this.prisma.featuredSubscription.update({ where: { id: record.id }, data: { status: 'authenticated' } });
-        break;
-
-      case 'subscription.activated': {
-        const updated = await this.prisma.featuredSubscription.update({
-          where: { id: record.id },
-          data: { status: 'active', currentStart: currentStart ?? new Date(), currentEnd, shortUrl: null },
-        });
-        await this.startPeriod(updated, currentEnd);
-        await this.notifyOwner(type, record.refId, 'featured_activated');
-        break;
-      }
-
-      case 'subscription.charged': {
-        const payment = (payload as { payment?: { entity?: { id?: string; status?: string } } })?.payment?.entity;
-        const updated = await this.prisma.featuredSubscription.update({
-          where: { id: record.id },
-          data: { status: 'active', paidCount: { increment: 1 }, currentStart, currentEnd },
-        });
-        if (payment?.status === 'captured') {
-          // Close out whatever period is still marked active before opening
-          // the new one, so exactly one row is ever 'active' at a time.
-          await this.prisma.featured.updateMany({ where: { featuredSubscriptionId: record.id, status: 'active' }, data: { status: 'expired' } });
-          await this.startPeriod(updated, currentEnd, payment.id);
-          await this.notifyOwner(type, record.refId, 'featured_renewed');
-          if (payment.id) {
-            const ownerUserId = await this.resolveOwnerUserId(type, record.refId);
-            if (ownerUserId) await this.razorpay.getPayment(payment.id).then((p) => this.wallet.saveUsedMethod(ownerUserId, p)).catch(() => {});
-          }
-        }
-        break;
-      }
-
-      case 'subscription.pending':
-        await this.prisma.featuredSubscription.update({ where: { id: record.id }, data: { status: 'pending' } });
-        break;
-
-      case 'subscription.halted':
-        await this.prisma.featuredSubscription.update({ where: { id: record.id }, data: { status: 'halted' } });
-        await this.prisma.featured.updateMany({ where: { featuredSubscriptionId: record.id, status: 'active' }, data: { status: 'expired' } });
-        await this.notifyOwner(type, record.refId, 'featured_subscription_halted');
-        await this.staffAlerts.alert(`⚠️ Featured auto-renewal halted — ${type} ${record.refId}`).catch(() => {});
-        break;
-
-      case 'subscription.cancelled':
-      case 'subscription.completed':
-      case 'subscription.expired':
-        await this.prisma.featuredSubscription.update({ where: { id: record.id }, data: { status: event.split('.')[1] as never } });
-        await this.prisma.featured.updateMany({ where: { featuredSubscriptionId: record.id, status: 'active' }, data: { status: 'expired' } });
-        break;
-    }
-  }
-
-  /** Creates the immutable period row for one billed cycle and, since no
-   * admin re-review is needed for an already-subscribed placement, an
-   * invoice right alongside it — matching the one-time flow's own "an
-   * invoice is a billing document that claims money changed hands" rule,
-   * just fired from the webhook instead of confirmPayment. */
-  private async startPeriod(
-    sub: { id: string; type: string; refId: string; city: string; amount: number; gstPct: number; gstAmount: number; total: number },
-    currentEnd: Date | undefined,
-    paymentId?: string,
-  ) {
-    const type = sub.type as FeaturedType;
-    const period = await this.prisma.featured.create({
-      data: {
-        type: type as never, refId: sub.refId, city: sub.city, status: 'active', billing: 'monthly',
-        amount: sub.amount, gstPct: sub.gstPct, gstAmount: sub.gstAmount, total: sub.total,
-        expiresAt: currentEnd ?? monthFromNow(), paid: true, paymentId, featuredSubscriptionId: sub.id,
-      },
-    });
-
-    // Invoice is a real billing record regardless of whether there's an
-    // email to notify — same "if (user)", not "if (user.email)" reasoning
-    // as confirmPayment's own invoice creation. Owner-not-found (deleted
-    // account) is the only case that legitimately skips it.
-    const target = await this.resolveOwnerAndLabel(type, sub.refId);
-    if (target) {
-      const business = await this.resolveBillingIdentity(type, sub.refId);
-      await this.invoices.create({
-        type: 'featured', refId: period.id, role: type === 'event' ? 'organizer' : (type as never),
-        payerName: target.name, payerEmail: target.email ?? undefined, payerPhone: target.phone ?? undefined, city: sub.city,
-        payerBrand: business?.brand, payerGstin: business?.gstin, payerPan: business?.pan,
-        description: `Featured placement (auto-renews monthly) — ${target.itemLabel}`,
-        subtotal: sub.amount, gstPct: sub.gstPct, gstAmount: sub.gstAmount, total: sub.total,
-      }).catch(() => {});
-    }
-    return period;
-  }
-
-  private async notifyOwner(type: FeaturedType, refId: string, templateId: 'featured_activated' | 'featured_renewed' | 'featured_subscription_halted') {
-    const target = await this.resolveOwnerAndLabel(type, refId);
-    if (!target?.email) return;
-    await this.email.sendTemplate(target.email, templateId, { name: target.name, itemLabel: target.itemLabel }).catch(() => {});
-  }
-
-  private async resolveOwnerUserId(type: FeaturedType, refId: string): Promise<string | null> {
-    const target = await this.resolveOwnerAndLabel(type, refId);
-    return target?.userId ?? null;
+  async mySubscription(_userId: string, _type: FeaturedType, _refId: string) {
+    return null;
   }
 
   async rates() {
@@ -446,14 +280,8 @@ export class FeaturedService {
     return rows.map((r, i) => ({ ...r, entityName: names[i]?.itemLabel ?? r.refId }));
   }
 
-  /** Read-only admin billing visibility across every auto-renewing Featured
-   * subscription — same "no god-mode write" boundary as
-   * AdminSubscriptionsController: the actual subscribe/cancel actions stay
-   * on the owner's own self-serve endpoints above, admin can only look. */
   async listSubscriptionsForAdmin() {
-    const rows = await this.prisma.featuredSubscription.findMany({ orderBy: { updatedAt: 'desc' } });
-    const names = await Promise.all(rows.map((r) => this.resolveOwnerAndLabel(r.type as FeaturedType, r.refId)));
-    return rows.map((r, i) => ({ ...r, entityName: names[i]?.itemLabel ?? r.refId }));
+    return [];
   }
 
   async adminApprove(id: string) {
