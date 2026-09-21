@@ -548,6 +548,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_myvenues', JSON.stringify(myVenues));
   }, [myVenues]);
+  // Cross-tab logout detection: if another tab clears the auth token
+  // (via clearToken/logout), this tab's cached follow/interested/wishlist
+  // state should also clear to avoid stale state. Listen for storage changes
+  // of the token key and clear state if it's removed.
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'token' && e.newValue === null && user) {
+        setUser(null);
+        setFollowing([]);
+        setInterested([]);
+        setWishlist([]);
+        setFavVenues([]);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [user]);
   const creditWallet = useCallback((phone: string, tx: Omit<WalletTx, 'id' | 'date'>) => {
     setWallets((prev) => ({
       ...prev,
