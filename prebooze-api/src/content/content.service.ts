@@ -71,14 +71,16 @@ export class ContentService {
    * number from the API while a guest's Checkout page showed a different
    * hardcoded estimate risked the two silently diverging. Exposing the
    * real number here is what lets Checkout.tsx show guests the actual fee
-   * they'll be charged instead of a stale guess. No GST — Prebooze isn't
-   * registered. */
+   * they'll be charged instead of a stale guess. gstPct/gstEnabled (real
+   * GSTIN activated 2026-09-21) for the exact same reason — Checkout.tsx's
+   * own optimistic pre-quote estimate needs the real rate too, not a
+   * hardcoded guess, same as bookingFee's own reasoning above. */
   async platformInfo() {
     const s = await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
     return {
       maintenanceMode: s.maintenanceMode, comingSoonMode: s.comingSoonMode, salesPaused: s.salesPaused, socials: s.socials, siteSeo: s.siteSeo, contact: s.contact,
       footerCopyright: s.footerCopyright, feeLabel: s.feeLabel, absorbedBy: s.absorbedBy,
-      bookingFee: s.bookingFee, logoUrl: s.logoUrl, faviconUrl: s.faviconUrl,
+      bookingFee: s.bookingFee, gstPct: s.gstEnabled ? s.gstPct : 0, logoUrl: s.logoUrl, faviconUrl: s.faviconUrl,
     };
   }
 }

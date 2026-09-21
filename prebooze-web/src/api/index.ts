@@ -195,6 +195,10 @@ export const socialReviews = {
 export interface BookingQuote {
   subtotal: number;
   fee: number;
+  // GST (real GSTIN activated 2026-09-21) on the booking fee only — both 0
+  // whenever PlatformSettings.gstEnabled is false, unchanged from before.
+  gstPct?: number;
+  gst?: number;
   discount: number;
   walletCreditUsed: number;
   total: number;
@@ -787,6 +791,10 @@ export interface PlatformInfo {
   feeLabel: string;
   absorbedBy: 'Organizer' | 'Guest' | 'Split' | string;
   bookingFee: number;
+  // 0 whenever PlatformSettings.gstEnabled is false — real GSTIN activated
+  // 2026-09-21. Charged on the booking fee only for a guest ticket
+  // purchase (see BookingsService.priceHold's own doc comment).
+  gstPct: number;
   logoUrl: string | null;
   faviconUrl: string | null;
 }

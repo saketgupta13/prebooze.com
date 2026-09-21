@@ -147,8 +147,30 @@ export default function SettingsLive() {
         <div className="tiny hint">
           % of the discounted ticket price, not a flat ₹ amount — sized to cover the payment gateway's cut plus the WhatsApp confirmation cost.
         </div>
+      </div>
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="display" style={{ fontWeight: 700 }}>GST</div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <Toggle on={settings.gstEnabled} onChange={() => set('gstEnabled', !settings.gstEnabled)} />
+          <span style={{ fontSize: 13 }}>Charge GST (kill switch — instant rollback without a deploy if something's wrong)</span>
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div className="field" style={{ width: 120 }}>
+            <label>GST %</label>
+            <input className="input" inputMode="decimal" value={settings.gstPct} onChange={(e) => set('gstPct', parseFloat(e.target.value) || 0)} />
+          </div>
+          <div className="field" style={{ flex: 1, minWidth: 220 }}>
+            <label>GSTIN</label>
+            <input className="input" value={settings.gstin ?? ''} onChange={(e) => set('gstin', e.target.value || null)} placeholder="e.g. 27FDXPG4610R1ZO" />
+          </div>
+        </div>
         <div className="tiny hint">
-          Prebooze isn't GST-registered, so no GST is charged or shown anywhere — invoices print as a plain "Invoice".
+          When on: guest ticket bookings charge GST on the booking fee only (not the full ticket price — the ticket
+          itself is the organizer's own sale). Featured placements and Marketing campaigns charge GST on the full
+          amount (that revenue is Prebooze's own). Invoices print as a real "Tax Invoice" with this GSTIN shown, and
+          split into CGST+SGST or IGST depending on the buyer's state. When off, everything behaves exactly as before
+          GST registration — invoices stay plain "Invoice", no GST is added anywhere.
         </div>
       </div>
 

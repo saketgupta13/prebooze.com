@@ -1025,6 +1025,17 @@ model PlatformSettings {
   // ticket prices; treated as general overhead instead.
   bookingFee Float  @default(3)
   gstPct     Int    @default(18)
+  // Real GSTIN activated 2026-09-21 (Form GST REG-06, Regular scheme,
+  // Maharashtra). gstEnabled is a kill switch independent of gstPct/gstin
+  // being set — lets the real tax-calculation code ship and be verified
+  // against a live PhonePe test payment before actually charging any real
+  // guest/organizer GST, and gives an instant rollback (flip false) without
+  // a deploy if something's wrong post-launch. Every GST call site
+  // (BookingsService.priceHold, FeaturedService.request,
+  // MarketingService.requestForEvent) checks this before applying gstPct —
+  // false behaves exactly like the pre-GST code (gstAmount stays 0).
+  gstEnabled Boolean @default(false)
+  gstin      String?
 
   // Branding — admin-uploaded overrides for the wordmark logo (guest site
   // header/footer/login, admin panel, transactional emails) and the browser
@@ -1284,8 +1295,16 @@ model MarketingOrder {
   eventId    String?
   eventTitle String?
 
-  amount    Int // what the organizer/venue actually paid, in rupees
+  amount    Int // the base rate BEFORE gst — see Featured.gstPct's identical doc comment
   marginPct Int // Prebooze's cut, locked in at purchase time (currently 25)
+  // Mirrors Featured.gstPct/gstAmount exactly — 0/0 on every pre-GST-launch
+  // row and on any row created while PlatformSettings.gstEnabled is false.
+  // total (amount + gstAmount) is what's actually charged via PhonePe and
+  // what the invoice's `total` mirrors; null only on legacy pre-this-field
+  // rows, never on a new one.
+  gstPct    Float?
+  gstAmount Int?
+  total     Int?
   status    FeaturedStatus @default(pending)
 
   // Filled in by admin once the real Meta campaign has actually been
@@ -2383,6 +2402,12 @@ model Invoice {
   walletCredit Float    @default(0)
   gstPct      Float     @default(0)
   gstAmount   Float     @default(0)
+  // Non-zero only for an inter-state supply (see common/gst.ts) — gstAmount
+  // is always the total either way, this just says how to label it on the
+  // PDF: igstAmount>0 shows one "IGST" line for the full gstAmount; 0 (the
+  // default, and every intra-state or pre-GST-launch invoice) splits
+  // gstAmount into CGST+SGST (half each) instead.
+  igstAmount  Float     @default(0)
   total       Float
   status      String    @default("issued") // issued | void
   issuedAt    DateTime  @default(now())

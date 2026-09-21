@@ -7,6 +7,7 @@ import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { AnalyticsReportService } from '../analytics/analytics-report.service';
 import { calculateGatewayFee, type PaymentMethod } from '../payments/gateway-fee';
+import { computeGst } from '../common/gst';
 
 export type MarketingOwnerType = 'organizer' | 'venue';
 
@@ -37,17 +38,17 @@ export class MarketingService {
     private analyticsReport: AnalyticsReportService,
   ) {}
 
-  private async resolveOwner(userId: string, ownerType: MarketingOwnerType): Promise<{ organizerId?: string; venueId?: string; brand: string; city: string }> {
+  private async resolveOwner(userId: string, ownerType: MarketingOwnerType): Promise<{ organizerId?: string; venueId?: string; brand: string; city: string; state: string | null }> {
     if (ownerType === 'organizer') {
       const org = await this.prisma.organizer.findUnique({ where: { userId } });
       if (!org) throw new ForbiddenException('Not an organizer account');
-      return { organizerId: org.id, brand: org.brandName, city: org.city };
+      return { organizerId: org.id, brand: org.brandName, city: org.city, state: org.state ?? null };
     }
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user?.venueId) throw new ForbiddenException('Not a venue account');
     const venue = await this.prisma.venue.findUnique({ where: { id: user.venueId } });
     if (!venue) throw new NotFoundException('Venue not found');
-    return { venueId: venue.id, brand: venue.name, city: venue.city };
+    return { venueId: venue.id, brand: venue.name, city: venue.city, state: venue.state ?? null };
   }
 
   private ownerIdOf(ownerType: MarketingOwnerType, owner: { organizerId?: string; venueId?: string }): string {
@@ -81,7 +82,7 @@ export class MarketingService {
 
   async rates() {
     const s = await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
-    return { perEvent: s.marketingPerEvent, monthly: s.marketingMonthly, marginPct: s.marketingMarginPct };
+    return { perEvent: s.marketingPerEvent, monthly: s.marketingMonthly, marginPct: s.marketingMarginPct, gstPct: s.gstEnabled ? s.gstPct : 0 };
   }
 
   async updateRates(body: { perEvent?: number; monthly?: number; marginPct?: number }) {
@@ -99,15 +100,24 @@ export class MarketingService {
   // isSubscriptionPeriod/periodEnd stay in the response only for legacy rows
   // from the now-removed Razorpay auto-renewal (marketingSubscriptionId set)
   // — every new one-time order this service creates leaves both null.
-  private toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; status: string; createdAt: Date; marketingSubscriptionId: string | null; periodEnd: Date | null }) {
+  // `amount` stays the base rate (unchanged meaning, matches every existing
+  // caller); `total` is what was/will be actually charged, amount+GST —
+  // equal to amount on every pre-GST-launch or gstEnabled:false order.
+  private toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; gstPct: number | null; gstAmount: number | null; total: number | null; status: string; createdAt: Date; marketingSubscriptionId: string | null; periodEnd: Date | null }) {
     return {
-      id: row.id, eventId: row.eventId, eventTitle: row.eventTitle, amount: row.amount, status: row.status,
+      id: row.id, eventId: row.eventId, eventTitle: row.eventTitle, amount: row.amount,
+      gstPct: row.gstPct ?? 0, gstAmount: row.gstAmount ?? 0, total: row.total ?? row.amount, status: row.status,
       createdAt: row.createdAt, isSubscriptionPeriod: !!row.marketingSubscriptionId, periodEnd: row.periodEnd,
     };
   }
 
   // ---------- pay-per-event (one-time) ----------
 
+  // GST (real GSTIN activated 2026-09-21) on the FULL amount — same
+  // reasoning as FeaturedService.request()'s identical doc comment: this
+  // whole amount is Prebooze's own direct revenue, not a pass-through of
+  // an organizer's ticket sale. Locked in at request time, same as amount/
+  // marginPct already were.
   async requestForEvent(userId: string, ownerType: MarketingOwnerType, eventId: string) {
     const owner = await this.resolveOwner(userId, ownerType);
     const ownerId = this.ownerIdOf(ownerType, owner);
@@ -118,6 +128,10 @@ export class MarketingService {
 
     const rates = await this.rates();
     const amount = rates.perEvent;
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+    const gstPct = settings?.gstEnabled ? (settings?.gstPct ?? 0) : 0;
+    const gstAmount = Math.round((amount * gstPct) / 100);
+    const total = amount + gstAmount;
 
     const row = await this.prisma.marketingOrder.create({
       data: {
@@ -125,7 +139,7 @@ export class MarketingService {
         organizerId: ownerType === 'organizer' ? ownerId : undefined,
         venueId: ownerType === 'venue' ? ownerId : undefined,
         eventId: event.id, eventTitle: event.title,
-        amount, marginPct: rates.marginPct, status: 'pending',
+        amount, marginPct: rates.marginPct, gstPct, gstAmount, total, status: 'pending',
       },
     });
 
@@ -134,10 +148,10 @@ export class MarketingService {
     // the same orderId query param to resume.
     const returnPath = ownerType === 'organizer' ? '/organizer/marketing' : '/venue/hosting/marketing';
     const returnUrl = `${process.env.WEB_APP_URL || 'https://prebooze.com'}${returnPath}?phonepe_return=1&orderId=${encodeURIComponent(row.id)}`;
-    const order = await this.phonepe.createOrder(row.id, amount * 100, returnUrl);
+    const order = await this.phonepe.createOrder(row.id, total * 100, returnUrl);
     await this.prisma.marketingOrder.update({ where: { id: row.id }, data: { phonepeMerchantOrderId: row.id } });
 
-    return { id: row.id, amount, phonepeRedirectUrl: order.redirectUrl };
+    return { id: row.id, amount, gstPct, gstAmount, total, phonepeRedirectUrl: order.redirectUrl };
   }
 
   async confirmPayment(userId: string, ownerType: MarketingOwnerType, id: string) {
@@ -151,7 +165,7 @@ export class MarketingService {
 
     const status = await this.phonepe.getOrderStatus(row.phonepeMerchantOrderId);
     if (!status || status.state !== 'COMPLETED') throw new BadRequestException('Payment verification failed');
-    if (status.amount !== row.amount * 100) {
+    if (status.amount !== (row.total ?? row.amount) * 100) {
       throw new BadRequestException(`This order's price changed since payment — contact support with reference ${row.phonepeMerchantOrderId}`);
     }
 
@@ -169,14 +183,16 @@ export class MarketingService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (user) {
       const business = await this.resolveBillingIdentity(ownerType, ownerId);
+      const gstSplit = computeGst(row.amount, row.gstPct ?? 0, owner.state);
       await this.invoices.create({
         type: 'marketing', refId: row.id, role: ownerType,
         payerName: user.name, payerEmail: user.email, payerPhone: user.phone, city: owner.city,
         payerBrand: business?.brand, payerGstin: business?.gstin, payerPan: business?.pan,
         description: `Marketing campaign — ${row.eventTitle ?? owner.brand}`,
-        subtotal: row.amount, gstPct: 0, gstAmount: 0, total: row.amount,
+        subtotal: row.amount, gstPct: gstSplit.gstPct, gstAmount: gstSplit.gstAmount, igstAmount: gstSplit.igstAmount,
+        total: row.total ?? row.amount,
       }).catch(() => {});
-      await this.staffAlerts.alert(`📣 New marketing order paid — ${owner.brand} (${row.eventTitle ?? 'event'}), ₹${row.amount}`).catch(() => {});
+      await this.staffAlerts.alert(`📣 New marketing order paid — ${owner.brand} (${row.eventTitle ?? 'event'}), ₹${row.total ?? row.amount}`).catch(() => {});
     }
 
     return this.toPublicOrder(updated);

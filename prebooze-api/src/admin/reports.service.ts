@@ -10,6 +10,9 @@ const LIVE_BOOKING_STATUSES: BookingStatus[] = ['confirmed', 'refund_requested']
 
 export interface SettingsInput {
   bookingFee?: number;
+  gstPct?: number;
+  gstEnabled?: boolean;
+  gstin?: string | null;
   feeLabel?: string;
   absorbedBy?: string;
   payoutDay?: string;
@@ -29,7 +32,7 @@ export interface SettingsInput {
 }
 
 const SETTINGS_FIELDS: (keyof SettingsInput)[] = [
-  'bookingFee', 'feeLabel', 'absorbedBy', 'payoutDay', 'autoPayout',
+  'bookingFee', 'gstPct', 'gstEnabled', 'gstin', 'feeLabel', 'absorbedBy', 'payoutDay', 'autoPayout',
   'weeklyEmail', 'whatsappAlerts', 'require2fa', 'maintenanceMode', 'salesPaused', 'comingSoonMode',
   'socials', 'siteSeo', 'contact', 'footerCopyright', 'logoUrl', 'faviconUrl',
 ];

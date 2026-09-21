@@ -35,7 +35,7 @@ export default function Checkout() {
     setDefaultPayMethod, refreshWallet, city,
   } = useApp();
   const navigate = useNavigate();
-  const { feeLabel, absorbedBy, bookingFee, socials } = usePlatformInfo();
+  const { feeLabel, absorbedBy, bookingFee, gstPct, socials } = usePlatformInfo();
   const [searchParams] = useSearchParams();
 
   const wantsLive = Boolean(selection?.eventSlug) && isBackendEnabled();
@@ -283,11 +283,14 @@ export default function Checkout() {
   // actually charges. This is a display-only estimate shown while the real
   // quote() call is still resolving.
   const fee = Math.round(((subtotal - discount) * bookingFee) / 100);
+  // Same estimate-only reasoning as `fee` above — gstPct comes from the
+  // same real platform-info source, 0 whenever GST isn't enabled.
+  const gstEstimate = Math.round((fee * gstPct) / 100);
 
   const [useCredit, setUseCredit] = useState(true);
   const effectiveWalletBalance = liveEvent ? liveWalletBalance : walletBalance;
-  const creditApplied = useCredit ? Math.min(effectiveWalletBalance, Math.max(0, subtotal + fee - discount)) : 0;
-  const total = subtotal + fee - discount - creditApplied;
+  const creditApplied = useCredit ? Math.min(effectiveWalletBalance, Math.max(0, subtotal + fee + gstEstimate - discount)) : 0;
+  const total = subtotal + fee + gstEstimate - discount - creditApplied;
 
   // ---- real, server-priced quote — never trust the client math above for a
   // real event; it's only the pre-quote placeholder shown before this resolves. ----
@@ -328,6 +331,8 @@ export default function Checkout() {
 
   const finalSubtotal = quote?.subtotal ?? subtotal;
   const finalFee = quote?.fee ?? fee;
+  const finalGst = quote?.gst ?? gstEstimate;
+  const finalGstPct = quote?.gstPct ?? gstPct;
   const finalDiscount = quote?.discount ?? discount;
   const finalCredit = quote?.walletCreditUsed ?? creditApplied;
   const finalTotal = quote?.total ?? total;
@@ -1187,6 +1192,12 @@ export default function Checkout() {
               </span>
               <span>₹{finalFee}</span>
             </div>
+            {finalGst > 0 && (
+              <div className="kv">
+                <span className="k">GST ({finalGstPct}% on {feeLabel.toLowerCase()})</span>
+                <span>₹{finalGst}</span>
+              </div>
+            )}
             {finalDiscount > 0 && (
               <div className="kv">
                 <span className="k accent">Coupon {appliedCode}</span>
@@ -1196,7 +1207,7 @@ export default function Checkout() {
             {effectiveWalletBalance > 0 && (
               <label className="checkbox-row" style={{ margin: '8px 0 2px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input type="checkbox" checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} />
-                <Wallet size={13} /> Use ₹{Math.min(effectiveWalletBalance, Math.max(0, finalSubtotal + finalFee - finalDiscount))} Prebooze credit (balance ₹{effectiveWalletBalance})
+                <Wallet size={13} /> Use ₹{Math.min(effectiveWalletBalance, Math.max(0, finalSubtotal + finalFee + finalGst - finalDiscount))} Prebooze credit (balance ₹{effectiveWalletBalance})
               </label>
             )}
             {finalCredit > 0 && (

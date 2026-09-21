@@ -8,6 +8,7 @@ import { PhonePeService } from '../payments/phonepe.service';
 import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { calculateGatewayFee, type PaymentMethod } from '../payments/gateway-fee';
+import { computeGst } from '../common/gst';
 
 /** Mirrors prebooze-web's FEATURED_PRICING (src/data/mock.ts), including
  * venueMonthly (the frontend contract, src/api/index.ts featured.rates(),
@@ -39,7 +40,7 @@ export class FeaturedService {
   /** Resolves ownership + the server-trusted city/expiry for a request —
    * never the client's. Throws ForbiddenException if the caller doesn't
    * actually own refId. */
-  private async resolveTarget(userId: string, type: FeaturedType, refId: string): Promise<{ city: string; expiresAt: Date }> {
+  private async resolveTarget(userId: string, type: FeaturedType, refId: string): Promise<{ city: string; state: string | null; expiresAt: Date }> {
     switch (type) {
       case 'event': {
         const org = await this.prisma.organizer.findUnique({ where: { userId } });
@@ -47,48 +48,52 @@ export class FeaturedService {
         if (!org || !event || event.organizerId !== org.id) throw new ForbiddenException();
         const city = event.venue?.city ?? event.privateCity;
         if (!city) throw new ForbiddenException();
-        return { city, expiresAt: event.date };
+        return { city, state: event.venue?.state ?? null, expiresAt: event.date };
       }
       case 'organizer': {
         const org = await this.prisma.organizer.findUnique({ where: { userId } });
         if (!org || org.id !== refId) throw new ForbiddenException();
-        return { city: org.city, expiresAt: monthFromNow() };
+        return { city: org.city, state: org.state ?? null, expiresAt: monthFromNow() };
       }
       case 'promoter': {
         const p = await this.prisma.promoter.findUnique({ where: { userId } });
         if (!p || p.slug !== refId) throw new ForbiddenException();
-        return { city: p.city, expiresAt: monthFromNow() };
+        return { city: p.city, state: p.state ?? null, expiresAt: monthFromNow() };
       }
       case 'lineup': {
         const l = await this.prisma.lineup.findUnique({ where: { userId } });
         if (!l || l.slug !== refId) throw new ForbiddenException();
-        return { city: l.city, expiresAt: monthFromNow() };
+        return { city: l.city, state: l.state ?? null, expiresAt: monthFromNow() };
       }
       case 'venue': {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user?.venueId || user.venueId !== refId) throw new ForbiddenException();
         const venue = await this.prisma.venue.findUnique({ where: { id: refId } });
         if (!venue) throw new NotFoundException();
-        return { city: venue.city, expiresAt: monthFromNow() };
+        return { city: venue.city, state: venue.state ?? null, expiresAt: monthFromNow() };
       }
       default:
         throw new BadRequestException('Unknown featured type');
     }
   }
 
-  /** Creates the request AND a real Razorpay order for the amount owed —
+  /** Creates the request AND a real PhonePe order for the amount owed —
    * the request stays `paid: false` until `confirmPayment` verifies a real
-   * checkout signature; `adminApprove` refuses to approve an unpaid one.
-   * No Invoice is created here — an invoice is a billing document that
-   * claims money changed hands, and at this point it hasn't. It used to be
-   * created unconditionally right here, so cancelling the Razorpay checkout
-   * still left behind a real, "issued" invoice for a payment that never
-   * happened. It's created in confirmPayment now, only once the signature
-   * actually verifies. Prebooze isn't GST-registered, so no GST is added on
-   * top of `amount` — `gstPct`/`gstAmount` stay 0 and `total` just mirrors
-   * `amount`; the columns are left in the schema (rather than dropped) so
-   * a future registration doesn't need a fresh migration to reintroduce
-   * them. */
+   * payment; `adminApprove` refuses to approve an unpaid one. No Invoice is
+   * created here — an invoice is a billing document that claims money
+   * changed hands, and at this point it hasn't. It used to be created
+   * unconditionally right here, so cancelling checkout still left behind a
+   * real, "issued" invoice for a payment that never happened. It's created
+   * in confirmPayment now, only once the payment actually verifies. GST
+   * (real GSTIN activated 2026-09-21) is charged on the FULL amount here —
+   * unlike a guest ticket booking, this whole amount IS Prebooze's own
+   * revenue (a direct Featured-placement sale), not a pass-through of an
+   * organizer's ticket sale. gstPct/gstAmount lock in the rate at request
+   * time (not confirmPayment time) so a later admin rate change never
+   * retroactively changes what this exact request already quoted — same
+   * reasoning the pre-existing doc comment on these columns already gave
+   * for Razorpay. gstEnabled false (the default, and every pre-launch
+   * request) keeps both 0 and total===amount, unchanged from before. */
   async request(userId: string, input: { type: FeaturedType; refId: string; billing: 'per_event' | 'monthly' }) {
     if (!input.type || !input.refId) throw new BadRequestException('type and refId are required');
     if (input.type === 'event' && input.billing !== 'per_event') throw new BadRequestException('Events are featured per-event, not monthly');
@@ -97,13 +102,16 @@ export class FeaturedService {
     const { city, expiresAt } = await this.resolveTarget(userId, input.type, input.refId);
     const rates = await this.rates();
     const amount = input.billing === 'per_event' ? rates.perEvent : rates[`${input.type}Monthly` as keyof typeof rates];
-    const total = amount;
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+    const gstPct = settings?.gstEnabled ? (settings?.gstPct ?? 0) : 0;
+    const gstAmount = Math.round((amount * gstPct) / 100);
+    const total = amount + gstAmount;
 
     // matches the mock's requestFeatured: a fresh request replaces whatever
     // pending/active/expired record already existed for this exact item
     await this.prisma.featured.deleteMany({ where: { type: input.type as never, refId: input.refId } });
     let row = await this.prisma.featured.create({
-      data: { type: input.type as never, refId: input.refId, city, billing: input.billing as never, amount, expiresAt, gstPct: 0, gstAmount: 0, total },
+      data: { type: input.type as never, refId: input.refId, city, billing: input.billing as never, amount, expiresAt, gstPct, gstAmount, total },
     });
 
     // Only ever reached for type 'event' (the validation above requires
@@ -141,7 +149,7 @@ export class FeaturedService {
   async confirmPayment(userId: string, id: string) {
     const row = await this.prisma.featured.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Featured request not found');
-    await this.resolveTarget(userId, row.type as FeaturedType, row.refId); // throws if not the owner
+    const target = await this.resolveTarget(userId, row.type as FeaturedType, row.refId); // throws if not the owner
     if (!row.phonepeMerchantOrderId) throw new BadRequestException('This request has no payment to confirm');
     if (row.paid) return row;
 
@@ -168,12 +176,18 @@ export class FeaturedService {
     if (user) {
       const itemLabel = `${row.type} (${row.refId})`;
       const business = await this.resolveBillingIdentity(row.type as FeaturedType, row.refId);
+      // Split recomputed fresh here (not stored on the row) using the
+      // rate locked in at request() time — place of supply is the buyer's
+      // own registered state, same reasoning as MarketingService's
+      // identical split.
+      const gstSplit = computeGst(row.amount, row.gstPct ?? 0, target.state);
       await this.invoices.create({
         type: 'featured', refId: row.id, role: row.type === 'event' ? 'organizer' : (row.type as never),
         payerName: user.name, payerEmail: user.email, payerPhone: user.phone, city: row.city,
         payerBrand: business?.brand, payerGstin: business?.gstin, payerPan: business?.pan,
         description: `Featured placement — ${itemLabel}`,
-        subtotal: row.amount, gstPct: row.gstPct ?? 0, gstAmount: row.gstAmount ?? 0, total: row.total ?? row.amount,
+        subtotal: row.amount, gstPct: gstSplit.gstPct, gstAmount: gstSplit.gstAmount, igstAmount: gstSplit.igstAmount,
+        total: row.total ?? row.amount,
       }).catch(() => {});
     }
 

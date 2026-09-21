@@ -1150,6 +1150,9 @@ export const liveRoles = {
 
 export interface LiveSettings {
   bookingFee: number;
+  gstPct: number;
+  gstEnabled: boolean;
+  gstin: string | null;
   feeLabel: string;
   absorbedBy: string;
   payoutDay: string;

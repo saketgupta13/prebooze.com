@@ -25,6 +25,7 @@ import { StaffAlertsService } from '../notifications/staff-alerts';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { LeadsService } from '../admin/leads.service';
 import { getGatewayAndMethod, calculateGatewayFee, getGatewayFeeLostOnRefund, type PaymentMethod } from '../payments/gateway-fee';
+import { computeGst } from '../common/gst';
 
 const FALLBACK_FEE_PCT = 3; // % — used only if PlatformSettings row is somehow missing
 const RAZORPAY_FEE_PCT = 2.36; // confirmed against real live payments 2026-08-27
@@ -269,15 +270,30 @@ export class BookingsService {
     // a fully circular fee-depends-on-credit-depends-on-fee formula.
     const fee = Math.round(((subtotal - discount) * (settings?.bookingFee ?? FALLBACK_FEE_PCT)) / 100);
 
+    // ---- GST — real GSTIN activated 2026-09-21. Charged only on Prebooze's
+    // own booking fee, not the full ticket price: the ticket itself is the
+    // organizer's sale (their own, separate tax liability), Prebooze's only
+    // taxable supply here is the service fee it actually earns. Same
+    // gstEnabled kill-switch reasoning as PlatformSettings.gstEnabled's own
+    // doc comment — false (the default, and every pre-launch booking)
+    // behaves exactly like the old always-0 code. */
+    const gstPct = settings?.gstEnabled ? (settings?.gstPct ?? 0) : 0;
+    // Named bookingGst, not gst — create()'s own gateway-fee accounting
+    // below already uses `gst` for a completely different thing (the
+    // payment gateway's own GST on ITS processing fee, an expense to
+    // Prebooze, not this — the GST Prebooze charges the guest on its
+    // booking fee, real revenue owed to the government).
+    const bookingGst = Math.round((fee * gstPct) / 100);
+
     // ---- wallet credit ----
     const balance = await this.walletBalance(userId);
     const requestedCredit = Math.max(0, requestedWalletCredit ?? 0);
-    const walletCreditUsed = Math.min(requestedCredit, balance, Math.max(0, subtotal + fee - discount));
+    const walletCreditUsed = Math.min(requestedCredit, balance, Math.max(0, subtotal + fee + bookingGst - discount));
 
-    const total = subtotal + fee - discount - walletCreditUsed;
+    const total = subtotal + fee + bookingGst - discount - walletCreditUsed;
     return {
       hold, event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies,
-      fee, discount, couponRow, walletCreditUsed, total,
+      fee, gstPct, bookingGst, discount, couponRow, walletCreditUsed, total,
     };
   }
 
@@ -364,7 +380,7 @@ export class BookingsService {
       await this.prisma.cart.updateMany({ where: { holdId }, data: { phonepeMerchantOrderId: merchantOrderId } }).catch(() => {});
     }
     return {
-      subtotal: p.subtotal, fee: p.fee, discount: p.discount, walletCreditUsed: p.walletCreditUsed, total: p.total,
+      subtotal: p.subtotal, fee: p.fee, gstPct: p.gstPct, gst: p.bookingGst, discount: p.discount, walletCreditUsed: p.walletCreditUsed, total: p.total,
       promoterMarkupApplies: p.promoterMarkupApplies,
       promoterShare: p.promoterMarkupApplies ? p.promoterCommission : 0,
       platformShare: p.promoterMarkupApplies ? p.commission : 0,
@@ -597,7 +613,7 @@ export class BookingsService {
         throw reopenErr;
       }
     }
-    const { event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies, fee, discount, couponRow, walletCreditUsed, total } = priced;
+    const { event, lines, qty, baseSubtotal, subtotal, commission, promoterCommission, promoterMarkupApplies, fee, gstPct, bookingGst, discount, couponRow, walletCreditUsed, total } = priced;
 
     // Prebooze's own promoter-referral commission — completely separate
     // from promoterCommission above (organizer-funded, requires
@@ -820,6 +836,14 @@ export class BookingsService {
       // running total per event per category, not one row per booking
       await this.postEventLedger(tx, event.id, event.title, 'Ticket commission', 'income', commission);
       await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
+      // Kept as its own category, deliberately never folded into "Booking
+      // fees" — this is GST collected from the guest on Prebooze's behalf,
+      // owed to the government on the next GST return, not real Prebooze
+      // revenue. This ledger only models income/expense (no liability kind),
+      // so it's bucketed as 'income' for now with a name that makes the
+      // distinction obvious in the finance ledger UI; flag to an accountant
+      // if a real liability line is wanted instead.
+      await this.postEventLedger(tx, event.id, event.title, 'GST collected (payable)', 'income', bookingGst);
       // Real cost of this sale, previously invisible — only deducted from a
       // later refund (see refundDeductionFor), never recorded as its own
       // expense on the sale itself until now. Post gateway fees based on
@@ -890,14 +914,26 @@ export class BookingsService {
     }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined).catch(() => {});
     await this.maybeNudgeProfileReward(userId, event.title).catch(() => {});
 
-    // ---- invoice: no GST — Prebooze isn't GST-registered, so this is a
-    // plain invoice, never a "Tax Invoice" (see invoice-pdf.ts) ----
+    // ---- invoice: GST (real GSTIN activated 2026-09-21) on the booking fee
+    // only — see priceHold()'s own doc comment. gstPct/bookingGst are both 0
+    // on any booking made while PlatformSettings.gstEnabled is false, so
+    // this stays a plain Invoice (never "Tax Invoice") until the switch is
+    // flipped. Place of supply for event-admission services is the event's
+    // own location (IGST Act s.12(6)) — venue.state when there's a real
+    // venue, else a City-table lookup on privateCity for a private-address
+    // event; computeGst's own doc comment covers the unresolved-state
+    // fallback. */
     if (subtotal > 0) {
+      const eventState = ticketVenue?.state
+        ?? (event.privateCity ? (await this.prisma.city.findUnique({ where: { name: event.privateCity }, include: { state: true } }).catch(() => null))?.state?.name : null)
+        ?? null;
+      const gstSplit = computeGst(fee, gstPct, eventState);
       await this.invoices.create({
         type: 'booking', refId: id, role: 'guest',
         payerName: input.mainGuest.trim(), payerEmail: user.email, payerPhone: input.whatsapp,
         city: ticketVenue?.city, description: `${qty}× ${event.title}`,
-        subtotal, fee, discount, walletCredit: walletCreditUsed, total,
+        subtotal, fee, gstPct: gstSplit.gstPct, gstAmount: gstSplit.gstAmount, igstAmount: gstSplit.igstAmount,
+        discount, walletCredit: walletCreditUsed, total,
       }).catch(() => {});
     }
 
@@ -998,7 +1034,13 @@ export class BookingsService {
     const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
     // Same as priceHold() — % of subtotal, no booking fee on a free ticket.
     const fee = isComp || tierPrice === 0 ? 0 : Math.round((subtotal * (settings?.bookingFee ?? FALLBACK_FEE_PCT)) / 100);
-    const total = subtotal + fee;
+    // Same GST-on-the-booking-fee-only rule as priceHold() — no Invoice PDF
+    // exists for a manual/door-sale booking, so this only affects the
+    // ledger and the total the guest/staff-recorded buyer is actually
+    // charged, not any invoice line item.
+    const bookingGstPct = settings?.gstEnabled ? (settings?.gstPct ?? 0) : 0;
+    const bookingGst = Math.round((fee * bookingGstPct) / 100);
+    const total = subtotal + fee + bookingGst;
 
     const id = '#TKT-' + randomInt(10000, 99999);
     const partySize = partySizeFromTierName(tier.name);

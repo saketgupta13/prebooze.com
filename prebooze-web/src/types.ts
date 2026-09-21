@@ -299,6 +299,12 @@ export interface MarketingOrder {
   eventId: string | null;
   eventTitle: string | null;
   amount: number;
+  // 0 whenever GST isn't enabled — real GSTIN activated 2026-09-21. `total`
+  // (amount+gstAmount) is what was actually charged; `amount` keeps its
+  // original pre-GST meaning (the base rate) for anything still reading it.
+  gstPct: number;
+  gstAmount: number;
+  total: number;
   status: 'pending' | 'active' | 'rejected' | 'expired';
   createdAt: string;
   isSubscriptionPeriod: boolean;
@@ -318,7 +324,7 @@ export interface MarketingSubscription {
   shortUrl: string | null;
 }
 
-export interface MarketingRates { perEvent: number; monthly: number; }
+export interface MarketingRates { perEvent: number; monthly: number; gstPct: number; }
 
 /** Redacted on-site funnel data for one event with an active/completed paid
  * marketing arrangement — see MarketingService.analyticsFor. No revenue,

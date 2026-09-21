@@ -34,6 +34,7 @@ const FALLBACK: PlatformInfo = {
   feeLabel: 'Booking fee',
   absorbedBy: 'Guest',
   bookingFee: 1.5,
+  gstPct: 0,
   logoUrl: null,
   faviconUrl: null,
 };
@@ -60,6 +61,7 @@ function merge(live: Partial<PlatformInfo>): PlatformInfo {
     feeLabel: live.feeLabel?.trim() || FALLBACK.feeLabel,
     absorbedBy: live.absorbedBy || FALLBACK.absorbedBy,
     bookingFee: live.bookingFee ?? FALLBACK.bookingFee,
+    gstPct: live.gstPct ?? FALLBACK.gstPct,
     logoUrl: live.logoUrl?.trim() || FALLBACK.logoUrl,
     faviconUrl: live.faviconUrl?.trim() || FALLBACK.faviconUrl,
   };

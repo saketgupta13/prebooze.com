@@ -9,8 +9,11 @@ const MUTED = '#666666';
  * downloaded/resent — nothing binary is kept in the database, the row's
  * scalar fields are the single source of truth and this is a pure
  * projection of them, same reasoning as rendering an email from data
- * instead of storing rendered HTML. */
-export function invoicePdfBuffer(inv: Invoice): Promise<Buffer> {
+ * instead of storing rendered HTML. "Tax Invoice" (with the seller's GSTIN)
+ * only for a row with real gstAmount — every pre-GST-launch invoice and
+ * every one still issued while PlatformSettings.gstEnabled is false stays a
+ * plain Invoice, unchanged from before GST registration. */
+export function invoicePdfBuffer(inv: Invoice, sellerGstin: string | null): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 50 });
     const chunks: Buffer[] = [];
@@ -18,10 +21,11 @@ export function invoicePdfBuffer(inv: Invoice): Promise<Buffer> {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
+    const isTaxInvoice = inv.gstAmount > 0 && !!sellerGstin;
+
     doc.fillColor(GREEN).fontSize(20).font('Helvetica-Bold').text('PREBOOZE', 50, 50);
-    // "Tax Invoice" is reserved for a GST-registered issuer — Prebooze
-    // isn't, so this is always a plain Invoice.
-    doc.fillColor('#000').fontSize(9).font('Helvetica').text('Invoice', 50, 74);
+    doc.fillColor('#000').fontSize(9).font('Helvetica').text(isTaxInvoice ? 'Tax Invoice' : 'Invoice', 50, 74);
+    if (isTaxInvoice) doc.fillColor(MUTED).fontSize(8).text(`Seller GSTIN: ${sellerGstin}`, 50, 87);
 
     doc.fontSize(10).fillColor('#000');
     doc.text(`Invoice No.: ${inv.number}`, 350, 50, { align: 'right', width: 195 });
@@ -62,6 +66,23 @@ export function invoicePdfBuffer(inv: Invoice): Promise<Buffer> {
       rowY += 20;
       doc.fillColor(MUTED).text('Booking fee', 58, rowY, { width: 380 });
       doc.fillColor('#000').text(fmt(inv.fee), 470, rowY, { align: 'right', width: 67 });
+    }
+    // igstAmount>0 is always an inter-state supply — one IGST line for the
+    // full gstAmount. Otherwise (intra-state, or every pre-GST-launch row
+    // where both stay 0) split gstAmount into CGST+SGST, half each — see
+    // Invoice.igstAmount's own doc comment.
+    if (inv.igstAmount > 0) {
+      rowY += 20;
+      doc.fillColor(MUTED).text(`IGST (${inv.gstPct}%)`, 58, rowY, { width: 380 });
+      doc.fillColor('#000').text(fmt(inv.igstAmount), 470, rowY, { align: 'right', width: 67 });
+    } else if (inv.gstAmount > 0) {
+      const half = Math.round(inv.gstAmount / 2);
+      rowY += 20;
+      doc.fillColor(MUTED).text(`CGST (${inv.gstPct / 2}%)`, 58, rowY, { width: 380 });
+      doc.fillColor('#000').text(fmt(half), 470, rowY, { align: 'right', width: 67 });
+      rowY += 20;
+      doc.fillColor(MUTED).text(`SGST (${inv.gstPct / 2}%)`, 58, rowY, { width: 380 });
+      doc.fillColor('#000').text(fmt(inv.gstAmount - half), 470, rowY, { align: 'right', width: 67 });
     }
     if (inv.discount > 0) {
       rowY += 20;

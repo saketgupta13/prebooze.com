@@ -132,7 +132,7 @@ export default function Marketing() {
               <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <span>{e.title} <span className="tiny muted">· {fmtDate(e.date)}</span></span>
                 <button className="btn btn-pri btn-sm" disabled={busyEventId === e.id || !rates} onClick={() => buyForEvent(e.id)}>
-                  {busyEventId === e.id ? 'Opening payment…' : `Run ads for ${rates ? fmtMoney(rates.perEvent) : ''} →`}
+                  {busyEventId === e.id ? 'Opening payment…' : `Run ads for ${rates ? fmtMoney(rates.perEvent + Math.round((rates.perEvent * rates.gstPct) / 100)) : ''} →`}
                 </button>
               </div>
             ))}
@@ -155,7 +155,7 @@ export default function Marketing() {
                     <> · <Link to={`/venue/hosting/marketing/analytics?eventId=${o.eventId}`} className="link tiny">view analytics</Link></>
                   )}
                 </span>
-                <span className="muted">{fmtMoney(o.amount)} · {STATUS_LABEL[o.status]} · {fmtDate(o.createdAt)}</span>
+                <span className="muted">{fmtMoney(o.total)}{o.gstAmount > 0 ? ` (incl. ${fmtMoney(o.gstAmount)} GST)` : ''} · {STATUS_LABEL[o.status]} · {fmtDate(o.createdAt)}</span>
               </div>
             ))}
           </div>

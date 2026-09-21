@@ -23,6 +23,7 @@ export interface CreateInvoiceInput {
   walletCredit?: number;
   gstPct?: number;
   gstAmount?: number;
+  igstAmount?: number;
   total: number;
 }
 
@@ -74,6 +75,7 @@ export class InvoicesService {
           walletCredit: input.walletCredit ?? 0,
           gstPct: input.gstPct ?? 0,
           gstAmount: input.gstAmount ?? 0,
+          igstAmount: input.igstAmount ?? 0,
           total: input.total,
         },
       });
@@ -118,7 +120,8 @@ export class InvoicesService {
 
   async pdf(id: string) {
     const inv = await this.get(id);
-    const buffer = await invoicePdfBuffer(inv);
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+    const buffer = await invoicePdfBuffer(inv, settings?.gstin ?? null);
     return { filename: `${inv.number}.pdf`, buffer };
   }
 
