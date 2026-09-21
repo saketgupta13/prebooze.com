@@ -117,7 +117,20 @@ export class ReportsService {
 
     const otherIncome = (
       await this.prisma.ledgerEntry.aggregate({
-        where: { kind: 'income', category: { notIn: ['Ticket commission', 'Booking fees'] }, createdAt: dateWhere, ...ledgerEventFilter },
+        where: { kind: 'income', category: { notIn: ['Ticket commission', 'Booking fees', 'GST collected (payable)'] }, createdAt: dateWhere, ...ledgerEventFilter },
+        _sum: { amount: true },
+      })
+    )._sum.amount ?? 0;
+
+    // Real GST collected on guests' behalf (real GSTIN activated
+    // 2026-09-21) — kept out of otherIncome/totalIncome/netProfit
+    // deliberately: it's owed to the government on the next GST return, not
+    // real Prebooze revenue, same reasoning as its own postEventLedger call
+    // site. Still counted into `cash` below since it's real money currently
+    // sitting in the account, just earmarked rather than free to spend.
+    const gstCollected = (
+      await this.prisma.ledgerEntry.aggregate({
+        where: { kind: 'income', category: 'GST collected (payable)', createdAt: dateWhere, ...ledgerEventFilter },
         _sum: { amount: true },
       })
     )._sum.amount ?? 0;
@@ -132,7 +145,7 @@ export class ReportsService {
     const paidOut = Math.round(selling.filter((e) => e.paidOut).reduce((a, e) => a + (e.revenue - (e.revenue * (e.commission as number)) / 100), 0));
     const totalIncome = commissionIncome + feeIncome + otherIncome;
     const netProfit = totalIncome - totalExpenses;
-    const cash = gross + otherIncome - paidOut - totalExpenses;
+    const cash = gross + otherIncome + gstCollected - paidOut - totalExpenses;
 
     const refundsPendingAgg = await this.prisma.booking.aggregate({
       where: { status: 'refund_requested', eventId: { in: [...scopedEventIds] }, createdAt: dateWhere },
@@ -145,7 +158,7 @@ export class ReportsService {
       .map((e) => ({ id: e.id, title: e.title, city: e.city, revenue: e.revenue, commission: e.commission as number, commissionAmt: Math.round((e.revenue * (e.commission as number)) / 100), paidOut: e.paidOut }));
 
     return {
-      commissionIncome, feeIncome, otherIncome, expensesByCat, totalExpenses,
+      commissionIncome, feeIncome, otherIncome, gstCollected, expensesByCat, totalExpenses,
       gross, payoutsDue, paidOut, totalIncome, netProfit, cash, refundsPending, sellingEvents,
       revenueByCategory: Object.fromEntries(revenueByCategory),
       settings: { bookingFee: settings.bookingFee },

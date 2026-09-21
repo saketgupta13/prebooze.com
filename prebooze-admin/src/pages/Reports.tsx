@@ -139,6 +139,7 @@ export default function Reports() {
         ['Income', 'Booking fees (auto)', Math.round(fin.feeIncome)],
         ['Income', 'Other income (sponsorships etc.)', Math.round(fin.otherIncome)],
         ['Income', 'Total income', Math.round(fin.totalIncome)],
+        ['GST', 'GST collected (payable to government, excluded from income above)', Math.round(fin.gstCollected)],
         ...Object.entries(fin.expensesByCat).map(([cat, amt]) => ['Expenses', cat, -Math.round(amt)]),
         ['Expenses', 'Total expenses', -Math.round(fin.totalExpenses)],
         ['Summary', 'Net profit', Math.round(fin.netProfit)],
@@ -230,6 +231,12 @@ export default function Reports() {
           <Line label="Booking fees (auto)" value={`₹${fmt(fin.feeIncome)}`} indent />
           <Line label="Other income (sponsorships etc.)" value={`₹${fmt(fin.otherIncome)}`} indent />
           <Line label="Total income" value={`₹${fmt(fin.totalIncome)}`} bold delta={prevFinance ? deltaPct(fin.totalIncome, prevFinance.totalIncome) : undefined} />
+          {fin.gstCollected > 0 && (
+            <div className="tiny hint" style={{ marginTop: 4 }}>
+              GST collected on guests' behalf: ₹{fmt(fin.gstCollected)} — owed to the government on the next GST
+              return, deliberately excluded from income/profit above.
+            </div>
+          )}
           <div style={{ height: 10 }} />
           <Line label="Expenses" value="" bold />
           {Object.entries(fin.expensesByCat).map(([cat, amt]) => (

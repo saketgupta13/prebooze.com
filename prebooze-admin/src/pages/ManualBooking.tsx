@@ -20,6 +20,7 @@ export default function ManualBooking() {
 
   const [approvedEvents, setApprovedEvents] = useState<LiveEvent[]>([]);
   const [bookingFee, setBookingFee] = useState(0);
+  const [gstPct, setGstPct] = useState(0);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
@@ -40,6 +41,7 @@ export default function ManualBooking() {
       .then(([evs, s]) => {
         setApprovedEvents(evs);
         setBookingFee(s.bookingFee);
+        setGstPct(s.gstEnabled ? s.gstPct : 0);
         if (!eventId && evs[0]) {
           setEventId(evs[0].id);
           const idx = evs[0].tiers.findIndex((t) => t.quantity - t.sold > 0);
@@ -65,11 +67,14 @@ export default function ManualBooking() {
   const totalSlots = qty * partySize;
 
   const totals = useMemo(() => {
-    if (!tier || isComp) return { subtotal: 0, fees: 0, total: 0 };
+    if (!tier || isComp) return { subtotal: 0, fees: 0, gst: 0, total: 0 };
     const subtotal = tier.price * qty;
     const fees = Math.round((subtotal * bookingFee) / 100);
-    return { subtotal, fees, total: subtotal + fees };
-  }, [tier, qty, isComp, bookingFee]);
+    // Same GST-on-the-booking-fee-only rule as guest checkout — see
+    // BookingsService.adminCreate's own doc comment.
+    const gst = Math.round((fees * gstPct) / 100);
+    return { subtotal, fees, gst, total: subtotal + fees + gst };
+  }, [tier, qty, isComp, bookingFee, gstPct]);
 
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
@@ -251,7 +256,7 @@ export default function ManualBooking() {
             <><b style={{ color: 'var(--text)' }}>Comp booking:</b> {qty} × {tier.name} — <b className="green">free entry</b>, no charge</>
           ) : (
             <>
-              Subtotal ₹{fmt(totals.subtotal)} + booking fee ₹{fmt(totals.fees)} → collect{' '}
+              Subtotal ₹{fmt(totals.subtotal)} + booking fee ₹{fmt(totals.fees)}{totals.gst > 0 ? ` + GST ₹${fmt(totals.gst)}` : ''} → collect{' '}
               <b style={{ color: 'var(--text)' }}>₹{fmt(totals.total)}</b> via {method}
             </>
           )}

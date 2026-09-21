@@ -645,6 +645,11 @@ export interface LiveFinance {
   commissionIncome: number;
   feeIncome: number;
   otherIncome: number;
+  // Real GST collected on guests' behalf — real GSTIN activated
+  // 2026-09-21. Excluded from otherIncome/totalIncome/netProfit (it's owed
+  // to the government, not real revenue) but counted into `cash` below,
+  // since it's real money currently held.
+  gstCollected: number;
   expensesByCat: Record<string, number>;
   totalExpenses: number;
   gross: number;

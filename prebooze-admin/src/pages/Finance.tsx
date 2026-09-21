@@ -185,7 +185,7 @@ export default function Finance() {
               </button>
             </>
           )}
-          <span className="tiny hint">· “Ticket commission” and “Booking fees” income posts automatically per event and can't be edited</span>
+          <span className="tiny hint">· "Ticket commission", "Booking fees" and "GST collected (payable)" income posts automatically per event and can't be edited — GST collected is owed to the government on the next GST return, not real Prebooze revenue, despite being bucketed as income here</span>
         </div>
       </form>
 
