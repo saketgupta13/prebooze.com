@@ -180,7 +180,7 @@ export default function TeamRolesScreen() {
             <Input value={inviteName} onChangeText={setInviteName} autoFocus style={styles.fieldGap} />
             <FieldLabel>Phone number</FieldLabel>
             <Input value={invitePhone} onChangeText={setInvitePhone} placeholder="+91 98765 43210" keyboardType="phone-pad" style={styles.fieldGap} />
-            <FieldLabel>Email (optional)</FieldLabel>
+            <FieldLabel>Email (required for a brand-new phone number)</FieldLabel>
             <Input value={inviteEmail} onChangeText={setInviteEmail} keyboardType="email-address" autoCapitalize="none" style={styles.fieldGap} />
             <FieldLabel>Role</FieldLabel>
             <View style={styles.chipRow}>
@@ -191,7 +191,7 @@ export default function TeamRolesScreen() {
             <View style={{ marginTop: spacing.m }}>
               <Checkbox checked={inviteScan} onChange={setInviteScan} label="allow door-scan access" />
             </View>
-            <Muted style={styles.tiny}>They'll get a WhatsApp + email invite and log in with this phone number — the console they see is scoped to the role you pick.</Muted>
+            <Muted style={styles.tiny}>They'll get an email invite (WhatsApp too, best-effort) and log in with this phone number — the console they see is scoped to the role you pick. If they already have a Prebooze account, their existing email is used automatically even if you leave this blank.</Muted>
             <Button label={inviting ? 'Sending…' : 'Invite'} onPress={invite} loading={inviting} disabled={!inviteName.trim() || !invitePhone.trim()} style={{ marginTop: spacing.m }} />
           </Card>
         )}

@@ -151,6 +151,15 @@ export class OrgTeamService {
     }
 
     const existingUser = await this.prisma.user.findUnique({ where: { phone } });
+    // The WhatsApp invite (org_team_invite campaign) has no approved AiSensy
+    // template behind it yet and fails silently (see .catch below) — email
+    // is the only channel that reliably fires today. A brand-new phone
+    // number has no existingUser.email to fall back to, so without this
+    // check an invite with a blank Email field would create real access
+    // and notify the invitee on *neither* channel.
+    if (!existingUser?.email && !body.email?.trim()) {
+      throw new BadRequestException("This phone number has no Prebooze account yet — add their email so they actually get notified (WhatsApp invites aren't live yet)");
+    }
     const staff = await this.prisma.orgStaff.create({
       data: { organizerId: org.id, name: body.name.trim(), phone, roleName, scan: body.scan ?? false, userId: existingUser?.id },
     });
