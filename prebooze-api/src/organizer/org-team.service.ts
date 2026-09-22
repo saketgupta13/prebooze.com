@@ -165,7 +165,7 @@ export class OrgTeamService {
     });
 
     const loginUrl = `${process.env.WEB_APP_URL ?? ''}/login`;
-    await this.wa.send(phone, 'org_team_invite', [body.name.trim(), org.brandName, roleName]).catch(() => {});
+    await this.wa.send(phone, 'org_team_invite', [body.name.trim(), org.brandName, roleName, loginUrl]).catch(() => {});
     const inviteEmail = body.email?.trim() || existingUser?.email || undefined;
     await this.email
       .sendTemplate(inviteEmail, 'org_team_invite', { name: body.name.trim(), orgBrand: org.brandName, roleName, phone })
