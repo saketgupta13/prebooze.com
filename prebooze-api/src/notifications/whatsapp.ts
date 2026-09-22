@@ -73,7 +73,7 @@ export class WhatsappService {
 
   /** Campaign is 'lead_onboarding_invite' — brand new, same one-time AiSensy/
    * Meta template approval every other real campaign here went through (see
-   * 'org_team_invite'). Call sites should `.catch(() => {})` this until it's
+   * 'org_team_invite_v1'). Call sites should `.catch(() => {})` this until it's
    * confirmed live; email is the guaranteed-delivered channel meanwhile. */
   async sendLeadOnboardingInvite(phone: string, name: string, brand: string): Promise<void> {
     return this.send(phone, 'lead_onboarding_invite', [name, brand]);

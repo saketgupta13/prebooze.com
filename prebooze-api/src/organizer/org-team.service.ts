@@ -129,11 +129,14 @@ export class OrgTeamService {
    * already exists for that phone, and sends a real notification on
    * WhatsApp and/or email so the invitee actually knows to log in. Email is
    * the one guaranteed-delivered channel today (Resend is live) — the
-   * WhatsApp side uses a new 'org_team_invite' campaign that still needs to
-   * be submitted/approved on AiSensy (same one-time step every other real
-   * campaign in this codebase went through, see WhatsappService), so treat
-   * it as best-effort until that's done; the .catch(() => {}) below means a
-   * missing template degrades silently rather than blocking the invite. */
+   * WhatsApp side uses the 'org_team_invite_v1' campaign (submitted on
+   * AiSensy 2026-09-22 — the original 'org_team_invite' name was replaced
+   * before approval, never went live under that name), so treat it as
+   * best-effort until approval is confirmed; the .catch(() => {}) below
+   * means a missing template degrades silently rather than blocking the
+   * invite. The email template id below is a separate, unrelated internal
+   * key (EmailTemplate table) — it doesn't need to match the AiSensy
+   * campaign name and was deliberately left as 'org_team_invite'. */
   async addStaff(userId: string, body: { name?: string; phone?: string; email?: string; roleName?: string; scan?: boolean }) {
     const org = await this.orgAccess.require(userId, 'Settings & team', 'edit');
     if (!body.name?.trim()) throw new BadRequestException('Name is required');
@@ -151,12 +154,12 @@ export class OrgTeamService {
     }
 
     const existingUser = await this.prisma.user.findUnique({ where: { phone } });
-    // The WhatsApp invite (org_team_invite campaign) has no approved AiSensy
-    // template behind it yet and fails silently (see .catch below) — email
-    // is the only channel that reliably fires today. A brand-new phone
-    // number has no existingUser.email to fall back to, so without this
-    // check an invite with a blank Email field would create real access
-    // and notify the invitee on *neither* channel.
+    // The WhatsApp invite (org_team_invite_v1 campaign) doesn't yet have a
+    // *confirmed* approved AiSensy template and can still fail silently
+    // (see .catch below) — email is the only channel guaranteed to fire
+    // today. A brand-new phone number has no existingUser.email to fall
+    // back to, so without this check an invite with a blank Email field
+    // would create real access and notify the invitee on *neither* channel.
     if (!existingUser?.email && !body.email?.trim()) {
       throw new BadRequestException("This phone number has no Prebooze account yet — add their email so they actually get notified (WhatsApp invites aren't live yet)");
     }
@@ -165,7 +168,7 @@ export class OrgTeamService {
     });
 
     const loginUrl = `${process.env.WEB_APP_URL ?? ''}/login`;
-    await this.wa.send(phone, 'org_team_invite', [body.name.trim(), org.brandName, roleName, loginUrl]).catch(() => {});
+    await this.wa.send(phone, 'org_team_invite_v1', [body.name.trim(), org.brandName, roleName, loginUrl]).catch(() => {});
     const inviteEmail = body.email?.trim() || existingUser?.email || undefined;
     await this.email
       .sendTemplate(inviteEmail, 'org_team_invite', { name: body.name.trim(), orgBrand: org.brandName, roleName, phone })
