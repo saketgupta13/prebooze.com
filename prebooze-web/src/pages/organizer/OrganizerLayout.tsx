@@ -5,7 +5,7 @@ import PendingReview, { RejectedReview } from '../../components/PendingReview';
 import { PageLoader } from '../../components/Loader';
 import {
   LayoutDashboard, Ticket, Users, Camera, ClipboardList, Radio, Star, Tag, ShoppingCart, Banknote, Receipt, Megaphone,
-  ShieldCheck, Award, Settings as SettingsIcon, MoreHorizontal, X, Rocket, type LucideIcon,
+  ShieldCheck, Award, Settings as SettingsIcon, MoreHorizontal, X, Rocket, CreditCard, LifeBuoy, type LucideIcon,
 } from 'lucide-react';
 
 // `module` is the exact OrgRole permission-matrix key that gates this nav
@@ -31,6 +31,11 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; module?
   { to: '/organizer/billing', label: 'Featured & billing', icon: Award, module: 'owner' },
   { to: '/organizer/marketing', label: 'Marketing', icon: Rocket, module: 'owner' },
   { to: '/organizer/settings', label: 'Settings', icon: SettingsIcon, module: 'Settings & team' },
+  // Personal-account items, same as the header's account dropdown (Header.tsx)
+  // — no `module` (always visible to any team member) since these aren't
+  // organizer-business permissions, they're the logged-in person's own.
+  { to: '/payment-methods', label: 'Payment methods', icon: CreditCard },
+  { to: '/help', label: 'Help center', icon: LifeBuoy },
 ];
 
 // How many of navItems (in NAV order) get a permanent bottom-tab slot on

@@ -110,13 +110,17 @@ interface AppState {
   setCity: (c: string) => void;
   setPendingPhone: (p: string) => void;
   requestOtp: (phone: string) => Promise<void>;
-  /** `isTeamMember` is resolved (awaited, not fire-and-forget) as part of
-   * login itself — an invited organizer team member should never be
-   * funneled through guest profile-completion/ID-verification, the same
-   * way an organizer-onboarding signup already skips it, but that decision
-   * has to be made the instant OTP verification resolves, before any
-   * re-render could pick up orgTeamAccess from context. */
-  loginWithOtp: (code: string, name?: string) => Promise<{ status: 'new' | 'existing'; isTeamMember: boolean }>;
+  /** isOrgTeamMember/isVenueTeamMember are resolved (awaited, not
+   * fire-and-forget) as part of login itself — an invited team member
+   * should never be funneled through guest profile-completion/ID-
+   * verification, the same way an organizer-onboarding signup already
+   * skips it, but that decision has to be made the instant OTP
+   * verification resolves, before any re-render could pick up
+   * orgTeamAccess/venueTeamAccess from context. `user` is returned for the
+   * same reason — Otp.tsx's post-login redirect needs the real, just-
+   * fetched role flags (existingRole(user)) to send every role (and a
+   * guest) to their own dashboard, not a stale closure over context. */
+  loginWithOtp: (code: string, name?: string) => Promise<{ status: 'new' | 'existing'; isOrgTeamMember: boolean; isVenueTeamMember: boolean; user: User }>;
   updateUser: (patch: Partial<User>) => void;
   setAttendanceVisibility: (v: 'off' | 'followers' | 'public') => void;
   toggleDiscoverable: () => void;
@@ -632,7 +636,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           // auth.service.ts's verifyOtp for Meta to dedupe the two.
           if (isNew) trackMeta('CompleteRegistration', { method: 'whatsapp_otp' }, apiUser.phone);
           setToken(token);
-          setUser(normalizeUser({ ...apiUser, pendingRole: inferPendingRole(apiUser) }));
+          const normalizedUser = normalizeUser({ ...apiUser, pendingRole: inferPendingRole(apiUser) })!;
+          setUser(normalizedUser);
           // Bootstrap effects above only run once on mount (before a token
           // existed) — a fresh in-SPA login needs its own fetch so a team
           // member's console access is ready the moment they land on
@@ -674,14 +679,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
               return n;
             });
           }
-          return { status: isNew ? 'new' : 'existing', isTeamMember: !!access };
+          return { status: isNew ? 'new' : 'existing', isOrgTeamMember: !!access, isVenueTeamMember: !!venueAccess, user: normalizedUser };
         }
         // ---- offline/mock mode (no VITE_API_URL) — unchanged local fallback ----
         const existing = normalizeUser(load<User | null>('pb_known_' + pendingPhone, null));
         if (existing) {
           localStorage.setItem('pb_known_' + existing.phone, JSON.stringify(existing));
           setUser(existing);
-          return { status: 'existing', isTeamMember: false };
+          return { status: 'existing', isOrgTeamMember: false, isVenueTeamMember: false, user: existing };
         }
         const fresh: User = {
           phone: pendingPhone,
@@ -728,7 +733,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
           localStorage.removeItem('pb_pending_ref');
         }
-        return { status: 'new', isTeamMember: false };
+        return { status: 'new', isOrgTeamMember: false, isVenueTeamMember: false, user: fresh };
       },
       updateUser: patchUser,
       // Real write — previously only ever touched local state via

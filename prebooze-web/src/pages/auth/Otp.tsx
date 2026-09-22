@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import { ApiError } from '../../api/client';
 import { usePlatformInfo } from '../../lib/usePlatformInfo';
+import { existingRole, roleHome } from '../../lib/roles';
 import { MessageCircle } from 'lucide-react';
 
 export default function Otp() {
@@ -67,12 +68,25 @@ export default function Otp() {
     try {
       const result = await loginWithOtp(digits.join(''), name.trim());
       const from = (location.state as { from?: string } | null)?.from;
-      // Straight to whatever they came for (checkout, an event, home) — no
-      // forced DOB/gender/photo detour, still a real regression once (see
-      // 2026-08-15). Name is the one exception: it's collected right here,
-      // on this same screen, rather than as a separate step — see the
-      // required name field above.
-      navigate(from ?? (result.isTeamMember ? '/organizer' : '/'));
+      // Straight to whatever they came for (checkout, an event, a specific
+      // dashboard deep link) if there is one — no forced DOB/gender/photo
+      // detour, still a real regression once (see 2026-08-15). Name is the
+      // one exception: it's collected right here, on this same screen,
+      // rather than as a separate step — see the required name field above.
+      // Otherwise, every login lands on the account's own real dashboard —
+      // an invited team member goes to whichever console they're staff on,
+      // an elevated-role owner goes to their own console (roleHome, same
+      // map RoleTaken.tsx/Checkout.tsx already use), and a guest goes to
+      // their own profile/dashboard rather than the public home/browse page.
+      const role = existingRole(result.user);
+      const dashboard = result.isOrgTeamMember
+        ? '/organizer'
+        : result.isVenueTeamMember
+          ? '/venue/hosting'
+          : role
+            ? roleHome[role]
+            : '/profile';
+      navigate(from ?? dashboard);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Invalid code — please try again');
       setDigits(['', '', '', '']);

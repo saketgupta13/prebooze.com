@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
 import PendingReview, { RejectedReview } from '../../components/PendingReview';
-import { LayoutDashboard, Landmark, Calendar, Star, Sparkles, Settings, MoreHorizontal, X } from 'lucide-react';
+import { LayoutDashboard, Landmark, Calendar, Star, Sparkles, Settings, MoreHorizontal, X, CreditCard, LifeBuoy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
@@ -12,6 +12,9 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
   { to: '/venue/reviews', label: 'Reviews', icon: Star },
   { to: '/venue/billing', label: 'Featured & billing', icon: Sparkles },
   { to: '/venue/settings', label: 'Settings', icon: Settings },
+  // Personal-account items, same as the header's account dropdown.
+  { to: '/payment-methods', label: 'Payment methods', icon: CreditCard },
+  { to: '/help', label: 'Help center', icon: LifeBuoy },
 ];
 
 const PINNED_COUNT = 4;

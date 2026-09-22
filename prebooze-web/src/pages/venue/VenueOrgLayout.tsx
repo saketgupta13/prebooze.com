@@ -5,7 +5,7 @@ import PendingReview, { RejectedReview } from '../../components/PendingReview';
 import { PageLoader } from '../../components/Loader';
 import { venuePartner } from '../../api';
 import {
-  LayoutDashboard, Ticket, Users, QrCode, ClipboardList, Activity, Percent, ShoppingCart, Banknote, Megaphone, Shield, Settings, MoreHorizontal, X, Rocket,
+  LayoutDashboard, Ticket, Users, QrCode, ClipboardList, Activity, Percent, ShoppingCart, Banknote, Megaphone, Shield, Settings, MoreHorizontal, X, Rocket, CreditCard, LifeBuoy,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -32,6 +32,11 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; module?
   { to: '/venue/hosting/promoters', label: 'Promoters', icon: Megaphone, module: 'Payouts & withdrawals' },
   { to: '/venue/hosting/team', label: 'Team & roles', icon: Shield, module: 'Settings & team' },
   { to: '/venue/hosting/settings', label: 'Settings', icon: Settings, module: 'Settings & team' },
+  // Personal-account items, same as the header's account dropdown — no
+  // `module` (always visible to any team member), same convention as
+  // OrganizerLayout's identical addition.
+  { to: '/payment-methods', label: 'Payment methods', icon: CreditCard },
+  { to: '/help', label: 'Help center', icon: LifeBuoy },
 ];
 
 // How many of navItems (in NAV order) get a permanent bottom-tab slot on

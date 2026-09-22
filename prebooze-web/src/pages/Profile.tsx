@@ -7,7 +7,7 @@ import type { Booking, Organizer, Venue } from '../types';
 import Poster from '../components/Poster';
 import ShareButton from '../components/ShareButton';
 import { cityBrowse, cityVenues, organizerPath, venuePath } from '../lib/urls';
-import { User, BadgeCheck, Pencil, CheckCircle2, Gift, Heart, Landmark, Ticket, Camera } from 'lucide-react';
+import { User, BadgeCheck, Pencil, CheckCircle2, Gift, Heart, Landmark, Ticket, Camera, Wallet, CreditCard, LifeBuoy } from 'lucide-react';
 
 export default function Profile() {
   const { user, following, toggleFollow, setAttendanceVisibility, toggleDiscoverable, followers, followersLoading, favVenues, toggleFavVenue, wishlist, city } = useApp();
@@ -113,6 +113,22 @@ export default function Profile() {
             <div className="kv">
               <span className="k">Joined</span>
               <span>{user.joined}</span>
+            </div>
+          </div>
+
+          {/* Same options as the header's account dropdown (Header.tsx) —
+              this dashboard is the other place a guest lands (straight from
+              login, see Otp.tsx), so the quick links shouldn't only live in
+              the header menu. */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <h3 style={{ marginBottom: 8 }}>My account</h3>
+            <div className="stack" style={{ gap: 2 }}>
+              <Link to="/bookings" className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}><Ticket size={15} /> My bookings</Link>
+              <Link to="/wishlist" className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}><Heart size={15} /> Wishlist & favourites</Link>
+              <Link to="/wallet" className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}><Wallet size={15} /> Wallet</Link>
+              <Link to="/refer" className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}><Gift size={15} /> Refer & earn</Link>
+              <Link to="/payment-methods" className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}><CreditCard size={15} /> Payment methods</Link>
+              <Link to="/help" className="evrow" style={{ textDecoration: 'none', color: 'inherit' }}><LifeBuoy size={15} /> Help center</Link>
             </div>
           </div>
 

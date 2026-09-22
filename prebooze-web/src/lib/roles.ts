@@ -4,7 +4,10 @@ export type Role = 'organizer' | 'promoter' | 'lineup' | 'venue';
 
 const LABELS: Record<Role, string> = { organizer: 'organizer', promoter: 'promoter', lineup: 'line-up artist', venue: 'venue partner' };
 export const roleLabel = (r: Role) => LABELS[r];
-export const roleHome: Record<Role, string> = { organizer: '/organizer', promoter: '/promoter', lineup: '/profile', venue: '/venue' };
+// Real bug fixed 2026-09-22: lineup's own dashboard is /artist
+// (LineupLayout/LineupDashboard) — this said '/profile', the GUEST
+// dashboard, sending a real artist to the wrong console entirely.
+export const roleHome: Record<Role, string> = { organizer: '/organizer', promoter: '/promoter', lineup: '/artist', venue: '/venue' };
 export const roleOnboardingPath: Record<Role, string> = {
   organizer: '/organizer/onboarding',
   promoter: '/promoter/onboarding',
