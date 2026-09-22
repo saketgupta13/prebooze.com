@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { existingRole, roleLabel } from '../lib/roles';
+import RoleConsoleFrame from '../components/RoleConsoleFrame';
 import { CreditCard, Smartphone, CheckCircle2, X, Lock } from 'lucide-react';
 
 /** Saved payment methods (all roles) + auto-renew for subscriptions/featured. */
@@ -33,7 +34,7 @@ export default function PaymentMethods() {
 
   return (
     <main className="page">
-      <div className="container" style={{ maxWidth: 640 }}>
+      <RoleConsoleFrame maxWidth={640}>
         <div className="breadcrumb">
           <Link to="/profile">Profile</Link> / Payment methods
         </div>
@@ -127,7 +128,7 @@ export default function PaymentMethods() {
             )}
           </div>
         )}
-      </div>
+      </RoleConsoleFrame>
     </main>
   );
 }

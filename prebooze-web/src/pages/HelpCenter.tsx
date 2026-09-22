@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { existingRole } from '../lib/roles';
 import Accordion from '../components/Accordion';
+import RoleConsoleFrame from '../components/RoleConsoleFrame';
 import type { ReactNode } from 'react';
 import { Ticket, Mic, Megaphone, Guitar, Landmark, LifeBuoy, CheckCircle2 } from 'lucide-react';
 
@@ -89,7 +90,7 @@ export default function HelpCenter() {
 
   return (
     <main className="page">
-      <div className="container" style={{ maxWidth: 760 }}>
+      <RoleConsoleFrame maxWidth={760}>
         <div className="breadcrumb">
           <Link to="/">Home</Link> / Help center
         </div>
@@ -167,7 +168,7 @@ export default function HelpCenter() {
             <Accordion key={f.q} title={f.q}>{f.a}</Accordion>
           ))}
         </div>
-      </div>
+      </RoleConsoleFrame>
     </main>
   );
 }
