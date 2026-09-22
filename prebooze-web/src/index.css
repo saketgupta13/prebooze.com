@@ -492,6 +492,19 @@ textarea { resize: vertical; min-height: 84px; }
 .menu a svg, .menu button svg { flex-shrink: 0; opacity: 0.75; }
 .menu a:hover, .menu button:hover { background: var(--surface-2); }
 .menu .sep { height: 1px; background: var(--border); margin: 4px 6px; }
+/* An elevated-role account's menu now mirrors that role's whole console
+   sidebar (see Header.tsx's OrgMenuSection etc.) — long enough on some
+   roles (organizer) to need its own scroll instead of overflowing the
+   viewport, same idea as any other long dropdown. */
+.hdr-menu-scroll { max-height: min(70vh, 520px); overflow-y: auto; }
+.hdr-menu-cap {
+  font-size: 10.5px;
+  letter-spacing: 1.6px;
+  color: var(--muted-2);
+  font-weight: 800;
+  padding: 10px 12px 4px;
+}
+.hdr-menu-cap:first-child { padding-top: 4px; }
 
 /* ============ Footer ============ */
 .ftr {

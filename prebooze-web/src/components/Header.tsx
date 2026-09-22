@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Search, Flame, MapPin, User, Ticket, Heart, Wallet, Gift, CreditCard,
-  LifeBuoy, LayoutGrid, Megaphone, Mic, Landmark, Tent, LogOut,
+  LifeBuoy, LayoutGrid, Megaphone, Mic, Landmark, LogOut, Camera,
+  ClipboardList, Radio, Star, Tag, ShoppingCart, Banknote, Receipt,
+  ShieldCheck, Award, Settings as SettingsIcon, Rocket, Globe, Trophy,
+  Calendar, QrCode, Activity, Percent, Shield, Users,
+  type LucideIcon,
 } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { EVENTS, LINEUPS, ORGANIZERS, TRENDING_SEARCHES, VENUES } from '../data/mock';
@@ -25,6 +29,85 @@ function Caret() {
     <svg className="hdr-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="6 9 12 15 18 9" />
     </svg>
+  );
+}
+
+type MenuItem = { to: string; label: string; icon: LucideIcon; module?: string | 'owner' };
+
+const ORG_NAV: MenuItem[] = [
+  { to: '/organizer', label: 'Dashboard', icon: LayoutGrid },
+  { to: '/organizer/events', label: 'Events', icon: Ticket, module: 'Events & wizard' },
+  { to: '/organizer/bookings', label: 'Bookings', icon: Users, module: 'Attendees & check-in' },
+  { to: '/organizer/scanner', label: 'Scanner', icon: Camera, module: 'Attendees & check-in' },
+  { to: '/organizer/guestlist', label: 'Guest list', icon: ClipboardList, module: 'Guest list' },
+  { to: '/organizer/live', label: 'Live monitor', icon: Radio, module: 'Attendees & check-in' },
+  { to: '/organizer/reviews', label: 'Reviews', icon: Star, module: 'Reviews' },
+  { to: '/organizer/coupons', label: 'Promo codes', icon: Tag, module: 'Coupons' },
+  { to: '/organizer/carts', label: 'Abandoned carts', icon: ShoppingCart, module: 'Events & wizard' },
+  { to: '/organizer/payouts', label: 'Payouts', icon: Banknote, module: 'Payouts & withdrawals' },
+  { to: '/organizer/transactions', label: 'Transactions', icon: Receipt, module: 'Payouts & withdrawals' },
+  { to: '/organizer/promoters', label: 'Promoters', icon: Megaphone, module: 'Payouts & withdrawals' },
+  { to: '/organizer/team', label: 'Team & roles', icon: ShieldCheck, module: 'Settings & team' },
+  { to: '/organizer/billing', label: 'Featured & billing', icon: Award, module: 'owner' },
+  { to: '/organizer/marketing', label: 'Marketing', icon: Rocket, module: 'owner' },
+  { to: '/organizer/settings', label: 'Settings', icon: SettingsIcon, module: 'Settings & team' },
+  { to: '/payment-methods', label: 'Payment methods', icon: CreditCard },
+  { to: '/help', label: 'Help center', icon: LifeBuoy },
+];
+
+const VENUE_HOSTING_NAV: MenuItem[] = [
+  { to: '/venue/hosting', label: 'Dashboard', icon: LayoutGrid },
+  { to: '/venue/hosting/events', label: 'Events', icon: Ticket, module: 'Events & wizard' },
+  { to: '/venue/hosting/bookings', label: 'Bookings', icon: Users, module: 'Attendees & check-in' },
+  { to: '/venue/hosting/scanner', label: 'Scanner', icon: QrCode, module: 'Attendees & check-in' },
+  { to: '/venue/hosting/guest-list', label: 'Guest list', icon: ClipboardList, module: 'Guest list' },
+  { to: '/venue/hosting/live', label: 'Live monitor', icon: Activity, module: 'Attendees & check-in' },
+  { to: '/venue/hosting/coupons', label: 'Promo codes', icon: Percent, module: 'Coupons' },
+  { to: '/venue/hosting/carts', label: 'Abandoned carts', icon: ShoppingCart, module: 'Events & wizard' },
+  { to: '/venue/hosting/ledger', label: 'Payouts', icon: Banknote, module: 'Payouts & withdrawals' },
+  { to: '/venue/hosting/marketing', label: 'Marketing', icon: Rocket, module: 'owner' },
+  { to: '/venue/hosting/promoters', label: 'Promoters', icon: Megaphone, module: 'Payouts & withdrawals' },
+  { to: '/venue/hosting/team', label: 'Team & roles', icon: Shield, module: 'Settings & team' },
+  { to: '/venue/hosting/settings', label: 'Settings', icon: SettingsIcon, module: 'Settings & team' },
+  { to: '/payment-methods', label: 'Payment methods', icon: CreditCard },
+  { to: '/help', label: 'Help center', icon: LifeBuoy },
+];
+
+/** Mirrors OrganizerLayout.tsx's own NAV+TeamConsole exactly (see that file
+ * for the full permission-module reasoning) — duplicated rather than
+ * imported since OrganizerLayout is lazy-loaded and Header isn't; importing
+ * it here would pull the whole console's code into the main bundle on every
+ * page load. `undefined` module = always visible to a team member; 'owner'
+ * = owner only, never a team member regardless of permissions. */
+function OrgMenuSection({ isOwner, access, onNavigate }: { isOwner: boolean; access: ReturnType<typeof useApp>['orgTeamAccess']; onNavigate: () => void }) {
+  const canView = (module?: string | 'owner') => isOwner || module === undefined || (module !== 'owner' && !!access?.permissions[module]?.view);
+  const items = ORG_NAV.filter((n) => canView(n.module));
+  return (
+    <>
+      <div className="cap hdr-menu-cap">{access && !isOwner ? `TEAM — ${access.organizerBrand}` : 'ORGANIZER'}</div>
+      {items.map((n) => (
+        <Link key={n.to} to={n.to} onClick={onNavigate}>
+          <n.icon size={15} /> {n.label}
+        </Link>
+      ))}
+    </>
+  );
+}
+
+/** Mirrors VenueOrgLayout.tsx's own NAV+TeamConsole — same duplication
+ * reasoning as OrgMenuSection above. */
+function VenueHostingMenuSection({ isOwner, access, onNavigate }: { isOwner: boolean; access: ReturnType<typeof useApp>['venueTeamAccess']; onNavigate: () => void }) {
+  const canView = (module?: string | 'owner') => isOwner || module === undefined || (module !== 'owner' && !!access?.permissions[module]?.view);
+  const items = VENUE_HOSTING_NAV.filter((n) => canView(n.module));
+  return (
+    <>
+      <div className="cap hdr-menu-cap">{access && !isOwner ? `TEAM — ${access.venueBrand}` : 'VENUE HOSTING'}</div>
+      {items.map((n) => (
+        <Link key={n.to} to={n.to} onClick={onNavigate}>
+          <n.icon size={15} /> {n.label}
+        </Link>
+      ))}
+    </>
   );
 }
 
@@ -245,10 +328,17 @@ export default function Header() {
             )}
             <span className="hdr-user-name">{displayName.split(' ')[0]}</span> <Caret />
             {menuOpen && (
-              <div className="menu" onClick={(e) => e.stopPropagation()}>
+              <div className="menu hdr-menu-scroll" onClick={(e) => e.stopPropagation()}>
                 {/* Any elevated role (organizer/promoter/lineup/venue) is a
                     business/role account — guest features (booking, wishlist,
-                    wallet, referrals) are hidden; one number = one role. */}
+                    wallet, referrals) are hidden; one number = one role. Each
+                    section below mirrors that role's own console sidebar
+                    exactly (see OrganizerLayout.tsx etc.) — previously just a
+                    single link into the console, which meant Payment methods/
+                    Help center only existed as generic top-level items here.
+                    Now every option lives contextually under its own role's
+                    section, same "show the same options inside dashboard
+                    menus too" reasoning that put them in each sidebar. */}
                 {!heldRole && (
                   <>
                     <Link to="/profile" onClick={() => setMenuOpen(false)}>
@@ -266,38 +356,65 @@ export default function Header() {
                     <Link to="/refer" onClick={() => setMenuOpen(false)}>
                       <Gift size={15} /> Refer & earn
                     </Link>
+                    <Link to="/payment-methods" onClick={() => setMenuOpen(false)}>
+                      <CreditCard size={15} /> Payment methods
+                    </Link>
+                    <Link to="/help" onClick={() => setMenuOpen(false)}>
+                      <LifeBuoy size={15} /> Help center
+                    </Link>
                   </>
                 )}
-                <Link to="/payment-methods" onClick={() => setMenuOpen(false)}>
-                  <CreditCard size={15} /> Payment methods
-                </Link>
-                <Link to="/help" onClick={() => setMenuOpen(false)}>
-                  <LifeBuoy size={15} /> Help center
-                </Link>
                 {(user.isOrganizer || orgTeamAccess) && (
-                  <Link to="/organizer" onClick={() => setMenuOpen(false)}>
-                    <LayoutGrid size={15} /> {orgTeamAccess && !user.isOrganizer ? `Team console — ${orgTeamAccess.organizerBrand}` : 'Organizer console'}
-                  </Link>
+                  <OrgMenuSection
+                    isOwner={user.isOrganizer}
+                    access={orgTeamAccess}
+                    onNavigate={() => setMenuOpen(false)}
+                  />
                 )}
                 {user.isPromoter && (
-                  <Link to="/promoter" onClick={() => setMenuOpen(false)}>
-                    <Megaphone size={15} /> Promoter console
-                  </Link>
+                  <>
+                    <div className="cap hdr-menu-cap">PROMOTER</div>
+                    <Link to="/promoter" onClick={() => setMenuOpen(false)}><LayoutGrid size={15} /> Dashboard</Link>
+                    <Link to="/promoter/promotions" onClick={() => setMenuOpen(false)}><Megaphone size={15} /> My promotions</Link>
+                    <Link to="/promoter/city-events" onClick={() => setMenuOpen(false)}><Globe size={15} /> Promote any event</Link>
+                    <Link to="/promoter/earnings" onClick={() => setMenuOpen(false)}><Banknote size={15} /> Earnings</Link>
+                    <Link to="/promoter/team" onClick={() => setMenuOpen(false)}><Users size={15} /> Team</Link>
+                    <Link to="/promoter/leaderboard" onClick={() => setMenuOpen(false)}><Trophy size={15} /> Leaderboard</Link>
+                    <Link to="/promoter/subscription" onClick={() => setMenuOpen(false)}><CreditCard size={15} /> Subscription</Link>
+                    <Link to="/promoter/settings" onClick={() => setMenuOpen(false)}><SettingsIcon size={15} /> Profile & settings</Link>
+                    <Link to="/payment-methods" onClick={() => setMenuOpen(false)}><CreditCard size={15} /> Payment methods</Link>
+                    <Link to="/help" onClick={() => setMenuOpen(false)}><LifeBuoy size={15} /> Help center</Link>
+                  </>
                 )}
                 {user.isLineup && (
-                  <Link to="/artist" onClick={() => setMenuOpen(false)}>
-                    <Mic size={15} /> Artist console
-                  </Link>
+                  <>
+                    <div className="cap hdr-menu-cap">ARTIST</div>
+                    <Link to="/artist" onClick={() => setMenuOpen(false)}><LayoutGrid size={15} /> Dashboard</Link>
+                    <Link to="/artist/profile" onClick={() => setMenuOpen(false)}><SettingsIcon size={15} /> Profile & settings</Link>
+                    <Link to="/artist/billing" onClick={() => setMenuOpen(false)}><Star size={15} /> Featured & billing</Link>
+                    <Link to="/payment-methods" onClick={() => setMenuOpen(false)}><CreditCard size={15} /> Payment methods</Link>
+                    <Link to="/help" onClick={() => setMenuOpen(false)}><LifeBuoy size={15} /> Help center</Link>
+                  </>
                 )}
                 {user.isVenue && (
-                  <Link to="/venue" onClick={() => setMenuOpen(false)}>
-                    <Landmark size={15} /> Venue panel
-                  </Link>
+                  <>
+                    <div className="cap hdr-menu-cap">VENUE</div>
+                    <Link to="/venue" onClick={() => setMenuOpen(false)}><LayoutGrid size={15} /> Dashboard</Link>
+                    <Link to="/venue/listing" onClick={() => setMenuOpen(false)}><Landmark size={15} /> My listing</Link>
+                    <Link to="/venue/events" onClick={() => setMenuOpen(false)}><Calendar size={15} /> Events here</Link>
+                    <Link to="/venue/reviews" onClick={() => setMenuOpen(false)}><Star size={15} /> Reviews</Link>
+                    <Link to="/venue/billing" onClick={() => setMenuOpen(false)}><Award size={15} /> Featured & billing</Link>
+                    <Link to="/venue/settings" onClick={() => setMenuOpen(false)}><SettingsIcon size={15} /> Settings</Link>
+                    <Link to="/payment-methods" onClick={() => setMenuOpen(false)}><CreditCard size={15} /> Payment methods</Link>
+                    <Link to="/help" onClick={() => setMenuOpen(false)}><LifeBuoy size={15} /> Help center</Link>
+                  </>
                 )}
                 {(user.isVenue || venueTeamAccess) && (
-                  <Link to="/venue/hosting" onClick={() => setMenuOpen(false)}>
-                    <Tent size={15} /> {venueTeamAccess && !user.isVenue ? `Team console — ${venueTeamAccess.venueBrand}` : 'Organizer panel'}
-                  </Link>
+                  <VenueHostingMenuSection
+                    isOwner={!!user.isVenue}
+                    access={venueTeamAccess}
+                    onNavigate={() => setMenuOpen(false)}
+                  />
                 )}
                 {!heldRole && (
                   <Link to="/host" onClick={() => setMenuOpen(false)}>
