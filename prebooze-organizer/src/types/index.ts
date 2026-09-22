@@ -509,3 +509,24 @@ export const ORG_PERMISSION_MODULES = [
   'Settings & team',
 ] as const;
 export type OrgPermissionModule = (typeof ORG_PERMISSION_MODULES)[number];
+
+// Personal-account features (shared across every role, not organizer-
+// specific) — real shape from prebooze-web/src/types.ts.
+export interface PayMethod {
+  id: string;
+  type: 'upi' | 'card';
+  label: string;
+  holder?: string;
+  expiry?: string;
+  isDefault: boolean;
+  usedCount?: number;
+}
+
+export interface HelpTicket {
+  id: string;
+  topic: string;
+  subject: string;
+  message: string;
+  status: 'open' | 'resolved';
+  createdAt: string;
+}

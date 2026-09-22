@@ -62,4 +62,8 @@ export type MoreStackParamList = {
   TeamRoles: undefined;
   Verification: undefined;
   PaymentProfiles: undefined;
+  // Personal-account items (2026-09-22) — shared across every role, not
+  // organizer-specific, matching web's NAV "no module" entries.
+  PaymentMethods: undefined;
+  HelpCenter: undefined;
 };

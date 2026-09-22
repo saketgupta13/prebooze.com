@@ -1,7 +1,7 @@
 import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Banknote, ChevronRight, type LucideIcon, Megaphone, Radio, Receipt, Settings as SettingsIcon, ShieldCheck, ShoppingCart, Star, Tag, Users as UsersIcon } from 'lucide-react-native';
+import { Banknote, ChevronRight, CreditCard, LifeBuoy, type LucideIcon, Megaphone, Radio, Receipt, Settings as SettingsIcon, ShieldCheck, ShoppingCart, Star, Tag, Users as UsersIcon } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, H1, H2, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
@@ -85,6 +85,22 @@ export default function MoreScreen() {
           </Pressable>
         </Card>
       )}
+
+      {/* Personal-account items (2026-09-22) — shared across every role,
+       * not organizer-business permissions, so always visible regardless
+       * of accessState.kind — matching web's NAV entries with no `module`. */}
+      <Card style={[styles.list, { marginTop: spacing.l }]}>
+        <Pressable style={[styles.row, styles.rowBorder]} onPress={() => navigation.navigate('PaymentMethods')}>
+          <CreditCard size={18} color={colors.muted} />
+          <Txt style={styles.rowLabel}>Payment methods</Txt>
+          <ChevronRight size={16} color={colors.muted} />
+        </Pressable>
+        <Pressable style={styles.row} onPress={() => navigation.navigate('HelpCenter')}>
+          <LifeBuoy size={18} color={colors.muted} />
+          <Txt style={styles.rowLabel}>Help center</Txt>
+          <ChevronRight size={16} color={colors.muted} />
+        </Pressable>
+      </Card>
 
       <Button label="Log out" variant="ghost" onPress={logout} style={styles.logout} />
     </Screen>

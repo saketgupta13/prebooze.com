@@ -13,6 +13,8 @@ import SettingsScreen from '../screens/settings/SettingsScreen';
 import TeamRolesScreen from '../screens/settings/TeamRolesScreen';
 import VerificationScreen from '../screens/settings/VerificationScreen';
 import PaymentProfilesScreen from '../screens/settings/PaymentProfilesScreen';
+import PaymentMethodsScreen from '../screens/settings/PaymentMethodsScreen';
+import HelpCenterScreen from '../screens/settings/HelpCenterScreen';
 import type { MoreStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<MoreStackParamList>();
@@ -37,6 +39,8 @@ export default function MoreStack() {
       <Stack.Screen name="TeamRoles" component={TeamRolesScreen} />
       <Stack.Screen name="Verification" component={VerificationScreen} />
       <Stack.Screen name="PaymentProfiles" component={PaymentProfilesScreen} />
+      <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
+      <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
     </Stack.Navigator>
   );
 }
