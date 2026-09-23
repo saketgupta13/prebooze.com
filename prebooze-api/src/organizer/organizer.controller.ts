@@ -257,6 +257,11 @@ export class OrganizerController {
     return this.organizer.manualCheckIn(req.user.sub, id, name, count);
   }
 
+  @Post('events/:id/check-in/:bookingId/revert')
+  revertCheckIn(@Req() req: AuthedReq, @Param('id') id: string, @Param('bookingId') bookingId: string) {
+    return this.organizer.revertCheckIn(req.user.sub, id, bookingId);
+  }
+
   @Patch('events/:id/pause-sales')
   setSalesPaused(@Req() req: AuthedReq, @Param('id') id: string, @Body('paused') paused: boolean) {
     return this.organizer.setSalesPaused(req.user.sub, id, paused);

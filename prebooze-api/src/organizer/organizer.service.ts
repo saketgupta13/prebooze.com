@@ -10,6 +10,7 @@ import { NotificationsService } from '../admin/notifications.service';
 import { OrgNotificationsService } from '../notifications/org-notifications';
 import { GuestListService } from '../admin/guestlist.service';
 import { LiveMonitorService } from '../admin/live-monitor.service';
+import { CatalogService } from '../catalog/catalog.service';
 import { OrgAccessService } from './org-access.service';
 import { toCitySlug } from '../common/city-slug';
 
@@ -172,6 +173,17 @@ export class OrganizerService {
     await this.orgAccess.require(userId, 'Attendees & check-in', 'edit');
     await this.myEvent(userId, eventId);
     return this.liveMonitorSvc.manualCheckIn(eventId, name, count);
+  }
+
+  /** Live Monitor only (not the camera/QR scanner — see
+   * LiveMonitorService.revertCheckIn's own comment) — allowed any time the
+   * event hasn't fully ended yet, same "still live" bar the rest of this
+   * gate-ops section already gates on via the events()/live() event picker. */
+  async revertCheckIn(userId: string, eventId: string, bookingId: string) {
+    await this.orgAccess.require(userId, 'Attendees & check-in', 'edit');
+    const event = await this.myEvent(userId, eventId);
+    if (CatalogService.isEventOver(event)) throw new BadRequestException("This event has ended — check-ins can't be reverted anymore");
+    return this.liveMonitorSvc.revertCheckIn(eventId, bookingId);
   }
 
   /** Organizer-owned counterpart to AdminEventsController's pause-sales

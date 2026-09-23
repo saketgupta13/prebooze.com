@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, Check, X } from 'lucide-react-native';
+import { ArrowLeft, Check, Undo2, X } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { ApiError } from '../../api/client';
 import { Badge, Bar, Button, Card, H1, IconButton, Input, Kpi, Muted, Screen, Stepper, Txt } from '../../components/ui';
@@ -90,6 +90,25 @@ export default function LiveMonitorScreen() {
     }
   };
 
+  // Real gap (2026-09-23): no way to undo a mis-entry made via Manual
+  // check-in above — scoped to Live Monitor only, not the camera scanner
+  // (see LiveMonitorService.revertCheckIn's own comment).
+  const revertCheckIn = (bookingId: string) => {
+    Alert.alert('Revert this check-in?', "They'll need to be checked in again to get back in.", [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Revert', style: 'destructive', onPress: async () => {
+          try {
+            await organizer.revertCheckIn(eventId, bookingId);
+            organizer.live(eventId).then(setData);
+          } catch (e) {
+            setErr(e instanceof ApiError ? e.message : 'Failed to revert check-in');
+          }
+        },
+      },
+    ]);
+  };
+
   const togglePause = async () => {
     if (!data) return;
     setPauseBusy(true);
@@ -171,8 +190,17 @@ export default function LiveMonitorScreen() {
                   {data.feed.length === 0 && <Muted style={fontStyleSmall}>No scans yet.</Muted>}
                   {data.feed.map((f, i) => (
                     <View key={f.at + '-' + i} style={[styles.feedRow, !f.ok && styles.feedRowBad]}>
-                      <Txt style={[fontStyleSmall, !f.ok && { color: colors.danger }]} numberOfLines={1}>{f.text}</Txt>
-                      <Muted style={styles.tiny}>{ago(f.at)}</Muted>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Txt style={[fontStyleSmall, !f.ok && { color: colors.danger }]} numberOfLines={1}>{f.text}</Txt>
+                        <Muted style={styles.tiny}>{ago(f.at)}</Muted>
+                      </View>
+                      {/* Only a real matched booking (not a walk-up or a
+                       * rejected scan) has anything to revert. */}
+                      {f.ok && !!f.bookingId && (
+                        <Pressable onPress={() => revertCheckIn(f.bookingId!)} hitSlop={8}>
+                          <Undo2 size={15} color={colors.muted} />
+                        </Pressable>
+                      )}
                     </View>
                   ))}
                 </Card>

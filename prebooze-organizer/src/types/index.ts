@@ -407,7 +407,7 @@ export interface OrgLiveMonitor {
   scanRate: number;
   rejected: number;
   histogram: number[];
-  feed: { ok: boolean; text: string; at: string }[];
+  feed: { ok: boolean; text: string; at: string; bookingId?: string }[];
   salesPaused: boolean;
 }
 

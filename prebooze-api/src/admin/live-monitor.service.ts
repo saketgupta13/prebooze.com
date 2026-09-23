@@ -8,6 +8,9 @@ const HISTOGRAM_BUCKETS = 10;
 const BUCKET_MS = 15 * 60 * 1000;
 const SCAN_RATE_WINDOW_MS = 5 * 60 * 1000;
 
+const isSameCalendarDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
 @Injectable()
 export class LiveMonitorService {
   constructor(private prisma: PrismaService) {}
@@ -54,10 +57,13 @@ export class LiveMonitorService {
     }
 
     const feedLogs = await this.prisma.checkInLog.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 8 });
+    // bookingId lets the RN client offer a revert action on a real matched
+    // check-in — a walk-up/rejected entry has none, nothing to revert.
     const feed = feedLogs.map((l) => ({
       ok: l.ok,
       text: l.ok ? `✓ ${l.guestName ?? 'Guest'} · ${l.tierName ?? l.reason}` : `✕ ${l.reason}`,
       at: l.createdAt,
+      bookingId: l.bookingId ?? undefined,
     }));
 
     return { total, checkedIn, remaining, pct, scanRate, rejected, histogram, feed, salesPaused: event.salesPaused };
@@ -137,11 +143,25 @@ export class LiveMonitorService {
     });
     if (booking) {
       if (booking.status !== 'confirmed') throw new BadRequestException(`Ticket is ${booking.status}, not valid for entry`);
-      if (booking.checkedIn) throw new BadRequestException('Already checked in — ' + booking.checkedInAt?.toISOString());
+      // Real gap (2026-09-23): a multi-day event (Event.seriesEndDate set)
+      // had no way to re-admit a guest on day 2/3 — checkedIn was a
+      // lifetime-once flag, so day 1's check-in permanently blocked every
+      // later day. checkedInAt not being from *today* now means "not
+      // checked in yet today," letting the update below proceed instead of
+      // rejecting — single-day events (no seriesEndDate) keep the exact
+      // original always-reject behavior. CheckInLog's append-only history
+      // (below) is what preserves day 1's real attendance record even
+      // though checkedInAt itself only ever holds the latest day's stamp.
+      const alreadyToday = booking.checkedIn && (!event.seriesEndDate || isSameCalendarDay(booking.checkedInAt!, new Date()));
+      if (alreadyToday) throw new BadRequestException('Already checked in — ' + booking.checkedInAt?.toISOString());
       // Same conditional-update race guard as BookingsService.checkIn — a
       // manual lookup here can race a real camera scan of the same booking.
+      // checkedIn:false OR checkedInAt < today's start covers both the
+      // never-checked-in case and the multi-day re-admission case above.
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
       const result = await this.prisma.booking.updateMany({
-        where: { id: booking.id, checkedIn: false },
+        where: { id: booking.id, OR: [{ checkedIn: false }, { checkedInAt: { lt: todayStart } }] },
         data: { checkedIn: true, checkedInAt: new Date() },
       });
       if (result.count === 0) {
@@ -155,6 +175,23 @@ export class LiveMonitorService {
 
     return this.prisma.checkInLog.create({
       data: { eventId, ok: true, reason: 'manual check-in — walk-up', guestName: trimmed, headcount },
+    });
+  }
+
+  /** Undo a manual check-in — real gap (2026-09-23), staff had no way to fix
+   * a mis-entry made via Live Monitor. Deliberately scoped to Live
+   * Monitor's manual check-in only, not the camera/QR scanner path
+   * (BookingsService.checkIn) — organizer explicitly wants the scanner
+   * untouched. Allowed any time the event is still live, not just
+   * pre-start, so it's actually useful for fixing a real-time mistake at
+   * the gate. */
+  async revertCheckIn(eventId: string, bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({ where: { id: bookingId } });
+    if (!booking || booking.eventId !== eventId) throw new NotFoundException('Booking not found');
+    if (!booking.checkedIn) throw new BadRequestException('This booking is not checked in');
+    await this.prisma.booking.update({ where: { id: bookingId }, data: { checkedIn: false, checkedInAt: null } });
+    return this.prisma.checkInLog.create({
+      data: { eventId, bookingId, ok: true, reason: 'check-in reverted by organizer', guestName: booking.mainGuest, tierName: booking.tierName, headcount: booking.qty },
     });
   }
 }

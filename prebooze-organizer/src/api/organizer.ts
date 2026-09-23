@@ -81,6 +81,7 @@ export const organizer = {
   promoterGuests: (eventId: string) => apiFetch<OrgPromoterGuest[]>(`/organizer/events/${eventId}/promoter-guests`),
   live: (eventId: string) => apiFetch<OrgLiveMonitor>(`/organizer/events/${eventId}/live`),
   manualCheckIn: (eventId: string, name: string, count?: number) => apiFetch<unknown>(`/organizer/events/${eventId}/check-in`, { body: { name, count } }),
+  revertCheckIn: (eventId: string, bookingId: string) => apiFetch<unknown>(`/organizer/events/${eventId}/check-in/${bookingId}/revert`, { method: 'POST' }),
   setSalesPaused: (eventId: string, paused: boolean) => apiFetch<Event>(`/organizer/events/${eventId}/pause-sales`, { method: 'PATCH', body: { paused } }),
 };
 
