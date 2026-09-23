@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
+import { PrismaModule } from './prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { KycModule } from './kyc/kyc.module';
 import { CatalogModule } from './catalog/catalog.module';
@@ -28,6 +29,7 @@ import { SitemapModule } from './sitemap/sitemap.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    PrismaModule,
     AuthModule,
     KycModule,
     CatalogModule,

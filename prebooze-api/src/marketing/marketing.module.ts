@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MarketingController, VenueMarketingController, AdminMarketingController } from './marketing.controller';
 import { MarketingService } from './marketing.service';
-import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StaffAuthGuard } from '../admin/staff-auth.guard';
 import { PermissionGuard } from '../admin/permission.guard';
@@ -16,7 +15,7 @@ import { AnalyticsReportService } from '../analytics/analytics-report.service';
 @Module({
   controllers: [MarketingController, VenueMarketingController, AdminMarketingController],
   providers: [
-    MarketingService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard,
+    MarketingService, JwtAuthGuard, StaffAuthGuard, PermissionGuard,
     EmailService, WhatsappService, InvoicesService, PhonePeService, WalletService, StaffAlertsService, AnalyticsReportService,
   ],
   exports: [MarketingService],

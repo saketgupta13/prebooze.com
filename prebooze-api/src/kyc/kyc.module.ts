@@ -3,7 +3,6 @@ import { KycController, AdminKycController } from './kyc.controller';
 import { KycService } from './kyc.service';
 import { StorageService } from './storage.service';
 import { KycProviderService } from './kyc-provider.service';
-import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StaffAuthGuard } from '../admin/staff-auth.guard';
 import { PermissionGuard } from '../admin/permission.guard';
@@ -19,6 +18,6 @@ import { LeadsService } from '../admin/leads.service';
 // importing it again.
 @Module({
   controllers: [KycController, AdminKycController],
-  providers: [KycService, StorageService, KycProviderService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService, EmailService, WhatsappService, StaffAlertsService, MetaConversionsService, LeadsService],
+  providers: [KycService, StorageService, KycProviderService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService, EmailService, WhatsappService, StaffAlertsService, MetaConversionsService, LeadsService],
 })
 export class KycModule {}

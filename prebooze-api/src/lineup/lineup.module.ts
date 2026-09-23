@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { LineupController } from './lineup.controller';
 import { LineupService } from './lineup.service';
-import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { EmailService } from '../notifications/email';
 import { WhatsappService } from '../notifications/whatsapp';
@@ -14,6 +13,6 @@ import { WalletService } from '../wallet/wallet.service';
 
 @Module({
   controllers: [LineupController],
-  providers: [LineupService, PrismaService, JwtAuthGuard, EmailService, WhatsappService, StaffAlertsService, SubscriptionsService, StorageService, InvoicesService, WalletService],
+  providers: [LineupService, JwtAuthGuard, EmailService, WhatsappService, StaffAlertsService, SubscriptionsService, StorageService, InvoicesService, WalletService],
 })
 export class LineupModule {}

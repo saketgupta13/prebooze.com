@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { PrismaService } from '../prisma.service';
 import { redisProvider } from '../redis.provider';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
@@ -19,6 +18,6 @@ import { MetaConversionsService } from '../meta/meta-conversions.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, redisProvider, WhatsappService, EmailService, JwtAuthGuard, StorageService, MetaConversionsService],
+  providers: [AuthService, redisProvider, WhatsappService, EmailService, JwtAuthGuard, StorageService, MetaConversionsService],
 })
 export class AuthModule {}

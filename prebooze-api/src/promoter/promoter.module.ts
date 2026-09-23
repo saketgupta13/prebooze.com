@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PromoterController, GuestCaptureController } from './promoter.controller';
 import { PromoterService } from './promoter.service';
-import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
@@ -15,6 +14,6 @@ import { InvoicesService } from '../invoices/invoices.service';
 
 @Module({
   controllers: [PromoterController, GuestCaptureController],
-  providers: [PromoterService, PrismaService, JwtAuthGuard, WhatsappService, EmailService, StaffAlertsService, SubscriptionsService, WalletService, NotificationsService, StorageService, InvoicesService],
+  providers: [PromoterService, JwtAuthGuard, WhatsappService, EmailService, StaffAlertsService, SubscriptionsService, WalletService, NotificationsService, StorageService, InvoicesService],
 })
 export class PromoterModule {}

@@ -4,7 +4,6 @@ import { VenueService } from './venue.service';
 import { VenueAccessService } from './venue-access.service';
 import { VenueTeamService } from './venue-team.service';
 import { VenueTeamController, VenueRolesController } from './venue-team.controller';
-import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { EmailService } from '../notifications/email';
 import { WhatsappService } from '../notifications/whatsapp';
@@ -25,7 +24,7 @@ import { LiveMonitorService } from '../admin/live-monitor.service';
 @Module({
   controllers: [VenueController, AdminVenueHostingController, VenueTeamController, VenueRolesController],
   providers: [
-    VenueService, PrismaService, JwtAuthGuard, EmailService, WhatsappService, StaffAlertsService,
+    VenueService, JwtAuthGuard, EmailService, WhatsappService, StaffAlertsService,
     SubscriptionsService, StorageService, InvoicesService, WalletService, NotificationsService, StaffAuthGuard, PermissionGuard,
     MetaConversionsService, LeadsService, GuestListService, LiveMonitorService, VenueAccessService, VenueTeamService,
   ],

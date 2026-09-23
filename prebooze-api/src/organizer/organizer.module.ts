@@ -4,7 +4,6 @@ import { OrgTeamController, OrgRolesController } from './org-team.controller';
 import { OrganizerService } from './organizer.service';
 import { OrgTeamService } from './org-team.service';
 import { OrgAccessService } from './org-access.service';
-import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StaffAuthGuard } from '../admin/staff-auth.guard';
 import { PermissionGuard } from '../admin/permission.guard';
@@ -21,6 +20,6 @@ import { OrgNotificationsService } from '../notifications/org-notifications';
 
 @Module({
   controllers: [OrganizerController, AdminEventsController, OrgTeamController, OrgRolesController, VipPassController],
-  providers: [OrganizerService, OrgTeamService, OrgAccessService, PrismaService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, GuestListService, LiveMonitorService, StorageService, InvoicesService, PushService, OrgNotificationsService],
+  providers: [OrganizerService, OrgTeamService, OrgAccessService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, GuestListService, LiveMonitorService, StorageService, InvoicesService, PushService, OrgNotificationsService],
 })
 export class OrganizerModule {}

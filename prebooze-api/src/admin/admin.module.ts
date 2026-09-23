@@ -67,7 +67,6 @@ import { SocialService } from '../social/social.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { OwnerOnlyGuard } from './owner-only.guard';
 import { PermissionGuard } from './permission.guard';
-import { PrismaService } from '../prisma.service';
 import { StorageService } from '../kyc/storage.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
@@ -176,7 +175,6 @@ import { redisProvider } from '../redis.provider';
     StaffAuthGuard,
     OwnerOnlyGuard,
     PermissionGuard,
-    PrismaService,
     redisProvider,
   ],
   exports: [StaffAuthGuard, PermissionGuard],
