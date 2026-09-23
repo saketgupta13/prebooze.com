@@ -1,11 +1,13 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, LifeBuoy, X } from 'lucide-react-native';
+import { ArrowLeft, ChevronDown, ChevronUp, LifeBuoy, Mail, Send, X } from 'lucide-react-native';
 import { support } from '../../api/support';
+import { auth } from '../../api/auth';
 import { ApiError } from '../../api/client';
-import { Badge, Button, Card, H1, IconButton, Input, Muted, Screen, Txt } from '../../components/ui';
+import { useAuth } from '../../context/AuthContext';
+import { Badge, Button, Card, H1, IconButton, Input, Muted, Notice, Screen, Txt } from '../../components/ui';
 import SearchableSelect from '../../components/SearchableSelect';
 import Accordion from '../../components/Accordion';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
@@ -27,6 +29,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day
 
 export default function HelpCenterScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<MoreStackParamList>>();
+  const { user, refreshUser } = useAuth();
   const [tickets, setTickets] = useState<HelpTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -34,6 +37,12 @@ export default function HelpCenterScreen() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const [addingEmail, setAddingEmail] = useState(false);
+  const [emailDraft, setEmailDraft] = useState('');
+  const [savingEmail, setSavingEmail] = useState(false);
+
+  const [openId, setOpenId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -59,6 +68,22 @@ export default function HelpCenterScreen() {
       setErr(e instanceof ApiError ? e.message : 'Failed to submit ticket');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const saveEmail = async () => {
+    if (!emailDraft.trim()) return;
+    setSavingEmail(true);
+    setErr('');
+    try {
+      await auth.updateMe({ email: emailDraft.trim() });
+      await refreshUser();
+      setAddingEmail(false);
+      setEmailDraft('');
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Failed to save email');
+    } finally {
+      setSavingEmail(false);
     }
   };
 
@@ -91,20 +116,46 @@ export default function HelpCenterScreen() {
           <FieldLabel>What happened?</FieldLabel>
           <Input value={message} onChangeText={setMessage} placeholder="Tell us the details — ids help (booking / event / payout)…" multiline numberOfLines={4} style={[styles.fieldGap, styles.textarea]} />
           <Button label={submitting ? 'Submitting…' : 'Submit ticket →'} onPress={submit} loading={submitting} style={{ marginTop: spacing.m }} />
-          <Muted style={styles.tiny}>replies land on WhatsApp</Muted>
+          <Muted style={styles.tiny}>{user?.email?.trim() ? `replies land at ${user.email}` : 'add an email below to get replies'}</Muted>
         </Card>
+
+        {!user?.email?.trim() && (
+          <Card style={styles.card}>
+            <Notice tone="info">
+              <View style={{ flex: 1 }}>
+                <Txt style={styles.bold}>Add your email to get ticket updates</Txt>
+                <Muted style={styles.tiny}>We reply by email when your ticket status changes — no email on file yet.</Muted>
+                {addingEmail ? (
+                  <View style={{ marginTop: spacing.s }}>
+                    <Input value={emailDraft} onChangeText={setEmailDraft} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" />
+                    <View style={{ flexDirection: 'row', gap: spacing.s, marginTop: spacing.s }}>
+                      <Button label={savingEmail ? 'Saving…' : 'Save email'} onPress={saveEmail} loading={savingEmail} style={{ flex: 1 }} />
+                      <Button label="Cancel" variant="ghost" onPress={() => { setAddingEmail(false); setEmailDraft(''); }} style={{ flex: 1 }} />
+                    </View>
+                  </View>
+                ) : (
+                  <Pressable onPress={() => setAddingEmail(true)} style={{ marginTop: spacing.s, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Mail size={13} color={colors.accent} />
+                    <Txt style={{ color: colors.accent, fontFamily: fontFamily.bold, fontSize: fontSize.s }}>Add email</Txt>
+                  </Pressable>
+                )}
+              </View>
+            </Notice>
+          </Card>
+        )}
 
         {!loading && tickets.length > 0 && (
           <Card style={styles.card}>
             <Txt style={styles.bold}>Your tickets ({tickets.length})</Txt>
             {tickets.map((t, i) => (
-              <View key={t.id} style={[styles.ticketRow, i < tickets.length - 1 && styles.rowBorder]}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Txt style={styles.bold} numberOfLines={1}>{t.subject}</Txt>
-                  <Muted style={styles.tiny}>{t.topic} · {fmtDate(t.createdAt)}</Muted>
-                </View>
-                <Badge label={t.status === 'open' ? 'Open' : 'Resolved'} tone={t.status === 'open' ? 'default' : 'success'} />
-              </View>
+              <TicketRow
+                key={t.id}
+                ticket={t}
+                open={openId === t.id}
+                showBorder={i < tickets.length - 1}
+                onToggle={() => setOpenId(openId === t.id ? null : t.id)}
+                onError={setErr}
+              />
             ))}
           </Card>
         )}
@@ -117,6 +168,93 @@ export default function HelpCenterScreen() {
         </Card>
       </ScrollView>
     </Screen>
+  );
+}
+
+/** A ticket row that opens into its full thread — previously a static row
+ * with no way to see a reply or follow up (the real gap this closes, same
+ * fix as prebooze-web's HelpCenter.tsx). Thread is fetched lazily on first
+ * open, not eagerly for every ticket in the list. */
+function TicketRow({ ticket, open, showBorder, onToggle, onError }: {
+  ticket: HelpTicket;
+  open: boolean;
+  showBorder: boolean;
+  onToggle: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [thread, setThread] = useState<HelpTicket | null>(null);
+  const [loadingThread, setLoadingThread] = useState(false);
+  const [reply, setReply] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const handleToggle = () => {
+    onToggle();
+    if (!open && !thread) {
+      setLoadingThread(true);
+      support.ticket(ticket.id)
+        .then(setThread)
+        .catch((e) => onError(e instanceof ApiError ? e.message : 'Could not load this ticket'))
+        .finally(() => setLoadingThread(false));
+    }
+  };
+
+  const sendReply = async () => {
+    if (!reply.trim() || !thread) return;
+    setSending(true);
+    try {
+      const r = await support.reply(ticket.id, reply.trim());
+      setThread({ ...thread, replies: [...(thread.replies ?? []), r] });
+      setReply('');
+    } catch (e) {
+      onError(e instanceof ApiError ? e.message : 'Could not send your reply');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <View style={[showBorder && styles.rowBorder]}>
+      <Pressable onPress={handleToggle} style={styles.ticketRow}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Txt style={styles.bold} numberOfLines={1}>{ticket.subject}</Txt>
+          <Muted style={styles.tiny}>{ticket.topic} · {fmtDate(ticket.createdAt)}</Muted>
+        </View>
+        <Badge label={ticket.status === 'open' ? 'Open' : 'Resolved'} tone={ticket.status === 'open' ? 'default' : 'success'} />
+        {open ? <ChevronUp size={16} color={colors.muted} /> : <ChevronDown size={16} color={colors.muted} />}
+      </Pressable>
+
+      {open && (
+        <View style={{ paddingBottom: spacing.m }}>
+          {loadingThread ? (
+            <Muted style={styles.tiny}>Loading…</Muted>
+          ) : !thread ? (
+            <Muted style={styles.tiny}>Could not load this ticket.</Muted>
+          ) : (
+            <>
+              <View style={styles.bubble}>
+                <Txt style={styles.bubbleText}>{thread.message}</Txt>
+              </View>
+              {(thread.replies ?? []).map((r) => (
+                <View key={r.id} style={[styles.bubble, r.fromStaffId && styles.bubbleStaff]}>
+                  <Muted style={styles.bubbleFrom}>{r.fromStaffId ? `Prebooze team${r.fromStaff?.name ? ` · ${r.fromStaff.name}` : ''}` : 'You'}</Muted>
+                  <Txt style={styles.bubbleText}>{r.message}</Txt>
+                </View>
+              ))}
+              {thread.status === 'open' ? (
+                <View style={{ flexDirection: 'row', gap: spacing.s, marginTop: spacing.s }}>
+                  <Input value={reply} onChangeText={setReply} placeholder="Write a follow-up…" style={{ flex: 1 }} />
+                  <IconButton onPress={sendReply} disabled={sending || !reply.trim()}>
+                    <Send size={16} color={colors.accent} />
+                  </IconButton>
+                </View>
+              ) : (
+                <Muted style={[styles.tiny, { marginTop: spacing.s }]}>This ticket is resolved — raise a new one if you need more help.</Muted>
+              )}
+            </>
+          )}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -139,4 +277,8 @@ const styles = StyleSheet.create({
   textarea: { height: 90, textAlignVertical: 'top', paddingTop: spacing.s },
   ticketRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s, paddingVertical: spacing.m },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.borderDash, borderStyle: 'dashed' },
+  bubble: { backgroundColor: colors.surface2, borderRadius: 8, padding: spacing.s, marginTop: spacing.s },
+  bubbleStaff: { backgroundColor: 'rgba(155, 225, 61, 0.1)' },
+  bubbleFrom: { fontSize: 10.5, fontFamily: fontFamily.bold, marginBottom: 2 },
+  bubbleText: { fontSize: fontSize.s },
 });
