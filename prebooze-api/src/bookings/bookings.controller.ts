@@ -137,8 +137,14 @@ export class AdminBookingsController {
 
   @Post(':id/refund/external')
   @RequirePermission('Refunds', 'approve')
-  recordExternalRefund(@Param('id') id: string, @Body('refundId') refundId: string) {
-    return this.bookings.adminRecordExternalRefund(decodeURIComponent(id), refundId);
+  recordExternalRefund(@Param('id') id: string, @Body() body: { refundId: string; amount?: number }) {
+    return this.bookings.adminRecordExternalRefund(decodeURIComponent(id), body.refundId, body.amount);
+  }
+
+  @Post(':id/refund/check-status')
+  @RequirePermission('Refunds', 'approve')
+  checkRefundStatus(@Param('id') id: string) {
+    return this.bookings.adminCheckRefundStatus(decodeURIComponent(id));
   }
 
   @Post(':id/resend-email')

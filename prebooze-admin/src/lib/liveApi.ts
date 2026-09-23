@@ -416,6 +416,10 @@ export interface LiveBooking {
   // reconcilePhonePeRefund / adminRecordExternalRefund).
   refundGatewayState: 'INITIATED' | 'COMPLETED' | 'FAILED' | null;
   refundGatewayRefundId: string | null;
+  // The real amount the gateway actually refunded (rupees) — from PhonePe's
+  // own callback/status response, or staff-entered when recorded manually.
+  // Prefer this over pendingRefundAmount (our own estimate) whenever set.
+  refundGatewayAmount: number | null;
   // Only present once a refund's actually been attempted — what
   // retryRefund() will send, net of gateway-fee/WhatsApp deductions (the
   // gateway-fee part is Razorpay-only; PhonePe UPI costs nothing to
@@ -445,8 +449,10 @@ export const liveBookings = {
   approveRefund: (id: string) => liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/approve`, { method: 'POST' }),
   declineRefund: (id: string) => liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/decline`, { method: 'POST' }),
   retryRefund: (id: string) => liveFetch<{ ok: true }>(`/admin/bookings/${encodeURIComponent(id)}/refund/retry`, { method: 'POST' }),
-  recordExternalRefund: (id: string, refundId: string) =>
-    liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/external`, { method: 'POST', body: { refundId } }),
+  recordExternalRefund: (id: string, refundId: string, amount?: number) =>
+    liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/external`, { method: 'POST', body: { refundId, amount } }),
+  checkRefundStatus: (id: string) =>
+    liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/check-status`, { method: 'POST' }),
   resendEmail: (id: string) => liveFetch<{ ok: true }>(`/admin/bookings/${encodeURIComponent(id)}/resend-email`, { method: 'POST' }),
   setNote: (id: string, note: string) => liveFetch<{ ok: true }>(`/admin/bookings/${encodeURIComponent(id)}/note`, { method: 'POST', body: { note } }),
   // Replaces everything after the main attendee (index 0, untouched) —

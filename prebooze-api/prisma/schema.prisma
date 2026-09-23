@@ -1466,6 +1466,12 @@ model Booking {
   // 'FAILED', null = no gateway refund currently tracked.
   refundGatewayState    String?
   refundGatewayRefundId String?
+  // The real amount the gateway actually refunded — in rupees, from
+  // PhonePe's own callback.amount (or staff-entered when recorded
+  // manually), not our own possibly-wrong estimate. Shown in the admin UI
+  // instead of pendingRefundAmount once known, so "what the guest actually
+  // got back" is always the gateway's number, never a local calculation.
+  refundGatewayAmount Int?
 
   // Payment method used on this booking. For admin bookings: set manually.
   // For guest checkouts: 'UPI'|'CARD'|'NETBANKING'|'WALLET'|'EMI' (PhonePe)

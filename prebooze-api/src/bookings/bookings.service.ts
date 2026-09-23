@@ -600,13 +600,13 @@ export class BookingsService {
     if (!booking) return; // not one of ours (or a payment, not a refund, id) — nothing to do
 
     if (state === 'COMPLETED') {
+      const amount = Math.round(amountPaise / 100);
       await this.prisma.booking.update({
         where: { id: booking.id },
-        data: { refundFailedAt: null, refundGatewayState: 'COMPLETED', refundGatewayRefundId: refundId ?? booking.refundGatewayRefundId },
+        data: { refundFailedAt: null, refundGatewayState: 'COMPLETED', refundGatewayRefundId: refundId ?? booking.refundGatewayRefundId, refundGatewayAmount: amount },
       });
       const user = await this.prisma.user.findUnique({ where: { id: booking.userId } });
       if (user) {
-        const amount = Math.round(amountPaise / 100);
         await this.wa.send(user.phone, 'refund_source', [booking.id, String(amount)]).catch(() => {});
         await this.email.sendTemplate(user.email, 'refund_processed', {
           name: user.name, bookingId: booking.id, amount: money(amount),
@@ -902,12 +902,20 @@ export class BookingsService {
       // 0% for UPI and 1.99% + 18% GST for card/netbanking.
       if (paymentId && total > 0) {
         const { gateway, method } = getGatewayAndMethod(paymentId);
+        // calculateGatewayFee is paise-in/paise-out (see settlements.
+        // service.ts's own `/ 100` after calling it) — LedgerEntry.amount
+        // is whole rupees like every other ₹ field, so the paise result
+        // needs the same conversion here. Real bug fixed 2026-09-23: a
+        // card/netbanking PhonePe sale was posting its gateway-fee expense
+        // ~100x too large (paise value stored as if it were rupees).
         const { baseFee, gst } = calculateGatewayFee(total * 100, gateway, paymentMethod || (method as PaymentMethod));
-        if (baseFee > 0) {
-          await this.postEventLedger(tx, event.id, event.title, 'Payment gateway fee', 'expense', baseFee);
+        const baseFeeRupees = Math.round(baseFee / 100);
+        const gstRupees = Math.round(gst / 100);
+        if (baseFeeRupees > 0) {
+          await this.postEventLedger(tx, event.id, event.title, 'Payment gateway fee', 'expense', baseFeeRupees);
         }
-        if (gst > 0) {
-          await this.postEventLedger(tx, event.id, event.title, 'Payment gateway GST', 'expense', gst);
+        if (gstRupees > 0) {
+          await this.postEventLedger(tx, event.id, event.title, 'Payment gateway GST', 'expense', gstRupees);
         }
       }
       // Rounded up to a whole rupee per message — LedgerEntry.amount has no
@@ -1437,14 +1445,68 @@ export class BookingsService {
    * `retryRefund` from firing a second, duplicate refund on top of it.
    * The real terminal state still only ever comes from the pg.refund.*
    * webhook, same as every other refund. */
-  async adminRecordExternalRefund(id: string, refundId: string) {
+  async adminRecordExternalRefund(id: string, refundId: string, amount?: number) {
     if (!refundId?.trim()) throw new BadRequestException('Refund ID is required');
     const booking = await this.prisma.booking.findUnique({ where: { id } });
     if (!booking) throw new NotFoundException('Booking not found');
     return this.prisma.booking.update({
       where: { id },
-      data: { refundGatewayState: 'INITIATED', refundGatewayRefundId: refundId.trim() },
+      data: {
+        refundGatewayState: 'INITIATED',
+        refundGatewayRefundId: refundId.trim(),
+        refundGatewayAmount: amount && amount > 0 ? Math.round(amount) : booking.refundGatewayAmount,
+      },
     });
+  }
+
+  /** Staff-triggered live check against PhonePe's own Refund Status API —
+   * "Refresh status" in the admin UI. Previously that button only re-read
+   * our own DB (no-op unless a webhook had already landed), which looked
+   * like it did nothing — this actually calls the gateway. Real 2026-09-23
+   * account-level gap: this call currently 401s (AUTHORIZATION_FAILED) for
+   * every refund on this merchant account while Order Status calls work
+   * fine on the same credentials — surfaced to the caller as a real error
+   * rather than swallowed, so staff see "still can't verify automatically"
+   * instead of silence. If PhonePe ever resolves the account-level gap,
+   * this starts working with no code change needed. */
+  async adminCheckRefundStatus(id: string) {
+    const booking = await this.prisma.booking.findUnique({ where: { id } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (!booking.refundGatewayRefundId) throw new BadRequestException('No gateway refund ID on file for this booking to check');
+
+    const status = await this.phonepe.getRefundStatus(booking.refundGatewayRefundId);
+    if (!status) throw new BadRequestException('PhonePe has no record of this refund ID');
+
+    const amount = Math.round(status.amount / 100);
+    // Normalized to this app's own three-value vocabulary — PhonePe's real
+    // API uses its own state strings (e.g. PENDING/CONFIRMED, not
+    // INITIATED) that don't necessarily match what its dashboard UI shows;
+    // only COMPLETED/FAILED are ever treated as terminal.
+    const normalizedState = status.state === 'COMPLETED' ? 'COMPLETED' : status.state === 'FAILED' ? 'FAILED' : 'INITIATED';
+    const updated = await this.prisma.booking.update({
+      where: { id },
+      data: {
+        refundGatewayState: normalizedState,
+        refundGatewayAmount: amount > 0 ? amount : booking.refundGatewayAmount,
+        refundFailedAt: normalizedState === 'COMPLETED' ? null : normalizedState === 'FAILED' ? new Date() : booking.refundFailedAt,
+      },
+    });
+
+    // Same confirmation the webhook path sends — a live status check that
+    // reveals COMPLETED is just as real a confirmation as the webhook
+    // itself, and shouldn't leave the guest without their email just
+    // because staff found out first.
+    if (normalizedState === 'COMPLETED' && booking.refundGatewayState !== 'COMPLETED') {
+      const user = await this.prisma.user.findUnique({ where: { id: booking.userId } });
+      if (user) {
+        await this.wa.send(user.phone, 'refund_source', [id, String(amount)]).catch(() => {});
+        await this.email.sendTemplate(user.email, 'refund_processed', {
+          name: user.name, bookingId: id, amount: money(amount),
+          refundNote: 'to your original payment method — usually 5–7 business days to reflect.',
+        }).catch(() => {});
+      }
+    }
+    return updated;
   }
 
   /** Routes a refund to whichever gateway actually processed the original
