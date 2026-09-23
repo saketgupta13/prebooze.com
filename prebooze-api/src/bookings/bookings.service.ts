@@ -1474,7 +1474,21 @@ export class BookingsService {
     if (!booking) throw new NotFoundException('Booking not found');
     if (!booking.refundGatewayRefundId) throw new BadRequestException('No gateway refund ID on file for this booking to check');
 
-    const status = await this.phonepe.getRefundStatus(booking.refundGatewayRefundId);
+    let status: Awaited<ReturnType<typeof this.phonepe.getRefundStatus>>;
+    try {
+      status = await this.phonepe.getRefundStatus(booking.refundGatewayRefundId);
+    } catch (e) {
+      // Same lesson as the resendWhatsapp fix (2026-08-14 incident) — a raw
+      // gateway SDK error isn't a NestJS HttpException, so letting it
+      // propagate turns into an opaque 500 instead of a real message. Real
+      // 2026-09-23 case this surfaces: PhonePe returning 401
+      // AUTHORIZATION_FAILED for every Refund API call on this merchant
+      // account (Order Status calls work fine on the same credentials) —
+      // an account-level gap on PhonePe's side, not something retrying fixes.
+      const code = (e as { code?: string })?.code;
+      const message = (e as Error)?.message || 'unknown error';
+      throw new BadRequestException(`PhonePe: ${code ? `${code} — ` : ''}${message}`);
+    }
     if (!status) throw new BadRequestException('PhonePe has no record of this refund ID');
 
     const amount = Math.round(status.amount / 100);
