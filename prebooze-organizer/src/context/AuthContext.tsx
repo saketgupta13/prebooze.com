@@ -57,13 +57,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
+      // Real bug found live (2026-09-23): a fresh install with no stored
+      // token resolved this whole check synchronously — SplashOverlay
+      // never got a real frame to paint before RootNavigator swapped
+      // straight to the login screen, so the splash appeared to not show
+      // at all. A token-holding relaunch already takes real network time
+      // via refreshUser() below and doesn't need this, but Promise.all
+      // still enforces the floor uniformly rather than special-casing the
+      // no-token branch, so it applies no matter which path boot takes.
+      const minSplash = new Promise((r) => setTimeout(r, 900));
       const token = await loadToken();
       if (!token) {
+        await minSplash;
         setBootLoading(false);
         return;
       }
       try {
-        await refreshUser();
+        await Promise.all([refreshUser(), minSplash]);
         // A relaunch with permission already granted from a prior session
         // (e.g. after an app update, or the token simply rotating) — best
         // effort, never blocks boot on a failed/slow registration.
