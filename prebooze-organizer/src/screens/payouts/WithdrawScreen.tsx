@@ -24,24 +24,39 @@ export default function WithdrawScreen() {
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState('');
+  // Distinct from `err` on purpose: a failed load must never fall through to
+  // the "no payment profile" UI (hasDefaultProfile's default is false) — a
+  // real production incident (2026-09-23, Postgres connection-pool
+  // exhaustion) made every request here fail, and the screen silently told
+  // organizers with a real profile on file to go add one. Gate the whole
+  // card on this instead so a transient failure shows a real error+retry,
+  // never a wrong "you have nothing set up" state.
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      Promise.all([organizer.payouts(), organizer.paymentProfiles()])
-        .then(([pay, profiles]) => {
-          if (cancelled) return;
-          setBalance(pay.balance);
-          setAmount(String(pay.balance));
-          const def = profiles.find((p) => p.isDefault);
-          setHasDefaultProfile(!!def);
-          setBankLast4(def ? def.bankAccountNumber.slice(-4) : null);
-        })
-        .catch((e) => { if (!cancelled) setErr(e instanceof ApiError ? e.message : 'Failed to load'); })
-        .finally(() => { if (!cancelled) setLoading(false); });
-      return () => { cancelled = true; };
-    }, []),
-  );
+  const load = useCallback(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLoadFailed(false);
+    setErr('');
+    Promise.all([organizer.payouts(), organizer.paymentProfiles()])
+      .then(([pay, profiles]) => {
+        if (cancelled) return;
+        setBalance(pay.balance);
+        setAmount(String(pay.balance));
+        const def = profiles.find((p) => p.isDefault);
+        setHasDefaultProfile(!!def);
+        setBankLast4(def ? def.bankAccountNumber.slice(-4) : null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setErr(e instanceof ApiError ? e.message : 'Failed to load');
+        setLoadFailed(true);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useFocusEffect(useCallback(() => load(), [load]));
 
   const amt = +amount || 0;
   const valid = amt > 0 && amt <= balance;
@@ -71,15 +86,25 @@ export default function WithdrawScreen() {
 
       <ScrollView style={styles.contentScroll} contentContainerStyle={styles.content}>
         {loading && <Muted style={styles.centerNote}>Loading…</Muted>}
-        {!!err && (
-          <View style={styles.errRow}>
-            <X size={14} color={colors.danger} />
-            <Txt style={{ color: colors.danger, fontSize: fontSize.s }}>{err}</Txt>
-          </View>
+
+        {!loading && loadFailed && (
+          <Card style={styles.card}>
+            <View style={styles.errRow}>
+              <X size={14} color={colors.danger} />
+              <Txt style={{ color: colors.danger, fontSize: fontSize.s }}>{err}</Txt>
+            </View>
+            <Button label="Retry" variant="ghost" onPress={load} style={{ marginTop: spacing.s }} />
+          </Card>
         )}
 
-        {!loading && (
+        {!loading && !loadFailed && (
           <Card style={styles.card}>
+            {!!err && (
+              <View style={styles.errRow}>
+                <X size={14} color={colors.danger} />
+                <Txt style={{ color: colors.danger, fontSize: fontSize.s }}>{err}</Txt>
+              </View>
+            )}
             <Muted style={styles.kpiLabel}>Available balance</Muted>
             <Txt style={[styles.balance, { color: colors.accent }]}>{fmtMoney(balance)}</Txt>
 

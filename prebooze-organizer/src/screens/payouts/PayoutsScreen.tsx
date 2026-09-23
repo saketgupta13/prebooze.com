@@ -39,23 +39,36 @@ export default function PayoutsScreen() {
   const [promoterPayouts, setPromoterPayouts] = useState<OrgPromoterPayoutRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  // Distinct from `err` (same reasoning as WithdrawScreen): on a failed
+  // load, `ledger`/`promoterPayouts` stay at their default empty arrays,
+  // which rendered as a real, misleading "No withdrawals yet." right next
+  // to the error banner during the 2026-09-23 connection-pool incident —
+  // gate the whole content area on this instead.
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      Promise.all([organizer.payouts(), organizer.paymentProfiles(), organizer.promoterPayouts()])
-        .then(([pay, profiles, pp]) => {
-          if (cancelled) return;
-          setBalance(pay.balance);
-          setLedger(pay.ledger);
-          setDefaultProfile(profiles.find((p) => p.isDefault) ?? null);
-          setPromoterPayouts(pp);
-        })
-        .catch((e) => { if (!cancelled) setErr(e instanceof ApiError ? e.message : 'Failed to load payouts'); })
-        .finally(() => { if (!cancelled) setLoading(false); });
-      return () => { cancelled = true; };
-    }, []),
-  );
+  const load = useCallback(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLoadFailed(false);
+    setErr('');
+    Promise.all([organizer.payouts(), organizer.paymentProfiles(), organizer.promoterPayouts()])
+      .then(([pay, profiles, pp]) => {
+        if (cancelled) return;
+        setBalance(pay.balance);
+        setLedger(pay.ledger);
+        setDefaultProfile(profiles.find((p) => p.isDefault) ?? null);
+        setPromoterPayouts(pp);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setErr(e instanceof ApiError ? e.message : 'Failed to load payouts');
+        setLoadFailed(true);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useFocusEffect(useCallback(() => load(), [load]));
 
   const payoutRows = ledger.filter((t) => t.type === 'withdrawal' || t.type === 'withdrawal_reversal');
   const lifetimePaidOut = payoutRows.filter((t) => t.type === 'withdrawal' && t.withdrawalStatus === 'complete').reduce((a, t) => a + Math.abs(t.amount), 0);
@@ -79,14 +92,20 @@ export default function PayoutsScreen() {
       </View>
 
       <ScrollView style={styles.contentScroll} contentContainerStyle={styles.content}>
-        {!!err && (
-          <View style={styles.errRow}>
-            <X size={14} color={colors.danger} />
-            <Txt style={{ color: colors.danger, fontSize: fontSize.s }}>{err}</Txt>
-          </View>
-        )}
         {loading && <Muted style={styles.centerNote}>Loading…</Muted>}
 
+        {!loading && loadFailed && (
+          <Card style={styles.section}>
+            <View style={styles.errRow}>
+              <X size={14} color={colors.danger} />
+              <Txt style={{ color: colors.danger, fontSize: fontSize.s }}>{err}</Txt>
+            </View>
+            <Button label="Retry" variant="ghost" onPress={load} style={{ marginTop: spacing.s }} />
+          </Card>
+        )}
+
+        {!loading && !loadFailed && (
+        <>
         <View style={styles.kpiRow}>
           <Card style={styles.kpiCard}>
             <Muted style={styles.kpiLabel}>Available balance</Muted>
@@ -167,6 +186,8 @@ export default function PayoutsScreen() {
             </View>
           ))}
         </Card>
+        </>
+        )}
       </ScrollView>
     </Screen>
   );

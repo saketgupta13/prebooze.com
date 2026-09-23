@@ -1,4 +1,4 @@
-import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Banknote, ChevronRight, CreditCard, LifeBuoy, type LucideIcon, Megaphone, Radio, Receipt, Settings as SettingsIcon, ShieldCheck, ShoppingCart, Star, Tag, Users as UsersIcon } from 'lucide-react-native';
@@ -42,6 +42,7 @@ export default function MoreScreen() {
 
   return (
     <Screen style={styles.screen}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
       <H1 style={styles.heading}>More</H1>
       <View style={styles.header}>
         {logoUrl ? (
@@ -103,12 +104,15 @@ export default function MoreScreen() {
       </Card>
 
       <Button label="Log out" variant="ghost" onPress={logout} style={styles.logout} />
+      </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: spacing.l },
+  screen: { flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { padding: spacing.l, paddingBottom: spacing.xxl },
   heading: { marginTop: spacing.s },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.m, marginBottom: spacing.xl, marginTop: spacing.l },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface2 },
