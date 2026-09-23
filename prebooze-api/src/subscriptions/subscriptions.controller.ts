@@ -24,7 +24,7 @@ export class PhonePeWebhookController {
   @Post('phonepe')
   async handle(@Req() req: RawBodyRequest<Request>, @Headers('authorization') authorization: string) {
     const raw = req.rawBody?.toString('utf8') ?? '';
-    let callback: { type: string; merchantOrderId: string; amount: number; state: string };
+    let callback: { type: string; merchantOrderId: string; originalMerchantOrderId: string; refundId: string; amount: number; state: string };
     try {
       callback = this.phonepe.validateCallback(authorization ?? '', raw);
     } catch {
@@ -36,6 +36,18 @@ export class PhonePeWebhookController {
     }
     if (callback.type === 'CHECKOUT_ORDER_COMPLETED' && callback.state === 'COMPLETED' && callback.merchantOrderId) {
       await this.bookings.reconcilePhonePePayment(callback.merchantOrderId, callback.amount).catch(() => {});
+    }
+    // Real refund lifecycle — previously ignored entirely (every pg.refund.*
+    // event fell through to the bare `{ ok: true }` below and did nothing),
+    // the actual gap behind the 2026-09-23 "refund stuck on failed forever"
+    // incident. Matched by `originalMerchantOrderId`, not `merchantOrderId`
+    // — PhonePe's refund payloads key off the ORIGINAL payment's order id,
+    // which is what's stored as Booking.paymentId.
+    if (callback.type === 'PG_REFUND_COMPLETED' && callback.originalMerchantOrderId) {
+      await this.bookings.reconcilePhonePeRefund(callback.originalMerchantOrderId, 'COMPLETED', callback.refundId || undefined, callback.amount).catch(() => {});
+    }
+    if (callback.type === 'PG_REFUND_FAILED' && callback.originalMerchantOrderId) {
+      await this.bookings.reconcilePhonePeRefund(callback.originalMerchantOrderId, 'FAILED', callback.refundId || undefined, callback.amount).catch(() => {});
     }
     return { ok: true };
   }

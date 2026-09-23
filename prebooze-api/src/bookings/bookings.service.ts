@@ -585,6 +585,45 @@ export class BookingsService {
     }
   }
 
+  /** Real pg.refund.completed / pg.refund.failed webhook handling — the
+   * gap that caused a real 2026-09-23 incident: a refund initiated
+   * directly on the PhonePe dashboard (because our own Refund Status API
+   * was returning 401 for this merchant account) had nowhere to land, so
+   * the booking stayed stuck showing "failed, retry" even after the real
+   * refund completed. Looked up by `originalMerchantOrderId`, which is
+   * exactly what's stored as `Booking.paymentId` for every PhonePe
+   * booking (see refundViaGateway/HoldsService.create) — one outstanding
+   * refund per booking is the only case this app ever creates, so no
+   * separate match on refundId is needed. */
+  async reconcilePhonePeRefund(originalMerchantOrderId: string, state: 'COMPLETED' | 'FAILED', refundId: string | undefined, amountPaise: number) {
+    const booking = await this.prisma.booking.findUnique({ where: { paymentId: originalMerchantOrderId } });
+    if (!booking) return; // not one of ours (or a payment, not a refund, id) — nothing to do
+
+    if (state === 'COMPLETED') {
+      await this.prisma.booking.update({
+        where: { id: booking.id },
+        data: { refundFailedAt: null, refundGatewayState: 'COMPLETED', refundGatewayRefundId: refundId ?? booking.refundGatewayRefundId },
+      });
+      const user = await this.prisma.user.findUnique({ where: { id: booking.userId } });
+      if (user) {
+        const amount = Math.round(amountPaise / 100);
+        await this.wa.send(user.phone, 'refund_source', [booking.id, String(amount)]).catch(() => {});
+        await this.email.sendTemplate(user.email, 'refund_processed', {
+          name: user.name, bookingId: booking.id, amount: money(amount),
+          refundNote: 'to your original payment method — usually 5–7 business days to reflect.',
+        }).catch(() => {});
+      }
+    } else {
+      await this.prisma.booking.update({
+        where: { id: booking.id },
+        data: { refundFailedAt: new Date(), refundGatewayState: 'FAILED', refundGatewayRefundId: refundId ?? booking.refundGatewayRefundId },
+      });
+      await this.staffAlerts
+        .alert(`⚠ Refund to original payment method FAILED (confirmed by PhonePe webhook) for booking ${booking.id} — refund ${refundId ?? 'unknown id'}. The guest has NOT been paid back. Retry from Booking detail.`)
+        .catch(() => {});
+    }
+  }
+
   async create(userId: string, input: CreateBookingInput, reqMeta?: { ip?: string; userAgent?: string }) {
     const buyer = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (buyer.blocked) throw new ForbiddenException('This account is blocked from booking — contact support');
@@ -1300,25 +1339,30 @@ export class BookingsService {
       // silently, so a real guest was told their refund was on its way
       // and it never was, for ~13 days before anyone noticed.
       let refundSucceeded = false;
+      let gatewayRefundId: string | null = null;
       if (booking.paymentId) {
         try {
-          await this.refundViaGateway(booking.paymentId, refundAmount * 100);
+          gatewayRefundId = await this.refundViaGateway(booking.paymentId, refundAmount * 100);
           refundSucceeded = true;
         } catch {
           // fall through — refundSucceeded stays false
         }
       }
       if (refundSucceeded) {
-        await this.wa.send(user.phone, 'refund_source', [id, String(refundAmount)]).catch(() => {});
-        await this.email.sendTemplate(user.email, 'refund_processed', {
-          name: user.name, bookingId: id, amount: money(refundAmount),
-          refundNote: 'to your original payment method — usually 5–7 business days to reflect.',
-        }).catch(() => {});
+        // Gateway accepted the refund call, but that's only "INITIATED" —
+        // PhonePe refunds settle async, same as a payment does. The real
+        // COMPLETED/FAILED terminal state comes later via the pg.refund.*
+        // webhook (see PhonePeWebhookController), which is what actually
+        // clears refundFailedAt / confirms to the guest. Telling the guest
+        // "processed" here, before that confirmation, repeats exactly the
+        // false-positive this whole flow exists to avoid — so the
+        // guest-facing email/WhatsApp now wait for the webhook too.
+        await this.prisma.booking.update({ where: { id }, data: { refundGatewayState: 'INITIATED', refundGatewayRefundId: gatewayRefundId } });
         if (event) await this.postEventLedger(this.prisma, booking.eventId, event.title, 'WhatsApp message charges', 'expense', Math.ceil(WHATSAPP_MSG_COST));
       } else {
         // Never tell the guest it's on its way when it isn't — flag it for
         // a human to retry (BookingsService.retryRefund) instead.
-        await this.prisma.booking.update({ where: { id }, data: { refundFailedAt: new Date() } });
+        await this.prisma.booking.update({ where: { id }, data: { refundFailedAt: new Date(), refundGatewayState: 'FAILED' } });
         await this.staffAlerts
           .alert(`⚠ Refund to original payment method FAILED for booking ${id} (₹${refundAmount}, ${user.name}) — payment ${booking.paymentId ?? 'none on file'}. The booking is marked refunded (seat already freed) but the guest has NOT actually been paid back. Retry from Booking detail.`)
           .catch(() => {});
@@ -1361,22 +1405,46 @@ export class BookingsService {
       throw new BadRequestException('This booking has no refund-to-source to retry');
     }
     if (!booking.refundFailedAt) throw new BadRequestException("This refund didn't fail — nothing to retry");
+    // A real refund may already be in flight or done — either from this
+    // exact flow's own prior attempt, or initiated directly on the gateway
+    // dashboard outside this system entirely (see adminRecordExternalRefund
+    // below) — real 2026-09-23 incident this guards against: retrying here
+    // would fire a second, duplicate real refund against the same booking.
+    if (booking.refundGatewayState === 'INITIATED' || booking.refundGatewayState === 'COMPLETED') {
+      throw new BadRequestException(`A refund is already ${booking.refundGatewayState === 'INITIATED' ? 'in progress' : 'completed'} on the gateway — check its real status instead of retrying`);
+    }
     if (!booking.paymentId) throw new BadRequestException('No payment on file for this booking — this refund must be issued manually outside Razorpay');
 
     // Same deduction finalizeRefund() already applied the first time —
     // recomputed here rather than stored, since it's deterministic off
     // booking.total/paymentId and this only ever retries a 'source' refund.
     const refundAmount = Math.max(0, booking.total - this.refundDeductionFor(booking, 'source'));
-    await this.refundViaGateway(booking.paymentId, refundAmount * 100);
-    await this.prisma.booking.update({ where: { id }, data: { refundFailedAt: null } });
-
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: booking.userId } });
-    await this.wa.send(user.phone, 'refund_source', [id, String(refundAmount)]).catch(() => {});
-    await this.email.sendTemplate(user.email, 'refund_processed', {
-      name: user.name, bookingId: id, amount: money(refundAmount),
-      refundNote: 'to your original payment method — usually 5–7 business days to reflect.',
-    }).catch(() => {});
+    const gatewayRefundId = await this.refundViaGateway(booking.paymentId, refundAmount * 100);
+    // Same reasoning as finalizeRefund's own success branch — accepted by
+    // the gateway is "INITIATED," not "done." refundFailedAt stays set
+    // until the real pg.refund.completed webhook clears it.
+    await this.prisma.booking.update({ where: { id }, data: { refundGatewayState: 'INITIATED', refundGatewayRefundId: gatewayRefundId } });
     return { ok: true };
+  }
+
+  /** Records a refund that was initiated directly on the PhonePe merchant
+   * dashboard, outside this app entirely — real 2026-09-23 case: our own
+   * Refund Status/Create API calls were returning 401 AUTHORIZATION_FAILED
+   * (a gateway-account scoping issue, not something this app can fix), so
+   * staff issued the refund manually from PhonePe's own dashboard instead.
+   * This doesn't call any gateway API itself — it only tells this system
+   * "treat this as in flight," which is what actually stops
+   * `retryRefund` from firing a second, duplicate refund on top of it.
+   * The real terminal state still only ever comes from the pg.refund.*
+   * webhook, same as every other refund. */
+  async adminRecordExternalRefund(id: string, refundId: string) {
+    if (!refundId?.trim()) throw new BadRequestException('Refund ID is required');
+    const booking = await this.prisma.booking.findUnique({ where: { id } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    return this.prisma.booking.update({
+      where: { id },
+      data: { refundGatewayState: 'INITIATED', refundGatewayRefundId: refundId.trim() },
+    });
   }
 
   /** Routes a refund to whichever gateway actually processed the original
@@ -1388,12 +1456,14 @@ export class BookingsService {
    * PhonePe. `merchantRefundId` is a fresh id per attempt (not reused
    * across a real refund + a later retry of a failed one), since PhonePe
    * requires a distinct id per refund attempt even against the same order. */
-  private async refundViaGateway(paymentId: string, amountPaise: number) {
+  private async refundViaGateway(paymentId: string, amountPaise: number): Promise<string | null> {
     if (paymentId.startsWith('pay_')) {
       await this.razorpay.refund(paymentId, amountPaise);
-      return;
+      return null;
     }
-    await this.phonepe.refund(`rfnd-${randomBytes(8).toString('hex')}`, paymentId, amountPaise);
+    const merchantRefundId = `rfnd-${randomBytes(8).toString('hex')}`;
+    const res = await this.phonepe.refund(merchantRefundId, paymentId, amountPaise);
+    return res.refundId;
   }
 
   /** Daily cron (CronService.razorpayFeeReconcileTick) — the "Razorpay

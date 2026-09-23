@@ -409,6 +409,13 @@ export interface LiveBooking {
   // — only the actual payout to the guest didn't happen). Null for a
   // normal successful refund.
   refundFailedAt: string | null;
+  // Real gateway-reported refund status — 'INITIATED' | 'COMPLETED' |
+  // 'FAILED' | null (no gateway refund currently tracked). Set by a real
+  // pg.refund.* webhook, or by "record external refund" for one initiated
+  // directly on the gateway dashboard (see BookingsService.
+  // reconcilePhonePeRefund / adminRecordExternalRefund).
+  refundGatewayState: 'INITIATED' | 'COMPLETED' | 'FAILED' | null;
+  refundGatewayRefundId: string | null;
   // Only present once a refund's actually been attempted — what
   // retryRefund() will send, net of gateway-fee/WhatsApp deductions (the
   // gateway-fee part is Razorpay-only; PhonePe UPI costs nothing to
@@ -438,6 +445,8 @@ export const liveBookings = {
   approveRefund: (id: string) => liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/approve`, { method: 'POST' }),
   declineRefund: (id: string) => liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/decline`, { method: 'POST' }),
   retryRefund: (id: string) => liveFetch<{ ok: true }>(`/admin/bookings/${encodeURIComponent(id)}/refund/retry`, { method: 'POST' }),
+  recordExternalRefund: (id: string, refundId: string) =>
+    liveFetch<LiveBooking>(`/admin/bookings/${encodeURIComponent(id)}/refund/external`, { method: 'POST', body: { refundId } }),
   resendEmail: (id: string) => liveFetch<{ ok: true }>(`/admin/bookings/${encodeURIComponent(id)}/resend-email`, { method: 'POST' }),
   setNote: (id: string, note: string) => liveFetch<{ ok: true }>(`/admin/bookings/${encodeURIComponent(id)}/note`, { method: 'POST', body: { note } }),
   // Replaces everything after the main attendee (index 0, untouched) —

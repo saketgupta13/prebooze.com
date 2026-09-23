@@ -5,7 +5,7 @@ import QRCode from '../components/QRCode';
 import { liveBookings, LiveApiError, type LiveBooking } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
-import { ArrowLeft, CheckCircle2, Undo2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Undo2, AlertTriangle, RefreshCw } from 'lucide-react';
 
 const TITLE = 'Booking detail';
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
@@ -49,6 +49,9 @@ export default function BookingDetail() {
   const [note, setNote] = useState('');
   const [noteSaved, setNoteSaved] = useState(false);
   const [retryingRefund, setRetryingRefund] = useState(false);
+  const [externalRefundId, setExternalRefundId] = useState('');
+  const [recordingExternalRefund, setRecordingExternalRefund] = useState(false);
+  const [showRecordExternal, setShowRecordExternal] = useState(false);
   const [otherBookings, setOtherBookings] = useState<LiveBooking[] | null>(null);
   const [editGuests, setEditGuests] = useState<{ name: string; gender: string; whatsapp: string }[]>([]);
   const [guestsSaving, setGuestsSaving] = useState(false);
@@ -131,6 +134,22 @@ export default function BookingDetail() {
       setErr(`Refund retry failed again: ${e instanceof LiveApiError ? e.message : 'unknown error'} — check the ${gateway} dashboard directly before trying once more.`);
     } finally {
       setRetryingRefund(false);
+    }
+  };
+
+  const recordExternalRefund = async () => {
+    if (!externalRefundId.trim()) return;
+    setRecordingExternalRefund(true);
+    setErr('');
+    try {
+      await liveBookings.recordExternalRefund(booking.id, externalRefundId.trim());
+      setExternalRefundId('');
+      setShowRecordExternal(false);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to record refund');
+    } finally {
+      setRecordingExternalRefund(false);
     }
   };
 
@@ -388,7 +407,35 @@ export default function BookingDetail() {
         </div>
       )}
 
-      {booking.refundFailedAt && (
+      {booking.refundGatewayState === 'INITIATED' && (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8, borderColor: 'var(--accent)' }}>
+          <div style={{ color: 'var(--accent)', fontSize: 12.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <RefreshCw size={14} /> Refund in progress on the gateway
+          </div>
+          <div className="tiny muted">
+            ₹{fmt(booking.pendingRefundAmount ?? booking.total)} is being processed by the payment gateway right now —
+            not stuck, not failed. This is confirmed automatically the moment the gateway reports it done (usually
+            within minutes to a few hours), no action needed. Retry is hidden while this is in flight to avoid a
+            duplicate refund.
+            {booking.refundGatewayRefundId && <> Refund ID: <code>{booking.refundGatewayRefundId}</code>.</>}
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={load} style={{ alignSelf: 'flex-start' }}>Refresh status</button>
+        </div>
+      )}
+
+      {booking.refundGatewayState === 'COMPLETED' && !booking.refundFailedAt && (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 6, borderColor: 'var(--green)' }}>
+          <div style={{ color: 'var(--green)', fontSize: 12.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <CheckCircle2 size={14} /> Refund completed
+          </div>
+          <div className="tiny muted">
+            Confirmed by the gateway — the guest has been paid back.
+            {booking.refundGatewayRefundId && <> Refund ID: <code>{booking.refundGatewayRefundId}</code>.</>}
+          </div>
+        </div>
+      )}
+
+      {booking.refundFailedAt && booking.refundGatewayState !== 'INITIATED' && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10, borderColor: 'var(--red)' }}>
           <div style={{ color: 'var(--red)', fontSize: 12.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <AlertTriangle size={14} /> Refund to original payment method failed
@@ -398,9 +445,28 @@ export default function BookingDetail() {
             ₹{fmt(booking.pendingRefundAmount ?? booking.total)} payout to the guest's card/UPI/bank never went through
             (failed {fmtDateTime(booking.refundFailedAt)}). Retrying only re-attempts the payment, nothing else.
           </div>
-          <button className="btn btn-pri btn-sm" onClick={retryRefund} disabled={retryingRefund}>
-            {retryingRefund ? 'Retrying…' : 'Retry refund'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-pri btn-sm" onClick={retryRefund} disabled={retryingRefund}>
+              {retryingRefund ? 'Retrying…' : 'Retry refund'}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowRecordExternal((v) => !v)}>
+              Refund already done on the gateway dashboard?
+            </button>
+          </div>
+          {showRecordExternal && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                className="input"
+                style={{ flex: 1 }}
+                placeholder="Refund ID from the PhonePe dashboard"
+                value={externalRefundId}
+                onChange={(e) => setExternalRefundId(e.target.value)}
+              />
+              <button className="btn btn-pri btn-sm" onClick={recordExternalRefund} disabled={recordingExternalRefund || !externalRefundId.trim()}>
+                {recordingExternalRefund ? 'Saving…' : 'Record it'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

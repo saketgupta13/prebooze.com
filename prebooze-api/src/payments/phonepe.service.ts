@@ -168,8 +168,12 @@ export class PhonePeService {
    * BookingsService.reconcilePhonePePayment looks a Cart up by; `type`
    * distinguishes an actual completion from a failure/refund event, per
    * the SDK's real CallbackType enum. */
-  validateCallback(authorizationHeader: string, rawBody: string): { type: string; merchantOrderId: string; amount: number; state: string } {
-    if (!this.live) return { type: 'CHECKOUT_ORDER_COMPLETED', merchantOrderId: 'dev', amount: 0, state: 'COMPLETED' };
+  validateCallback(authorizationHeader: string, rawBody: string): {
+    type: string; merchantOrderId: string; originalMerchantOrderId: string; refundId: string; amount: number; state: string;
+  } {
+    if (!this.live) {
+      return { type: 'CHECKOUT_ORDER_COMPLETED', merchantOrderId: 'dev', originalMerchantOrderId: '', refundId: '', amount: 0, state: 'COMPLETED' };
+    }
     const username = process.env.PHONEPE_WEBHOOK_USERNAME;
     const password = process.env.PHONEPE_WEBHOOK_PASSWORD;
     if (!username || !password) throw new Error('PHONEPE_WEBHOOK_USERNAME/PASSWORD not configured — cannot validate a real callback');
@@ -177,6 +181,11 @@ export class PhonePeService {
     return {
       type: String(parsed.type),
       merchantOrderId: parsed.payload.merchantOrderId ?? '',
+      // Only present on a pg.refund.* callback — the ORIGINAL order's id, not
+      // a new one, which is what's stored as Booking.paymentId. Empty string
+      // (not undefined) so callers can do a plain truthy check either way.
+      originalMerchantOrderId: parsed.payload.originalMerchantOrderId ?? '',
+      refundId: parsed.payload.refundId ?? '',
       amount: parsed.payload.amount,
       state: parsed.payload.state,
     };
