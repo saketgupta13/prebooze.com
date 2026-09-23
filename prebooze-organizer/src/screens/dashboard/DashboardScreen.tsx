@@ -55,10 +55,13 @@ export default function DashboardScreen() {
         .then(async (me) => {
           if (cancelled) return;
           setProfile(me);
-          const [evs, pay] = await Promise.all([
-            organizer.events().catch(() => [] as Event[]),
-            organizer.payouts().catch(() => ({ balance: 0, ledger: [] as OrgLedgerTx[] })),
-          ]);
+          // Real bug (2026-09-23): silently catching a failed payouts() call
+          // into an empty ledger made Revenue/Bookings (30d), Total bookings
+          // and the "Bookings over time" chart all show 0/empty on a real
+          // fetch failure — indistinguishable from a genuinely quiet
+          // account. Let it throw into the outer .catch instead, which
+          // already shows a real error banner.
+          const [evs, pay] = await Promise.all([organizer.events(), organizer.payouts()]);
           if (cancelled) return;
           setEvents(evs);
           setLedger(pay.ledger);
@@ -177,8 +180,8 @@ export default function DashboardScreen() {
           <Kpi label="Live events" value={String(live.length)} />
         </View>
         <View style={styles.kpiGrid}>
-          <Kpi label="Your customers" value={uniqueCustomers.toLocaleString()} />
-          <Kpi label="Your events" value={String(events.length)} />
+          <Kpi label="Customers" value={uniqueCustomers.toLocaleString()} />
+          <Kpi label="Events" value={String(events.length)} />
           <Kpi label="Total bookings" value={ledger.filter((t) => t.type === 'sale').length.toLocaleString()} />
         </View>
 

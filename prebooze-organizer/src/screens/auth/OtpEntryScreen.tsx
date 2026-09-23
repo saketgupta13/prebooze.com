@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ChevronLeft, MessageCircle } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
@@ -79,7 +79,13 @@ export default function OtpEntryScreen({ route, navigation }: Props) {
 
   return (
     <Screen style={styles.screen}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'center' }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        {/* Real bug (2026-09-23): the name field (below the OTP boxes) got
+         * covered by the keyboard on Android — content was centered with no
+         * ScrollView, so once android:windowSoftInputMode="adjustResize"
+         * shrinks the viewport for the keyboard, taller-than-available
+         * content had nowhere to go but get clipped/pushed under it. */}
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.visual}>
           <Image source={require('../../assets/logo-full.png')} style={styles.logo} resizeMode="contain" />
         </View>
@@ -140,6 +146,7 @@ export default function OtpEntryScreen({ route, navigation }: Props) {
 
           <Button label={busy ? 'Verifying…' : 'Verify & continue'} loading={busy} disabled={!canSubmit} onPress={verify} />
         </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   );
@@ -147,6 +154,7 @@ export default function OtpEntryScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   screen: { padding: spacing.xl },
+  scrollContent: { flexGrow: 1, justifyContent: 'center' },
   visual: { alignItems: 'center', marginBottom: spacing.xl },
   logo: { height: 36, width: 200 },
   card: {

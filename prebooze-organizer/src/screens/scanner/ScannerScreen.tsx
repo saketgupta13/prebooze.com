@@ -107,6 +107,12 @@ export default function ScannerScreen() {
   const [promoterGuests, setPromoterGuests] = useState<OrgPromoterGuest[]>([]);
   const [orgGuestList, setOrgGuestList] = useState<OrgGuestListEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  // Real bug (2026-09-23): load() had no .catch at all — a failed fetch
+  // left attendees/promoterGuests/orgGuestList silently empty forever,
+  // so manual search always showed "No matches" with zero indication a
+  // real booking existed and the request had just failed. Same for the
+  // camera path, which checks these same arrays.
+  const [loadErr, setLoadErr] = useState('');
   const [state, setState] = useState<ScanState>({ mode: 'idle' });
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
@@ -162,8 +168,10 @@ export default function ScannerScreen() {
   const load = () => {
     if (!eventId) return;
     setLoading(true);
+    setLoadErr('');
     Promise.all([organizer.attendees(eventId), organizer.promoterGuests(eventId), organizer.guestList(eventId)])
       .then(([a, p, gl]) => { setAttendees(a); setPromoterGuests(p); setOrgGuestList(gl.entries); })
+      .catch((e) => setLoadErr(e instanceof ApiError ? e.message : 'Failed to load attendees — pull to retry'))
       .finally(() => setLoading(false));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -470,6 +478,15 @@ export default function ScannerScreen() {
       </View>
 
       <ScrollView style={styles.contentScroll} contentContainerStyle={styles.scanContent}>
+        {!!loadErr && (
+          <Card style={styles.errCard}>
+            <View style={styles.errRow}>
+              <X size={14} color={colors.danger} />
+              <Txt style={{ color: colors.danger, fontSize: fontSize.s }}>{loadErr}</Txt>
+            </View>
+            <Button label="Retry" variant="ghost" onPress={load} style={{ marginTop: spacing.s }} />
+          </Card>
+        )}
         <Input placeholder="Search name, booking # or guest list" value={search} onChangeText={setSearch} autoFocus />
         {search.trim().length >= MIN_QUERY && (
           <Card style={styles.resultsCard}>
@@ -514,7 +531,7 @@ export default function ScannerScreen() {
             )}
           </Card>
         )}
-        <Button label="Switch to camera scan" variant="ghost" onPress={() => setUseCamera(true)} style={styles.switchBtn} />
+        <Button label="Switch to camera scan" variant="accentOutline" onPress={() => setUseCamera(true)} style={styles.switchBtn} />
 
         <View style={styles.footerRow}>
           {loading ? <Muted style={styles.tiny}>Loading…</Muted> : (
@@ -590,6 +607,8 @@ const styles = StyleSheet.create({
   // an earlier sibling instead of trailing blank space below.
   contentScroll: { flex: 1 },
   scanContent: { padding: spacing.l, paddingTop: 0 },
+  errCard: { padding: spacing.l, marginBottom: spacing.m },
+  errRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   switchBtn: { marginTop: spacing.m },
 
   // Full-bleed immersive camera layout, matching the "Prebooze App Concept"

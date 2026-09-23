@@ -87,6 +87,7 @@ export default function EventWizardScreen() {
   const [lineups, setLineups] = useState<LineupProfile[]>([]);
   const [promoters, setPromoters] = useState<PromoterProfile[]>([]);
   const [collaboratorOptions, setCollaboratorOptions] = useState<CollaboratorOption[]>([]);
+  const [collaboratorLoadFailed, setCollaboratorLoadFailed] = useState(false);
   const [collaboratorSel, setCollaboratorSel] = useState<string[]>([]);
   const [editing, setEditing] = useState<Event | undefined>(undefined);
 
@@ -176,7 +177,7 @@ export default function EventWizardScreen() {
       catalog.promoters(),
       catalog.categories(),
       catalog.cities(),
-      organizer.collaboratorOptions().catch(() => [] as CollaboratorOption[]),
+      organizer.collaboratorOptions().catch(() => { setCollaboratorLoadFailed(true); return [] as CollaboratorOption[]; }),
       editId ? organizer.events().then((evs) => evs.find((e) => e.id === editId)) : Promise.resolve(undefined),
     ])
       .then(([vs, ls, ps, cats, cities, collabs, ev]) => {
@@ -768,6 +769,11 @@ export default function EventWizardScreen() {
                 co-host is worth surfacing upfront since revenue/commission
                 start splitting from the very first sale). */}
             <Txt style={styles.stepTitle}>Co-organizers</Txt>
+            {collaboratorLoadFailed && (
+              <Muted style={[styles.tiny, { color: colors.danger, marginBottom: spacing.s }]}>
+                Couldn't load other organizers — try leaving and reopening this screen.
+              </Muted>
+            )}
             <SearchableSelect
               value=""
               onChange={(name) => {

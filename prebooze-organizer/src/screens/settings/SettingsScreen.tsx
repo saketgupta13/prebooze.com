@@ -14,6 +14,7 @@ import ImageUploadBox from '../../components/ImageUploadBox';
 import LocationPicker, { type LocationValue } from '../../components/LocationPicker';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { SITE_ORIGIN, organizerPath } from '../../lib/urls';
+import { htmlToPlainText, plainTextToHtml } from '../../lib/richtext';
 import type { MoreStackParamList } from '../../navigation/types';
 import type { Organizer, PaymentProfile, SocialLinks } from '../../types';
 
@@ -26,7 +27,10 @@ type Draft = LocationValue & {
 
 const draftFrom = (o: Organizer): Draft => ({
   brandName: o.brandName, username: o.username, contactPerson: o.contactPerson ?? '', contact: o.contact ?? '',
-  about: o.about ?? '', country: o.country ?? 'India', state: o.state ?? '', city: o.city ?? '', pincode: o.pincode ?? '',
+  // Real bug (2026-09-23): web's WysiwygEditor stores About as real HTML —
+  // showed up here as literal "...team.</div>" text, same class of bug
+  // already fixed for Event.description (see lib/richtext.ts).
+  about: htmlToPlainText(o.about ?? ''), country: o.country ?? 'India', state: o.state ?? '', city: o.city ?? '', pincode: o.pincode ?? '',
   instagram: o.socialLinks?.instagram ?? '', facebook: o.socialLinks?.facebook ?? '',
   other: o.socialLinks?.other?.length ? o.socialLinks.other : [''],
   eventTypes: o.eventTypes ? o.eventTypes.split(',').map((s) => s.trim()).filter(Boolean) : [],
@@ -111,7 +115,7 @@ export default function SettingsScreen() {
       const updated = await organizer.updateMe({
         brandName: draft.brandName.trim(), username: draft.username.trim().toLowerCase(),
         city: draft.city.trim(), country: draft.country.trim(), state: draft.state.trim(), pincode: draft.pincode.trim(),
-        logoUrl: draft.logoUrl ?? undefined, about: draft.about.trim(),
+        logoUrl: draft.logoUrl ?? undefined, about: plainTextToHtml(draft.about.trim()),
         socialLinks: { instagram: draft.instagram.trim() || undefined, facebook: draft.facebook.trim() || undefined, other: draft.other.map((s) => s.trim()).filter(Boolean) },
         contact: draft.contact.trim(), contactPerson: draft.contactPerson.trim(), phone: org?.phone, eventTypes: draft.eventTypes.join(', '),
       });
