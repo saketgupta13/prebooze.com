@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { existingRole } from '../lib/roles';
+import { support } from '../api';
 import Accordion from '../components/Accordion';
 import RoleConsoleFrame from '../components/RoleConsoleFrame';
+import type { HelpTicket } from '../types';
 import type { ReactNode } from 'react';
-import { Ticket, Mic, Megaphone, Guitar, Landmark, LifeBuoy, CheckCircle2 } from 'lucide-react';
+import { Ticket, Mic, Megaphone, Guitar, Landmark, LifeBuoy, CheckCircle2, Mail, ChevronDown, ChevronUp, Send } from 'lucide-react';
 
 type HelpRole = 'guest' | 'organizer' | 'promoter' | 'lineup' | 'venue';
 
@@ -70,6 +72,7 @@ export default function HelpCenter() {
   const [topic, setTopic] = useState(help.topics[0]);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const pickRole = (r: HelpRole) => {
     setRole(r);
@@ -138,26 +141,29 @@ export default function HelpCenter() {
                 <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Tell us the details — ids help (booking / event / payout)…" />
               </div>
               <button className="btn btn-pri">Submit ticket →</button>
-              <span className="tiny muted-2" style={{ marginLeft: 10 }}>replies land on WhatsApp {user.phone}</span>
+              <span className="tiny muted-2" style={{ marginLeft: 10 }}>
+                {user.email?.trim() ? `replies land at ${user.email}` : 'add an email below to get replies'}
+              </span>
             </form>
           )}
         </div>
+
+        {user && !user.email?.trim() && (
+          <div className="card" style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <Mail size={18} className="accent" />
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div className="bold small">Add your email to get ticket updates</div>
+              <div className="tiny muted-2">We reply by email when your ticket status changes — no email on file yet.</div>
+            </div>
+            <Link to="/profile/edit" className="btn btn-ghost btn-sm">Add email →</Link>
+          </div>
+        )}
 
         {user && helpTickets.length > 0 && (
           <div className="card" style={{ marginBottom: 18 }}>
             <h3 style={{ marginBottom: 10 }}>Your tickets ({helpTickets.length})</h3>
             {helpTickets.map((t) => (
-              <div key={t.id} className="evrow">
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="bold small">{t.subject} <span className="muted" style={{ fontWeight: 400 }}>· {t.id}</span></div>
-                  <div className="tiny muted-2">{t.topic} · {new Date(t.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</div>
-                </div>
-                {t.status === 'open' ? (
-                  <span className="badge badge-pending">Open ◌</span>
-                ) : (
-                  <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Resolved <CheckCircle2 size={13} /></span>
-                )}
-              </div>
+              <TicketRow key={t.id} ticket={t} open={openId === t.id} onToggle={() => setOpenId(openId === t.id ? null : t.id)} toast={toast} />
             ))}
           </div>
         )}
@@ -170,5 +176,97 @@ export default function HelpCenter() {
         </div>
       </RoleConsoleFrame>
     </main>
+  );
+}
+
+/** A ticket row that opens into its full thread — previously a static list
+ * item with no way to see a reply or follow up (the real gap that prompted
+ * this). Thread is fetched lazily on first open, not eagerly for every
+ * ticket in the list. */
+function TicketRow({ ticket, open, onToggle, toast }: { ticket: HelpTicket; open: boolean; onToggle: () => void; toast: (m: string) => void }) {
+  const [thread, setThread] = useState<HelpTicket | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [reply, setReply] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const handleToggle = () => {
+    onToggle();
+    if (!open && !thread) {
+      setLoading(true);
+      support.ticket(ticket.id).then(setThread).catch(() => toast('Could not load this ticket')).finally(() => setLoading(false));
+    }
+  };
+
+  const sendReply = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reply.trim() || !thread) return;
+    setSending(true);
+    support
+      .reply(ticket.id, reply.trim())
+      .then((r) => {
+        setThread({ ...thread, replies: [...(thread.replies ?? []), r] });
+        setReply('');
+      })
+      .catch((err) => toast((err as Error).message ?? 'Could not send your reply'))
+      .finally(() => setSending(false));
+  };
+
+  return (
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <button
+        onClick={handleToggle}
+        style={{ all: 'unset', display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', padding: '10px 0', boxSizing: 'border-box' }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="bold small">{ticket.subject} <span className="muted" style={{ fontWeight: 400 }}>· {ticket.id}</span></div>
+          <div className="tiny muted-2">{ticket.topic} · {new Date(ticket.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</div>
+        </div>
+        {ticket.status === 'open' ? (
+          <span className="badge badge-pending">Open ◌</span>
+        ) : (
+          <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Resolved <CheckCircle2 size={13} /></span>
+        )}
+        {open ? <ChevronUp size={16} className="muted" /> : <ChevronDown size={16} className="muted" />}
+      </button>
+
+      {open && (
+        <div style={{ padding: '0 0 14px 0' }}>
+          {loading ? (
+            <div className="tiny muted-2">Loading…</div>
+          ) : !thread ? (
+            <div className="tiny muted-2">Could not load this ticket.</div>
+          ) : (
+            <>
+              <div className="tiny" style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '8px 12px', marginBottom: 8 }}>{thread.message}</div>
+              {(thread.replies ?? []).map((r) => (
+                <div
+                  key={r.id}
+                  className="tiny"
+                  style={{
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    marginBottom: 8,
+                    background: r.fromStaffId ? 'rgba(155, 225, 61, 0.1)' : 'var(--surface-2)',
+                  }}
+                >
+                  <div className="muted-2" style={{ fontWeight: 700, marginBottom: 2 }}>{r.fromStaffId ? `Prebooze team${r.fromStaff?.name ? ` · ${r.fromStaff.name}` : ''}` : 'You'}</div>
+                  {r.message}
+                </div>
+              ))}
+              {thread.status === 'open' ? (
+                <form onSubmit={sendReply} style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <input value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Write a follow-up…" style={{ flex: 1 }} />
+                  <button className="btn btn-pri btn-sm" disabled={sending} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <Send size={13} /> Send
+                  </button>
+                </form>
+              ) : (
+                <div className="tiny muted-2" style={{ marginTop: 6 }}>This ticket is resolved — raise a new one if you need more help.</div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

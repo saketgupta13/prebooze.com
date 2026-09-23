@@ -25,6 +25,7 @@ export const PERM_MODULES = [
   'Gate check-in',
   'Analytics',
   'Leads',
+  'Support tickets',
 ] as const;
 
 export interface PermSet {

@@ -191,7 +191,17 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     preheader: 'Support ticket received',
     defaultSubject: "We've got your message — {{ticketId}}",
     defaultBody: `<p>Hey {{name}},</p><p>Your message "<b>{{ticketSubject}}</b>" has been logged as <b>{{ticketId}}</b>. Our team typically replies within a few hours.</p>`,
+    cta: { label: 'View your ticket →', urlTemplate: '{{webUrl}}/help' },
     tokens: ['name', 'ticketId', 'ticketSubject'],
+  },
+  {
+    id: 'help_ticket_reply', name: 'Support ticket reply', category: 'Guest',
+    trigger: 'The Prebooze team replies to an open help ticket',
+    preheader: 'You have a reply on your support ticket',
+    defaultSubject: 'New reply on your ticket {{ticketId}}',
+    defaultBody: `<p>Hey {{name}},</p><p>The Prebooze team replied to your ticket "<b>{{ticketSubject}}</b>" (<b>{{ticketId}}</b>):</p><p style="background:rgba(139,195,74,.08);border-left:3px solid #8bc34a;padding:10px 14px;border-radius:4px;">{{replyMessage}}</p>`,
+    cta: { label: 'View & reply →', urlTemplate: '{{webUrl}}/help' },
+    tokens: ['name', 'ticketId', 'ticketSubject', 'replyMessage'],
   },
   {
     id: 'contact_form_received', name: 'Contact form received', category: 'Guest',

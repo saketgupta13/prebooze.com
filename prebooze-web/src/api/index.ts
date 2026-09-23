@@ -3,7 +3,7 @@
  * feature swaps from localStorage to live data. */
 import { apiFetch, apiUpload, API_URL, getToken, ApiError } from './client';
 import type {
-  Booking, CareerJob, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, FeaturedSubscription, HelpTicket,
+  Booking, CareerJob, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, FeaturedSubscription, HelpTicket, HelpTicketReply,
   Invoice, JobApplication, LineupProfile, MarketingAnalytics, MarketingOrder, MarketingRates, MarketingSubscription, Organizer, PayMethod, PaymentProfile,
   Person, PersonDetail, PromoterProfile, User, Venue, WaitlistEntry,
 } from '../types';
@@ -774,6 +774,8 @@ export const featured = {
 export const support = {
   tickets: () => apiFetch<HelpTicket[]>('/support/tickets'),
   raise: (t: Omit<HelpTicket, 'id' | 'status' | 'createdAt'>) => apiFetch<HelpTicket>('/support/tickets', { body: t }),
+  ticket: (id: string) => apiFetch<HelpTicket>(`/support/tickets/${id}`),
+  reply: (id: string, message: string) => apiFetch<HelpTicketReply>(`/support/tickets/${id}/reply`, { body: { message } }),
   // Public Contact-us form — no auth, unlike the ticket endpoints above.
   contact: (body: { name: string; email: string; role: string; message: string }) =>
     apiFetch<{ id: string }>('/support/contact', { body }),

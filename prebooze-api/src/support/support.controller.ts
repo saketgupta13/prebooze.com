@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { SupportService } from './support.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 
@@ -18,6 +18,18 @@ export class SupportController {
   @UseGuards(JwtAuthGuard)
   raise(@Req() req: AuthedReq, @Body() body: { topic?: string; subject?: string; message?: string }) {
     return this.support.raise(req.user.sub, body);
+  }
+
+  @Get('tickets/:id')
+  @UseGuards(JwtAuthGuard)
+  ticket(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.support.ticket(req.user.sub, id);
+  }
+
+  @Post('tickets/:id/reply')
+  @UseGuards(JwtAuthGuard)
+  reply(@Req() req: AuthedReq, @Param('id') id: string, @Body('message') message: string) {
+    return this.support.reply(req.user.sub, id, message);
   }
 
   /** Public — the Contact-us page is reachable logged-out (press, would-be

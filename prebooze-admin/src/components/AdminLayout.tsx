@@ -10,7 +10,7 @@ import {
   LayoutDashboard, Calendar, Ticket, ShoppingCart, Users, ShieldCheck, Contact, Briefcase,
   Megaphone, Star, Gift, MapPin, Landmark, Globe, Mic, Wallet, Banknote, Receipt,
   CircleDollarSign, Building2, Tag, TrendingUp, BarChart3, Image, Film, MessageCircle,
-  HelpCircle, FolderTree, Tags, PenLine, FileText, ScrollText, Compass, UserCog, Mail,
+  HelpCircle, FolderTree, Tags, PenLine, FileText, ScrollText, Compass, UserCog, Mail, LifeBuoy,
   Settings, User, Search, Bell, ArrowRight, X, MoreHorizontal, Radio, Sparkles, Rocket, ArrowLeftRight,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -31,6 +31,7 @@ const MAIN_NAV: { to: string; icon: LucideIcon; label: string; end?: boolean }[]
   { to: '/customers', icon: Users, label: 'Customers' },
   { to: '/verifications', icon: ShieldCheck, label: 'Verifications' },
   { to: '/leads', icon: Contact, label: 'Leads' },
+  { to: '/support-tickets', icon: LifeBuoy, label: 'Support tickets' },
   { to: '/organizers', icon: Briefcase, label: 'Organizers' },
   { to: '/promoters', icon: Megaphone, label: 'Promoters' },
   { to: '/featured', icon: Star, label: 'Featured' },
@@ -114,6 +115,7 @@ const NAV_MODULE: Record<string, string> = {
   '/customers': 'Customers',
   '/verifications': 'Verifications (KYC)',
   '/leads': 'Leads',
+  '/support-tickets': 'Support tickets',
   '/organizers': 'Organizers',
   '/promoters': 'Promoters',
   '/featured': 'Featured',

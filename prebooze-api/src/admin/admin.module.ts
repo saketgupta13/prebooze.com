@@ -31,6 +31,7 @@ import { AdminInvoicesController } from '../invoices/invoices-admin.controller';
 import { AdminSubscriptionsController } from './admin-subscriptions.controller';
 import { AdminLeadsController, LeadDraftController } from './leads.controller';
 import { AdminSettlementsController } from './settlements.controller';
+import { AdminSupportTicketsController } from './support-tickets.controller';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffService } from './staff.service';
@@ -61,6 +62,7 @@ import { EmailTemplatesAdminService } from './email-templates-admin.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { LeadsService } from './leads.service';
 import { SettlementsService } from './settlements.service';
+import { AdminSupportTicketsService } from './support-tickets.service';
 import { SocialService } from '../social/social.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { OwnerOnlyGuard } from './owner-only.guard';
@@ -123,6 +125,7 @@ import { redisProvider } from '../redis.provider';
     AdminLeadsController,
     LeadDraftController,
     AdminSettlementsController,
+    AdminSupportTicketsController,
   ],
   providers: [
     JwtAuthGuard,
@@ -168,6 +171,7 @@ import { redisProvider } from '../redis.provider';
     HoldsService,
     CronService,
     SettlementsService,
+    AdminSupportTicketsService,
     SocialService,
     StaffAuthGuard,
     OwnerOnlyGuard,

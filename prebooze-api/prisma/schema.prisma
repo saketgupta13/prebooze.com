@@ -161,6 +161,7 @@ model User {
   lineupProfile       Lineup? // set once this user's lineup KYC is approved
   venueProfile        Venue? // set once this user's venue onboarding submission creates the row (not at approval — see Venue.userId)
   helpTickets         HelpTicket[]
+  helpTicketReplies   HelpTicketReply[]
   orgStaffMemberships   OrgStaff[] // organizer team invites this phone has accepted (possibly more than one org)
   venueStaffMemberships VenueStaff[] // venue hosting-team invites this phone has accepted (possibly more than one venue)
   pushTokens            PushToken[] // one row per device — a user can be logged into more than one phone
@@ -2006,8 +2007,29 @@ model HelpTicket {
   subject String
   message String
   status  String  @default("open") // open | resolved
+  replies HelpTicketReply[]
 
   createdAt DateTime @default(now())
+}
+
+// A real thread on a HelpTicket — previously the ticket was a single
+// message with no way for the guest to see a reply or ask a follow-up, and
+// no admin surface existed to send one at all (both real gaps, found when a
+// real ticket raised in production got no visible reply anywhere). `message`
+// is the ticket's own opening line; every reply after that (either side)
+// lives here in order.
+model HelpTicketReply {
+  id           String     @id @default(cuid())
+  ticketId     String
+  ticket       HelpTicket @relation(fields: [ticketId], references: [id])
+  // Exactly one of these is set, mirroring HelpTicket's own userId/name-email
+  // split — a guest reply is a real User; a staff reply is a real Staff.
+  fromStaffId  String?
+  fromStaff    Staff?     @relation(fields: [fromStaffId], references: [id])
+  fromUserId   String?
+  fromUser     User?      @relation(fields: [fromUserId], references: [id])
+  message      String
+  createdAt    DateTime   @default(now())
 }
 
 model CareerJob {
@@ -2081,6 +2103,7 @@ model Staff {
   phone         String? // WhatsApp number for staff alerts (refund requests, KYC submissions, payout failures) — see Settings.whatsappAlerts
   lastActiveAt  DateTime?
   leads         Lead[]
+  helpTicketReplies HelpTicketReply[]
   // Which Lead pipelines this person can see/work — 'organizer' | 'venue' |
   // 'promoter' | 'lineup', any combination. Empty (the default) means
   // unrestricted — every existing staff row keeps seeing every lead exactly

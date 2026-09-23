@@ -18,6 +18,7 @@ import CustomerDetail from './pages/CustomerDetail';
 import Verifications from './pages/Verifications';
 import VerificationDetail from './pages/VerificationDetail';
 import Leads from './pages/Leads';
+import SupportTickets from './pages/SupportTickets';
 import Organizers from './pages/Organizers';
 import OrganizerDetail from './pages/OrganizerDetail';
 import AddOrganizer from './pages/AddOrganizer';
@@ -95,6 +96,7 @@ export default function App() {
         <Route path="/verifications" element={<Verifications />} />
         <Route path="/verifications/:id" element={<VerificationDetail />} />
         <Route path="/leads" element={<Leads />} />
+        <Route path="/support-tickets" element={<SupportTickets />} />
         <Route path="/organizers" element={<Organizers />} />
         <Route path="/organizers/new" element={<AddOrganizer />} />
         <Route path="/organizers/:id" element={<OrganizerDetail />} />

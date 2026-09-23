@@ -1,7 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma.service';
-import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 
@@ -9,13 +8,41 @@ import { StaffAlertsService } from '../notifications/staff-alerts';
 export class SupportService {
   constructor(
     private prisma: PrismaService,
-    private wa: WhatsappService,
     private email: EmailService,
     private staffAlerts: StaffAlertsService,
   ) {}
 
   async tickets(userId: string) {
     return this.prisma.helpTicket.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+  }
+
+  /** One ticket's full thread — real, previously non-existent (a ticket was
+   * a static single message with no way to see or add a reply). Scoped to
+   * the caller's own ticket, same "resource ownership, not just auth"
+   * pattern as every other userId-scoped GET in this codebase. */
+  async ticket(userId: string, id: string) {
+    const ticket = await this.prisma.helpTicket.findUnique({
+      where: { id },
+      include: { replies: { orderBy: { createdAt: 'asc' }, include: { fromStaff: { select: { name: true } } } } },
+    });
+    if (!ticket || ticket.userId !== userId) throw new NotFoundException('Ticket not found');
+    return ticket;
+  }
+
+  /** A guest follow-up on their own open ticket — closed tickets can't be
+   * replied to from this side; reopening (if ever wanted) is a staff action
+   * via the admin console, not implicit on a guest message. Notifies staff
+   * the same way a new Contact-us message does, so a guest reply doesn't
+   * sit unseen until someone happens to check the queue. */
+  async reply(userId: string, id: string, message: string) {
+    if (!message?.trim()) throw new BadRequestException('Message is required');
+    const ticket = await this.prisma.helpTicket.findUnique({ where: { id } });
+    if (!ticket || ticket.userId !== userId) throw new NotFoundException('Ticket not found');
+    if (ticket.status !== 'open') throw new ForbiddenException('This ticket is resolved — raise a new one if you need more help');
+
+    const reply = await this.prisma.helpTicketReply.create({ data: { ticketId: id, fromUserId: userId, message: message.trim() } });
+    await this.staffAlerts.alert(`New reply on ticket ${id}: ${message.trim().slice(0, 140)}`).catch(() => {});
+    return reply;
   }
 
   /** "role recorded" (BACKEND.md) is captured server-side from the caller's
@@ -33,7 +60,13 @@ export class SupportService {
       data: { id, userId, role: user.role ?? 'guest', topic: body.topic ?? '', subject: body.subject.trim(), message: body.message.trim() },
     });
 
-    await this.wa.send(user.phone, 'help_ticket', [id, ticket.subject, ticket.topic]).catch(() => {});
+    // Email only — WhatsApp dropped for this flow (real user-reported gap:
+    // no reply/thread UI existed on either end for a guest to act on a
+    // WhatsApp ping anyway; email is the channel that actually carries a
+    // useful "view your ticket" link). Silently no-ops when the user has no
+    // email on file (see EmailService.sendTemplate) — the frontend already
+    // has `user.email` to decide whether to nudge for one, no need to echo
+    // it back here.
     await this.email.sendTemplate(user.email, 'help_ticket', {
       name: user.name, ticketId: id, ticketSubject: ticket.subject,
     }).catch(() => {});

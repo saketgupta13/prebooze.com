@@ -1057,6 +1057,36 @@ export const liveLeads = {
     liveFetch<{ ok: true; sent: string[] }>(`/admin/leads/${id}/send-onboarding`, { body: channels }),
 };
 
+export interface HelpTicketReply {
+  id: string;
+  message: string;
+  createdAt: string;
+  fromStaffId: string | null;
+  fromUserId: string | null;
+  fromStaff: { name: string } | null;
+}
+export interface HelpTicket {
+  id: string;
+  userId: string | null;
+  name: string | null;
+  email: string | null;
+  role: string;
+  topic: string;
+  subject: string;
+  message: string;
+  status: 'open' | 'resolved';
+  createdAt: string;
+  user: { name: string; phone: string; email?: string } | null;
+  replies?: HelpTicketReply[];
+  _count?: { replies: number };
+}
+export const liveSupportTickets = {
+  list: (status?: string) => liveFetch<HelpTicket[]>(`/admin/help-tickets${status && status !== 'all' ? `?status=${status}` : ''}`),
+  get: (id: string) => liveFetch<HelpTicket>(`/admin/help-tickets/${id}`),
+  reply: (id: string, message: string) => liveFetch<HelpTicketReply>(`/admin/help-tickets/${id}/reply`, { body: { message } }),
+  setStatus: (id: string, status: 'open' | 'resolved') => liveFetch<HelpTicket>(`/admin/help-tickets/${id}`, { method: 'PATCH', body: { status } }),
+};
+
 export interface LiveLedgerEntry {
   id: string;
   kind: 'income' | 'expense';
@@ -1115,7 +1145,7 @@ export const PERM_MODULES = [
   'Dashboard', 'Events & approvals', 'Event commission (per event)', 'Bookings', 'Refunds',
   'Payments & payouts', 'Transactions', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
   'Verifications (KYC)', 'Reviews', 'Locations', 'Abandoned carts', 'Featured', 'Marketing campaigns', 'Content',
-  'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Analytics', 'Leads',
+  'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Analytics', 'Leads', 'Support tickets',
 ] as const;
 export type PermKey = 'view' | 'edit' | 'approve';
 export type Perms = Record<string, Record<PermKey, boolean>>;

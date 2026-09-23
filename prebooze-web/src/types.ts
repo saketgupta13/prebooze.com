@@ -623,6 +623,16 @@ export interface HelpTicket {
   message: string;
   status: 'open' | 'resolved';
   createdAt: string;
+  replies?: HelpTicketReply[];
+}
+
+export interface HelpTicketReply {
+  id: string;
+  message: string;
+  createdAt: string;
+  fromStaffId?: string | null;
+  fromUserId?: string | null;
+  fromStaff?: { name: string } | null;
 }
 
 /** Real CMS content — GET /testimonials, /faqs, /blogs, /policies, /banners
