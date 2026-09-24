@@ -179,7 +179,7 @@ export class BookingsService {
     const hold = await this.holds.get(holdId);
     if (hold.userId !== userId) throw new ForbiddenException('This hold belongs to a different session');
 
-    const event = await this.prisma.event.findUnique({ where: { id: hold.eventId }, include: { tiers: true, venue: true } });
+    const event = await this.prisma.event.findUnique({ where: { id: hold.eventId }, include: { tiers: true, venue: true, organizer: true } });
     if (!event) throw new NotFoundException('Event not found');
     // re-checked here (not just at hold creation) since a hold can sit for up
     // to HOLD_TTL_S before quote()/create() actually runs — same "over"
@@ -1083,7 +1083,7 @@ export class BookingsService {
     if (!input.guestName?.trim() || !input.phone?.trim()) throw new BadRequestException('Guest name and phone are required');
     if (!input.qty || input.qty < 1) throw new BadRequestException('qty must be at least 1');
 
-    const event = await this.prisma.event.findUnique({ where: { id: input.eventId }, include: { tiers: true } });
+    const event = await this.prisma.event.findUnique({ where: { id: input.eventId }, include: { tiers: true, organizer: true } });
     if (!event) throw new NotFoundException('Event not found');
     const tier = event.tiers.find((t) => t.id === input.tierId);
     if (!tier) throw new BadRequestException('Unknown ticket tier');
@@ -1639,7 +1639,7 @@ export class BookingsService {
    * calls the backend send path, so it needs its own admin-only method —
    * no ownership check, since it's staff acting on the guest's behalf. */
   async adminResendEmail(id: string) {
-    const booking = await this.prisma.booking.findUnique({ where: { id }, include: { event: true, user: true } });
+    const booking = await this.prisma.booking.findUnique({ where: { id }, include: { event: { include: { organizer: true } }, user: true } });
     if (!booking) throw new NotFoundException('Booking not found');
     if (!booking.user.email) throw new BadRequestException('This guest has no email on file');
     const ticketVenue = booking.event.venueId ? await this.prisma.venue.findUnique({ where: { id: booking.event.venueId } }) : null;
