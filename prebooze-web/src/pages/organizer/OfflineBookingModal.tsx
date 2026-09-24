@@ -106,7 +106,7 @@ export default function OfflineBookingModal({ onClose, onCreated }: { onClose: (
               <Send size={14} /> Payment link sent to {whatsapp}
             </div>
             <div className="muted small">
-              ₹{fmtMoney(linkResult.subtotal)} — the booking confirms automatically the moment they pay, and they'll get their ticket the
+              {fmtMoney(linkResult.subtotal)} — the booking confirms automatically the moment they pay, and they'll get their ticket the
               same way as any other booking. You can also copy the link below if WhatsApp delivery doesn't land.
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -153,9 +153,27 @@ export default function OfflineBookingModal({ onClose, onCreated }: { onClose: (
             )}
             {tier && (
               <div className="form-row" style={{ marginBottom: 10 }}>
-                <div className="field" style={{ flex: '0 0 90px' }}>
+                <div className="field" style={{ flex: '0 0 130px' }}>
                   <span>Qty</span>
-                  <input type="number" min={1} max={tier.quantity - tier.sold} value={qty} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button
+                      type="button" className="btn btn-ghost btn-sm" style={{ padding: '4px 10px' }}
+                      disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number" min={1} max={tier.quantity - tier.sold} value={qty}
+                      onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+                      style={{ textAlign: 'center', width: 44, padding: '8px 2px' }}
+                    />
+                    <button
+                      type="button" className="btn btn-ghost btn-sm" style={{ padding: '4px 10px' }}
+                      disabled={qty >= tier.quantity - tier.sold} onClick={() => setQty((q) => Math.min(tier.quantity - tier.sold, q + 1))}
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <span>Total</span>
