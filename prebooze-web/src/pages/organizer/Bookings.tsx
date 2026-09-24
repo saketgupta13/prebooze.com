@@ -7,6 +7,7 @@ import OfflineBookingModal from './OfflineBookingModal';
 import { X, Search, Download, Camera, CheckCircle2, ArrowLeft, Plus } from 'lucide-react';
 
 const STATUS_FILTERS = ['All', 'Checked in', 'Confirmed', 'Refund requested', 'Refunded', 'Cancelled'];
+const SOURCE_FILTERS = ['All sources', 'Online', 'Offline'];
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 type RowStatus = 'checked-in' | OrgBooking['status'];
@@ -26,6 +27,7 @@ export default function Bookings() {
   const [err, setErr] = useState('');
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
+  const [source, setSource] = useState('All sources');
   const [scope, setScope] = useState<'live' | 'past'>('live');
   const [showOffline, setShowOffline] = useState(false);
   const eventF = params.get('event');
@@ -67,17 +69,21 @@ export default function Bookings() {
       const want: RowStatus = status === 'Checked in' ? 'checked-in' : status === 'Confirmed' ? 'confirmed' : status === 'Refund requested' ? 'refund_requested' : status === 'Refunded' ? 'refunded' : 'cancelled';
       l = l.filter((b) => rowStatus(b) === want);
     }
+    if (source !== 'All sources') {
+      const want = source === 'Online' ? 'online' : 'offline';
+      l = l.filter((b) => b.bookingSource === want);
+    }
     if (q.trim()) {
       const s = q.toLowerCase();
       l = l.filter((b) => (b.mainGuest + b.whatsapp + b.id).toLowerCase().includes(s));
     }
     return l;
-  }, [bookings, eventF, status, q]);
+  }, [bookings, eventF, status, source, q]);
 
   const exportCsv = () => {
     const csv = [
-      'id,guest,phone,tier,qty,amount,event,status',
-      ...filtered.map((b) => `${b.id},"${b.mainGuest}",${b.whatsapp},"${b.tierName}",${b.qty},${b.total},"${b.event.title}",${rowStatus(b)}`),
+      'id,guest,phone,tier,qty,amount,event,source,status',
+      ...filtered.map((b) => `${b.id},"${b.mainGuest}",${b.whatsapp},"${b.tierName}",${b.qty},${b.total},"${b.event.title}",${b.bookingSource}${b.offlinePaymentMode ? `:${b.offlinePaymentMode}` : ''},${rowStatus(b)}`),
     ].join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -100,6 +106,11 @@ export default function Bookings() {
         {!showingSummary && (
           <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 170 }}>
             {STATUS_FILTERS.map((s) => <option key={s}>{s}</option>)}
+          </select>
+        )}
+        {!showingSummary && (
+          <select value={source} onChange={(e) => setSource(e.target.value)} style={{ maxWidth: 150 }}>
+            {SOURCE_FILTERS.map((s) => <option key={s}>{s}</option>)}
           </select>
         )}
         {eventF && (
@@ -168,11 +179,12 @@ export default function Bookings() {
                 <th>Guest</th>
                 <th>Event</th>
                 <th>Qty · Amount</th>
+                <th>Source</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={5} className="muted center">Loading…</td></tr>}
+              {loading && <tr><td colSpan={6} className="muted center">Loading…</td></tr>}
               {!loading && filtered.map((b) => {
                 const s = rowStatus(b);
                 return (
@@ -181,6 +193,15 @@ export default function Bookings() {
                     <td>{b.mainGuest} <span className="muted-2">· {b.whatsapp}</span></td>
                     <td className="muted">{b.event.title}</td>
                     <td>{b.qty} · {fmtMoney(b.total)}</td>
+                    <td>
+                      {b.bookingSource === 'offline' ? (
+                        <span className="badge badge-accent">
+                          {b.offlinePaymentMode === 'self_collected' ? 'Offline · self-collected' : 'Offline · payment link'}
+                        </span>
+                      ) : (
+                        <span className="muted-2">Online</span>
+                      )}
+                    </td>
                     <td>
                       {s === 'checked-in' && <span className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Checked in <CheckCircle2 size={13} /></span>}
                       {s === 'confirmed' && <span className="badge badge-pending">Confirmed</span>}
@@ -192,7 +213,7 @@ export default function Bookings() {
                 );
               })}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={5} className="muted center">No bookings match.</td></tr>
+                <tr><td colSpan={6} className="muted center">No bookings match.</td></tr>
               )}
             </tbody>
           </table>

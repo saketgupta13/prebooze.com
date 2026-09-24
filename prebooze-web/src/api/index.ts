@@ -503,6 +503,8 @@ export interface OrgBooking {
   status: 'confirmed' | 'cancelled' | 'refunded' | 'refund_requested';
   checkedIn: boolean;
   createdAt: string;
+  bookingSource: 'online' | 'offline';
+  offlinePaymentMode: 'self_collected' | 'payment_link' | null;
   event: { id: string; title: string; date: string; durationHrs: number };
 }
 

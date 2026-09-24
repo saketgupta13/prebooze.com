@@ -637,6 +637,7 @@ export class OrganizerService {
       where: { event: { OR: [{ organizerId: org.id }, { collaboratorOrganizerIds: { has: org.id } }] } },
       select: {
         id: true, mainGuest: true, whatsapp: true, tierName: true, qty: true, total: true, status: true, checkedIn: true, createdAt: true,
+        bookingSource: true, offlinePaymentMode: true,
         event: { select: { id: true, title: true, date: true, durationHrs: true } },
       },
       orderBy: { createdAt: 'desc' },
