@@ -336,6 +336,19 @@ export class SettlementsService {
       );
     }
 
+    // Real 2026-09-24 incident this guards against: a browser re-download
+    // of the same file gets auto-renamed ("... (1).csv"), so filename alone
+    // can't catch a re-import — this checks the actual transaction ids
+    // instead. Every merchant_order_id in this file already existing as a
+    // PhonePeSettlementItem means the whole batch was already imported.
+    const orderIdsForDupeCheck = [...new Set(records.map((r) => r.paymentId))];
+    const existingItemCount = await this.prisma.phonePeSettlementItem.count({ where: { paymentId: { in: orderIdsForDupeCheck } } });
+    if (existingItemCount >= orderIdsForDupeCheck.length) {
+      throw new BadRequestException(
+        `This settlement was already imported — all ${orderIdsForDupeCheck.length} transaction(s) in this file already exist. If you meant to re-import, delete the existing settlement file first.`,
+      );
+    }
+
     // Auto-link to real bookings/featured purchases by merchant_order_id —
     // PhonePe's export has no booking_id/featured_id column, but every
     // PhonePe booking's Booking.paymentId (and Featured/MarketingOrder's
