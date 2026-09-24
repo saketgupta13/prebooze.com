@@ -506,6 +506,43 @@ export interface OrgBooking {
   event: { id: string; title: string; date: string; durationHrs: number };
 }
 
+// Full single-booking detail — organizer-scoped equivalent of admin's
+// LiveBooking, minus admin-only fields (adminNote) and minus every admin
+// mutation action (refund approve/decline/retry stay admin-only; an
+// organizer can see refund state here but not act on it).
+export interface OrgBookingDetail {
+  id: string;
+  mainGuest: string;
+  whatsapp: string;
+  tierName: string;
+  qty: number;
+  subtotal: number;
+  fee: number;
+  discount: number;
+  total: number;
+  coverCharge: number;
+  couponCode?: string | null;
+  status: 'confirmed' | 'cancelled' | 'refunded' | 'refund_requested';
+  guests: { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
+  walletCreditUsed: number;
+  paymentId?: string | null;
+  paymentMethod?: string | null;
+  refundedTo?: string | null;
+  refundFailedAt?: string | null;
+  refundGatewayState?: string | null;
+  refundGatewayRefundId?: string | null;
+  refundGatewayAmount?: number | null;
+  qrToken: string;
+  checkedIn: boolean;
+  checkedInAt?: string | null;
+  createdAt: string;
+  promoterRef?: string | null;
+  promoterCommission: number;
+  promoter?: { id: string; name: string; slug: string } | null;
+  user: { name: string; phone: string; email?: string };
+  event: { id: string; title: string; date: string; durationHrs: number; venue?: { name: string; city: string } | null; organizer?: { brandName: string } | null };
+}
+
 // ---------- organizer ----------
 export interface OrgAttendee {
   bookingId: string;
@@ -598,6 +635,7 @@ export const organizer = {
   collaboratorOptions: () => apiFetch<VenueCollaboratorOption[]>('/organizer/collaborator-options'),
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),
   bookings: () => apiFetch<OrgBooking[]>('/organizer/bookings'),
+  bookingDetail: (id: string) => apiFetch<OrgBookingDetail>(`/organizer/bookings/${encodeURIComponent(id)}`),
   marketing: marketingApi('/organizer/marketing'),
   coupons: () => apiFetch<Coupon[]>('/organizer/coupons'),
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/organizer/coupons', { body: c }),

@@ -150,6 +150,11 @@ export class OrganizerController {
     return this.organizer.bookings(req.user.sub);
   }
 
+  @Get('bookings/:id')
+  bookingDetail(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.organizer.bookingDetail(req.user.sub, decodeURIComponent(id));
+  }
+
   @Get('coupons')
   coupons(@Req() req: AuthedReq) {
     return this.organizer.coupons(req.user.sub);

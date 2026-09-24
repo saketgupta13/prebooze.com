@@ -3,7 +3,7 @@
  * already serving the web console. Field names match exactly. */
 import { apiFetch, apiUpload } from './client';
 import type {
-  CartRecord, CollaboratorOption, Coupon, Event, OrgAttendee, OrgBooking, OrgGuestListEntry, OrgLedgerTx, OrgLiveMonitor, OrgModulePerms,
+  CartRecord, CollaboratorOption, Coupon, Event, OrgAttendee, OrgBooking, OrgBookingDetail, OrgGuestListEntry, OrgLedgerTx, OrgLiveMonitor, OrgModulePerms,
   OrgPermKey, OrgPromoterGuest, OrgPromoterPayoutRow, OrgPromoterRosterEntry, OrgStaffMember, OrgTeamAccess, Organizer, PaymentProfile,
 } from '../types';
 
@@ -51,6 +51,7 @@ export const organizer = {
   collaboratorOptions: () => apiFetch<CollaboratorOption[]>('/organizer/collaborator-options'),
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),
   bookings: () => apiFetch<OrgBooking[]>('/organizer/bookings'),
+  bookingDetail: (id: string) => apiFetch<OrgBookingDetail>(`/organizer/bookings/${encodeURIComponent(id)}`),
   coupons: () => apiFetch<Coupon[]>('/organizer/coupons'),
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/organizer/coupons', { body: c }),
   deleteCoupon: (id: string) => apiFetch<{ ok: true }>(`/organizer/coupons/${id}`, { method: 'DELETE' }),

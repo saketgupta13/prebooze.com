@@ -15,7 +15,7 @@ export function navigateToNotificationTarget(navigation: Navigator, to?: string 
       nav('Events', { screen: 'EventsList' });
       break;
     case '/bookings':
-      nav('Bookings');
+      nav('Bookings', { screen: 'BookingsList' });
       break;
     case '/payouts':
       nav('More', { screen: 'Payouts' });

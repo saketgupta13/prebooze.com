@@ -3,7 +3,7 @@ import { Calendar, LayoutDashboard, MoreHorizontal, ScanLine, Users } from 'luci
 import DashboardStack from './DashboardStack';
 import EventsStack from './EventsStack';
 import ScannerScreen from '../screens/scanner/ScannerScreen';
-import BookingsScreen from '../screens/bookings/BookingsScreen';
+import BookingsStack from './BookingsStack';
 import MoreStack from './MoreStack';
 import { colors } from '../theme/tokens';
 import type { MainTabParamList } from './types';
@@ -27,7 +27,7 @@ export default function MainTabs() {
       <Tab.Screen name="Dashboard" component={DashboardStack} options={{ tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} /> }} />
       <Tab.Screen name="Events" component={EventsStack} options={{ tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} /> }} />
       <Tab.Screen name="Scan" component={ScannerScreen} options={{ tabBarIcon: ({ color, size }) => <ScanLine color={color} size={size} /> }} />
-      <Tab.Screen name="Bookings" component={BookingsScreen} options={{ tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />
+      <Tab.Screen name="Bookings" component={BookingsStack} options={{ tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />
       <Tab.Screen name="More" component={MoreStack} options={{ tabBarIcon: ({ color, size }) => <MoreHorizontal color={color} size={size} /> }} />
     </Tab.Navigator>
   );

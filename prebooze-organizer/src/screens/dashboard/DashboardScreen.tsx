@@ -256,7 +256,7 @@ export default function DashboardScreen() {
                 </View>
                 <Chip
                   label="Attendees"
-                  onPress={() => navigation.navigate('Bookings', { eventId: e.id })}
+                  onPress={() => navigation.navigate('Bookings', { screen: 'BookingsList', params: { eventId: e.id } })}
                 />
               </View>
             );

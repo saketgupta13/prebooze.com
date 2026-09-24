@@ -13,9 +13,7 @@ export type MainTabParamList = {
   // only being able to land on the tab's root screen.
   Events: NavigatorScreenParams<EventsStackParamList> | undefined;
   Scan: undefined;
-  // Optional eventId — Dashboard's "Attendees →" row deep-links into a
-  // single event's booking list, mirroring web's `/organizer/bookings?event=`.
-  Bookings: { eventId?: string } | undefined;
+  Bookings: NavigatorScreenParams<BookingsStackParamList> | undefined;
   More: NavigatorScreenParams<MoreStackParamList> | undefined;
 };
 
@@ -39,6 +37,16 @@ export type EventsStackParamList = {
 export type DashboardStackParamList = {
   DashboardHome: undefined;
   Notifications: undefined;
+};
+
+// New nesting under the Bookings tab (2026-09-24) so a row tap can push a
+// real single-booking detail screen — same reasoning as EventsStack above.
+// Optional eventId on the list route — Dashboard's "Attendees →" row still
+// deep-links into a single event's booking list, mirroring web's
+// `/organizer/bookings?event=`.
+export type BookingsStackParamList = {
+  BookingsList: { eventId?: string } | undefined;
+  BookingDetail: { id: string };
 };
 
 export type MoreStackParamList = {

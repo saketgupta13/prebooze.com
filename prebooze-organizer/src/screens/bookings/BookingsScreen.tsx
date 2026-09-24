@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
-import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type CompositeNavigationProp, type RouteProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, Camera, CheckCircle2, Download, Search, X } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { ApiError } from '../../api/client';
@@ -9,7 +10,9 @@ import { Badge, Card, Chip, H1, Input, Muted, Screen, Txt } from '../../componen
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { isEventOver } from '../../lib/events';
 import type { OrgBooking } from '../../types';
-import type { MainTabParamList } from '../../navigation/types';
+import type { MainTabParamList, BookingsStackParamList } from '../../navigation/types';
+
+type Nav = CompositeNavigationProp<NativeStackNavigationProp<BookingsStackParamList>, BottomTabNavigationProp<MainTabParamList>>;
 
 const STATUS_FILTERS = ['All', 'Checked in', 'Confirmed', 'Refund requested', 'Refunded', 'Cancelled'];
 const fmtMoney = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN');
@@ -25,8 +28,8 @@ const rowStatus = (b: OrgBooking): RowStatus => (b.checkedIn ? 'checked-in' : b.
  * browser download, since a downloaded file has nowhere obvious to land on
  * a phone — sharing lets the door team send it to WhatsApp/email/Files. */
 export default function BookingsScreen() {
-  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
-  const route = useRoute<RouteProp<MainTabParamList, 'Bookings'>>();
+  const navigation = useNavigation<Nav>();
+  const route = useRoute<RouteProp<BookingsStackParamList, 'BookingsList'>>();
   const [bookings, setBookings] = useState<OrgBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -164,7 +167,7 @@ export default function BookingsScreen() {
             {!loading && filtered.map((b) => {
               const s = rowStatus(b);
               return (
-                <View key={b.id} style={styles.bookingRow}>
+                <Pressable key={b.id} style={styles.bookingRow} onPress={() => navigation.navigate('BookingDetail', { id: b.id })}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Txt style={styles.bold} numberOfLines={1}>{b.id}</Txt>
                     <Muted style={styles.tiny}>{b.mainGuest} · {b.whatsapp}</Muted>
@@ -176,7 +179,7 @@ export default function BookingsScreen() {
                   {s === 'refund_requested' && <StatusBadge label="Refund req." tone="danger" />}
                   {s === 'refunded' && <StatusBadge label="Refunded" tone="danger" />}
                   {s === 'cancelled' && <StatusBadge label="Cancelled" tone="default" />}
-                </View>
+                </Pressable>
               );
             })}
             {!loading && filtered.length === 0 && <Muted style={styles.centerNote}>No bookings match.</Muted>}

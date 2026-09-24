@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { organizer, type OrgBooking } from '../../api';
 import { ApiError } from '../../api/client';
 import { fmtMoney, isEventOver } from '../../data/mock';
@@ -18,6 +18,7 @@ const rowStatus = (b: OrgBooking): RowStatus => (b.checkedIn ? 'checked-in' : b.
  * split UX as admin's own Bookings page — GET /organizer/bookings is a
  * single cross-event call, replacing the old per-event N+1 fan-out. */
 export default function Bookings() {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [bookings, setBookings] = useState<OrgBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -163,7 +164,7 @@ export default function Bookings() {
               {!loading && filtered.map((b) => {
                 const s = rowStatus(b);
                 return (
-                  <tr key={b.id}>
+                  <tr key={b.id} onClick={() => navigate(`/organizer/bookings/${encodeURIComponent(b.id)}`)} style={{ cursor: 'pointer' }}>
                     <td className="bold">{b.id}</td>
                     <td>{b.mainGuest} <span className="muted-2">· {b.whatsapp}</span></td>
                     <td className="muted">{b.event.title}</td>

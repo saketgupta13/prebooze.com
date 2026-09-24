@@ -643,6 +643,34 @@ export class OrganizerService {
     });
   }
 
+  /** Single-booking detail, organizer-scoped equivalent of admin's
+   * BookingsService.adminGet — same field set (fee breakdown, coupon,
+   * wallet credit, guest list, refund state, promoter attribution, QR),
+   * minus admin-only internal fields (adminNote is a staff-only handoff
+   * note, never meant for an organizer to see) and minus every admin
+   * mutation action (refund approve/decline/retry — those stay
+   * admin-only; an organizer can see a refund's status here but not act
+   * on it). Real gap found 2026-09-24: neither this endpoint nor an
+   * organizer-web/RN screen to call it existed at all — both apps' own
+   * booking views were list-only (id/guest/qty/total/status), so an
+   * organizer had no way to see the same detail admin staff already can,
+   * despite fielding the guest's questions about it themselves first. */
+  async bookingDetail(userId: string, id: string) {
+    const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'view');
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      include: { user: { select: { name: true, phone: true, email: true } }, event: { include: { venue: true, organizer: true } } },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (!this.canAccessEvent(booking.event, org.id)) throw new ForbiddenException();
+
+    const promoter = booking.promoterRef
+      ? await this.prisma.promoter.findUnique({ where: { slug: booking.promoterRef }, select: { id: true, name: true, slug: true } })
+      : null;
+    const { adminNote, ...rest } = booking;
+    return { ...rest, promoter };
+  }
+
   // ---------- coupons ----------
   async coupons(userId: string) {
     const org = await this.orgAccess.require(userId, 'Coupons', 'view');

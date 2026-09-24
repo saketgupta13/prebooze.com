@@ -323,6 +323,42 @@ export interface OrgBooking {
   event: { id: string; title: string; date: string; durationHrs: number };
 }
 
+// Full single-booking detail — same shape as prebooze-web's OrgBookingDetail
+// (organizer-scoped equivalent of admin's LiveBooking, minus adminNote and
+// every admin mutation action).
+export interface OrgBookingDetail {
+  id: string;
+  mainGuest: string;
+  whatsapp: string;
+  tierName: string;
+  qty: number;
+  subtotal: number;
+  fee: number;
+  discount: number;
+  total: number;
+  coverCharge: number;
+  couponCode?: string | null;
+  status: 'confirmed' | 'cancelled' | 'refunded' | 'refund_requested';
+  guests: { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
+  walletCreditUsed: number;
+  paymentId?: string | null;
+  paymentMethod?: string | null;
+  refundedTo?: string | null;
+  refundFailedAt?: string | null;
+  refundGatewayState?: string | null;
+  refundGatewayRefundId?: string | null;
+  refundGatewayAmount?: number | null;
+  qrToken: string;
+  checkedIn: boolean;
+  checkedInAt?: string | null;
+  createdAt: string;
+  promoterRef?: string | null;
+  promoterCommission: number;
+  promoter?: { id: string; name: string; slug: string } | null;
+  user: { name: string; phone: string; email?: string };
+  event: { id: string; title: string; date: string; durationHrs: number; venue?: { name: string; city: string } | null; organizer?: { brandName: string } | null };
+}
+
 // Real shape from prebooze-web/src/api/index.ts's OrgLedgerTx.
 export interface OrgLedgerTx {
   id: string;
