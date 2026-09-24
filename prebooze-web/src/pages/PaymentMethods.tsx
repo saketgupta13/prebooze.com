@@ -28,7 +28,7 @@ export default function PaymentMethods() {
     }
     const label = type === 'upi' ? v : `Card •••• ${v.replace(/\D/g, '').slice(-4)}`;
     addPayMethod(type === 'upi' ? { type, label } : { type, label, holder: holder.trim(), expiry });
-    toast('Payment method saved ✓ (CVV verified, never stored)');
+    toast(type === 'card' ? 'Payment method saved ✓ (CVV verified, never stored)' : 'Payment method saved ✓ (UPI ID verified, never stored)');
     setValue(''); setHolder(''); setExpiry(''); setCvv('');
   };
 
@@ -101,7 +101,9 @@ export default function PaymentMethods() {
             </div>
           )}
           <button className="btn btn-pri" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={14} /> Save method</button>
-          <span className="tiny muted-2" style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Lock size={11} /> CVV is verified at charge time, never stored</span>
+          <span className="tiny muted-2" style={{ marginLeft: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <Lock size={11} /> {type === 'card' ? 'CVV is verified at charge time, never stored' : 'UPI ID is verified via your UPI app, never stored'}
+          </span>
         </form>
 
         {role && (

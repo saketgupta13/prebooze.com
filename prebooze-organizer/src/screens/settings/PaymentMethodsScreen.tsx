@@ -170,7 +170,7 @@ export default function PaymentMethodsScreen() {
           <Button label={saving ? 'Saving…' : 'Save method'} onPress={add} loading={saving} style={{ marginTop: spacing.m }} />
           <View style={styles.lockRow}>
             <Lock size={11} color={colors.muted} />
-            <Muted style={styles.tiny}>CVV is verified at checkout, never stored</Muted>
+            <Muted style={styles.tiny}>{type === 'card' ? 'CVV is verified at checkout, never stored' : 'UPI ID is verified via your UPI app, never stored'}</Muted>
           </View>
         </Card>
       </ScrollView>
