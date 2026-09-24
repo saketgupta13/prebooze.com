@@ -320,6 +320,10 @@ export const liveEvents = {
   setSalesPaused: (id: string, paused: boolean) => liveFetch<LiveEvent>(`/admin/events/${id}/pause-sales`, { method: 'PATCH', body: { paused } }),
   setPoster: (id: string, posterUrl: string | null) => liveFetch<LiveEvent>(`/admin/events/${id}/poster`, { method: 'PATCH', body: { posterUrl } }),
   previewLink: (id: string) => liveFetch<{ url: string }>(`/admin/events/${id}/preview-link`),
+  // Real delete — blocked server-side the instant a single real Booking
+  // exists (see OrganizerService.adminDeleteEvent). Any organizer's event,
+  // no ownership check ("admin god mode").
+  delete: (id: string) => liveFetch<{ ok: true }>(`/admin/events/${id}`, { method: 'DELETE' }),
 };
 
 export const liveMedia = {

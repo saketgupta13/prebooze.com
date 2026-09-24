@@ -650,6 +650,9 @@ export const organizer = {
     tiers?: { id?: string; name: string; price: number; quantity: number; includes?: string[]; description?: string }[];
     collaboratorOrganizerIds?: string[];
   }) => apiFetch<Event>('/organizer/events', { body: e }),
+  // Real delete, not a status change — blocked server-side the instant a
+  // single real Booking exists (see OrganizerService.deleteEvent).
+  deleteEvent: (id: string) => apiFetch<{ ok: true }>(`/organizer/events/${id}`, { method: 'DELETE' }),
   // Real, registered organizers this organizer can tag as a co-organizer —
   // not gated on `verified`, unlike venuePartner.collaboratorOptions below
   // (that one's a lighter, read-only credit; this one grants full access,
@@ -989,6 +992,7 @@ export const venuePartner = {
     posterUrl?: string | null; galleryUrls?: string[]; teaserVideoUrl?: string | null; socialBanners?: { postUrl?: string; storyUrl?: string };
     tiers?: { id?: string; name: string; price: number; quantity: number; includes?: string[]; description?: string }[];
   }) => apiFetch<Event>('/venue/hosting/events', { body: e }),
+  deleteHostedEvent: (id: string) => apiFetch<{ ok: true }>(`/venue/hosting/events/${id}`, { method: 'DELETE' }),
   myLedger: () => apiFetch<{ balance: number; transactions: VenueLedgerTx[] }>('/venue/hosting/ledger'),
   withdraw: (amount: number) => apiFetch<{ ok: true }>('/venue/hosting/withdraw', { body: { amount } }),
   collaboratorOptions: () => apiFetch<VenueCollaboratorOption[]>('/venue/hosting/collaborator-options'),

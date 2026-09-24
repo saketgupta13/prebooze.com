@@ -10,7 +10,7 @@ import type { Event, EventStatus } from '../../types';
 import { eventCity, eventPath } from '../../lib/urls';
 import Poster from '../../components/Poster';
 import CategoryIcon from '../../components/CategoryIcon';
-import { CheckCircle2, X, Star, Pencil } from 'lucide-react';
+import { CheckCircle2, X, Star, Pencil, Trash2 } from 'lucide-react';
 
 const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -50,6 +50,9 @@ export default function MyEvents() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteErr, setDeleteErr] = useState('');
 
   useEffect(() => {
     organizer
@@ -58,6 +61,20 @@ export default function MyEvents() {
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load events'))
       .finally(() => setLoading(false));
   }, []);
+
+  const deleteEvent = async (id: string) => {
+    setDeletingId(id);
+    setDeleteErr('');
+    try {
+      await organizer.deleteEvent(id);
+      setEvents((prev) => prev.filter((e) => e.id !== id));
+      setConfirmDeleteId(null);
+    } catch (e) {
+      setDeleteErr(e instanceof ApiError ? e.message : 'Could not delete this event');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const featureEvent = (e: Event) => {
     requestFeatured({
@@ -147,10 +164,27 @@ export default function MyEvents() {
                     <Link to={`/organizer/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                       <Pencil size={13} /> Edit
                     </Link>
+                    {sold === 0 && (
+                      <button className="btn btn-ghost btn-sm" title="Delete" style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={() => { setConfirmDeleteId(e.id); setDeleteErr(''); }}>
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                     <Link to={eventPath(eventCity(e) ?? city, e.slug)} className="icon-round" title="View as guest">
                       ⋮
                     </Link>
                   </div>
+                  {confirmDeleteId === e.id && (
+                    <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 10, marginTop: 8 }}>
+                      {deleteErr && <div className="danger-text tiny" style={{ marginBottom: 6 }}>{deleteErr}</div>}
+                      <div className="tiny muted-2" style={{ marginBottom: 8 }}>Delete "{e.title}" permanently? This can't be undone.</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-danger btn-sm" disabled={deletingId === e.id} onClick={() => deleteEvent(e.id)}>
+                          {deletingId === e.id ? 'Deleting…' : 'Yes, delete'}
+                        </button>
+                        <button className="btn btn-ghost btn-sm" disabled={deletingId === e.id} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -274,6 +274,76 @@ export class OrganizerService {
     return event.organizerId === orgId || event.collaboratorOrganizerIds.includes(orgId);
   }
 
+  /** Real delete (not a status change) — for an event with a genuine
+   * mistake behind it (wrong details, duplicate, organizer changed their
+   * mind) rather than one that just needs rejecting. Deliberately blocked
+   * the instant a single real Booking exists: Booking has a real FK to
+   * Event with no cascade (same as every other FK here), so a raw delete
+   * would fail at the Postgres level anyway once a guest has actually
+   * paid — this just gives a clear reason instead of a raw constraint
+   * error. Everything else with a real (non-cascading) FK to Event but no
+   * completed-money meaning of its own — TicketTier, WaitlistEntry, Cart,
+   * GuestListEntry, CheckInLog, PromoterGuest, PromoterEventSettlement,
+   * PromoterTeamSettlement — is cleaned up in the same transaction.
+   * Denormalized eventId columns with no FK at all (OrgReview,
+   * OrganizerLedgerTx, VenueLedgerTx, MarketingOrder, LedgerEntry,
+   * FunnelEvent) are deliberately left alone — those are designed to
+   * outlive the event they reference (see OrgReview.eventTitle's own
+   * denormalization comment), and none of them can exist without a real
+   * Booking or a real marketing spend having happened first, both
+   * extremely unlikely for the "I made this by mistake" case this exists
+   * for. EventInterest/EventWishlist (bare interest/save flags, no FK)
+   * are deleted too, purely for tidiness. */
+  private async assertEventDeletable(eventId: string) {
+    const bookingCount = await this.prisma.booking.count({ where: { eventId } });
+    if (bookingCount > 0) {
+      throw new BadRequestException(`This event has ${bookingCount} real booking${bookingCount > 1 ? 's' : ''} — it can't be deleted. Contact Prebooze support if it genuinely needs to be cancelled.`);
+    }
+  }
+
+  private async deleteEventCascade(eventId: string) {
+    await this.prisma.$transaction([
+      this.prisma.ticketTier.deleteMany({ where: { eventId } }),
+      this.prisma.waitlistEntry.deleteMany({ where: { eventId } }),
+      this.prisma.cart.deleteMany({ where: { eventId } }),
+      this.prisma.guestListEntry.deleteMany({ where: { eventId } }),
+      this.prisma.checkInLog.deleteMany({ where: { eventId } }),
+      this.prisma.promoterGuest.deleteMany({ where: { eventId } }),
+      this.prisma.promoterEventSettlement.deleteMany({ where: { eventId } }),
+      this.prisma.promoterTeamSettlement.deleteMany({ where: { eventId } }),
+      this.prisma.eventInterest.deleteMany({ where: { eventId } }),
+      this.prisma.eventWishlist.deleteMany({ where: { eventId } }),
+      this.prisma.event.delete({ where: { id: eventId } }),
+    ]);
+  }
+
+  /** Organizer self-serve delete — only their own event (owner or a tagged
+   * collaborator, same canAccessEvent every other event-scoped write
+   * already uses), and only when assertEventDeletable allows it. */
+  async deleteEvent(userId: string, eventId: string) {
+    const org = await this.orgAccess.require(userId, 'Events & wizard', 'edit');
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    if (!this.canAccessEvent(event, org.id)) throw new ForbiddenException();
+    await this.assertEventDeletable(eventId);
+    await this.deleteEventCascade(eventId);
+    return { ok: true };
+  }
+
+  /** Admin god-mode delete — any organizer's event, no ownership check
+   * (same "admin god mode" reasoning as adminUpsertEvent above), still
+   * subject to the same real-bookings safety check as the organizer's own
+   * delete — admin isn't a way to destroy real guest tickets/money either,
+   * just a way to remove a problem event before anyone's actually paid
+   * for it (spam, policy violation, duplicate, wrong organizer, etc). */
+  async adminDeleteEvent(eventId: string) {
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    await this.assertEventDeletable(eventId);
+    await this.deleteEventCascade(eventId);
+    return { ok: true };
+  }
+
   private async uniqueSlug(base: string) {
     let candidate = base;
     let n = 1;

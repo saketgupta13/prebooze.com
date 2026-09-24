@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Landmark, Lock, Pencil } from 'lucide-react';
+import { Landmark, Lock, Pencil, Trash2 } from 'lucide-react';
 import { liveEvents, LiveApiError, type LiveEvent } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
@@ -24,8 +24,10 @@ const isPastEvent = (e: LiveEvent) => {
 };
 
 /** Real event list — merges the old mock Events.tsx (filters/search) and
- * EventsLive.tsx (real approve/reject/commission) into one real page. No
- * delete button: the backend has no real delete-event endpoint. */
+ * EventsLive.tsx (real approve/reject/commission) into one real page. Real
+ * delete (2026-09-25): admin god-mode, any organizer's event, still
+ * blocked server-side the instant a single real Booking exists — see
+ * OrganizerService.adminDeleteEvent. */
 export default function EventsReal() {
   const session = useLiveSession();
   const { token } = session;
@@ -46,6 +48,8 @@ export default function EventsReal() {
   const [err, setErr] = useState('');
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -90,6 +94,18 @@ export default function EventsReal() {
     const v = value.trim() === '' ? null : parseFloat(value);
     if (v != null && (Number.isNaN(v) || v < 0 || v > 100)) { setErr('Commission must be 0-100'); return; }
     try { await liveEvents.setCommission(id, v); load(); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed to save commission'); }
+  };
+  const deleteEvent = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await liveEvents.delete(id);
+      setConfirmDeleteId(null);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to delete event');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const categories = [...new Set(events.map((e) => e.category))];
@@ -195,6 +211,15 @@ export default function EventsReal() {
                   </>
                 )}
                 <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/events/${e.id}`)}><Pencil size={13} /> Edit</button>
+                {confirmDeleteId === e.id ? (
+                  <>
+                    <span className="tiny muted">{sold > 0 ? `has ${sold} real booking(s)` : 'delete permanently?'}</span>
+                    <button className="btn btn-danger btn-sm" disabled={deletingId === e.id} onClick={() => deleteEvent(e.id)}>{deletingId === e.id ? 'Deleting…' : 'Confirm'}</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                  </>
+                ) : (
+                  <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setConfirmDeleteId(e.id)}><Trash2 size={13} /> Delete</button>
+                )}
               </span>
             </div>
           );

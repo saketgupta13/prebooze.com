@@ -142,6 +142,13 @@ export class OrganizerController {
     return this.organizer.upsertEvent(req.user.sub, body);
   }
 
+  /** Real delete — see OrganizerService.deleteEvent for the safety check
+   * (blocked once a single real Booking exists) and cascade breakdown. */
+  @Delete('events/:id')
+  deleteEvent(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.organizer.deleteEvent(req.user.sub, id);
+  }
+
   @Get('events/:id/attendees')
   attendees(@Req() req: AuthedReq, @Param('id') id: string) {
     return this.organizer.attendees(req.user.sub, id);
@@ -362,6 +369,15 @@ export class AdminEventsController {
   @RequirePermission('Events & approvals', 'approve')
   reject(@Param('id') id: string, @Body('reason') reason: string) {
     return this.organizer.adminReject(id, reason);
+  }
+
+  /** Real delete — any organizer's event, no ownership check ("admin god
+   * mode", same as every other adminX action here), still blocked once a
+   * single real Booking exists — see OrganizerService.adminDeleteEvent. */
+  @Delete(':id')
+  @RequirePermission('Events & approvals', 'edit')
+  deleteEvent(@Param('id') id: string) {
+    return this.organizer.adminDeleteEvent(id);
   }
 
   // Reports slice: finally backs the "Event commission (per event)" permission

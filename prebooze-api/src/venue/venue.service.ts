@@ -807,6 +807,37 @@ export class VenueService {
     return this.prisma.event.findUniqueOrThrow({ where: { id: eventId }, include: { tiers: true, venue: true, organizer: true } });
   }
 
+  /** Real delete for a venue-hosted event, same reasoning and same
+   * real-bookings safety check as OrganizerService.deleteEvent — see that
+   * method's own doc comment for the full cascade/FK breakdown, identical
+   * here since both paths delete the same Event model. */
+  async deleteHostedEvent(userId: string, eventId: string) {
+    const venue = await this.venueAccess.require(userId, 'Events & wizard', 'edit');
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.venueId !== venue.id || !event.hostedByVenue) throw new ForbiddenException();
+
+    const bookingCount = await this.prisma.booking.count({ where: { eventId } });
+    if (bookingCount > 0) {
+      throw new BadRequestException(`This event has ${bookingCount} real booking${bookingCount > 1 ? 's' : ''} — it can't be deleted. Contact Prebooze support if it genuinely needs to be cancelled.`);
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.ticketTier.deleteMany({ where: { eventId } }),
+      this.prisma.waitlistEntry.deleteMany({ where: { eventId } }),
+      this.prisma.cart.deleteMany({ where: { eventId } }),
+      this.prisma.guestListEntry.deleteMany({ where: { eventId } }),
+      this.prisma.checkInLog.deleteMany({ where: { eventId } }),
+      this.prisma.promoterGuest.deleteMany({ where: { eventId } }),
+      this.prisma.promoterEventSettlement.deleteMany({ where: { eventId } }),
+      this.prisma.promoterTeamSettlement.deleteMany({ where: { eventId } }),
+      this.prisma.eventInterest.deleteMany({ where: { eventId } }),
+      this.prisma.eventWishlist.deleteMany({ where: { eventId } }),
+      this.prisma.event.delete({ where: { id: eventId } }),
+    ]);
+    return { ok: true };
+  }
+
   private async syncHostedTiers(eventId: string, tiers: HostedTierInput[]) {
     const existing = await this.prisma.ticketTier.findMany({ where: { eventId } });
     const keepIds = new Set(tiers.filter((t) => t.id).map((t) => t.id));

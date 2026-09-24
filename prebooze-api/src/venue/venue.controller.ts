@@ -113,6 +113,13 @@ export class VenueController {
     return this.venue.saveHostedEvent(req.user.sub, body);
   }
 
+  /** Real delete — see VenueService.deleteHostedEvent for the real-bookings
+   * safety check and cascade breakdown. */
+  @Delete('hosting/events/:id')
+  deleteHostedEvent(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.venue.deleteHostedEvent(req.user.sub, id);
+  }
+
   @Get('hosting/ledger')
   myLedger(@Req() req: AuthedReq) {
     return this.venue.myLedger(req.user.sub);
