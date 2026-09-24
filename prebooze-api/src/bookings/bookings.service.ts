@@ -1695,7 +1695,14 @@ export class BookingsService {
       for (const [tierId, n] of Object.entries(breakdown)) {
         await tx.ticketTier.update({ where: { id: tierId }, data: { sold: { decrement: n } } });
       }
-      const owedToPrebooze = booking.commission + booking.fee;
+      // Booking has no separate gst column — same total = subtotal + fee +
+      // gst formula createOfflineBookingSelfCollected used to compute it
+      // (no discount on an offline booking), backed out here. Real bug
+      // caught in testing: an earlier version of this reversal only
+      // credited back commission + fee, silently leaving the GST portion
+      // of the original debit permanently un-refunded to the organizer.
+      const gst = booking.total - booking.subtotal - booking.fee;
+      const owedToPrebooze = booking.commission + booking.fee + gst;
       if (owedToPrebooze > 0) {
         await tx.organizerLedgerTx.create({
           data: {
@@ -1704,7 +1711,7 @@ export class BookingsService {
           },
         });
       }
-      await this.postEventLedger(tx, booking.eventId, booking.event.title, 'Refund losses', 'expense', booking.commission + booking.fee);
+      await this.postEventLedger(tx, booking.eventId, booking.event.title, 'Refund losses', 'expense', owedToPrebooze);
     });
 
     await this.staffAlerts.alert(`Offline booking ${booking.id} (${booking.mainGuest}) voided by the organizer — inventory and ledger reversed.`).catch(() => {});
