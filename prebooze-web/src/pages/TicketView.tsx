@@ -47,8 +47,8 @@ export default function TicketView() {
       <div className="container" style={{ maxWidth: 440 }}>
         <div className="card card-shadow" style={{ textAlign: 'center', padding: 24 }}>
           {ticket.status === 'confirmed' && (
-            <div className="tiny" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--accent)', marginBottom: 10 }}>
-              <CheckCircle2 size={14} /> {ticket.checkedIn ? 'Already checked in' : 'Confirmed'}
+            <div className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <CheckCircle2 size={14} /> {ticket.checkedIn ? 'ALREADY CHECKED IN' : 'CONFIRMED'}
             </div>
           )}
           {ticket.status !== 'confirmed' && (
@@ -65,7 +65,14 @@ export default function TicketView() {
           )}
 
           {ticket.status === 'confirmed' ? (
-            <QRCode value={ticket.qrToken} caption={ticket.id} />
+            <>
+              <QRCode value={ticket.qrToken} caption={ticket.id} />
+              {ticket.bookingSource === 'offline' && (
+                <div className="tiny muted-2" style={{ marginTop: 10 }}>
+                  {ticket.offlinePaymentMode === 'self_collected' ? 'Paid directly to the organizer' : 'Paid via WhatsApp payment link'}
+                </div>
+              )}
+            </>
           ) : (
             <p className="muted small">This ticket is {ticket.status.replace('_', ' ')} and can't be used for entry.</p>
           )}

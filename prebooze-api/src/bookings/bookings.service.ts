@@ -1478,7 +1478,7 @@ export class BookingsService {
     return {
       id: booking.id, mainGuest: booking.mainGuest, tierName: booking.tierName, qty: booking.qty,
       total: booking.total, status: booking.status, checkedIn: booking.checkedIn, qrToken: booking.qrToken,
-      guests: booking.guests,
+      guests: booking.guests, bookingSource: booking.bookingSource, offlinePaymentMode: booking.offlinePaymentMode,
       event: {
         title: booking.event.title, date: booking.event.date, durationHrs: booking.event.durationHrs,
         venueName: booking.event.venue?.name ?? null, city: booking.event.venue?.city ?? booking.event.privateCity,

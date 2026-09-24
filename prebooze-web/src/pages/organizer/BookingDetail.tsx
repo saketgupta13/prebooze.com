@@ -45,7 +45,7 @@ export default function BookingDetail() {
   if (loading) return <div className="stack fade"><div className="muted small">Loading…</div></div>;
   if (!booking) {
     return (
-      <div className="stack fade">
+      <div className="stack fade" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {err && <div className="danger-text small">{err}</div>}
         <h1 className="page-title">Booking not found</h1>
         <Link to="/organizer/bookings" className="btn btn-ghost btn-sm" style={{ width: 'fit-content', display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Bookings</Link>
@@ -54,7 +54,7 @@ export default function BookingDetail() {
   }
 
   return (
-    <div className="stack fade" style={{ maxWidth: 720, gap: 14 }}>
+    <div className="stack fade" style={{ display: 'flex', flexDirection: 'column', maxWidth: 720, gap: 14 }}>
       {err && <div className="danger-text small">{err}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Link to="/organizer/bookings" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={13} /> Bookings</Link>

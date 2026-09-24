@@ -299,6 +299,7 @@ export const bookings = {
     apiFetch<{
       id: string; mainGuest: string; tierName: string; qty: number; total: number; status: string; checkedIn: boolean; qrToken: string;
       guests: { name: string; checkedIn: boolean; gender?: string }[];
+      bookingSource: 'online' | 'offline'; offlinePaymentMode: 'self_collected' | 'payment_link' | null;
       event: { title: string; date: string; durationHrs: number; venueName: string | null; city: string | null };
     }>(`/bookings/ticket-view/${encodeURIComponent(token)}`),
 };
