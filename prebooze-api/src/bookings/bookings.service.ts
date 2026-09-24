@@ -1327,13 +1327,16 @@ export class BookingsService {
         },
       });
 
-      const nameUpdate = !guest.name?.trim() ? { name: input.guestName.trim() } : {};
-      const genderUpdate = !guest.gender?.trim() && input.gender ? { gender: input.gender } : {};
-      const newUsername = !guest.name?.trim() && PLACEHOLDER_USERNAME.test(guest.username)
-        ? await uniqueUsernameFromName(tx, input.guestName.trim(), guest.id)
-        : undefined;
-      if (Object.keys(nameUpdate).length || Object.keys(genderUpdate).length || newUsername) {
-        await tx.user.update({ where: { id: guest.id }, data: { ...nameUpdate, ...genderUpdate, ...(newUsername ? { username: newUsername } : {}) } });
+      // Bare-minimum record only (decided 2026-09-25) — the organizer
+      // already holds this guest's money directly, so Prebooze never
+      // actually verified anything about them the way a real self-checkout
+      // or a payment-link (paid through our own gateway) does. Only the
+      // name is backfilled (needed just to identify whose booking this
+      // is) — no gender, no generated username — unlike
+      // finalizeOfflineLinkBooking's guest, who gets the same profile
+      // enrichment a normal online booking's buyer would.
+      if (!guest.name?.trim()) {
+        await tx.user.update({ where: { id: guest.id }, data: { name: input.guestName.trim() } });
       }
 
       // No `sale` ledger credit here — deliberately. The organizer already
@@ -1368,7 +1371,7 @@ export class BookingsService {
       }).catch(() => {});
     }
 
-    await this.sendOfflineBookingConfirmation(booking, event, guest, input.guestName.trim(), input.qty, total, id);
+    await this.sendOfflineBookingConfirmation(booking, event, guest, input.guestName.trim(), input.qty, total, id, false);
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true, organizer: true } } } });
   }
 
@@ -1444,6 +1447,60 @@ export class BookingsService {
     const redirectUrl = (cart?.bookingPayload as { redirectUrl?: string } | null)?.redirectUrl;
     if (!redirectUrl) throw new NotFoundException('This payment link has expired or already been used');
     return redirectUrl;
+  }
+
+  /** Public, token-gated ticket view — the link an offline-booking's
+   * WhatsApp confirmation carries, since that guest (especially a
+   * self-collected one — see prepareOfflineBooking's bare-minimum-record
+   * decision, 2026-09-25) has no reason to go through OTP login just to
+   * see the QR they need at the door. `qrToken` (already a signed,
+   * booking-specific JWT — see create()'s own qrToken) doubles as the
+   * access credential here: nothing extra to generate or store, and
+   * exactly as forgeable/guessable as the QR code itself already is (you
+   * need the same token to check someone in). */
+  async ticketView(qrToken: string) {
+    let payload: { bookingId: string };
+    try {
+      payload = await this.jwt.verifyAsync(qrToken);
+    } catch {
+      throw new BadRequestException('Invalid or expired ticket link');
+    }
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: payload.bookingId },
+      include: { event: { include: { venue: true } } },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    return {
+      id: booking.id, mainGuest: booking.mainGuest, tierName: booking.tierName, qty: booking.qty,
+      total: booking.total, status: booking.status, checkedIn: booking.checkedIn, qrToken: booking.qrToken,
+      guests: booking.guests,
+      event: {
+        title: booking.event.title, date: booking.event.date, durationHrs: booking.event.durationHrs,
+        venueName: booking.event.venue?.name ?? null, city: booking.event.venue?.city ?? booking.event.privateCity,
+      },
+    };
+  }
+
+  /** What /pay/complete polls — real bug found 2026-09-25: that page used
+   * to unconditionally say "Payment received" the instant a guest landed
+   * back on it, regardless of whether they'd actually paid or backed out
+   * of PhonePe entirely. This is the guest's only way to know, since
+   * they're never logged in for an org-initiated offline booking (no
+   * session to call the normal authenticated status checks with).
+   * `cart.status === 'completed'` is the durable source of truth once the
+   * webhook lands (reconcilePhonePePayment -> finalizeOfflineLinkBooking);
+   * before that, falls back to a live PhonePe status check for the brief
+   * window right after a real payment where the webhook hasn't landed yet. */
+  async offlinePaymentLinkStatus(holdId: string): Promise<'paid' | 'pending' | 'failed' | 'unknown'> {
+    const cart = await this.prisma.cart.findFirst({ where: { holdId } });
+    if (!cart) return 'unknown';
+    if (cart.status === 'completed') return 'paid';
+    if (!cart.phonepeMerchantOrderId) return 'unknown';
+    const status = await this.phonepe.getOrderStatus(cart.phonepeMerchantOrderId).catch(() => null);
+    if (!status) return 'pending';
+    if (status.state === 'COMPLETED') return 'paid';
+    if (status.state === 'FAILED') return 'failed';
+    return 'pending';
   }
 
   /** The real webhook-confirmed counterpart to createOfflineBookingPaymentLink
@@ -1554,10 +1611,20 @@ export class BookingsService {
     booking: Booking, event: { id: string; title: string; venueId: string | null; privateCity: string | null },
     guest: { id: string; email: string | null; city: string | null; state: string | null; country: string | null } | null,
     guestName: string, qty: number, total: number, id: string,
+    // Self-collected guests are a bare-minimum record (2026-09-25) — never
+    // enrich their profile with a location Prebooze didn't actually
+    // observe. Payment-link guests get the same city/state backfill any
+    // normal online buyer does (the default).
+    backfillProfile = true,
   ) {
-    await this.wa.send(booking.whatsapp, 'booking_confirmed', [guestName, event.title, String(qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`, String(total)]).catch(() => {});
+    // Ticket-view link, not /confirmation/:id — this guest was never
+    // logged in to begin with (no OTP, no session), so a login-gated page
+    // would be a dead end. qrToken already doubles as this booking's own
+    // access credential (see BookingsService.ticketView).
+    const ticketUrl = `${process.env.WEB_APP_URL ?? ''}/ticket/${encodeURIComponent(booking.qrToken)}`;
+    await this.wa.send(booking.whatsapp, 'booking_confirmed', [guestName, event.title, String(qty), ticketUrl, String(total)]).catch(() => {});
     const venue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
-    if (guest && !guest.city && (venue?.city || event.privateCity)) {
+    if (backfillProfile && guest && !guest.city && (venue?.city || event.privateCity)) {
       await this.prisma.user.update({
         where: { id: guest.id },
         data: { city: venue?.city ?? event.privateCity ?? '', state: guest.state ?? venue?.state ?? undefined, country: guest.country ?? venue?.country ?? undefined },

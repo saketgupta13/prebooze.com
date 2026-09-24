@@ -33,6 +33,7 @@ const EventDetail = lazy(() => import('./pages/EventDetail'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 const Confirmation = lazy(() => import('./pages/Confirmation'));
 const PayComplete = lazy(() => import('./pages/PayComplete'));
+const TicketView = lazy(() => import('./pages/TicketView'));
 const MyBookings = lazy(() => import('./pages/MyBookings'));
 const Profile = lazy(() => import('./pages/Profile'));
 const EditProfile = lazy(() => import('./pages/EditProfile'));
@@ -405,6 +406,10 @@ export default function App() {
         {/* Public — a guest tapping an organizer-sent offline payment link
             (see PayComplete.tsx) may have no logged-in session at all. */}
         <Route path="/pay/complete" element={<PayComplete />} />
+        {/* Public — an offline booking's WhatsApp confirmation links here
+            (see TicketView.tsx/BookingsService.ticketView), same no-session
+            reasoning as /pay/complete above. */}
+        <Route path="/ticket/:token" element={<TicketView />} />
         <Route
           path="/bookings"
           element={

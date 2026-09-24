@@ -77,7 +77,12 @@ export default function BookingDetail() {
         {booking.event.date && (
           <div className="tiny muted">{fmtDate(booking.event.date)} · {fmtTime(booking.event.date)}</div>
         )}
-        <div className="tiny muted">{booking.qty} × {booking.tierName} · paid via {booking.paymentMethod ? `manual (${booking.paymentMethod})` : 'online payment'}</div>
+        <div className="tiny muted">
+          {booking.qty} × {booking.tierName} · paid via{' '}
+          {booking.bookingSource === 'offline'
+            ? (booking.offlinePaymentMode === 'self_collected' ? 'offline — paid to organizer directly' : 'offline — paid via WhatsApp link')
+            : (booking.paymentMethod ? `manual (${booking.paymentMethod})` : 'online payment')}
+        </div>
       </div>
 
       <div className="card tbl-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 14 }}>

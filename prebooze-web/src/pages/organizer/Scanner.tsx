@@ -241,18 +241,28 @@ export default function Scanner() {
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick"><Check size={30} /></div>
-          {isFree ? (
-            <div className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Gift size={12} /> Guest list</div>
-          ) : (
-            <div className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Ticket size={12} /> Paid booking</div>
-          )}
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
+            {isFree ? (
+              <div className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Gift size={12} /> Guest list</div>
+            ) : (
+              <div className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={12} /> Paid booking</div>
+            )}
+            {b.bookingSource === 'offline' && <div className="badge badge-accent">Offline booking</div>}
+          </div>
           <h2>Checked in</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Booking</span><span className="bold">{b.id}</span></div>
             <div className="kv"><span className="k">Guest{b.qty > 1 ? 's' : ''}</span><span>{b.guests.map((g) => g.name).join(', ')}</span></div>
             <div className="kv"><span className="k">Tickets</span><span>{b.tierName} · {b.qty}</span></div>
             <div className="kv"><span className="k">Total paid</span><span className="bold">₹{b.total}</span></div>
-            <div className="kv"><span className="k">Payment</span><span>{b.paymentId ? 'Online' : (b.paymentMethod || '—')}</span></div>
+            <div className="kv">
+              <span className="k">Payment</span>
+              <span>
+                {b.bookingSource === 'offline'
+                  ? (b.offlinePaymentMode === 'self_collected' ? 'Offline · paid to organizer' : 'Offline · paid via link')
+                  : (b.paymentId ? 'Online' : (b.paymentMethod || '—'))}
+              </span>
+            </div>
             {b.promoterName && (
               <div className="kv"><span className="k">Promoter</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Megaphone size={12} /> {b.promoterName}</span></div>
             )}
@@ -339,11 +349,14 @@ export default function Scanner() {
       <div className="scanner card-shadow">
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div className="confirm-tick"><Check size={30} /></div>
-          {isFree ? (
-            <div className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Gift size={12} /> Guest list</div>
-          ) : (
-            <div className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}><Ticket size={12} /> Paid booking</div>
-          )}
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
+            {isFree ? (
+              <div className="badge badge-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Gift size={12} /> Guest list</div>
+            ) : (
+              <div className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={12} /> Paid booking</div>
+            )}
+            {row.bookingSource === 'offline' && <div className="badge badge-accent">Offline booking</div>}
+          </div>
           <h2>Valid ticket</h2>
           <div style={{ textAlign: 'left', margin: '18px 0' }}>
             <div className="kv"><span className="k">Booking</span><span className="bold">{row.bookingId}</span></div>

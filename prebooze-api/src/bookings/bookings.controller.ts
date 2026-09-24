@@ -28,6 +28,23 @@ export class BookingsController {
     return { url: await this.bookings.offlinePaymentLinkRedirect(holdId), statusCode: 302 };
   }
 
+  /** Polled by the public /pay/complete page — see BookingsService.
+   * offlinePaymentLinkStatus for why this exists (that page used to
+   * unconditionally claim success). Public, no auth — same reasoning as
+   * the redirect above. */
+  @Get('pay/status/:holdId')
+  async offlinePaymentLinkStatus(@Param('holdId') holdId: string) {
+    return { status: await this.bookings.offlinePaymentLinkStatus(holdId) };
+  }
+
+  /** Public ticket view an offline booking's WhatsApp confirmation links to
+   * — see BookingsService.ticketView. No auth; the qrToken itself is the
+   * access credential. */
+  @Get('bookings/ticket-view/:token')
+  ticketView(@Param('token') token: string) {
+    return this.bookings.ticketView(token);
+  }
+
   @Post('bookings/hold')
   @UseGuards(JwtAuthGuard)
   hold(@Req() req: AuthedReq, @Body() body: { eventId: string; qty: Record<string, number> }) {

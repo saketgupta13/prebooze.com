@@ -283,12 +283,24 @@ export const bookings = {
   // truncating the path. Must percent-encode; server-side decodes it back.
   cancel: (id: string, refundTo: 'wallet' | 'source') => apiFetch<Booking>(`/bookings/${encodeURIComponent(id)}/cancel`, { body: { refundTo } }),
   resend: (id: string) => apiFetch<{ ok: true }>(`/bookings/${encodeURIComponent(id)}/resend`, { method: 'POST' }),
+  // Public, no auth — polled by PayComplete.tsx for an org-initiated
+  // offline payment-link booking, where the guest has no session at all.
+  offlinePaymentLinkStatus: (holdId: string) => apiFetch<{ status: 'paid' | 'pending' | 'failed' | 'unknown' }>(`/pay/status/${encodeURIComponent(holdId)}`),
   // real route is /bookings/check-in with the QR's signed token in the body
   // — not /bookings/:id/check-in like this used to declare (that endpoint
   // never existed; nothing called this wrapper before now).
   checkIn: (token: string) => apiFetch<Booking>('/bookings/check-in', { body: { token } }),
   waitlistJoin: (eventId: string) => apiFetch<WaitlistEntry>(`/events/${eventId}/waitlist`, { method: 'POST' }),
   waitlist: (eventId: string) => apiFetch<WaitlistEntry[]>(`/events/${eventId}/waitlist`),
+  // Public, no auth — the link an offline booking's WhatsApp confirmation
+  // carries (see BookingsService.ticketView). The token itself (already a
+  // signed, booking-specific JWT) is the access credential.
+  ticketView: (token: string) =>
+    apiFetch<{
+      id: string; mainGuest: string; tierName: string; qty: number; total: number; status: string; checkedIn: boolean; qrToken: string;
+      guests: { name: string; checkedIn: boolean; gender?: string }[];
+      event: { title: string; date: string; durationHrs: number; venueName: string | null; city: string | null };
+    }>(`/bookings/ticket-view/${encodeURIComponent(token)}`),
 };
 
 // ---------- wallet / payments ----------
@@ -529,6 +541,8 @@ export interface OrgBookingDetail {
   walletCreditUsed: number;
   paymentId?: string | null;
   paymentMethod?: string | null;
+  bookingSource: 'online' | 'offline';
+  offlinePaymentMode?: 'self_collected' | 'payment_link' | null;
   refundedTo?: string | null;
   refundFailedAt?: string | null;
   refundGatewayState?: string | null;
@@ -567,6 +581,8 @@ export interface OrgAttendee {
   subtotal: number;
   promoterName?: string;
   paymentMethod: string;
+  bookingSource: 'online' | 'offline';
+  offlinePaymentMode: 'self_collected' | 'payment_link' | null;
 }
 export interface OrgLedgerTx {
   id: string;

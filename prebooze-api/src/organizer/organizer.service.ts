@@ -615,12 +615,19 @@ export class OrganizerService {
         // discounted to ₹0, which is still a real paid-tier sale.
         subtotal: b.subtotal,
         promoterName: b.promoterRef ? promoterNames.get(b.promoterRef) : undefined,
-        // Self-checkout (guest paid via Razorpay) sets paymentId, never
-        // paymentMethod; staff-recorded manual/comp bookings are the
-        // reverse (BookingsService.create vs .adminCreate) — the two
-        // fields are mutually exclusive, so this always resolves to
-        // exactly one real answer, not a guess.
-        paymentMethod: b.paymentId ? 'Online' : b.paymentMethod ?? '—',
+        // Self-checkout (guest paid via Razorpay/PhonePe) sets paymentId,
+        // never paymentMethod; staff-recorded manual/comp bookings are the
+        // reverse (BookingsService.create vs .adminCreate) — the two fields
+        // are mutually exclusive there. An org-initiated offline booking
+        // breaks that rule though (payment-link mode sets BOTH a real
+        // paymentId AND bookingSource:'offline'), so bookingSource is
+        // checked first — otherwise a payment-link booking misleadingly
+        // showed as a normal "Online" self-checkout at the door.
+        paymentMethod: b.bookingSource === 'offline'
+          ? (b.offlinePaymentMode === 'self_collected' ? 'Offline · paid to organizer' : 'Offline · paid via link')
+          : (b.paymentId ? 'Online' : b.paymentMethod ?? '—'),
+        bookingSource: b.bookingSource,
+        offlinePaymentMode: b.offlinePaymentMode,
       }));
     });
   }
