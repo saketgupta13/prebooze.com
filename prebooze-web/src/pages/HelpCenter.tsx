@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { existingRole } from '../lib/roles';
-import { support, auth } from '../api';
+import { support, auth, organizer } from '../api';
 import { ApiError } from '../api/client';
 import Accordion from '../components/Accordion';
 import RoleConsoleFrame from '../components/RoleConsoleFrame';
@@ -83,16 +83,37 @@ export default function HelpCenter() {
   // personal-profile form (dob/gender/profession/bio/interests), completely
   // wrong to send an organizer/promoter/lineup/venue through just to add an
   // email. Made inline instead, matching the RN organizer app's fix for the
-  // same gap. Also: this is User.email (your own account login email, used
-  // for ticket replies) — a different field from an organizer's public
-  // Organizer.contact ("Business email" under Settings → Brand profile),
-  // which this flow must never be confused with.
+  // same gap.
+  //
+  // "Your email" also means something different per role. For a guest
+  // there's no separate concept — User.email genuinely is their one email.
+  // For an organizer, feedback was explicit: there's no meaningful
+  // distinction from their own brand's public contact email
+  // (Organizer.contact, same field Settings → Brand profile edits) — so
+  // this reads/writes that instead of a separate hidden User.email.
+  // Promoter/venue have the identical Organizer.contact-shaped field on
+  // their own models, but — unlike Organizer — neither's real updateMe
+  // endpoint accepts writing it yet (a separate, pre-existing gap, not
+  // fixed here), so they and lineup keep using User.email same as guest.
+  const [orgContact, setOrgContact] = useState<string | null>(null);
+  useEffect(() => {
+    if (effectiveRole !== 'organizer') return;
+    organizer.me().then((me) => setOrgContact(me.contact ?? '')).catch(() => {});
+  }, [effectiveRole]);
+  const isOrgEmail = effectiveRole === 'organizer';
+  const contactEmail = isOrgEmail ? orgContact : user?.email;
+
   const saveEmail = async () => {
     if (!emailDraft.trim()) return;
     setSavingEmail(true);
     try {
-      const updated = await auth.updateMe({ email: emailDraft.trim() });
-      updateUser(updated);
+      if (isOrgEmail) {
+        const updated = await organizer.updateMe({ contact: emailDraft.trim() });
+        setOrgContact(updated.contact ?? '');
+      } else {
+        const updated = await auth.updateMe({ email: emailDraft.trim() });
+        updateUser(updated);
+      }
       setAddingEmail(false);
       setEmailDraft('');
     } catch (e) {
@@ -170,21 +191,22 @@ export default function HelpCenter() {
               </div>
               <button className="btn btn-pri">Submit ticket →</button>
               <span className="tiny muted-2" style={{ marginLeft: 10 }}>
-                {user.email?.trim() ? `replies land at ${user.email}` : 'add an email below to get replies'}
+                {contactEmail?.trim() ? `replies land at ${contactEmail}` : 'add an email below to get replies'}
               </span>
             </form>
           )}
         </div>
 
-        {user && !user.email?.trim() && (
+        {user && !contactEmail?.trim() && (
           <div className="card" style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <Mail size={18} className="accent" />
               <div style={{ flex: 1, minWidth: 200 }}>
-                <div className="bold small">Add your email to get ticket updates</div>
+                <div className="bold small">{isOrgEmail ? 'Add your business email to get ticket updates' : 'Add your email to get ticket updates'}</div>
                 <div className="tiny muted-2">
-                  This is your own account email (we reply here when your ticket status changes) — not your business email, which is
-                  under Settings → Brand profile.
+                  {isOrgEmail
+                    ? 'We reply here when your ticket status changes — same field as Settings → Brand profile.'
+                    : 'We reply by email when your ticket status changes — no email on file yet.'}
                 </div>
               </div>
               {!addingEmail && (

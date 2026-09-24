@@ -3,6 +3,7 @@ import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { EmailService } from '../notifications/email';
 import { StaffAlertsService } from '../notifications/staff-alerts';
+import { resolveContactEmail } from './resolve-contact-email';
 
 @Injectable()
 export class SupportService {
@@ -63,11 +64,13 @@ export class SupportService {
     // Email only — WhatsApp dropped for this flow (real user-reported gap:
     // no reply/thread UI existed on either end for a guest to act on a
     // WhatsApp ping anyway; email is the channel that actually carries a
-    // useful "view your ticket" link). Silently no-ops when the user has no
-    // email on file (see EmailService.sendTemplate) — the frontend already
-    // has `user.email` to decide whether to nudge for one, no need to echo
-    // it back here.
-    await this.email.sendTemplate(user.email, 'help_ticket', {
+    // useful "view your ticket" link). Silently no-ops when there's no
+    // email on file (see EmailService.sendTemplate). For an elevated role,
+    // "their email" means their own brand contact email, not the
+    // account-level User.email a guest thinks of — see
+    // resolveContactEmail's own comment.
+    const to = await resolveContactEmail(this.prisma, userId, user.role, user.email);
+    await this.email.sendTemplate(to, 'help_ticket', {
       name: user.name, ticketId: id, ticketSubject: ticket.subject,
     }).catch(() => {});
     return ticket;

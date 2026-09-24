@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { EmailService } from '../notifications/email';
+import { resolveContactEmail } from '../support/resolve-contact-email';
 
 /** Admin queue for HelpTicket — didn't exist at all before this (raise()
  * created real rows, but nothing on the admin side could ever see or reply
@@ -42,7 +43,9 @@ export class AdminSupportTicketsService {
 
     const reply = await this.prisma.helpTicketReply.create({ data: { ticketId: id, fromStaffId: staffId, message: message.trim() } });
 
-    const to = ticket.user?.email || ticket.email;
+    // Same role-aware resolution as SupportService.raise() — see
+    // resolveContactEmail's own comment.
+    const to = await resolveContactEmail(this.prisma, ticket.userId, ticket.user?.role ?? ticket.role, ticket.user?.email || ticket.email);
     const name = ticket.user?.name || ticket.name || 'there';
     await this.email.sendTemplate(to, 'help_ticket_reply', {
       name, ticketId: id, ticketSubject: ticket.subject, replyMessage: message.trim(),

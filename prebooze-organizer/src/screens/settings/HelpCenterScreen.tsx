@@ -4,15 +4,14 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, ChevronDown, ChevronUp, LifeBuoy, Mail, Send, X } from 'lucide-react-native';
 import { support } from '../../api/support';
-import { auth } from '../../api/auth';
+import { organizer } from '../../api/organizer';
 import { ApiError } from '../../api/client';
-import { useAuth } from '../../context/AuthContext';
 import { Badge, Button, Card, H1, IconButton, Input, Muted, Notice, Screen, Txt } from '../../components/ui';
 import SearchableSelect from '../../components/SearchableSelect';
 import Accordion from '../../components/Accordion';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import type { MoreStackParamList } from '../../navigation/types';
-import type { HelpTicket } from '../../types';
+import type { HelpTicket, Organizer } from '../../types';
 
 // Exact organizer-role content from prebooze-web/src/pages/HelpCenter.tsx's
 // HELP.organizer entry — this app is organizer-only, so there's no role
@@ -29,7 +28,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day
 
 export default function HelpCenterScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<MoreStackParamList>>();
-  const { user, refreshUser } = useAuth();
+  const [org, setOrg] = useState<Organizer | null>(null);
   const [tickets, setTickets] = useState<HelpTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -44,11 +43,18 @@ export default function HelpCenterScreen() {
 
   const [openId, setOpenId] = useState<string | null>(null);
 
+  // Real feedback (2026-09-24): this used to be a separate account-level
+  // "your email" (User.email) distinct from Brand profile's business
+  // email — organizer's own mental model is that there's no such
+  // distinction for them, it's all just their brand's email
+  // (Organizer.contact, same field Settings → Brand profile edits). This
+  // app is organizer-only, so there's no role-branching needed like web's
+  // version (guest/promoter/venue each resolve differently there).
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      support.tickets()
-        .then((t) => { if (!cancelled) setTickets(t); })
+      Promise.all([support.tickets(), organizer.me()])
+        .then(([t, me]) => { if (!cancelled) { setTickets(t); setOrg(me); } })
         .catch((e) => { if (!cancelled) setErr(e instanceof ApiError ? e.message : 'Failed to load'); })
         .finally(() => { if (!cancelled) setLoading(false); });
       return () => { cancelled = true; };
@@ -76,8 +82,8 @@ export default function HelpCenterScreen() {
     setSavingEmail(true);
     setErr('');
     try {
-      await auth.updateMe({ email: emailDraft.trim() });
-      await refreshUser();
+      const updated = await organizer.updateMe({ contact: emailDraft.trim() });
+      setOrg(updated);
       setAddingEmail(false);
       setEmailDraft('');
     } catch (e) {
@@ -116,24 +122,19 @@ export default function HelpCenterScreen() {
           <FieldLabel>What happened?</FieldLabel>
           <Input value={message} onChangeText={setMessage} placeholder="Tell us the details — ids help (booking / event / payout)…" multiline numberOfLines={4} style={[styles.fieldGap, styles.textarea]} />
           <Button label={submitting ? 'Submitting…' : 'Submit ticket →'} onPress={submit} loading={submitting} style={{ marginTop: spacing.m }} />
-          <Muted style={styles.tiny}>{user?.email?.trim() ? `replies land at ${user.email}` : 'add an email below to get replies'}</Muted>
+          <Muted style={styles.tiny}>{org?.contact?.trim() ? `replies land at ${org.contact}` : 'add an email below to get replies'}</Muted>
         </Card>
 
-        {!user?.email?.trim() && (
+        {!org?.contact?.trim() && (
           <Card style={styles.card}>
             <Notice tone="info">
               <View style={{ flex: 1 }}>
-                <Txt style={styles.bold}>Add your email to get ticket updates</Txt>
-                {/* Real bug (2026-09-24): "add email" here (User.email, your
-                 * own account login email) got confused with Organizer.contact
-                 * ("Business email" in Settings → Brand profile, shown on
-                 * your public profile) — two genuinely separate fields, so
-                 * setting one never touched the other. Spelled out explicitly
-                 * to stop that mix-up. */}
-                <Muted style={styles.tiny}>
-                  This is your own account email (we reply here when your ticket status changes) — not your business email, which is
-                  under Settings → Brand profile.
-                </Muted>
+                <Txt style={styles.bold}>Add your business email to get ticket updates</Txt>
+                {/* Same field as Settings → Brand profile's "Business
+                 * email" (Organizer.contact) — deliberately, not a
+                 * separate account-level email (organizer feedback
+                 * 2026-09-24: no meaningful distinction for this role). */}
+                <Muted style={styles.tiny}>We reply here when your ticket status changes — same field as Settings → Brand profile.</Muted>
                 {addingEmail ? (
                   <View style={{ marginTop: spacing.s }}>
                     <Input value={emailDraft} onChangeText={setEmailDraft} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" />
