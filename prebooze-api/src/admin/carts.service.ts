@@ -4,6 +4,8 @@ import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { toCitySlug } from '../common/city-slug';
 import { CatalogService } from '../catalog/catalog.service';
+import { notifyEventOwner } from '../common/notify-event-owner';
+import { OrgNotificationsService } from '../notifications/org-notifications';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService/OrganizerService — a cart still `active` past this is abandoned
 
@@ -26,6 +28,7 @@ export class CartsService {
     private prisma: PrismaService,
     private wa: WhatsappService,
     private email: EmailService,
+    private orgNotifications: OrgNotificationsService,
   ) {}
 
   /** Platform-wide, across every organizer — distinct from
@@ -145,7 +148,11 @@ export class CartsService {
     const cutoff = new Date(Date.now() - HOLD_TTL_MS);
     const candidates = await this.prisma.cart.findMany({
       where: { status: 'active', remindedAt: null, createdAt: { lt: cutoff }, user: { phone: { notIn: TEST_PHONE_NUMBERS } } },
-      select: { id: true, userId: true, eventId: true, createdAt: true, event: { select: { date: true, durationHrs: true, seriesEndDate: true } } },
+      select: {
+        id: true, userId: true, eventId: true, createdAt: true,
+        event: { select: { date: true, durationHrs: true, seriesEndDate: true, title: true, organizerId: true, hostedByVenue: true, venueId: true } },
+        user: { select: { name: true } },
+      },
     });
     // A candidate can be a stale first attempt that a later hold for the
     // same user+event superseded — including one that already converted to
@@ -166,6 +173,17 @@ export class CartsService {
     const carts = candidates.filter((c) => !superseded.has(`${c.userId}:${c.eventId}`) && !isEventOver(c.event));
     for (const c of carts) {
       await this.remind(c.id).catch((err) => this.log.warn(`Auto-nudge for cart ${c.id} failed: ${(err as Error).message}`));
+      // Real gap (2026-09-24) — organizer feedback that abandoned-cart
+      // notifications never reached them at all (in-app or push). Only
+      // the automated path notifies, not remind()/bulkRemind() — those are
+      // the organizer's own manual "send reminder" click, telling them
+      // about their own action would be redundant.
+      const owner = await notifyEventOwner(this.prisma, c.event);
+      if (owner) {
+        await this.orgNotifications
+          .notify(owner.userId, 'cart', `${c.user.name || 'A guest'} left ${c.event.title} in their cart`, '/abandoned-carts')
+          .catch(() => {});
+      }
     }
     return { sent: carts.length };
   }

@@ -62,6 +62,8 @@ import { EmailTemplatesAdminService } from './email-templates-admin.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { LeadsService } from './leads.service';
 import { SettlementsService } from './settlements.service';
+import { OrgNotificationsService } from '../notifications/org-notifications';
+import { PushService } from '../notifications/push';
 import { AdminSupportTicketsService } from './support-tickets.service';
 import { SocialService } from '../social/social.service';
 import { StaffAuthGuard } from './staff-auth.guard';
@@ -150,6 +152,8 @@ import { redisProvider } from '../redis.provider';
     VenueTypesService,
     AmenitiesService,
     CartsService,
+    OrgNotificationsService,
+    PushService,
     PaymentsService,
     TransactionsService,
     SubTiersService,

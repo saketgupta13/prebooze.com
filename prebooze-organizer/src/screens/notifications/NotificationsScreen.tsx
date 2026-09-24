@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Banknote, CheckCircle2, ShieldCheck, Star, Ticket, XCircle, ArrowLeft, X, type LucideIcon } from 'lucide-react-native';
+import { Banknote, CheckCircle2, RotateCcw, ShieldCheck, ShoppingCart, Star, Ticket, XCircle, ArrowLeft, X, type LucideIcon } from 'lucide-react-native';
 import { notifications } from '../../api/notifications';
 import { ApiError } from '../../api/client';
 import { Card, H1, IconButton, Muted, Screen, Txt } from '../../components/ui';
@@ -33,16 +33,18 @@ const KIND_ICON: Record<string, { Icon: LucideIcon; color: string; bg: string }>
   payout: { Icon: Banknote, color: colors.success, bg: 'rgba(31,138,91,0.16)' },
   review: { Icon: Star, color: '#f5c04a', bg: 'rgba(245,192,74,0.16)' },
   team: { Icon: ShieldCheck, color: colors.accent, bg: 'rgba(155,225,61,0.14)' },
+  refund: { Icon: RotateCcw, color: colors.danger, bg: 'rgba(255,92,73,0.12)' },
+  cart: { Icon: ShoppingCart, color: '#f5c04a', bg: 'rgba(245,192,74,0.16)' },
 };
 
 /** New for this app (2026-09-16) — web's organizer console has never had a
  * notification bell/inbox at all (its own Settings.tsx explicitly dropped a
  * fake "notification prefs" toggle that had no real backend behind it). This
  * is genuinely new product surface, not a port: a real in-app inbox backed
- * by OrgNotification rows, raised so far only when admin approves/rejects
- * an event (see organizer.service.ts's adminApprove/adminReject) — more
- * trigger points (new booking, payout processed, etc.) can call the same
- * OrgNotificationsService.notify() later without any new screen work. */
+ * by OrgNotification rows, raised on event approve/reject (organizer.
+ * service.ts) and, since 2026-09-24, new booking/refund/abandoned-cart too
+ * (BookingsService/CartsService) — any future trigger point just calls the
+ * same OrgNotificationsService.notify(), no new screen work needed. */
 export default function NotificationsScreen() {
   const navigation = useNavigation<Nav>();
   const [rows, setRows] = useState<OrgNotification[]>([]);

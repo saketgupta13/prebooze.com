@@ -20,6 +20,12 @@ export function navigateToNotificationTarget(navigation: Navigator, to?: string 
     case '/payouts':
       nav('More', { screen: 'Payouts' });
       break;
+    case '/transactions':
+      nav('More', { screen: 'Transactions' });
+      break;
+    case '/abandoned-carts':
+      nav('More', { screen: 'AbandonedCarts' });
+      break;
     case '/reviews':
       nav('More', { screen: 'Reviews' });
       break;

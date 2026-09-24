@@ -2,14 +2,12 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { BookingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { CatalogService } from '../catalog/catalog.service';
+import { istDateKey, istDayStart } from '../common/ist-date';
 
 const LIVE_BOOKING_STATUSES: BookingStatus[] = ['confirmed', 'refund_requested'];
 const HISTOGRAM_BUCKETS = 10;
 const BUCKET_MS = 15 * 60 * 1000;
 const SCAN_RATE_WINDOW_MS = 5 * 60 * 1000;
-
-const isSameCalendarDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 @Injectable()
 export class LiveMonitorService {
@@ -143,25 +141,32 @@ export class LiveMonitorService {
     });
     if (booking) {
       if (booking.status !== 'confirmed') throw new BadRequestException(`Ticket is ${booking.status}, not valid for entry`);
-      // Real gap (2026-09-23): a multi-day event (Event.seriesEndDate set)
-      // had no way to re-admit a guest on day 2/3 — checkedIn was a
-      // lifetime-once flag, so day 1's check-in permanently blocked every
-      // later day. checkedInAt not being from *today* now means "not
-      // checked in yet today," letting the update below proceed instead of
-      // rejecting — single-day events (no seriesEndDate) keep the exact
-      // original always-reject behavior. CheckInLog's append-only history
-      // (below) is what preserves day 1's real attendance record even
-      // though checkedInAt itself only ever holds the latest day's stamp.
-      const alreadyToday = booking.checkedIn && (!event.seriesEndDate || isSameCalendarDay(booking.checkedInAt!, new Date()));
+      // Real gap (2026-09-23, since extended to the camera/QR path too —
+      // see BookingsService.checkIn's identical logic): a multi-day event
+      // (Event.seriesEndDate set) had no way to re-admit a guest on day
+      // 2/3 — checkedIn was a lifetime-once flag, so day 1's check-in
+      // permanently blocked every later day. checkedInAt not being from
+      // *today* now means "not checked in yet today," letting the update
+      // below proceed instead of rejecting — single-day events (no
+      // seriesEndDate) keep the exact original always-reject behavior.
+      // CheckInLog's append-only history (below) is what preserves day 1's
+      // real attendance record even though checkedInAt itself only ever
+      // holds the latest day's stamp.
+      // Bug fix (2026-09-24): this originally compared calendar days in
+      // the *server's* local timezone (UTC) instead of IST — wrong by up
+      // to 5.5h around midnight, the exact class of bug istDateKey exists
+      // to prevent elsewhere in this codebase. Now uses the same real
+      // IST-date utility BookingsService.checkIn does.
+      const alreadyToday = booking.checkedIn && (!event.seriesEndDate || istDateKey(booking.checkedInAt!) === istDateKey(new Date()));
       if (alreadyToday) throw new BadRequestException('Already checked in — ' + booking.checkedInAt?.toISOString());
       // Same conditional-update race guard as BookingsService.checkIn — a
       // manual lookup here can race a real camera scan of the same booking.
-      // checkedIn:false OR checkedInAt < today's start covers both the
-      // never-checked-in case and the multi-day re-admission case above.
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+      // checkedIn:false OR checkedInAt before today's IST start covers
+      // both the never-checked-in case and the multi-day re-admission
+      // case above.
+      const todayIstStart = istDayStart(istDateKey(new Date()));
       const result = await this.prisma.booking.updateMany({
-        where: { id: booking.id, OR: [{ checkedIn: false }, { checkedInAt: { lt: todayStart } }] },
+        where: { id: booking.id, OR: [{ checkedIn: false }, { checkedInAt: { lt: todayIstStart } }] },
         data: { checkedIn: true, checkedInAt: new Date() },
       });
       if (result.count === 0) {

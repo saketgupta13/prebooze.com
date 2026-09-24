@@ -11,6 +11,7 @@ import { OrgNotificationsService } from '../notifications/org-notifications';
 import { GuestListService } from '../admin/guestlist.service';
 import { LiveMonitorService } from '../admin/live-monitor.service';
 import { CatalogService } from '../catalog/catalog.service';
+import { notifyEventOwner } from '../common/notify-event-owner';
 import { OrgAccessService } from './org-access.service';
 import { toCitySlug } from '../common/city-slug';
 
@@ -1122,32 +1123,14 @@ export class OrganizerService {
     });
   }
 
-  /** Notifies the real event owner regardless of who actually clicked
-   * approve/reject at the org (a real team member with "Events & wizard"
-   * edit could be the one who submitted it) — same reasoning as
-   * OrganizerService.withdraw notifying org.userId, not the caller. A
-   * solo venue-hosted event (Event.hostedByVenue, no organizer) has no
-   * Organizer row to look up at all — falls back to the venue's own
-   * owning user in that case. */
-  // `email` stays optional here on purpose — organizers sign up phone/OTP-
-  // first and often have no email set at all (User.email defaults to '').
-  // The old email-only version of this helper gated its whole return on a
-  // present email, which would have silently skipped the new push/in-app
-  // notify() call below for any organizer without one. userId is always
-  // real whenever a matching User row exists, so gate only on that.
-  private async notifyEventOwner(event: { organizerId: string | null; hostedByVenue: boolean; venueId: string | null }): Promise<{ userId: string; email: string; name: string } | null> {
-    if (!event.organizerId) {
-      if (!event.hostedByVenue || !event.venueId) return null;
-      const venue = await this.prisma.venue.findUnique({ where: { id: event.venueId } });
-      if (!venue?.userId) return null;
-      const user = await this.prisma.user.findUnique({ where: { id: venue.userId } });
-      return user ? { userId: user.id, email: user.email, name: user.name } : null;
-    }
-    const org = await this.prisma.organizer.findUnique({ where: { id: event.organizerId } });
-    if (!org?.userId) return null;
-    const user = await this.prisma.user.findUnique({ where: { id: org.userId } });
-    return user ? { userId: user.id, email: user.email, name: user.name } : null;
-  }
+  // Notifies the real event owner regardless of who actually clicked
+  // approve/reject at the org (a real team member with "Events & wizard"
+  // edit could be the one who submitted it) — same reasoning as
+  // OrganizerService.withdraw notifying org.userId, not the caller. Moved
+  // to a shared notifyEventOwner() (src/common/) 2026-09-24 so
+  // BookingsService's booking/abandoned-cart/refund notifications can
+  // reuse the exact same owner resolution.
+  private notifyEventOwner = (event: { organizerId: string | null; hostedByVenue: boolean; venueId: string | null }) => notifyEventOwner(this.prisma, event);
 
   async adminApprove(eventId: string) {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });

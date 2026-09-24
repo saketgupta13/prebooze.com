@@ -13,6 +13,7 @@ import { ticketPdfBuffer } from '../notifications/ticket-pdf';
 import { WalletService } from '../wallet/wallet.service';
 import { REFERRAL_REFERRER_REWARD, uniqueReferralCodeFor } from '../referrals/referral.constants';
 import { NotificationsService } from '../admin/notifications.service';
+import { istDateKey, istDayStart } from '../common/ist-date';
 import { InvoicesService } from '../invoices/invoices.service';
 import { effectiveTierPrice, tierWindowState } from '../common/ticket-tier-pricing';
 import { partySizeFromTierName, isCoupleTierName } from '../common/party-size';
@@ -26,6 +27,8 @@ import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { LeadsService } from '../admin/leads.service';
 import { getGatewayAndMethod, calculateGatewayFee, getGatewayFeeLostOnRefund, type PaymentMethod } from '../payments/gateway-fee';
 import { computeGst } from '../common/gst';
+import { notifyEventOwner } from '../common/notify-event-owner';
+import { OrgNotificationsService } from '../notifications/org-notifications';
 
 const FALLBACK_FEE_PCT = 3; // % — used only if PlatformSettings row is somehow missing
 const RAZORPAY_FEE_PCT = 2.36; // confirmed against real live payments 2026-08-27
@@ -87,7 +90,19 @@ export class BookingsService {
     private wallet: WalletService,
     private meta: MetaConversionsService,
     private leads: LeadsService,
+    private orgNotifications: OrgNotificationsService,
   ) {}
+
+  // Real gap (2026-09-24): OrgNotificationsService.notify() was only ever
+  // wired up for event approved/rejected — its own doc comment already
+  // named "booking received" as an example future trigger, but no booking/
+  // cart/refund path ever actually called it. Small helper so each of
+  // those call sites below is one line, not a repeated
+  // notifyEventOwner-then-notify dance.
+  private async notifyOrg(event: { organizerId: string | null; hostedByVenue: boolean; venueId: string | null }, kind: string, text: string, to?: string) {
+    const owner = await notifyEventOwner(this.prisma, event);
+    if (owner) await this.orgNotifications.notify(owner.userId, kind, text, to).catch(() => {});
+  }
 
   async createHold(userId: string, eventId: string, qty: Record<string, number>) {
     return this.holds.create(userId, eventId, qty);
@@ -971,6 +986,7 @@ export class BookingsService {
     await this.email.sendTemplate(user.email, 'booking_confirmed', {
       name: input.mainGuest.trim(), eventTitle: event.title, qty: String(qty), bookingId: id, total: moneyOrFree(total),
     }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined).catch(() => {});
+    await this.notifyOrg(event, 'booking', `New booking: ${input.mainGuest.trim()} · ${qty} ticket${qty > 1 ? 's' : ''} · ${event.title}`, '/bookings');
     await this.maybeNudgeProfileReward(userId, event.title).catch(() => {});
 
     // ---- invoice: GST (real GSTIN activated 2026-09-21) on the booking fee
@@ -1330,6 +1346,12 @@ export class BookingsService {
         await this.postEventLedger(tx, booking.eventId, event.title, 'Refund losses', 'expense', booking.fee + commission);
       }
     });
+
+    // Real gap (2026-09-24) — see notifyOrg's own comment. Fires right
+    // after the ledger reversal above actually lands, since that's the
+    // moment the organizer's real earnings decreased, not just when the
+    // guest requested it.
+    if (event) await this.notifyOrg(event, 'refund', `Refund processed — booking ${id} · ${money(refundAmount)}`, '/transactions');
 
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (refundTo === 'wallet') {
@@ -1701,19 +1723,35 @@ export class BookingsService {
       await this.logCheckIn({ ok: false, reason: `ticket is ${booking.status}, not valid for entry`, eventId: booking.eventId, bookingId: booking.id, guestName: booking.mainGuest, tierName: booking.tierName });
       throw new BadRequestException(`Ticket is ${booking.status}, not valid for entry`);
     }
-    if (booking.checkedIn) {
+    // Real gap (2026-09-24, extended from Live Monitor's manual check-in to
+    // this camera/QR path too — organizer explicitly asked for both): a
+    // multi-day event (Event.seriesEndDate set) permanently blocked
+    // re-scanning a guest's QR on day 2/3 — checkedIn was a lifetime-once
+    // flag with no day awareness. checkedInAt not being from *today* now
+    // means "not checked in yet today," letting the scan through instead
+    // of rejecting — single-day events keep the exact original
+    // always-reject behavior. Same isSameCalendarDay helper as
+    // LiveMonitorService.manualCheckIn (see its own comment) — CheckInLog's
+    // append-only history is what preserves each earlier day's real
+    // attendance record even though checkedInAt itself only ever holds the
+    // latest day's stamp.
+    const alreadyToday = booking.checkedIn && (!booking.event.seriesEndDate || istDateKey(booking.checkedInAt!) === istDateKey(new Date()));
+    if (alreadyToday) {
       await this.logCheckIn({ ok: false, reason: `duplicate QR — already scanned ${booking.checkedInAt?.toISOString()}`, eventId: booking.eventId, bookingId: booking.id, guestName: booking.mainGuest, tierName: booking.tierName });
       throw new BadRequestException('Already checked in — ' + booking.checkedInAt?.toISOString());
     }
 
-    // Conditional on checkedIn:false (not a plain update) so two near-
-    // simultaneous scans of the same QR — a screenshotted ticket at two
-    // gates, a camera scan racing a manual-entry confirm — can't both pass
-    // the read-then-write gap above and both admit. Only one write can ever
-    // match this where clause; the loser sees count 0 and is rejected below,
-    // same as the fast-path check above but race-safe.
+    // Conditional on checkedIn:false OR checkedInAt before today's IST
+    // start (not a plain update) so two near-simultaneous scans of the
+    // same QR — a screenshotted ticket at two gates, a camera scan racing
+    // a manual-entry confirm — can't both pass the read-then-write gap
+    // above and both admit. Only one write can ever match this where
+    // clause; the loser sees count 0 and is rejected below, same as the
+    // fast-path check above but race-safe. The OR branch also covers the
+    // multi-day re-admission case above.
+    const todayIstStart = istDayStart(istDateKey(new Date()));
     const result = await this.prisma.booking.updateMany({
-      where: { id: booking.id, checkedIn: false },
+      where: { id: booking.id, OR: [{ checkedIn: false }, { checkedInAt: { lt: todayIstStart } }] },
       data: { checkedIn: true, checkedInAt: new Date() },
     });
     if (result.count === 0) {
