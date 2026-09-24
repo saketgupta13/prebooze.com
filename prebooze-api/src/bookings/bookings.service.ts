@@ -1632,6 +1632,18 @@ export class BookingsService {
           await tx.venueLedgerTx.create({
             data: { venueId: event.venueId, type: 'refund', amount: -(booking.subtotal - commission), eventId: booking.eventId, eventTitle: event.title, note: `Refund — booking ${id}` },
           });
+        } else if (event.organizerId && booking.bookingSource === 'offline' && booking.offlinePaymentMode === 'self_collected') {
+          // Real bug found 2026-09-24: a self-collected offline booking never
+          // credited the organizer a 'sale' in the first place (they already
+          // held the guest's cash/UPI directly) — only the flat 2%
+          // `offline_commission` debit was posted. Reusing the generic
+          // -(subtotal - commission) reversal here would phantom-debit the
+          // organizer for money Prebooze never gave them. The correct
+          // reversal is to give back the commission that was charged, since
+          // the booking (and Prebooze's claim to that commission) is void.
+          await tx.organizerLedgerTx.create({
+            data: { organizerId: event.organizerId, type: 'refund', amount: commission, eventId: booking.eventId, eventTitle: event.title, bookingId: id, note: `Refund — offline booking ${id} (commission reversed)` },
+          });
         } else if (event.organizerId) {
           await tx.organizerLedgerTx.create({
             data: { organizerId: event.organizerId, type: 'refund', amount: -(booking.subtotal - commission), eventId: booking.eventId, eventTitle: event.title, note: `Refund — booking ${id}` },
