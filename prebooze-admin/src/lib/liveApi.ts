@@ -1154,6 +1154,29 @@ export const liveSettlements = {
   detail: (id: string) => liveFetch<LiveSettlementDetail>(`/admin/settlements/${encodeURIComponent(id)}`),
   listPhonePe: () => liveFetch<{ settlements: any[]; total: number }>('/admin/settlements/phonepe/list'),
   detailPhonePe: (id: string) => liveFetch<any>(`/admin/settlements/phonepe/${encodeURIComponent(id)}`),
+  // Multipart, so it can't go through liveFetch (JSON-only) — same real
+  // pattern as liveMedia.upload. Real bug fixed 2026-09-24: Settlements.tsx
+  // used to call `fetch('/admin/settlements/phonepe/import', ...)` with a
+  // bare relative path instead of `${API_URL}/...`, which actually hit
+  // admin.prebooze.com's own SPA (no such route there) instead of
+  // api.prebooze.com — the SPA's index.html came back as the "response,"
+  // and `response.json()` on that HTML produced the "Unexpected token '<'"
+  // error a real user hit trying to upload a real settlement CSV.
+  importPhonePe: async (file: File): Promise<{ recordsImported: number; totalAmount: number; totalFee: number; totalGST: number }> => {
+    const token = getLiveToken();
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${API_URL}/admin/settlements/phonepe/import`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new LiveApiError(res.status, body?.message || 'Upload failed');
+    }
+    return res.json();
+  },
 };
 
 export const PERM_MODULES = [

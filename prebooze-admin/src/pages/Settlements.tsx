@@ -71,27 +71,12 @@ export default function Settlements() {
     setUploading(true);
     setUploadErr('');
     setUploadSuccess('');
-
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const response = await fetch('/admin/settlements/phonepe/import', {
-        method: 'POST',
-        body: formData,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Upload failed');
-      }
-
-      const result = await response.json();
+      const result = await liveSettlements.importPhonePe(file);
       setUploadSuccess(`✓ Imported ${result.recordsImported} transactions. Total: ₹${fmt(result.totalAmount)}, Fee: ₹${fmt(result.totalFee)}, GST: ₹${fmt(result.totalGST)}`);
       setTimeout(() => load(), 1000); // Reload settlements list
     } catch (e) {
-      setUploadErr(e instanceof Error ? e.message : 'Upload failed');
+      setUploadErr(e instanceof LiveApiError ? e.message : 'Upload failed');
     } finally {
       setUploading(false);
     }
