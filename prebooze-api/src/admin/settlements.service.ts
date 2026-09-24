@@ -248,55 +248,113 @@ export class SettlementsService {
     };
   }
 
+  /** One line of a real PhonePe settlement CSV export → array of fields,
+   * honouring quoted values (customer_name/paylink_description can contain
+   * commas) — the previous naive `.split(',')` would have silently
+   * misaligned every column on the first such row. */
+  private parseCsvLine(line: string): string[] {
+    const out: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') inQuotes = false;
+        else cur += ch;
+      } else if (ch === '"') inQuotes = true;
+      else if (ch === ',') { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map((s) => s.trim());
+  }
+
+  /** Matches PhonePe's real settlement CSV export exactly (column names
+   * confirmed 2026-09-24 against a real downloaded file — this app's
+   * importer previously assumed an invented `payment_id, amount, fee,
+   * gst, payment_method` shape that never matched anything PhonePe
+   * actually produces, so no real import had ever succeeded before this).
+   * `transaction_amount`/`total_fees`/`total_tax` are decimal RUPEES
+   * (e.g. "3294.00"), not paise — confirmed against a real row. `booking_id`/
+   * `featured_id` aren't real columns in PhonePe's export at all; instead
+   * this looks each row's `merchant_order_id` up against Booking.paymentId
+   * / Featured.phonepeMerchantOrderId directly, so nothing needs to be
+   * hand-annotated before upload. Refund rows (transaction_type containing
+   * "REFUND") are skipped — those are already tracked for real via
+   * PhonePeWebhookController's pg.refund.* handling, and including them
+   * here too would double-count the same money. */
   async importPhonePeSettlementFile(csvContent: string, filename: string) {
-    const lines = csvContent.split('\n').filter(line => line.trim());
+    const lines = csvContent.split(/\r?\n/).filter((line) => line.trim());
     if (lines.length < 2) throw new BadRequestException('Settlement file is empty');
 
-    // Parse CSV header (expects: payment_id, amount, fee, gst, payment_method, booking_id, featured_id)
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-    const paymentIdIdx = headers.indexOf('payment_id');
-    const amountIdx = headers.indexOf('amount');
-    const feeIdx = headers.indexOf('fee');
-    const gstIdx = headers.indexOf('gst');
-    const methodIdx = headers.indexOf('payment_method');
-    const bookingIdIdx = headers.indexOf('booking_id');
-    const featuredIdIdx = headers.indexOf('featured_id');
+    const headers = this.parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+    const idx = (name: string) => headers.indexOf(name);
+    const merchantOrderIdIdx = idx('merchant_order_id');
+    const amountIdx = idx('transaction_amount');
+    const feeIdx = idx('total_fees');
+    const taxIdx = idx('total_tax');
+    const instrumentIdx = idx('instrument');
+    const modeIdx = idx('mode');
+    const statusIdx = idx('transaction_status');
+    const typeIdx = idx('transaction_type');
+    const settlementDateIdx = idx('settlement_date');
 
-    if (paymentIdIdx === -1 || amountIdx === -1 || feeIdx === -1 || gstIdx === -1 || methodIdx === -1) {
-      throw new BadRequestException(`CSV missing required columns. Found headers: [${headers.join(', ')}] — expected at least: payment_id, amount, fee, gst, payment_method`);
+    if (merchantOrderIdIdx === -1 || amountIdx === -1 || statusIdx === -1) {
+      throw new BadRequestException(
+        `CSV missing required columns. Found headers: [${headers.join(', ')}] — expected at least: merchant_order_id, transaction_amount, transaction_status (PhonePe's real settlement export)`,
+      );
     }
 
-    // Parse records
+    const toPaise = (v: string | undefined) => BigInt(Math.round(parseFloat(v || '0') * 100) || 0);
+
     const records: Array<{
-      payment_id: string;
-      amount: bigint;
-      fee: bigint;
-      gst: bigint;
-      payment_method: string;
-      booking_id?: string;
-      featured_id?: string;
+      paymentId: string; amount: bigint; fee: bigint; gst: bigint; paymentMethod: string; settlementDate: string;
     }> = [];
+    let skippedRefunds = 0;
+    let skippedNotCompleted = 0;
 
     for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',').map(c => c.trim());
-      if (!cols[paymentIdIdx]) continue;
+      const cols = this.parseCsvLine(lines[i]);
+      if (!cols[merchantOrderIdIdx]) continue;
+      if (typeIdx !== -1 && cols[typeIdx]?.toUpperCase().includes('REFUND')) { skippedRefunds++; continue; }
+      if (cols[statusIdx]?.toUpperCase() !== 'COMPLETED') { skippedNotCompleted++; continue; }
 
       records.push({
-        payment_id: cols[paymentIdIdx],
-        amount: BigInt(cols[amountIdx] || '0'),
-        fee: BigInt(cols[feeIdx] || '0'),
-        gst: BigInt(cols[gstIdx] || '0'),
-        payment_method: cols[methodIdx] || 'UNKNOWN',
-        booking_id: cols[bookingIdIdx] || undefined,
-        featured_id: cols[featuredIdIdx] || undefined,
+        paymentId: cols[merchantOrderIdIdx],
+        amount: toPaise(cols[amountIdx]),
+        fee: feeIdx !== -1 ? toPaise(cols[feeIdx]) : BigInt(0),
+        gst: taxIdx !== -1 ? toPaise(cols[taxIdx]) : BigInt(0),
+        paymentMethod: (cols[instrumentIdx] || cols[modeIdx] || 'UNKNOWN').toUpperCase(),
+        settlementDate: settlementDateIdx !== -1 ? cols[settlementDateIdx] : '',
       });
     }
 
-    if (records.length === 0) throw new BadRequestException('No records found in settlement file');
+    if (records.length === 0) {
+      throw new BadRequestException(
+        `No settled (COMPLETED, non-refund) records found in this file — ${skippedRefunds} refund row(s) and ${skippedNotCompleted} non-completed row(s) skipped.`,
+      );
+    }
 
-    // Extract file date from filename (expect format: settlement_YYYY_MM_DD.csv or similar)
-    const dateMatch = filename.match(/(\d{4})[-_](\d{2})[-_](\d{2})/);
-    const fileDate = dateMatch ? new Date(`${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`) : new Date();
+    // Auto-link to real bookings/featured purchases by merchant_order_id —
+    // PhonePe's export has no booking_id/featured_id column, but every
+    // PhonePe booking's Booking.paymentId (and Featured/MarketingOrder's
+    // phonepeMerchantOrderId) already IS the merchant_order_id, so this
+    // needs no manual annotation.
+    const orderIds = [...new Set(records.map((r) => r.paymentId))];
+    const [bookings, featured] = await Promise.all([
+      this.prisma.booking.findMany({ where: { paymentId: { in: orderIds } }, select: { id: true, paymentId: true } }),
+      this.prisma.featured.findMany({ where: { phonepeMerchantOrderId: { in: orderIds } }, select: { id: true, phonepeMerchantOrderId: true } }),
+    ]);
+    const bookingByOrderId = new Map(bookings.map((b) => [b.paymentId!, b.id]));
+    const featuredByOrderId = new Map(featured.map((f) => [f.phonepeMerchantOrderId!, f.id]));
+
+    // Prefer the row's own settlement_date (when the bank actually paid
+    // out) over the filename — PhonePe's real export names files by
+    // download date, not the settlement it covers, so parsing the
+    // filename would have been wrong every time.
+    const firstSettlementDate = records.find((r) => r.settlementDate)?.settlementDate;
+    const fileDate = firstSettlementDate ? new Date(firstSettlementDate) : new Date();
 
     // Create settlement file
     const settlementFile = await this.prisma.phonePeSettlementFile.create({
@@ -316,13 +374,13 @@ export class SettlementsService {
       await this.prisma.phonePeSettlementItem.create({
         data: {
           settlementFileId: settlementFile.id,
-          paymentId: record.payment_id,
+          paymentId: record.paymentId,
           amount: record.amount,
           fee: record.fee,
           gst: record.gst,
-          paymentMethod: record.payment_method as any,
-          bookingId: record.booking_id || null,
-          featuredId: record.featured_id || null,
+          paymentMethod: record.paymentMethod as any,
+          bookingId: bookingByOrderId.get(record.paymentId) || null,
+          featuredId: featuredByOrderId.get(record.paymentId) || null,
         },
       });
     }
@@ -333,12 +391,16 @@ export class SettlementsService {
       data: { status: 'RECONCILED' },
     });
 
-    this.log.log(`PhonePe settlement import: ${records.length} items from ${filename}`);
+    const linkedCount = records.filter((r) => bookingByOrderId.has(r.paymentId) || featuredByOrderId.has(r.paymentId)).length;
+    this.log.log(`PhonePe settlement import: ${records.length} items from ${filename} (${linkedCount} auto-linked, ${skippedRefunds} refund/${skippedNotCompleted} non-completed rows skipped)`);
 
     return {
       ok: true,
       fileId: settlementFile.id,
       recordsImported: records.length,
+      recordsLinked: linkedCount,
+      skippedRefunds,
+      skippedNotCompleted,
       totalAmount: Number(settlementFile.totalAmount) / 100,
       totalFee: Number(settlementFile.totalFee) / 100,
       totalGST: Number(settlementFile.totalGST) / 100,

@@ -88,7 +88,11 @@ export default function Settlements() {
     setUploadSuccess('');
     try {
       const result = await liveSettlements.importPhonePe(file);
-      setUploadSuccess(`✓ Imported ${result.recordsImported} transactions. Total: ₹${fmt(result.totalAmount)}, Fee: ₹${fmt(result.totalFee)}, GST: ₹${fmt(result.totalGST)}`);
+      setUploadSuccess(
+        `✓ Imported ${result.recordsImported} transactions (${result.recordsLinked} auto-linked to a booking/featured purchase). ` +
+        `Total: ₹${fmt(result.totalAmount)}, Fee: ₹${fmt(result.totalFee)}, GST: ₹${fmt(result.totalGST)}` +
+        (result.skippedRefunds || result.skippedNotCompleted ? ` — skipped ${result.skippedRefunds} refund row(s), ${result.skippedNotCompleted} non-completed row(s).` : '.'),
+      );
       setTimeout(() => load(), 1000); // Reload settlements list
     } catch (e) {
       setUploadErr(e instanceof LiveApiError ? e.message : 'Upload failed');

@@ -1175,7 +1175,10 @@ export const liveSettlements = {
   // api.prebooze.com — the SPA's index.html came back as the "response,"
   // and `response.json()` on that HTML produced the "Unexpected token '<'"
   // error a real user hit trying to upload a real settlement CSV.
-  importPhonePe: async (file: File): Promise<{ recordsImported: number; totalAmount: number; totalFee: number; totalGST: number }> => {
+  importPhonePe: async (file: File): Promise<{
+    recordsImported: number; recordsLinked: number; skippedRefunds: number; skippedNotCompleted: number;
+    totalAmount: number; totalFee: number; totalGST: number;
+  }> => {
     const token = getLiveToken();
     const form = new FormData();
     form.append('file', file);
