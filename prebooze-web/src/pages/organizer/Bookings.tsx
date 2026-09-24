@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { organizer, type OrgBooking } from '../../api';
 import { ApiError } from '../../api/client';
 import { fmtMoney, isEventOver } from '../../data/mock';
-import OfflineBookingModal from './OfflineBookingModal';
 import { X, Search, Download, Camera, CheckCircle2, ArrowLeft, Plus } from 'lucide-react';
 
 const STATUS_FILTERS = ['All', 'Checked in', 'Confirmed', 'Refund requested', 'Refunded', 'Cancelled'];
@@ -29,7 +28,6 @@ export default function Bookings() {
   const [status, setStatus] = useState('All');
   const [source, setSource] = useState('All sources');
   const [scope, setScope] = useState<'live' | 'past'>('live');
-  const [showOffline, setShowOffline] = useState(false);
   const eventF = params.get('event');
 
   useEffect(() => {
@@ -124,20 +122,13 @@ export default function Bookings() {
             <Download size={15} /> Export CSV
           </button>
         )}
-        <button className="btn btn-ghost btn-sm" onClick={() => setShowOffline(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <Link to="/organizer/bookings/offline" className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <Plus size={15} /> Offline booking
-        </button>
+        </Link>
         <Link to="/organizer/scanner" className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <Camera size={15} /> Scan QR
         </Link>
       </div>
-
-      {showOffline && (
-        <OfflineBookingModal
-          onClose={() => setShowOffline(false)}
-          onCreated={(b) => { setBookings((prev) => [b, ...prev]); setShowOffline(false); }}
-        />
-      )}
 
       {showingSummary ? (
         <div className="card tbl-wrap">

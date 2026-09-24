@@ -184,6 +184,21 @@ h1, h2, h3, h4 {
 .btn-sm { padding: 6px 12px; font-size: 13px; }
 .btn-lg { padding: 13px 26px; font-size: 15px; }
 
+/* ============ Qty stepper (offline booking, etc) ============ */
+.qty-stepper { display: inline-flex; align-items: center; border: 1.5px solid var(--border-3); border-radius: 10px; overflow: hidden; width: fit-content; }
+.qty-stepper-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border: none; background: transparent; color: var(--fg);
+  cursor: pointer;
+}
+.qty-stepper-btn:disabled { opacity: 0.35; cursor: default; }
+.qty-stepper-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); }
+.qty-stepper-value {
+  min-width: 40px; text-align: center; font-weight: 700; font-size: 15px;
+  border-left: 1.5px solid var(--border-3); border-right: 1.5px solid var(--border-3);
+  padding: 0 6px; line-height: 40px;
+}
+
 /* ============ Chips / badges ============ */
 .chip {
   display: inline-flex;

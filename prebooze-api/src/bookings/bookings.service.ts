@@ -571,6 +571,7 @@ export class BookingsService {
       // itself, so this webhook is that booking's ONLY finalization path,
       // not a recovery fallback like the branch below.
       isOfflineOrgBooking?: boolean; offlineOrganizerId?: string;
+      subtotal?: number; fee?: number; gstPct?: number; gstAmount?: number; igstAmount?: number; total?: number;
     } | null;
 
     if (!cart || !payload) {
@@ -586,6 +587,7 @@ export class BookingsService {
       await this.finalizeOfflineLinkBooking(cart, merchantOrderId, amountPaise, {
         mainGuest: payload.mainGuest, mainGuestGender: payload.mainGuestGender, whatsapp: payload.whatsapp,
         guests: payload.guests, offlineOrganizerId: payload.offlineOrganizerId,
+        subtotal: payload.subtotal, fee: payload.fee, gstPct: payload.gstPct, gstAmount: payload.gstAmount, igstAmount: payload.igstAmount, total: payload.total,
       }).catch(async (e) => {
         await this.staffAlerts
           .alert(`⚠ Offline payment-link order ${merchantOrderId} completed (₹${(amountPaise / 100).toFixed(2)}, guest ${payload.mainGuest}) but finalizing the booking failed: ${(e as Error).message}. Needs manual recovery.`)
@@ -1244,7 +1246,7 @@ export class BookingsService {
     if (!input.guestName?.trim() || !input.whatsapp?.trim()) throw new BadRequestException('Guest name and WhatsApp number are required');
     if (!input.qty || input.qty < 1) throw new BadRequestException('qty must be at least 1');
 
-    const event = await this.prisma.event.findUnique({ where: { id: input.eventId }, include: { tiers: true } });
+    const event = await this.prisma.event.findUnique({ where: { id: input.eventId }, include: { tiers: true, venue: true } });
     if (!event || event.organizerId !== org.id) throw new NotFoundException('Event not found');
     const tier = event.tiers.find((t) => t.id === input.tierId);
     if (!tier) throw new BadRequestException('Unknown ticket tier');
@@ -1257,7 +1259,24 @@ export class BookingsService {
         data: { phone, name: input.guestName.trim(), gender: input.gender, referralCode: await uniqueReferralCodeFor(this.prisma, phone) },
       }));
 
-    return { org, event, tier, phone, guest, subtotal: effectiveTierPrice(tier, event.date) * input.qty };
+    const subtotal = effectiveTierPrice(tier, event.date) * input.qty;
+    // Same guest-facing booking fee + GST as any online checkout (priceHold's
+    // own fee/GST block above) — decided 2026-09-24 that offline bookings
+    // shouldn't be a way to dodge the fee guests otherwise always pay.
+    // Prebooze's flat 2% organizer-side commission (OFFLINE_BOOKING_
+    // COMMISSION_PCT) is a completely separate charge on a different party
+    // (the organizer's payout, not the guest) and is computed independently
+    // of this — see both create methods below.
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+    const fee = subtotal > 0 ? Math.round((subtotal * (settings?.bookingFee ?? FALLBACK_FEE_PCT)) / 100) : 0;
+    const gstPct = settings?.gstEnabled ? (settings?.gstPct ?? 0) : 0;
+    const eventState = event.venue?.state
+      ?? (event.privateCity ? (await this.prisma.city.findUnique({ where: { name: event.privateCity }, include: { state: true } }).catch(() => null))?.state?.name : null)
+      ?? null;
+    const gstSplit = computeGst(fee, gstPct, eventState);
+    const total = subtotal + fee + gstSplit.gstAmount;
+
+    return { org, event, tier, phone, guest, subtotal, fee, gstPct, gstSplit, total };
   }
 
   /** Mode 1: the organizer already has the guest's cash/UPI in hand (a real
@@ -1275,7 +1294,7 @@ export class BookingsService {
     eventId: string; tierId: string; qty: number; guestName: string; whatsapp: string; gender?: string;
     others?: { name: string; gender?: string; whatsapp?: string }[];
   }) {
-    const { org, event, tier, phone, guest, subtotal } = await this.prepareOfflineBooking(userId, input);
+    const { org, event, tier, phone, guest, subtotal, fee, gstPct, gstSplit, total } = await this.prepareOfflineBooking(userId, input);
     const commission = Math.round((subtotal * OFFLINE_BOOKING_COMMISSION_PCT) / 100);
 
     const id = '#TKT-' + randomInt(10000, 99999);
@@ -1298,7 +1317,7 @@ export class BookingsService {
           id, userId: guest.id, eventId: event.id,
           tierName: `${input.qty}× ${tier.name}`,
           tierBreakdown: { [tier.id]: input.qty } as Prisma.InputJsonValue,
-          qty: input.qty, subtotal, fee: 0, total: subtotal,
+          qty: input.qty, subtotal, fee, total,
           guests: guests as unknown as Prisma.InputJsonValue,
           mainGuest: input.guestName.trim(), whatsapp: phone,
           paymentMethod: 'Offline (self-collected)',
@@ -1318,22 +1337,38 @@ export class BookingsService {
       }
 
       // No `sale` ledger credit here — deliberately. The organizer already
-      // has this guest's money in hand; crediting subtotal-commission on
-      // top of that would double-pay them. Only what they owe Prebooze
-      // posts, as a debit against their next withdrawal.
-      if (commission > 0) {
+      // has this guest's money in hand (the FULL total, including
+      // Prebooze's own booking fee + GST — there's no gateway here to
+      // collect those separately), so what they owe Prebooze is the flat
+      // 2% commission PLUS the fee + GST portion of the cash they're
+      // holding on Prebooze's behalf — everything except (subtotal minus
+      // commission), which is genuinely theirs to keep.
+      const owedToPrebooze = commission + fee + gstSplit.gstAmount;
+      if (owedToPrebooze > 0) {
         await tx.organizerLedgerTx.create({
           data: {
-            organizerId: org.id, type: 'offline_commission', amount: -commission, eventId: event.id, eventTitle: event.title,
-            bookingId: id, note: `Offline booking ${id} — ${input.guestName.trim()} paid ₹${subtotal} directly, Prebooze 2% = ₹${commission}`,
+            organizerId: org.id, type: 'offline_commission', amount: -owedToPrebooze, eventId: event.id, eventTitle: event.title,
+            bookingId: id, note: `Offline booking ${id} — ${input.guestName.trim()} paid ₹${total} directly, Prebooze's cut (2% commission + booking fee + GST) = ₹${owedToPrebooze}`,
           },
         });
       }
       await this.postEventLedger(tx, event.id, event.title, 'Ticket commission', 'income', commission);
+      await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
+      if (gstSplit.gstAmount > 0) await this.postEventLedger(tx, event.id, event.title, 'GST collected (payable)', 'income', gstSplit.gstAmount);
       return created;
     });
 
-    await this.sendOfflineBookingConfirmation(booking, event, guest, input.guestName.trim(), input.qty, subtotal, id);
+    if (subtotal > 0) {
+      await this.invoices.create({
+        type: 'booking', refId: id, role: 'guest',
+        payerName: input.guestName.trim(), payerEmail: guest.email, payerPhone: phone,
+        city: event.venue?.city ?? event.privateCity ?? undefined, description: `${input.qty}× ${event.title}`,
+        subtotal, fee, gstPct, gstAmount: gstSplit.gstAmount, igstAmount: gstSplit.igstAmount,
+        discount: 0, walletCredit: 0, total,
+      }).catch(() => {});
+    }
+
+    await this.sendOfflineBookingConfirmation(booking, event, guest, input.guestName.trim(), input.qty, total, id);
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true, organizer: true } } } });
   }
 
@@ -1349,7 +1384,7 @@ export class BookingsService {
     eventId: string; tierId: string; qty: number; guestName: string; whatsapp: string; gender?: string;
     others?: { name: string; gender?: string; whatsapp?: string }[];
   }) {
-    const { org, event, tier, phone, guest, subtotal } = await this.prepareOfflineBooking(userId, input);
+    const { org, event, tier, phone, guest, subtotal, fee, gstPct, gstSplit, total } = await this.prepareOfflineBooking(userId, input);
     if (subtotal <= 0) throw new BadRequestException('This tier is free — use "self-collected" instead, no payment link needed');
 
     const { holdId } = await this.holds.create(guest.id, event.id, { [tier.id]: input.qty });
@@ -1369,11 +1404,18 @@ export class BookingsService {
           // normal create() path — see reconcilePhonePePayment's branch.
           isOfflineOrgBooking: true,
           offlineOrganizerId: org.id,
+          // Locked in now, at the price/fee/GST the guest is actually being
+          // charged — finalizeOfflineLinkBooking reads these back rather
+          // than re-deriving from the paid amount, so a PlatformSettings
+          // change between order creation and payment can never silently
+          // change what a booking that's already mid-payment gets recorded
+          // as (same reasoning as booking.commission being locked in above).
+          subtotal, fee, gstPct, gstAmount: gstSplit.gstAmount, igstAmount: gstSplit.igstAmount, total,
         } as Prisma.InputJsonValue,
       },
     });
 
-    const order = await this.phonepe.createOrder(merchantOrderId, subtotal * 100, returnUrl);
+    const order = await this.phonepe.createOrder(merchantOrderId, total * 100, returnUrl);
     // New campaign, not yet submitted for AiSensy/Meta approval — will
     // 400 ("Campaign does not exist") until that's done, same situation
     // every previous new campaign started in (see WhatsappService's own
@@ -1381,7 +1423,7 @@ export class BookingsService {
     // WhatsApp send here — never blocks the real booking/payment flow.
     await this.wa.send(phone, 'offline_payment_link', [input.guestName.trim(), event.title, order.redirectUrl]).catch(() => {});
 
-    return { holdId, redirectUrl: order.redirectUrl, subtotal, phone };
+    return { holdId, redirectUrl: order.redirectUrl, subtotal, fee, gstPct, gst: gstSplit.gstAmount, total, phone };
   }
 
   /** The real webhook-confirmed counterpart to createOfflineBookingPaymentLink
@@ -1395,9 +1437,12 @@ export class BookingsService {
     cart: { holdId: string; userId: string; eventId: string; qtyMap: unknown },
     merchantOrderId: string,
     amountPaise: number,
-    payload: { mainGuest: string; mainGuestGender?: string | null; whatsapp: string; guests?: { name: string; gender?: string; whatsapp?: string }[]; offlineOrganizerId: string },
+    payload: {
+      mainGuest: string; mainGuestGender?: string | null; whatsapp: string; guests?: { name: string; gender?: string; whatsapp?: string }[];
+      offlineOrganizerId: string; subtotal?: number; fee?: number; gstPct?: number; gstAmount?: number; igstAmount?: number; total?: number;
+    },
   ) {
-    const event = await this.prisma.event.findUnique({ where: { id: cart.eventId }, include: { tiers: true } });
+    const event = await this.prisma.event.findUnique({ where: { id: cart.eventId }, include: { tiers: true, venue: true } });
     if (!event) return;
     const qtyMap = cart.qtyMap as Record<string, number>;
     const [tierId, qty] = Object.entries(qtyMap)[0] ?? [];
@@ -1407,7 +1452,21 @@ export class BookingsService {
       return;
     }
 
-    const subtotal = Math.round(amountPaise / 100);
+    // Locked in at order-creation time (createOfflineBookingPaymentLink) —
+    // reused here rather than re-derived from amountPaise, so a
+    // PlatformSettings change mid-payment can't retroactively change what
+    // this booking gets recorded as. A cart from before this field existed
+    // (extremely unlikely to still be pending) falls back to the old
+    // subtotal-only, fee-less assumption rather than crashing.
+    const subtotal = payload.subtotal ?? Math.round(amountPaise / 100);
+    const fee = payload.fee ?? 0;
+    const gstPct = payload.gstPct ?? 0;
+    const gstAmount = payload.gstAmount ?? 0;
+    const igstAmount = payload.igstAmount ?? 0;
+    const total = payload.total ?? subtotal;
+    if (Math.round(amountPaise / 100) !== total) {
+      await this.staffAlerts.alert(`⚠ Offline payment-link order ${merchantOrderId} paid ₹${Math.round(amountPaise / 100)} but was quoted ₹${total} — booking still created off the paid amount, needs a manual look.`).catch(() => {});
+    }
     const commission = Math.round((subtotal * OFFLINE_BOOKING_COMMISSION_PCT) / 100);
     const id = '#TKT-' + randomInt(10000, 99999);
     const guests = [
@@ -1426,7 +1485,7 @@ export class BookingsService {
           id, userId: cart.userId, eventId: event.id,
           tierName: `${qty}× ${tier.name}`,
           tierBreakdown: { [tier.id]: qty } as Prisma.InputJsonValue,
-          qty, subtotal, fee: 0, total: subtotal,
+          qty, subtotal, fee, total,
           guests: guests as unknown as Prisma.InputJsonValue,
           mainGuest: payload.mainGuest, whatsapp: payload.whatsapp,
           paymentId: merchantOrderId, paymentMethod: paymentMethodResult?.method,
@@ -1439,6 +1498,9 @@ export class BookingsService {
 
       // Real money this time — Prebooze received it via the gateway, so the
       // organizer is credited the normal way, just at the flat offline rate.
+      // The fee+GST portion never touches the organizer's ledger at all —
+      // it's Prebooze's own revenue, collected directly via the gateway,
+      // same as it always is on a normal online booking.
       await tx.organizerLedgerTx.create({
         data: {
           organizerId: payload.offlineOrganizerId, type: 'sale', amount: subtotal - commission,
@@ -1446,11 +1508,22 @@ export class BookingsService {
         },
       });
       await this.postEventLedger(tx, event.id, event.title, 'Ticket commission', 'income', commission);
+      await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
+      if (gstAmount > 0) await this.postEventLedger(tx, event.id, event.title, 'GST collected (payable)', 'income', gstAmount);
       return created;
     });
 
     const guestUser = await this.prisma.user.findUnique({ where: { id: cart.userId } });
-    await this.sendOfflineBookingConfirmation(booking, event, guestUser, payload.mainGuest, qty, subtotal, id);
+    if (subtotal > 0) {
+      await this.invoices.create({
+        type: 'booking', refId: id, role: 'guest',
+        payerName: payload.mainGuest, payerEmail: guestUser?.email, payerPhone: payload.whatsapp,
+        city: event.venue?.city ?? event.privateCity ?? undefined, description: `${qty}× ${event.title}`,
+        subtotal, fee, gstPct, gstAmount, igstAmount,
+        discount: 0, walletCredit: 0, total,
+      }).catch(() => {});
+    }
+    await this.sendOfflineBookingConfirmation(booking, event, guestUser, payload.mainGuest, qty, total, id);
   }
 
   /** Shared confirmation send for both offline modes — identical shape to

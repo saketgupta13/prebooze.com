@@ -63,6 +63,7 @@ const MyEvents = lazy(() => import('./pages/organizer/MyEvents'));
 const CreateEvent = lazy(() => import('./pages/organizer/CreateEvent'));
 const Bookings = lazy(() => import('./pages/organizer/Bookings'));
 const OrgBookingDetail = lazy(() => import('./pages/organizer/BookingDetail'));
+const OfflineBooking = lazy(() => import('./pages/organizer/OfflineBooking'));
 const Marketing = lazy(() => import('./pages/organizer/Marketing'));
 const MarketingAnalytics = lazy(() => import('./pages/organizer/MarketingAnalytics'));
 const Scanner = lazy(() => import('./pages/organizer/Scanner'));
@@ -444,6 +445,7 @@ export default function App() {
           <Route path="events/create" element={<CreateEvent />} />
           <Route path="events/:id/edit" element={<CreateEvent />} />
           <Route path="bookings" element={<Bookings />} />
+          <Route path="bookings/offline" element={<OfflineBooking />} />
           <Route path="bookings/:id" element={<OrgBookingDetail />} />
           <Route path="marketing" element={<Marketing />} />
           <Route path="marketing/analytics" element={<MarketingAnalytics />} />

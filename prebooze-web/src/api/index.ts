@@ -648,7 +648,7 @@ export const organizer = {
     eventId: string; tierId: string; qty: number; guestName: string; whatsapp: string; gender?: string;
     others?: { name: string; gender?: string; whatsapp?: string }[];
     paymentMode: 'self_collected' | 'payment_link';
-  }) => apiFetch<OrgBooking | { holdId: string; redirectUrl: string; subtotal: number; phone: string }>('/organizer/offline-bookings', { body }),
+  }) => apiFetch<OrgBooking | { holdId: string; redirectUrl: string; subtotal: number; fee: number; gstPct: number; gst: number; total: number; phone: string }>('/organizer/offline-bookings', { body }),
   offlineCharges: () => apiFetch<{ id: string; bookingId: string | null; eventTitle: string | null; guestName: string | null; guestPaid: number | null; commissionCharged: number; createdAt: string }[]>('/organizer/offline-charges'),
   // Deliberately its own endpoint rather than events() above — gated on
   // 'Attendees & check-in' view (same as the create call), not 'Events &
