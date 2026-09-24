@@ -146,14 +146,23 @@ export class CartsService {
    * got a manual reminder isn't double-nudged). Driven by CronService. */
   async sendAutoNudges() {
     const cutoff = new Date(Date.now() - HOLD_TTL_MS);
-    const candidates = await this.prisma.cart.findMany({
+    const rawCandidates = await this.prisma.cart.findMany({
       where: { status: 'active', remindedAt: null, createdAt: { lt: cutoff }, user: { phone: { notIn: TEST_PHONE_NUMBERS } } },
       select: {
-        id: true, userId: true, eventId: true, createdAt: true,
+        id: true, userId: true, eventId: true, createdAt: true, bookingPayload: true,
         event: { select: { date: true, durationHrs: true, seriesEndDate: true, title: true, organizerId: true, hostedByVenue: true, venueId: true } },
         user: { select: { name: true } },
       },
     });
+    // An organizer-initiated offline payment-link cart (BookingsService.
+    // createOfflineBookingPaymentLink) skips this generic "you left
+    // something in your cart, come browse the event again" nudge — that
+    // messaging is actively confusing for a guest who was individually
+    // texted a direct payment link by the organizer, not someone who
+    // abandoned a normal self-checkout. They already have the real link;
+    // re-sending it (not this) is BookingsService.resendOfflineBookingConfirmation,
+    // organizer-triggered from Booking detail.
+    const candidates = rawCandidates.filter((c) => !(c.bookingPayload as { isOfflineOrgBooking?: boolean } | null)?.isOfflineOrgBooking);
     // A candidate can be a stale first attempt that a later hold for the
     // same user+event superseded — including one that already converted to
     // a real booking. Without this check a guest who already paid could get

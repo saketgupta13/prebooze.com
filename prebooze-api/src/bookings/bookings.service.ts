@@ -1668,6 +1668,65 @@ export class BookingsService {
     });
   }
 
+  /** Void a self-collected offline booking — the organizer's own "undo" for
+   * a mistyped guest/tier or a walk-up who never actually showed, since the
+   * normal guest-refund flow is deliberately blocked for these (Prebooze
+   * never touched the money — see cancel()'s self-collected guard). Only
+   * ever offered for self-collected: a payment-link booking is real money
+   * through Prebooze's own gateway, and voiding that needs a real refund,
+   * not just an inventory/ledger rollback — out of scope here, use the
+   * normal admin refund path for those instead. Reverses exactly what
+   * createOfflineBookingSelfCollected did: gives back the tier inventory,
+   * credits back the commission+fee+GST debit, and reverses the matching
+   * finance-ledger income lines — same numbers, opposite sign. */
+  async voidOfflineBooking(userId: string, bookingId: string) {
+    const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'edit');
+    const booking = await this.prisma.booking.findUnique({ where: { id: bookingId }, include: { event: true } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.event.organizerId !== org.id) throw new ForbiddenException();
+    if (booking.bookingSource !== 'offline' || booking.offlinePaymentMode !== 'self_collected') {
+      throw new BadRequestException('Only self-collected offline bookings can be voided here');
+    }
+    if (booking.status !== 'confirmed') throw new BadRequestException('This booking is not confirmed, nothing to void');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.booking.update({ where: { id: bookingId }, data: { status: 'cancelled' } });
+      const breakdown = booking.tierBreakdown as Record<string, number>;
+      for (const [tierId, n] of Object.entries(breakdown)) {
+        await tx.ticketTier.update({ where: { id: tierId }, data: { sold: { decrement: n } } });
+      }
+      const owedToPrebooze = booking.commission + booking.fee;
+      if (owedToPrebooze > 0) {
+        await tx.organizerLedgerTx.create({
+          data: {
+            organizerId: org.id, type: 'refund', amount: owedToPrebooze, eventId: booking.eventId, eventTitle: booking.event.title,
+            bookingId: booking.id, note: `Voided offline booking ${booking.id} — commission + fee/GST reversed`,
+          },
+        });
+      }
+      await this.postEventLedger(tx, booking.eventId, booking.event.title, 'Refund losses', 'expense', booking.commission + booking.fee);
+    });
+
+    await this.staffAlerts.alert(`Offline booking ${booking.id} (${booking.mainGuest}) voided by the organizer — inventory and ledger reversed.`).catch(() => {});
+    return this.prisma.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { event: { include: { venue: true, organizer: true } } } });
+  }
+
+  /** Re-send an offline booking's confirmation — the organizer-triggered
+   * equivalent of the guest's own "Resend to WhatsApp" in My Bookings,
+   * for a guest who never logged in to use that themselves (or lost the
+   * original message). Same underlying send as sendOfflineBookingConfirmation,
+   * off the booking's own stored data, not a live re-price. */
+  async resendOfflineBookingConfirmation(userId: string, bookingId: string) {
+    const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'view');
+    const booking = await this.prisma.booking.findUnique({ where: { id: bookingId }, include: { event: true } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.event.organizerId !== org.id) throw new ForbiddenException();
+    if (booking.bookingSource !== 'offline') throw new BadRequestException('This is only for offline bookings');
+    const ticketUrl = `${process.env.WEB_APP_URL ?? ''}/ticket/${encodeURIComponent(booking.qrToken)}`;
+    await this.wa.send(booking.whatsapp, 'booking_confirmed', [booking.mainGuest, booking.event.title, String(booking.qty), ticketUrl, String(booking.total)]);
+    return { ok: true };
+  }
+
   /** Event + tier picker for the offline-booking modal — gated on the same
    * 'Attendees & check-in' permission as actually creating one (not 'Events
    * & wizard'), since staff who can take a walk-up booking often can't edit

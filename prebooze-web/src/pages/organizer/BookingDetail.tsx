@@ -4,7 +4,7 @@ import { organizer, type OrgBookingDetail } from '../../api';
 import { ApiError } from '../../api/client';
 import QRCode from '../../components/QRCode';
 import { fmtMoney } from '../../data/mock';
-import { ArrowLeft, CheckCircle2, RefreshCw, AlertTriangle, Undo2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, RefreshCw, AlertTriangle, Undo2, Send, Ban } from 'lucide-react';
 
 const STATUS_TAG: Record<OrgBookingDetail['status'], { label: string; cls: string }> = {
   refund_requested: { label: 'Refund req.', cls: 'badge-danger' },
@@ -31,6 +31,11 @@ export default function BookingDetail() {
   const [booking, setBooking] = useState<OrgBookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [actionErr, setActionErr] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+  const [voiding, setVoiding] = useState(false);
+  const [confirmVoid, setConfirmVoid] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -41,6 +46,35 @@ export default function BookingDetail() {
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load booking'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const doResend = async () => {
+    if (!id) return;
+    setResending(true);
+    setActionErr('');
+    try {
+      await organizer.resendOfflineBooking(id);
+      setResent(true);
+    } catch (e) {
+      setActionErr(e instanceof ApiError ? e.message : 'Could not resend');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const doVoid = async () => {
+    if (!id) return;
+    setVoiding(true);
+    setActionErr('');
+    try {
+      const updated = await organizer.voidOfflineBooking(id);
+      setBooking((prev) => (prev ? { ...prev, status: updated.status } : prev));
+      setConfirmVoid(false);
+    } catch (e) {
+      setActionErr(e instanceof ApiError ? e.message : 'Could not void this booking');
+    } finally {
+      setVoiding(false);
+    }
+  };
 
   if (loading) return <div className="stack fade"><div className="muted small">Loading…</div></div>;
   if (!booking) {
@@ -61,6 +95,36 @@ export default function BookingDetail() {
         <h1 className="display" style={{ fontSize: 18 }}>{booking.id}</h1>
         <span className={`badge ${STATUS_TAG[booking.status].cls}`}>{STATUS_TAG[booking.status].label}</span>
       </div>
+
+      {booking.bookingSource === 'offline' && (
+        <div className="card tbl-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}>
+          {actionErr && <div className="danger-text small">{actionErr}</div>}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button className="btn btn-ghost btn-sm" disabled={resending} onClick={doResend} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Send size={13} /> {resending ? 'Resending…' : resent ? 'Resent ✓' : 'Resend to WhatsApp'}
+            </button>
+            {booking.offlinePaymentMode === 'self_collected' && booking.status === 'confirmed' && !confirmVoid && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setConfirmVoid(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--danger)' }}>
+                <Ban size={13} /> Void this booking
+              </button>
+            )}
+          </div>
+          {confirmVoid && (
+            <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 12 }}>
+              <div className="small bold" style={{ marginBottom: 6 }}>Void this booking?</div>
+              <p className="tiny muted-2" style={{ marginBottom: 10 }}>
+                Frees up the tier inventory and credits back the 2% commission + booking fee + GST Prebooze charged on it.
+                This does NOT refund the guest — you're voiding it because they never showed up or it was a mistake, and
+                you're keeping (or already returned) their cash yourself.
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-danger btn-sm" disabled={voiding} onClick={doVoid}>{voiding ? 'Voiding…' : 'Yes, void it'}</button>
+                <button className="btn btn-ghost btn-sm" disabled={voiding} onClick={() => setConfirmVoid(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="card tbl-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}>
         <div className="display" style={{ fontWeight: 700 }}>Guest</div>

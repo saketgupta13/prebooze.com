@@ -181,6 +181,20 @@ export class OrganizerController {
     return this.bookingsSvc.offlineCharges(req.user.sub);
   }
 
+  /** Organizer's own "undo" for a self-collected offline booking — see
+   * BookingsService.voidOfflineBooking. */
+  @Post('offline-bookings/:id/void')
+  voidOfflineBooking(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.bookingsSvc.voidOfflineBooking(req.user.sub, decodeURIComponent(id));
+  }
+
+  /** Organizer-triggered re-send of an offline booking's confirmation —
+   * see BookingsService.resendOfflineBookingConfirmation. */
+  @Post('offline-bookings/:id/resend')
+  resendOfflineBooking(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.bookingsSvc.resendOfflineBookingConfirmation(req.user.sub, decodeURIComponent(id));
+  }
+
   /** Event+tier picker for the offline-booking modal — deliberately its own
    * endpoint rather than reusing GET /organizer/events, which requires
    * 'Events & wizard' view and 403s for staff who can only take bookings. */

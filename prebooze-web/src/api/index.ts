@@ -667,6 +667,11 @@ export const organizer = {
     paymentMode: 'self_collected' | 'payment_link';
   }) => apiFetch<OrgBooking | { holdId: string; redirectUrl: string; subtotal: number; fee: number; gstPct: number; gst: number; total: number; phone: string }>('/organizer/offline-bookings', { body }),
   offlineCharges: () => apiFetch<{ id: string; bookingId: string | null; eventTitle: string | null; guestName: string | null; guestPaid: number | null; commissionCharged: number; createdAt: string }[]>('/organizer/offline-charges'),
+  // Organizer's own "undo" for a self-collected offline booking — reverses
+  // inventory + the commission/fee/GST ledger debit. Payment-link bookings
+  // aren't voidable here (real gateway money — use the normal refund path).
+  voidOfflineBooking: (id: string) => apiFetch<OrgBooking>(`/organizer/offline-bookings/${encodeURIComponent(id)}/void`, { method: 'POST' }),
+  resendOfflineBooking: (id: string) => apiFetch<{ ok: true }>(`/organizer/offline-bookings/${encodeURIComponent(id)}/resend`, { method: 'POST' }),
   // Deliberately its own endpoint rather than events() above — gated on
   // 'Attendees & check-in' view (same as the create call), not 'Events &
   // wizard', so staff who can only take bookings can still use this modal.

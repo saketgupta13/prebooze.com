@@ -186,8 +186,8 @@ export default function Bookings() {
                     <td>{b.qty} · {fmtMoney(b.total)}</td>
                     <td>
                       {b.bookingSource === 'offline' ? (
-                        <span className="badge badge-accent">
-                          {b.offlinePaymentMode === 'self_collected' ? 'Offline · self-collected' : 'Offline · payment link'}
+                        <span className="badge badge-accent" style={{ whiteSpace: 'nowrap' }}>
+                          {b.offlinePaymentMode === 'self_collected' ? 'Offline · cash' : 'Offline · link'}
                         </span>
                       ) : (
                         <span className="muted-2">Online</span>
