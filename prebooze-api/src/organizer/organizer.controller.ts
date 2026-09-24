@@ -181,6 +181,14 @@ export class OrganizerController {
     return this.bookingsSvc.offlineCharges(req.user.sub);
   }
 
+  /** Event+tier picker for the offline-booking modal — deliberately its own
+   * endpoint rather than reusing GET /organizer/events, which requires
+   * 'Events & wizard' view and 403s for staff who can only take bookings. */
+  @Get('offline-bookings/events')
+  offlineBookingEvents(@Req() req: AuthedReq) {
+    return this.bookingsSvc.offlineBookingEvents(req.user.sub);
+  }
+
   @Get('coupons')
   coupons(@Req() req: AuthedReq) {
     return this.organizer.coupons(req.user.sub);

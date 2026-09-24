@@ -648,6 +648,10 @@ export const organizer = {
     paymentMode: 'self_collected' | 'payment_link';
   }) => apiFetch<OrgBooking | { holdId: string; redirectUrl: string; subtotal: number; phone: string }>('/organizer/offline-bookings', { body }),
   offlineCharges: () => apiFetch<{ id: string; bookingId: string | null; eventTitle: string | null; guestName: string | null; guestPaid: number | null; commissionCharged: number; createdAt: string }[]>('/organizer/offline-charges'),
+  // Deliberately its own endpoint rather than events() above — gated on
+  // 'Attendees & check-in' view (same as the create call), not 'Events &
+  // wizard', so staff who can only take bookings can still use this modal.
+  offlineBookingEvents: () => apiFetch<Event[]>('/organizer/offline-bookings/events'),
   marketing: marketingApi('/organizer/marketing'),
   coupons: () => apiFetch<Coupon[]>('/organizer/coupons'),
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/organizer/coupons', { body: c }),

@@ -1503,6 +1503,20 @@ export class BookingsService {
     });
   }
 
+  /** Event + tier picker for the offline-booking modal — gated on the same
+   * 'Attendees & check-in' permission as actually creating one (not 'Events
+   * & wizard'), since staff who can take a walk-up booking often can't edit
+   * the event itself; using organizer.events()'s stricter check here 403'd
+   * for exactly that staff and surfaced as "Could not load your events". */
+  async offlineBookingEvents(userId: string) {
+    const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'view');
+    return this.prisma.event.findMany({
+      where: { OR: [{ organizerId: org.id }, { collaboratorOrganizerIds: { has: org.id } }] },
+      include: { tiers: true, venue: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async list(userId: string) {
     return this.prisma.booking.findMany({
       where: { userId },

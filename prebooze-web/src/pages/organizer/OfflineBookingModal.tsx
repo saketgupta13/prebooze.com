@@ -36,9 +36,9 @@ export default function OfflineBookingModal({ onClose, onCreated }: { onClose: (
   const [selfResult, setSelfResult] = useState<OrgBooking | null>(null);
 
   useEffect(() => {
-    organizer.events()
+    organizer.offlineBookingEvents()
       .then((all) => setEvents(all.filter((e) => e.status === 'approved' && !isEventOver(e))))
-      .catch(() => setErr('Could not load your events'))
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Could not load your events'))
       .finally(() => setLoadingEvents(false));
   }, []);
 
@@ -130,12 +130,15 @@ export default function OfflineBookingModal({ onClose, onCreated }: { onClose: (
             {err && <div className="danger-text small" style={{ marginBottom: 10 }}>{err}</div>}
             <div className="field" style={{ marginBottom: 10 }}>
               <span>Event</span>
-              <select value={eventId} onChange={(e) => { setEventId(e.target.value); setTierId(''); }} disabled={loadingEvents}>
-                <option value="">{loadingEvents ? 'Loading…' : 'Pick an event'}</option>
+              <select value={eventId} onChange={(e) => { setEventId(e.target.value); setTierId(''); }} disabled={loadingEvents || (!loadingEvents && !err && events.length === 0)}>
+                <option value="">{loadingEvents ? 'Loading…' : events.length === 0 && !err ? 'No live events' : 'Pick an event'}</option>
                 {events.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
               </select>
             </div>
-            {event && (
+            {event && event.tiers.length === 0 && (
+              <div className="tiny muted-2" style={{ marginBottom: 10 }}>This event has no ticket tiers set up yet.</div>
+            )}
+            {event && event.tiers.length > 0 && (
               <div className="field" style={{ marginBottom: 10 }}>
                 <span>Ticket tier</span>
                 <select value={tierId} onChange={(e) => setTierId(e.target.value)}>
@@ -182,7 +185,8 @@ export default function OfflineBookingModal({ onClose, onCreated }: { onClose: (
             {others.length > 0 && (
               <div style={{ marginBottom: 10 }}>
                 <div className="tiny muted-2" style={{ marginBottom: 6 }}>
-                  {tier?.name} needs {qty * partySize} names total{coupleHint ? ' — one Male, one Female per pair' : ''}
+                  {tier?.name} needs {qty * partySize} names total{coupleHint ? ' — one Male, one Female per pair' : ''}.{' '}
+                  {qty} × {fmtMoney(tierPrice)} = {fmtMoney(subtotal)} total, covering all {qty * partySize} guests.
                 </div>
                 {others.map((o, i) => (
                   <div key={i} className="form-row" style={{ marginBottom: 6 }}>
