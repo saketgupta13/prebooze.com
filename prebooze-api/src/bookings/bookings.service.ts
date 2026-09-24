@@ -570,7 +570,7 @@ export class BookingsService {
       // offline booking has no logged-in guest browser to call create()
       // itself, so this webhook is that booking's ONLY finalization path,
       // not a recovery fallback like the branch below.
-      isOfflineOrgBooking?: boolean; offlineOrganizerId?: string;
+      isOfflineOrgBooking?: boolean; offlineOrganizerId?: string; createdByUserId?: string;
       subtotal?: number; fee?: number; gstPct?: number; gstAmount?: number; igstAmount?: number; total?: number;
     } | null;
 
@@ -586,7 +586,7 @@ export class BookingsService {
     if (payload.isOfflineOrgBooking && payload.offlineOrganizerId) {
       await this.finalizeOfflineLinkBooking(cart, merchantOrderId, amountPaise, {
         mainGuest: payload.mainGuest, mainGuestGender: payload.mainGuestGender, whatsapp: payload.whatsapp,
-        guests: payload.guests, offlineOrganizerId: payload.offlineOrganizerId,
+        guests: payload.guests, offlineOrganizerId: payload.offlineOrganizerId, createdByUserId: payload.createdByUserId,
         subtotal: payload.subtotal, fee: payload.fee, gstPct: payload.gstPct, gstAmount: payload.gstAmount, igstAmount: payload.igstAmount, total: payload.total,
       }).catch(async (e) => {
         await this.staffAlerts
@@ -1326,7 +1326,7 @@ export class BookingsService {
           guests: guests as unknown as Prisma.InputJsonValue,
           mainGuest: input.guestName.trim(), whatsapp: phone,
           paymentMethod: 'Offline (self-collected)',
-          bookingSource: 'offline', offlinePaymentMode: 'self_collected',
+          bookingSource: 'offline', offlinePaymentMode: 'self_collected', createdByUserId: userId,
           qrToken, commission,
           coverCharge: (tierWindowState(tier, event.date) === 'free' ? 0 : tier.coverCharge) * input.qty,
         },
@@ -1413,6 +1413,7 @@ export class BookingsService {
           // normal create() path — see reconcilePhonePePayment's branch.
           isOfflineOrgBooking: true,
           offlineOrganizerId: org.id,
+          createdByUserId: userId,
           // Locked in now, at the price/fee/GST the guest is actually being
           // charged — finalizeOfflineLinkBooking reads these back rather
           // than re-deriving from the paid amount, so a PlatformSettings
@@ -1521,7 +1522,7 @@ export class BookingsService {
     amountPaise: number,
     payload: {
       mainGuest: string; mainGuestGender?: string | null; whatsapp: string; guests?: { name: string; gender?: string; whatsapp?: string }[];
-      offlineOrganizerId: string; subtotal?: number; fee?: number; gstPct?: number; gstAmount?: number; igstAmount?: number; total?: number;
+      offlineOrganizerId: string; createdByUserId?: string; subtotal?: number; fee?: number; gstPct?: number; gstAmount?: number; igstAmount?: number; total?: number;
     },
   ) {
     const event = await this.prisma.event.findUnique({ where: { id: cart.eventId }, include: { tiers: true, venue: true } });
@@ -1571,7 +1572,7 @@ export class BookingsService {
           guests: guests as unknown as Prisma.InputJsonValue,
           mainGuest: payload.mainGuest, whatsapp: payload.whatsapp,
           paymentId: merchantOrderId, paymentMethod: paymentMethodResult?.method,
-          bookingSource: 'offline', offlinePaymentMode: 'payment_link',
+          bookingSource: 'offline', offlinePaymentMode: 'payment_link', createdByUserId: payload.createdByUserId,
           qrToken, commission,
           coverCharge: (tierWindowState(tier, event.date) === 'free' ? 0 : tier.coverCharge) * qty,
         },

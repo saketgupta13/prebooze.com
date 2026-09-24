@@ -556,6 +556,9 @@ export interface OrgBookingDetail {
   promoterRef?: string | null;
   promoterCommission: number;
   promoter?: { id: string; name: string; slug: string } | null;
+  // Which staff/owner account created this offline booking — null for
+  // every ordinary online booking.
+  createdBy?: { name: string | null; phone: string } | null;
   user: { name: string; phone: string; email?: string };
   event: { id: string; title: string; date: string; durationHrs: number; venue?: { name: string; city: string } | null; organizer?: { brandName: string } | null };
 }

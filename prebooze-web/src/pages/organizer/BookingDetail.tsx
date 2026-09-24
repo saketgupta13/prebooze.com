@@ -98,6 +98,9 @@ export default function BookingDetail() {
 
       {booking.bookingSource === 'offline' && (
         <div className="card tbl-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}>
+          {booking.createdBy && (
+            <div className="tiny muted-2">Created by {booking.createdBy.name || booking.createdBy.phone} · {booking.createdBy.phone}</div>
+          )}
           {actionErr && <div className="danger-text small">{actionErr}</div>}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <button className="btn btn-ghost btn-sm" disabled={resending} onClick={doResend} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>

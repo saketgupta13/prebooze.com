@@ -1502,6 +1502,16 @@ model Booking {
   // initiated and delivered via WhatsApp instead of guest self-checkout).
   bookingSource      String  @default("online")
   offlinePaymentMode String?
+  // Which staff/owner User account (OrgAccessService-resolved, same as any
+  // other organizer-console write) actually created this offline booking —
+  // null for every ordinary online booking. Plain scalar, no formal
+  // relation (same pattern as OrganizerLedgerTx.bookingId) since this is
+  // purely a display/audit lookup, never joined through. Real gap this
+  // closes: any staff member with 'Attendees & check-in' edit access could
+  // create a real, revenue-bearing self-collected/payment-link booking
+  // with zero record of which individual staff account did it — only
+  // which organizer. Added 2026-09-25.
+  createdByUserId String?
 
   createdAt DateTime @default(now())
 }

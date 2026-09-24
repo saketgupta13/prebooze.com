@@ -675,8 +675,15 @@ export class OrganizerService {
     const promoter = booking.promoterRef
       ? await this.prisma.promoter.findUnique({ where: { slug: booking.promoterRef }, select: { id: true, name: true, slug: true } })
       : null;
+    // Staff audit trail (2026-09-25) — which real staff/owner account
+    // actually created this offline booking, resolved from the plain
+    // scalar Booking.createdByUserId (no formal relation, see its own
+    // schema comment). null for every ordinary online booking.
+    const createdBy = booking.createdByUserId
+      ? await this.prisma.user.findUnique({ where: { id: booking.createdByUserId }, select: { name: true, phone: true } })
+      : null;
     const { adminNote, ...rest } = booking;
-    return { ...rest, promoter };
+    return { ...rest, promoter, createdBy };
   }
 
   // ---------- coupons ----------
