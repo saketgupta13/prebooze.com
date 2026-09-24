@@ -1492,6 +1492,17 @@ model Booking {
   // not an activity log — the latest note simply overwrites the last.
   adminNote String?
 
+  // An organizer-created walk-up/phone/gate-inquiry booking (BookingsService.
+  // createOfflineBookingSelfCollected/PaymentLink) — 'online' for every
+  // ordinary guest self-checkout, unchanged. `offlinePaymentMode` is only
+  // meaningful when bookingSource is 'offline': 'self_collected' (organizer
+  // already has the guest's cash/UPI in hand, Prebooze only owes/is owed
+  // its flat commission via the ledger) or 'payment_link' (a real PhonePe
+  // order, same money-flow as a normal online booking, just organizer-
+  // initiated and delivered via WhatsApp instead of guest self-checkout).
+  bookingSource      String  @default("online")
+  offlinePaymentMode String?
+
   createdAt DateTime @default(now())
 }
 
@@ -1747,12 +1758,18 @@ model OrganizerLedgerTx {
   id          String    @id @default(cuid())
   organizerId String
   organizer   Organizer @relation(fields: [organizerId], references: [id])
-  type        String // sale | refund | withdrawal
+  type        String // sale | refund | withdrawal | offline_commission
   amount      Int // + credit, - debit
   eventId     String?
   eventTitle  String?
   note        String?
   createdAt   DateTime  @default(now())
+
+  // Only set for a real Booking-linked row (a normal 'sale'/'refund', or a
+  // 'offline_commission' charge from an organizer-created offline booking)
+  // — lets the "Offline booking charges" UI join straight back to the real
+  // booking (guest name, amount actually paid) instead of parsing `note`.
+  bookingId String?
 
   // Denormalized snapshot of which PaymentProfile a withdrawal actually paid
   // out to — same "capture the name alongside the id" precedent as

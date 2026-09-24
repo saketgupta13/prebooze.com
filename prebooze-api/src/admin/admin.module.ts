@@ -79,6 +79,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { WalletService } from '../wallet/wallet.service';
 import { FeaturedService } from '../featured/featured.service';
 import { BookingsService } from '../bookings/bookings.service';
+import { OrgAccessService } from '../organizer/org-access.service';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { HoldsService } from '../bookings/holds.service';
 import { redisProvider } from '../redis.provider';
@@ -169,6 +170,7 @@ import { redisProvider } from '../redis.provider';
     SubscriptionsService,
     FeaturedService,
     BookingsService,
+    OrgAccessService,
     MetaConversionsService,
     WalletService,
     HoldsService,

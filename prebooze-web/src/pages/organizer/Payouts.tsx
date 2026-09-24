@@ -41,20 +41,26 @@ const STATUS_LABEL: Record<PromoterPayoutRow['status'], ReactNode> = {
  * Prebooze; the status here is the promoter's own attestation, not
  * something this page can mark — an organizer who's paid can only wait for
  * the promoter to confirm it or ask them directly. */
+interface OfflineChargeRow {
+  id: string; bookingId: string | null; eventTitle: string | null; guestName: string | null; guestPaid: number | null; commissionCharged: number; createdAt: string;
+}
+
 export default function Payouts() {
   const [balance, setBalance] = useState(0);
   const [ledger, setLedger] = useState<OrgLedgerTx[]>([]);
   const [defaultBankLast4, setDefaultBankLast4] = useState<string | null>(null);
   const [promoterPayouts, setPromoterPayouts] = useState<PromoterPayoutRow[]>([]);
+  const [offlineCharges, setOfflineCharges] = useState<OfflineChargeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    Promise.all([organizer.payouts(), organizer.paymentProfiles(), organizer.promoterPayouts()])
-      .then(([p, profiles, pp]) => {
+    Promise.all([organizer.payouts(), organizer.paymentProfiles(), organizer.promoterPayouts(), organizer.offlineCharges()])
+      .then(([p, profiles, pp, oc]) => {
         setBalance(p.balance); setLedger(p.ledger);
         setDefaultBankLast4(profiles.find((pr) => pr.isDefault)?.bankLast4 ?? null);
         setPromoterPayouts(pp);
+        setOfflineCharges(oc);
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load payouts'))
       .finally(() => setLoading(false));
@@ -131,6 +137,30 @@ export default function Payouts() {
                   <div className="tiny" style={{ color: r.status === 'received' ? 'var(--green, #2a9d5c)' : 'var(--muted-2)', display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
                     {STATUS_LABEL[r.status]}
                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {offlineCharges.length > 0 && (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <h3 style={{ marginBottom: 4 }}>Offline booking charges</h3>
+          <p className="tiny muted-2" style={{ marginBottom: 12 }}>
+            Bookings you created and marked "already collected" — you kept the guest's payment directly, and Prebooze's
+            flat 2% is deducted here from your payout balance instead.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {offlineCharges.map((c) => (
+              <div key={c.id} className="evrow">
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="small bold">{c.guestName ?? c.bookingId ?? 'Offline booking'}</div>
+                  <div className="tiny muted-2">{c.eventTitle} · {fmtDate(c.createdAt)}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div className="tiny muted-2">Guest paid {c.guestPaid !== null ? fmtMoney(c.guestPaid) : '—'}</div>
+                  <div className="small bold danger-text">-{fmtMoney(c.commissionCharged)}</div>
                 </div>
               </div>
             ))}

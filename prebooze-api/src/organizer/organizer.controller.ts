@@ -13,6 +13,7 @@ import { InvoicesService } from '../invoices/invoices.service';
 import { GuestListService } from '../admin/guestlist.service';
 import { PushService } from '../notifications/push';
 import { OrgNotificationsService } from '../notifications/org-notifications';
+import { BookingsService } from '../bookings/bookings.service';
 
 type AuthedReq = { user: { sub: string; phone: string } };
 
@@ -26,6 +27,7 @@ export class OrganizerController {
     private orgAccess: OrgAccessService,
     private push: PushService,
     private orgNotifications: OrgNotificationsService,
+    private bookingsSvc: BookingsService,
   ) {}
 
   @Get('me')
@@ -153,6 +155,30 @@ export class OrganizerController {
   @Get('bookings/:id')
   bookingDetail(@Req() req: AuthedReq, @Param('id') id: string) {
     return this.organizer.bookingDetail(req.user.sub, decodeURIComponent(id));
+  }
+
+  /** Offline/walk-up/gate booking creation — see BookingsService.
+   * createOfflineBookingSelfCollected/PaymentLink for the real design
+   * (2026-09-24: two payment modes, flat 2% commission regardless of the
+   * event's own online rate). Gated on the same permission every other
+   * write on this console's Bookings page already needs. */
+  @Post('offline-bookings')
+  createOfflineBooking(
+    @Req() req: AuthedReq,
+    @Body() body: {
+      eventId: string; tierId: string; qty: number; guestName: string; whatsapp: string; gender?: string;
+      others?: { name: string; gender?: string; whatsapp?: string }[];
+      paymentMode: 'self_collected' | 'payment_link';
+    },
+  ) {
+    if (body.paymentMode === 'payment_link') return this.bookingsSvc.createOfflineBookingPaymentLink(req.user.sub, body);
+    if (body.paymentMode === 'self_collected') return this.bookingsSvc.createOfflineBookingSelfCollected(req.user.sub, body);
+    throw new BadRequestException('paymentMode must be "self_collected" or "payment_link"');
+  }
+
+  @Get('offline-charges')
+  offlineCharges(@Req() req: AuthedReq) {
+    return this.bookingsSvc.offlineCharges(req.user.sub);
   }
 
   @Get('coupons')

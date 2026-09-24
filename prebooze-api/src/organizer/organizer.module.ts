@@ -17,8 +17,10 @@ import { StorageService } from '../kyc/storage.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { PushService } from '../notifications/push';
 import { OrgNotificationsService } from '../notifications/org-notifications';
+import { BookingsModule } from '../bookings/bookings.module';
 
 @Module({
+  imports: [BookingsModule],
   controllers: [OrganizerController, AdminEventsController, OrgTeamController, OrgRolesController, VipPassController],
   providers: [OrganizerService, OrgTeamService, OrgAccessService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, GuestListService, LiveMonitorService, StorageService, InvoicesService, PushService, OrgNotificationsService],
 })

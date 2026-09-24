@@ -32,6 +32,7 @@ const Categories = lazy(() => import('./pages/Categories'));
 const EventDetail = lazy(() => import('./pages/EventDetail'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 const Confirmation = lazy(() => import('./pages/Confirmation'));
+const PayComplete = lazy(() => import('./pages/PayComplete'));
 const MyBookings = lazy(() => import('./pages/MyBookings'));
 const Profile = lazy(() => import('./pages/Profile'));
 const EditProfile = lazy(() => import('./pages/EditProfile'));
@@ -400,6 +401,9 @@ export default function App() {
             </RequireAuth>
           }
         />
+        {/* Public — a guest tapping an organizer-sent offline payment link
+            (see PayComplete.tsx) may have no logged-in session at all. */}
+        <Route path="/pay/complete" element={<PayComplete />} />
         <Route
           path="/bookings"
           element={
