@@ -128,7 +128,21 @@ export class SettlementsService {
     });
 
     const total = files.reduce((sum, f) => sum + f.totalAmount, BigInt(0));
-    return { settlements: files, total: Number(total) / 100 }; // Convert paise to rupees for display
+    // Real bug fixed 2026-09-24: PhonePeSettlementFile/Item store amounts as
+    // Prisma BigInt (paise), and this returned the raw rows straight through
+    // — Express's JSON serializer throws "Do not know how to serialize a
+    // BigInt" on any real row, 500ing this endpoint the moment a real
+    // import ever succeeded (never caught before because the frontend
+    // upload bug meant no import had ever actually gone through). Same
+    // Number-conversion detailPhonePe already does correctly below.
+    const settlements = files.map((f) => ({
+      ...f,
+      totalAmount: Number(f.totalAmount) / 100,
+      totalFee: Number(f.totalFee) / 100,
+      totalGST: Number(f.totalGST) / 100,
+      items: f.items.map((i) => ({ ...i, amount: Number(i.amount) / 100, fee: Number(i.fee) / 100, gst: Number(i.gst) / 100 })),
+    }));
+    return { settlements, total: Number(total) / 100 }; // Convert paise to rupees for display
   }
 
   async detailPhonePe(fileId: string) {
