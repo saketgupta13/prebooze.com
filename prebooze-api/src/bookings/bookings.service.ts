@@ -1241,7 +1241,7 @@ export class BookingsService {
    * real walk-up/phone/gate inquiry IS the real-world verification). */
   private async prepareOfflineBooking(userId: string, input: {
     eventId: string; tierId: string; qty: number; guestName: string; whatsapp: string; gender?: string;
-  }) {
+  }, bareMinimumRecord = false) {
     const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'edit');
     if (!input.guestName?.trim() || !input.whatsapp?.trim()) throw new BadRequestException('Guest name and WhatsApp number are required');
     if (!input.qty || input.qty < 1) throw new BadRequestException('qty must be at least 1');
@@ -1256,7 +1256,12 @@ export class BookingsService {
     const guest =
       (await this.prisma.user.findUnique({ where: { phone } })) ??
       (await this.prisma.user.create({
-        data: { phone, name: input.guestName.trim(), gender: input.gender, referralCode: await uniqueReferralCodeFor(this.prisma, phone) },
+        // A self-collected booking's brand-new guest gets a bare-minimum
+        // record — name only, no gender — same reasoning as the createOffline
+        // BookingSelfCollected's own backfill skip below: Prebooze never
+        // actually verified anything about this guest, so nothing beyond
+        // "who booked" is written to their account.
+        data: { phone, name: input.guestName.trim(), gender: bareMinimumRecord ? undefined : input.gender, referralCode: await uniqueReferralCodeFor(this.prisma, phone) },
       }));
 
     const subtotal = effectiveTierPrice(tier, event.date) * input.qty;
@@ -1294,7 +1299,7 @@ export class BookingsService {
     eventId: string; tierId: string; qty: number; guestName: string; whatsapp: string; gender?: string;
     others?: { name: string; gender?: string; whatsapp?: string }[];
   }) {
-    const { org, event, tier, phone, guest, subtotal, fee, gstPct, gstSplit, total } = await this.prepareOfflineBooking(userId, input);
+    const { org, event, tier, phone, guest, subtotal, fee, gstPct, gstSplit, total } = await this.prepareOfflineBooking(userId, input, true);
     const commission = Math.round((subtotal * OFFLINE_BOOKING_COMMISSION_PCT) / 100);
 
     const id = '#TKT-' + randomInt(10000, 99999);
