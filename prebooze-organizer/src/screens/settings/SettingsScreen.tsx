@@ -21,12 +21,20 @@ import type { Organizer, PaymentProfile, SocialLinks } from '../../types';
 const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
 
 type Draft = LocationValue & {
-  brandName: string; username: string; contactPerson: string; contact: string; about: string;
+  brandName: string; username: string; contactPerson: string; contact: string; phone: string; about: string;
   instagram: string; facebook: string; other: string[]; eventTypes: string[]; logoUrl: string | null;
 };
 
 const draftFrom = (o: Organizer): Draft => ({
-  brandName: o.brandName, username: o.username, contactPerson: o.contactPerson ?? '', contact: o.contact ?? '',
+  brandName: o.brandName, username: o.username, contactPerson: o.contactPerson ?? '',
+  // Real bug (2026-09-24): Organizer.contact is the business EMAIL
+  // (schema comment: "business contact email") — this field was labeled
+  // "Business mobile number" with a phone keyboard, and the real business
+  // *phone* (Organizer.phone) was never editable here at all, just
+  // silently passed through unchanged on save. Two genuinely separate
+  // fields web already keeps distinct ("Business email" / "Business
+  // mobile number").
+  contact: o.contact ?? '', phone: o.phone ?? '',
   // Real bug (2026-09-23): web's WysiwygEditor stores About as real HTML —
   // showed up here as literal "...team.</div>" text, same class of bug
   // already fixed for Event.description (see lib/richtext.ts).
@@ -117,7 +125,7 @@ export default function SettingsScreen() {
         city: draft.city.trim(), country: draft.country.trim(), state: draft.state.trim(), pincode: draft.pincode.trim(),
         logoUrl: draft.logoUrl ?? undefined, about: plainTextToHtml(draft.about.trim()),
         socialLinks: { instagram: draft.instagram.trim() || undefined, facebook: draft.facebook.trim() || undefined, other: draft.other.map((s) => s.trim()).filter(Boolean) },
-        contact: draft.contact.trim(), contactPerson: draft.contactPerson.trim(), phone: org?.phone, eventTypes: draft.eventTypes.join(', '),
+        contact: draft.contact.trim(), contactPerson: draft.contactPerson.trim(), phone: draft.phone.trim(), eventTypes: draft.eventTypes.join(', '),
       });
       setOrg(updated);
       setDraft(draftFrom(updated));
@@ -191,9 +199,12 @@ export default function SettingsScreen() {
                 </View>
                 <View style={styles.flex1}>
                   <FieldLabel>Business mobile number</FieldLabel>
-                  <Input value={draft.contact} onChangeText={(t) => setDraft({ ...draft, contact: t })} placeholder="separate from your login number" keyboardType="phone-pad" style={styles.fieldGap} />
+                  <Input value={draft.phone} onChangeText={(t) => setDraft({ ...draft, phone: t })} placeholder="separate from your login number" keyboardType="phone-pad" style={styles.fieldGap} />
                 </View>
               </View>
+              <FieldLabel>Business email</FieldLabel>
+              <Muted style={styles.tiny}>Shown on your public profile — separate from your own login email (that's under Help center).</Muted>
+              <Input value={draft.contact} onChangeText={(t) => setDraft({ ...draft, contact: t })} placeholder="hello@yourbrand.com" keyboardType="email-address" autoCapitalize="none" style={styles.fieldGap} />
 
               <LocationPicker value={draft} onChange={(v) => setDraft({ ...draft, ...v })} />
 

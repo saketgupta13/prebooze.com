@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { existingRole } from '../lib/roles';
-import { support } from '../api';
+import { support, auth } from '../api';
+import { ApiError } from '../api/client';
 import Accordion from '../components/Accordion';
 import RoleConsoleFrame from '../components/RoleConsoleFrame';
 import type { HelpTicket } from '../types';
@@ -64,7 +65,7 @@ const HELP: Record<HelpRole, { label: string; icon: ReactNode; topics: string[];
 
 /** Help center — role-aware topics, FAQs and support tickets. */
 export default function HelpCenter() {
-  const { user, helpTickets, addHelpTicket, toast } = useApp();
+  const { user, updateUser, helpTickets, addHelpTicket, toast } = useApp();
   const myRole = (existingRole(user) ?? 'guest') as HelpRole;
   const [role, setRole] = useState<HelpRole>(myRole);
   const effectiveRole = user ? myRole : role; // logged-in users only ever see their own role
@@ -73,6 +74,33 @@ export default function HelpCenter() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+
+  const [addingEmail, setAddingEmail] = useState(false);
+  const [emailDraft, setEmailDraft] = useState('');
+  const [savingEmail, setSavingEmail] = useState(false);
+
+  // Real bug (2026-09-24): this used to link to /profile/edit — the guest
+  // personal-profile form (dob/gender/profession/bio/interests), completely
+  // wrong to send an organizer/promoter/lineup/venue through just to add an
+  // email. Made inline instead, matching the RN organizer app's fix for the
+  // same gap. Also: this is User.email (your own account login email, used
+  // for ticket replies) — a different field from an organizer's public
+  // Organizer.contact ("Business email" under Settings → Brand profile),
+  // which this flow must never be confused with.
+  const saveEmail = async () => {
+    if (!emailDraft.trim()) return;
+    setSavingEmail(true);
+    try {
+      const updated = await auth.updateMe({ email: emailDraft.trim() });
+      updateUser(updated);
+      setAddingEmail(false);
+      setEmailDraft('');
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : 'Failed to save email');
+    } finally {
+      setSavingEmail(false);
+    }
+  };
 
   const pickRole = (r: HelpRole) => {
     setRole(r);
@@ -149,13 +177,31 @@ export default function HelpCenter() {
         </div>
 
         {user && !user.email?.trim() && (
-          <div className="card" style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <Mail size={18} className="accent" />
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <div className="bold small">Add your email to get ticket updates</div>
-              <div className="tiny muted-2">We reply by email when your ticket status changes — no email on file yet.</div>
+          <div className="card" style={{ marginBottom: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <Mail size={18} className="accent" />
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div className="bold small">Add your email to get ticket updates</div>
+                <div className="tiny muted-2">
+                  This is your own account email (we reply here when your ticket status changes) — not your business email, which is
+                  under Settings → Brand profile.
+                </div>
+              </div>
+              {!addingEmail && (
+                <button className="btn btn-ghost btn-sm" onClick={() => setAddingEmail(true)}>Add email →</button>
+              )}
             </div>
-            <Link to="/profile/edit" className="btn btn-ghost btn-sm">Add email →</Link>
+            {addingEmail && (
+              <div className="form-row" style={{ marginTop: 10 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <input value={emailDraft} onChange={(e) => setEmailDraft(e.target.value)} placeholder="you@example.com" type="email" />
+                </div>
+                <button className="btn btn-pri btn-sm" disabled={savingEmail || !emailDraft.trim()} onClick={saveEmail}>
+                  {savingEmail ? 'Saving…' : 'Save email'}
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setAddingEmail(false); setEmailDraft(''); }}>Cancel</button>
+              </div>
+            )}
           </div>
         )}
 

@@ -531,7 +531,11 @@ export default function ScannerScreen() {
             )}
           </Card>
         )}
-        <Button label="Switch to camera scan" variant="accentOutline" onPress={() => setUseCamera(true)} style={styles.switchBtn} />
+        {/* Real feedback (2026-09-24): accentOutline's faint 10%-tint fill
+         * still read as gray/dummy-looking against the dark background —
+         * needs the same solid brand green as every other real primary
+         * action in this app. */}
+        <Button label="Switch to camera scan" onPress={() => setUseCamera(true)} style={styles.switchBtn} />
 
         <View style={styles.footerRow}>
           {loading ? <Muted style={styles.tiny}>Loading…</Muted> : (

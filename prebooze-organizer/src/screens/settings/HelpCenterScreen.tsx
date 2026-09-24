@@ -124,7 +124,16 @@ export default function HelpCenterScreen() {
             <Notice tone="info">
               <View style={{ flex: 1 }}>
                 <Txt style={styles.bold}>Add your email to get ticket updates</Txt>
-                <Muted style={styles.tiny}>We reply by email when your ticket status changes — no email on file yet.</Muted>
+                {/* Real bug (2026-09-24): "add email" here (User.email, your
+                 * own account login email) got confused with Organizer.contact
+                 * ("Business email" in Settings → Brand profile, shown on
+                 * your public profile) — two genuinely separate fields, so
+                 * setting one never touched the other. Spelled out explicitly
+                 * to stop that mix-up. */}
+                <Muted style={styles.tiny}>
+                  This is your own account email (we reply here when your ticket status changes) — not your business email, which is
+                  under Settings → Brand profile.
+                </Muted>
                 {addingEmail ? (
                   <View style={{ marginTop: spacing.s }}>
                     <Input value={emailDraft} onChangeText={setEmailDraft} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" />
