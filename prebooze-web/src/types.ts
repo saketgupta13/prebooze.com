@@ -439,6 +439,12 @@ export interface Booking {
   promoterName?: string; // resolved server-side from promoterRef — present only where the API attaches it (e.g. checkIn())
   event?: Event; // embedded event+venue — present on real (live-backend) bookings only
   qrToken?: string;
+  // Set only for an organizer-created walk-up/gate booking (see
+  // BookingsService.createOfflineBookingSelfCollected/PaymentLink) —
+  // 'self_collected' means the organizer already held the guest's cash/UPI
+  // directly, so Prebooze never touched that money and can't refund it.
+  bookingSource?: 'online' | 'offline';
+  offlinePaymentMode?: 'self_collected' | 'payment_link';
 }
 
 export interface Coupon {

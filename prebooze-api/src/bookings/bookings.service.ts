@@ -1549,6 +1549,14 @@ export class BookingsService {
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.userId !== userId) throw new ForbiddenException();
     if (booking.status !== 'confirmed') throw new BadRequestException('This booking is not eligible for refund');
+    // Prebooze only ever handles money that actually moved through its own
+    // gateway. A self-collected offline booking's cash/UPI went straight to
+    // the organizer, never through Prebooze at all — so there's nothing on
+    // file to refund (no paymentId, no wallet float meant to cover it), and
+    // this must never reach the normal wallet/source refund machinery.
+    if (booking.bookingSource === 'offline' && booking.offlinePaymentMode === 'self_collected') {
+      throw new BadRequestException('This booking was paid for directly with the organizer, not through Prebooze — please contact the organizer for a refund or cancellation.');
+    }
 
     if (refundTo === 'source') {
       await this.prisma.booking.update({ where: { id }, data: { status: 'refund_requested', refundedTo: 'source' } });

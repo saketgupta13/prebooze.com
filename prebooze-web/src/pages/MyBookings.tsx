@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import { bookings as bookingsApi } from '../api';
-import { isBackendEnabled } from '../api/client';
+import { isBackendEnabled, ApiError } from '../api/client';
 import type { Booking } from '../types';
 import QRCode from '../components/QRCode';
 import { downloadTicket } from '../lib/ticket';
@@ -65,8 +65,8 @@ export default function MyBookings() {
         await bookingsApi.cancel(id, refundTo);
         refetchLive();
         if (refundTo === 'wallet') refreshWallet(); // instant wallet credit, unlike a source refund which needs admin approval first
-      } catch {
-        // surfaced nowhere specific — the booking simply won't show as refunded; safe to retry
+      } catch (e) {
+        toast(e instanceof ApiError ? e.message : 'Could not cancel — try again in a moment');
       }
     } else {
       refundBooking(id, refundTo);
@@ -159,12 +159,18 @@ export default function MyBookings() {
                         {resendingId === selected.id ? 'Resending…' : 'Resend to WhatsApp'}
                       </button>
                     )}
-                    {selected.status === 'confirmed' && refundingId !== selected.id && (
+                    {selected.status === 'confirmed' && refundingId !== selected.id && selected.offlinePaymentMode !== 'self_collected' && (
                       <button className="btn btn-danger btn-sm" onClick={() => setRefundingId(selected.id)}>
                         Cancel booking
                       </button>
                     )}
                   </div>
+                  {selected.status === 'confirmed' && selected.offlinePaymentMode === 'self_collected' && (
+                    <div className="tiny muted-2" style={{ marginTop: 10 }}>
+                      This ticket's payment was collected directly by the organizer, not through Prebooze — contact them
+                      directly for a refund or cancellation.
+                    </div>
+                  )}
                   {selected.status === 'confirmed' && refundingId === selected.id && (
                     <div className="dashed-box" style={{ border: '1.5px dashed var(--border-dash)', borderRadius: 10, padding: 12, marginTop: 12 }}>
                       <div className="small bold" style={{ marginBottom: 8 }}>
