@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { calculateGatewayFee, type PaymentMethod } from '../payments/gateway-fee';
 
@@ -205,7 +205,7 @@ export class SettlementsService {
 
   async importPhonePeSettlementFile(csvContent: string, filename: string) {
     const lines = csvContent.split('\n').filter(line => line.trim());
-    if (lines.length < 2) throw new Error('Settlement file is empty');
+    if (lines.length < 2) throw new BadRequestException('Settlement file is empty');
 
     // Parse CSV header (expects: payment_id, amount, fee, gst, payment_method, booking_id, featured_id)
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
@@ -218,7 +218,7 @@ export class SettlementsService {
     const featuredIdIdx = headers.indexOf('featured_id');
 
     if (paymentIdIdx === -1 || amountIdx === -1 || feeIdx === -1 || gstIdx === -1 || methodIdx === -1) {
-      throw new Error('CSV missing required columns: payment_id, amount, fee, gst, payment_method');
+      throw new BadRequestException(`CSV missing required columns. Found headers: [${headers.join(', ')}] — expected at least: payment_id, amount, fee, gst, payment_method`);
     }
 
     // Parse records
@@ -247,7 +247,7 @@ export class SettlementsService {
       });
     }
 
-    if (records.length === 0) throw new Error('No records found in settlement file');
+    if (records.length === 0) throw new BadRequestException('No records found in settlement file');
 
     // Extract file date from filename (expect format: settlement_YYYY_MM_DD.csv or similar)
     const dateMatch = filename.match(/(\d{4})[-_](\d{2})[-_](\d{2})/);
