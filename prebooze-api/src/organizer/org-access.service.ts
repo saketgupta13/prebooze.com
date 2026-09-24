@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { Organizer } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { backfillPermissions } from './org-perm-modules';
 
 export type OrgPermLevel = 'view' | 'edit';
 type PermMatrix = Record<string, Record<OrgPermLevel, boolean>>;
@@ -27,7 +28,13 @@ export class OrgAccessService {
     const org = await this.prisma.organizer.findUnique({ where: { id: staff.organizerId } });
     if (!org) throw new ForbiddenException('Not an approved organizer');
     const role = await this.prisma.orgRole.findUnique({ where: { organizerId_name: { organizerId: org.id, name: staff.roleName } } });
-    const perms = (role?.permissions as PermMatrix | undefined) ?? {};
+    // In-memory backfill (not persisted here — OrgTeamService.listRoles
+    // does the persisted self-heal) so a role saved under the pre-expansion
+    // 7-key shape is enforced correctly on every request from the moment
+    // this module split ships, not only after someone next opens Team &
+    // roles — a brand-new module key never silently evaluates to "denied
+    // forever" for an existing team member.
+    const perms = backfillPermissions((role?.permissions as PermMatrix | undefined) ?? {}).matrix;
     return { org, isOwner: false, roleName: staff.roleName, can: (module, level) => !!perms[module]?.[level] };
   }
 

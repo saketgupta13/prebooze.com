@@ -7,6 +7,7 @@ import { ArrowRight, Bell } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { notifications } from '../../api/notifications';
 import { ApiError } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { Bar, Card, Chip, H1, H2, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { isEventOver } from '../../lib/events';
@@ -31,6 +32,9 @@ const DAY_MS = 86400000;
  * wizard exists. */
 export default function DashboardScreen() {
   const navigation = useNavigation<Nav>();
+  const { accessState } = useAuth();
+  const canView = (module: string) =>
+    accessState.kind === 'owner' || (accessState.kind === 'team' && !!accessState.access.permissions[module]?.view);
   const [profile, setProfile] = useState<Organizer | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -61,7 +65,20 @@ export default function DashboardScreen() {
           // fetch failure — indistinguishable from a genuinely quiet
           // account. Let it throw into the outer .catch instead, which
           // already shows a real error banner.
-          const [evs, pay] = await Promise.all([organizer.events(), organizer.payouts()]);
+          //
+          // Real bug (2026-09-24): that fix made the *whole* dashboard fail
+          // to load for any role without Payouts view (Door staff by
+          // default) — Promise.all rejects atomically, so a permission
+          // scoping issue (not a fetch failure) surfaced as the same "Failed
+          // to load dashboard" error banner as a real outage. Skipping a
+          // call the role genuinely can't make (never hitting the network,
+          // never entering the .catch below) is different from that call
+          // failing — this dashboard now degrades to whichever sections the
+          // role actually has, instead of erroring out entirely.
+          const [evs, pay] = await Promise.all([
+            canView('Events & wizard') ? organizer.events() : Promise.resolve([] as Event[]),
+            canView('Payouts & withdrawals') ? organizer.payouts() : Promise.resolve({ balance: 0, ledger: [] as OrgLedgerTx[] }),
+          ]);
           if (cancelled) return;
           setEvents(evs);
           setLedger(pay.ledger);

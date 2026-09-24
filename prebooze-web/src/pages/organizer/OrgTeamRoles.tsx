@@ -4,7 +4,15 @@ import { ApiError } from '../../api/client';
 import Loader from '../../components/Loader';
 import { X, Check, Camera } from 'lucide-react';
 
-const PERM_MODULES = ['Events & wizard', 'Attendees & check-in', 'Guest list', 'Coupons', 'Payouts & withdrawals', 'Reviews', 'Settings & team'];
+// Must match the backend's ORG_PERM_MODULES exactly (org-team.service.ts) —
+// expanded 2026-09-24 from 7 broad buckets into per-screen modules (e.g.
+// Abandoned carts split out from Events & wizard, Promoters from Payouts,
+// Team & roles from Settings) so organizer feedback about confusing
+// groupings has a real fix: each module here maps to one real screen.
+const PERM_MODULES = [
+  'Dashboard', 'Events & wizard', 'Abandoned carts', 'Attendees & check-in', 'Guest list', 'Coupons',
+  'Payouts & withdrawals', 'Promoters', 'Reviews', 'Settings', 'Team & roles',
+];
 const PERM_KEYS: OrgPermKey[] = ['view', 'edit'];
 
 /** Real organizer team & roles — new OrgRole/OrgStaff models + endpoints

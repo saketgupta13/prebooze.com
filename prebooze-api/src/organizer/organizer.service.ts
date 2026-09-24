@@ -209,7 +209,7 @@ export class OrganizerService {
    * off the JWT-fetched user for the global header, so a rename here used
    * to go stale there until this synced it back. */
   async updateMe(userId: string, patch: { brandName?: string; username?: string; city?: string; country?: string; state?: string; pincode?: string; logoUrl?: string; about?: string; socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) {
-    const org = await this.orgAccess.require(userId, 'Settings & team', 'edit');
+    const org = await this.orgAccess.require(userId, 'Settings', 'edit');
 
     const username = patch.username?.trim().toLowerCase();
     if (username && username !== org.username) {
@@ -776,7 +776,7 @@ export class OrganizerService {
    * Booking.promoterCommission) and same settlement-status source, just
    * grouped by promoter instead of assumed to be "me". */
   async promoterPayouts(userId: string) {
-    const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'view');
+    const org = await this.orgAccess.require(userId, 'Promoters', 'view');
     const events = await this.prisma.event.findMany({
       where: { organizerId: org.id },
       select: { id: true, title: true, date: true, promoterConfig: true },
@@ -841,7 +841,7 @@ export class OrganizerService {
    * allowed on an event with zero earnings yet too, since the organizer
    * still wants their contact on file the moment they're added. */
   async promoters(userId: string) {
-    const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'view');
+    const org = await this.orgAccess.require(userId, 'Promoters', 'view');
     const events = await this.prisma.event.findMany({
       where: { organizerId: org.id },
       select: { id: true, title: true, date: true, promoterConfig: true },
@@ -1090,7 +1090,7 @@ export class OrganizerService {
    * still `active`, and older than the hold TTL — computed lazily here, not
    * by a background job (there's no cron infra yet — see BACKEND.md). */
   async carts(userId: string) {
-    const org = await this.orgAccess.require(userId, 'Events & wizard', 'view');
+    const org = await this.orgAccess.require(userId, 'Abandoned carts', 'view');
     const eventIds = (
       await this.prisma.event.findMany({ where: { OR: [{ organizerId: org.id }, { collaboratorOrganizerIds: { has: org.id } }] }, select: { id: true } })
     ).map((e) => e.id);
@@ -1243,7 +1243,7 @@ export class OrganizerService {
   }
 
   async remindCart(userId: string, id: string) {
-    const org = await this.orgAccess.require(userId, 'Events & wizard', 'edit');
+    const org = await this.orgAccess.require(userId, 'Abandoned carts', 'edit');
     const cart = await this.prisma.cart.findUnique({ where: { id }, include: { user: true, event: { include: { venue: true } } } });
     if (!cart) throw new NotFoundException('Cart not found');
     if (!this.canAccessEvent(cart.event, org.id)) throw new ForbiddenException();

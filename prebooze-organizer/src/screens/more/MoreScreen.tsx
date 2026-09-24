@@ -18,12 +18,12 @@ const MORE_ITEMS: { label: string; icon: LucideIcon; module?: string | 'owner'; 
   { label: 'Live monitor', icon: Radio, module: 'Attendees & check-in', screen: 'LiveMonitor' },
   { label: 'Reviews', icon: Star, module: 'Reviews', screen: 'Reviews' },
   { label: 'Promo codes', icon: Tag, module: 'Coupons', screen: 'Coupons' },
-  { label: 'Abandoned carts', icon: ShoppingCart, module: 'Events & wizard', screen: 'AbandonedCarts' },
+  { label: 'Abandoned carts', icon: ShoppingCart, module: 'Abandoned carts', screen: 'AbandonedCarts' },
   { label: 'Payouts', icon: Banknote, module: 'Payouts & withdrawals', screen: 'Payouts' },
   { label: 'Transactions', icon: Receipt, module: 'Payouts & withdrawals', screen: 'Transactions' },
-  { label: 'Promoters', icon: Megaphone, module: 'Payouts & withdrawals', screen: 'Promoters' },
-  { label: 'Team & roles', icon: ShieldCheck, module: 'Settings & team', screen: 'TeamRoles' },
-  { label: 'Settings', icon: SettingsIcon, module: 'Settings & team', screen: 'Settings' },
+  { label: 'Promoters', icon: Megaphone, module: 'Promoters', screen: 'Promoters' },
+  { label: 'Team & roles', icon: ShieldCheck, module: 'Team & roles', screen: 'TeamRoles' },
+  { label: 'Settings', icon: SettingsIcon, module: 'Settings', screen: 'Settings' },
 ];
 
 export default function MoreScreen() {

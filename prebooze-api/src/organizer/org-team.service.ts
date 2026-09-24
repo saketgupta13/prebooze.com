@@ -4,29 +4,22 @@ import { normalizePhone } from '../auth/auth.service';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { OrgAccessService } from './org-access.service';
+import { ORG_PERM_MODULES, perms, backfillPermissions, type PermMatrix } from './org-perm-modules';
 
-export const ORG_PERM_MODULES = [
-  'Events & wizard',
-  'Attendees & check-in',
-  'Guest list',
-  'Coupons',
-  'Payouts & withdrawals',
-  'Reviews',
-  'Settings & team',
-] as const;
-
-type PermSet = { view: boolean; edit: boolean };
-type PermMatrix = Record<string, PermSet>;
-
-const perms = (view: boolean, edit: boolean): PermSet => ({ view, edit });
+export { ORG_PERM_MODULES, backfillPermissions };
 
 /** Seeded the first time an organizer ever looks at Team & roles — same
  * default shape the old mock shipped with (Owner/Manager/Door staff/
  * Promoter), now real per-organizer rows instead of a shared client-side
- * constant. */
+ * constant. Non-Owner defaults are a mechanical carry-forward from the
+ * pre-expansion matrix (see SPLIT_SOURCE) — nobody's effective default
+ * access changed in this expansion, only the granularity it's expressed
+ * at; adjusting what Manager/Door staff/Promoter can actually do is left
+ * to each organizer via the Team & roles editor now that it shows every
+ * real module instead of 7 broad buckets. */
 const DEFAULT_ROLES: Record<string, PermMatrix> = {
   Owner: Object.fromEntries(ORG_PERM_MODULES.map((m) => [m, perms(true, true)])),
-  Manager: {
+  Manager: backfillPermissions({
     'Events & wizard': perms(true, true),
     'Attendees & check-in': perms(true, true),
     'Guest list': perms(true, true),
@@ -34,8 +27,8 @@ const DEFAULT_ROLES: Record<string, PermMatrix> = {
     'Payouts & withdrawals': perms(true, false),
     Reviews: perms(true, false),
     'Settings & team': perms(true, false),
-  },
-  'Door staff': {
+  }).matrix,
+  'Door staff': backfillPermissions({
     'Events & wizard': perms(false, false),
     'Attendees & check-in': perms(true, true),
     'Guest list': perms(true, true),
@@ -43,8 +36,8 @@ const DEFAULT_ROLES: Record<string, PermMatrix> = {
     'Payouts & withdrawals': perms(false, false),
     Reviews: perms(false, false),
     'Settings & team': perms(false, false),
-  },
-  Promoter: {
+  }).matrix,
+  Promoter: backfillPermissions({
     'Events & wizard': perms(true, false),
     'Attendees & check-in': perms(true, false),
     'Guest list': perms(true, true),
@@ -52,7 +45,7 @@ const DEFAULT_ROLES: Record<string, PermMatrix> = {
     'Payouts & withdrawals': perms(false, false),
     Reviews: perms(true, false),
     'Settings & team': perms(false, false),
-  },
+  }).matrix,
 };
 
 @Injectable()
@@ -77,14 +70,26 @@ export class OrgTeamService {
 
   // ---------- roles ----------
   async listRoles(userId: string) {
-    const org = await this.orgAccess.require(userId, 'Settings & team', 'view');
+    const org = await this.orgAccess.require(userId, 'Team & roles', 'view');
     await this.ensureSeeded(org.id);
     const rows = await this.prisma.orgRole.findMany({ where: { organizerId: org.id } });
-    return Object.fromEntries(rows.map((r) => [r.name, r.permissions]));
+    // Self-heals a role saved under the pre-expansion 7-key shape — same
+    // lazy, write-on-first-read pattern ensureSeeded already uses, so an
+    // organizer who set up their team before the module split still sees
+    // (and can actually edit) every new module the very first time they
+    // reopen Team & roles, instead of it silently reading as all-false.
+    const backfilled = await Promise.all(
+      rows.map(async (r) => {
+        const { matrix, changed } = backfillPermissions(r.permissions as unknown as PermMatrix);
+        if (changed) await this.prisma.orgRole.update({ where: { id: r.id }, data: { permissions: matrix } });
+        return [r.name, matrix] as const;
+      }),
+    );
+    return Object.fromEntries(backfilled);
   }
 
   async addRole(userId: string, name: string) {
-    const org = await this.orgAccess.require(userId, 'Settings & team', 'edit');
+    const org = await this.orgAccess.require(userId, 'Team & roles', 'edit');
     await this.ensureSeeded(org.id);
     if (!name?.trim()) throw new BadRequestException('name is required');
     if (name.trim() === 'Owner') throw new BadRequestException('"Owner" is reserved');
@@ -96,7 +101,7 @@ export class OrgTeamService {
   }
 
   async setRolePerm(userId: string, roleName: string, module: string, key: 'view' | 'edit', value: boolean) {
-    const org = await this.orgAccess.require(userId, 'Settings & team', 'edit');
+    const org = await this.orgAccess.require(userId, 'Team & roles', 'edit');
     if (roleName === 'Owner') throw new BadRequestException('Owner always has full access');
     const role = await this.prisma.orgRole.findUnique({ where: { organizerId_name: { organizerId: org.id, name: roleName } } });
     if (!role) throw new NotFoundException('Role not found');
@@ -106,7 +111,7 @@ export class OrgTeamService {
   }
 
   async removeRole(userId: string, roleName: string) {
-    const org = await this.orgAccess.require(userId, 'Settings & team', 'edit');
+    const org = await this.orgAccess.require(userId, 'Team & roles', 'edit');
     if (roleName === 'Owner') throw new BadRequestException("The Owner role can't be removed");
     const inUse = await this.prisma.orgStaff.count({ where: { organizerId: org.id, roleName } });
     if (inUse > 0) throw new BadRequestException(`Reassign members using "${roleName}" first`);
@@ -118,7 +123,7 @@ export class OrgTeamService {
 
   // ---------- staff ----------
   async listStaff(userId: string) {
-    const org = await this.orgAccess.require(userId, 'Settings & team', 'view');
+    const org = await this.orgAccess.require(userId, 'Team & roles', 'view');
     return this.prisma.orgStaff.findMany({ where: { organizerId: org.id }, orderBy: { createdAt: 'asc' } });
   }
 
@@ -138,7 +143,7 @@ export class OrgTeamService {
    * key (EmailTemplate table) — it doesn't need to match the AiSensy
    * campaign name and was deliberately left as 'org_team_invite'. */
   async addStaff(userId: string, body: { name?: string; phone?: string; email?: string; roleName?: string; scan?: boolean }) {
-    const org = await this.orgAccess.require(userId, 'Settings & team', 'edit');
+    const org = await this.orgAccess.require(userId, 'Team & roles', 'edit');
     if (!body.name?.trim()) throw new BadRequestException('Name is required');
     if (!body.phone?.trim()) throw new BadRequestException('A phone number is required — that\'s how they log in');
     const phone = normalizePhone(body.phone);
@@ -178,7 +183,7 @@ export class OrgTeamService {
   }
 
   async updateStaffRole(userId: string, staffId: string, roleName: string) {
-    const org = await this.orgAccess.require(userId, 'Settings & team', 'edit');
+    const org = await this.orgAccess.require(userId, 'Team & roles', 'edit');
     const member = await this.prisma.orgStaff.findUnique({ where: { id: staffId } });
     if (!member || member.organizerId !== org.id) throw new NotFoundException('Team member not found');
     if (member.roleName === 'Owner') throw new BadRequestException("Can't change the Owner's role");
@@ -189,7 +194,7 @@ export class OrgTeamService {
   }
 
   async removeStaff(userId: string, staffId: string) {
-    const org = await this.orgAccess.require(userId, 'Settings & team', 'edit');
+    const org = await this.orgAccess.require(userId, 'Team & roles', 'edit');
     const member = await this.prisma.orgStaff.findUnique({ where: { id: staffId } });
     if (!member || member.organizerId !== org.id) throw new NotFoundException('Team member not found');
     if (member.roleName === 'Owner') throw new BadRequestException("Can't remove the Owner");

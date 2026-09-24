@@ -23,14 +23,14 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; module?
   { to: '/organizer/live', label: 'Live monitor', icon: Radio, module: 'Attendees & check-in' },
   { to: '/organizer/reviews', label: 'Reviews', icon: Star, module: 'Reviews' },
   { to: '/organizer/coupons', label: 'Promo codes', icon: Tag, module: 'Coupons' },
-  { to: '/organizer/carts', label: 'Abandoned carts', icon: ShoppingCart, module: 'Events & wizard' },
+  { to: '/organizer/carts', label: 'Abandoned carts', icon: ShoppingCart, module: 'Abandoned carts' },
   { to: '/organizer/payouts', label: 'Payouts', icon: Banknote, module: 'Payouts & withdrawals' },
   { to: '/organizer/transactions', label: 'Transactions', icon: Receipt, module: 'Payouts & withdrawals' },
-  { to: '/organizer/promoters', label: 'Promoters', icon: Megaphone, module: 'Payouts & withdrawals' },
-  { to: '/organizer/team', label: 'Team & roles', icon: ShieldCheck, module: 'Settings & team' },
+  { to: '/organizer/promoters', label: 'Promoters', icon: Megaphone, module: 'Promoters' },
+  { to: '/organizer/team', label: 'Team & roles', icon: ShieldCheck, module: 'Team & roles' },
   { to: '/organizer/billing', label: 'Featured & billing', icon: Award, module: 'owner' },
   { to: '/organizer/marketing', label: 'Marketing', icon: Rocket, module: 'owner' },
-  { to: '/organizer/settings', label: 'Settings', icon: SettingsIcon, module: 'Settings & team' },
+  { to: '/organizer/settings', label: 'Settings', icon: SettingsIcon, module: 'Settings' },
   // Personal-account items, same as the header's account dropdown (Header.tsx)
   // — no `module` (always visible to any team member) since these aren't
   // organizer-business permissions, they're the logged-in person's own.
