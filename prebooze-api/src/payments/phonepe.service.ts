@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { StandardCheckoutClient, StandardCheckoutPayRequest, RefundRequest, Env } from '@phonepe-pg/pg-sdk-node';
 
 /** PhonePe Payment Gateway integration (2026-09-18) — replacing the
@@ -188,6 +188,51 @@ export class PhonePeService {
       refundId: parsed.payload.refundId ?? '',
       amount: parsed.payload.amount,
       state: parsed.payload.state,
+    };
+  }
+
+  /** Settlement webhooks (settlement.initiated/processed/attempt.failed,
+   * enabled 2026-09-24) use a genuinely different envelope than order/
+   * refund callbacks — `event` instead of `type`, and payload fields
+   * (settlementId/utr/lastUpdatedAt) the SDK's CallbackResponse/CallbackData
+   * classes don't model at all (confirmed against the SDK's real
+   * CallbackType enum — no settlement values exist in it, and this SDK
+   * version has no newer release that adds any). So this validates and
+   * parses the raw body directly rather than going through
+   * getClient().validateCallback(), which expects the other shape.
+   * Same auth scheme PhonePe documents for these
+   * (developer.phonepe.com/settlement/settlement-webhooks): sha256(`${username}:${password}`)
+   * hex digest must equal the Authorization header, verbatim — replicated
+   * here with Node's own crypto rather than reaching into the SDK's
+   * internal (non-exported) CommonUtils for one hash call. */
+  validateSettlementCallback(authorizationHeader: string, rawBody: string): {
+    event: string; settlementId: string; state: string; utr: string; amount: number;
+    merchantId: string; lastAttemptErrorCode: string; lastAttemptErrorDescription: string; lastUpdatedAt: number;
+  } | null {
+    const username = process.env.PHONEPE_WEBHOOK_USERNAME;
+    const password = process.env.PHONEPE_WEBHOOK_PASSWORD;
+    if (!username || !password) throw new Error('PHONEPE_WEBHOOK_USERNAME/PASSWORD not configured — cannot validate a real callback');
+    const expected = createHash('sha256').update(`${username}:${password}`).digest('hex');
+    if (expected !== authorizationHeader) throw new Error('Invalid settlement callback signature');
+
+    let parsed: { event?: string; payload?: Record<string, unknown> };
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch {
+      return null;
+    }
+    if (!parsed.event?.startsWith('settlement.')) return null;
+    const p = parsed.payload ?? {};
+    return {
+      event: parsed.event,
+      settlementId: String(p.settlementId ?? ''),
+      state: String(p.state ?? ''),
+      utr: String(p.utr ?? ''),
+      amount: Number(p.amount ?? 0),
+      merchantId: String(p.merchantId ?? ''),
+      lastAttemptErrorCode: String(p.lastAttemptErrorCode ?? ''),
+      lastAttemptErrorDescription: String(p.lastAttemptErrorDescription ?? ''),
+      lastUpdatedAt: Number(p.lastUpdatedAt ?? Date.now()),
     };
   }
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Kpi, Tag } from '../components/ui';
 import { downloadCsv } from '../lib/csv';
-import { liveSettlements, LiveApiError, type LiveSettlement } from '../lib/liveApi';
+import { liveSettlements, LiveApiError, type LiveSettlement, type LivePhonePeSettlement } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
@@ -24,6 +24,11 @@ export default function Settlements() {
   const [total, setTotal] = useState(0);
   const [phonePeSettlements, setPhonePeSettlements] = useState<any[]>([]);
   const [phonePeTotal, setPhonePeTotal] = useState(0);
+  // Real, automatic PhonePe settlement batches from their own webhook — no
+  // CSV needed for these, unlike phonePeSettlements above (which stays
+  // CSV-based for the per-transaction fee/GST breakdown).
+  const [autoSettlements, setAutoSettlements] = useState<LivePhonePeSettlement[]>([]);
+  const [autoTotal, setAutoTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -41,6 +46,8 @@ export default function Settlements() {
       liveSettlements.listPhonePe().then((r) => {
         setPhonePeSettlements(r.settlements);
         setPhonePeTotal(r.total);
+        setAutoSettlements(r.auto);
+        setAutoTotal(r.autoTotal);
       }),
     ]).catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load')).finally(() => setLoading(false));
   };
@@ -54,6 +61,14 @@ export default function Settlements() {
   if (gate) return gate;
 
   const latest = settlements[0];
+  // Most recent across all three sources (Razorpay / PhonePe CSV / PhonePe
+  // auto-webhook) — whichever actually happened last, not just Razorpay's.
+  const latestCandidates: { date: string; amount: number }[] = [
+    ...(latest ? [{ date: latest.settledAt, amount: latest.amount }] : []),
+    ...(phonePeSettlements[0] ? [{ date: phonePeSettlements[0].fileDate, amount: phonePeSettlements[0].totalAmount }] : []),
+    ...(autoSettlements[0] ? [{ date: autoSettlements[0].settledAt, amount: autoSettlements[0].amount }] : []),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const mostRecent = latestCandidates[0];
 
   const exportCsv = () => {
     const rows: (string | number)[][] = [
@@ -94,9 +109,24 @@ export default function Settlements() {
       </div>
 
       <div className="kpi-grid">
-        <Kpi label="Total settled (lifetime)" value={<span className="green">₹{fmt(total + phonePeTotal)}</span>} delta={`Razorpay: ₹${fmt(total)} + PhonePe: ₹${fmt(phonePeTotal)}`} deltaColor="var(--muted)" />
-        <Kpi label="Most recent settlement" value={latest ? `₹${fmt(latest.amount)}` : (phonePeSettlements[0] ? `₹${fmt(phonePeSettlements[0].totalAmount / 100)}` : '—')} delta={latest ? new Date(latest.settledAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : (phonePeSettlements[0] ? new Date(phonePeSettlements[0].fileDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined)} deltaColor="var(--muted)" />
-        <Kpi label="Settlement records" value={settlements.length + phonePeSettlements.length} delta={`Razorpay: ${settlements.length} | PhonePe: ${phonePeSettlements.length}`} deltaColor="var(--muted)" />
+        <Kpi
+          label="Total settled (lifetime)"
+          value={<span className="green">₹{fmt(total + phonePeTotal)}</span>}
+          delta={`Razorpay: ₹${fmt(total)} + PhonePe: ₹${fmt(phonePeTotal)} (₹${fmt(autoTotal)} auto)`}
+          deltaColor="var(--muted)"
+        />
+        <Kpi
+          label="Most recent settlement"
+          value={mostRecent ? `₹${fmt(mostRecent.amount)}` : '—'}
+          delta={mostRecent ? new Date(mostRecent.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined}
+          deltaColor="var(--muted)"
+        />
+        <Kpi
+          label="Settlement records"
+          value={settlements.length + phonePeSettlements.length + autoSettlements.length}
+          delta={`Razorpay: ${settlements.length} | PhonePe (CSV): ${phonePeSettlements.length} | PhonePe (auto): ${autoSettlements.length}`}
+          deltaColor="var(--muted)"
+        />
       </div>
 
       <div className="tiny hint">
@@ -147,15 +177,31 @@ export default function Settlements() {
         {phonePeSettlements.map((s) => (
           <Link key={`pp-${s.id}`} to={`/settlements/phonepe/${encodeURIComponent(s.id)}`} className="trow" style={{ minWidth: 680, cursor: 'pointer' }}>
             <span style={{ flex: 1 }} className="muted">{new Date(s.fileDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-            <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(Number(s.totalAmount) / 100)}</span>
+            {/* listPhonePe already converts paise -> rupees server-side (fixed
+                2026-09-24) — dividing by 100 again here was a real bug that
+                would have shown 100x too small once real imports worked. */}
+            <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(Number(s.totalAmount))}</span>
             <span style={{ flex: 1 }}>
               <Tag label={s.status} cls={s.status === 'RECONCILED' ? 'tag-green' : 'tag-dim'} />
             </span>
-            <span style={{ flex: 1 }} className="muted">PhonePe</span>
+            <span style={{ flex: 1 }} className="muted">PhonePe (CSV)</span>
             <span style={{ flex: 1.5 }} className="muted">{s.filename}</span>
           </Link>
         ))}
-        {settlements.length === 0 && !loading && <div className="trow muted">No settlements yet.</div>}
+        {autoSettlements.map((s) => (
+          <div key={`auto-${s.id}`} className="trow" style={{ minWidth: 680 }}>
+            <span style={{ flex: 1 }} className="muted">{new Date(s.settledAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+            <span style={{ flex: 1, fontWeight: 700 }} className="green">₹{fmt(s.amount)}</span>
+            <span style={{ flex: 1 }}>
+              <Tag label={s.state} cls={s.state === 'PROCESSED' ? 'tag-green' : s.state === 'ATTEMPT_FAILED' ? 'tag-red' : 'tag-dim'} />
+            </span>
+            <span style={{ flex: 1 }} className="muted">PhonePe (auto)</span>
+            <span style={{ flex: 1.5 }} className="muted">{s.utr ?? s.id}</span>
+          </div>
+        ))}
+        {settlements.length === 0 && phonePeSettlements.length === 0 && autoSettlements.length === 0 && !loading && (
+          <div className="trow muted">No settlements yet.</div>
+        )}
       </div>
     </div>
   );

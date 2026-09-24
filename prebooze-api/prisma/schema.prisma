@@ -2339,6 +2339,31 @@ model RazorpaySettlementItem {
   @@index([settlementId])
 }
 
+// Real, automatic PhonePe settlement batches — fed by PhonePe's own
+// settlement.initiated/processed/attempt.failed webhooks (enabled on the
+// merchant dashboard 2026-09-24), the same "no manual step" automation
+// RazorpaySettlement already had via Razorpay's Settlements API. PhonePe's
+// SDK has no equivalent settlement-listing API to poll, so the webhook is
+// the only automatic path — this is genuinely real-time, not a sync job.
+// One row per settlementId, upserted as its state moves through the
+// lifecycle (INITIATED -> PROCESSED, or -> ATTEMPT_FAILED). Kept separate
+// from PhonePeSettlementFile below, which is the CSV-based PER-TRANSACTION
+// fee/GST breakdown (a different granularity PhonePe's settlement webhook
+// doesn't provide) — this table is the "how much, when, UTR" batch-level
+// record, mirroring RazorpaySettlement's own shape.
+model PhonePeSettlement {
+  id                          String   @id // PhonePe's settlementId
+  amount                      Float    // ₹, converted from the webhook's paise
+  state                       String   // INITIATED | PROCESSED | ATTEMPT_FAILED
+  utr                         String?
+  merchantId                  String?
+  lastAttemptErrorCode        String?
+  lastAttemptErrorDescription String?
+  settledAt                   DateTime // from the webhook's lastUpdatedAt (epoch ms)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
 // PhonePe settlement files (async CSV imports, T+1/T+2 payout cycle)
 model PhonePeSettlementFile {
   id            String   @id @default(cuid())

@@ -1145,6 +1145,18 @@ export interface LiveSettlementDetail {
   gstCutTotal: number;
   feeTotal: number;
 }
+// Real, automatic PhonePe settlement batches — fed by PhonePe's own
+// settlement.initiated/processed/attempt.failed webhooks, no CSV needed
+// (see PhonePeWebhookController / SettlementsService.upsertPhonePeSettlement).
+export interface LivePhonePeSettlement {
+  id: string; // PhonePe's settlementId
+  amount: number; // ₹
+  state: 'INITIATED' | 'PROCESSED' | 'ATTEMPT_FAILED' | string;
+  utr: string | null;
+  lastAttemptErrorCode: string | null;
+  lastAttemptErrorDescription: string | null;
+  settledAt: string;
+}
 export const liveSettlements = {
   // Cached data only — synced daily by CronService.settlementSyncTick, not
   // fetched live from Razorpay on every page load (a full backfill re-sync
@@ -1152,7 +1164,8 @@ export const liveSettlements = {
   // API more often than settlements actually change).
   list: () => liveFetch<{ settlements: LiveSettlement[]; total: number }>('/admin/settlements'),
   detail: (id: string) => liveFetch<LiveSettlementDetail>(`/admin/settlements/${encodeURIComponent(id)}`),
-  listPhonePe: () => liveFetch<{ settlements: any[]; total: number }>('/admin/settlements/phonepe/list'),
+  listPhonePe: () =>
+    liveFetch<{ settlements: any[]; total: number; auto: LivePhonePeSettlement[]; autoTotal: number }>('/admin/settlements/phonepe/list'),
   detailPhonePe: (id: string) => liveFetch<any>(`/admin/settlements/phonepe/${encodeURIComponent(id)}`),
   // Multipart, so it can't go through liveFetch (JSON-only) — same real
   // pattern as liveMedia.upload. Real bug fixed 2026-09-24: Settlements.tsx

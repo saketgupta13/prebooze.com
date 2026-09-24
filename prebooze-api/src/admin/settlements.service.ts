@@ -120,14 +120,54 @@ export class SettlementsService {
   // PhonePe settlements — CSV-based async model (T+1/T+2 payout cycle)
   // ============================================================================
 
+  /** Upserted by a real settlement.initiated/processed/attempt.failed
+   * webhook (PhonePeWebhookController) — the genuinely automatic
+   * counterpart to the CSV import below, mirroring how Razorpay's own
+   * settlements need no manual step. `amount` arrives in paise, same
+   * convention as every other PhonePe amount in this codebase. */
+  async upsertPhonePeSettlement(data: {
+    settlementId: string; state: string; utr: string; amountPaise: number;
+    merchantId: string; lastAttemptErrorCode: string; lastAttemptErrorDescription: string; lastUpdatedAt: number;
+  }) {
+    if (!data.settlementId) return;
+    await this.prisma.phonePeSettlement.upsert({
+      where: { id: data.settlementId },
+      create: {
+        id: data.settlementId,
+        amount: data.amountPaise / 100,
+        state: data.state,
+        utr: data.utr || null,
+        merchantId: data.merchantId || null,
+        lastAttemptErrorCode: data.lastAttemptErrorCode || null,
+        lastAttemptErrorDescription: data.lastAttemptErrorDescription || null,
+        settledAt: new Date(data.lastUpdatedAt),
+      },
+      update: {
+        amount: data.amountPaise / 100,
+        state: data.state,
+        utr: data.utr || null,
+        lastAttemptErrorCode: data.lastAttemptErrorCode || null,
+        lastAttemptErrorDescription: data.lastAttemptErrorDescription || null,
+        settledAt: new Date(data.lastUpdatedAt),
+      },
+    });
+    this.log.log(`PhonePe settlement webhook: ${data.settlementId} -> ${data.state}`);
+  }
+
   async listPhonePe() {
     const files = await this.prisma.phonePeSettlementFile.findMany({
       where: { status: 'RECONCILED' },
       orderBy: { fileDate: 'desc' },
       include: { items: { take: 5 } }, // Preview first 5 items
     });
+    // Real, automatic settlement batches from PhonePe's own webhook — see
+    // upsertPhonePeSettlement's doc comment. Only PROCESSED ones count
+    // toward the settled total, same as Razorpay's own settlements are
+    // implicitly "done" the moment they're synced.
+    const autoSettlements = await this.prisma.phonePeSettlement.findMany({ orderBy: { settledAt: 'desc' } });
 
-    const total = files.reduce((sum, f) => sum + f.totalAmount, BigInt(0));
+    const fileTotal = files.reduce((sum, f) => sum + f.totalAmount, BigInt(0));
+    const autoTotal = autoSettlements.filter((s) => s.state === 'PROCESSED').reduce((sum, s) => sum + s.amount, 0);
     // Real bug fixed 2026-09-24: PhonePeSettlementFile/Item store amounts as
     // Prisma BigInt (paise), and this returned the raw rows straight through
     // — Express's JSON serializer throws "Do not know how to serialize a
@@ -142,7 +182,12 @@ export class SettlementsService {
       totalGST: Number(f.totalGST) / 100,
       items: f.items.map((i) => ({ ...i, amount: Number(i.amount) / 100, fee: Number(i.fee) / 100, gst: Number(i.gst) / 100 })),
     }));
-    return { settlements, total: Number(total) / 100 }; // Convert paise to rupees for display
+    return {
+      settlements,
+      total: Number(fileTotal) / 100 + autoTotal, // Convert paise to rupees for display
+      auto: autoSettlements,
+      autoTotal,
+    };
   }
 
   async detailPhonePe(fileId: string) {
