@@ -227,7 +227,7 @@ export default function OfflineBooking() {
                 <span>Guest name</span>
                 <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Main guest" />
               </div>
-              <div className="field" style={{ flex: '0 0 120px' }}>
+              <div className="field" style={{ flex: '0 0 auto', width: 120 }}>
                 <span>Gender</span>
                 <select value={gender} onChange={(e) => setGender(e.target.value)}>
                   <option value="">—</option>
@@ -248,7 +248,7 @@ export default function OfflineBooking() {
                     <div className="field" style={{ marginBottom: 0 }}>
                       <input value={o.name} onChange={(e) => setOthers((prev) => prev.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} placeholder={`Guest ${i + 2} name`} />
                     </div>
-                    <div className="field" style={{ flex: '0 0 120px', marginBottom: 0 }}>
+                    <div className="field" style={{ flex: '0 0 auto', width: 120, marginBottom: 0 }}>
                       <select value={o.gender} onChange={(e) => setOthers((prev) => prev.map((x, j) => (j === i ? { ...x, gender: e.target.value } : x)))}>
                         <option value="">—</option>
                         {GENDERS.map((g) => <option key={g}>{g}</option>)}
