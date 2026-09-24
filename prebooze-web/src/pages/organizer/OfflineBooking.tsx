@@ -223,11 +223,11 @@ export default function OfflineBooking() {
             )}
 
             <div className="form-row" style={{ marginBottom: 14 }}>
-              <div className="field">
+              <div className="field" style={{ marginBottom: 0 }}>
                 <span>Guest name</span>
                 <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Main guest" />
               </div>
-              <div className="field">
+              <div className="field" style={{ marginBottom: 0 }}>
                 <span>Gender</span>
                 <select value={gender} onChange={(e) => setGender(e.target.value)}>
                   <option value="">—</option>

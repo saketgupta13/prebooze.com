@@ -1390,6 +1390,7 @@ export class BookingsService {
     const { holdId } = await this.holds.create(guest.id, event.id, { [tier.id]: input.qty });
     const merchantOrderId = `${holdId}-${randomBytes(6).toString('hex')}`;
     const returnUrl = `${process.env.WEB_APP_URL || 'https://prebooze.com'}/pay/complete?holdId=${encodeURIComponent(holdId)}`;
+    const order = await this.phonepe.createOrder(merchantOrderId, total * 100, returnUrl);
 
     await this.prisma.cart.updateMany({
       where: { holdId },
@@ -1411,19 +1412,38 @@ export class BookingsService {
           // change what a booking that's already mid-payment gets recorded
           // as (same reasoning as booking.commission being locked in above).
           subtotal, fee, gstPct, gstAmount: gstSplit.gstAmount, igstAmount: gstSplit.igstAmount, total,
+          // PhonePe's own redirect URL is a ~600-char signed token — stored
+          // here so GET /pay/go/:holdId (a short, in-house redirect) can
+          // resolve it, letting the WhatsApp message carry a real short
+          // link instead of that whole token pasted into the chat.
+          redirectUrl: order.redirectUrl,
         } as Prisma.InputJsonValue,
       },
     });
 
-    const order = await this.phonepe.createOrder(merchantOrderId, total * 100, returnUrl);
+    const shortLink = `${process.env.API_PUBLIC_URL || 'https://api.prebooze.com'}/v1/pay/go/${encodeURIComponent(holdId)}`;
     // New campaign, not yet submitted for AiSensy/Meta approval — will
     // 400 ("Campaign does not exist") until that's done, same situation
     // every previous new campaign started in (see WhatsappService's own
     // sendLeadOnboardingInvite doc comment). Swallowed, same as every other
     // WhatsApp send here — never blocks the real booking/payment flow.
-    await this.wa.send(phone, 'offline_payment_link', [input.guestName.trim(), event.title, order.redirectUrl]).catch(() => {});
+    await this.wa.send(phone, 'offline_payment_link', [input.guestName.trim(), event.title, shortLink]).catch(() => {});
 
-    return { holdId, redirectUrl: order.redirectUrl, subtotal, fee, gstPct, gst: gstSplit.gstAmount, total, phone };
+    return { holdId, redirectUrl: shortLink, subtotal, fee, gstPct, gst: gstSplit.gstAmount, total, phone };
+  }
+
+  /** The short link WhatsApp actually carries (see createOfflineBookingPaymentLink
+   * above) — resolves back to PhonePe's real, ~600-char signed redirect URL.
+   * Public/unauthenticated by necessity: the guest opening this has no
+   * Prebooze login at all, same reasoning as /pay/complete being a public
+   * route. Doesn't touch payment state, only reads back what was already
+   * stored — no different in trust level from PhonePe's own long URL being
+   * pasted into the chat directly. */
+  async offlinePaymentLinkRedirect(holdId: string): Promise<string> {
+    const cart = await this.prisma.cart.findFirst({ where: { holdId } });
+    const redirectUrl = (cart?.bookingPayload as { redirectUrl?: string } | null)?.redirectUrl;
+    if (!redirectUrl) throw new NotFoundException('This payment link has expired or already been used');
+    return redirectUrl;
   }
 
   /** The real webhook-confirmed counterpart to createOfflineBookingPaymentLink

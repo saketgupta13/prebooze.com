@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards, Redirect } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import type { CreateBookingInput } from './bookings.service';
@@ -18,6 +18,15 @@ type AuthedReqWithMeta = AuthedReq & {
 @Controller()
 export class BookingsController {
   constructor(private bookings: BookingsService) {}
+
+  /** Short redirect a guest's WhatsApp actually links to — see
+   * BookingsService.offlinePaymentLinkRedirect for why this exists
+   * (PhonePe's own URL is a ~600-char signed token). Public, no auth. */
+  @Get('pay/go/:holdId')
+  @Redirect()
+  async offlinePaymentLinkRedirect(@Param('holdId') holdId: string) {
+    return { url: await this.bookings.offlinePaymentLinkRedirect(holdId), statusCode: 302 };
+  }
 
   @Post('bookings/hold')
   @UseGuards(JwtAuthGuard)
