@@ -15,6 +15,7 @@ import type { MainTabParamList, BookingsStackParamList } from '../../navigation/
 type Nav = CompositeNavigationProp<NativeStackNavigationProp<BookingsStackParamList>, BottomTabNavigationProp<MainTabParamList>>;
 
 const STATUS_FILTERS = ['All', 'Checked in', 'Confirmed', 'Refund requested', 'Refunded', 'Cancelled'];
+const SOURCE_FILTERS = ['All sources', 'Online', 'Offline'];
 const fmtMoney = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN');
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -35,6 +36,7 @@ export default function BookingsScreen() {
   const [err, setErr] = useState('');
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('All');
+  const [source, setSource] = useState('All sources');
   const [scope, setScope] = useState<'live' | 'past'>('live');
   const eventF = route.params?.eventId;
 
@@ -75,17 +77,21 @@ export default function BookingsScreen() {
       const want: RowStatus = status === 'Checked in' ? 'checked-in' : status === 'Confirmed' ? 'confirmed' : status === 'Refund requested' ? 'refund_requested' : status === 'Refunded' ? 'refunded' : 'cancelled';
       l = l.filter((b) => rowStatus(b) === want);
     }
+    if (source !== 'All sources') {
+      const want = source === 'Online' ? 'online' : 'offline';
+      l = l.filter((b) => b.bookingSource === want);
+    }
     if (q.trim()) {
       const s = q.toLowerCase();
       l = l.filter((b) => (b.mainGuest + b.whatsapp + b.id).toLowerCase().includes(s));
     }
     return l;
-  }, [bookings, eventF, status, q]);
+  }, [bookings, eventF, status, source, q]);
 
   const exportCsv = () => {
     const csv = [
       'id,guest,phone,tier,qty,amount,event,status',
-      ...filtered.map((b) => `${b.id},"${b.mainGuest}",${b.whatsapp},"${b.tierName}",${b.qty},${b.total},"${b.event.title}",${rowStatus(b)}`),
+      ...filtered.map((b) => `${b.id},"${b.mainGuest}",${b.whatsapp},"${b.tierName}",${b.qty},${b.total},"${b.event.title}",${b.bookingSource}${b.offlinePaymentMode ? `:${b.offlinePaymentMode}` : ''},${rowStatus(b)}`),
     ].join('\n');
     Share.share({ message: csv, title: 'bookings.csv' });
   };
@@ -113,6 +119,13 @@ export default function BookingsScreen() {
           <View style={styles.chipRow}>
             {STATUS_FILTERS.map((s) => (
               <Chip key={s} label={s} active={status === s} onPress={() => setStatus(s)} />
+            ))}
+          </View>
+        )}
+        {!showingSummary && (
+          <View style={styles.chipRow}>
+            {SOURCE_FILTERS.map((s) => (
+              <Chip key={s} label={s} active={source === s} onPress={() => setSource(s)} />
             ))}
           </View>
         )}
@@ -177,6 +190,9 @@ export default function BookingsScreen() {
                     <Muted style={styles.tiny}>{b.mainGuest} · {b.whatsapp}</Muted>
                     <Muted style={styles.tiny}>{b.event.title}</Muted>
                     <Txt style={styles.tiny}>{b.qty} · {fmtMoney(b.total)}</Txt>
+                    <Muted style={[styles.tiny, b.bookingSource === 'offline' && { color: colors.accent }]}>
+                      {b.bookingSource === 'offline' ? (b.offlinePaymentMode === 'self_collected' ? 'Offline · cash' : 'Offline · link') : 'Online'}
+                    </Muted>
                   </View>
                   {s === 'checked-in' && <StatusBadge label="Checked in" tone="success" icon />}
                   {s === 'confirmed' && <StatusBadge label="Confirmed" tone="default" />}

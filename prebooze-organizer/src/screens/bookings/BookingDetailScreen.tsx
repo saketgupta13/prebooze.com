@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AlertTriangle, ArrowLeft, CheckCircle2, RefreshCw, Undo2 } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { ApiError } from '../../api/client';
-import { Badge, Card, H1, IconButton, Muted, Screen, Txt } from '../../components/ui';
+import { Badge, Button, Card, H1, IconButton, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import type { OrgBookingDetail } from '../../types';
 import type { BookingsStackParamList } from '../../navigation/types';
@@ -31,19 +31,62 @@ export default function BookingDetailScreen() {
   const [booking, setBooking] = useState<OrgBookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [actionErr, setActionErr] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+  const [voiding, setVoiding] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      setLoading(true);
-      organizer
-        .bookingDetail(id)
-        .then((b) => { if (!cancelled) setBooking(b); })
-        .catch((e) => { if (!cancelled) setErr(e instanceof ApiError ? e.message : 'Failed to load booking'); })
-        .finally(() => { if (!cancelled) setLoading(false); });
-      return () => { cancelled = true; };
-    }, [id]),
-  );
+  const load = useCallback(() => {
+    let cancelled = false;
+    setLoading(true);
+    organizer
+      .bookingDetail(id)
+      .then((b) => { if (!cancelled) setBooking(b); })
+      .catch((e) => { if (!cancelled) setErr(e instanceof ApiError ? e.message : 'Failed to load booking'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [id]);
+
+  useFocusEffect(useCallback(() => load(), [load]));
+
+  const doResend = async () => {
+    setResending(true);
+    setActionErr('');
+    try {
+      await organizer.resendOfflineBooking(id);
+      setResent(true);
+    } catch (e) {
+      setActionErr(e instanceof ApiError ? e.message : 'Could not resend');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const confirmVoid = () => {
+    Alert.alert(
+      'Void this booking?',
+      "Frees up the tier inventory and credits back the 2% commission + booking fee + GST Prebooze charged on it. This does NOT refund the guest — you're voiding it because they never showed up or it was a mistake, and you're keeping (or already returned) their cash yourself.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, void it',
+          style: 'destructive',
+          onPress: async () => {
+            setVoiding(true);
+            setActionErr('');
+            try {
+              const updated = await organizer.voidOfflineBooking(id);
+              setBooking((prev) => (prev ? { ...prev, status: updated.status } : prev));
+            } catch (e) {
+              setActionErr(e instanceof ApiError ? e.message : 'Could not void this booking');
+            } finally {
+              setVoiding(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <Screen>
@@ -62,6 +105,33 @@ export default function BookingDetailScreen() {
 
         {booking && (
           <>
+            {booking.bookingSource === 'offline' && (
+              <Card style={styles.card}>
+                {booking.createdBy && (
+                  <Muted style={styles.tiny}>Created by {booking.createdBy.name || booking.createdBy.phone} · {booking.createdBy.phone}</Muted>
+                )}
+                {!!actionErr && <Txt style={{ color: colors.danger, fontSize: fontSize.s }}>{actionErr}</Txt>}
+                <View style={styles.actionsRow}>
+                  <Button
+                    label={resending ? 'Resending…' : resent ? 'Resent ✓' : 'Resend to WhatsApp'}
+                    variant="ghost"
+                    onPress={doResend}
+                    disabled={resending}
+                    style={{ flex: 1 }}
+                  />
+                  {booking.offlinePaymentMode === 'self_collected' && booking.status === 'confirmed' && (
+                    <Button
+                      label={voiding ? 'Voiding…' : 'Void'}
+                      variant="ghost"
+                      onPress={confirmVoid}
+                      disabled={voiding}
+                      style={{ flex: 1 }}
+                    />
+                  )}
+                </View>
+              </Card>
+            )}
+
             <Card style={styles.card}>
               <Txt style={styles.sectionTitle}>Guest</Txt>
               <Muted style={styles.tiny}>{booking.user.name || booking.mainGuest} · {booking.whatsapp}{booking.user.email ? ` · ${booking.user.email}` : ''}</Muted>
@@ -179,4 +249,5 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 6, marginTop: 2, borderTopWidth: 1, borderTopColor: colors.border },
   guestRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: spacing.s, paddingVertical: 6 },
   iconRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  actionsRow: { flexDirection: 'row', gap: spacing.s },
 });

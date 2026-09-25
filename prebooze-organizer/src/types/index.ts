@@ -320,6 +320,8 @@ export interface OrgBooking {
   status: 'confirmed' | 'cancelled' | 'refunded' | 'refund_requested';
   checkedIn: boolean;
   createdAt: string;
+  bookingSource: 'online' | 'offline';
+  offlinePaymentMode: 'self_collected' | 'payment_link' | null;
   event: { id: string; title: string; date: string; durationHrs: number };
 }
 
@@ -343,6 +345,8 @@ export interface OrgBookingDetail {
   walletCreditUsed: number;
   paymentId?: string | null;
   paymentMethod?: string | null;
+  bookingSource: 'online' | 'offline';
+  offlinePaymentMode?: 'self_collected' | 'payment_link' | null;
   refundedTo?: string | null;
   refundFailedAt?: string | null;
   refundGatewayState?: string | null;
@@ -355,6 +359,9 @@ export interface OrgBookingDetail {
   promoterRef?: string | null;
   promoterCommission: number;
   promoter?: { id: string; name: string; slug: string } | null;
+  // Which staff/owner account created this offline booking — null for
+  // every ordinary online booking.
+  createdBy?: { name: string | null; phone: string } | null;
   user: { name: string; phone: string; email?: string };
   event: { id: string; title: string; date: string; durationHrs: number; venue?: { name: string; city: string } | null; organizer?: { brandName: string } | null };
 }

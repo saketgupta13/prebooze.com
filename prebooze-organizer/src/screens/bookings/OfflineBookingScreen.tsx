@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, CheckCircle2, Copy, Send, X } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle2, Copy, Minus, Plus, Send, X } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { organizer } from '../../api/organizer';
+import { platform } from '../../api/platform';
 import { ApiError } from '../../api/client';
 import { Button, Card, Chip, H1, IconButton, Input, Muted, Screen, Txt } from '../../components/ui';
 import SearchableSelect from '../../components/SearchableSelect';
@@ -18,20 +19,24 @@ import type { BookingsStackParamList } from '../../navigation/types';
 
 const GENDERS = ['Male', 'Female', 'Other'];
 
-/** Faithful port of prebooze-web/src/pages/organizer/OfflineBookingModal.tsx
- * as a pushed stack screen (RN has no inline-form modal convention in this
- * app — EventWizard uses the same full-screen-push pattern). Two payment
- * modes: "self-collected" (organizer already has the guest's cash/UPI in
- * hand, confirms immediately) or "payment link" (a real PhonePe order
- * texted to the guest — confirms once they actually pay, same webhook
- * pipeline every online checkout already uses). Prebooze takes a flat 2%
- * on either, separate from the event's own online rate — see PayoutsScreen's
- * "Offline booking charges" section for what that came to per booking. */
+/** Faithful port of prebooze-web/src/pages/organizer/OfflineBooking.tsx (a
+ * full page as of 2026-09-25, not a modal — same pushed-screen pattern
+ * EventWizard already uses, this app has no inline-modal convention). Two
+ * payment modes: "self-collected" (organizer already has the guest's cash/
+ * UPI in hand, confirms immediately — they now owe Prebooze the flat 2%
+ * commission PLUS the booking fee + GST portion of what they're holding,
+ * since there's no gateway here to collect those separately) or "payment
+ * link" (a real PhonePe order texted to the guest, fee+GST-inclusive —
+ * confirms once they actually pay, same webhook pipeline every online
+ * checkout already uses). See PayoutsScreen's "Offline booking charges"
+ * section for what self-collected mode's cut came to per booking. */
 export default function OfflineBookingScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<BookingsStackParamList>>();
   const [events, setEvents] = useState<Event[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadErr, setLoadErr] = useState('');
+  const [bookingFee, setBookingFee] = useState(1.5);
+  const [gstPct, setGstPct] = useState(0);
   const [eventId, setEventId] = useState('');
   const [tierId, setTierId] = useState('');
   const [qty, setQty] = useState(1);
@@ -42,7 +47,7 @@ export default function OfflineBookingScreen() {
   const [paymentMode, setPaymentMode] = useState<'self_collected' | 'payment_link'>('self_collected');
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState('');
-  const [linkResult, setLinkResult] = useState<{ redirectUrl: string; subtotal: number } | null>(null);
+  const [linkResult, setLinkResult] = useState<{ redirectUrl: string; total: number } | null>(null);
   const [selfResult, setSelfResult] = useState<OrgBooking | null>(null);
 
   useEffect(() => {
@@ -51,6 +56,7 @@ export default function OfflineBookingScreen() {
       .then((all) => setEvents(all.filter((e) => e.status === 'approved' && !isEventOver(e))))
       .catch((e) => setLoadErr(e instanceof ApiError ? e.message : 'Could not load your events'))
       .finally(() => setLoadingEvents(false));
+    platform.feeInfo().then((f) => { setBookingFee(f.bookingFee); setGstPct(f.gstPct); }).catch(() => {});
   }, []);
 
   const event = events.find((e) => e.id === eventId);
@@ -59,6 +65,13 @@ export default function OfflineBookingScreen() {
   const extraNeeded = tier ? Math.max(0, qty * partySize - 1) : 0;
   const tierPrice = tier && event ? displayTierPrice(tier, event.date) : 0;
   const subtotal = tierPrice * qty;
+  // Preview only — same formula as the backend's real computation
+  // (prepareOfflineBooking), off the same public platform settings web's
+  // Checkout.tsx already uses, so what's shown here matches what's charged.
+  const fee = subtotal > 0 ? Math.round((subtotal * bookingFee) / 100) : 0;
+  const gst = Math.round((fee * gstPct) / 100);
+  const total = subtotal + fee + gst;
+  const maxQty = tier ? tier.quantity - tier.sold : 1;
 
   useEffect(() => {
     setOthers((prev) => {
@@ -88,7 +101,8 @@ export default function OfflineBookingScreen() {
       };
       const res = await organizer.createOfflineBooking(body);
       if (paymentMode === 'payment_link') {
-        setLinkResult(res as { redirectUrl: string; subtotal: number });
+        const r = res as { redirectUrl: string; total: number };
+        setLinkResult(r);
       } else {
         setSelfResult(res as OrgBooking);
       }
@@ -124,7 +138,7 @@ export default function OfflineBookingScreen() {
           <Card style={styles.card}>
             <View style={styles.iconRow}><Send size={14} color={colors.accent} /><Txt style={[styles.bold, { color: colors.accent }]}>Payment link sent to {whatsapp}</Txt></View>
             <Muted style={styles.tiny}>
-              {fmtMoney(linkResult.subtotal)} — the booking confirms automatically the moment they pay, and they'll get their ticket
+              {fmtMoney(linkResult.total)} — the booking confirms automatically the moment they pay, and they'll get their ticket
               the same way as any other booking. You can also copy the link below if WhatsApp delivery doesn't land.
             </Muted>
             <View style={styles.linkRow}>
@@ -136,7 +150,7 @@ export default function OfflineBookingScreen() {
         ) : selfResult ? (
           <Card style={styles.card}>
             <View style={styles.iconRow}><CheckCircle2 size={14} color={colors.success} /><Txt style={[styles.bold, { color: colors.success }]}>Booking confirmed — {selfResult.id}</Txt></View>
-            <Muted style={styles.tiny}>Ticket sent to {whatsapp}. Prebooze's 2% ({fmtMoney(Math.round(subtotal * 0.02))}) will show under Payouts → Offline booking charges.</Muted>
+            <Muted style={styles.tiny}>Ticket sent to {whatsapp}. Prebooze's cut (2% commission + booking fee + GST) will show under Payouts → Offline booking charges.</Muted>
             <Button label="Done" onPress={() => navigation.goBack()} style={{ marginTop: spacing.s }} />
           </Card>
         ) : (
@@ -181,20 +195,42 @@ export default function OfflineBookingScreen() {
             )}
 
             {tier && (
-              <View style={[styles.row2, styles.fieldGap]}>
-                <View style={{ width: 100 }}>
-                  <Txt style={styles.label}>Qty</Txt>
-                  <Input
-                    value={String(qty)}
-                    onChangeText={(t) => setQty(Math.max(1, Math.min(tier.quantity - tier.sold, parseInt(t, 10) || 1)))}
-                    keyboardType="number-pad"
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Txt style={styles.label}>Total</Txt>
-                  <Txt style={[styles.bold, { paddingVertical: spacing.s }]}>{subtotal > 0 ? fmtMoney(subtotal) : 'Free'}</Txt>
+              <View style={styles.fieldGap}>
+                <Txt style={styles.label}>Quantity</Txt>
+                <View style={styles.stepperRow}>
+                  <Pressable style={styles.stepperBtn} disabled={qty <= 1} onPress={() => setQty((q) => Math.max(1, q - 1))}>
+                    <Minus size={15} color={qty <= 1 ? colors.muted : colors.text} />
+                  </Pressable>
+                  <Txt style={styles.stepperValue}>{qty}</Txt>
+                  <Pressable style={styles.stepperBtn} disabled={qty >= maxQty} onPress={() => setQty((q) => Math.min(maxQty, q + 1))}>
+                    <Plus size={15} color={qty >= maxQty ? colors.muted : colors.text} />
+                  </Pressable>
                 </View>
               </View>
+            )}
+
+            {tier && (
+              <Card style={[styles.breakdownCard, styles.fieldGap]}>
+                <Muted style={styles.tiny}>Price breakdown</Muted>
+                <View style={styles.breakdownRow}>
+                  <Muted style={styles.tiny}>{qty} × {tier.name} ({fmtMoney(tierPrice)})</Muted>
+                  <Txt style={styles.tiny}>{fmtMoney(subtotal)}</Txt>
+                </View>
+                <View style={styles.breakdownRow}>
+                  <Muted style={styles.tiny}>Booking fee</Muted>
+                  <Txt style={styles.tiny}>{fmtMoney(fee)}</Txt>
+                </View>
+                {gst > 0 && (
+                  <View style={styles.breakdownRow}>
+                    <Muted style={styles.tiny}>GST ({gstPct}% on fee)</Muted>
+                    <Txt style={styles.tiny}>{fmtMoney(gst)}</Txt>
+                  </View>
+                )}
+                <View style={[styles.breakdownRow, styles.breakdownTotal]}>
+                  <Txt style={styles.bold}>Total {paymentMode === 'self_collected' ? 'to collect' : 'guest pays'}</Txt>
+                  <Txt style={styles.bold}>{total > 0 ? fmtMoney(total) : 'Free'}</Txt>
+                </View>
+              </Card>
             )}
 
             <View style={[styles.row2, styles.fieldGap]}>
@@ -218,7 +254,7 @@ export default function OfflineBookingScreen() {
             {others.length > 0 && (
               <View style={styles.fieldGap}>
                 <Muted style={styles.tiny}>
-                  {tier?.name} needs {qty * partySize} names total{coupleHint ? ' — one Male, one Female per pair' : ''}. {qty} × {fmtMoney(tierPrice)} = {fmtMoney(subtotal)} total, covering all {qty * partySize} guests.
+                  {tier?.name} needs {qty * partySize} names total{coupleHint ? ' — one Male, one Female per pair' : ''}.
                 </Muted>
                 {others.map((o, i) => (
                   <View key={i} style={[styles.row2, { marginTop: spacing.s }]}>
@@ -251,7 +287,7 @@ export default function OfflineBookingScreen() {
               </View>
               <Muted style={styles.tiny}>
                 {paymentMode === 'self_collected'
-                  ? "Booking confirms right away. Prebooze's 2% is deducted from your next payout."
+                  ? "Booking confirms right away. Prebooze's cut is deducted from your next payout."
                   : 'A real PhonePe link is texted to the guest — the booking confirms once they pay.'}
               </Muted>
             </View>
@@ -284,4 +320,10 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s, marginTop: spacing.s },
   linkText: { flex: 1, fontSize: 11.5, color: colors.muted },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.m },
+  stepperBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  stepperValue: { fontFamily: fontFamily.bold, fontSize: fontSize.l, minWidth: 28, textAlign: 'center' },
+  breakdownCard: { padding: spacing.m, backgroundColor: colors.surface2, gap: 6 },
+  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  breakdownTotal: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 6, marginTop: 2 },
 });
