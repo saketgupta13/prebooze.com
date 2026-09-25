@@ -18,7 +18,8 @@ import { displayTierPrice, tierCountdownLabel } from '../lib/ticketTierPricing';
 import { useTicker } from '../lib/useTicker';
 import { partySizeFromTierName, isCoupleTierName } from '../lib/partySize';
 import { requiredAgeFor } from '../lib/ageGate';
-import { Clock, Lock, AlertTriangle, CheckCircle2, User, Camera, Ticket, XCircle, CreditCard, Wallet, Hourglass, Smartphone } from 'lucide-react';
+import { isInAppBrowser, inAppBrowserName } from '../lib/inAppBrowser';
+import { Clock, Lock, AlertTriangle, CheckCircle2, User, Camera, Ticket, XCircle, CreditCard, Wallet, Hourglass, Smartphone, ExternalLink } from 'lucide-react';
 
 const ABSORBED_NOTE: Record<string, string> = {
   Organizer: 'absorbed by the organizer',
@@ -37,6 +38,10 @@ export default function Checkout() {
   const navigate = useNavigate();
   const { feeLabel, absorbedBy, bookingFee, gstPct, socials } = usePlatformInfo();
   const [searchParams] = useSearchParams();
+  // Computed once, lazily — navigator.userAgent never changes mid-session,
+  // and this only matters for the in-app-browser warning banner below.
+  const [inAppBrowser] = useState(() => isInAppBrowser());
+  const [dismissedInAppWarning, setDismissedInAppWarning] = useState(false);
 
   const wantsLive = Boolean(selection?.eventSlug) && isBackendEnabled();
 
@@ -856,6 +861,23 @@ export default function Checkout() {
           <span className="accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Lock size={12} /> secure checkout</span>
         </div>
         <h1 style={{ fontSize: 24, marginBottom: 16 }}>Checkout</h1>
+
+        {inAppBrowser && !dismissedInAppWarning && (
+          <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 10, alignItems: 'flex-start', borderColor: 'var(--danger)' }}>
+            <AlertTriangle size={18} className="danger-text" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ flex: 1 }}>
+              <div className="small bold" style={{ marginBottom: 4 }}>UPI apps may not show up here</div>
+              <p className="tiny muted-2" style={{ marginBottom: 8 }}>
+                You're viewing this inside {inAppBrowserName()} — its built-in browser often can't open UPI apps
+                (GPay, PhonePe, etc.) during payment. For the smoothest experience, tap the <strong>⋮</strong> menu above
+                and choose <strong>"Open in Chrome"</strong> (or your browser), then come back to this page.
+              </p>
+              <button className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setDismissedInAppWarning(true)}>
+                <ExternalLink size={13} /> Got it, continue here anyway
+              </button>
+            </div>
+          </div>
+        )}
 
         {holdExpiry && !expired && (
           <div
