@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { X } from 'lucide-react-native';
@@ -55,6 +55,7 @@ export default function EventsScreen() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // useFocusEffect, not mount-only — this screen stays mounted at the root
   // of EventsStack, so returning here after creating/editing an event in
@@ -70,6 +71,32 @@ export default function EventsScreen() {
       return () => { cancelled = true; };
     }, []),
   );
+
+  // Blocked server-side the instant a single real Booking exists — see
+  // OrganizerService.deleteEvent — the "Delete" button below is only ever
+  // shown once sold === 0, matching that same rule, so this rarely errors
+  // in practice; the catch still surfaces a real failure rather than
+  // silently doing nothing.
+  const deleteEvent = (id: string, title: string) => {
+    Alert.alert('Delete this event?', `Delete "${title}" permanently? This can't be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setDeletingId(id);
+          try {
+            await organizer.deleteEvent(id);
+            setEvents((prev) => prev.filter((e) => e.id !== id));
+          } catch (e) {
+            Alert.alert('Could not delete', e instanceof ApiError ? e.message : 'Something went wrong — try again.');
+          } finally {
+            setDeletingId(null);
+          }
+        },
+      },
+    ]);
+  };
 
   const byStatus = tab === 'all' ? events : events.filter((e) => e.status === tab);
   const list = byStatus
@@ -155,6 +182,15 @@ export default function EventsScreen() {
                       />
                     )}
                   </View>
+                  {sold === 0 && (
+                    <Button
+                      label={deletingId === e.id ? 'Deleting…' : 'Delete'}
+                      variant="danger"
+                      onPress={() => deleteEvent(e.id, e.title)}
+                      disabled={deletingId === e.id}
+                      style={[styles.smallBtn, { marginTop: spacing.s }]}
+                    />
+                  )}
                 </Card>
               </View>
             );

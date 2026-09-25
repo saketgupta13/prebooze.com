@@ -48,6 +48,10 @@ export const organizer = {
     // promoterConfig/etc.
     collaboratorOrganizerIds?: string[];
   }) => apiFetch<Event>('/organizer/events', { body: e }),
+  // Blocked server-side the instant a single real Booking exists — see
+  // OrganizerService.deleteEvent. Only ever offered in the UI once
+  // sold === 0, matching that rule.
+  deleteEvent: (id: string) => apiFetch<{ ok: true }>(`/organizer/events/${id}`, { method: 'DELETE' }),
   collaboratorOptions: () => apiFetch<CollaboratorOption[]>('/organizer/collaborator-options'),
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),
   bookings: () => apiFetch<OrgBooking[]>('/organizer/bookings'),
