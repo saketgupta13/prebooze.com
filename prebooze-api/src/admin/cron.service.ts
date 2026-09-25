@@ -12,6 +12,7 @@ import { NotificationsService } from './notifications.service';
 import { CartsService } from './carts.service';
 import { SettlementsService } from './settlements.service';
 import { SocialService } from '../social/social.service';
+import { PhonePeService } from '../payments/phonepe.service';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -35,6 +36,7 @@ export class CronService {
     private carts: CartsService,
     private settlements: SettlementsService,
     private social: SocialService,
+    private phonepe: PhonePeService,
   ) {}
 
   /** Payouts are never marked paid automatically — there's no real bank
@@ -169,6 +171,46 @@ export class CronService {
   async cartAutoNudgeTick() {
     const { sent } = await this.carts.sendAutoNudges();
     if (sent) this.log.log(`Cart auto-nudge: WhatsApp+email reminder sent to ${sent} abandoned cart(s)`);
+  }
+
+  /** Every 10 minutes — a safety net for exactly the gap that caused a real
+   * 2026-09-25 incident: a guest's PhonePe payment was confirmed COMPLETED
+   * by PhonePe itself, but her booking was never created because the
+   * webhook that's supposed to trigger BookingsService.reconcilePhonePePayment
+   * never reached us (no trace of it in any log) — the cart just sat
+   * `active` forever with real money already collected and no ticket ever
+   * issued, undiscovered until a manual admin check days-worth of carts
+   * later. Until now, reconciliation had exactly one path in: the webhook.
+   * This sweep re-checks PhonePe's own order-status API directly for any
+   * cart that's still sitting unpaid past a normal completion window,
+   * calling the exact same reconcilePhonePePayment the webhook would have
+   * — same idempotency (Booking.paymentId unique), same amount-mismatch
+   * safety check, same staff-alert fallback when a booking genuinely can't
+   * be auto-created (e.g. Checkout.tsx's pre-redirect snapshot also never
+   * arrived — see apiFetch's keepalive fix, the other half of this same
+   * incident's root cause). Bounded to carts under 24h old so a
+   * permanently abandoned cart doesn't get checked (and staff isn't
+   * re-alerted about a genuinely unrecoverable one) forever. */
+  @Cron('*/10 * * * *')
+  async stuckPhonePePaymentTick() {
+    const now = Date.now();
+    const carts = await this.prisma.cart.findMany({
+      where: {
+        status: 'active',
+        phonepeMerchantOrderId: { not: null },
+        createdAt: { lt: new Date(now - 5 * 60 * 1000), gt: new Date(now - 24 * 60 * 60 * 1000) },
+      },
+    });
+    let recovered = 0;
+    for (const cart of carts) {
+      const status = await this.phonepe.getOrderStatus(cart.phonepeMerchantOrderId!).catch(() => null);
+      if (status?.state !== 'COMPLETED') continue;
+      const already = await this.prisma.booking.findFirst({ where: { paymentId: cart.phonepeMerchantOrderId! } });
+      if (already) continue; // reconciled by something else between the query above and now
+      await this.bookings.reconcilePhonePePayment(cart.phonepeMerchantOrderId!, status.amount);
+      recovered++;
+    }
+    if (recovered) this.log.log(`Stuck-PhonePe-payment sweep: attempted recovery on ${recovered} cart(s) PhonePe confirms were actually paid`);
   }
 
   /** Daily — real 2026-08-28 finding: booking #TKT-99421's real Razorpay

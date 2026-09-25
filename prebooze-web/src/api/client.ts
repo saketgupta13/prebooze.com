@@ -22,7 +22,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(path: string, options: { method?: string; body?: unknown; query?: Record<string, string | number | boolean | undefined> } = {}): Promise<T> {
+export async function apiFetch<T>(path: string, options: { method?: string; body?: unknown; query?: Record<string, string | number | boolean | undefined>; keepalive?: boolean } = {}): Promise<T> {
   if (!API_URL) throw new ApiError(0, 'OFFLINE', 'Backend not configured (VITE_API_URL missing) — running in mock mode');
   const url = new URL(API_URL + path);
   Object.entries(options.query ?? {}).forEach(([k, v]) => {
@@ -35,6 +35,18 @@ export async function apiFetch<T>(path: string, options: { method?: string; body
       ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
+    // For a call fired immediately before window.location.href navigates
+    // away (Checkout.tsx's own pre-PhonePe-redirect snapshot) — without
+    // this, the browser can and does abort the in-flight request the
+    // instant navigation starts, silently losing it. Real incident
+    // 2026-09-25: a guest's payment went through (PhonePe confirmed
+    // COMPLETED) but her booking was never created because this exact
+    // snapshot never reached the server — no trace of the request ever
+    // arriving. keepalive is the browser API purpose-built for "fire this
+    // now, guarantee it survives the page going away" (same mechanism
+    // navigator.sendBeacon exists for, without that API's stricter size/
+    // method limits).
+    ...(options.keepalive ? { keepalive: true } : {}),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
