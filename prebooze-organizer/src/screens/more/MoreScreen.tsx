@@ -1,7 +1,7 @@
 import { Image, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Banknote, ChevronRight, CreditCard, LifeBuoy, type LucideIcon, Megaphone, Radio, Receipt, Settings as SettingsIcon, ShieldCheck, ShoppingCart, Star, Tag, Users as UsersIcon } from 'lucide-react-native';
+import { Award, Banknote, ChevronRight, CreditCard, LifeBuoy, type LucideIcon, Megaphone, Radio, Receipt, Settings as SettingsIcon, ShieldCheck, ShoppingCart, Star, Tag, Users as UsersIcon } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, H1, H2, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
@@ -22,6 +22,11 @@ const MORE_ITEMS: { label: string; icon: LucideIcon; module?: string | 'owner'; 
   { label: 'Payouts', icon: Banknote, module: 'Payouts & withdrawals', screen: 'Payouts' },
   { label: 'Transactions', icon: Receipt, module: 'Payouts & withdrawals', screen: 'Transactions' },
   { label: 'Promoters', icon: Megaphone, module: 'Promoters', screen: 'Promoters' },
+  // Owner-only, matching web's OrganizerLayout.tsx NAV — billing/invoices
+  // don't map onto any team-role permission module (same reasoning as
+  // organizer.controller.ts's myInvoices route). Purchase widget excluded
+  // (App Store IAP policy) — this is invoice history only.
+  { label: 'Featured & billing', icon: Award, module: 'owner', screen: 'Billing' },
   { label: 'Team & roles', icon: ShieldCheck, module: 'Team & roles', screen: 'TeamRoles' },
   { label: 'Settings', icon: SettingsIcon, module: 'Settings', screen: 'Settings' },
 ];

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, Download, X } from 'lucide-react-native';
@@ -9,6 +9,7 @@ import { Badge, Card, H1, IconButton, Muted, Screen, Txt } from '../../component
 import SearchableSelect from '../../components/SearchableSelect';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { fmtDate, fmtMoney } from '../../lib/format';
+import { shareCsv } from '../../lib/exportFile';
 import type { MoreStackParamList } from '../../navigation/types';
 import type { OrgLedgerTx } from '../../types';
 
@@ -43,7 +44,7 @@ export default function TransactionsScreen() {
 
   const exportCsv = () => {
     const csv = ['date,type,event,amount', ...filtered.map((t) => `${t.createdAt},${t.type},"${t.eventTitle ?? ''}",${t.amount}`)].join('\n');
-    Share.share({ message: csv, title: 'transactions.csv' });
+    shareCsv('transactions.csv', csv);
   };
 
   return (
@@ -87,7 +88,7 @@ export default function TransactionsScreen() {
 
         <View style={styles.sectionHead}>
           <Txt style={styles.bold}>{filtered.length} transaction{filtered.length !== 1 ? 's' : ''}</Txt>
-          <Txt style={styles.link} onPress={exportCsv}><Download size={12} color={colors.accent} /> CSV</Txt>
+          <Txt style={styles.link} onPress={exportCsv}><Download size={12} color={colors.accent} /> Export CSV</Txt>
         </View>
 
         <Card style={styles.listCard}>

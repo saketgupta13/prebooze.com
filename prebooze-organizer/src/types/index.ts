@@ -368,6 +368,31 @@ export interface OrgBookingDetail {
 
 // Real shape from prebooze-web's types.ts — read-only funnel/traffic
 // performance for one event, no revenue/commission/ad-spend figures.
+// Real shape from prebooze-web's types.ts. RN shows this list read-only —
+// no on-device PDF viewer/download (no expo-file-system/expo-sharing
+// installed; adding one right before a Play Store submission was ruled
+// out, see BillingScreen.tsx) — "Download PDF" instead deep-links to the
+// same invoice on web.
+export interface Invoice {
+  id: string;
+  number: string;
+  type: 'booking' | 'featured';
+  refId: string;
+  role: 'guest' | 'organizer' | 'promoter' | 'venue' | 'lineup';
+  payerName: string;
+  payerEmail?: string | null;
+  payerPhone?: string | null;
+  city?: string | null;
+  description: string;
+  subtotal: number;
+  gstPct: number;
+  gstAmount: number;
+  total: number;
+  status: 'issued' | 'void';
+  issuedAt: string;
+  lastSentAt?: string | null;
+}
+
 export interface MarketingAnalytics {
   stages: { type: string; sessions: number }[];
   totalEvents: number;

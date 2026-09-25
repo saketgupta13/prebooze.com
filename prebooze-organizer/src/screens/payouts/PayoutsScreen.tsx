@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, BadgeCheck, Download, Megaphone, X } from 'lucide-react-native';
@@ -8,6 +8,7 @@ import { ApiError } from '../../api/client';
 import { Badge, Button, Card, H1, IconButton, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { fmtDate, fmtMoney } from '../../lib/format';
+import { shareCsv } from '../../lib/exportFile';
 import type { MoreStackParamList } from '../../navigation/types';
 import type { OrgLedgerTx, OrgPromoterPayoutRow, PaymentProfile } from '../../types';
 
@@ -85,7 +86,7 @@ export default function PayoutsScreen() {
       'date,type,status,amount',
       ...payoutRows.map((t) => `${t.createdAt},${t.type},${t.type === 'withdrawal' ? (t.withdrawalStatus ?? 'requested') : 'refunded_to_balance'},${t.amount}`),
     ].join('\n');
-    Share.share({ message: csv, title: 'payouts.csv' });
+    shareCsv('payouts.csv', csv);
   };
 
   return (
@@ -188,7 +189,7 @@ export default function PayoutsScreen() {
 
         <View style={styles.sectionHead}>
           <Txt style={[styles.bold, styles.sectionTitle]}>Payout history</Txt>
-          <Txt style={styles.link} onPress={exportCsv}><Download size={12} color={colors.accent} /> CSV</Txt>
+          <Txt style={styles.link} onPress={exportCsv}><Download size={12} color={colors.accent} /> Export CSV</Txt>
         </View>
         <Card style={styles.section}>
           {!loading && payoutRows.length === 0 && <Muted style={styles.centerNote}>No withdrawals yet.</Muted>}

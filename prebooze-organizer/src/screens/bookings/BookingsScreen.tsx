@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute, type CompositeNavigationProp, type RouteProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,6 +9,7 @@ import { ApiError } from '../../api/client';
 import { Badge, Card, Chip, H1, Input, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { isEventOver } from '../../lib/events';
+import { shareCsv } from '../../lib/exportFile';
 import type { OrgBooking } from '../../types';
 import type { MainTabParamList, BookingsStackParamList } from '../../navigation/types';
 
@@ -93,7 +94,7 @@ export default function BookingsScreen() {
       'id,guest,phone,tier,qty,amount,event,status',
       ...filtered.map((b) => `${b.id},"${b.mainGuest}",${b.whatsapp},"${b.tierName}",${b.qty},${b.total},"${b.event.title}",${b.bookingSource}${b.offlinePaymentMode ? `:${b.offlinePaymentMode}` : ''},${rowStatus(b)}`),
     ].join('\n');
-    Share.share({ message: csv, title: 'bookings.csv' });
+    shareCsv('bookings.csv', csv);
   };
 
   return (
