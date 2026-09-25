@@ -27,6 +27,12 @@ export type EventsStackParamList = {
   // Optional eventId distinguishes create (web's /organizer/events/create)
   // from edit (.../:id/edit).
   EventWizard: { eventId?: string } | undefined;
+  // Read-only funnel/traffic performance for one event — unlike the rest of
+  // Marketing (campaign purchase), this has no purchase action, so it's not
+  // excluded by the App Store IAP policy the way Marketing itself is (see
+  // DashboardScreen.tsx's doc comment). Locks with a clear message if the
+  // event has no active paid campaign, same as web's MarketingAnalytics.tsx.
+  MarketingAnalytics: { eventId: string; eventTitle: string };
 };
 
 // New nesting under the Dashboard tab (2026-09-16) so the header bell icon

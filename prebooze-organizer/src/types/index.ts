@@ -366,6 +366,25 @@ export interface OrgBookingDetail {
   event: { id: string; title: string; date: string; durationHrs: number; venue?: { name: string; city: string } | null; organizer?: { brandName: string } | null };
 }
 
+// Real shape from prebooze-web's types.ts — read-only funnel/traffic
+// performance for one event, no revenue/commission/ad-spend figures.
+export interface MarketingAnalytics {
+  stages: { type: string; sessions: number }[];
+  totalEvents: number;
+  daily: { date: string; viewed: number; completed: number }[];
+  devices: { label: string; sessions: number }[];
+  browsers: { label: string; sessions: number }[];
+  operatingSystems: { label: string; sessions: number }[];
+  trafficSources: { label: string; sessions: number }[];
+  campaigns: { label: string; sessions: number }[];
+  geographies: { label: string; sessions: number }[];
+  regions: { label: string; sessions: number }[];
+  adPlatforms: { label: string; sessions: number }[];
+  visitorType: { label: string; sessions: number }[];
+  heatmap: { weekday: number; hour: number; sessions: number }[];
+  paymentFailures: { reason: string; count: number }[];
+}
+
 // Real shape from prebooze-web/src/api/index.ts's OrgLedgerTx.
 export interface OrgLedgerTx {
   id: string;

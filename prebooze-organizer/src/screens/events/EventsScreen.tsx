@@ -182,6 +182,14 @@ export default function EventsScreen() {
                       />
                     )}
                   </View>
+                  {e.status === 'approved' && (
+                    <Button
+                      label="Performance"
+                      variant="ghost"
+                      onPress={() => navigation.navigate('MarketingAnalytics', { eventId: e.id, eventTitle: e.title })}
+                      style={[styles.smallBtn, { marginTop: spacing.s }]}
+                    />
+                  )}
                   {sold === 0 && (
                     <Button
                       label={deletingId === e.id ? 'Deleting…' : 'Delete'}

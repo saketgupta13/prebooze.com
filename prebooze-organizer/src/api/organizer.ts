@@ -3,7 +3,7 @@
  * already serving the web console. Field names match exactly. */
 import { apiFetch, apiUpload } from './client';
 import type {
-  CartRecord, CollaboratorOption, Coupon, Event, OrgAttendee, OrgBooking, OrgBookingDetail, OrgGuestListEntry, OrgLedgerTx, OrgLiveMonitor, OrgModulePerms,
+  CartRecord, CollaboratorOption, Coupon, Event, MarketingAnalytics, OrgAttendee, OrgBooking, OrgBookingDetail, OrgGuestListEntry, OrgLedgerTx, OrgLiveMonitor, OrgModulePerms,
   OrgPermKey, OrgPromoterGuest, OrgPromoterPayoutRow, OrgPromoterRosterEntry, OrgStaffMember, OrgTeamAccess, Organizer, PaymentProfile,
 } from '../types';
 
@@ -52,6 +52,13 @@ export const organizer = {
   // OrganizerService.deleteEvent. Only ever offered in the UI once
   // sold === 0, matching that rule.
   deleteEvent: (id: string) => apiFetch<{ ok: true }>(`/organizer/events/${id}`, { method: 'DELETE' }),
+  // Read-only funnel/traffic performance for one event — the rest of
+  // Marketing (campaign purchase) is deliberately out of scope for this
+  // app (App Store IAP policy), but this has no purchase action, so it's
+  // not excluded. Unlocks only once the event has a real active/completed
+  // MarketingOrder or falls inside an active subscription period —
+  // enforced server-side (403 otherwise), same as web.
+  marketingAnalytics: (eventId: string) => apiFetch<MarketingAnalytics>('/organizer/marketing/analytics', { query: { eventId } }),
   collaboratorOptions: () => apiFetch<CollaboratorOption[]>('/organizer/collaborator-options'),
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),
   bookings: () => apiFetch<OrgBooking[]>('/organizer/bookings'),
