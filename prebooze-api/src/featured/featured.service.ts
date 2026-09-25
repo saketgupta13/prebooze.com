@@ -344,11 +344,13 @@ export class FeaturedService {
    * manual, repeatable admin action. */
   async remindExpiringSoon(): Promise<{ remindedCount: number }> {
     const in3Days = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    // No featuredSubscriptionId filter needed any more — real Razorpay
+    // Subscriptions recurring billing was fully removed 2026-09-21 (see
+    // prebooze_razorpay_complete_removal memory), so every remaining
+    // Featured row is a one-time placement by definition; there's no
+    // auto-renewing case left to exclude.
     const rows = await this.prisma.featured.findMany({
-      // featuredSubscriptionId: null — a subscription-backed placement
-      // renews itself; nudging the owner to manually renew would be both
-      // wrong (nothing lapses) and confusing (they already have auto-pay on).
-      where: { status: 'active', expiresAt: { lte: in3Days, gt: new Date() }, expiryReminderSentAt: null, featuredSubscriptionId: null },
+      where: { status: 'active', expiresAt: { lte: in3Days, gt: new Date() }, expiryReminderSentAt: null },
     });
 
     let remindedCount = 0;

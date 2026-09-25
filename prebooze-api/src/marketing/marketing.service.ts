@@ -97,17 +97,20 @@ export class MarketingService {
   /** Strips everything that isn't meant for organizer/venue eyes —
    * marginPct, metaCampaignId, and the raw Razorpay ids never leave this
    * service. Only what they paid, for what, and its status. */
-  // isSubscriptionPeriod/periodEnd stay in the response only for legacy rows
-  // from the now-removed Razorpay auto-renewal (marketingSubscriptionId set)
-  // — every new one-time order this service creates leaves both null.
+  // isSubscriptionPeriod is always false now — real Razorpay Subscriptions
+  // recurring billing (and the marketingSubscriptionId column that marked a
+  // row as subscription-generated) was fully removed 2026-09-21 (see
+  // prebooze_razorpay_complete_removal memory); every row left is a
+  // one-time purchase. Kept in the response shape rather than dropped
+  // outright since callers (admin's own Marketing.tsx) still read it.
   // `amount` stays the base rate (unchanged meaning, matches every existing
   // caller); `total` is what was/will be actually charged, amount+GST —
   // equal to amount on every pre-GST-launch or gstEnabled:false order.
-  private toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; gstPct: number | null; gstAmount: number | null; total: number | null; status: string; createdAt: Date; marketingSubscriptionId: string | null; periodEnd: Date | null }) {
+  private toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; gstPct: number | null; gstAmount: number | null; total: number | null; status: string; createdAt: Date; periodEnd: Date | null }) {
     return {
       id: row.id, eventId: row.eventId, eventTitle: row.eventTitle, amount: row.amount,
       gstPct: row.gstPct ?? 0, gstAmount: row.gstAmount ?? 0, total: row.total ?? row.amount, status: row.status,
-      createdAt: row.createdAt, isSubscriptionPeriod: !!row.marketingSubscriptionId, periodEnd: row.periodEnd,
+      createdAt: row.createdAt, isSubscriptionPeriod: false, periodEnd: row.periodEnd,
     };
   }
 

@@ -173,8 +173,6 @@ export interface LiveMarketingOrder {
   metaCampaignId: string | null;
   paymentId: string | null;
   createdAt: string;
-  marketingSubscriptionId: string | null;
-  periodStart: string | null;
   periodEnd: string | null;
 }
 export interface LiveMarketingSubscription {

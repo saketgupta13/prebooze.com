@@ -69,8 +69,11 @@ export default function Marketing() {
   const pending = rows.filter((r) => r.status === 'pending');
   const active = rows.filter((r) => r.status === 'active');
   const expired = rows.filter((r) => r.status === 'expired');
-  const perEventRevenue = active.filter((r) => !r.marketingSubscriptionId).reduce((a, r) => a + r.amount, 0);
-  const subscriptionRevenue = active.filter((r) => r.marketingSubscriptionId).reduce((a, r) => a + r.amount, 0);
+  // Real Razorpay Subscriptions recurring billing was fully removed
+  // 2026-09-21 (see prebooze_razorpay_complete_removal memory) — every
+  // remaining order is a one-time purchase, so there's no split left to
+  // make; all active revenue is per-event now.
+  const activeRevenue = active.reduce((a, r) => a + r.amount, 0);
   const activeSubs = subs.filter((s) => s.status === 'active');
   const haltedSubs = subs.filter((s) => s.status === 'halted');
 
@@ -160,8 +163,7 @@ export default function Marketing() {
       <div className="kpi-grid">
         <Kpi label="Awaiting campaign setup" value={fmt(pending.length)} />
         <Kpi label="Live campaigns" value={fmt(active.length)} />
-        <Kpi label="Per-event revenue" value={`₹${fmt(perEventRevenue)}`} delta="active one-offs" deltaColor="var(--muted)" />
-        <Kpi label="Subscription revenue" value={`₹${fmt(subscriptionRevenue)}`} delta="billed periods" deltaColor="var(--green)" />
+        <Kpi label="Active revenue" value={`₹${fmt(activeRevenue)}`} delta="one-time purchases" deltaColor="var(--green)" />
         <Kpi label="Lapsed" value={fmt(expired.length)} deltaColor="var(--red)" />
       </div>
 
