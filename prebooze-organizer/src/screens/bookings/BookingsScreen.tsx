@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute, type CompositeNavigationProp, type RouteProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, Camera, CheckCircle2, Download, Search, X } from 'lucide-react-native';
+import { ArrowLeft, Camera, CheckCircle2, Download, Plus, Search, X } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { ApiError } from '../../api/client';
 import { Badge, Card, Chip, H1, Input, Muted, Screen, Txt } from '../../components/ui';
@@ -131,6 +131,10 @@ export default function BookingsScreen() {
               <Txt style={styles.ghostBtnLabel}>Export CSV</Txt>
             </Pressable>
           )}
+          <Pressable style={styles.ghostBtn} onPress={() => navigation.navigate('OfflineBooking')}>
+            <Plus size={15} color={colors.text} />
+            <Txt style={styles.ghostBtnLabel}>Offline booking</Txt>
+          </Pressable>
           <Pressable style={styles.priBtn} onPress={() => navigation.navigate('Scan')}>
             <Camera size={15} color={colors.onAccent} />
             <Txt style={styles.priBtnLabel}>Scan QR</Txt>

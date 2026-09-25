@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import BookingsScreen from '../screens/bookings/BookingsScreen';
 import BookingDetailScreen from '../screens/bookings/BookingDetailScreen';
+import OfflineBookingScreen from '../screens/bookings/OfflineBookingScreen';
 import type { BookingsStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<BookingsStackParamList>();
@@ -12,6 +13,7 @@ export default function BookingsStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="BookingsList" component={BookingsScreen} />
       <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />
+      <Stack.Screen name="OfflineBooking" component={OfflineBookingScreen} />
     </Stack.Navigator>
   );
 }

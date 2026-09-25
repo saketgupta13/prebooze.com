@@ -52,6 +52,22 @@ export const organizer = {
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),
   bookings: () => apiFetch<OrgBooking[]>('/organizer/bookings'),
   bookingDetail: (id: string) => apiFetch<OrgBookingDetail>(`/organizer/bookings/${encodeURIComponent(id)}`),
+  // Walk-up/phone/gate-inquiry bookings created directly from the console —
+  // see prebooze-api's BookingsService.createOfflineBookingSelfCollected/
+  // PaymentLink. 'self_collected' returns the real created Booking
+  // immediately; 'payment_link' returns a redirect URL to text the guest
+  // (the booking itself is only created once they actually pay, via the
+  // same webhook every online checkout already uses).
+  createOfflineBooking: (body: {
+    eventId: string; tierId: string; qty: number; guestName: string; whatsapp: string; gender?: string;
+    others?: { name: string; gender?: string; whatsapp?: string }[];
+    paymentMode: 'self_collected' | 'payment_link';
+  }) => apiFetch<OrgBooking | { holdId: string; redirectUrl: string; subtotal: number; phone: string }>('/organizer/offline-bookings', { method: 'POST', body }),
+  offlineCharges: () => apiFetch<{ id: string; bookingId: string | null; eventTitle: string | null; guestName: string | null; guestPaid: number | null; commissionCharged: number; createdAt: string }[]>('/organizer/offline-charges'),
+  // Deliberately its own endpoint rather than events() above — gated on
+  // 'Attendees & check-in' view (same as the create call), not 'Events &
+  // wizard', so staff who can only take bookings can still use this modal.
+  offlineBookingEvents: () => apiFetch<Event[]>('/organizer/offline-bookings/events'),
   coupons: () => apiFetch<Coupon[]>('/organizer/coupons'),
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/organizer/coupons', { body: c }),
   deleteCoupon: (id: string) => apiFetch<{ ok: true }>(`/organizer/coupons/${id}`, { method: 'DELETE' }),

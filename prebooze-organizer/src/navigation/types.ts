@@ -47,6 +47,7 @@ export type DashboardStackParamList = {
 export type BookingsStackParamList = {
   BookingsList: { eventId?: string } | undefined;
   BookingDetail: { id: string };
+  OfflineBooking: undefined;
 };
 
 export type MoreStackParamList = {

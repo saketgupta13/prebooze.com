@@ -26,6 +26,10 @@ const WITHDRAWAL_STATUS_TONE: Record<string, 'default' | 'success' | 'danger' | 
   requested: 'default', received: 'accent', initiated: 'accent', processed: 'accent', complete: 'success', rejected: 'danger',
 };
 
+interface OfflineChargeRow {
+  id: string; bookingId: string | null; eventTitle: string | null; guestName: string | null; guestPaid: number | null; commissionCharged: number; createdAt: string;
+}
+
 /** Faithful port of prebooze-web/src/pages/organizer/Payouts.tsx. Balance
  * is always the server-recomputed ledger aggregate — never trust a cached
  * number, always refetch after a withdrawal (see WithdrawScreen). CSV
@@ -37,6 +41,7 @@ export default function PayoutsScreen() {
   const [ledger, setLedger] = useState<OrgLedgerTx[]>([]);
   const [defaultProfile, setDefaultProfile] = useState<PaymentProfile | null>(null);
   const [promoterPayouts, setPromoterPayouts] = useState<OrgPromoterPayoutRow[]>([]);
+  const [offlineCharges, setOfflineCharges] = useState<OfflineChargeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   // Distinct from `err` (same reasoning as WithdrawScreen): on a failed
@@ -51,13 +56,14 @@ export default function PayoutsScreen() {
     setLoading(true);
     setLoadFailed(false);
     setErr('');
-    Promise.all([organizer.payouts(), organizer.paymentProfiles(), organizer.promoterPayouts()])
-      .then(([pay, profiles, pp]) => {
+    Promise.all([organizer.payouts(), organizer.paymentProfiles(), organizer.promoterPayouts(), organizer.offlineCharges()])
+      .then(([pay, profiles, pp, oc]) => {
         if (cancelled) return;
         setBalance(pay.balance);
         setLedger(pay.ledger);
         setDefaultProfile(profiles.find((p) => p.isDefault) ?? null);
         setPromoterPayouts(pp);
+        setOfflineCharges(oc);
       })
       .catch((e) => {
         if (cancelled) return;
@@ -152,6 +158,28 @@ export default function PayoutsScreen() {
                 <View style={styles.owedCol}>
                   <Txt style={styles.bold}>{fmtMoney(p.total)}</Txt>
                   <Muted style={[styles.tiny, p.status === 'received' && { color: colors.accent }]}>{STATUS_LABEL[p.status]}</Muted>
+                </View>
+              </View>
+            ))}
+          </Card>
+        )}
+
+        {offlineCharges.length > 0 && (
+          <Card style={styles.section}>
+            <Txt style={styles.bold}>Offline booking charges</Txt>
+            <Muted style={styles.tiny}>
+              Bookings you created and marked "already collected" — you kept the guest's payment directly, and Prebooze's
+              flat 2% is deducted here from your payout balance instead.
+            </Muted>
+            {offlineCharges.map((c, i) => (
+              <View key={c.id} style={[styles.historyRow, i < offlineCharges.length - 1 && styles.rowBorder]}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Txt style={styles.bold} numberOfLines={1}>{c.guestName ?? c.bookingId ?? 'Offline booking'}</Txt>
+                  <Muted style={styles.tiny} numberOfLines={1}>{c.eventTitle} · {fmtDate(c.createdAt)}</Muted>
+                </View>
+                <View style={styles.owedCol}>
+                  <Muted style={styles.tiny}>Guest paid {c.guestPaid !== null ? fmtMoney(c.guestPaid) : '—'}</Muted>
+                  <Txt style={[styles.bold, { color: colors.danger }]}>-{fmtMoney(c.commissionCharged)}</Txt>
                 </View>
               </View>
             ))}
