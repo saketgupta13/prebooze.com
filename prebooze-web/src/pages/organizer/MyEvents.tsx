@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { FEATURED_PRICING, fmtDate, isEventOver, venueById } from '../../data/mock';
-import { findFeatured } from '../../lib/featured';
-import { organizer } from '../../api';
+import { fmtDate, isEventOver } from '../../data/mock';
+import { organizer, featured as featuredApi } from '../../api';
 import { ApiError } from '../../api/client';
-import type { Event, EventStatus } from '../../types';
+import type { Event, EventStatus, Featured } from '../../types';
 import { eventCity, eventPath } from '../../lib/urls';
 import Poster from '../../components/Poster';
 import CategoryIcon from '../../components/CategoryIcon';
@@ -44,7 +43,8 @@ const approvedBadge = (e: Event) => ({
  * useful way to tell your own events apart at a glance, same as it is for a
  * guest browsing. */
 export default function MyEvents() {
-  const { featured, requestFeatured, toast, city } = useApp();
+  const { toast, city } = useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<'all' | EventStatus>('all');
   const [scope, setScope] = useState<'upcoming' | 'past'>('upcoming');
   const [events, setEvents] = useState<Event[]>([]);
@@ -53,6 +53,16 @@ export default function MyEvents() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteErr, setDeleteErr] = useState('');
+  // Real Featured status per event id (GET /featured/mine) — replaces the
+  // old mock-store lookup entirely; see featureEvent's own doc comment for
+  // the real payment flow this now drives.
+  const [featuredMap, setFeaturedMap] = useState<Record<string, Featured | null>>({});
+  const [featuring, setFeaturing] = useState<string | null>(null);
+  const [rate, setRate] = useState<number | null>(null);
+
+  useEffect(() => {
+    featuredApi.rates().then((r) => setRate(r.perEvent)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     organizer
@@ -61,6 +71,46 @@ export default function MyEvents() {
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load events'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const approved = events.filter((e) => e.status === 'approved');
+    if (approved.length === 0) return;
+    Promise.all(approved.map((e) => featuredApi.mine('event', e.id).then((f) => [e.id, f] as const).catch(() => [e.id, null] as const)))
+      .then((pairs) => setFeaturedMap(Object.fromEntries(pairs)));
+  }, [events]);
+
+  // Real PhonePe return handler — mirrors Checkout.tsx's own resume
+  // pattern (useLayoutEffect so a bfcache-restored instance never shows a
+  // stale frame first), just much simpler: no attendee form/hold state to
+  // rebuild, only "did this one payment go through."
+  const featuredIdReturn = searchParams.get('phonepe_return') === '1' ? searchParams.get('featuredId') : null;
+  const confirmedRef = useRef<Set<string>>(new Set());
+  useLayoutEffect(() => {
+    if (!featuredIdReturn || confirmedRef.current.has(featuredIdReturn)) return;
+    confirmedRef.current.add(featuredIdReturn);
+    let attempt = 0;
+    const check = async () => {
+      try {
+        const row = await featuredApi.confirmPayment(featuredIdReturn);
+        setFeaturedMap((prev) => ({ ...prev, [row.refId]: row }));
+        toast('Payment received — sent for featured review ✓');
+        setSearchParams((p) => { p.delete('phonepe_return'); p.delete('featuredId'); return p; }, { replace: true });
+        return;
+      } catch {
+        // keep retrying briefly — PhonePe's own webhook/status can lag a
+        // couple seconds behind the guest's redirect back here
+      }
+      attempt += 1;
+      if (attempt >= 5) {
+        toast("Still confirming your payment — check back in a minute, or contact support if it doesn't show as featured.");
+        setSearchParams((p) => { p.delete('phonepe_return'); p.delete('featuredId'); return p; }, { replace: true });
+        return;
+      }
+      setTimeout(check, 2000);
+    };
+    check();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [featuredIdReturn]);
 
   const deleteEvent = async (id: string) => {
     setDeletingId(id);
@@ -76,16 +126,23 @@ export default function MyEvents() {
     }
   };
 
-  const featureEvent = (e: Event) => {
-    requestFeatured({
-      type: 'event',
-      refId: e.id,
-      city: (e.venueId ? venueById(e.venueId)?.city : e.privateCity) ?? 'Hyderabad',
-      billing: 'per_event',
-      amount: FEATURED_PRICING.perEvent,
-      expiresAt: e.date,
-    });
-    toast(`Payment of ₹${FEATURED_PRICING.perEvent.toLocaleString('en-IN')} received — "${e.title}" sent for featured review ✓`);
+  /** Real bug fixed 2026-09-25: this used to be a pure client-side mock —
+   * it wrote a fake "active" Featured row into local AppContext state and
+   * showed "Payment of ₹2,000 received ✓" without ever charging anything
+   * or persisting it anywhere. A real, already-working PhonePe-backed
+   * Featured backend existed the whole time (FeaturedService.request/
+   * confirmPayment) — MyEvents.tsx's button was just never wired to it.
+   * Redirects to a real PhonePe order; confirmation happens in the
+   * useLayoutEffect above once PhonePe sends the guest back here. */
+  const featureEvent = async (e: Event) => {
+    setFeaturing(e.id);
+    try {
+      const row = await featuredApi.request({ type: 'event', refId: e.id, billing: 'per_event' });
+      window.location.href = row.phonepeRedirectUrl;
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Could not start the featured payment — try again in a moment');
+      setFeaturing(null);
+    }
   };
 
   const byStatus = tab === 'all' ? events : events.filter((e) => e.status === tab);
@@ -127,7 +184,7 @@ export default function MyEvents() {
             const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
             const cap = e.tiers.reduce((a, t) => a + t.quantity, 0);
             const badge = e.status === 'approved' ? approvedBadge(e) : STATUS_BADGE[e.status];
-            const feat = findFeatured(featured, 'event', e.id);
+            const feat = featuredMap[e.id];
             return (
               <div key={e.id} className="ecard" style={{ position: 'relative' }}>
                 <span className={`badge ${badge.cls}`} style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 3 }}>{badge.label}</span>
@@ -154,9 +211,13 @@ export default function MyEvents() {
                         <span className="badge badge-accent" title={`Featured until ${fmtDate(feat.expiresAt)}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Star size={11} /> Featured</span>
                       ) : feat?.status === 'pending' ? (
                         <span className="badge badge-pending" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Star size={11} /> Pending ◌</span>
+                      ) : feat?.status === 'rejected' ? (
+                        <button className="btn btn-ghost btn-sm" style={{ borderColor: 'var(--accent)', color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 5 }} disabled={featuring === e.id} title={rate ? `Feature on the home page — ₹${rate}` : 'Feature on the home page'} onClick={() => featureEvent(e)}>
+                          <Star size={13} /> {featuring === e.id ? 'Starting…' : 'Feature again'}
+                        </button>
                       ) : (
-                        <button className="btn btn-ghost btn-sm" style={{ borderColor: 'var(--accent)', color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 5 }} title={`Feature on the home page — ₹${FEATURED_PRICING.perEvent}`} onClick={() => featureEvent(e)}>
-                          <Star size={13} /> Feature
+                        <button className="btn btn-ghost btn-sm" style={{ borderColor: 'var(--accent)', color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 5 }} disabled={featuring === e.id} title={rate ? `Feature on the home page — ₹${rate}` : 'Feature on the home page'} onClick={() => featureEvent(e)}>
+                          <Star size={13} /> {featuring === e.id ? 'Starting…' : 'Feature'}
                         </button>
                       )
                     )}
