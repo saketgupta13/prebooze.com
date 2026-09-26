@@ -30,6 +30,7 @@ export default function Dashboard() {
   // the fact, so this is computed while the per-event fetch is still keyed
   // by event below.
   const [liveCheckedInCount, setLiveCheckedInCount] = useState(0);
+  const [bookingStats, setBookingStats] = useState<{ totalBookings: number; revenueOnline: number; revenueOffline: number } | null>(null);
   const [topCity, setTopCity] = useState('All');
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -46,12 +47,14 @@ export default function Dashboard() {
       .me()
       .then(async (me) => {
         setProfile(me);
-        const [evs, pay] = await Promise.all([
+        const [evs, pay, stats] = await Promise.all([
           organizer.events().catch(() => [] as Event[]),
           organizer.payouts().catch(() => ({ balance: 0, ledger: [] as { id: string; type: string; amount: number; eventId?: string; createdAt: string }[] })),
+          organizer.bookingStats().catch(() => null),
         ]);
         setEvents(evs);
         setLedger(pay.ledger);
+        setBookingStats(stats);
         // All approved events, not just still-live ones — "Your customers"
         // below is an all-time count (same row as "Your events"/"Total
         // bookings", both explicitly all-time too), so narrowing this to
@@ -144,9 +147,22 @@ export default function Dashboard() {
         </div>
         <div className="kpi">
           <div className="l">Total bookings (all-time)</div>
-          <div className="v">{ledger.filter((t) => t.type === 'sale').length.toLocaleString()}</div>
+          <div className="v">{(bookingStats?.totalBookings ?? ledger.filter((t) => t.type === 'sale').length).toLocaleString()}</div>
         </div>
       </div>
+
+      {bookingStats && (bookingStats.revenueOnline > 0 || bookingStats.revenueOffline > 0) && (
+        <div className="kpis" style={{ marginTop: 12 }}>
+          <div className="kpi">
+            <div className="l">Collected online</div>
+            <div className="v">{fmtMoney(bookingStats.revenueOnline)}</div>
+          </div>
+          <div className="kpi">
+            <div className="l">Collected offline (cash/UPI direct)</div>
+            <div className="v">{fmtMoney(bookingStats.revenueOffline)}</div>
+          </div>
+        </div>
+      )}
 
       <MarketingPromoCard to="/organizer/marketing" />
 

@@ -99,6 +99,12 @@ export const organizer = {
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/organizer/coupons', { body: c }),
   deleteCoupon: (id: string) => apiFetch<{ ok: true }>(`/organizer/coupons/${id}`, { method: 'DELETE' }),
   payouts: () => apiFetch<{ balance: number; ledger: OrgLedgerTx[] }>('/organizer/payouts'),
+  // Real confirmed-Booking-row counts + online/offline revenue split — see
+  // OrganizerService.bookingStats. Dashboard's "Total bookings" used to
+  // derive from ledger 'sale' entries instead, which silently undercounts
+  // self-collected offline bookings (no 'sale' entry posted for those) —
+  // same real-row definition admin and prebooze-web now both use.
+  bookingStats: () => apiFetch<{ totalBookings: number; totalCustomers: number; revenueOnline: number; revenueOffline: number; revenueTotal: number }>('/organizer/booking-stats'),
   promoterPayouts: () => apiFetch<OrgPromoterPayoutRow[]>('/organizer/promoter-payouts'),
   promoters: () => apiFetch<OrgPromoterRosterEntry[]>('/organizer/promoters'),
   withdraw: (amount: number) => apiFetch<void>('/organizer/withdraw', { body: { amount } }),

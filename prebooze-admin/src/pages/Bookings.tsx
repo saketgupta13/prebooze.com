@@ -82,6 +82,17 @@ export default function Bookings() {
 
   const scopedEvent = eventId ? bookings.find((b) => b.event.id === eventId)?.event : undefined;
 
+  // Online vs offline collected, for the header when scoped to one event —
+  // same real-row confirmed-only definition OrganizerService.bookingStats
+  // uses, so this matches what the organizer's own web/RN dashboards show.
+  const sourceSplit = useMemo(() => {
+    if (!eventId) return null;
+    const confirmed = bookings.filter((b) => b.event.id === eventId && b.status === 'confirmed');
+    const online = confirmed.filter((b) => b.bookingSource === 'online').reduce((a, b) => a + b.total, 0);
+    const offline = confirmed.filter((b) => b.bookingSource === 'offline').reduce((a, b) => a + b.total, 0);
+    return { online, offline };
+  }, [bookings, eventId]);
+
   const eventsSummary = useMemo(() => {
     const m = new Map<string, { title: string; date: string; count: number; qty: number; revenue: number }>();
     bookings.forEach((b) => {
@@ -140,6 +151,12 @@ export default function Bookings() {
         </div>
       </div>
 
+      {sourceSplit && (sourceSplit.online > 0 || sourceSplit.offline > 0) && (
+        <div className="tiny muted" style={{ marginBottom: 10 }}>
+          Collected online: <strong>₹{fmt(sourceSplit.online)}</strong> · Collected offline (organizer held cash/UPI directly): <strong>₹{fmt(sourceSplit.offline)}</strong>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <SearchBox value={query} onChange={setQuery} placeholder="booking id / phone / name…" style={{ flex: 1, minWidth: 180 }} />
         {!eventId && !query.trim() && (
@@ -183,25 +200,31 @@ export default function Bookings() {
       ) : (
         <>
           <div className="tblwrap">
-            <div className="thead" style={{ minWidth: 560 }}>
+            <div className="thead" style={{ minWidth: 620 }}>
               <span style={{ flex: 1 }}>#ID</span>
-              <span style={{ flex: 1.6 }}>Guest</span>
-              <span style={{ flex: 1.8 }}>Event</span>
-              <span style={{ flex: 1 }}>Qty · Amount</span>
-              <span style={{ flex: 1 }}>Status</span>
+              <span style={{ flex: 1.5 }}>Guest</span>
+              <span style={{ flex: 1.6 }}>Event</span>
+              <span style={{ flex: 0.9 }}>Qty · Amount</span>
+              <span style={{ flex: 0.9 }}>Source</span>
+              <span style={{ flex: 0.9 }}>Status</span>
             </div>
             {list.map((b) => (
               <div
                 key={b.id}
                 className="trow clickable"
-                style={{ minWidth: 560, background: b.status === 'refund_requested' ? 'rgba(255,107,94,.06)' : undefined }}
+                style={{ minWidth: 620, background: b.status === 'refund_requested' ? 'rgba(255,107,94,.06)' : undefined }}
                 onClick={() => navigate(`/bookings/${encodeURIComponent(b.id)}`)}
               >
                 <span style={{ flex: 1, fontWeight: 700 }}>{b.id}</span>
-                <span style={{ flex: 1.6 }}>{b.mainGuest} · {b.whatsapp}</span>
-                <span style={{ flex: 1.8 }} className="muted">{b.event.title}</span>
-                <span style={{ flex: 1 }}>{b.qty} · ₹{fmt(b.total)}</span>
-                <span style={{ flex: 1 }}><Tag {...STATUS_TAG[b.status]} /></span>
+                <span style={{ flex: 1.5 }}>{b.mainGuest} · {b.whatsapp}</span>
+                <span style={{ flex: 1.6 }} className="muted">{b.event.title}</span>
+                <span style={{ flex: 0.9 }}>{b.qty} · ₹{fmt(b.total)}</span>
+                <span style={{ flex: 0.9 }} className="tiny muted">
+                  {b.bookingSource === 'offline'
+                    ? (b.offlinePaymentMode === 'self_collected' ? 'Offline · Cash' : 'Offline · Link')
+                    : 'Online'}
+                </span>
+                <span style={{ flex: 0.9 }}><Tag {...STATUS_TAG[b.status]} /></span>
               </div>
             ))}
             {list.length === 0 && !loading && <div className="trow muted">No bookings match.</div>}

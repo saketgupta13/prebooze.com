@@ -159,6 +159,14 @@ export class OrganizerController {
     return this.organizer.bookings(req.user.sub);
   }
 
+  /** Real Booking-row counts + online/offline revenue split — see
+   * OrganizerService.bookingStats for why the Dashboard screens now use
+   * this instead of deriving "Total bookings" from ledger entries. */
+  @Get('booking-stats')
+  bookingStats(@Req() req: AuthedReq) {
+    return this.organizer.bookingStats(req.user.sub);
+  }
+
   @Get('bookings/:id')
   bookingDetail(@Req() req: AuthedReq, @Param('id') id: string) {
     return this.organizer.bookingDetail(req.user.sub, decodeURIComponent(id));

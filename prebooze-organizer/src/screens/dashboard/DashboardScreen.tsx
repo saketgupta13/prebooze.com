@@ -41,6 +41,7 @@ export default function DashboardScreen() {
   const [ledger, setLedger] = useState<OrgLedgerTx[]>([]);
   const [attendees, setAttendees] = useState<OrgAttendee[]>([]);
   const [liveCheckedInCount, setLiveCheckedInCount] = useState(0);
+  const [bookingStats, setBookingStats] = useState<{ totalBookings: number; revenueOnline: number; revenueOffline: number } | null>(null);
   const [topCity, setTopCity] = useState('All');
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -75,13 +76,15 @@ export default function DashboardScreen() {
           // never entering the .catch below) is different from that call
           // failing — this dashboard now degrades to whichever sections the
           // role actually has, instead of erroring out entirely.
-          const [evs, pay] = await Promise.all([
+          const [evs, pay, stats] = await Promise.all([
             canView('Events & wizard') ? organizer.events() : Promise.resolve([] as Event[]),
             canView('Payouts & withdrawals') ? organizer.payouts() : Promise.resolve({ balance: 0, ledger: [] as OrgLedgerTx[] }),
+            canView('Attendees & check-in') ? organizer.bookingStats().catch(() => null) : Promise.resolve(null),
           ]);
           if (cancelled) return;
           setEvents(evs);
           setLedger(pay.ledger);
+          setBookingStats(stats);
           // Approved AND not yet over — a past event has no business
           // showing as "live"/"upcoming" regardless of its approval status
           // (real bug found live 2026-09-15: past events still showed under
@@ -199,8 +202,14 @@ export default function DashboardScreen() {
         <View style={styles.kpiGrid}>
           <Kpi label="Customers" value={uniqueCustomers.toLocaleString()} />
           <Kpi label="Events" value={String(events.length)} />
-          <Kpi label="Total bookings" value={ledger.filter((t) => t.type === 'sale').length.toLocaleString()} />
+          <Kpi label="Total bookings" value={(bookingStats?.totalBookings ?? ledger.filter((t) => t.type === 'sale').length).toLocaleString()} />
         </View>
+        {!!bookingStats && (bookingStats.revenueOnline > 0 || bookingStats.revenueOffline > 0) && (
+          <View style={styles.kpiGrid}>
+            <Kpi label="Collected online" value={fmtMoney(bookingStats.revenueOnline)} />
+            <Kpi label="Collected offline" value={fmtMoney(bookingStats.revenueOffline)} />
+          </View>
+        )}
 
         <Card style={styles.section}>
           <View style={styles.sectionHead}>

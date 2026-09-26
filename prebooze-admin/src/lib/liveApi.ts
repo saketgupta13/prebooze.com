@@ -406,6 +406,13 @@ export interface LiveBooking {
   qty: number;
   total: number;
   status: 'confirmed' | 'cancelled' | 'refunded' | 'refund_requested';
+  // 'offline' bookings are walk-up/phone/gate sales the organizer recorded
+  // directly (see BookingsService.createOfflineBooking*) — self_collected
+  // means the organizer already holds the guest's cash/UPI themselves and
+  // only owes Prebooze its commission; payment_link means the guest paid
+  // through a real Prebooze-hosted PhonePe link, same as any online sale.
+  bookingSource: 'online' | 'offline';
+  offlinePaymentMode: 'self_collected' | 'payment_link' | null;
   paymentMethod: string | null;
   paymentId: string | null;
   walletCreditUsed: number;

@@ -752,6 +752,34 @@ export class OrganizerService {
     });
   }
 
+  /** Single, real source of truth for "how many bookings / how much have I
+   * collected online vs offline" — RN's and web's own Dashboard screens
+   * each used to derive "Total bookings" from OrganizerLedgerTx's 'sale'
+   * entries instead, which silently under-counts by one for every
+   * self-collected offline booking (that path deliberately posts no 'sale'
+   * entry — see prepareOfflineBooking's own doc comment — since the
+   * organizer already holds that cash directly, only Prebooze's commission
+   * is a ledger event). That divergence is exactly what showed up as a
+   * real organizer-reported mismatch against admin's own booking count
+   * (2026-09-26) — this counts real confirmed Booking rows instead, the
+   * same definition admin already uses, so all three surfaces agree. */
+  async bookingStats(userId: string) {
+    const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'view');
+    const confirmed = await this.prisma.booking.findMany({
+      where: { event: { OR: [{ organizerId: org.id }, { collaboratorOrganizerIds: { has: org.id } }] }, status: 'confirmed' },
+      select: { total: true, bookingSource: true, userId: true },
+    });
+    const revenueOnline = confirmed.filter((b) => b.bookingSource === 'online').reduce((a, b) => a + b.total, 0);
+    const revenueOffline = confirmed.filter((b) => b.bookingSource === 'offline').reduce((a, b) => a + b.total, 0);
+    return {
+      totalBookings: confirmed.length,
+      totalCustomers: new Set(confirmed.map((b) => b.userId)).size,
+      revenueOnline,
+      revenueOffline,
+      revenueTotal: revenueOnline + revenueOffline,
+    };
+  }
+
   /** Single-booking detail, organizer-scoped equivalent of admin's
    * BookingsService.adminGet — same field set (fee breakdown, coupon,
    * wallet credit, guest list, refund state, promoter attribution, QR),

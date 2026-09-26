@@ -714,6 +714,12 @@ export const organizer = {
   coupons: () => apiFetch<Coupon[]>('/organizer/coupons'),
   upsertCoupon: (c: Partial<Coupon>) => apiFetch<Coupon>('/organizer/coupons', { body: c }),
   payouts: () => apiFetch<{ balance: number; ledger: OrgLedgerTx[] }>('/organizer/payouts'),
+  // Real confirmed-Booking-row counts + online/offline revenue split — see
+  // OrganizerService.bookingStats. The Dashboard's own "Total bookings"
+  // used to derive from ledger 'sale' entries instead, which silently
+  // undercounts self-collected offline bookings (no 'sale' entry posted
+  // for those) — this is the same real-row definition admin uses.
+  bookingStats: () => apiFetch<{ totalBookings: number; totalCustomers: number; revenueOnline: number; revenueOffline: number; revenueTotal: number }>('/organizer/booking-stats'),
   promoterPayouts: () =>
     apiFetch<{ eventId: string; eventTitle: string; eventDate: string; promoterId: string; promoterName: string; perHead: number; commission: number; total: number; status: 'pending' | 'reminder_sent' | 'received' }[]>(
       '/organizer/promoter-payouts'

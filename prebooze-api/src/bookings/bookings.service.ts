@@ -2223,11 +2223,23 @@ export class BookingsService {
     // WhatsApp template params can't contain newlines, so bullets are
     // joined with " - " instead of one-per-line the way the guest page
     // renders them.
-    const conditions = event.conditions.length ? event.conditions.join(' - ') : 'None specified';
+    //
+    // Real incident (2026-09-26): sending each rule's full {title}: {body}
+    // pushed one real event's rendered message to 1738 chars — AiSensy/Meta
+    // hard-caps the fully-rendered template (fixed text + all params
+    // substituted in) at 1024, and every send for that event failed. Rule
+    // *bodies* are the long, unbounded part (full refund-policy paragraphs,
+    // etc.) and are already on the guest's ticket/event page — this message
+    // only needs to jog memory, not repeat them, so only rule *titles* go
+    // out here. Everything dynamic is additionally hard-capped so no future
+    // event's oversized copy can silently break every send to it again.
+    const truncate = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s);
+    const conditions = truncate(event.conditions.length ? event.conditions.join(' - ') : 'None specified', 350);
     const rules = event.rules as unknown as { title: string; body: string }[];
-    const rulesText = Array.isArray(rules) && rules.length
-      ? rules.map((r) => `${r.title}: ${r.body}`).join(' - ')
-      : 'None specified';
+    const rulesText = truncate(
+      Array.isArray(rules) && rules.length ? rules.map((r) => r.title).join(', ') : 'None specified',
+      250,
+    );
 
     const bookings = await this.prisma.booking.findMany({
       where: { eventId, status: 'confirmed', ...(onlyBookingId ? { id: onlyBookingId } : {}) },
