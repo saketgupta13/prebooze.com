@@ -583,7 +583,7 @@ export default function EventWizardScreen() {
                 </View>
                 <Muted style={styles.tiny}>
                   Prebooze automatically WhatsApps this address + map link to every confirmed guest 3 hours before the event starts — you don't need to
-                  send it yourself. You can resend it manually anytime from Bookings.
+                  send it yourself. You can resend it manually anytime from this event's card on the Events tab.
                 </Muted>
               </View>
             ) : (
