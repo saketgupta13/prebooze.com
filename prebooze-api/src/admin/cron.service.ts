@@ -46,6 +46,16 @@ export class CronService {
    * only pings staff with what's actually due (post-completion, per
    * PaymentsService.payoutsDue's own date gate) so a human pays it for real
    * and records the real UTR themselves via the admin panel. */
+  /** Private-address events reveal their real address + map link to
+   * confirmed guests ~3h before start, not upfront — see
+   * BookingsService.sendDueEventLocations for the actual window/guard
+   * logic. Hourly is frequent enough that no event's 3h window is ever
+   * missed by more than an hour. */
+  @Cron('0 * * * *')
+  async eventLocationTick() {
+    await this.bookings.sendDueEventLocations().catch((e) => this.log.error(`eventLocationTick failed: ${e.message}`));
+  }
+
   @Cron('0 8 * * *')
   async autoPayoutTick() {
     const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });

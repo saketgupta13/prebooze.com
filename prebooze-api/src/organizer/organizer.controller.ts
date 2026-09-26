@@ -202,6 +202,13 @@ export class OrganizerController {
     return this.bookingsSvc.resendOfflineBookingConfirmation(req.user.sub, decodeURIComponent(id));
   }
 
+  /** Manual resend of a private-address event's location WhatsApp — see
+   * OrganizerService.resendEventLocation. */
+  @Post('events/:id/resend-location')
+  resendEventLocation(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.organizer.resendEventLocation(req.user.sub, decodeURIComponent(id));
+  }
+
   /** Organizer's own sign-off on a pending refund request — see
    * BookingsService.orgApproveRefund. Does not move any money; the real
    * approve/decline stays admin-only ('Refunds' permission). */
@@ -375,8 +382,8 @@ export class AdminEventsController {
 
   @Post(':id/reject')
   @RequirePermission('Events & approvals', 'approve')
-  reject(@Param('id') id: string, @Body('reason') reason: string) {
-    return this.organizer.adminReject(id, reason);
+  reject(@Param('id') id: string, @Body('reason') reason: string, @Body('rejectedSections') rejectedSections: string[] | undefined) {
+    return this.organizer.adminReject(id, reason, rejectedSections ?? []);
   }
 
   /** Real delete — any organizer's event, no ownership check ("admin god

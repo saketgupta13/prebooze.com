@@ -993,6 +993,7 @@ export class BookingsService {
     // Meta approval needed — same plain-text-URL pattern guest_pass/
     // waitlist_offer already use.
     await this.wa.send(input.whatsapp, 'booking_confirmed', [input.mainGuest.trim(), event.title, String(qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`, String(total)]).catch(() => {});
+    await this.maybeSendLocationForLateBooking(event.id, id);
     const ticketVenue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
     // A guest's profile city/state/country is often blank — never asked for
     // at signup, the same gap name used to have. The event they're actually
@@ -1210,6 +1211,7 @@ export class BookingsService {
     });
 
     await this.wa.send(phone, 'booking_confirmed', [input.guestName.trim(), event.title, String(input.qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`, String(total)]).catch(() => {});
+    await this.maybeSendLocationForLateBooking(event.id, id);
     const venue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
     // Same backfill as the guest checkout path (BookingsService.create) —
     // a staff-recorded walk-up/comp is just as real a signal of where this
@@ -1629,6 +1631,7 @@ export class BookingsService {
     // access credential (see BookingsService.ticketView).
     const ticketUrl = `${process.env.WEB_APP_URL ?? ''}/ticket/${encodeURIComponent(booking.qrToken)}`;
     await this.wa.send(booking.whatsapp, 'booking_confirmed', [guestName, event.title, String(qty), ticketUrl, String(total)]).catch(() => {});
+    await this.maybeSendLocationForLateBooking(event.id, booking.id);
     const venue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
     if (backfillProfile && guest && !guest.city && (venue?.city || event.privateCity)) {
       await this.prisma.user.update({
@@ -2195,6 +2198,71 @@ export class BookingsService {
     return { reconciled };
   }
 
+  // ---------- private-address event location reveal ----------
+
+  /** Real WhatsApp send of a private-address event's exact address + map
+   * link to every currently-confirmed guest — used three ways: the hourly
+   * cron's scheduled bulk send (~3h before Event.date, guarded by
+   * locationSentAt so it only fires once), one immediate send for a single
+   * new booking made after that bulk send already went out, and an
+   * organizer-triggered manual resend (deliberately not guarded by
+   * locationSentAt — an address correction or reminder should be able to
+   * go out again). One message per booking's own `whatsapp` field, not per
+   * user — a guest with two separate bookings for the same event (rare, but
+   * possible) gets it once per booking, matching how every other
+   * booking-level WhatsApp send in this file already works. */
+  async sendEventLocation(eventId: string, onlyBookingId?: string) {
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    if (!event.exactAddress) throw new BadRequestException('This event has no exact address set');
+
+    const bookings = await this.prisma.booking.findMany({
+      where: { eventId, status: 'confirmed', ...(onlyBookingId ? { id: onlyBookingId } : {}) },
+      select: { id: true, whatsapp: true, mainGuest: true },
+    });
+    for (const b of bookings) {
+      await this.wa.send(b.whatsapp, 'event_location', [b.mainGuest, event.title, event.exactAddress, event.mapLink ?? '']).catch(() => {});
+    }
+    return { sent: bookings.length };
+  }
+
+  /** The hourly cron's own entry point — finds every private-address event
+   * whose ~3h-before window has arrived and hasn't had its bulk send yet,
+   * fires it, and marks locationSentAt so this never repeats. An event
+   * whose window already passed without ever being picked up (server
+   * downtime, address added too late) is left for the organizer's manual
+   * resend rather than sent late automatically — a stale "your event has
+   * already started, here's the address" message is worse than none. */
+  async sendDueEventLocations() {
+    const now = new Date();
+    const events = await this.prisma.event.findMany({
+      where: {
+        status: 'approved',
+        exactAddress: { not: null },
+        locationSentAt: null,
+        date: { gt: now, lte: new Date(now.getTime() + 3 * 3600000) },
+      },
+      select: { id: true },
+    });
+    for (const e of events) {
+      await this.sendEventLocation(e.id).catch(() => {});
+      await this.prisma.event.update({ where: { id: e.id }, data: { locationSentAt: now } });
+    }
+    return { processed: events.length };
+  }
+
+  /** Called right after a booking is confirmed — if this event's scheduled
+   * bulk send already fired before this particular booking existed, the
+   * guest would otherwise never get the address at all. No-ops instantly
+   * (before any DB read) for the overwhelmingly common case of a booking
+   * made well before the 3h window. */
+  private async maybeSendLocationForLateBooking(eventId: string, bookingId: string) {
+    const event = await this.prisma.event.findUnique({ where: { id: eventId }, select: { exactAddress: true, locationSentAt: true } });
+    if (event?.exactAddress && event.locationSentAt) {
+      await this.sendEventLocation(eventId, bookingId).catch(() => {});
+    }
+  }
+
   // ---------- admin: bookings list/detail ----------
   async adminList(status?: string, userId?: string) {
     return this.prisma.booking.findMany({
@@ -2207,7 +2275,7 @@ export class BookingsService {
   async adminGet(id: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
-      include: { user: { select: { name: true, phone: true } }, event: { include: { venue: true } } },
+      include: { user: { select: { name: true, phone: true, email: true } }, event: { include: { venue: true } } },
     });
     if (!booking) throw new NotFoundException('Booking not found');
     // promoterRef is a bare slug, not a Prisma relation (see schema.prisma —
@@ -2247,6 +2315,17 @@ export class BookingsService {
   async adminSetNote(id: string, note: string) {
     const booking = await this.prisma.booking.update({ where: { id }, data: { adminNote: note.trim() || null } }).catch(() => null);
     if (!booking) throw new NotFoundException('Booking not found');
+    return { ok: true };
+  }
+
+  /** Staff correcting/adding the guest's own email — for offline/payment-link
+   * bookings where prepareOfflineBooking() only ever captured a phone number,
+   * so the guest's User row was created with email left at its "" default.
+   * Empty string (not null — User.email isn't nullable) clears it back out. */
+  async adminSetGuestEmail(id: string, email: string) {
+    const booking = await this.prisma.booking.findUnique({ where: { id }, select: { userId: true } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    await this.prisma.user.update({ where: { id: booking.userId }, data: { email: email.trim() } });
     return { ok: true };
   }
 

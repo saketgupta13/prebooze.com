@@ -9,7 +9,7 @@ import type { Event, EventStatus, Featured } from '../../types';
 import { eventCity, eventPath } from '../../lib/urls';
 import Poster from '../../components/Poster';
 import CategoryIcon from '../../components/CategoryIcon';
-import { CheckCircle2, X, Star, Pencil, Trash2 } from 'lucide-react';
+import { CheckCircle2, X, Star, Pencil, Trash2, MapPin } from 'lucide-react';
 
 const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -58,6 +58,8 @@ export default function MyEvents() {
   // the real payment flow this now drives.
   const [featuredMap, setFeaturedMap] = useState<Record<string, Featured | null>>({});
   const [featuring, setFeaturing] = useState<string | null>(null);
+  const [resendingLocationId, setResendingLocationId] = useState<string | null>(null);
+  const [resentLocationId, setResentLocationId] = useState<string | null>(null);
   const [rate, setRate] = useState<number | null>(null);
 
   useEffect(() => {
@@ -145,6 +147,19 @@ export default function MyEvents() {
     }
   };
 
+  const resendLocation = async (eventId: string) => {
+    setResendingLocationId(eventId);
+    try {
+      await organizer.resendEventLocation(eventId);
+      setResentLocationId(eventId);
+      setTimeout(() => setResentLocationId(null), 2500);
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Could not resend the location — try again in a moment');
+    } finally {
+      setResendingLocationId(null);
+    }
+  };
+
   const byStatus = tab === 'all' ? events : events.filter((e) => e.status === tab);
   const list = byStatus
     .filter((e) => (scope === 'upcoming' ? !isEventOver(e) : isEventOver(e)))
@@ -220,6 +235,17 @@ export default function MyEvents() {
                           <Star size={13} /> {featuring === e.id ? 'Starting…' : 'Feature'}
                         </button>
                       )
+                    )}
+                    {e.status === 'approved' && e.exactAddress && !isEventOver(e) && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        title="Resend the address + map link to every confirmed guest right now"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                        disabled={resendingLocationId === e.id}
+                        onClick={() => resendLocation(e.id)}
+                      >
+                        <MapPin size={13} /> {resendingLocationId === e.id ? 'Sending…' : resentLocationId === e.id ? 'Sent' : 'Resend location'}
+                      </button>
                     )}
                     <span style={{ flex: 1 }} />
                     <Link to={`/organizer/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>

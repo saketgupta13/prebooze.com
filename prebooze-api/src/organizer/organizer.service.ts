@@ -14,6 +14,7 @@ import { CatalogService } from '../catalog/catalog.service';
 import { notifyEventOwner } from '../common/notify-event-owner';
 import { OrgAccessService } from './org-access.service';
 import { toCitySlug } from '../common/city-slug';
+import { BookingsService } from '../bookings/bookings.service';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService — a cart still `active` past this is abandoned
 
@@ -55,6 +56,14 @@ export interface EventInput {
   venueId?: string;
   privateCity?: string;
   privateLocality?: string;
+  // Only meaningful for a private-address event (privateCity/privateLocality
+  // set) — the real address + Google Maps link, kept hidden from public
+  // listings and only sent to confirmed guests via WhatsApp ~3h before the
+  // event (see EventLocationService). Omitting on an edit leaves the
+  // event's existing value untouched, same convention as the rest of this
+  // input; explicit null/'' clears it.
+  exactAddress?: string | null;
+  mapLink?: string | null;
   status?: 'draft' | 'pending' | 'approved' | 'rejected';
   conditions?: string[];
   rules?: unknown;
@@ -95,6 +104,7 @@ export class OrganizerService {
     private liveMonitorSvc: LiveMonitorService,
     private orgAccess: OrgAccessService,
     private jwt: JwtService,
+    private bookingsSvc: BookingsService,
   ) {}
 
   /** Any team member (any role) can call this for basic org display context
@@ -317,6 +327,18 @@ export class OrganizerService {
     ]);
   }
 
+  /** Organizer-triggered manual re-send of the private-address location
+   * WhatsApp — e.g. fixing a typo in the address, or a "just in case"
+   * reminder closer to doors. Deliberately not gated by Event.locationSentAt
+   * (BookingsService.sendEventLocation's own doc comment covers why). */
+  async resendEventLocation(userId: string, eventId: string) {
+    const org = await this.orgAccess.require(userId, 'Events & wizard', 'edit');
+    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    if (!this.canAccessEvent(event, org.id)) throw new ForbiddenException();
+    return this.bookingsSvc.sendEventLocation(eventId);
+  }
+
   /** Organizer self-serve delete — only their own event (owner or a tagged
    * collaborator, same canAccessEvent every other event-scoped write
    * already uses), and only when assertEventDeletable allows it. */
@@ -426,6 +448,13 @@ export class OrganizerService {
       throw new BadRequestException('Pick a venue, or set both a city and locality for a private-address event');
     }
 
+    // Only meaningful in private-address mode — a switch to a real venue
+    // clears any exact address/map link that was set for the old mode
+    // (a venue already has its own real address). Within private mode,
+    // omitting the field on an edit leaves it untouched like everything else.
+    const exactAddress = venueId ? null : (input.exactAddress !== undefined ? input.exactAddress?.trim() || null : existing?.exactAddress ?? null);
+    const mapLink = venueId ? null : (input.mapLink !== undefined ? input.mapLink?.trim() || null : existing?.mapLink ?? null);
+
     // Real, registered co-organizers only — this is the actual enforcement
     // point for "both orgs must be registered." Every id must resolve to a
     // real Organizer row, or the whole save is rejected (no silent drop,
@@ -464,6 +493,8 @@ export class OrganizerService {
       venueId,
       privateCity,
       privateLocality,
+      exactAddress,
+      mapLink,
       organizerId,
       collaboratorOrganizerIds,
       status: status as never,
@@ -1248,7 +1279,7 @@ export class OrganizerService {
   async adminApprove(eventId: string) {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    const updated = await this.prisma.event.update({ where: { id: eventId }, data: { status: 'approved', rejectionReason: null } });
+    const updated = await this.prisma.event.update({ where: { id: eventId }, data: { status: 'approved', rejectionReason: null, rejectedSections: [] } });
     const owner = await this.notifyEventOwner(event);
     if (owner) {
       if (owner.email) {
@@ -1261,10 +1292,10 @@ export class OrganizerService {
     return updated;
   }
 
-  async adminReject(eventId: string, reason: string) {
+  async adminReject(eventId: string, reason: string, rejectedSections: string[] = []) {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    const updated = await this.prisma.event.update({ where: { id: eventId }, data: { status: 'rejected', rejectionReason: reason ?? '' } });
+    const updated = await this.prisma.event.update({ where: { id: eventId }, data: { status: 'rejected', rejectionReason: reason ?? '', rejectedSections } });
     const owner = await this.notifyEventOwner(event);
     if (owner) {
       if (owner.email) {

@@ -190,4 +190,10 @@ export class AdminBookingsController {
   setGuests(@Param('id') id: string, @Body('guests') guests: { name: string; gender?: string; whatsapp?: string }[]) {
     return this.bookings.adminSetGuests(decodeURIComponent(id), guests ?? []);
   }
+
+  @Post(':id/guest-email')
+  @RequirePermission('Bookings', 'edit')
+  setGuestEmail(@Param('id') id: string, @Body('email') email: string) {
+    return this.bookings.adminSetGuestEmail(decodeURIComponent(id), email ?? '');
+  }
 }

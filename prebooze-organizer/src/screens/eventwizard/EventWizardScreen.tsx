@@ -118,6 +118,11 @@ export default function EventWizardScreen() {
   const [liveCities, setLiveCities] = useState<string[]>([]);
   const [privateCity, setPrivateCity] = useState('');
   const [privateLocality, setPrivateLocality] = useState('');
+  // Real address + map link, kept hidden from public listings — Prebooze
+  // WhatsApps it automatically to every confirmed guest 3 hours before the
+  // event starts (server-side, see bookings.service.ts sendEventLocation).
+  const [exactAddress, setExactAddress] = useState('');
+  const [mapLink, setMapLink] = useState('');
 
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
@@ -209,6 +214,8 @@ export default function EventWizardScreen() {
             setPrivateAddress(true);
             setPrivateCity(ev.privateCity ?? '');
             setPrivateLocality(ev.privateLocality ?? '');
+            setExactAddress(ev.exactAddress ?? '');
+            setMapLink(ev.mapLink ?? '');
           }
           setPosterUrl(ev.posterUrl ?? null);
           setGalleryUrls(ev.galleryUrls ?? []);
@@ -270,7 +277,9 @@ export default function EventWizardScreen() {
     date: eventDate.toISOString(),
     durationHrs: +duration,
     seriesEndDate: isMultiDay && seriesEndDate ? new Date(seriesEndDate.getFullYear(), seriesEndDate.getMonth(), seriesEndDate.getDate(), 23, 59, 59).toISOString() : null,
-    ...(privateAddress ? { privateCity: privateCity.trim(), privateLocality: privateLocality.trim() } : { venueId }),
+    ...(privateAddress
+      ? { privateCity: privateCity.trim(), privateLocality: privateLocality.trim(), exactAddress: exactAddress.trim() || null, mapLink: mapLink.trim() || null }
+      : { venueId }),
     status,
     conditions: conditions.split('\n').filter(Boolean),
     rules: rules.filter((r) => r.title.trim() || r.body.trim()),
@@ -563,6 +572,18 @@ export default function EventWizardScreen() {
                 <Input value={privateLocality} onChangeText={setPrivateLocality} placeholder="Locality, e.g. Banjara Hills" style={{ marginTop: spacing.s }} />
                 <Muted style={styles.tiny}>
                   Guests will only ever see "{privateLocality || 'locality'}, {privateCity || 'city'}" — no venue name, no address, no map.
+                </Muted>
+                <View style={{ marginTop: spacing.m }}>
+                  <FieldLabel>Exact address</FieldLabel>
+                  <Input value={exactAddress} onChangeText={setExactAddress} placeholder="Full address to share with confirmed guests" />
+                </View>
+                <View style={{ marginTop: spacing.s }}>
+                  <FieldLabel>Google Maps link</FieldLabel>
+                  <Input value={mapLink} onChangeText={setMapLink} placeholder="https://maps.google.com/…" />
+                </View>
+                <Muted style={styles.tiny}>
+                  Prebooze automatically WhatsApps this address + map link to every confirmed guest 3 hours before the event starts — you don't need to
+                  send it yourself. You can resend it manually anytime from Bookings.
                 </Muted>
               </View>
             ) : (

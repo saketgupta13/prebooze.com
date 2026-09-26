@@ -71,6 +71,12 @@ export interface Event {
   hostedByVenue?: boolean;
   status: EventStatus;
   rejectionReason?: string;
+  rejectedSections?: string[];
+  // Private-address only — real address + Google Maps link, revealed to
+  // confirmed guests via WhatsApp ~3h before the event, not shown publicly.
+  exactAddress?: string | null;
+  mapLink?: string | null;
+  locationSentAt?: string | null;
   conditions: string[];
   rules: PartyRule[];
   lineup: LineupItem[];

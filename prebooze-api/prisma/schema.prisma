@@ -881,6 +881,19 @@ model Event {
   venue               Venue?                    @relation(fields: [venueId], references: [id])
   privateCity         String?
   privateLocality     String?
+  // Real address + Google Maps link for a private-address event — kept
+  // hidden from public listings/search, only ever sent to a booking's own
+  // guest via WhatsApp (see EventLocationService), ~3h before Event.date.
+  // Null for a venue-hosted event (the venue already has a real address).
+  exactAddress        String?
+  mapLink             String?
+  // Set once the scheduled bulk WhatsApp location send has actually gone
+  // out for this event — guards against the hourly cron re-sending to
+  // everyone already confirmed at that point. A booking made AFTER this is
+  // set gets its own immediate send instead (see BookingsService.create);
+  // a manual "resend" from the organizer console re-sends without touching
+  // this flag, since resend is deliberately not once-only.
+  locationSentAt      DateTime?
   // Nullable as of the venue-hosting feature — every event before that had
   // exactly one required organizer, and that's still true whenever
   // hostedByVenue is false (the overwhelming majority of events, unchanged
@@ -912,6 +925,12 @@ model Event {
   hostedByVenue       Boolean                   @default(false)
   status              EventStatus               @default(pending)
   rejectionReason     String?
+  // Which wizard step(s) (matching CreateEvent.tsx's STEPS: basics, media,
+  // tickets, rules_lineup, promoters, seo) an admin flagged as the actual
+  // problem — same idea as KycSubmission.rejectedDocTypes, so the organizer's
+  // wizard can highlight exactly what to fix instead of just showing
+  // rejectionReason as one undifferentiated blob of text.
+  rejectedSections    String[]                  @default([])
   conditions          String[]                  @default([])
   rules               Json                      @default("[]") // PartyRule[] — {title, body}[]
   lineup              Json                      @default("[]") // LineupItem[] — {name, role}[]

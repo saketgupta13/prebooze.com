@@ -521,6 +521,74 @@ textarea { resize: vertical; min-height: 84px; }
 }
 .hdr-menu-cap:first-child { padding-top: 4px; }
 
+.nb-wrap { position: relative; display: flex; align-items: center; }
+.nb-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: none;
+  border: 1.5px solid var(--border-3);
+  color: var(--text);
+  cursor: pointer;
+}
+.nb-bell:hover { background: var(--surface-2); }
+.nb-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.nb-panel { width: 320px; max-height: min(70vh, 480px); overflow-y: auto; padding: 4px; }
+.nb-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 4px; }
+.nb-mark-all { background: none; border: none; color: var(--accent); font-size: 12px; font-weight: 700; cursor: pointer; padding: 4px; }
+.nb-empty { padding: 18px 12px; text-align: center; }
+.nb-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  border-bottom: 1px dashed var(--border);
+  cursor: pointer;
+}
+.nb-row:last-child { border-bottom: none; }
+.nb-row:hover { background: var(--surface-2); }
+.nb-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; }
+.nb-icon-success { color: var(--success); background: rgba(31,138,91,0.16); }
+.nb-icon-danger { color: var(--danger); background: rgba(255,92,73,0.12); }
+.nb-icon-accent { color: var(--accent); background: rgba(155,225,61,0.14); }
+.nb-icon-warn { color: #f5c04a; background: rgba(245,192,74,0.16); }
+.nb-icon-muted { color: var(--muted); background: var(--surface-2); }
+.nb-row-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.nb-row-text { font-size: 13px; font-weight: 600; color: var(--muted); }
+.nb-row-unread .nb-row-text { font-weight: 700; color: var(--text); }
+.nb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 5px; }
+
+/* Deep-link target row (e.g. from a notification's cartId param) — same
+ * fade-out highlight idea a "just added" row would get, just triggered by
+ * arriving via a link instead of a local action. */
+@keyframes row-highlight-fade { from { background: rgba(155,225,61,0.22); } to { background: transparent; } }
+.row-highlight { animation: row-highlight-fade 2.5s ease-out 1; }
+
 /* ============ Footer ============ */
 .ftr {
   border-top: 1px solid var(--border);
@@ -1237,6 +1305,7 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
 }
 .wizard-steps .ws.on { border-color: var(--accent); color: var(--accent); }
 .wizard-steps .ws.done { color: var(--text); }
+.wizard-steps .ws.error { border-color: var(--danger); color: var(--danger); }
 
 .evrow {
   display: flex;

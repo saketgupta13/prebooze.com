@@ -56,6 +56,8 @@ export default function EventsScreen() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [resendingLocationId, setResendingLocationId] = useState<string | null>(null);
+  const [resentLocationId, setResentLocationId] = useState<string | null>(null);
 
   // useFocusEffect, not mount-only — this screen stays mounted at the root
   // of EventsStack, so returning here after creating/editing an event in
@@ -96,6 +98,19 @@ export default function EventsScreen() {
         },
       },
     ]);
+  };
+
+  const resendLocation = async (id: string) => {
+    setResendingLocationId(id);
+    try {
+      await organizer.resendEventLocation(id);
+      setResentLocationId(id);
+      setTimeout(() => setResentLocationId(null), 2500);
+    } catch (e) {
+      Alert.alert('Could not resend', e instanceof ApiError ? e.message : 'Something went wrong — try again.');
+    } finally {
+      setResendingLocationId(null);
+    }
   };
 
   const byStatus = tab === 'all' ? events : events.filter((e) => e.status === tab);
@@ -187,6 +202,15 @@ export default function EventsScreen() {
                       label="Performance"
                       variant="ghost"
                       onPress={() => navigation.navigate('MarketingAnalytics', { eventId: e.id, eventTitle: e.title })}
+                      style={[styles.smallBtn, { marginTop: spacing.s }]}
+                    />
+                  )}
+                  {e.status === 'approved' && !!e.exactAddress && !isEventOver(e) && (
+                    <Button
+                      label={resendingLocationId === e.id ? 'Sending…' : resentLocationId === e.id ? 'Sent ✓' : 'Resend location'}
+                      variant="ghost"
+                      onPress={() => resendLocation(e.id)}
+                      disabled={resendingLocationId === e.id}
                       style={[styles.smallBtn, { marginTop: spacing.s }]}
                     />
                   )}

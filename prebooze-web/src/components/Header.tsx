@@ -13,6 +13,7 @@ import { EVENTS, LINEUPS, ORGANIZERS, TRENDING_SEARCHES, VENUES } from '../data/
 import { catalog } from '../api';
 import { isBackendEnabled } from '../api/client';
 import CityPicker from './CityPicker';
+import NotificationBell from './NotificationBell';
 import { existingRole, type Role } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { useCityList } from '../lib/useCityList';
@@ -310,6 +311,8 @@ export default function Header() {
           {!heldRole && <Link to="/host">Join us</Link>}
           {user && !heldRole && <Link to="/bookings">My Bookings</Link>}
         </nav>
+
+        {user && (user.isOrganizer || orgTeamAccess) && <NotificationBell />}
 
         {user ? (
           <div className="hdr-user" role="button" tabIndex={0} onClick={() => setMenuOpen((o) => !o)}>

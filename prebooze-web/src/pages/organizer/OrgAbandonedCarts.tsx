@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { fmtMoney, isEventOver } from '../../data/mock';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
@@ -39,6 +40,9 @@ export default function OrgAbandonedCarts() {
   const [scope, setScope] = useState<'live' | 'past'>('live');
   const [eventF, setEventF] = useState('all');
   const [reminding, setReminding] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get('cartId');
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
   const load = () => {
     Promise.all([organizer.events(), organizer.abandonedCarts()])
@@ -47,6 +51,20 @@ export default function OrgAbandonedCarts() {
       .finally(() => setLoading(false));
   };
   useEffect(load, []);
+
+  // Deep-link from the notification bell (a cart doesn't warrant its own
+  // detail page — same call the RN app made — so we just open the list on
+  // the right tab and scroll to/highlight the row).
+  useEffect(() => {
+    if (!highlightId || loading) return;
+    const cart = carts.find((c) => c.id === highlightId);
+    if (!cart) return;
+    if (cartEventOver(cart) && scope !== 'past') setScope('past');
+    else if (!cartEventOver(cart) && scope !== 'live') setScope('live');
+    const t = setTimeout(() => rowRefs.current[highlightId]?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightId, loading, carts]);
 
   const switchScope = (s: 'live' | 'past') => {
     setScope(s);
@@ -130,7 +148,7 @@ export default function OrgAbandonedCarts() {
             </thead>
             <tbody>
               {mine.map((c) => (
-                <tr key={c.id}>
+                <tr key={c.id} ref={(el) => { rowRefs.current[c.id] = el; }} className={c.id === highlightId ? 'row-highlight' : undefined}>
                   <td>
                     <div className="bold small">{c.userName}</div>
                     <div className="tiny muted-2">{c.userPhone}</div>

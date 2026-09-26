@@ -7,6 +7,16 @@ import { useLiveGate } from '../components/LiveChrome';
 
 const TITLE = 'Events';
 const ANY = 'any';
+// Same keys/order as prebooze-web's CreateEvent.tsx STEP_KEYS — one per
+// wizard step, so a flagged key maps straight to a step the organizer sees.
+const EVENT_SECTIONS: { key: string; label: string }[] = [
+  { key: 'basics', label: 'Basics' },
+  { key: 'media', label: 'Media' },
+  { key: 'tickets', label: 'Tickets' },
+  { key: 'rules_lineup', label: 'Rules & line-up' },
+  { key: 'promoters', label: 'Promoters' },
+  { key: 'seo', label: 'SEO & publish' },
+];
 const STATUS_TABS: { key: 'all' | LiveEvent['status']; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'pending', label: 'Pending' },
@@ -48,6 +58,7 @@ export default function EventsReal() {
   const [err, setErr] = useState('');
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [rejectSections, setRejectSections] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -88,8 +99,18 @@ export default function EventsReal() {
     try { await liveEvents.approve(id); load(); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed to approve'); }
   };
   const submitReject = async (id: string) => {
-    try { await liveEvents.reject(id, rejectReason.trim()); setRejectingId(null); setRejectReason(''); load(); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed to reject'); }
+    try {
+      await liveEvents.reject(id, rejectReason.trim(), [...rejectSections]);
+      setRejectingId(null); setRejectReason(''); setRejectSections(new Set()); load();
+    } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed to reject'); }
   };
+  const toggleRejectSection = (key: string) =>
+    setRejectSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   const saveCommission = async (id: string, value: string) => {
     const v = value.trim() === '' ? null : parseFloat(value);
     if (v != null && (Number.isNaN(v) || v < 0 || v > 100)) { setErr('Commission must be 0-100'); return; }
@@ -202,8 +223,8 @@ export default function EventsReal() {
                     {rejectingId === e.id ? (
                       <>
                         <input className="input" style={{ width: 120, padding: '4px 6px' }} placeholder="reason" value={rejectReason} onChange={(ev) => setRejectReason(ev.target.value)} autoFocus />
-                        <button className="btn btn-danger btn-sm" onClick={() => submitReject(e.id)}>Confirm</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setRejectingId(null)}>Cancel</button>
+                        <button className="btn btn-danger btn-sm" disabled={!rejectReason.trim()} onClick={() => submitReject(e.id)}>Confirm</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => { setRejectingId(null); setRejectSections(new Set()); }}>Cancel</button>
                       </>
                     ) : (
                       <button className="btn btn-ghost btn-sm" onClick={() => setRejectingId(e.id)}>Reject</button>
@@ -221,6 +242,17 @@ export default function EventsReal() {
                   <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setConfirmDeleteId(e.id)}><Trash2 size={13} /> Delete</button>
                 )}
               </span>
+              {rejectingId === e.id && (
+                <div style={{ flexBasis: '100%', display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6, paddingTop: 6, borderTop: '1px dashed var(--border)' }}>
+                  <span className="tiny muted" style={{ width: '100%' }}>Which part is the problem? Check any that apply — the organizer's wizard will highlight those steps.</span>
+                  {EVENT_SECTIONS.map((s) => (
+                    <label key={s.key} className="tiny" style={{ display: 'flex', alignItems: 'center', gap: 5, color: rejectSections.has(s.key) ? 'var(--red)' : undefined }}>
+                      <input type="checkbox" checked={rejectSections.has(s.key)} onChange={() => toggleRejectSection(s.key)} />
+                      {s.label}
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

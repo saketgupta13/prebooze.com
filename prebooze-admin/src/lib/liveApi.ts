@@ -240,6 +240,10 @@ export interface LiveEvent {
   seriesEndDate: string | null;
   status: 'draft' | 'pending' | 'approved' | 'rejected';
   rejectionReason: string | null;
+  // Which wizard step(s) — see EVENT_SECTIONS — an admin flagged as the
+  // actual problem, alongside the free-text rejectionReason above. Same
+  // pattern as LiveKycApplication.rejectedDocTypes.
+  rejectedSections: string[];
   conditions: string[];
   rules: LivePartyRule[];
   lineup: LiveLineupItem[];
@@ -312,7 +316,7 @@ export const liveEvents = {
   create: (body: LiveEventInput) => liveFetch<LiveEvent>('/admin/events', { body }),
   update: (id: string, body: Omit<LiveEventInput, 'id'>) => liveFetch<LiveEvent>(`/admin/events/${id}`, { method: 'PATCH', body }),
   approve: (id: string) => liveFetch<LiveEvent>(`/admin/events/${id}/approve`, { method: 'POST' }),
-  reject: (id: string, reason: string) => liveFetch<LiveEvent>(`/admin/events/${id}/reject`, { method: 'POST', body: { reason } }),
+  reject: (id: string, reason: string, rejectedSections?: string[]) => liveFetch<LiveEvent>(`/admin/events/${id}/reject`, { method: 'POST', body: { reason, rejectedSections } }),
   setCommission: (id: string, commission: number | null) => liveFetch<LiveEvent>(`/admin/events/${id}/commission`, { method: 'PATCH', body: { commission } }),
   setPaidOut: (id: string, paidOut: boolean) => liveFetch<LiveEvent>(`/admin/events/${id}/paid-out`, { method: 'PATCH', body: { paidOut } }),
   setSalesPaused: (id: string, paused: boolean) => liveFetch<LiveEvent>(`/admin/events/${id}/pause-sales`, { method: 'PATCH', body: { paused } }),
@@ -437,7 +441,7 @@ export interface LiveBooking {
   checkedInAt: string | null;
   adminNote: string | null;
   guests: { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
-  user: { name: string; phone: string };
+  user: { name: string; phone: string; email: string };
   event: { id: string; title: string; date: string };
   qrToken: string;
   promoter: { id: string; name: string; slug: string } | null;
@@ -467,6 +471,11 @@ export const liveBookings = {
   // booked before per-attendee names were required.
   setGuests: (id: string, guests: { name: string; gender?: string; whatsapp?: string }[]) =>
     liveFetch<{ ok: true; guests: LiveBooking['guests'] }>(`/admin/bookings/${encodeURIComponent(id)}/guests`, { method: 'POST', body: { guests } }),
+  // For offline/payment-link bookings where the guest's own User row was
+  // created from just a phone number — lets staff add/correct the email on
+  // file so ticket-resend and future confirmations can actually reach them.
+  setGuestEmail: (id: string, email: string) =>
+    liveFetch<{ ok: true }>(`/admin/bookings/${encodeURIComponent(id)}/guest-email`, { method: 'POST', body: { email } }),
 };
 
 export interface LiveCustomer {

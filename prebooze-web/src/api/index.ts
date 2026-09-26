@@ -506,6 +506,17 @@ export const promoter = {
   subscription: subscriptionApi('promoter'),
 };
 
+// One in-app notification for an organizer — same shape prebooze-organizer's
+// RN app already renders (NotificationsScreen.tsx), just ported to web.
+export interface OrgNotification {
+  id: string;
+  icon: string;
+  text: string;
+  to: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
 // Booking-level row across every event — one per booking, not per guest
 // (see OrgAttendee below, which stays per-guest for the scanner). Same
 // shape organizer/venue's Bookings page and admin's own Bookings page use.
@@ -625,6 +636,10 @@ const marketingApi = (base: string) => ({
 });
 
 export const organizer = {
+  notifications: () => apiFetch<OrgNotification[]>('/organizer/notifications'),
+  unreadNotificationCount: () => apiFetch<{ count: number }>('/organizer/notifications/unread-count'),
+  markNotificationRead: (id: string) => apiFetch<{ ok: true }>(`/organizer/notifications/${encodeURIComponent(id)}/read`, { method: 'POST' }),
+  markAllNotificationsRead: () => apiFetch<{ ok: true }>('/organizer/notifications/read-all', { method: 'POST' }),
   me: () => apiFetch<Organizer>('/organizer/me'),
   updateMe: (patch: { brandName?: string; username?: string; city?: string; country?: string; state?: string; pincode?: string; logoUrl?: string; about?: string; socialLinks?: { instagram?: string; facebook?: string; other?: string[] }; contact?: string; contactPerson?: string; phone?: string; eventTypes?: string }) =>
     apiFetch<Organizer>('/organizer/me', { method: 'PATCH', body: patch }),
@@ -648,7 +663,8 @@ export const organizer = {
   events: () => apiFetch<Event[]>('/organizer/events'),
   upsertEvent: (e: {
     id?: string; title: string; description?: string; category?: string; subCategory?: string; ageLimit?: string;
-    tags?: string[]; date?: string; durationHrs?: number; venueId?: string; privateCity?: string; privateLocality?: string; status?: 'draft' | 'pending';
+    tags?: string[]; date?: string; durationHrs?: number; venueId?: string; privateCity?: string; privateLocality?: string;
+    exactAddress?: string | null; mapLink?: string | null; status?: 'draft' | 'pending';
     conditions?: string[]; rules?: unknown; lineup?: unknown; seo?: unknown; promoterConfig?: unknown;
     posterUrl?: string | null; galleryUrls?: string[]; teaserVideoUrl?: string | null; socialBanners?: { postUrl?: string; storyUrl?: string };
     tiers?: { id?: string; name: string; price: number; quantity: number; includes?: string[]; description?: string }[];
@@ -657,6 +673,10 @@ export const organizer = {
   // Real delete, not a status change — blocked server-side the instant a
   // single real Booking exists (see OrganizerService.deleteEvent).
   deleteEvent: (id: string) => apiFetch<{ ok: true }>(`/organizer/events/${id}`, { method: 'DELETE' }),
+  // Manual resend of the private-address location WhatsApp — see
+  // OrganizerService.resendEventLocation. Not gated on the scheduled
+  // ~3h-before send already having fired.
+  resendEventLocation: (id: string) => apiFetch<{ sent: number }>(`/organizer/events/${id}/resend-location`, { method: 'POST' }),
   // Real, registered organizers this organizer can tag as a co-organizer —
   // not gated on `verified`, unlike venuePartner.collaboratorOptions below
   // (that one's a lighter, read-only credit; this one grants full access,

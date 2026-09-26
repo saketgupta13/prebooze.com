@@ -206,6 +206,11 @@ export interface Event {
   venueId?: string | null;
   privateCity?: string | null;
   privateLocality?: string | null;
+  // Real address + map link for a private-address event — kept hidden
+  // from public listings, WhatsApped automatically to confirmed guests 3h
+  // before the event starts (server-side).
+  exactAddress?: string | null;
+  mapLink?: string | null;
   organizerId?: string | null;
   hostedByVenue?: boolean;
   status: EventStatus;

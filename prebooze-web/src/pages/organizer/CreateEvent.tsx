@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 
 const STEPS = ['1 Basics', '2 Media', '3 Tickets', '4 Rules & line-up', '5 Promoters', '6 SEO & publish'];
+// Keys admin's reject flow flags via Event.rejectedSections — one per wizard
+// step, same order as STEPS, so a flagged key maps straight to a step index.
+const STEP_KEYS = ['basics', 'media', 'tickets', 'rules_lineup', 'promoters', 'seo'];
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
 
 interface TierDraft {
@@ -89,6 +92,8 @@ export default function CreateEvent() {
   const [liveCities, setLiveCities] = useState<string[]>([]);
   const [privateCity, setPrivateCity] = useState('');
   const [privateLocality, setPrivateLocality] = useState('');
+  const [exactAddress, setExactAddress] = useState('');
+  const [mapLink, setMapLink] = useState('');
   // venueId defaults to the first fetched venue on a new event (below) even
   // when the organizer never touched the Venue field — left alone, that
   // stale id keeps `venue` truthy after switching to private-address mode,
@@ -205,6 +210,8 @@ export default function CreateEvent() {
             setPrivateAddress(true);
             setPrivateCity(ev.privateCity ?? '');
             setPrivateLocality(ev.privateLocality ?? '');
+            setExactAddress(ev.exactAddress ?? '');
+            setMapLink(ev.mapLink ?? '');
           }
           setPosterUrl(ev.posterUrl ?? null);
           setGalleryUrls(ev.galleryUrls ?? []);
@@ -282,7 +289,7 @@ export default function CreateEvent() {
     date: new Date(`${date}T${time}`).toISOString(),
     durationHrs: +duration,
     ...(privateAddress
-      ? { privateCity: privateCity.trim(), privateLocality: privateLocality.trim() }
+      ? { privateCity: privateCity.trim(), privateLocality: privateLocality.trim(), exactAddress: exactAddress.trim() || null, mapLink: mapLink.trim() || null }
       : { venueId }),
     status,
     conditions: conditions.split('\n').filter(Boolean),
@@ -438,22 +445,30 @@ export default function CreateEvent() {
         <div className="card" style={{ borderColor: 'var(--danger)', marginTop: 10, padding: '10px 14px' }}>
           <div className="danger-text small" style={{ fontWeight: 700, marginBottom: 2 }}>Rejected</div>
           <div className="tiny muted">{editing.rejectionReason || 'guideline issue'} — fix the issue above and resubmit, it goes back for a fresh review.</div>
+          {!!editing.rejectedSections?.length && (
+            <div className="tiny muted" style={{ marginTop: 4 }}>
+              Flagged: {editing.rejectedSections.map((k) => STEPS[STEP_KEYS.indexOf(k)] ?? k).join(', ')} — look for the red step below.
+            </div>
+          )}
         </div>
       )}
       {err && <div className="danger-text small" style={{ margin: '10px 0', display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
 
       <div className="wizard-steps">
-        {STEPS.map((s, i) => (
-          <button
-            key={s}
-            className={`ws ${i === step ? 'on' : ''} ${i < step ? 'done' : ''}`}
-            style={{ background: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-            onClick={() => setStep(i)}
-          >
-            {s}
-            {i < step ? <Check size={13} /> : ''}
-          </button>
-        ))}
+        {STEPS.map((s, i) => {
+          const flagged = editing?.status === 'rejected' && editing.rejectedSections?.includes(STEP_KEYS[i]);
+          return (
+            <button
+              key={s}
+              className={`ws ${i === step ? 'on' : ''} ${i < step ? 'done' : ''} ${flagged ? 'error' : ''}`}
+              style={{ background: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              onClick={() => setStep(i)}
+            >
+              {s}
+              {i < step ? <Check size={13} /> : ''}
+            </button>
+          );
+        })}
       </div>
 
       {step === 0 && (
@@ -561,8 +576,26 @@ export default function CreateEvent() {
                 />
               </div>
               <div className="tiny muted-2" style={{ marginTop: 6 }}>
-                Guests will only ever see "{privateLocality || 'locality'}, {privateCity || 'city'}" — no venue name, no address, no map. You're
-                responsible for sending the real address to everyone who books (export the attendee list from Attendees once tickets sell).
+                Guests will only ever see "{privateLocality || 'locality'}, {privateCity || 'city'}" publicly — no venue name, no address, no map.
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <span>Exact address</span>
+                <input
+                  value={exactAddress}
+                  onChange={(e) => setExactAddress(e.target.value)}
+                  placeholder="Full address to share with confirmed guests"
+                />
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <span>Google Maps link</span>
+                <input
+                  value={mapLink}
+                  onChange={(e) => setMapLink(e.target.value)}
+                  placeholder="https://maps.google.com/…"
+                />
+              </div>
+              <div className="tiny muted-2" style={{ marginTop: 6 }}>
+                Prebooze automatically WhatsApps this address + map link to every confirmed guest 3 hours before the event starts — you don't need to send it yourself. You can resend it manually anytime from this event's bookings page.
               </div>
             </div>
           ) : (

@@ -48,6 +48,10 @@ export default function BookingDetail() {
   const [showTicket, setShowTicket] = useState(false);
   const [note, setNote] = useState('');
   const [noteSaved, setNoteSaved] = useState(false);
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestEmailSaving, setGuestEmailSaving] = useState(false);
+  const [guestEmailSaved, setGuestEmailSaved] = useState(false);
+  const [guestEmailErr, setGuestEmailErr] = useState('');
   const [retryingRefund, setRetryingRefund] = useState(false);
   const [externalRefundId, setExternalRefundId] = useState('');
   const [externalRefundAmount, setExternalRefundAmount] = useState('');
@@ -70,6 +74,7 @@ export default function BookingDetail() {
       .then((b) => {
         setBooking(b);
         setNote(b.adminNote ?? '');
+        setGuestEmail(b.user.email ?? '');
         setEditGuests(b.guests.slice(1).map((g) => ({ name: g.name, gender: g.gender ?? '', whatsapp: g.whatsapp ?? '' })));
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
@@ -224,6 +229,21 @@ export default function BookingDetail() {
     }
   };
 
+  const saveGuestEmail = async () => {
+    setGuestEmailSaving(true);
+    setGuestEmailErr('');
+    try {
+      await liveBookings.setGuestEmail(booking.id, guestEmail);
+      setBooking({ ...booking, user: { ...booking.user, email: guestEmail.trim() } });
+      setGuestEmailSaved(true);
+      setTimeout(() => setGuestEmailSaved(false), 2000);
+    } catch (e) {
+      setGuestEmailErr(e instanceof LiveApiError ? e.message : 'Failed to save email');
+    } finally {
+      setGuestEmailSaving(false);
+    }
+  };
+
   const subtotal = booking.subtotal ?? 0;
   const fee = booking.fee ?? 0;
   const discount = booking.discount ?? 0;
@@ -241,6 +261,24 @@ export default function BookingDetail() {
         <div className="display" style={{ fontWeight: 700 }}>Guest</div>
         <div className="tiny muted">
           <Link to={`/customers/${booking.userId}`}>{booking.user.name || booking.mainGuest}</Link> · {booking.whatsapp}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label className="tiny muted" htmlFor="guest-email">Email {!booking.user.email && '(none on file — offline bookings often skip this)'}</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              id="guest-email"
+              type="email"
+              className="input"
+              style={{ flex: 1 }}
+              placeholder="guest@example.com"
+              value={guestEmail}
+              onChange={(e) => setGuestEmail(e.target.value)}
+            />
+            <button className="btn btn-pri btn-sm" onClick={saveGuestEmail} disabled={guestEmailSaving || guestEmail.trim() === (booking.user.email ?? '')}>
+              {guestEmailSaving ? 'Saving…' : guestEmailSaved ? 'Saved' : 'Save'}
+            </button>
+          </div>
+          {guestEmailErr && <div className="tiny" style={{ color: 'var(--red)' }}>{guestEmailErr}</div>}
         </div>
       </div>
 

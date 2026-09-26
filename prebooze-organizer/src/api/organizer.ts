@@ -33,7 +33,8 @@ export const organizer = {
   events: () => apiFetch<Event[]>('/organizer/events'),
   upsertEvent: (e: {
     id?: string; title: string; description?: string; category?: string; subCategory?: string; ageLimit?: string;
-    tags?: string[]; date?: string; durationHrs?: number; venueId?: string; privateCity?: string; privateLocality?: string; status?: 'draft' | 'pending';
+    tags?: string[]; date?: string; durationHrs?: number; venueId?: string; privateCity?: string; privateLocality?: string;
+    exactAddress?: string | null; mapLink?: string | null; status?: 'draft' | 'pending';
     conditions?: string[]; rules?: unknown; lineup?: unknown; seo?: unknown; promoterConfig?: unknown;
     posterUrl?: string | null; galleryUrls?: string[]; teaserVideoUrl?: string | null; socialBanners?: { postUrl?: string; storyUrl?: string };
     // Matches prebooze-api's real TierInput (organizer.service.ts) exactly
@@ -52,6 +53,11 @@ export const organizer = {
   // OrganizerService.deleteEvent. Only ever offered in the UI once
   // sold === 0, matching that rule.
   deleteEvent: (id: string) => apiFetch<{ ok: true }>(`/organizer/events/${id}`, { method: 'DELETE' }),
+  // Manual resend of the private-address WhatsApp (exact address + map
+  // link) — the automatic send (3h before start) already covers every
+  // confirmed guest at that point; this is for a guest who missed it or
+  // booked after the event started.
+  resendEventLocation: (eventId: string) => apiFetch<{ ok: true }>(`/organizer/events/${eventId}/resend-location`, { method: 'POST' }),
   // Read-only funnel/traffic performance for one event — the rest of
   // Marketing (campaign purchase) is deliberately out of scope for this
   // app (App Store IAP policy), but this has no purchase action, so it's
