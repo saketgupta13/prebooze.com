@@ -2216,12 +2216,25 @@ export class BookingsService {
     if (!event) throw new NotFoundException('Event not found');
     if (!event.exactAddress) throw new BadRequestException('This event has no exact address set');
 
+    // Same real per-event copy the guest site's own "Know before you go"
+    // (Event.conditions) and "Event rules" (Event.rules — {title,body}[])
+    // sections show — reused here rather than duplicated/re-typed per event,
+    // so this message never drifts from what the event page actually says.
+    // WhatsApp template params can't contain newlines, so bullets are
+    // joined with " - " instead of one-per-line the way the guest page
+    // renders them.
+    const conditions = event.conditions.length ? event.conditions.join(' - ') : 'None specified';
+    const rules = event.rules as unknown as { title: string; body: string }[];
+    const rulesText = Array.isArray(rules) && rules.length
+      ? rules.map((r) => `${r.title}: ${r.body}`).join(' - ')
+      : 'None specified';
+
     const bookings = await this.prisma.booking.findMany({
       where: { eventId, status: 'confirmed', ...(onlyBookingId ? { id: onlyBookingId } : {}) },
       select: { id: true, whatsapp: true, mainGuest: true },
     });
     for (const b of bookings) {
-      await this.wa.send(b.whatsapp, 'event_location', [b.mainGuest, event.title, event.exactAddress, event.mapLink ?? '']).catch(() => {});
+      await this.wa.send(b.whatsapp, 'event_location', [b.mainGuest, event.title, event.exactAddress, event.mapLink ?? '', conditions, rulesText]).catch(() => {});
     }
     return { sent: bookings.length };
   }
