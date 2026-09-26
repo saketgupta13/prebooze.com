@@ -66,7 +66,10 @@ export type MoreStackParamList = {
   // promoters (2026-09-15).
   Reviews: undefined;
   Coupons: undefined;
-  AbandonedCarts: undefined;
+  // Optional cartId — a cart notification deep-links here and highlights
+  // that specific cart's row (there's no separate cart detail screen, the
+  // list row already has everything: guest, event, amount, reminded state).
+  AbandonedCarts: { cartId?: string } | undefined;
   Payouts: undefined;
   Withdraw: undefined;
   Transactions: undefined;

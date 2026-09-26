@@ -1013,7 +1013,7 @@ export class BookingsService {
     await this.email.sendTemplate(user.email, 'booking_confirmed', {
       name: input.mainGuest.trim(), eventTitle: event.title, qty: String(qty), bookingId: id, total: moneyOrFree(total),
     }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined).catch(() => {});
-    await this.notifyOrg(event, 'booking', `New booking: ${input.mainGuest.trim()} · ${qty} ticket${qty > 1 ? 's' : ''} · ${event.title}`, '/bookings');
+    await this.notifyOrg(event, 'booking', `New booking: ${input.mainGuest.trim()} · ${qty} ticket${qty > 1 ? 's' : ''} · ${event.title}`, `/bookings/${encodeURIComponent(id)}`);
     await this.maybeNudgeProfileReward(userId, event.title).catch(() => {});
 
     // ---- invoice: GST (real GSTIN activated 2026-09-21) on the booking fee
@@ -1735,6 +1735,28 @@ export class BookingsService {
     return { ok: true };
   }
 
+  /** Organizer's own sign-off on a guest's pending refund request — a real
+   * action, not just a status readout, but deliberately NOT a shortcut past
+   * admin: this only sets orgApprovedRefundAt and tells admin the organizer
+   * already agrees, so admin can move faster on the queue. It never calls
+   * finalizeRefund() or touches the gateway itself — Refunds ('approve') is
+   * real, irreversible money movement, and the organizer doesn't hold that
+   * money (Prebooze's own gateway does), so the actual approval stays a
+   * 'Refunds'-permission, admin-only action same as it always was. */
+  async orgApproveRefund(userId: string, bookingId: string) {
+    const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'edit');
+    const booking = await this.prisma.booking.findUnique({ where: { id: bookingId }, include: { event: true, user: true } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.event.organizerId !== org.id) throw new ForbiddenException();
+    if (booking.status !== 'refund_requested') throw new BadRequestException('This booking has no pending refund request');
+    if (booking.orgApprovedRefundAt) return booking;
+    const updated = await this.prisma.booking.update({ where: { id: bookingId }, data: { orgApprovedRefundAt: new Date() } });
+    await this.notifications
+      .notify('↩', `${org.brandName} approved refund on their end — booking ${bookingId} · ₹${booking.total} — still needs your final approval`, `/admin/bookings/${encodeURIComponent(bookingId)}`)
+      .catch(() => {});
+    return updated;
+  }
+
   /** Event + tier picker for the offline-booking modal — gated on the same
    * 'Attendees & check-in' permission as actually creating one (not 'Events
    * & wizard'), since staff who can take a walk-up booking often can't edit
@@ -1800,10 +1822,20 @@ export class BookingsService {
       await this.email.sendTemplate(user.email, 'refund_requested', {
         name: user.name, bookingId: id, amount: money(expected),
       }).catch(() => {});
-      const event = await this.prisma.event.findUnique({ where: { id: booking.eventId }, select: { title: true } });
+      const event = await this.prisma.event.findUnique({
+        where: { id: booking.eventId },
+        select: { title: true, organizerId: true, hostedByVenue: true, venueId: true },
+      });
       if (event) await this.postEventLedger(this.prisma, booking.eventId, event.title, 'WhatsApp message charges', 'expense', Math.ceil(WHATSAPP_MSG_COST));
       await this.notifications.notify('↩', `Refund requested — booking ${id} · ₹${booking.total}`, '/admin/bookings?status=refund_requested');
       await this.staffAlerts.alert(`↩ Refund requested — booking ${id} · ₹${booking.total} · ${user.name}`).catch(() => {});
+      // Real gap (2026-09-26): the organizer previously only heard about a
+      // refund after admin had already finished processing it — they had no
+      // way to weigh in on a request while it was still pending. This is the
+      // one and only organizer-facing refund notification that fires at
+      // *request* time; the existing notifyOrg('refund', ...) inside
+      // finalizeRefund() below still covers the *completed* case.
+      if (event) await this.notifyOrg(event, 'refund', `${user.name} requested a refund — booking ${id} · ₹${booking.total}`, `/bookings/${encodeURIComponent(id)}`);
       return this.prisma.booking.findUniqueOrThrow({ where: { id } });
     }
 
@@ -1826,7 +1858,7 @@ export class BookingsService {
     const booking = await this.prisma.booking.findUnique({ where: { id } });
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.status !== 'refund_requested') throw new BadRequestException('This booking has no pending refund request');
-    return this.prisma.booking.update({ where: { id }, data: { status: 'confirmed', refundedTo: null } });
+    return this.prisma.booking.update({ where: { id }, data: { status: 'confirmed', refundedTo: null, orgApprovedRefundAt: null } });
   }
 
   private async finalizeRefund(booking: Booking, refundTo: 'wallet' | 'source') {
@@ -1913,7 +1945,7 @@ export class BookingsService {
     // after the ledger reversal above actually lands, since that's the
     // moment the organizer's real earnings decreased, not just when the
     // guest requested it.
-    if (event) await this.notifyOrg(event, 'refund', `Refund processed — booking ${id} · ${money(refundAmount)}`, '/transactions');
+    if (event) await this.notifyOrg(event, 'refund', `Refund processed — booking ${id} · ${money(refundAmount)}`, `/bookings/${encodeURIComponent(id)}`);
 
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (refundTo === 'wallet') {

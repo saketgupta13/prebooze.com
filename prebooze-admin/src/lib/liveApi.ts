@@ -427,6 +427,11 @@ export interface LiveBooking {
   // gateway-fee part is Razorpay-only; PhonePe UPI costs nothing to
   // process, see BookingsService.gatewayFeeLostOn). Not the same as `total`.
   pendingRefundAmount?: number;
+  // Set when the organizer has already signed off on this refund request
+  // from their own console/app — a real second opinion, not a bypass:
+  // this never triggers the actual refund, only tells admin the organizer
+  // already agrees, to help staff move faster on the queue.
+  orgApprovedRefundAt: string | null;
   createdAt: string;
   checkedIn: boolean;
   checkedInAt: string | null;

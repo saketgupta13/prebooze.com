@@ -15,6 +15,7 @@ import Accordion from '../../components/Accordion';
 import ImageUploadBox from '../../components/ImageUploadBox';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../theme/tokens';
 import { htmlToPlainText, plainTextToHtml } from '../../lib/richtext';
+import { goBackOrHome } from '../../lib/navBack';
 import type { EventsStackParamList } from '../../navigation/types';
 import type { CollaboratorOption, Event, LineupProfile, PromoterProfile, Venue } from '../../types';
 
@@ -456,11 +457,18 @@ export default function EventWizardScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <IconButton onPress={() => navigation.goBack()}>
+        <IconButton onPress={() => goBackOrHome(navigation, 'Events', 'EventsList')}>
           <ArrowLeft size={18} color={colors.text} />
         </IconButton>
         <Txt style={styles.headerTitle} numberOfLines={1}>{editing ? `Edit — ${editing.title}` : 'Create event'}</Txt>
       </View>
+      {editing?.status === 'rejected' && (
+        <View style={styles.editNoticeWrap}>
+          <Notice tone="error">
+            Rejected{editing.rejectionReason ? ` — ${editing.rejectionReason}` : ''}. Fix the issue above and resubmit — it goes back for a fresh review.
+          </Notice>
+        </View>
+      )}
       {editing && (
         <View style={styles.editNoticeWrap}>
           <Notice tone="warning">Submitting these edits sends the event back for admin review — it won't be live again until it's re-approved.</Notice>

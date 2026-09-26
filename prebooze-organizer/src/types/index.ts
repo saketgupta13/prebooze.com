@@ -352,6 +352,7 @@ export interface OrgBookingDetail {
   refundGatewayState?: string | null;
   refundGatewayRefundId?: string | null;
   refundGatewayAmount?: number | null;
+  orgApprovedRefundAt?: string | null;
   qrToken: string;
   checkedIn: boolean;
   checkedInAt?: string | null;

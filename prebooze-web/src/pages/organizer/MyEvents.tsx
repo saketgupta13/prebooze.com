@@ -203,7 +203,7 @@ export default function MyEvents() {
                     )}
                   </div>
                   {e.status === 'rejected' && (
-                    <Link to="/organizer/events/create" className="link tiny">fix & resubmit</Link>
+                    <Link to={`/organizer/events/${e.id}/edit`} className="link tiny">fix & resubmit</Link>
                   )}
                   <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
                     {e.status === 'approved' && (

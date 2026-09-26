@@ -421,6 +421,11 @@ export default function BookingDetail() {
       {booking.status === 'refund_requested' && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ color: 'var(--red-soft)', fontSize: 12.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Undo2 size={14} /> Refund requested — "can't attend"</div>
+          {booking.orgApprovedRefundAt && (
+            <div className="tiny" style={{ color: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <CheckCircle2 size={13} /> Organizer already approved this on their end ({fmtDateTime(booking.orgApprovedRefundAt)}) — still your call.
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-pri btn-sm" style={{ flex: 1 }} onClick={approveRefund}>
               Approve refund

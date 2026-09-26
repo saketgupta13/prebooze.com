@@ -36,6 +36,7 @@ export default function BookingDetail() {
   const [resent, setResent] = useState(false);
   const [voiding, setVoiding] = useState(false);
   const [confirmVoid, setConfirmVoid] = useState(false);
+  const [approvingRefund, setApprovingRefund] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -58,6 +59,20 @@ export default function BookingDetail() {
       setActionErr(e instanceof ApiError ? e.message : 'Could not resend');
     } finally {
       setResending(false);
+    }
+  };
+
+  const approveRefund = async () => {
+    if (!id) return;
+    setApprovingRefund(true);
+    setActionErr('');
+    try {
+      const updated = await organizer.orgApproveRefund(id);
+      setBooking((prev) => (prev ? { ...prev, orgApprovedRefundAt: updated.orgApprovedRefundAt } : prev));
+    } catch (e) {
+      setActionErr(e instanceof ApiError ? e.message : 'Could not approve this refund');
+    } finally {
+      setApprovingRefund(false);
     }
   };
 
@@ -209,7 +224,22 @@ export default function BookingDetail() {
       {booking.status === 'refund_requested' && (
         <div className="card tbl-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 14 }}>
           <div className="danger-text" style={{ fontSize: 12.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Undo2 size={14} /> Refund requested — "can't attend"</div>
-          <div className="tiny muted">Awaiting admin review — refund approvals happen on the Prebooze admin side, not here.</div>
+          {booking.orgApprovedRefundAt ? (
+            <div className="tiny muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <CheckCircle2 size={13} className="accent" /> You approved this on your end {fmtDateTime(booking.orgApprovedRefundAt)} — still waiting on Prebooze's final approval.
+            </div>
+          ) : (
+            <>
+              <div className="tiny muted">
+                The real refund still needs Prebooze's approval (we're the one holding the guest's money) — but you can approve it on your end
+                first to tell them you're not contesting it.
+              </div>
+              <button className="btn btn-ghost btn-sm" style={{ width: 'fit-content' }} disabled={approvingRefund} onClick={approveRefund}>
+                {approvingRefund ? 'Approving…' : 'Approve on my end'}
+              </button>
+              {actionErr && <div className="danger-text tiny">{actionErr}</div>}
+            </>
+          )}
         </div>
       )}
 

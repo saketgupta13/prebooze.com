@@ -190,7 +190,7 @@ export class CartsService {
       const owner = await notifyEventOwner(this.prisma, c.event);
       if (owner) {
         await this.orgNotifications
-          .notify(owner.userId, 'cart', `${c.user.name || 'A guest'} left ${c.event.title} in their cart`, '/abandoned-carts')
+          .notify(owner.userId, 'cart', `${c.user.name || 'A guest'} left ${c.event.title} in their cart`, `/abandoned-carts/${encodeURIComponent(c.id)}`)
           .catch(() => {});
       }
     }

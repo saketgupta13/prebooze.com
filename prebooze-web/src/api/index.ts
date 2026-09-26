@@ -552,6 +552,7 @@ export interface OrgBookingDetail {
   refundGatewayState?: string | null;
   refundGatewayRefundId?: string | null;
   refundGatewayAmount?: number | null;
+  orgApprovedRefundAt?: string | null;
   qrToken: string;
   checkedIn: boolean;
   checkedInAt?: string | null;
@@ -681,6 +682,10 @@ export const organizer = {
   // aren't voidable here (real gateway money — use the normal refund path).
   voidOfflineBooking: (id: string) => apiFetch<OrgBooking>(`/organizer/offline-bookings/${encodeURIComponent(id)}/void`, { method: 'POST' }),
   resendOfflineBooking: (id: string) => apiFetch<{ ok: true }>(`/organizer/offline-bookings/${encodeURIComponent(id)}/resend`, { method: 'POST' }),
+  // Organizer's own sign-off on a pending refund request — does not move
+  // any money, just tells admin the organizer already agrees. Real
+  // approve/decline stays admin-only.
+  orgApproveRefund: (id: string) => apiFetch<OrgBookingDetail>(`/organizer/bookings/${encodeURIComponent(id)}/refund/org-approve`, { method: 'POST' }),
   // Deliberately its own endpoint rather than events() above — gated on
   // 'Attendees & check-in' view (same as the create call), not 'Events &
   // wizard', so staff who can only take bookings can still use this modal.

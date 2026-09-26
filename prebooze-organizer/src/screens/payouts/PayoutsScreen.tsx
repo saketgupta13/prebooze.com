@@ -9,6 +9,7 @@ import { Badge, Button, Card, H1, IconButton, Muted, Screen, Txt } from '../../c
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { fmtDate, fmtMoney } from '../../lib/format';
 import { shareCsv } from '../../lib/exportFile';
+import { goBackOrHome } from '../../lib/navBack';
 import type { MoreStackParamList } from '../../navigation/types';
 import type { OrgLedgerTx, OrgPromoterPayoutRow, PaymentProfile } from '../../types';
 
@@ -92,7 +93,7 @@ export default function PayoutsScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <IconButton onPress={() => navigation.goBack()}>
+        <IconButton onPress={() => goBackOrHome(navigation, 'More', 'MoreHome')}>
           <ArrowLeft size={18} color={colors.text} />
         </IconButton>
         <H1 style={styles.title}>Payouts</H1>

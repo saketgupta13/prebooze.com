@@ -7,6 +7,7 @@ import { organizer } from '../../api/organizer';
 import { ApiError } from '../../api/client';
 import { Badge, Button, Card, H1, IconButton, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
+import { goBackOrHome } from '../../lib/navBack';
 import type { OrgBookingDetail } from '../../types';
 import type { BookingsStackParamList } from '../../navigation/types';
 
@@ -35,6 +36,7 @@ export default function BookingDetailScreen() {
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [voiding, setVoiding] = useState(false);
+  const [approvingRefund, setApprovingRefund] = useState(false);
 
   const load = useCallback(() => {
     let cancelled = false;
@@ -88,10 +90,23 @@ export default function BookingDetailScreen() {
     );
   };
 
+  const approveRefund = async () => {
+    setApprovingRefund(true);
+    setActionErr('');
+    try {
+      const updated = await organizer.orgApproveRefund(id);
+      setBooking((prev) => (prev ? { ...prev, orgApprovedRefundAt: updated.orgApprovedRefundAt } : prev));
+    } catch (e) {
+      setActionErr(e instanceof ApiError ? e.message : 'Could not approve this refund');
+    } finally {
+      setApprovingRefund(false);
+    }
+  };
+
   return (
     <Screen>
       <View style={styles.header}>
-        <IconButton onPress={() => navigation.goBack()}>
+        <IconButton onPress={() => goBackOrHome(navigation, 'Bookings', 'BookingsList')}>
           <ArrowLeft size={18} color={colors.text} />
         </IconButton>
         <H1 style={styles.title} numberOfLines={1}>{booking?.id ?? 'Booking'}</H1>
@@ -196,7 +211,27 @@ export default function BookingDetailScreen() {
             {booking.status === 'refund_requested' && (
               <Card style={[styles.card, { borderColor: colors.danger }]}>
                 <View style={styles.iconRow}><Undo2 size={14} color={colors.danger} /><Txt style={[styles.bold, { color: colors.danger }]}>Refund requested — "can't attend"</Txt></View>
-                <Muted style={styles.tiny}>Awaiting admin review — refund approvals happen on the Prebooze admin side, not here.</Muted>
+                {booking.orgApprovedRefundAt ? (
+                  <View style={styles.iconRow}>
+                    <CheckCircle2 size={13} color={colors.success} />
+                    <Muted style={styles.tiny}>You approved this on your end {fmtDateTime(booking.orgApprovedRefundAt)} — still waiting on Prebooze's final approval.</Muted>
+                  </View>
+                ) : (
+                  <>
+                    <Muted style={styles.tiny}>
+                      The real refund still needs Prebooze's approval (we're the one holding the guest's money) — but you can approve it on your end
+                      first to tell them you're not contesting it.
+                    </Muted>
+                    <Button
+                      label={approvingRefund ? 'Approving…' : 'Approve on my end'}
+                      variant="ghost"
+                      onPress={approveRefund}
+                      disabled={approvingRefund}
+                      style={{ marginTop: spacing.s }}
+                    />
+                    {!!actionErr && <Txt style={{ color: colors.danger, fontSize: fontSize.s, marginTop: 6 }}>{actionErr}</Txt>}
+                  </>
+                )}
               </Card>
             )}
 

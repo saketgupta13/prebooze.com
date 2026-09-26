@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, MessageCircle, Phone, RefreshCw, X } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
@@ -10,6 +10,7 @@ import SearchableSelect from '../../components/SearchableSelect';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { fmtMoney, timeAgo } from '../../lib/format';
 import { isEventOver } from '../../lib/events';
+import { goBackOrHome } from '../../lib/navBack';
 import type { MoreStackParamList } from '../../navigation/types';
 import type { CartRecord, Event } from '../../types';
 
@@ -26,6 +27,8 @@ import type { CartRecord, Event } from '../../types';
  * event happens), one for a past event no longer is. */
 export default function AbandonedCartsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<MoreStackParamList>>();
+  const route = useRoute<RouteProp<MoreStackParamList, 'AbandonedCarts'>>();
+  const highlightCartId = route.params?.cartId;
   const [events, setEvents] = useState<Event[]>([]);
   const [carts, setCarts] = useState<CartRecord[]>([]);
   const [scope, setScope] = useState<'live' | 'past'>('live');
@@ -61,6 +64,21 @@ export default function AbandonedCartsScreen() {
     }
   };
 
+  // Deep-linked from a cart notification — land on whichever tab (Live/
+  // Past) actually contains that cart, and clear any event filter that
+  // might otherwise hide it, instead of leaving the organizer to hunt for
+  // a cart the notification named specifically.
+  useEffect(() => {
+    if (!highlightCartId) return;
+    const cart = carts.find((c) => c.id === highlightCartId);
+    const ev = cart ? events.find((e) => e.id === cart.eventId) : undefined;
+    if (ev) {
+      setScope(isEventOver(ev) ? 'past' : 'live');
+      setEventFilter('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightCartId, carts.length, events.length]);
+
   const eventById = new Map(events.map((e) => [e.id, e]));
   const scopedEvents = events.filter((e) => (scope === 'live' ? !isEventOver(e) : isEventOver(e)));
   const scopedCarts = carts.filter((c) => {
@@ -79,7 +97,7 @@ export default function AbandonedCartsScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <IconButton onPress={() => navigation.goBack()}>
+        <IconButton onPress={() => goBackOrHome(navigation, 'More', 'MoreHome')}>
           <ArrowLeft size={18} color={colors.text} />
         </IconButton>
         <H1 style={styles.title}>Abandoned carts</H1>
@@ -138,7 +156,7 @@ export default function AbandonedCartsScreen() {
           </Card>
         )}
         {filteredCarts.map((c) => (
-          <Card key={c.id} style={styles.cartCard}>
+          <Card key={c.id} style={[styles.cartCard, c.id === highlightCartId && styles.cartCardHighlight]}>
             <Txt style={styles.bold} numberOfLines={1}>{c.userName} · {c.userPhone}</Txt>
             <Muted style={styles.tiny} numberOfLines={1}>{c.eventTitle} · {c.tierSummary} · {fmtMoney(c.total)}</Muted>
             <Muted style={styles.tiny}>Left {timeAgo(c.createdAt)}</Muted>
@@ -189,6 +207,7 @@ const styles = StyleSheet.create({
   centerNote: { textAlign: 'center' },
   bold: { fontFamily: fontFamily.bold },
   cartCard: { padding: spacing.l, marginTop: spacing.m },
+  cartCardHighlight: { borderWidth: 1.5, borderColor: colors.accent },
   cartBtnCol: { gap: spacing.s, marginTop: spacing.m },
   // Matches the "Prebooze App Concept" design artifact's Abandoned carts
   // card exactly: two full-width stacked buttons — "Call now" (ghost,

@@ -8,6 +8,7 @@ import { ApiError } from '../../api/client';
 import { Button, Card, Checkbox, Chip, H1, IconButton, Input, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
 import { ORG_PERMISSION_MODULES, type OrgModulePerms, type OrgPermKey, type OrgStaffMember } from '../../types';
+import { goBackOrHome } from '../../lib/navBack';
 import type { MoreStackParamList } from '../../navigation/types';
 
 const PERM_KEYS: OrgPermKey[] = ['view', 'edit'];
@@ -152,7 +153,7 @@ export default function TeamRolesScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <IconButton onPress={() => navigation.goBack()}>
+        <IconButton onPress={() => goBackOrHome(navigation, 'More', 'MoreHome')}>
           <ArrowLeft size={18} color={colors.text} />
         </IconButton>
         <H1 style={styles.title}>Team & roles</H1>

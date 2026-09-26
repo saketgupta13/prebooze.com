@@ -434,6 +434,12 @@ export default function CreateEvent() {
         </h1>
         {editing && <span className="badge badge-pending">edits resubmit for admin approval</span>}
       </div>
+      {editing?.status === 'rejected' && (
+        <div className="card" style={{ borderColor: 'var(--danger)', marginTop: 10, padding: '10px 14px' }}>
+          <div className="danger-text small" style={{ fontWeight: 700, marginBottom: 2 }}>Rejected</div>
+          <div className="tiny muted">{editing.rejectionReason || 'guideline issue'} — fix the issue above and resubmit, it goes back for a fresh review.</div>
+        </div>
+      )}
       {err && <div className="danger-text small" style={{ margin: '10px 0', display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
 
       <div className="wizard-steps">

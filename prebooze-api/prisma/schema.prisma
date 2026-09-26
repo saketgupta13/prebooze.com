@@ -1458,6 +1458,15 @@ model Booking {
   // instead of pendingRefundAmount once known, so "what the guest actually
   // got back" is always the gateway's number, never a local calculation.
   refundGatewayAmount Int?
+  // Organizer's own sign-off on a guest's refund request — a second,
+  // faster-moving opinion admin can see before making the real call.
+  // Deliberately NOT a replacement for admin approval: this never triggers
+  // finalizeRefund() or touches the gateway itself — Refunds is real,
+  // irreversible money movement, and Prebooze (not the organizer) is the
+  // one actually holding/moving it. Set by OrganizerService.approveRefund,
+  // cleared back to null on decline/cancel/status revert alongside
+  // refundedTo.
+  orgApprovedRefundAt DateTime?
 
   // Payment method used on this booking. For admin bookings: set manually.
   // For guest checkouts: 'UPI'|'CARD'|'NETBANKING'|'WALLET'|'EMI' (PhonePe)

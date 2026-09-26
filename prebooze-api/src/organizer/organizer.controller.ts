@@ -202,6 +202,14 @@ export class OrganizerController {
     return this.bookingsSvc.resendOfflineBookingConfirmation(req.user.sub, decodeURIComponent(id));
   }
 
+  /** Organizer's own sign-off on a pending refund request — see
+   * BookingsService.orgApproveRefund. Does not move any money; the real
+   * approve/decline stays admin-only ('Refunds' permission). */
+  @Post('bookings/:id/refund/org-approve')
+  orgApproveRefund(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.bookingsSvc.orgApproveRefund(req.user.sub, decodeURIComponent(id));
+  }
+
   /** Event+tier picker for the offline-booking modal — deliberately its own
    * endpoint rather than reusing GET /organizer/events, which requires
    * 'Events & wizard' view and 403s for staff who can only take bookings. */

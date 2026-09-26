@@ -8,6 +8,7 @@ import { social } from '../../api/social';
 import { ApiError } from '../../api/client';
 import { Card, H1, IconButton, Kpi, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
+import { goBackOrHome } from '../../lib/navBack';
 import type { MoreStackParamList } from '../../navigation/types';
 import type { GuestReview } from '../../types';
 
@@ -39,7 +40,7 @@ export default function ReviewsScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <IconButton onPress={() => navigation.goBack()}>
+        <IconButton onPress={() => goBackOrHome(navigation, 'More', 'MoreHome')}>
           <ArrowLeft size={18} color={colors.text} />
         </IconButton>
         <H1 style={styles.title}>Reviews</H1>
