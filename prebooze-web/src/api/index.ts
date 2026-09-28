@@ -671,10 +671,12 @@ export const organizer = {
     id?: string; title: string; description?: string; category?: string; subCategory?: string; ageLimit?: string;
     tags?: string[]; date?: string; durationHrs?: number; venueId?: string; privateCity?: string; privateLocality?: string;
     exactAddress?: string | null; mapLink?: string | null; status?: 'draft' | 'pending';
+    unlistedVenueName?: string; unlistedVenueCity?: string; unlistedVenueAddress?: string; unlistedVenueInstagramUrl?: string;
     conditions?: string[]; rules?: unknown; lineup?: unknown; seo?: unknown; promoterConfig?: unknown;
     posterUrl?: string | null; galleryUrls?: string[]; teaserVideoUrl?: string | null; socialBanners?: { postUrl?: string; storyUrl?: string };
     tiers?: { id?: string; name: string; price: number; quantity: number; includes?: string[]; description?: string }[];
     collaboratorOrganizerIds?: string[];
+    freeTextCollaborators?: { name: string; instagramUrl?: string }[];
   }) => apiFetch<Event>('/organizer/events', { body: e }),
   // Real delete, not a status change — blocked server-side the instant a
   // single real Booking exists (see OrganizerService.deleteEvent).

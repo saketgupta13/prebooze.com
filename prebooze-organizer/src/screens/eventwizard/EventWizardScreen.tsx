@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, type StyleProp, type TextStyle } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
@@ -90,6 +90,10 @@ export default function EventWizardScreen() {
   const [collaboratorOptions, setCollaboratorOptions] = useState<CollaboratorOption[]>([]);
   const [collaboratorLoadFailed, setCollaboratorLoadFailed] = useState(false);
   const [collaboratorSel, setCollaboratorSel] = useState<string[]>([]);
+  // Display-only co-host credits (2026-09-28) — see web's own CreateEvent.tsx
+  // and Event.freeTextCollaborators's schema comment.
+  const [freeTextCollaboratorsSel, setFreeTextCollaboratorsSel] = useState<{ name: string; instagramUrl?: string }[]>([]);
+  const [pendingCoHost, setPendingCoHost] = useState<{ name: string; instagramUrl: string } | null>(null);
   const [editing, setEditing] = useState<Event | undefined>(undefined);
 
   const [title, setTitle] = useState('');
@@ -123,6 +127,13 @@ export default function EventWizardScreen() {
   // event starts (server-side, see bookings.service.ts sendEventLocation).
   const [exactAddress, setExactAddress] = useState('');
   const [mapLink, setMapLink] = useState('');
+  // Third venue mode (2026-09-28) — same as web's own CreateEvent.tsx, see
+  // Event.unlistedVenueName's schema comment for the full reasoning.
+  const [unlistedVenue, setUnlistedVenue] = useState(false);
+  const [unlistedVenueName, setUnlistedVenueName] = useState('');
+  const [unlistedVenueCity, setUnlistedVenueCity] = useState('');
+  const [unlistedVenueAddress, setUnlistedVenueAddress] = useState('');
+  const [unlistedVenueInstagramUrl, setUnlistedVenueInstagramUrl] = useState('');
 
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
@@ -140,7 +151,10 @@ export default function EventWizardScreen() {
 
   const [conditions, setConditions] = useState('Photo ID required\nNo re-entry');
   const [rules, setRules] = useState<RuleDraft[]>(DEFAULT_RULES);
-  const [lineupSel, setLineupSel] = useState<{ name: string; role: string }[]>([]);
+  const [lineupSel, setLineupSel] = useState<{ name: string; role: string; instagramUrl?: string }[]>([]);
+  // Real gap closed 2026-09-28: same as web — a typed name with no match
+  // opens this inline form instead of being silently dropped.
+  const [pendingLineup, setPendingLineup] = useState<{ name: string; role: string; instagramUrl: string } | null>(null);
 
   const [promoEnabled, setPromoEnabled] = useState(false);
   const [promoCap, setPromoCap] = useState('200');
@@ -210,6 +224,12 @@ export default function EventWizardScreen() {
             setVenueId(ev.venueId);
             const evVenue = vs.find((v) => v.id === ev.venueId);
             if (evVenue) setVenueCity(evVenue.city);
+          } else if (ev.unlistedVenueName) {
+            setUnlistedVenue(true);
+            setUnlistedVenueName(ev.unlistedVenueName);
+            setUnlistedVenueCity(ev.unlistedVenueCity ?? '');
+            setUnlistedVenueAddress(ev.unlistedVenueAddress ?? '');
+            setUnlistedVenueInstagramUrl(ev.unlistedVenueInstagramUrl ?? '');
           } else {
             setPrivateAddress(true);
             setPrivateCity(ev.privateCity ?? '');
@@ -227,6 +247,7 @@ export default function EventWizardScreen() {
           setRules(ev.rules.length ? ev.rules.map((r) => ({ title: r.title, body: r.body })) : DEFAULT_RULES);
           setLineupSel(ev.lineup);
           setCollaboratorSel(ev.collaboratorOrganizerIds);
+          setFreeTextCollaboratorsSel(ev.freeTextCollaborators ?? []);
           const pc = ev.promoterConfig;
           if (pc) {
             setPromoEnabled(pc.enabled);
@@ -253,7 +274,7 @@ export default function EventWizardScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
 
-  const toggleLineup = (l: { name: string; role: string }) =>
+  const toggleLineup = (l: { name: string; role: string; instagramUrl?: string }) =>
     setLineupSel((prev) => (prev.some((x) => x.name === l.name) ? prev.filter((x) => x.name !== l.name) : [...prev, l]));
   const venueLabel = (v: Venue) => `${v.name} · ${v.locality || v.city}`;
   const setRule = (i: number, patch: Partial<RuleDraft>) => setRules((prev) => prev.map((r, x) => (x === i ? { ...r, ...patch } : r)));
@@ -263,7 +284,7 @@ export default function EventWizardScreen() {
     [seoSlug, title],
   );
 
-  const step1Valid = !!(title.trim() && (privateAddress ? privateCity.trim() && privateLocality.trim() : venueId));
+  const step1Valid = !!(title.trim() && (privateAddress ? privateCity.trim() && privateLocality.trim() : unlistedVenue ? unlistedVenueName.trim() && unlistedVenueCity.trim() : venueId));
   const tiersValid = tiers.length > 0 && tiers.every((t) => t.name.trim() && t.price.trim() !== '' && +t.price >= 0 && +t.quantity > 0 && (!t.freeCutoff || +t.lateFeePrice > 0));
 
   const buildPayload = (status: 'draft' | 'pending') => ({
@@ -279,11 +300,14 @@ export default function EventWizardScreen() {
     seriesEndDate: isMultiDay && seriesEndDate ? new Date(seriesEndDate.getFullYear(), seriesEndDate.getMonth(), seriesEndDate.getDate(), 23, 59, 59).toISOString() : null,
     ...(privateAddress
       ? { privateCity: privateCity.trim(), privateLocality: privateLocality.trim(), exactAddress: exactAddress.trim() || null, mapLink: mapLink.trim() || null }
+      : unlistedVenue
+      ? { unlistedVenueName: unlistedVenueName.trim(), unlistedVenueCity: unlistedVenueCity.trim(), unlistedVenueAddress: unlistedVenueAddress.trim() || undefined, unlistedVenueInstagramUrl: unlistedVenueInstagramUrl.trim() || undefined }
       : { venueId }),
     status,
     conditions: conditions.split('\n').filter(Boolean),
     rules: rules.filter((r) => r.title.trim() || r.body.trim()),
     collaboratorOrganizerIds: collaboratorSel,
+    freeTextCollaborators: freeTextCollaboratorsSel,
     lineup: lineupSel,
     posterUrl,
     galleryUrls,
@@ -335,7 +359,7 @@ export default function EventWizardScreen() {
   };
 
   const venue = venues.find((v) => v.id === venueId);
-  const cityForSeo = venue?.city ?? (privateAddress ? privateCity : '');
+  const cityForSeo = venue?.city ?? (privateAddress ? privateCity : unlistedVenue ? unlistedVenueCity : '');
   const venuePhotosToAdd = (venue?.galleryUrls ?? []).filter((u) => !galleryUrls.includes(u));
   const setTier = (i: number, patch: Partial<TierDraft>) => setTiers((prev) => prev.map((t, x) => (x === i ? { ...t, ...patch } : t)));
   const addCustomInclude = (i: number) => {
@@ -441,7 +465,7 @@ export default function EventWizardScreen() {
           <Card style={styles.previewCard}>
             <Txt style={styles.previewTitle}>{ev.title}</Txt>
             <Muted style={styles.tiny}>{formatDateDMY(eventDate)} · {formatTime12h(eventDate)} · {ev.durationHrs} hrs</Muted>
-            <Muted style={styles.tiny}>{venue ? `${venue.name}, ${venue.city}` : privateAddress ? `${privateLocality}, ${privateCity}` : ''}</Muted>
+            <Muted style={styles.tiny}>{venue ? `${venue.name}, ${venue.city}` : unlistedVenue ? `${unlistedVenueName}, ${unlistedVenueCity}` : privateAddress ? `${privateLocality}, ${privateCity}` : ''}</Muted>
             <View style={styles.chipRow}>
               {ev.tags.map((t) => <Badge key={t} label={t} />)}
             </View>
@@ -563,9 +587,40 @@ export default function EventWizardScreen() {
               </>
             )}
 
-            <Checkbox checked={privateAddress} onChange={setPrivateAddress} label="Keep exact address private — I'll share it with guests myself" />
+            <FieldLabel>Venue type</FieldLabel>
+            <View style={styles.chipRow}>
+              <Chip
+                label="Registered venue"
+                active={!privateAddress && !unlistedVenue}
+                onPress={() => { setPrivateAddress(false); setUnlistedVenue(false); }}
+              />
+              <Chip
+                label="Public venue, not on Prebooze yet"
+                active={unlistedVenue}
+                onPress={() => { setVenueId(''); setPrivateAddress(false); setUnlistedVenue(true); if (!unlistedVenueCity.trim()) setUnlistedVenueCity(user?.city ?? ''); }}
+              />
+              <Chip
+                label="Keep address private"
+                active={privateAddress}
+                onPress={() => { setVenueId(''); setUnlistedVenue(false); setPrivateAddress(true); if (!privateCity.trim()) setPrivateCity(user?.city ?? ''); }}
+              />
+            </View>
 
-            {privateAddress ? (
+            {unlistedVenue ? (
+              <View style={styles.fieldGap}>
+                <FieldLabel>Venue name</FieldLabel>
+                <Input value={unlistedVenueName} onChangeText={setUnlistedVenueName} placeholder="Venue name" />
+                <FieldLabel style={{ marginTop: spacing.s }}>City</FieldLabel>
+                <SearchableSelect value={unlistedVenueCity} onChange={setUnlistedVenueCity} options={liveCities} placeholder="search cities…" />
+                <FieldLabel style={{ marginTop: spacing.s }}>Address</FieldLabel>
+                <Input value={unlistedVenueAddress} onChangeText={setUnlistedVenueAddress} placeholder="Full address (shown publicly)" />
+                <FieldLabel style={{ marginTop: spacing.s }}>Instagram link (optional)</FieldLabel>
+                <Input value={unlistedVenueInstagramUrl} onChangeText={setUnlistedVenueInstagramUrl} placeholder="https://instagram.com/…" />
+                <Muted style={styles.tiny}>
+                  Shown publicly on the event page, feeds city/venue search — just like a registered venue, minus a venue dashboard or revenue share. Prebooze will reach out to onboard them properly.
+                </Muted>
+              </View>
+            ) : privateAddress ? (
               <View style={styles.fieldGap}>
                 <FieldLabel>City</FieldLabel>
                 <SearchableSelect value={privateCity} onChange={setPrivateCity} options={liveCities} placeholder="search cities…" />
@@ -807,18 +862,43 @@ export default function EventWizardScreen() {
               value=""
               onChange={(name) => {
                 const c = collaboratorOptions.find((x) => x.brandName === name);
-                if (!c || collaboratorSel.includes(c.id)) return;
-                setCollaboratorSel((prev) => [...prev, c.id]);
+                if (c) {
+                  if (!collaboratorSel.includes(c.id)) setCollaboratorSel((prev) => [...prev, c.id]);
+                } else {
+                  setPendingCoHost({ name, instagramUrl: '' });
+                }
               }}
               options={collaboratorOptions.filter((c) => !collaboratorSel.includes(c.id)).map((c) => c.brandName)}
-              placeholder="search organizers to add as a co-host…"
+              placeholder="search organizers, or type a co-host name…"
+              allowFreeText
             />
             <Muted style={[styles.tiny, { marginVertical: spacing.s }]}>
-              A tagged co-organizer gets full access to this event — bookings, attendees, revenue, and commission —
-              and it shows on both your public profiles. Not registered on Prebooze yet? They can't be tagged;
-              mention them in the description instead.
+              A registered co-organizer gets full access to this event — bookings, attendees, revenue, and commission. A
+              typed name not on Prebooze is shown as "Co-hosted by X" only — no access, no revenue split. Prebooze will
+              reach out to onboard them properly.
             </Muted>
-            {collaboratorSel.length > 0 && (
+            {pendingCoHost && (
+              <Card style={{ padding: spacing.m, marginBottom: spacing.m, gap: spacing.s }}>
+                <Txt style={[styles.tiny, { fontFamily: fontFamily.bold }]}>Adding "{pendingCoHost.name}" as a display-only co-host (not on Prebooze yet)</Txt>
+                <Input
+                  value={pendingCoHost.instagramUrl}
+                  onChangeText={(t) => setPendingCoHost((p) => p && { ...p, instagramUrl: t })}
+                  placeholder="Instagram link (optional)"
+                />
+                <View style={{ flexDirection: 'row', gap: spacing.s }}>
+                  <Button
+                    label="Add as co-host"
+                    onPress={() => {
+                      setFreeTextCollaboratorsSel((prev) => [...prev, { name: pendingCoHost.name, instagramUrl: pendingCoHost.instagramUrl.trim() || undefined }]);
+                      setPendingCoHost(null);
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <Button label="Cancel" variant="ghost" onPress={() => setPendingCoHost(null)} style={{ flex: 1 }} />
+                </View>
+              </Card>
+            )}
+            {(collaboratorSel.length > 0 || freeTextCollaboratorsSel.length > 0) && (
               <ChipWrap>
                 {collaboratorSel.map((id) => {
                   const c = collaboratorOptions.find((x) => x.id === id);
@@ -831,6 +911,14 @@ export default function EventWizardScreen() {
                     />
                   );
                 })}
+                {freeTextCollaboratorsSel.map((c) => (
+                  <Chip
+                    key={c.name}
+                    label={`${c.name} · not on Prebooze ✕`}
+                    active
+                    onPress={() => setFreeTextCollaboratorsSel((prev) => prev.filter((x) => x.name !== c.name))}
+                  />
+                ))}
               </ChipWrap>
             )}
 
@@ -839,18 +927,55 @@ export default function EventWizardScreen() {
               value=""
               onChange={(name) => {
                 const l = lineups.find((x) => x.name === name);
-                if (!l) return;
-                const role = l.category === 'DJ' ? 'Opening DJ' : l.category === 'Sponsor' ? 'Sponsor' : l.category === 'Promoter' ? 'Promoter' : 'Headline artist';
-                toggleLineup({ name: l.name, role });
+                if (l) {
+                  const role = l.category === 'DJ' ? 'Opening DJ' : l.category === 'Sponsor' ? 'Sponsor' : l.category === 'Promoter' ? 'Promoter' : 'Headline artist';
+                  toggleLineup({ name: l.name, role });
+                } else {
+                  setPendingLineup({ name, role: '', instagramUrl: '' });
+                }
               }}
               options={lineups.filter((l) => !lineupSel.some((x) => x.name === l.name)).map((l) => l.name)}
-              placeholder="search line-up & partners to add…"
+              placeholder="search line-up & partners, or type a new name…"
+              allowFreeText
             />
-            <Muted style={[styles.tiny, { marginVertical: spacing.s }]}>Artist not listed? They need to register as a Prebooze line-up first.</Muted>
+            <Muted style={[styles.tiny, { marginVertical: spacing.s }]}>
+              Not on Prebooze yet? Add them anyway with a name (and optionally their Instagram) — Prebooze will reach out to onboard them properly.
+            </Muted>
+            {pendingLineup && (
+              <Card style={{ padding: spacing.m, marginBottom: spacing.m, gap: spacing.s }}>
+                <Txt style={[styles.tiny, { fontFamily: fontFamily.bold }]}>Adding "{pendingLineup.name}" (not on Prebooze yet)</Txt>
+                <Input
+                  value={pendingLineup.role}
+                  onChangeText={(t) => setPendingLineup((p) => p && { ...p, role: t })}
+                  placeholder="Their role, e.g. Opening DJ, Sponsor…"
+                />
+                <Input
+                  value={pendingLineup.instagramUrl}
+                  onChangeText={(t) => setPendingLineup((p) => p && { ...p, instagramUrl: t })}
+                  placeholder="Instagram link (optional)"
+                />
+                <View style={{ flexDirection: 'row', gap: spacing.s }}>
+                  <Button
+                    label="Add to line-up"
+                    onPress={() => {
+                      toggleLineup({ name: pendingLineup.name, role: pendingLineup.role.trim() || 'Guest', instagramUrl: pendingLineup.instagramUrl.trim() || undefined });
+                      setPendingLineup(null);
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <Button label="Cancel" variant="ghost" onPress={() => setPendingLineup(null)} style={{ flex: 1 }} />
+                </View>
+              </Card>
+            )}
             {lineupSel.length > 0 && (
               <ChipWrap>
                 {lineupSel.map((l) => (
-                  <Chip key={l.name} label={`${l.name} (${l.role}) ✕`} active onPress={() => toggleLineup(l)} />
+                  <Chip
+                    key={l.name}
+                    label={`${l.name} (${l.role})${!lineups.some((x) => x.name === l.name) ? ' · not on Prebooze' : ''} ✕`}
+                    active
+                    onPress={() => toggleLineup(l)}
+                  />
                 ))}
               </ChipWrap>
             )}
@@ -979,8 +1104,8 @@ export default function EventWizardScreen() {
   );
 }
 
-function FieldLabel({ children }: { children: string }) {
-  return <Txt style={fieldLabelStyle}>{children}</Txt>;
+function FieldLabel({ children, style }: { children: string; style?: StyleProp<TextStyle> }) {
+  return <Txt style={[fieldLabelStyle, style]}>{children}</Txt>;
 }
 function ChipWrap({ children }: { children: React.ReactNode }) {
   return <View style={styles.chipWrap}>{children}</View>;

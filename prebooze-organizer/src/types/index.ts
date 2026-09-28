@@ -109,6 +109,9 @@ export interface TicketTier {
 export interface LineupItem {
   name: string;
   role: 'Opening DJ' | 'Headline artist' | 'Sponsor' | 'Promoter' | string;
+  // Only meaningful when `name` doesn't match a registered Lineup profile —
+  // see prebooze-web's LineupItem for the full reasoning.
+  instagramUrl?: string;
 }
 
 export interface PartyRule {
@@ -211,6 +214,12 @@ export interface Event {
   // before the event starts (server-side).
   exactAddress?: string | null;
   mapLink?: string | null;
+  // Third venue mode — a real, public venue not yet on Prebooze. See
+  // prebooze-web's Event type for the full reasoning.
+  unlistedVenueName?: string | null;
+  unlistedVenueCity?: string | null;
+  unlistedVenueAddress?: string | null;
+  unlistedVenueInstagramUrl?: string | null;
   organizerId?: string | null;
   hostedByVenue?: boolean;
   status: EventStatus;
@@ -235,6 +244,9 @@ export interface Event {
   // strings only (see saveEvent's validation against the real Organizer
   // table); always an array on read, never undefined (Prisma default []).
   collaboratorOrganizerIds: string[];
+  // Display-only co-host credits — see prebooze-web's Event type for the
+  // full reasoning.
+  freeTextCollaborators?: { name: string; instagramUrl?: string }[];
 }
 
 // Real shape from organizer.service.ts's collaboratorOptions() — every

@@ -13,14 +13,22 @@ import { colors, fontFamily, fontSize, radius, spacing } from '../theme/tokens';
  * trigger (e.g. Scanner's translucent overlay pill on the camera view)
  * without touching every other call site's default look. */
 export default function SearchableSelect({
-  value, onChange, options, placeholder, fieldStyle, fieldTextStyle, chevronColor,
+  value, onChange, options, placeholder, fieldStyle, fieldTextStyle, chevronColor, allowFreeText,
 }: {
   value: string; onChange: (v: string) => void; options: string[]; placeholder?: string;
   fieldStyle?: StyleProp<ViewStyle>; fieldTextStyle?: StyleProp<TextStyle>; chevronColor?: string;
+  // Real gap closed 2026-09-28: same as web's own SearchableSelect — a typed
+  // query with no exact match shows an extra "+ Add" row that calls
+  // onChange with the raw typed text, for co-organizer/lineup/venue entries
+  // not yet registered on Prebooze.
+  allowFreeText?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const filtered = options.filter((o) => o.toLowerCase().includes(q.trim().toLowerCase()));
+  const exactMatch = options.some((o) => o.toLowerCase() === q.trim().toLowerCase());
+  const showFreeTextOption = allowFreeText && q.trim().length > 1 && !exactMatch;
+  const listData = showFreeTextOption ? [...filtered, `__freetext__${q.trim()}`] : filtered;
 
   return (
     <>
@@ -40,13 +48,19 @@ export default function SearchableSelect({
             </Pressable>
           </View>
           <FlatList
-            data={filtered}
+            data={listData}
             keyExtractor={(item) => item}
-            renderItem={({ item }) => (
-              <Pressable style={styles.option} onPress={() => { onChange(item); setOpen(false); }}>
-                <Txt>{item}</Txt>
-              </Pressable>
-            )}
+            renderItem={({ item }) => {
+              const isFreeText = item.startsWith('__freetext__');
+              const raw = isFreeText ? item.slice('__freetext__'.length) : item;
+              return (
+                <Pressable style={styles.option} onPress={() => { onChange(raw); setOpen(false); }}>
+                  <Txt style={isFreeText ? { color: colors.accent, fontFamily: fontFamily.bold } : undefined}>
+                    {isFreeText ? `+ Add "${raw}" (not on Prebooze yet)` : item}
+                  </Txt>
+                </Pressable>
+              );
+            }}
             ListEmptyComponent={<Muted style={styles.empty}>No matches</Muted>}
           />
         </View>

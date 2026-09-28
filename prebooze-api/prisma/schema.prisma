@@ -881,6 +881,24 @@ model Event {
   venue               Venue?                    @relation(fields: [venueId], references: [id])
   privateCity         String?
   privateLocality     String?
+  // Third venue mode (2026-09-28) alongside venueId (real partner) and
+  // privateCity/privateLocality (address hidden until booking) — a real,
+  // publicly-named venue that just isn't a Prebooze partner yet. Shown
+  // openly on the event page (feeds city/venue search like a real venue
+  // would), but with no venue dashboard and no venue-side revenue share —
+  // the organizer stays sole payee, same accounting as private-address
+  // mode. unlistedVenueInstagramUrl (optional) makes the venue name
+  // clickable on the event page instead of dead text. These three modes
+  // are mutually exclusive, enforced in OrganizerService.saveEvent. Staff
+  // treats a filled-in unlistedVenueName as a real sales lead (this venue
+  // clearly has events happening) — see the Leads pipeline. If/when
+  // Prebooze onboards them as a real Venue, matching by name (or by this
+  // Instagram URL once they add it to their new profile) relinks past and
+  // future events automatically — same mechanism Event.lineup entries use.
+  unlistedVenueName        String?
+  unlistedVenueCity        String?
+  unlistedVenueAddress     String?
+  unlistedVenueInstagramUrl String?
   // Real address + Google Maps link for a private-address event — kept
   // hidden from public listings/search, only ever sent to a booking's own
   // guest via WhatsApp (see EventLocationService), ~3h before Event.date.
@@ -917,6 +935,21 @@ model Event {
   // owner of record for liability (refunds, cancellations, compliance)
   // regardless of collaborator access.
   collaboratorOrganizerIds String[]             @default([])
+  // Display-only co-host credits (2026-09-28) — a name the organizer typed
+  // that isn't a registered Organizer, shown as "Co-hosted by X" with none
+  // of collaboratorOrganizerIds' real effects: no access grant, no revenue
+  // split (the event creator stays sole payee, same as with no co-host at
+  // all). Deliberately a SEPARATE field from collaboratorOrganizerIds
+  // rather than a mixed-type array in it — that field is the actual
+  // access-control list every OrgAccessService/canAccessEvent check reads,
+  // and keeping it a plain real-ids-only String[] means none of that
+  // existing, money/access-sensitive logic has to change or risk a
+  // free-text value ever being mistaken for a real grant. Shape:
+  // {name, instagramUrl?}[]. Relinking to a real Organizer once one
+  // registers is a deliberate manual staff action (unlike venue/lineup's
+  // automatic name-match) — silently granting real access/revenue on a
+  // name collision would be a real security/money risk.
+  freeTextCollaborators Json                    @default("[]")
   // true = venueId is the actual host/owner of this event (via
   // VenueService), not just a location an organizer booked. Determines
   // which ledger gets credited and who the public "hosted by" line

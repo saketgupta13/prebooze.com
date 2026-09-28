@@ -37,8 +37,9 @@ export const organizerPath = (city: string, id: string): string => `/${toCitySlu
 export const promoterPath = (city: string, slug: string): string => `/${toCitySlug(city)}/promoter/${slug}`;
 export const lineupPath = (city: string, slug: string): string => `/${toCitySlug(city)}/lineup/${slug}`;
 
-/** An event's own city is either its venue's, or — for a venue-less
- * "secret"/guest-list-only event — Event.privateCity. Exactly one of the
- * two is always set (schema invariant), never both, never neither. */
-export const eventCity = (event: { venue?: { city: string } | null; privateCity?: string | null }): string | undefined =>
-  event.venue?.city ?? event.privateCity ?? undefined;
+/** An event's own city is its venue's, or — for a venue-less event —
+ * Event.privateCity (hidden address) or Event.unlistedVenueCity (public
+ * venue not yet on Prebooze). Exactly one of the three is ever set
+ * (schema invariant), never more than one, never none. */
+export const eventCity = (event: { venue?: { city: string } | null; privateCity?: string | null; unlistedVenueCity?: string | null }): string | undefined =>
+  event.venue?.city ?? event.privateCity ?? event.unlistedVenueCity ?? undefined;

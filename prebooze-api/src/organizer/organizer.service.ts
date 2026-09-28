@@ -64,6 +64,15 @@ export interface EventInput {
   // input; explicit null/'' clears it.
   exactAddress?: string | null;
   mapLink?: string | null;
+  // Third venue mode — a real, public venue not yet on Prebooze. Sending
+  // unlistedVenueName is what selects this mode (checked the same
+  // `!== undefined` way as venueId/privateCity above); unlistedVenueAddress
+  // and the Instagram link are optional within it. See Event.
+  // unlistedVenueName's own schema comment for the full reasoning.
+  unlistedVenueName?: string;
+  unlistedVenueCity?: string;
+  unlistedVenueAddress?: string;
+  unlistedVenueInstagramUrl?: string;
   status?: 'draft' | 'pending' | 'approved' | 'rejected';
   conditions?: string[];
   rules?: unknown;
@@ -84,6 +93,11 @@ export interface EventInput {
   // fallback to a name-only credit). Omitting this on an edit leaves the
   // existing list untouched, same convention as tags/conditions.
   collaboratorOrganizerIds?: string[];
+  // Display-only co-host credits — {name, instagramUrl?}[], never validated
+  // against any real table (that's the whole point). See Event.
+  // freeTextCollaborators's own schema comment for why this is a separate
+  // field from collaboratorOrganizerIds rather than a mixed-type array.
+  freeTextCollaborators?: { name: string; instagramUrl?: string }[];
 }
 
 function slugifyBase(s: string): string {
@@ -423,37 +437,65 @@ export class OrganizerService {
     const status = existing ? (input.status !== undefined ? input.status : existing.status) : input.status === 'draft' ? 'draft' : 'pending';
 
     // Mode is decided by which the client actually sent, not by truthiness —
-    // omitting both keys entirely (e.g. a status-only resubmit) leaves
-    // whichever mode the event already had. A private-address event has no
-    // real Venue row at all; guests only ever see privateLocality/privateCity.
+    // omitting all relevant keys entirely (e.g. a status-only resubmit)
+    // leaves whichever mode the event already had. Three mutually exclusive
+    // modes now: a real registered Venue, a private/hidden address, or a
+    // real public venue name that isn't a Prebooze partner yet (see Event.
+    // unlistedVenueName's own schema comment).
     let venueId: string | null;
     let privateCity: string | null;
     let privateLocality: string | null;
+    let unlistedVenueName: string | null;
+    let unlistedVenueCity: string | null;
+    let unlistedVenueAddress: string | null;
+    let unlistedVenueInstagramUrl: string | null;
     if (input.venueId !== undefined) {
       const venue = input.venueId ? await this.prisma.venue.findUnique({ where: { id: input.venueId } }) : null;
       if (!venue) throw new BadRequestException('Unknown venue');
       venueId = venue.id;
       privateCity = null;
       privateLocality = null;
+      unlistedVenueName = null;
+      unlistedVenueCity = null;
+      unlistedVenueAddress = null;
+      unlistedVenueInstagramUrl = null;
     } else if (input.privateCity !== undefined || input.privateLocality !== undefined) {
       privateCity = input.privateCity?.trim() || null;
       privateLocality = input.privateLocality?.trim() || null;
       if (!privateCity || !privateLocality) throw new BadRequestException('Both city and locality are required for a private-address event');
       venueId = null;
+      unlistedVenueName = null;
+      unlistedVenueCity = null;
+      unlistedVenueAddress = null;
+      unlistedVenueInstagramUrl = null;
+    } else if (input.unlistedVenueName !== undefined) {
+      unlistedVenueName = input.unlistedVenueName?.trim() || null;
+      if (!unlistedVenueName) throw new BadRequestException('A venue name is required');
+      unlistedVenueCity = input.unlistedVenueCity?.trim() || null;
+      unlistedVenueAddress = input.unlistedVenueAddress?.trim() || null;
+      unlistedVenueInstagramUrl = input.unlistedVenueInstagramUrl?.trim() || null;
+      venueId = null;
+      privateCity = null;
+      privateLocality = null;
     } else if (existing) {
       venueId = existing.venueId;
       privateCity = existing.privateCity;
       privateLocality = existing.privateLocality;
+      unlistedVenueName = existing.unlistedVenueName;
+      unlistedVenueCity = existing.unlistedVenueCity;
+      unlistedVenueAddress = existing.unlistedVenueAddress;
+      unlistedVenueInstagramUrl = existing.unlistedVenueInstagramUrl;
     } else {
-      throw new BadRequestException('Pick a venue, or set both a city and locality for a private-address event');
+      throw new BadRequestException('Pick a venue, set both a city and locality for a private-address event, or name a venue not yet on Prebooze');
     }
 
     // Only meaningful in private-address mode — a switch to a real venue
     // clears any exact address/map link that was set for the old mode
     // (a venue already has its own real address). Within private mode,
     // omitting the field on an edit leaves it untouched like everything else.
-    const exactAddress = venueId ? null : (input.exactAddress !== undefined ? input.exactAddress?.trim() || null : existing?.exactAddress ?? null);
-    const mapLink = venueId ? null : (input.mapLink !== undefined ? input.mapLink?.trim() || null : existing?.mapLink ?? null);
+    const isPrivateAddressMode = !!privateCity && !!privateLocality;
+    const exactAddress = isPrivateAddressMode ? (input.exactAddress !== undefined ? input.exactAddress?.trim() || null : existing?.exactAddress ?? null) : null;
+    const mapLink = isPrivateAddressMode ? (input.mapLink !== undefined ? input.mapLink?.trim() || null : existing?.mapLink ?? null) : null;
 
     // Real, registered co-organizers only — this is the actual enforcement
     // point for "both orgs must be registered." Every id must resolve to a
@@ -477,6 +519,12 @@ export class OrganizerService {
       collaboratorOrganizerIds = existing?.collaboratorOrganizerIds ?? [];
     }
 
+    // Display-only — never validated against any table, that's the point.
+    // Just trimmed/filtered so a blank name can't sneak in.
+    const freeTextCollaborators = input.freeTextCollaborators !== undefined
+      ? input.freeTextCollaborators.filter((c) => c.name?.trim()).map((c) => ({ name: c.name.trim(), instagramUrl: c.instagramUrl?.trim() || undefined }))
+      : ((existing?.freeTextCollaborators as { name: string; instagramUrl?: string }[] | undefined) ?? []);
+
     // An edit is a merge onto the existing row, not a wholesale replace —
     // fields the client didn't send (e.g. a quick "approve my draft" resend
     // that only touches status) must not wipe out what's already saved.
@@ -493,10 +541,15 @@ export class OrganizerService {
       venueId,
       privateCity,
       privateLocality,
+      unlistedVenueName,
+      unlistedVenueCity,
+      unlistedVenueAddress,
+      unlistedVenueInstagramUrl,
       exactAddress,
       mapLink,
       organizerId,
       collaboratorOrganizerIds,
+      freeTextCollaborators: freeTextCollaborators as Prisma.InputJsonValue,
       status: status as never,
       conditions: input.conditions ?? existing?.conditions ?? [],
       rules: (input.rules ?? existing?.rules ?? []) as Prisma.InputJsonValue,

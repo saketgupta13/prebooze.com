@@ -23,6 +23,12 @@ export interface TicketTier {
 export interface LineupItem {
   name: string;
   role: 'Opening DJ' | 'Headline artist' | 'Sponsor' | 'Promoter' | string;
+  // Only meaningful when `name` doesn't match a registered Lineup profile —
+  // lets the organizer credit someone not yet on Prebooze with a real,
+  // clickable link instead of dead plain text. Once that person actually
+  // registers, findLineup() matching them by name takes over automatically
+  // and this is ignored — see EventDetail.tsx's lineup section.
+  instagramUrl?: string;
 }
 
 export interface PartyRule {
@@ -77,6 +83,15 @@ export interface Event {
   exactAddress?: string | null;
   mapLink?: string | null;
   locationSentAt?: string | null;
+  // Third venue mode — a real, public venue not yet a Prebooze partner. See
+  // organizer.service.ts's Event.unlistedVenueName schema comment.
+  unlistedVenueName?: string | null;
+  unlistedVenueCity?: string | null;
+  unlistedVenueAddress?: string | null;
+  unlistedVenueInstagramUrl?: string | null;
+  // Display-only co-host credits — see Event.freeTextCollaborators's own
+  // schema comment for why this is separate from collaboratorOrganizerIds.
+  freeTextCollaborators?: { name: string; instagramUrl?: string }[];
   conditions: string[];
   rules: PartyRule[];
   lineup: LineupItem[];

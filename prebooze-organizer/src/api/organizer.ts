@@ -35,6 +35,7 @@ export const organizer = {
     id?: string; title: string; description?: string; category?: string; subCategory?: string; ageLimit?: string;
     tags?: string[]; date?: string; durationHrs?: number; venueId?: string; privateCity?: string; privateLocality?: string;
     exactAddress?: string | null; mapLink?: string | null; status?: 'draft' | 'pending';
+    unlistedVenueName?: string; unlistedVenueCity?: string; unlistedVenueAddress?: string; unlistedVenueInstagramUrl?: string;
     conditions?: string[]; rules?: unknown; lineup?: unknown; seo?: unknown; promoterConfig?: unknown;
     posterUrl?: string | null; galleryUrls?: string[]; teaserVideoUrl?: string | null; socialBanners?: { postUrl?: string; storyUrl?: string };
     // Matches prebooze-api's real TierInput (organizer.service.ts) exactly
@@ -48,6 +49,7 @@ export const organizer = {
     // collaborator is possible, matching how it already treats rules/
     // promoterConfig/etc.
     collaboratorOrganizerIds?: string[];
+    freeTextCollaborators?: { name: string; instagramUrl?: string }[];
   }) => apiFetch<Event>('/organizer/events', { body: e }),
   // Blocked server-side the instant a single real Booking exists — see
   // OrganizerService.deleteEvent. Only ever offered in the UI once

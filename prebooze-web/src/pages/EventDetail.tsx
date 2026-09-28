@@ -396,6 +396,39 @@ export default function EventDetail() {
                     </Link>
                   ))}
 
+                  {/* Display-only co-host credits (Event.freeTextCollaborators)
+                      — a typed name not on Prebooze, no access/revenue
+                      implications, same "clickable to Instagram if given,
+                      else plain text" treatment as an unmatched lineup
+                      entry. See that field's own schema comment. */}
+                  {(event.freeTextCollaborators ?? []).map((c) =>
+                    c.instagramUrl ? (
+                      <a
+                        key={c.name}
+                        href={c.instagramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="evrow"
+                        style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
+                      >
+                        <span className="avatar"><Headphones size={20} /></span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="tiny muted-2">Co-hosted by</div>
+                          <div className="bold small">{c.name}</div>
+                        </div>
+                        <span className="link small">Instagram →</span>
+                      </a>
+                    ) : (
+                      <div key={c.name} className="evrow" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
+                        <span className="avatar"><Headphones size={20} /></span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="tiny muted-2">Co-hosted by</div>
+                          <div className="bold small">{c.name}</div>
+                        </div>
+                      </div>
+                    )
+                  )}
+
                   {venue ? (
                     <Link
                       to={venuePath(venue.city, venue.id)}
@@ -415,6 +448,37 @@ export default function EventDetail() {
                       </div>
                       <span className="link small">View →</span>
                     </Link>
+                  ) : event.unlistedVenueName ? (
+                    // Public venue, not yet a Prebooze partner — name+address
+                    // shown openly (unlike the private-address fallback
+                    // below), clickable to Instagram when given instead of a
+                    // real venue profile. See Event.unlistedVenueName's own
+                    // schema comment.
+                    event.unlistedVenueInstagramUrl ? (
+                      <a
+                        href={event.unlistedVenueInstagramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="evrow"
+                        style={{ textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}
+                      >
+                        <span className="avatar"><Landmark size={20} /></span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="tiny muted-2">Hosted at</div>
+                          <div className="bold small">{event.unlistedVenueName}</div>
+                        </div>
+                        <span className="link small">Instagram →</span>
+                      </a>
+                    ) : (
+                      <div className="evrow" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
+                        <span className="avatar"><Landmark size={20} /></span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="tiny muted-2">Hosted at</div>
+                          <div className="bold small">{event.unlistedVenueName}</div>
+                        </div>
+                        {event.unlistedVenueAddress && <span className="tiny muted-2">{event.unlistedVenueAddress}</span>}
+                      </div>
+                    )
                   ) : (
                     <div className="evrow" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
                       <span className="avatar"><MapPin size={20} /></span>
@@ -516,7 +580,7 @@ export default function EventDetail() {
                           <span className="n" style={{ display: 'block' }}>
                             {l.name} {profile?.verified && <span className="verified" style={{ display: 'inline-flex' }}><BadgeCheck size={13} /></span>}
                           </span>
-                          <span className="r">{l.role}{profile ? ' · view profile →' : ''}</span>
+                          <span className="r">{l.role}{profile ? ' · view profile →' : l.instagramUrl ? ' · Instagram →' : ''}</span>
                         </span>
                       </>
                     );
@@ -524,6 +588,10 @@ export default function EventDetail() {
                       <Link key={l.name} to={lineupPath(profile.city, profile.slug)} className="lineup-item" style={{ borderColor: 'var(--border-3)' }}>
                         {inner}
                       </Link>
+                    ) : l.instagramUrl ? (
+                      <a key={l.name} href={l.instagramUrl} target="_blank" rel="noopener noreferrer" className="lineup-item" style={{ borderColor: 'var(--border-3)' }}>
+                        {inner}
+                      </a>
                     ) : (
                       <div key={l.name} className="lineup-item">{inner}</div>
                     );

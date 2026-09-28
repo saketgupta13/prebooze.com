@@ -129,7 +129,7 @@ export class CatalogService {
         // silently let the second overwrite the first if both are ever
         // passed together.
         AND: [
-          ...(q.city ? [{ OR: [{ venue: { city: q.city } }, { privateCity: q.city }] }] : []),
+          ...(q.city ? [{ OR: [{ venue: { city: q.city } }, { privateCity: q.city }, { unlistedVenueCity: q.city }] }] : []),
           ...(q.organizerId ? [{ OR: [{ organizerId: q.organizerId }, { collaboratorOrganizerIds: { has: q.organizerId } }] }] : []),
         ],
         ...(q.cat ? { category: q.cat } : {}),
@@ -245,7 +245,7 @@ export class CatalogService {
   async organizers(city?: string) {
     const rows = await this.prisma.organizer.findMany({
       where: city
-        ? { OR: [{ city }, { events: { some: { status: 'approved', OR: [{ venue: { city } }, { privateCity: city }] } } }] }
+        ? { OR: [{ city }, { events: { some: { status: 'approved', OR: [{ venue: { city } }, { privateCity: city }, { unlistedVenueCity: city }] } } }] }
         : {},
       orderBy: { eventsHosted: 'desc' },
       select: PUBLIC_ORGANIZER_SELECT,
@@ -548,11 +548,13 @@ export class CatalogService {
     // just the ones under the currently-selected state, instead of showing
     // every enabled city regardless of state.
     const cities = await this.prisma.city.findMany({ where: { enabled: true }, orderBy: { sort: 'asc' }, include: { state: true } });
-    // Two counts, not one — a private-address event has no venueId to group
-    // by, so it'd silently vanish from every city's tally without this.
-    const [venueCounts, privateCounts] = await Promise.all([
+    // Three counts, not one — a private-address or unlisted-venue event has
+    // no venueId to group by, so it'd silently vanish from every city's
+    // tally without this.
+    const [venueCounts, privateCounts, unlistedCounts] = await Promise.all([
       this.prisma.event.groupBy({ by: ['venueId'], where: { status: 'approved', venueId: { not: null } }, _count: true }),
       this.prisma.event.groupBy({ by: ['privateCity'], where: { status: 'approved', privateCity: { not: null } }, _count: true }),
+      this.prisma.event.groupBy({ by: ['unlistedVenueCity'], where: { status: 'approved', unlistedVenueCity: { not: null } }, _count: true }),
     ]);
     // map venueId -> city, then aggregate counts per city
     const venues = await this.prisma.venue.findMany({ select: { id: true, city: true } });
@@ -566,6 +568,10 @@ export class CatalogService {
     for (const c of privateCounts) {
       if (!c.privateCity) continue;
       eventsByCity.set(c.privateCity, (eventsByCity.get(c.privateCity) ?? 0) + c._count);
+    }
+    for (const c of unlistedCounts) {
+      if (!c.unlistedVenueCity) continue;
+      eventsByCity.set(c.unlistedVenueCity, (eventsByCity.get(c.unlistedVenueCity) ?? 0) + c._count);
     }
     // Real venue count per city too, not just events — a city can have a
     // real, live venue onboarded before its first event goes up, and
@@ -621,17 +627,18 @@ export class CatalogService {
     if (!q.trim()) return [];
     const like = { contains: q, mode: 'insensitive' as const };
     const [events, venues, organizers, lineups] = await Promise.all([
-      this.prisma.event.findMany({ where: { status: 'approved', title: like }, take: 5, select: { title: true, slug: true, privateCity: true, venue: { select: { city: true } } } }),
+      this.prisma.event.findMany({ where: { status: 'approved', title: like }, take: 5, select: { title: true, slug: true, privateCity: true, unlistedVenueCity: true, venue: { select: { city: true } } } }),
       this.prisma.venue.findMany({ where: { name: like }, take: 5, select: { name: true, id: true, city: true } }),
       this.prisma.organizer.findMany({ where: { brandName: like }, take: 5, select: { brandName: true, id: true, city: true } }),
       this.prisma.lineup.findMany({ where: { name: like }, take: 5, select: { name: true, slug: true, city: true } }),
     ]);
     return [
       // Skips the (schema-invariant-violating, shouldn't-happen) case of an
-      // event with neither a venue nor a privateCity — no city to link to.
+      // event with neither a venue, privateCity, nor unlistedVenueCity —
+      // no city to link to.
       ...events
-        .filter((e) => e.venue?.city ?? e.privateCity)
-        .map((e) => ({ label: e.title, type: 'Event', to: `/${toCitySlug((e.venue?.city ?? e.privateCity)!)}/events/${e.slug}` })),
+        .filter((e) => e.venue?.city ?? e.privateCity ?? e.unlistedVenueCity)
+        .map((e) => ({ label: e.title, type: 'Event', to: `/${toCitySlug((e.venue?.city ?? e.privateCity ?? e.unlistedVenueCity)!)}/events/${e.slug}` })),
       ...venues.map((v) => ({ label: v.name, type: 'Venue', to: `/${toCitySlug(v.city)}/venues/${v.id}` })),
       ...organizers.map((o) => ({ label: o.brandName, type: 'Organizer', to: `/${toCitySlug(o.city)}/organizers/${o.id}` })),
       ...lineups.map((l) => ({ label: l.name, type: 'Artist', to: `/${toCitySlug(l.city)}/lineup/${l.slug}` })),

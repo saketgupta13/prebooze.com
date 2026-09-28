@@ -70,6 +70,11 @@ export default function CreateEvent() {
   const [promoters, setPromoters] = useState<PromoterProfile[]>([]);
   const [collaboratorOptions, setCollaboratorOptions] = useState<VenueCollaboratorOption[]>([]);
   const [collaboratorSel, setCollaboratorSel] = useState<string[]>([]);
+  // Display-only co-host credits (2026-09-28) — a typed name that isn't a
+  // registered organizer. No access, no revenue split — see Event.
+  // freeTextCollaborators's own schema comment.
+  const [freeTextCollaboratorsSel, setFreeTextCollaboratorsSel] = useState<{ name: string; instagramUrl?: string }[]>([]);
+  const [pendingCoHost, setPendingCoHost] = useState<{ name: string; instagramUrl: string } | null>(null);
   const [editing, setEditing] = useState<Event | undefined>(undefined);
 
   // Step 1 — basics
@@ -94,6 +99,14 @@ export default function CreateEvent() {
   const [privateLocality, setPrivateLocality] = useState('');
   const [exactAddress, setExactAddress] = useState('');
   const [mapLink, setMapLink] = useState('');
+  // Third venue mode (2026-09-28) — a real, public venue not yet a Prebooze
+  // partner. Unlike private-address mode, the name+address are shown
+  // openly; unlike a registered venue, there's no dashboard/revenue share.
+  const [unlistedVenue, setUnlistedVenue] = useState(false);
+  const [unlistedVenueName, setUnlistedVenueName] = useState('');
+  const [unlistedVenueCity, setUnlistedVenueCity] = useState('');
+  const [unlistedVenueAddress, setUnlistedVenueAddress] = useState('');
+  const [unlistedVenueInstagramUrl, setUnlistedVenueInstagramUrl] = useState('');
   // venueId defaults to the first fetched venue on a new event (below) even
   // when the organizer never touched the Venue field — left alone, that
   // stale id keeps `venue` truthy after switching to private-address mode,
@@ -123,7 +136,13 @@ export default function CreateEvent() {
   // Step 3 — rules & lineup
   const [conditions, setConditions] = useState('Photo ID required\nNo re-entry');
   const [rules, setRules] = useState<RuleDraft[]>(DEFAULT_RULES);
-  const [lineupSel, setLineupSel] = useState<{ name: string; role: string }[]>([]);
+  const [lineupSel, setLineupSel] = useState<{ name: string; role: string; instagramUrl?: string }[]>([]);
+  // Real gap closed 2026-09-28: an artist/partner not yet registered on
+  // Prebooze used to be un-addable at all. A typed name with no match now
+  // opens this small inline form (role + optional Instagram link) instead
+  // of adding straight to lineupSel — see the "+ Add" free-text option on
+  // SearchableSelect below.
+  const [pendingLineup, setPendingLineup] = useState<{ name: string; role: string; instagramUrl: string } | null>(null);
 
   // Step 4 — promoters
   const [promoEnabled, setPromoEnabled] = useState(false);
@@ -186,7 +205,10 @@ export default function CreateEvent() {
         setCategories(cats);
         setLiveCities(cities.map((c) => c.name).sort());
         setCollaboratorOptions(collabs);
-        if (ev) setCollaboratorSel(ev.collaboratorOrganizerIds ?? []);
+        if (ev) {
+          setCollaboratorSel(ev.collaboratorOrganizerIds ?? []);
+          setFreeTextCollaboratorsSel(ev.freeTextCollaborators ?? []);
+        }
         const subsForCat = (cat: string) => cats.find((c) => c.name === cat)?.subs ?? [];
         if (!ev) setSubCategory(subsForCat(category)[0] ?? '');
         if (ev) {
@@ -206,6 +228,11 @@ export default function CreateEvent() {
           setDuration(String(ev.durationHrs));
           if (ev.venueId) {
             setVenueId(ev.venueId);
+          } else if (ev.unlistedVenueName) {
+            setUnlistedVenue(true);
+            setUnlistedVenueName(ev.unlistedVenueName);
+            setUnlistedVenueAddress(ev.unlistedVenueAddress ?? '');
+            setUnlistedVenueInstagramUrl(ev.unlistedVenueInstagramUrl ?? '');
           } else {
             setPrivateAddress(true);
             setPrivateCity(ev.privateCity ?? '');
@@ -256,7 +283,7 @@ export default function CreateEvent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
 
-  const toggleLineup = (l: { name: string; role: string }) =>
+  const toggleLineup = (l: { name: string; role: string; instagramUrl?: string }) =>
     setLineupSel((prev) =>
       prev.some((x) => x.name === l.name) ? prev.filter((x) => x.name !== l.name) : [...prev, l]
     );
@@ -272,7 +299,7 @@ export default function CreateEvent() {
     [seoSlug, title]
   );
 
-  const step1Valid = title.trim() && date && (privateAddress ? privateCity.trim() && privateLocality.trim() : venueId);
+  const step1Valid = title.trim() && date && (privateAddress ? privateCity.trim() && privateLocality.trim() : unlistedVenue ? unlistedVenueName.trim() && unlistedVenueCity.trim() : venueId);
   // t.price.trim() guards against a Paid-ticket tier left blank after
   // switching off Free — +'' === 0 would otherwise silently validate as a
   // free tier the organizer never actually chose.
@@ -290,12 +317,15 @@ export default function CreateEvent() {
     durationHrs: +duration,
     ...(privateAddress
       ? { privateCity: privateCity.trim(), privateLocality: privateLocality.trim(), exactAddress: exactAddress.trim() || null, mapLink: mapLink.trim() || null }
+      : unlistedVenue
+      ? { unlistedVenueName: unlistedVenueName.trim(), unlistedVenueCity: unlistedVenueCity.trim(), unlistedVenueAddress: unlistedVenueAddress.trim() || undefined, unlistedVenueInstagramUrl: unlistedVenueInstagramUrl.trim() || undefined }
       : { venueId }),
     status,
     conditions: conditions.split('\n').filter(Boolean),
     rules: rules.filter((r) => r.title.trim() || r.body.trim()),
     lineup: lineupSel,
     collaboratorOrganizerIds: collaboratorSel,
+    freeTextCollaborators: freeTextCollaboratorsSel,
     posterUrl,
     galleryUrls,
     teaserVideoUrl,
@@ -353,7 +383,7 @@ export default function CreateEvent() {
   };
 
   const venue = venues.find((v) => v.id === venueId);
-  const cityForSeo = venue?.city ?? (privateAddress ? privateCity : '');
+  const cityForSeo = venue?.city ?? (privateAddress ? privateCity : unlistedVenue ? unlistedVenueCity : '');
   const venuePhotosToAdd = (venue?.galleryUrls ?? []).filter((u) => !galleryUrls.includes(u));
   const setTier = (i: number, patch: Partial<TierDraft>) =>
     setTiers((prev) => prev.map((t, x) => (x === i ? { ...t, ...patch } : t)));
@@ -392,7 +422,7 @@ export default function CreateEvent() {
               <h1 style={{ fontSize: 24 }}>{ev.title}</h1>
               <div className="detail-meta">
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Calendar size={14} /> {fmtDate(ev.date)}, {fmtTime(ev.date)}</span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><MapPin size={14} /> {venue ? `${venue.name}, ${venue.city}` : privateAddress ? `${privateLocality}, ${privateCity}` : ''}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><MapPin size={14} /> {venue ? `${venue.name}, ${venue.city}` : unlistedVenue ? `${unlistedVenueName}, ${unlistedVenueCity}` : privateAddress ? `${privateLocality}, ${privateCity}` : ''}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Clock size={14} /> {ev.durationHrs} hrs</span>
               </div>
               <div className="chip-row">
@@ -527,37 +557,90 @@ export default function CreateEvent() {
             </div>
           </div>
           <div className="field">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
-              <input
-                type="checkbox"
-                checked={privateAddress}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setPrivateAddress(checked);
-                  if (checked) {
-                    // Clear the (possibly default-selected) venue so `venue`
-                    // stops resolving truthy — otherwise the preview/submit
-                    // screens keep showing that venue instead of the private
-                    // city/locality below, even though buildPayload() already
-                    // sends privateCity/privateLocality correctly.
-                    prevVenueIdRef.current = venueId;
-                    setVenueId('');
-                    // Pre-fill from the organizer's own registered city
-                    // (falling back to whatever city they're currently
-                    // browsing as) so there's usually nothing to type — still
-                    // a real SearchableSelect underneath, so they can pick a
-                    // different city if this event's private address is
-                    // elsewhere. Never overwrites a value they already set.
-                    if (!privateCity.trim()) setPrivateCity(user?.city || browsingCity);
-                  } else if (!venueId && prevVenueIdRef.current) {
-                    setVenueId(prevVenueIdRef.current);
-                  }
+            <span>Venue type</span>
+            <div className="chip-row">
+              <button
+                type="button"
+                className={`chip ${!privateAddress && !unlistedVenue ? 'on' : ''}`}
+                onClick={() => {
+                  setPrivateAddress(false);
+                  setUnlistedVenue(false);
+                  if (!venueId && prevVenueIdRef.current) setVenueId(prevVenueIdRef.current);
                 }}
-              />
-              Keep exact address private — I'll share it with guests myself
-            </label>
+              >
+                Registered venue
+              </button>
+              <button
+                type="button"
+                className={`chip ${unlistedVenue ? 'on' : ''}`}
+                onClick={() => {
+                  prevVenueIdRef.current = venueId;
+                  setVenueId('');
+                  setPrivateAddress(false);
+                  setUnlistedVenue(true);
+                  if (!unlistedVenueCity.trim()) setUnlistedVenueCity(user?.city || browsingCity);
+                }}
+              >
+                Public venue, not on Prebooze yet
+              </button>
+              <button
+                type="button"
+                className={`chip ${privateAddress ? 'on' : ''}`}
+                onClick={() => {
+                  prevVenueIdRef.current = venueId;
+                  setVenueId('');
+                  setUnlistedVenue(false);
+                  setPrivateAddress(true);
+                  // Pre-fill from the organizer's own registered city
+                  // (falling back to whatever city they're currently
+                  // browsing as) so there's usually nothing to type — still
+                  // a real SearchableSelect underneath, so they can pick a
+                  // different city if this event's private address is
+                  // elsewhere. Never overwrites a value they already set.
+                  if (!privateCity.trim()) setPrivateCity(user?.city || browsingCity);
+                }}
+              >
+                Keep address private
+              </button>
+            </div>
           </div>
-          {privateAddress ? (
+          {unlistedVenue ? (
+            <div className="field">
+              <span>Venue name & address</span>
+              <input
+                value={unlistedVenueName}
+                onChange={(e) => setUnlistedVenueName(e.target.value)}
+                placeholder="Venue name"
+                style={{ marginBottom: 8 }}
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <SearchableSelect
+                  value={unlistedVenueCity}
+                  onChange={setUnlistedVenueCity}
+                  options={liveCities}
+                  placeholder="search cities…"
+                  icon
+                />
+                <input
+                  value={unlistedVenueAddress}
+                  onChange={(e) => setUnlistedVenueAddress(e.target.value)}
+                  placeholder="Full address (shown publicly)"
+                  style={{ flex: 1 }}
+                />
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <span>Instagram link (optional)</span>
+                <input
+                  value={unlistedVenueInstagramUrl}
+                  onChange={(e) => setUnlistedVenueInstagramUrl(e.target.value)}
+                  placeholder="https://instagram.com/…"
+                />
+              </div>
+              <div className="tiny muted-2" style={{ marginTop: 6 }}>
+                Shown publicly on the event page, feeds city/venue search — just like a registered venue, minus a venue dashboard or revenue share. Prebooze will reach out to onboard them properly.
+              </div>
+            </div>
+          ) : privateAddress ? (
             <div className="field">
               <span>City & locality</span>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -935,51 +1018,110 @@ export default function CreateEvent() {
             </button>
           </div>
           <div className="field">
-            <span>Line-up & partners — pick from the real roster</span>
+            <span>Line-up & partners</span>
             <SearchableSelect
               value=""
               onChange={(name) => {
                 const l = lineups.find((x) => x.name === name);
-                if (!l) return;
-                const role = l.category === 'DJ' ? 'Opening DJ' : l.category === 'Sponsor' ? 'Sponsor' : l.category === 'Promoter' ? 'Promoter' : 'Headline artist';
-                toggleLineup({ name: l.name, role });
+                if (l) {
+                  const role = l.category === 'DJ' ? 'Opening DJ' : l.category === 'Sponsor' ? 'Sponsor' : l.category === 'Promoter' ? 'Promoter' : 'Headline artist';
+                  toggleLineup({ name: l.name, role });
+                } else {
+                  setPendingLineup({ name, role: '', instagramUrl: '' });
+                }
               }}
               options={lineups.filter((l) => !lineupSel.some((x) => x.name === l.name)).map((l) => l.name)}
-              placeholder="search line-up & partners to add…"
+              placeholder="search line-up & partners, or type a new name…"
               icon
+              allowFreeText
             />
             <div className="tiny muted-2" style={{ margin: '8px 0' }}>
-              Artist not listed? They need to register as a Prebooze line-up first.
+              Not on Prebooze yet? Add them anyway with a name (and optionally their Instagram) — Prebooze will reach out to onboard them properly.
             </div>
+            {pendingLineup && (
+              <div className="card" style={{ padding: 12, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="tiny bold">Adding "{pendingLineup.name}" (not on Prebooze yet)</div>
+                <input
+                  value={pendingLineup.role}
+                  onChange={(e) => setPendingLineup((p) => p && { ...p, role: e.target.value })}
+                  placeholder="Their role, e.g. Opening DJ, Sponsor…"
+                />
+                <input
+                  value={pendingLineup.instagramUrl}
+                  onChange={(e) => setPendingLineup((p) => p && { ...p, instagramUrl: e.target.value })}
+                  placeholder="Instagram link (optional) — makes their name clickable on the event page"
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    className="btn btn-pri btn-sm"
+                    onClick={() => {
+                      toggleLineup({ name: pendingLineup.name, role: pendingLineup.role.trim() || 'Guest', instagramUrl: pendingLineup.instagramUrl.trim() || undefined });
+                      setPendingLineup(null);
+                    }}
+                  >
+                    Add to line-up
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPendingLineup(null)}>Cancel</button>
+                </div>
+              </div>
+            )}
             {lineupSel.length > 0 && (
               <div className="chip-row">
                 {lineupSel.map((l) => (
                   <button key={l.name} type="button" className="chip on" onClick={() => toggleLineup(l)} title="Remove from bill" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                    {l.name} ({l.role}) <X size={11} />
+                    {l.name} ({l.role}){!lineups.some((x) => x.name === l.name) && ' · not on Prebooze'} <X size={11} />
                   </button>
                 ))}
               </div>
             )}
           </div>
           <div className="field">
-            <span>Co-organizers — pick from registered Prebooze organizers only</span>
+            <span>Co-organizers</span>
             <SearchableSelect
               value=""
               onChange={(name) => {
                 const c = collaboratorOptions.find((x) => x.brandName === name);
-                if (!c || collaboratorSel.includes(c.id)) return;
-                setCollaboratorSel((prev) => [...prev, c.id]);
+                if (c) {
+                  if (!collaboratorSel.includes(c.id)) setCollaboratorSel((prev) => [...prev, c.id]);
+                } else {
+                  setPendingCoHost({ name, instagramUrl: '' });
+                }
               }}
               options={collaboratorOptions.filter((c) => !collaboratorSel.includes(c.id)).map((c) => c.brandName)}
-              placeholder="search organizers to add as a co-host…"
+              placeholder="search organizers, or type a co-host name…"
               icon
+              allowFreeText
             />
             <div className="tiny muted-2" style={{ margin: '8px 0' }}>
-              A tagged co-organizer gets full access to this event — bookings, attendees, revenue, and commission — and it
-              shows on both your public profiles. Not registered on Prebooze yet? They can't be tagged; mention them in the
-              description instead.
+              A registered co-organizer gets full access to this event — bookings, attendees, revenue, and commission. A
+              typed name not on Prebooze is shown as "Co-hosted by X" only — no access, no revenue split. Prebooze will
+              reach out to onboard them properly.
             </div>
-            {collaboratorSel.length > 0 && (
+            {pendingCoHost && (
+              <div className="card" style={{ padding: 12, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="tiny bold">Adding "{pendingCoHost.name}" as a display-only co-host (not on Prebooze yet)</div>
+                <input
+                  value={pendingCoHost.instagramUrl}
+                  onChange={(e) => setPendingCoHost((p) => p && { ...p, instagramUrl: e.target.value })}
+                  placeholder="Instagram link (optional) — makes their name clickable on the event page"
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    className="btn btn-pri btn-sm"
+                    onClick={() => {
+                      setFreeTextCollaboratorsSel((prev) => [...prev, { name: pendingCoHost.name, instagramUrl: pendingCoHost.instagramUrl.trim() || undefined }]);
+                      setPendingCoHost(null);
+                    }}
+                  >
+                    Add as co-host
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPendingCoHost(null)}>Cancel</button>
+                </div>
+              </div>
+            )}
+            {(collaboratorSel.length > 0 || freeTextCollaboratorsSel.length > 0) && (
               <div className="chip-row">
                 {collaboratorSel.map((id) => {
                   const c = collaboratorOptions.find((x) => x.id === id);
@@ -996,6 +1138,18 @@ export default function CreateEvent() {
                     </button>
                   );
                 })}
+                {freeTextCollaboratorsSel.map((c) => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    className="chip on"
+                    onClick={() => setFreeTextCollaboratorsSel((prev) => prev.filter((x) => x.name !== c.name))}
+                    title="Remove co-host"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                  >
+                    {c.name} · not on Prebooze <X size={11} />
+                  </button>
+                ))}
               </div>
             )}
           </div>
