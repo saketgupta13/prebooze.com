@@ -224,7 +224,19 @@ export default function Bookings() {
                     ? (b.offlinePaymentMode === 'self_collected' ? 'Offline · Cash' : 'Offline · Link')
                     : 'Online'}
                 </span>
-                <span style={{ flex: 0.9 }}><Tag {...STATUS_TAG[b.status]} /></span>
+                <span style={{ flex: 0.9, display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                  <Tag {...STATUS_TAG[b.status]} />
+                  {b.status === 'refunded' && b.refundGatewayState === 'INITIATED' && (
+                    <span className="tiny" style={{ color: 'var(--amber, #d9a441)' }} title="Refund sent to the gateway but not yet confirmed complete — open this booking to check its real status">
+                      ⏳ unconfirmed
+                    </span>
+                  )}
+                  {b.refundFailedAt && b.refundGatewayState !== 'INITIATED' && b.refundGatewayState !== 'COMPLETED' && (
+                    <span className="tiny" style={{ color: 'var(--red)' }} title="The gateway refund attempt failed — open this booking to retry">
+                      ⚠ refund failed
+                    </span>
+                  )}
+                </span>
               </div>
             ))}
             {list.length === 0 && !loading && <div className="trow muted">No bookings match.</div>}

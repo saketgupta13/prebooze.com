@@ -2242,8 +2242,18 @@ export class BookingsService {
       return null;
     }
     const merchantRefundId = `rfnd-${randomBytes(8).toString('hex')}`;
-    const res = await this.phonepe.refund(merchantRefundId, paymentId, amountPaise);
-    return res.refundId;
+    await this.phonepe.refund(merchantRefundId, paymentId, amountPaise);
+    // Real bug found 2026-09-28: this used to return PhonePe's own internal
+    // `res.refundId` instead of `merchantRefundId` — but PhonePe's Refund
+    // Status API (getRefundStatus) is keyed by the MERCHANT's own refund
+    // reference (confirmed against the SDK's RefundStatusResponse, whose
+    // primary field is `merchantRefundId`, not a bare "refundId"), not by
+    // whatever internal transaction reference the create-refund call
+    // happened to echo back. Every status check against the old stored
+    // value failed with REFUND_TRANSACTION_NOT_FOUND regardless of the
+    // refund's real state on PhonePe's side — this is what actually needs
+    // to be stored/queried for adminCheckRefundStatus to ever work.
+    return merchantRefundId;
   }
 
   /** Daily cron (CronService.razorpayFeeReconcileTick) — the "Razorpay
