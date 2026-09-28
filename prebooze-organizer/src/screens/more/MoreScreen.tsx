@@ -86,7 +86,7 @@ export default function MoreScreen() {
            * login there (same phone/OTP flow, just a second login). */}
           <Pressable style={styles.row} onPress={() => Linking.openURL(`${SITE_ORIGIN}/organizer/billing`)}>
             <Megaphone size={18} color={colors.muted} />
-            <Txt style={styles.rowLabel}>Featured & billing</Txt>
+            <Txt style={styles.rowLabel}>Buy Featured placement</Txt>
             <ChevronRight size={16} color={colors.muted} />
           </Pressable>
         </Card>
