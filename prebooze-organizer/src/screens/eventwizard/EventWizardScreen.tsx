@@ -134,6 +134,7 @@ export default function EventWizardScreen() {
   const [unlistedVenueCity, setUnlistedVenueCity] = useState('');
   const [unlistedVenueAddress, setUnlistedVenueAddress] = useState('');
   const [unlistedVenueInstagramUrl, setUnlistedVenueInstagramUrl] = useState('');
+  const [pendingVenue, setPendingVenue] = useState<{ name: string; address: string; instagramUrl: string } | null>(null);
 
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
@@ -228,6 +229,7 @@ export default function EventWizardScreen() {
             setUnlistedVenue(true);
             setUnlistedVenueName(ev.unlistedVenueName);
             setUnlistedVenueCity(ev.unlistedVenueCity ?? '');
+            setVenueCity(ev.unlistedVenueCity ?? '');
             setUnlistedVenueAddress(ev.unlistedVenueAddress ?? '');
             setUnlistedVenueInstagramUrl(ev.unlistedVenueInstagramUrl ?? '');
           } else {
@@ -587,40 +589,20 @@ export default function EventWizardScreen() {
               </>
             )}
 
-            <FieldLabel>Venue type</FieldLabel>
-            <View style={styles.chipRow}>
-              <Chip
-                label="Registered venue"
-                active={!privateAddress && !unlistedVenue}
-                onPress={() => { setPrivateAddress(false); setUnlistedVenue(false); }}
-              />
-              <Chip
-                label="Public venue, not on Prebooze yet"
-                active={unlistedVenue}
-                onPress={() => { setVenueId(''); setPrivateAddress(false); setUnlistedVenue(true); if (!unlistedVenueCity.trim()) setUnlistedVenueCity(user?.city ?? ''); }}
-              />
-              <Chip
-                label="Keep address private"
-                active={privateAddress}
-                onPress={() => { setVenueId(''); setUnlistedVenue(false); setPrivateAddress(true); if (!privateCity.trim()) setPrivateCity(user?.city ?? ''); }}
-              />
-            </View>
+            <Checkbox
+              checked={privateAddress}
+              onChange={(checked) => {
+                setPrivateAddress(checked);
+                if (checked) {
+                  setVenueId('');
+                  setUnlistedVenue(false);
+                  if (!privateCity.trim()) setPrivateCity(user?.city ?? '');
+                }
+              }}
+              label="Keep exact address private — I'll share it with guests myself"
+            />
 
-            {unlistedVenue ? (
-              <View style={styles.fieldGap}>
-                <FieldLabel>Venue name</FieldLabel>
-                <Input value={unlistedVenueName} onChangeText={setUnlistedVenueName} placeholder="Venue name" />
-                <FieldLabel style={{ marginTop: spacing.s }}>City</FieldLabel>
-                <SearchableSelect value={unlistedVenueCity} onChange={setUnlistedVenueCity} options={liveCities} placeholder="search cities…" />
-                <FieldLabel style={{ marginTop: spacing.s }}>Address</FieldLabel>
-                <Input value={unlistedVenueAddress} onChangeText={setUnlistedVenueAddress} placeholder="Full address (shown publicly)" />
-                <FieldLabel style={{ marginTop: spacing.s }}>Instagram link (optional)</FieldLabel>
-                <Input value={unlistedVenueInstagramUrl} onChangeText={setUnlistedVenueInstagramUrl} placeholder="https://instagram.com/…" />
-                <Muted style={styles.tiny}>
-                  Shown publicly on the event page, feeds city/venue search — just like a registered venue, minus a venue dashboard or revenue share. Prebooze will reach out to onboard them properly.
-                </Muted>
-              </View>
-            ) : privateAddress ? (
+            {privateAddress ? (
               <View style={styles.fieldGap}>
                 <FieldLabel>City</FieldLabel>
                 <SearchableSelect value={privateCity} onChange={setPrivateCity} options={liveCities} placeholder="search cities…" />
@@ -647,12 +629,51 @@ export default function EventWizardScreen() {
                 <SearchableSelect value={venueCity} onChange={changeVenueCity} options={liveCities} placeholder="All cities" />
                 <FieldLabel>Venue</FieldLabel>
                 <SearchableSelect
-                  value={venue ? venueLabel(venue) : ''}
-                  onChange={(label) => { const v = venues.find((vv) => venueLabel(vv) === label); if (v) setVenueId(v.id); }}
+                  value={unlistedVenue ? unlistedVenueName : venue ? venueLabel(venue) : ''}
+                  onChange={(label) => {
+                    const v = venues.find((vv) => venueLabel(vv) === label);
+                    if (v) {
+                      setVenueId(v.id);
+                      setUnlistedVenue(false);
+                    } else {
+                      setPendingVenue({ name: label, address: unlistedVenue ? unlistedVenueAddress : '', instagramUrl: unlistedVenue ? unlistedVenueInstagramUrl : '' });
+                    }
+                  }}
                   options={venues.map(venueLabel)}
-                  placeholder={venueCity ? `search venues in ${venueCity}…` : 'search venues…'}
+                  placeholder={venueCity ? `search venues in ${venueCity}, or type a new name…` : 'search venues, or type a new name…'}
+                  allowFreeText
                 />
-                <Muted style={styles.tiny}>Venue not listed? They need to register as a Prebooze venue partner first, or change city above to see other venues.</Muted>
+                {pendingVenue && (
+                  <Card style={{ padding: spacing.m, marginTop: spacing.m, gap: spacing.s }}>
+                    <Txt style={[styles.tiny, { fontFamily: fontFamily.bold }]}>Adding "{pendingVenue.name}" (not on Prebooze yet)</Txt>
+                    <Input value={pendingVenue.address} onChangeText={(t) => setPendingVenue((p) => p && { ...p, address: t })} placeholder="Full address (shown publicly)" />
+                    <Input value={pendingVenue.instagramUrl} onChangeText={(t) => setPendingVenue((p) => p && { ...p, instagramUrl: t })} placeholder="Instagram link (optional)" />
+                    <View style={{ flexDirection: 'row', gap: spacing.s }}>
+                      <Button
+                        label="Use this venue"
+                        onPress={() => {
+                          setUnlistedVenue(true);
+                          setUnlistedVenueName(pendingVenue.name);
+                          setUnlistedVenueCity(venueCity);
+                          setUnlistedVenueAddress(pendingVenue.address.trim());
+                          setUnlistedVenueInstagramUrl(pendingVenue.instagramUrl.trim());
+                          setVenueId('');
+                          setPendingVenue(null);
+                        }}
+                        style={{ flex: 1 }}
+                      />
+                      <Button label="Cancel" variant="ghost" onPress={() => setPendingVenue(null)} style={{ flex: 1 }} />
+                    </View>
+                  </Card>
+                )}
+                {unlistedVenue && !pendingVenue ? (
+                  <View style={{ flexDirection: 'row', gap: spacing.s, alignItems: 'center', marginTop: spacing.s }}>
+                    <Muted style={[styles.tiny, { flex: 1 }]}>Not on Prebooze yet — shown publicly, no revenue share. Prebooze will reach out to onboard them.</Muted>
+                    <Chip label="Edit details" onPress={() => setPendingVenue({ name: unlistedVenueName, address: unlistedVenueAddress, instagramUrl: unlistedVenueInstagramUrl })} />
+                  </View>
+                ) : (
+                  <Muted style={styles.tiny}>Venue not listed? Type its name above to add it, or change city to see other venues.</Muted>
+                )}
               </View>
             )}
 

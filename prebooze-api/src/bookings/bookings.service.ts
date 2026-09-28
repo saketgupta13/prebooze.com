@@ -921,7 +921,7 @@ export class BookingsService {
         });
       } else if (event.organizerId) {
         await tx.organizerLedgerTx.create({
-          data: { organizerId: event.organizerId, type: 'sale', amount: organizerCredit, eventId: event.id, eventTitle: event.title, note: `Booking ${id}` },
+          data: { organizerId: event.organizerId, type: 'sale', amount: organizerCredit, eventId: event.id, eventTitle: event.title, bookingId: id, note: `Booking ${id}` },
         });
       }
 
@@ -1282,7 +1282,7 @@ export class BookingsService {
           });
         } else if (event.organizerId) {
           await tx.organizerLedgerTx.create({
-            data: { organizerId: event.organizerId, type: 'sale', amount: subtotal - commission, eventId: event.id, eventTitle: event.title, note: `Booking ${id} (manual)` },
+            data: { organizerId: event.organizerId, type: 'sale', amount: subtotal - commission, eventId: event.id, eventTitle: event.title, bookingId: id, note: `Booking ${id} (manual)` },
           });
         }
       }
@@ -2009,7 +2009,7 @@ export class BookingsService {
           });
         } else if (event.organizerId) {
           await tx.organizerLedgerTx.create({
-            data: { organizerId: event.organizerId, type: 'refund', amount: -(booking.subtotal - commission), eventId: booking.eventId, eventTitle: event.title, note: `Refund — booking ${id}` },
+            data: { organizerId: event.organizerId, type: 'refund', amount: -(booking.subtotal - commission), eventId: booking.eventId, eventTitle: event.title, bookingId: id, note: `Refund — booking ${id}` },
           });
         }
       }

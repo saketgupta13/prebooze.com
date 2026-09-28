@@ -99,14 +99,21 @@ export default function CreateEvent() {
   const [privateLocality, setPrivateLocality] = useState('');
   const [exactAddress, setExactAddress] = useState('');
   const [mapLink, setMapLink] = useState('');
-  // Third venue mode (2026-09-28) — a real, public venue not yet a Prebooze
-  // partner. Unlike private-address mode, the name+address are shown
-  // openly; unlike a registered venue, there's no dashboard/revenue share.
+  // Third venue mode (2026-09-28, revised 2026-09-29 to match the
+  // lineup/co-host free-text pattern instead of a labeled third option) — a
+  // real, public venue not yet a Prebooze partner. Unlike private-address
+  // mode, the name+address are shown openly; unlike a registered venue,
+  // there's no dashboard/revenue share.
   const [unlistedVenue, setUnlistedVenue] = useState(false);
   const [unlistedVenueName, setUnlistedVenueName] = useState('');
   const [unlistedVenueCity, setUnlistedVenueCity] = useState('');
   const [unlistedVenueAddress, setUnlistedVenueAddress] = useState('');
   const [unlistedVenueInstagramUrl, setUnlistedVenueInstagramUrl] = useState('');
+  // City picked first, same "pick city, then search venues in it" flow the
+  // RN app already had — filters the venue search box below and becomes
+  // unlistedVenueCity if the typed name turns out not to match a real one.
+  const [venueSearchCity, setVenueSearchCity] = useState('');
+  const [pendingVenue, setPendingVenue] = useState<{ name: string; address: string; instagramUrl: string } | null>(null);
   // venueId defaults to the first fetched venue on a new event (below) even
   // when the organizer never touched the Venue field — left alone, that
   // stale id keeps `venue` truthy after switching to private-address mode,
@@ -228,9 +235,13 @@ export default function CreateEvent() {
           setDuration(String(ev.durationHrs));
           if (ev.venueId) {
             setVenueId(ev.venueId);
+            const evVenue = vs.find((v) => v.id === ev.venueId);
+            if (evVenue) setVenueSearchCity(evVenue.city);
           } else if (ev.unlistedVenueName) {
             setUnlistedVenue(true);
             setUnlistedVenueName(ev.unlistedVenueName);
+            setUnlistedVenueCity(ev.unlistedVenueCity ?? '');
+            setVenueSearchCity(ev.unlistedVenueCity ?? '');
             setUnlistedVenueAddress(ev.unlistedVenueAddress ?? '');
             setUnlistedVenueInstagramUrl(ev.unlistedVenueInstagramUrl ?? '');
           } else {
@@ -276,6 +287,7 @@ export default function CreateEvent() {
           setSeoKeywords(Array.isArray(ev.seo?.keywords) ? ev.seo.keywords.join(', ') : ev.seo?.keywords ?? '');
         } else if (vs.length) {
           setVenueId(vs[0].id);
+          setVenueSearchCity(vs[0].city);
         }
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
@@ -557,90 +569,27 @@ export default function CreateEvent() {
             </div>
           </div>
           <div className="field">
-            <span>Venue type</span>
-            <div className="chip-row">
-              <button
-                type="button"
-                className={`chip ${!privateAddress && !unlistedVenue ? 'on' : ''}`}
-                onClick={() => {
-                  setPrivateAddress(false);
-                  setUnlistedVenue(false);
-                  if (!venueId && prevVenueIdRef.current) setVenueId(prevVenueIdRef.current);
-                }}
-              >
-                Registered venue
-              </button>
-              <button
-                type="button"
-                className={`chip ${unlistedVenue ? 'on' : ''}`}
-                onClick={() => {
-                  prevVenueIdRef.current = venueId;
-                  setVenueId('');
-                  setPrivateAddress(false);
-                  setUnlistedVenue(true);
-                  if (!unlistedVenueCity.trim()) setUnlistedVenueCity(user?.city || browsingCity);
-                }}
-              >
-                Public venue, not on Prebooze yet
-              </button>
-              <button
-                type="button"
-                className={`chip ${privateAddress ? 'on' : ''}`}
-                onClick={() => {
-                  prevVenueIdRef.current = venueId;
-                  setVenueId('');
-                  setUnlistedVenue(false);
-                  setPrivateAddress(true);
-                  // Pre-fill from the organizer's own registered city
-                  // (falling back to whatever city they're currently
-                  // browsing as) so there's usually nothing to type — still
-                  // a real SearchableSelect underneath, so they can pick a
-                  // different city if this event's private address is
-                  // elsewhere. Never overwrites a value they already set.
-                  if (!privateCity.trim()) setPrivateCity(user?.city || browsingCity);
-                }}
-              >
-                Keep address private
-              </button>
-            </div>
-          </div>
-          {unlistedVenue ? (
-            <div className="field">
-              <span>Venue name & address</span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
               <input
-                value={unlistedVenueName}
-                onChange={(e) => setUnlistedVenueName(e.target.value)}
-                placeholder="Venue name"
-                style={{ marginBottom: 8 }}
+                type="checkbox"
+                checked={privateAddress}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setPrivateAddress(checked);
+                  if (checked) {
+                    prevVenueIdRef.current = venueId;
+                    setVenueId('');
+                    setUnlistedVenue(false);
+                    if (!privateCity.trim()) setPrivateCity(user?.city || browsingCity);
+                  } else if (!venueId && prevVenueIdRef.current) {
+                    setVenueId(prevVenueIdRef.current);
+                  }
+                }}
               />
-              <div style={{ display: 'flex', gap: 8 }}>
-                <SearchableSelect
-                  value={unlistedVenueCity}
-                  onChange={setUnlistedVenueCity}
-                  options={liveCities}
-                  placeholder="search cities…"
-                  icon
-                />
-                <input
-                  value={unlistedVenueAddress}
-                  onChange={(e) => setUnlistedVenueAddress(e.target.value)}
-                  placeholder="Full address (shown publicly)"
-                  style={{ flex: 1 }}
-                />
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <span>Instagram link (optional)</span>
-                <input
-                  value={unlistedVenueInstagramUrl}
-                  onChange={(e) => setUnlistedVenueInstagramUrl(e.target.value)}
-                  placeholder="https://instagram.com/…"
-                />
-              </div>
-              <div className="tiny muted-2" style={{ marginTop: 6 }}>
-                Shown publicly on the event page, feeds city/venue search — just like a registered venue, minus a venue dashboard or revenue share. Prebooze will reach out to onboard them properly.
-              </div>
-            </div>
-          ) : privateAddress ? (
+              Keep exact address private — I'll share it with guests myself
+            </label>
+          </div>
+          {privateAddress ? (
             <div className="field">
               <span>City & locality</span>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -683,20 +632,86 @@ export default function CreateEvent() {
             </div>
           ) : (
             <div className="field">
-              <span>Venue</span>
+              <span>City</span>
               <SearchableSelect
-                value={venue ? venueLabel(venue) : ''}
-                onChange={(label) => {
-                  const v = venues.find((vv) => venueLabel(vv) === label);
-                  if (v) setVenueId(v.id);
+                value={venueSearchCity}
+                onChange={(city) => {
+                  setVenueSearchCity(city);
+                  // A previously-picked real venue in a different city no
+                  // longer applies; an already-confirmed unlisted venue's
+                  // own city field is what's authoritative for it, not this
+                  // search filter, so that's left untouched.
+                  if (venue && venue.city !== city) setVenueId('');
                 }}
-                options={venues.map(venueLabel)}
-                placeholder="search venues…"
+                options={liveCities}
+                placeholder="search cities…"
                 icon
               />
-              <div className="tiny muted-2" style={{ marginTop: 6 }}>
-                Venue not listed? They need to register as a Prebooze venue partner first.
+              <div style={{ marginTop: 10 }}>
+                <span>Venue</span>
+                <SearchableSelect
+                  value={unlistedVenue ? unlistedVenueName : venue ? venueLabel(venue) : ''}
+                  onChange={(label) => {
+                    const v = venues.find((vv) => venueLabel(vv) === label);
+                    if (v) {
+                      setVenueId(v.id);
+                      setUnlistedVenue(false);
+                    } else {
+                      setPendingVenue({ name: label, address: unlistedVenue ? unlistedVenueAddress : '', instagramUrl: unlistedVenue ? unlistedVenueInstagramUrl : '' });
+                    }
+                  }}
+                  options={venues.filter((v) => !venueSearchCity || v.city === venueSearchCity).map(venueLabel)}
+                  placeholder={venueSearchCity ? `search venues in ${venueSearchCity}, or type a new name…` : 'pick a city first…'}
+                  disabled={!venueSearchCity}
+                  icon
+                  allowFreeText
+                />
               </div>
+              {pendingVenue && (
+                <div className="card" style={{ padding: 12, marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div className="tiny bold">Adding "{pendingVenue.name}" (not on Prebooze yet)</div>
+                  <input
+                    value={pendingVenue.address}
+                    onChange={(e) => setPendingVenue((p) => p && { ...p, address: e.target.value })}
+                    placeholder="Full address (shown publicly)"
+                  />
+                  <input
+                    value={pendingVenue.instagramUrl}
+                    onChange={(e) => setPendingVenue((p) => p && { ...p, instagramUrl: e.target.value })}
+                    placeholder="Instagram link (optional) — makes the venue name clickable on the event page"
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      className="btn btn-pri btn-sm"
+                      onClick={() => {
+                        setUnlistedVenue(true);
+                        setUnlistedVenueName(pendingVenue.name);
+                        setUnlistedVenueCity(venueSearchCity);
+                        setUnlistedVenueAddress(pendingVenue.address.trim());
+                        setUnlistedVenueInstagramUrl(pendingVenue.instagramUrl.trim());
+                        setVenueId('');
+                        setPendingVenue(null);
+                      }}
+                    >
+                      Use this venue
+                    </button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPendingVenue(null)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              {unlistedVenue && !pendingVenue && (
+                <div className="tiny muted-2" style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>Not on Prebooze yet — shown publicly, feeds city/venue search, no revenue share. Prebooze will reach out to onboard them.</span>
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => setPendingVenue({ name: unlistedVenueName, address: unlistedVenueAddress, instagramUrl: unlistedVenueInstagramUrl })}
+                  >
+                    Edit details
+                  </button>
+                </div>
+              )}
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
