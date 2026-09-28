@@ -38,6 +38,9 @@ export default function BookingDetail() {
   type FullBooking = LiveBooking & {
     subtotal?: number; fee?: number; discount?: number; couponCode?: string | null;
     event: { title: string; date?: string; durationHrs?: number; venue?: { name?: string; city?: string } };
+    // From the guest's own Invoice record — see BookingsService.adminGet's
+    // own doc comment for why this isn't just a plain field on the booking.
+    gst?: { gstPct: number; gstAmount: number; igstAmount: number } | null;
   };
   const [booking, setBooking] = useState<FullBooking | null>(null);
   const [loading, setLoading] = useState(false);
@@ -306,6 +309,22 @@ export default function BookingDetail() {
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
           <span className="muted">Booking fee</span><span>₹{fmt(fee)}</span>
         </div>
+        {!!booking.gst?.gstAmount && (
+          booking.gst.igstAmount > 0 ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <span className="muted">IGST ({booking.gst.gstPct}% on fee)</span><span>₹{fmt(booking.gst.igstAmount)}</span>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span className="muted">CGST ({booking.gst.gstPct / 2}% on fee)</span><span>₹{fmt(booking.gst.gstAmount / 2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span className="muted">SGST ({booking.gst.gstPct / 2}% on fee)</span><span>₹{fmt(booking.gst.gstAmount / 2)}</span>
+              </div>
+            </>
+          )
+        )}
         {discount > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
             <span className="muted">Discount{booking.couponCode ? ` (${booking.couponCode})` : ''}</span><span className="red">−₹{fmt(discount)}</span>

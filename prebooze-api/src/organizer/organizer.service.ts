@@ -812,7 +812,12 @@ export class OrganizerService {
       ? await this.prisma.user.findUnique({ where: { id: booking.createdByUserId }, select: { name: true, phone: true } })
       : null;
     const { adminNote, ...rest } = booking;
-    return { ...rest, promoter, createdBy };
+    // Same GST-breakup gap as admin's adminGet — see its own doc comment.
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { type: 'booking', refId: id },
+      select: { gstPct: true, gstAmount: true, igstAmount: true },
+    });
+    return { ...rest, promoter, createdBy, gst: invoice ?? null };
   }
 
   // ---------- coupons ----------

@@ -165,6 +165,16 @@ export default function BookingDetailScreen() {
               <Txt style={styles.sectionTitle}>Fee breakdown</Txt>
               <Row label="Subtotal" value={fmtMoney(booking.subtotal)} />
               <Row label="Booking fee" value={fmtMoney(booking.fee)} />
+              {!!booking.gst?.gstAmount && (
+                booking.gst.igstAmount > 0 ? (
+                  <Row label={`IGST (${booking.gst.gstPct}% on fee)`} value={fmtMoney(booking.gst.igstAmount)} />
+                ) : (
+                  <>
+                    <Row label={`CGST (${booking.gst.gstPct / 2}% on fee)`} value={fmtMoney(booking.gst.gstAmount / 2)} />
+                    <Row label={`SGST (${booking.gst.gstPct / 2}% on fee)`} value={fmtMoney(booking.gst.gstAmount / 2)} />
+                  </>
+                )
+              )}
               {booking.discount > 0 && <Row label={`Discount${booking.couponCode ? ` (${booking.couponCode})` : ''}`} value={`−${fmtMoney(booking.discount)}`} danger />}
               {booking.walletCreditUsed > 0 && <Row label="Wallet credit used" value={`−${fmtMoney(booking.walletCreditUsed)}`} danger />}
               <View style={styles.totalRow}>

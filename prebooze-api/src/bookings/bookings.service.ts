@@ -2411,7 +2411,17 @@ export class BookingsService {
     // not the gross total. Surfaced so a failed-refund banner shows staff
     // the real pending amount instead of the pre-deduction figure.
     const pendingRefundAmount = booking.refundFailedAt ? Math.max(0, booking.total - this.refundDeductionFor(booking, 'source')) : undefined;
-    return { ...booking, promoter, pendingRefundAmount };
+    // GST is computed and charged at booking time (baked silently into
+    // `total`) but never stored as its own column on Booking — only the
+    // guest-facing Invoice PDF itemizes it (gstPct/gstAmount/igstAmount).
+    // Real gap found 2026-09-28: staff had no way to see the GST breakup on
+    // a booking's own detail page, in admin or the organizer apps, even
+    // though the guest's own downloaded invoice always showed it.
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { type: 'booking', refId: id },
+      select: { gstPct: true, gstAmount: true, igstAmount: true },
+    });
+    return { ...booking, promoter, pendingRefundAmount, gst: invoice ?? null };
   }
 
   /** Staff-triggered — the real Prebooze-branded email + PDF ticket, same

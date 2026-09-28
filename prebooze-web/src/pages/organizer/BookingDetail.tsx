@@ -171,6 +171,16 @@ export default function BookingDetail() {
         <div className="display" style={{ fontWeight: 700, marginBottom: 4 }}>Fee breakdown</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span className="muted">Subtotal</span><span>{fmtMoney(booking.subtotal)}</span></div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span className="muted">Booking fee</span><span>{fmtMoney(booking.fee)}</span></div>
+        {!!booking.gst?.gstAmount && (
+          booking.gst.igstAmount > 0 ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span className="muted">IGST ({booking.gst.gstPct}% on fee)</span><span>{fmtMoney(booking.gst.igstAmount)}</span></div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span className="muted">CGST ({booking.gst.gstPct / 2}% on fee)</span><span>{fmtMoney(booking.gst.gstAmount / 2)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span className="muted">SGST ({booking.gst.gstPct / 2}% on fee)</span><span>{fmtMoney(booking.gst.gstAmount / 2)}</span></div>
+            </>
+          )
+        )}
         {booking.discount > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span className="muted">Discount{booking.couponCode ? ` (${booking.couponCode})` : ''}</span><span className="danger-text">−{fmtMoney(booking.discount)}</span></div>
         )}

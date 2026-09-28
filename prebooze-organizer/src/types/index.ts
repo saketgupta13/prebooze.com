@@ -345,6 +345,9 @@ export interface OrgBookingDetail {
   total: number;
   coverCharge: number;
   couponCode?: string | null;
+  // From the guest's own Invoice record — see OrganizerService.bookingDetail's
+  // own doc comment for why this isn't just a plain field on the booking.
+  gst?: { gstPct: number; gstAmount: number; igstAmount: number } | null;
   status: 'confirmed' | 'cancelled' | 'refunded' | 'refund_requested';
   guests: { name: string; checkedIn: boolean; gender?: string; whatsapp?: string }[];
   walletCreditUsed: number;
