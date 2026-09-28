@@ -4,8 +4,8 @@ import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
 import { Txt } from './ui';
 import { colors, fontFamily } from '../theme/tokens';
 
-const GLOW_W = 320;
-const GLOW_H = 180;
+const GLOW_W = 220;
+const GLOW_H = 220;
 
 /** Branded loading screen shown while AuthContext resolves the boot check
  * (token validity + team access) — replaces a bare ActivityIndicator.
@@ -57,8 +57,8 @@ export default function SplashOverlay() {
           visible shadow without shadowOpacity) is enough to fix the stacking
           without changing how anything looks. */}
       <View style={styles.foreground}>
-        <Image source={require('../assets/logo-full.png')} style={styles.logo} resizeMode="contain" />
-        <Txt style={styles.tagline}>PARTNERS</Txt>
+        <Image source={require('../assets/logo-mark.png')} style={styles.logo} resizeMode="contain" />
+        <Txt style={styles.tagline}>PREBOOZE PARTNERS</Txt>
       </View>
     </View>
   );
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   glowWrap: { position: 'absolute' },
   foreground: { alignItems: 'center', elevation: 1 },
-  logo: { width: 260, height: 260 * (192 / 946) },
+  logo: { width: 150, height: 150 * (1016 / 967) },
   tagline: {
     marginTop: 12,
     fontFamily: fontFamily.extrabold,

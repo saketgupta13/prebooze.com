@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, BadgeCheck, Download, Megaphone, X } from 'lucide-react-native';
+import { ArrowLeft, BadgeCheck, ChevronDown, ChevronRight, Download, Megaphone, X } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { ApiError } from '../../api/client';
 import { Badge, Button, Card, H1, IconButton, Muted, Screen, Txt } from '../../components/ui';
@@ -30,6 +30,7 @@ const WITHDRAWAL_STATUS_TONE: Record<string, 'default' | 'success' | 'danger' | 
 
 interface OfflineChargeRow {
   id: string; bookingId: string | null; eventTitle: string | null; guestName: string | null; guestPaid: number | null; commissionCharged: number; createdAt: string;
+  breakup?: { commission: number; fee: number; gstAmount: number };
 }
 
 /** Faithful port of prebooze-web/src/pages/organizer/Payouts.tsx. Balance
@@ -46,6 +47,7 @@ export default function PayoutsScreen() {
   const [offlineCharges, setOfflineCharges] = useState<OfflineChargeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [expandedCharge, setExpandedCharge] = useState<string | null>(null);
   // Distinct from `err` (same reasoning as WithdrawScreen): on a failed
   // load, `ledger`/`promoterPayouts` stay at their default empty arrays,
   // which rendered as a real, misleading "No withdrawals yet." right next
@@ -173,18 +175,41 @@ export default function PayoutsScreen() {
               Bookings you created and marked "already collected" — you kept the guest's payment directly, and Prebooze's
               flat 2% is deducted here from your payout balance instead.
             </Muted>
-            {offlineCharges.map((c, i) => (
-              <View key={c.id} style={[styles.historyRow, i < offlineCharges.length - 1 && styles.rowBorder]}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Txt style={styles.bold} numberOfLines={1}>{c.guestName ?? c.bookingId ?? 'Offline booking'}</Txt>
-                  <Muted style={styles.tiny} numberOfLines={1}>{c.eventTitle} · {fmtDate(c.createdAt)}</Muted>
+            {offlineCharges.map((c, i) => {
+              const isOpen = expandedCharge === c.id;
+              return (
+                <View key={c.id} style={i < offlineCharges.length - 1 && styles.rowBorder}>
+                  <Pressable style={styles.historyRow} disabled={!c.breakup} onPress={c.breakup ? () => setExpandedCharge(isOpen ? null : c.id) : undefined}>
+                    {c.breakup && (isOpen ? <ChevronDown size={14} color={colors.muted} /> : <ChevronRight size={14} color={colors.muted} />)}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Txt style={styles.bold} numberOfLines={1}>{c.guestName ?? c.bookingId ?? 'Offline booking'}</Txt>
+                      <Muted style={styles.tiny} numberOfLines={1}>{c.eventTitle} · {fmtDate(c.createdAt)}</Muted>
+                    </View>
+                    <View style={styles.owedCol}>
+                      <Muted style={styles.tiny}>Guest paid {c.guestPaid !== null ? fmtMoney(c.guestPaid) : '—'}</Muted>
+                      <Txt style={[styles.bold, { color: colors.danger }]}>-{fmtMoney(c.commissionCharged)}</Txt>
+                    </View>
+                  </Pressable>
+                  {c.breakup && isOpen && (
+                    <View style={{ paddingLeft: 14 + spacing.s, paddingBottom: spacing.s, gap: 4 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Muted style={styles.tiny}>Prebooze commission (2%)</Muted>
+                        <Txt style={[styles.tiny, { color: colors.danger }]}>−{fmtMoney(c.breakup.commission)}</Txt>
+                      </View>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Muted style={styles.tiny}>Booking fee</Muted>
+                        <Txt style={[styles.tiny, { color: colors.danger }]}>−{fmtMoney(c.breakup.fee)}</Txt>
+                      </View>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Muted style={styles.tiny}>GST</Muted>
+                        <Txt style={[styles.tiny, { color: colors.danger }]}>−{fmtMoney(c.breakup.gstAmount)}</Txt>
+                      </View>
+                      <Muted style={[styles.tiny, { marginTop: 2 }]}>You held this guest's full payment directly, so the fee + GST portion is owed back here too — not just the commission.</Muted>
+                    </View>
+                  )}
                 </View>
-                <View style={styles.owedCol}>
-                  <Muted style={styles.tiny}>Guest paid {c.guestPaid !== null ? fmtMoney(c.guestPaid) : '—'}</Muted>
-                  <Txt style={[styles.bold, { color: colors.danger }]}>-{fmtMoney(c.commissionCharged)}</Txt>
-                </View>
-              </View>
-            ))}
+              );
+            })}
           </Card>
         )}
 

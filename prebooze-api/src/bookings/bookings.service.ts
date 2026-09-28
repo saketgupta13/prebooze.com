@@ -1741,6 +1741,12 @@ export class BookingsService {
    * Prebooze's 2% is Y). Payment-link bookings aren't listed here — those
    * already show as normal `sale` ledger rows, since Prebooze genuinely
    * processed that payment. */
+  /** Real gap closed 2026-09-29: `commissionCharged` used to be the whole
+   * combined debit (commission+fee+GST, see owedToPrebooze in
+   * createOfflineBookingSelfCollected) mislabeled as if it were commission
+   * alone — the organizer had no way to see it's actually three separate
+   * things being deducted, same "show your work" ask as the Transactions
+   * payout breakup. */
   async offlineCharges(userId: string) {
     const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'view');
     const charges = await this.prisma.organizerLedgerTx.findMany({
@@ -1748,14 +1754,21 @@ export class BookingsService {
       orderBy: { createdAt: 'desc' },
     });
     const bookingIds = charges.map((c) => c.bookingId).filter((id): id is string => !!id);
-    const bookings = await this.prisma.booking.findMany({ where: { id: { in: bookingIds } }, select: { id: true, mainGuest: true, subtotal: true, createdAt: true } });
+    const [bookings, invoices] = bookingIds.length
+      ? await Promise.all([
+          this.prisma.booking.findMany({ where: { id: { in: bookingIds } }, select: { id: true, mainGuest: true, subtotal: true, fee: true, commission: true, createdAt: true } }),
+          this.prisma.invoice.findMany({ where: { type: 'booking', refId: { in: bookingIds } }, select: { refId: true, gstAmount: true } }),
+        ])
+      : [[], []];
     const bookingById = new Map(bookings.map((b) => [b.id, b]));
+    const gstByBookingId = new Map(invoices.map((i) => [i.refId, i.gstAmount]));
     return charges.map((c) => {
       const b = c.bookingId ? bookingById.get(c.bookingId) : undefined;
       return {
         id: c.id, bookingId: c.bookingId, eventTitle: c.eventTitle,
         guestName: b?.mainGuest ?? null, guestPaid: b?.subtotal ?? null,
         commissionCharged: -c.amount, createdAt: c.createdAt,
+        breakup: b ? { commission: b.commission, fee: b.fee, gstAmount: (c.bookingId && gstByBookingId.get(c.bookingId)) || 0 } : undefined,
       };
     });
   }
