@@ -4,7 +4,7 @@ import { fmtMoney } from '../../data/mock';
 import Loader from '../../components/Loader';
 import { organizer, type OrgLedgerTx } from '../../api';
 import { ApiError } from '../../api/client';
-import { X, Check, Download, BadgeCheck, ArrowRight } from 'lucide-react';
+import { X, Check, Download, BadgeCheck, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -43,6 +43,7 @@ const STATUS_LABEL: Record<PromoterPayoutRow['status'], ReactNode> = {
  * the promoter to confirm it or ask them directly. */
 interface OfflineChargeRow {
   id: string; bookingId: string | null; eventTitle: string | null; guestName: string | null; guestPaid: number | null; commissionCharged: number; createdAt: string;
+  breakup?: { commission: number; fee: number; gstAmount: number };
 }
 
 export default function Payouts() {
@@ -53,6 +54,7 @@ export default function Payouts() {
   const [offlineCharges, setOfflineCharges] = useState<OfflineChargeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [expandedCharge, setExpandedCharge] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([organizer.payouts(), organizer.paymentProfiles(), organizer.promoterPayouts(), organizer.offlineCharges()])
@@ -152,18 +154,41 @@ export default function Payouts() {
             flat 2% is deducted here from your payout balance instead.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {offlineCharges.map((c) => (
-              <div key={c.id} className="evrow">
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="small bold">{c.guestName ?? c.bookingId ?? 'Offline booking'}</div>
-                  <div className="tiny muted-2">{c.eventTitle} · {fmtDate(c.createdAt)}</div>
+            {offlineCharges.map((c) => {
+              const isOpen = expandedCharge === c.id;
+              return (
+                <div key={c.id}>
+                  <div
+                    className={c.breakup ? 'evrow clickable' : 'evrow'}
+                    onClick={c.breakup ? () => setExpandedCharge(isOpen ? null : c.id) : undefined}
+                  >
+                    {c.breakup && (isOpen ? <ChevronDown size={14} className="muted-2" /> : <ChevronRight size={14} className="muted-2" />)}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="small bold">{c.guestName ?? c.bookingId ?? 'Offline booking'}</div>
+                      <div className="tiny muted-2">{c.eventTitle} · {fmtDate(c.createdAt)}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div className="tiny muted-2">Guest paid {c.guestPaid !== null ? fmtMoney(c.guestPaid) : '—'}</div>
+                      <div className="small bold danger-text">-{fmtMoney(c.commissionCharged)}</div>
+                    </div>
+                  </div>
+                  {c.breakup && isOpen && (
+                    <div className="tiny" style={{ display: 'grid', gap: 4, padding: '8px 0 8px 22px', maxWidth: 320 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span className="muted-2">Prebooze commission (2%)</span><span className="danger-text">−{fmtMoney(c.breakup.commission)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span className="muted-2">Booking fee</span><span className="danger-text">−{fmtMoney(c.breakup.fee)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span className="muted-2">GST</span><span className="danger-text">−{fmtMoney(c.breakup.gstAmount)}</span>
+                      </div>
+                      <div className="muted-2" style={{ marginTop: 2 }}>You held this guest's full payment directly, so the fee + GST portion (which a gateway would've collected separately) is owed back here too — not just the commission.</div>
+                    </div>
+                  )}
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div className="tiny muted-2">Guest paid {c.guestPaid !== null ? fmtMoney(c.guestPaid) : '—'}</div>
-                  <div className="small bold danger-text">-{fmtMoney(c.commissionCharged)}</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
