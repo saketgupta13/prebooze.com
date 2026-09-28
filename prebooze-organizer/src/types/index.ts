@@ -433,6 +433,9 @@ export interface OrgLedgerTx {
   withdrawalStatus?: 'requested' | 'received' | 'initiated' | 'processed' | 'complete' | 'rejected';
   withdrawalRejectedReason?: string;
   withdrawalPaidUtr?: string;
+  // Only present for a row with a real Booking behind it — see
+  // OrganizerService.payouts().
+  bookingBreakup?: { subtotal: number; fee: number; gstAmount: number; commission: number; includesFeeAndGst: boolean };
 }
 
 // Real shape from prebooze-web/src/types.ts — full booking record, returned

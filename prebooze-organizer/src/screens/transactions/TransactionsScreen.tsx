@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, Download, X } from 'lucide-react-native';
+import { ArrowLeft, ChevronDown, ChevronRight, Download, X } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { ApiError } from '../../api/client';
 import { Badge, Card, H1, IconButton, Muted, Screen, Txt } from '../../components/ui';
@@ -23,6 +23,14 @@ export default function TransactionsScreen() {
   const [eventFilter, setEventFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   useFocusEffect(
     useCallback(() => {
@@ -97,16 +105,60 @@ export default function TransactionsScreen() {
           {!loading && filtered.length === 0 && (
             <Muted style={styles.centerNote}>{eventFilter ? 'No transactions for this event' : 'No transactions yet'}</Muted>
           )}
-          {filtered.map((t, i) => (
-            <View key={t.id} style={[styles.row, i < filtered.length - 1 && styles.rowBorder]}>
-              <Muted style={styles.tiny}>{fmtDate(t.createdAt)}</Muted>
-              <Txt style={[styles.tiny, styles.bold, { flex: 1 }]} numberOfLines={1}>{t.eventTitle ?? '—'}</Txt>
-              <Txt style={[styles.tiny, styles.bold, { color: t.amount < 0 ? colors.danger : colors.text }]}>
-                {t.amount < 0 ? '-' : ''}{fmtMoney(Math.abs(t.amount))}
-              </Txt>
-              <Badge label={t.type === 'sale' ? 'Sale' : 'Refund'} tone={t.type === 'sale' ? 'success' : 'danger'} />
-            </View>
-          ))}
+          {filtered.map((t, i) => {
+            const b = t.bookingBreakup;
+            const isOpen = expanded.has(t.id);
+            return (
+              <View key={t.id} style={i < filtered.length - 1 && styles.rowBorder}>
+                <Pressable
+                  style={styles.row}
+                  disabled={!b}
+                  onPress={b ? () => toggleExpanded(t.id) : undefined}
+                >
+                  <View style={styles.chevronSlot}>
+                    {b && (isOpen ? <ChevronDown size={14} color={colors.muted} /> : <ChevronRight size={14} color={colors.muted} />)}
+                  </View>
+                  <Muted style={styles.tiny}>{fmtDate(t.createdAt)}</Muted>
+                  <Txt style={[styles.tiny, styles.bold, { flex: 1 }]} numberOfLines={1}>{t.eventTitle ?? '—'}</Txt>
+                  <Txt style={[styles.tiny, styles.bold, { color: t.amount < 0 ? colors.danger : colors.text }]}>
+                    {t.amount < 0 ? '-' : ''}{fmtMoney(Math.abs(t.amount))}
+                  </Txt>
+                  <Badge label={t.type === 'sale' ? 'Sale' : 'Refund'} tone={t.type === 'sale' ? 'success' : 'danger'} />
+                </Pressable>
+                {b && isOpen && (
+                  <View style={styles.breakup}>
+                    <View style={styles.breakupRow}>
+                      <Muted style={styles.tiny}>Ticket subtotal</Muted>
+                      <Txt style={styles.tiny}>{fmtMoney(b.subtotal)}</Txt>
+                    </View>
+                    {b.includesFeeAndGst && (
+                      <>
+                        <View style={styles.breakupRow}>
+                          <Muted style={styles.tiny}>Booking fee</Muted>
+                          <Txt style={[styles.tiny, { color: colors.danger }]}>−{fmtMoney(b.fee)}</Txt>
+                        </View>
+                        <View style={styles.breakupRow}>
+                          <Muted style={styles.tiny}>GST</Muted>
+                          <Txt style={[styles.tiny, { color: colors.danger }]}>−{fmtMoney(b.gstAmount)}</Txt>
+                        </View>
+                      </>
+                    )}
+                    <View style={styles.breakupRow}>
+                      <Muted style={styles.tiny}>Prebooze commission</Muted>
+                      <Txt style={[styles.tiny, { color: colors.danger }]}>−{fmtMoney(b.commission)}</Txt>
+                    </View>
+                    <View style={[styles.breakupRow, styles.breakupTotal]}>
+                      <Txt style={[styles.tiny, styles.bold]}>You get</Txt>
+                      <Txt style={[styles.tiny, styles.bold]}>{fmtMoney(Math.abs(t.amount))}</Txt>
+                    </View>
+                    {!b.includesFeeAndGst && (
+                      <Muted style={styles.breakupNote}>Booking fee + GST were collected directly from the guest — they never touch your balance.</Muted>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </Card>
       </ScrollView>
     </Screen>
@@ -129,4 +181,9 @@ const styles = StyleSheet.create({
   tiny: { fontSize: 11.5 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.s, paddingVertical: spacing.s },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.borderDash, borderStyle: 'dashed' },
+  chevronSlot: { width: 14, alignItems: 'center' },
+  breakup: { paddingLeft: 14 + spacing.s, paddingBottom: spacing.s, gap: 4 },
+  breakupRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  breakupTotal: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 4, marginTop: 2 },
+  breakupNote: { fontSize: 11, marginTop: 2 },
 });

@@ -1600,7 +1600,10 @@ export class BookingsService {
    * received this money, so the organizer IS credited subtotal-commission
    * on the ledger, exactly like a normal online sale — only the commission
    * rate (flat 2%, not event.commission) and the bookingSource/
-   * offlinePaymentMode tags differ from an ordinary guest checkout. */
+   * offlinePaymentMode tags differ from an ordinary guest checkout. Flat
+   * 2% applies to every organizer's offline-collected bookings regardless
+   * of their event's own online commission rate — including Prebooze
+   * Originals' own house parties (confirmed 2026-09-28, not a bug). */
   private async finalizeOfflineLinkBooking(
     cart: { holdId: string; userId: string; eventId: string; qtyMap: unknown },
     merchantOrderId: string,
