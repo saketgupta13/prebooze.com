@@ -910,13 +910,50 @@ export class OrganizerService {
   }
 
   // ---------- payouts ----------
+  /** Real gap closed 2026-09-28: an organizer's Transactions page only ever
+   * showed the single net ledger `amount` per row — no way to see that it's
+   * ticket subtotal minus Prebooze's commission (or, for a self-collected
+   * offline booking, minus commission+fee+GST since they're holding the
+   * guest's full payment directly) without asking support. Every row with
+   * a `bookingId` gets its real breakup joined in here from Booking/Invoice
+   * so the app can show it plainly instead of one opaque number. */
   async payouts(userId: string) {
     const org = await this.orgAccess.require(userId, 'Payouts & withdrawals', 'view');
     const [agg, ledger] = await Promise.all([
       this.prisma.organizerLedgerTx.aggregate({ where: { organizerId: org.id }, _sum: { amount: true } }),
       this.prisma.organizerLedgerTx.findMany({ where: { organizerId: org.id }, orderBy: { createdAt: 'desc' } }),
     ]);
-    return { balance: agg._sum.amount ?? 0, ledger };
+
+    const bookingIds = [...new Set(ledger.map((t) => t.bookingId).filter((id): id is string => !!id))];
+    const [bookings, invoices] = bookingIds.length
+      ? await Promise.all([
+          this.prisma.booking.findMany({ where: { id: { in: bookingIds } }, select: { id: true, subtotal: true, fee: true, commission: true, offlinePaymentMode: true } }),
+          this.prisma.invoice.findMany({ where: { type: 'booking', refId: { in: bookingIds } }, select: { refId: true, gstAmount: true } }),
+        ])
+      : [[], []];
+    const bookingById = new Map(bookings.map((b) => [b.id, b]));
+    const gstByBookingId = new Map(invoices.map((i) => [i.refId, i.gstAmount]));
+
+    const ledgerWithBreakup = ledger.map((t) => {
+      const b = t.bookingId ? bookingById.get(t.bookingId) : undefined;
+      if (!b) return t;
+      const gstAmount = gstByBookingId.get(t.bookingId!) ?? 0;
+      return {
+        ...t,
+        bookingBreakup: {
+          subtotal: b.subtotal, fee: b.fee, gstAmount, commission: b.commission,
+          // Self-collected: guest paid the organizer directly, so fee+GST
+          // were never split off by a gateway — they're part of what the
+          // organizer owes back, alongside commission. Every other flow
+          // (online checkout, offline payment-link): Prebooze collects
+          // fee+GST straight from the guest via the gateway, so they never
+          // touch the organizer's side at all — only commission does.
+          includesFeeAndGst: b.offlinePaymentMode === 'self_collected',
+        },
+      };
+    });
+
+    return { balance: agg._sum.amount ?? 0, ledger: ledgerWithBreakup };
   }
 
   /** Per-event, per-promoter breakdown of what this organizer owes each

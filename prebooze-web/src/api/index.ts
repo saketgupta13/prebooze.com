@@ -619,6 +619,9 @@ export interface OrgLedgerTx {
   withdrawalStatus?: 'requested' | 'received' | 'initiated' | 'processed' | 'complete' | 'rejected';
   withdrawalRejectedReason?: string;
   withdrawalPaidUtr?: string;
+  // Only present for a row with a real Booking behind it — see
+  // OrganizerService.payouts().
+  bookingBreakup?: { subtotal: number; fee: number; gstAmount: number; commission: number; includesFeeAndGst: boolean };
 }
 /** Shared client for the organizer/venue-paid Meta ad marketing endpoints —
  * identical shape on both sides (see MarketingController/

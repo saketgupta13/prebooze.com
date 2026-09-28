@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { fmtMoney } from '../../data/mock';
 import Loader from '../../components/Loader';
 import { organizer, type OrgLedgerTx } from '../../api';
 import { ApiError } from '../../api/client';
-import { X, Download } from 'lucide-react';
+import { X, Download, ChevronDown, ChevronRight } from 'lucide-react';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -17,6 +17,14 @@ export default function Transactions() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [eventId, setEventId] = useState('all');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   useEffect(() => {
     organizer.payouts()
@@ -66,6 +74,7 @@ export default function Transactions() {
         <table className="tbl">
           <thead>
             <tr>
+              <th></th>
               <th>Date</th>
               <th>Event</th>
               <th>Amount</th>
@@ -73,19 +82,59 @@ export default function Transactions() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((t) => (
-              <tr key={t.id}>
-                <td>{fmtDate(t.createdAt)}</td>
-                <td className="bold">{t.eventTitle ?? '—'}</td>
-                <td className={t.amount < 0 ? 'danger-text' : ''}>{t.amount < 0 ? '-' : ''}{fmtMoney(Math.abs(t.amount))}</td>
-                <td>
-                  {t.type === 'sale' && <span className="badge badge-ok">Sale</span>}
-                  {t.type === 'refund' && <span className="badge badge-danger">Refund</span>}
-                </td>
-              </tr>
-            ))}
+            {rows.map((t) => {
+              const b = t.bookingBreakup;
+              const isOpen = expanded.has(t.id);
+              return (
+                <Fragment key={t.id}>
+                  <tr className={b ? 'clickable' : undefined} onClick={b ? () => toggleExpanded(t.id) : undefined}>
+                    <td style={{ width: 24 }}>
+                      {b && (isOpen ? <ChevronDown size={14} className="muted-2" /> : <ChevronRight size={14} className="muted-2" />)}
+                    </td>
+                    <td>{fmtDate(t.createdAt)}</td>
+                    <td className="bold">{t.eventTitle ?? '—'}</td>
+                    <td className={t.amount < 0 ? 'danger-text' : ''}>{t.amount < 0 ? '-' : ''}{fmtMoney(Math.abs(t.amount))}</td>
+                    <td>
+                      {t.type === 'sale' && <span className="badge badge-ok">Sale</span>}
+                      {t.type === 'refund' && <span className="badge badge-danger">Refund</span>}
+                    </td>
+                  </tr>
+                  {b && isOpen && (
+                    <tr>
+                      <td></td>
+                      <td colSpan={4}>
+                        <div className="tiny" style={{ display: 'grid', gap: 4, padding: '8px 0', maxWidth: 320 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span className="muted-2">Ticket subtotal</span><span>{fmtMoney(b.subtotal)}</span>
+                          </div>
+                          {b.includesFeeAndGst && (
+                            <>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span className="muted-2">Booking fee</span><span className="danger-text">−{fmtMoney(b.fee)}</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span className="muted-2">GST</span><span className="danger-text">−{fmtMoney(b.gstAmount)}</span>
+                              </div>
+                            </>
+                          )}
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span className="muted-2">Prebooze commission</span><span className="danger-text">−{fmtMoney(b.commission)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 4, marginTop: 2, fontWeight: 700 }}>
+                            <span>You get</span><span>{fmtMoney(Math.abs(t.amount))}</span>
+                          </div>
+                          {!b.includesFeeAndGst && (
+                            <div className="muted-2" style={{ marginTop: 2 }}>Booking fee + GST were collected directly from the guest — they never touch your balance.</div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
             {rows.length === 0 && (
-              <tr><td colSpan={4} className="muted center">No transactions {eventId === 'all' ? 'yet' : 'for this event'}.</td></tr>
+              <tr><td colSpan={5} className="muted center">No transactions {eventId === 'all' ? 'yet' : 'for this event'}.</td></tr>
             )}
           </tbody>
         </table>
