@@ -22,6 +22,12 @@ const GENDERS = ['Male', 'Female', 'Other'];
  * plus the same guest-facing booking fee + GST every online checkout
  * already charges — see the price breakdown below.
  *
+ * Real gap closed 2026-09-28: this used to lock a booking to exactly ONE
+ * tier — a mixed door order like "2 Male + 1 Female" or "1 Couple + 2
+ * Female" simply couldn't be recorded as a single booking. Now a per-tier
+ * qty stepper list (same lines[] model guest checkout's EventDetail.tsx
+ * already uses), so any tier combination prices and validates as one order.
+ *
  * A full page, not a modal (2026-09-25) — the modal didn't scroll properly
  * on mobile and its cramped width squeezed the qty stepper and price
  * breakdown together; a page gets normal document scroll and room to
@@ -33,8 +39,8 @@ export default function OfflineBooking() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [eventId, setEventId] = useState('');
-  const [tierId, setTierId] = useState('');
-  const [qty, setQty] = useState(1);
+  // tierId -> qty, only tiers with qty > 0 are part of the order.
+  const [tierQty, setTierQty] = useState<Record<string, number>>({});
   const [guestName, setGuestName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [gender, setGender] = useState('');
@@ -53,11 +59,14 @@ export default function OfflineBooking() {
   }, []);
 
   const event = events.find((e) => e.id === eventId);
-  const tier = event?.tiers.find((t) => t.id === tierId);
-  const partySize = tier ? partySizeFromTierName(tier.name) : 1;
-  const extraNeeded = tier ? Math.max(0, qty * partySize - 1) : 0;
-  const tierPrice = tier && event ? displayTierPrice(tier, event.date) : 0;
-  const subtotal = tierPrice * qty;
+  const lines = event
+    ? event.tiers
+        .map((t) => ({ tier: t, qty: tierQty[t.id] ?? 0 }))
+        .filter((l) => l.qty > 0)
+    : [];
+  const expectedHeadcount = lines.reduce((a, l) => a + l.qty * partySizeFromTierName(l.tier.name), 0);
+  const extraNeeded = Math.max(0, expectedHeadcount - 1);
+  const subtotal = event ? lines.reduce((a, l) => a + l.qty * displayTierPrice(l.tier, event.date), 0) : 0;
   // Preview only — same formula as the backend's real computation
   // (prepareOfflineBooking), just done client-side off the same public
   // platform settings Checkout.tsx already uses, so what's shown here
@@ -65,7 +74,6 @@ export default function OfflineBooking() {
   const fee = subtotal > 0 ? Math.round((subtotal * bookingFee) / 100) : 0;
   const gst = Math.round((fee * platformGstPct) / 100);
   const total = subtotal + fee + gst;
-  const maxQty = tier ? tier.quantity - tier.sold : 1;
 
   useEffect(() => {
     setOthers((prev) => {
@@ -75,15 +83,21 @@ export default function OfflineBooking() {
     });
   }, [extraNeeded]);
 
-  const canSubmit = eventId && tierId && qty >= 1 && guestName.trim() && whatsapp.trim() && !submitting;
+  const setQtyFor = (tierId: string, max: number, next: number) => {
+    setTierQty((prev) => ({ ...prev, [tierId]: Math.max(0, Math.min(max, next)) }));
+  };
+
+  const canSubmit = eventId && lines.length > 0 && guestName.trim() && whatsapp.trim() && !submitting;
 
   const submit = async () => {
-    if (!tier || !event) return;
+    if (!event || lines.length === 0) return;
     setErr('');
     setSubmitting(true);
     try {
       const body = {
-        eventId, tierId, qty, guestName: guestName.trim(), whatsapp: whatsapp.trim(), gender: gender || undefined,
+        eventId,
+        lines: lines.map((l) => ({ tierId: l.tier.id, qty: l.qty })),
+        guestName: guestName.trim(), whatsapp: whatsapp.trim(), gender: gender || undefined,
         others: others.map((o) => ({ name: o.name.trim(), gender: o.gender || undefined })).filter((o) => o.name),
         paymentMode,
       };
@@ -104,10 +118,11 @@ export default function OfflineBooking() {
 
   // Couple tiers need exactly one Male + one Female per pair, same door
   // policy the real guest checkout enforces — kept as a soft nudge here
-  // (not a hard block), since an organizer entering this on someone's
-  // behalf is already the real-world verification, same trust level as
-  // every other offline detail on this form.
-  const coupleHint = tier && isCoupleTierName(tier.name);
+  // (not a hard block on this preview; the backend does enforce it), since
+  // an organizer entering this on someone's behalf is already the
+  // real-world verification, same trust level as every other offline
+  // detail on this form.
+  const anyCouple = lines.some((l) => isCoupleTierName(l.tier.name));
 
   return (
     <div style={{ maxWidth: 560 }}>
@@ -154,7 +169,7 @@ export default function OfflineBooking() {
             {err && <div className="danger-text small" style={{ marginBottom: 10 }}>{err}</div>}
             <div className="field" style={{ marginBottom: 14 }}>
               <span>Event</span>
-              <select value={eventId} onChange={(e) => { setEventId(e.target.value); setTierId(''); }} disabled={loadingEvents || (!loadingEvents && !err && events.length === 0)}>
+              <select value={eventId} onChange={(e) => { setEventId(e.target.value); setTierQty({}); }} disabled={loadingEvents || (!loadingEvents && !err && events.length === 0)}>
                 <option value="">{loadingEvents ? 'Loading…' : events.length === 0 && !err ? 'No live events' : 'Pick an event'}</option>
                 {events.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
               </select>
@@ -164,41 +179,43 @@ export default function OfflineBooking() {
             )}
             {event && event.tiers.length > 0 && (
               <div className="field" style={{ marginBottom: 14 }}>
-                <span>Ticket tier</span>
-                <select value={tierId} onChange={(e) => { setTierId(e.target.value); setQty(1); }}>
-                  <option value="">Pick a tier</option>
-                  {event.tiers.map((t) => (
-                    <option key={t.id} value={t.id} disabled={t.quantity - t.sold < 1}>
-                      {t.name} — {fmtMoney(displayTierPrice(t, event.date))} ({t.quantity - t.sold} left)
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {tier && (
-              <div className="field" style={{ marginBottom: 14 }}>
-                <span>Quantity</span>
-                <div className="qty-stepper">
-                  <button type="button" className="qty-stepper-btn" disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity">
-                    <Minus size={15} />
-                  </button>
-                  <span className="qty-stepper-value">{qty}</span>
-                  <button type="button" className="qty-stepper-btn" disabled={qty >= maxQty} onClick={() => setQty((q) => Math.min(maxQty, q + 1))} aria-label="Increase quantity">
-                    <Plus size={15} />
-                  </button>
+                <span>Ticket tiers — mix as many as this booking needs</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {event.tiers.map((t) => {
+                    const left = t.quantity - t.sold;
+                    const q = tierQty[t.id] ?? 0;
+                    return (
+                      <div key={t.id} className="card" style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, opacity: left < 1 ? 0.5 : 1 }}>
+                        <div>
+                          <div className="small" style={{ fontWeight: 700 }}>{t.name}</div>
+                          <div className="tiny muted-2">{fmtMoney(displayTierPrice(t, event.date))} · {left} left</div>
+                        </div>
+                        <div className="qty-stepper">
+                          <button type="button" className="qty-stepper-btn" disabled={q <= 0} onClick={() => setQtyFor(t.id, left, q - 1)} aria-label={`Decrease ${t.name} quantity`}>
+                            <Minus size={15} />
+                          </button>
+                          <span className="qty-stepper-value">{q}</span>
+                          <button type="button" className="qty-stepper-btn" disabled={q >= left} onClick={() => setQtyFor(t.id, left, q + 1)} aria-label={`Increase ${t.name} quantity`}>
+                            <Plus size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {tier && (
+            {lines.length > 0 && event && (
               <div className="card" style={{ background: 'var(--bg-2, rgba(255,255,255,.03))', marginBottom: 14, padding: 14 }}>
                 <div className="tiny muted-2" style={{ marginBottom: 8 }}>Price breakdown</div>
                 <div style={{ display: 'grid', gap: 6, fontSize: 13.5 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span className="muted">{qty} × {tier.name} ({fmtMoney(tierPrice)})</span>
-                    <span>{fmtMoney(subtotal)}</span>
-                  </div>
+                  {lines.map((l) => (
+                    <div key={l.tier.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span className="muted">{l.qty} × {l.tier.name} ({fmtMoney(displayTierPrice(l.tier, event.date))})</span>
+                      <span>{fmtMoney(l.qty * displayTierPrice(l.tier, event.date))}</span>
+                    </div>
+                  ))}
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span className="muted">Booking fee</span>
                     <span>{fmtMoney(fee)}</span>
@@ -216,7 +233,7 @@ export default function OfflineBooking() {
                 </div>
                 {extraNeeded > 0 && (
                   <div className="tiny muted-2" style={{ marginTop: 8 }}>
-                    {tier.name} needs {qty * partySize} names total{coupleHint ? ' — one Male, one Female per pair' : ''}.
+                    This booking needs {expectedHeadcount} names total{anyCouple ? ' — one Male, one Female per Couple pair' : ''}.
                   </div>
                 )}
               </div>

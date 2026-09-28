@@ -692,7 +692,7 @@ export const organizer = {
   // itself is only created once they actually pay, via the same webhook
   // every online checkout already uses).
   createOfflineBooking: (body: {
-    eventId: string; tierId: string; qty: number; guestName: string; whatsapp: string; gender?: string;
+    eventId: string; lines: { tierId: string; qty: number }[]; guestName: string; whatsapp: string; gender?: string;
     others?: { name: string; gender?: string; whatsapp?: string }[];
     paymentMode: 'self_collected' | 'payment_link';
   }) => apiFetch<OrgBooking | { holdId: string; redirectUrl: string; subtotal: number; fee: number; gstPct: number; gst: number; total: number; phone: string }>('/organizer/offline-bookings', { body }),

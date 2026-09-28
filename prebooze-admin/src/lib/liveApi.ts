@@ -1622,7 +1622,7 @@ export const liveLiveMonitor = {
 
 export const liveManualBooking = {
   create: (body: {
-    eventId: string; tierId: string; qty: number; guestName: string; phone: string; gender?: string;
+    eventId: string; lines: { tierId: string; qty: number }[]; guestName: string; phone: string; gender?: string;
     others?: { name: string; gender?: string; whatsapp?: string }[]; method: string;
   }) => liveFetch<LiveBooking>('/admin/bookings', { body }),
 };

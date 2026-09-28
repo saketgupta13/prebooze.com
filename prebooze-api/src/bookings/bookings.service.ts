@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { randomInt, randomBytes } from 'crypto';
-import type { Prisma, Booking } from '@prisma/client';
+import type { Prisma, Booking, TicketTier } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { HoldsService } from './holds.service';
 import { CatalogService } from '../catalog/catalog.service';
@@ -1083,6 +1083,94 @@ export class BookingsService {
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true, organizer: true } } } });
   }
 
+  // ---------- shared multi-tier helpers (real gap closed 2026-09-28: every
+  // staff/organizer-recorded booking path below used to take exactly one
+  // tierId+qty, so an order mixing tiers — "2 Male + 1 Female", "1 Couple +
+  // 2 Female" — simply couldn't be recorded as ONE booking. Guest
+  // self-checkout (create() above) already solved this correctly via a
+  // {tier,qty}[] lines model; these helpers are that exact same logic,
+  // extracted so it can't drift between the two. ----------
+
+  /** `{tierId, qty}[]` (explicit array, not a bare map — order matters,
+   * since the UI collects per-attendee names in this same line order) ->
+   * real TicketTier rows, same validation create() already does. */
+  private resolveTierLines(event: { tiers: TicketTier[] }, inputLines: { tierId: string; qty: number }[]) {
+    const lines = inputLines
+      .filter((l) => l.qty > 0)
+      .map((l) => {
+        const tier = event.tiers.find((t) => t.id === l.tierId);
+        if (!tier) throw new BadRequestException(`Unknown ticket tier ${l.tierId}`);
+        return { tier, qty: l.qty };
+      });
+    if (!lines.length) throw new BadRequestException('No tickets selected');
+    return lines;
+  }
+
+  /** Same headcount + Couple-tier gender-pairing enforcement as create()'s
+   * own doc comment describes (real incidents: a Couple booking's second
+   * guest never recorded; an all-male "stag" group booked at the Couple
+   * rate) — reused verbatim so every booking path protects against both. */
+  private validateMultiTierGuestList(
+    lines: { tier: { name: string }; qty: number }[],
+    mainGuestGender: string | undefined,
+    othersGenders: (string | undefined)[],
+  ) {
+    const expectedHeadcount = lines.reduce((a, l) => a + l.qty * partySizeFromTierName(l.tier.name), 0);
+    const providedHeadcount = 1 + othersGenders.length;
+    if (providedHeadcount !== expectedHeadcount) {
+      throw new BadRequestException(`This booking needs a name for all ${expectedHeadcount} attendee${expectedHeadcount > 1 ? 's' : ''} — got ${providedHeadcount}`);
+    }
+    const flatGenders = [mainGuestGender, ...othersGenders];
+    let cursor = 0;
+    for (const l of lines) {
+      const per = partySizeFromTierName(l.tier.name);
+      if (isCoupleTierName(l.tier.name)) {
+        for (let t = 0; t < l.qty; t++) {
+          const pair = flatGenders.slice(cursor, cursor + 2);
+          if (!(pair.includes('Male') && pair.includes('Female'))) {
+            throw new BadRequestException(`"${l.tier.name}" tickets need one male and one female guest per pair`);
+          }
+          cursor += 2;
+        }
+      } else {
+        cursor += l.qty * per;
+      }
+    }
+  }
+
+  private sumQty(lines: { qty: number }[]) {
+    return lines.reduce((a, l) => a + l.qty, 0);
+  }
+
+  private sumSubtotal(lines: { tier: TicketTier; qty: number }[], eventDate: Date) {
+    return lines.reduce((a, l) => a + l.qty * effectiveTierPrice(l.tier, eventDate), 0);
+  }
+
+  private sumCoverCharge(lines: { tier: TicketTier; qty: number }[], eventDate: Date) {
+    return lines.reduce((a, l) => a + (tierWindowState(l.tier, eventDate) === 'free' ? 0 : l.tier.coverCharge) * l.qty, 0);
+  }
+
+  private tierBreakdownAndName(lines: { tier: { id: string; name: string }; qty: number }[]) {
+    return {
+      tierBreakdown: Object.fromEntries(lines.map((l) => [l.tier.id, l.qty])) as Prisma.InputJsonValue,
+      tierName: lines.map((l) => `${l.qty}× ${l.tier.name}`).join(', '),
+    };
+  }
+
+  /** Per-line atomic inventory decrement — each tier in the order is
+   * reserved independently inside the caller's transaction, so a mixed
+   * order can't half-succeed (one tier sells out mid-checkout while another
+   * already decremented — the whole transaction rolls back instead). */
+  private async decrementInventoryForLines(tx: Prisma.TransactionClient, lines: { tier: { id: string; name: string; quantity: number }; qty: number }[]) {
+    for (const l of lines) {
+      const res = await tx.ticketTier.updateMany({
+        where: { id: l.tier.id, sold: { lte: l.tier.quantity - l.qty } },
+        data: { sold: { increment: l.qty } },
+      });
+      if (res.count === 0) throw new BadRequestException(`"${l.tier.name}" sold out`);
+    }
+  }
+
   /** Staff-recorded phone orders/walk-ups/comps — bypasses the hold/QR
    * checkout session and Razorpay entirely, unlike the guest flow above.
    * Finds-or-creates the buyer by phone the same way OTP signup does (an
@@ -1095,8 +1183,7 @@ export class BookingsService {
    * sold — and skip the platform fee too. */
   async adminCreate(input: {
     eventId: string;
-    tierId: string;
-    qty: number;
+    lines: { tierId: string; qty: number }[];
     guestName: string;
     phone: string;
     gender?: string;
@@ -1109,13 +1196,15 @@ export class BookingsService {
     method: string;
   }) {
     if (!input.guestName?.trim() || !input.phone?.trim()) throw new BadRequestException('Guest name and phone are required');
-    if (!input.qty || input.qty < 1) throw new BadRequestException('qty must be at least 1');
 
     const event = await this.prisma.event.findUnique({ where: { id: input.eventId }, include: { tiers: true, organizer: true } });
     if (!event) throw new NotFoundException('Event not found');
-    const tier = event.tiers.find((t) => t.id === input.tierId);
-    if (!tier) throw new BadRequestException('Unknown ticket tier');
-    if (tier.quantity - tier.sold < input.qty) throw new BadRequestException(`Only ${tier.quantity - tier.sold} left in "${tier.name}"`);
+    const lines = this.resolveTierLines(event, input.lines);
+    const qty = this.sumQty(lines);
+    for (const l of lines) {
+      if (l.tier.quantity - l.tier.sold < l.qty) throw new BadRequestException(`Only ${l.tier.quantity - l.tier.sold} left in "${l.tier.name}"`);
+    }
+    this.validateMultiTierGuestList(lines, input.gender, (input.others ?? []).map((o) => o.gender));
 
     const phone = normalizePhone(input.phone);
     const buyer =
@@ -1125,11 +1214,10 @@ export class BookingsService {
       }));
 
     const isComp = input.method.toLowerCase().includes('comp');
-    const tierPrice = effectiveTierPrice(tier, event.date);
-    const subtotal = isComp ? 0 : tierPrice * input.qty;
+    const subtotal = isComp ? 0 : this.sumSubtotal(lines, event.date);
     const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
     // Same as priceHold() — % of subtotal, no booking fee on a free ticket.
-    const fee = isComp || tierPrice === 0 ? 0 : Math.round((subtotal * (settings?.bookingFee ?? FALLBACK_FEE_PCT)) / 100);
+    const fee = isComp || subtotal === 0 ? 0 : Math.round((subtotal * (settings?.bookingFee ?? FALLBACK_FEE_PCT)) / 100);
     // Same GST-on-the-booking-fee-only rule as priceHold() — no Invoice PDF
     // exists for a manual/door-sale booking, so this only affects the
     // ledger and the total the guest/staff-recorded buyer is actually
@@ -1139,19 +1227,15 @@ export class BookingsService {
     const total = subtotal + fee + bookingGst;
 
     const id = '#TKT-' + randomInt(10000, 99999);
-    const partySize = partySizeFromTierName(tier.name);
     const guests = [
       { name: input.guestName.trim(), checkedIn: false, gender: input.gender },
-      ...(input.others ?? []).slice(0, input.qty * partySize - 1).filter((o) => o.name?.trim()).map((o) => ({ name: o.name.trim(), checkedIn: false, gender: o.gender, whatsapp: o.whatsapp })),
+      ...(input.others ?? []).filter((o) => o.name?.trim()).map((o) => ({ name: o.name.trim(), checkedIn: false, gender: o.gender, whatsapp: o.whatsapp })),
     ];
     const qrToken = await this.jwt.signAsync({ bookingId: id }, { expiresIn: '30d' });
+    const { tierBreakdown, tierName } = this.tierBreakdownAndName(lines);
 
     const booking = await this.prisma.$transaction(async (tx) => {
-      const res = await tx.ticketTier.updateMany({
-        where: { id: tier.id, sold: { lte: tier.quantity - input.qty } },
-        data: { sold: { increment: input.qty } },
-      });
-      if (res.count === 0) throw new BadRequestException(`"${tier.name}" sold out`);
+      await this.decrementInventoryForLines(tx, lines);
 
       const commission = this.commissionFor(subtotal, event.commission);
       const created = await tx.booking.create({
@@ -1159,9 +1243,9 @@ export class BookingsService {
           id,
           userId: buyer.id,
           eventId: event.id,
-          tierName: `${input.qty}× ${tier.name}`,
-          tierBreakdown: { [tier.id]: input.qty } as Prisma.InputJsonValue,
-          qty: input.qty,
+          tierName,
+          tierBreakdown,
+          qty,
           subtotal,
           fee,
           total,
@@ -1171,7 +1255,7 @@ export class BookingsService {
           paymentMethod: isComp ? 'Comp' : input.method,
           qrToken,
           // Same free-window gating as the guest checkout path above.
-          coverCharge: (tierWindowState(tier, event.date) === 'free' ? 0 : tier.coverCharge) * input.qty,
+          coverCharge: this.sumCoverCharge(lines, event.date),
           commission,
         },
       });
@@ -1210,7 +1294,7 @@ export class BookingsService {
       return created;
     });
 
-    await this.wa.send(phone, 'booking_confirmed', [input.guestName.trim(), event.title, String(input.qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`, String(total)]).catch(() => {});
+    await this.wa.send(phone, 'booking_confirmed', [input.guestName.trim(), event.title, String(qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`, String(total)]).catch(() => {});
     await this.maybeSendLocationForLateBooking(event.id, id);
     const venue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
     // Same backfill as the guest checkout path (BookingsService.create) —
@@ -1229,7 +1313,7 @@ export class BookingsService {
     if (buyer.email) {
       const ticketPdf = await ticketPdfBuffer(booking, event, venue).catch(() => null);
       await this.email.sendTemplate(buyer.email, 'booking_confirmed', {
-        name: input.guestName.trim(), eventTitle: event.title, qty: String(input.qty), bookingId: id, total: moneyOrFree(total),
+        name: input.guestName.trim(), eventTitle: event.title, qty: String(qty), bookingId: id, total: moneyOrFree(total),
       }, ticketPdf ? [{ filename: `prebooze-ticket-${id.replace(/[^\w-]/g, '')}.pdf`, content: ticketPdf.toString('base64') }] : undefined).catch(() => {});
     }
     await this.maybeNudgeProfileReward(buyer.id, event.title).catch(() => {});
@@ -1242,17 +1326,18 @@ export class BookingsService {
    * same trust level as adminCreate's own comment: an organizer recording a
    * real walk-up/phone/gate inquiry IS the real-world verification). */
   private async prepareOfflineBooking(userId: string, input: {
-    eventId: string; tierId: string; qty: number; guestName: string; whatsapp: string; gender?: string;
+    eventId: string; lines: { tierId: string; qty: number }[]; guestName: string; whatsapp: string; gender?: string;
   }, bareMinimumRecord = false) {
     const org = await this.orgAccess.require(userId, 'Attendees & check-in', 'edit');
     if (!input.guestName?.trim() || !input.whatsapp?.trim()) throw new BadRequestException('Guest name and WhatsApp number are required');
-    if (!input.qty || input.qty < 1) throw new BadRequestException('qty must be at least 1');
 
     const event = await this.prisma.event.findUnique({ where: { id: input.eventId }, include: { tiers: true, venue: true } });
     if (!event || event.organizerId !== org.id) throw new NotFoundException('Event not found');
-    const tier = event.tiers.find((t) => t.id === input.tierId);
-    if (!tier) throw new BadRequestException('Unknown ticket tier');
-    if (tier.quantity - tier.sold < input.qty) throw new BadRequestException(`Only ${tier.quantity - tier.sold} left in "${tier.name}"`);
+    const lines = this.resolveTierLines(event, input.lines);
+    const qty = this.sumQty(lines);
+    for (const l of lines) {
+      if (l.tier.quantity - l.tier.sold < l.qty) throw new BadRequestException(`Only ${l.tier.quantity - l.tier.sold} left in "${l.tier.name}"`);
+    }
 
     const phone = normalizePhone(input.whatsapp);
     const guest =
@@ -1266,7 +1351,7 @@ export class BookingsService {
         data: { phone, name: input.guestName.trim(), gender: bareMinimumRecord ? undefined : input.gender, referralCode: await uniqueReferralCodeFor(this.prisma, phone) },
       }));
 
-    const subtotal = effectiveTierPrice(tier, event.date) * input.qty;
+    const subtotal = this.sumSubtotal(lines, event.date);
     // Same guest-facing booking fee + GST as any online checkout (priceHold's
     // own fee/GST block above) — decided 2026-09-24 that offline bookings
     // shouldn't be a way to dodge the fee guests otherwise always pay.
@@ -1283,7 +1368,7 @@ export class BookingsService {
     const gstSplit = computeGst(fee, gstPct, eventState);
     const total = subtotal + fee + gstSplit.gstAmount;
 
-    return { org, event, tier, phone, guest, subtotal, fee, gstPct, gstSplit, total };
+    return { org, event, lines, qty, phone, guest, subtotal, fee, gstPct, gstSplit, total };
   }
 
   /** Mode 1: the organizer already has the guest's cash/UPI in hand (a real
@@ -1298,39 +1383,36 @@ export class BookingsService {
    * no separate "settle" step). Guest still gets a real ticket/QR/WhatsApp/
    * email confirmation, identical to any other confirmed booking. */
   async createOfflineBookingSelfCollected(userId: string, input: {
-    eventId: string; tierId: string; qty: number; guestName: string; whatsapp: string; gender?: string;
+    eventId: string; lines: { tierId: string; qty: number }[]; guestName: string; whatsapp: string; gender?: string;
     others?: { name: string; gender?: string; whatsapp?: string }[];
   }) {
-    const { org, event, tier, phone, guest, subtotal, fee, gstPct, gstSplit, total } = await this.prepareOfflineBooking(userId, input, true);
+    const { org, event, lines, qty, phone, guest, subtotal, fee, gstPct, gstSplit, total } = await this.prepareOfflineBooking(userId, input, true);
+    this.validateMultiTierGuestList(lines, input.gender, (input.others ?? []).map((o) => o.gender));
     const commission = Math.round((subtotal * OFFLINE_BOOKING_COMMISSION_PCT) / 100);
 
     const id = '#TKT-' + randomInt(10000, 99999);
-    const partySize = partySizeFromTierName(tier.name);
     const guests = [
       { name: input.guestName.trim(), checkedIn: false, gender: input.gender },
-      ...(input.others ?? []).slice(0, input.qty * partySize - 1).filter((o) => o.name?.trim()).map((o) => ({ name: o.name.trim(), checkedIn: false, gender: o.gender, whatsapp: o.whatsapp })),
+      ...(input.others ?? []).filter((o) => o.name?.trim()).map((o) => ({ name: o.name.trim(), checkedIn: false, gender: o.gender, whatsapp: o.whatsapp })),
     ];
     const qrToken = await this.jwt.signAsync({ bookingId: id }, { expiresIn: '30d' });
+    const { tierBreakdown, tierName } = this.tierBreakdownAndName(lines);
 
     const booking = await this.prisma.$transaction(async (tx) => {
-      const res = await tx.ticketTier.updateMany({
-        where: { id: tier.id, sold: { lte: tier.quantity - input.qty } },
-        data: { sold: { increment: input.qty } },
-      });
-      if (res.count === 0) throw new BadRequestException(`"${tier.name}" sold out`);
+      await this.decrementInventoryForLines(tx, lines);
 
       const created = await tx.booking.create({
         data: {
           id, userId: guest.id, eventId: event.id,
-          tierName: `${input.qty}× ${tier.name}`,
-          tierBreakdown: { [tier.id]: input.qty } as Prisma.InputJsonValue,
-          qty: input.qty, subtotal, fee, total,
+          tierName,
+          tierBreakdown,
+          qty, subtotal, fee, total,
           guests: guests as unknown as Prisma.InputJsonValue,
           mainGuest: input.guestName.trim(), whatsapp: phone,
           paymentMethod: 'Offline (self-collected)',
           bookingSource: 'offline', offlinePaymentMode: 'self_collected', createdByUserId: userId,
           qrToken, commission,
-          coverCharge: (tierWindowState(tier, event.date) === 'free' ? 0 : tier.coverCharge) * input.qty,
+          coverCharge: this.sumCoverCharge(lines, event.date),
         },
       });
 
@@ -1372,13 +1454,13 @@ export class BookingsService {
       await this.invoices.create({
         type: 'booking', refId: id, role: 'guest',
         payerName: input.guestName.trim(), payerEmail: guest.email, payerPhone: phone,
-        city: event.venue?.city ?? event.privateCity ?? undefined, description: `${input.qty}× ${event.title}`,
+        city: event.venue?.city ?? event.privateCity ?? undefined, description: `${qty}× ${event.title}`,
         subtotal, fee, gstPct, gstAmount: gstSplit.gstAmount, igstAmount: gstSplit.igstAmount,
         discount: 0, walletCredit: 0, total,
       }).catch(() => {});
     }
 
-    await this.sendOfflineBookingConfirmation(booking, event, guest, input.guestName.trim(), input.qty, total, id, false);
+    await this.sendOfflineBookingConfirmation(booking, event, guest, input.guestName.trim(), qty, total, id, false);
     return this.prisma.booking.findUniqueOrThrow({ where: { id }, include: { event: { include: { venue: true, organizer: true } } } });
   }
 
@@ -1391,13 +1473,14 @@ export class BookingsService {
    * once the real payment lands, same as any other checkout; see
    * finalizeOfflineLinkBooking, invoked from reconcilePhonePePayment. */
   async createOfflineBookingPaymentLink(userId: string, input: {
-    eventId: string; tierId: string; qty: number; guestName: string; whatsapp: string; gender?: string;
+    eventId: string; lines: { tierId: string; qty: number }[]; guestName: string; whatsapp: string; gender?: string;
     others?: { name: string; gender?: string; whatsapp?: string }[];
   }) {
-    const { org, event, tier, phone, guest, subtotal, fee, gstPct, gstSplit, total } = await this.prepareOfflineBooking(userId, input);
+    const { org, event, lines, phone, guest, subtotal, fee, gstPct, gstSplit, total } = await this.prepareOfflineBooking(userId, input);
     if (subtotal <= 0) throw new BadRequestException('This tier is free — use "self-collected" instead, no payment link needed');
+    this.validateMultiTierGuestList(lines, input.gender, (input.others ?? []).map((o) => o.gender));
 
-    const { holdId } = await this.holds.create(guest.id, event.id, { [tier.id]: input.qty });
+    const { holdId } = await this.holds.create(guest.id, event.id, Object.fromEntries(lines.map((l) => [l.tier.id, l.qty])));
     const merchantOrderId = `${holdId}-${randomBytes(6).toString('hex')}`;
     const returnUrl = `${process.env.WEB_APP_URL || 'https://prebooze.com'}/pay/complete?holdId=${encodeURIComponent(holdId)}`;
     const order = await this.phonepe.createOrder(merchantOrderId, total * 100, returnUrl);
@@ -1530,12 +1613,14 @@ export class BookingsService {
     const event = await this.prisma.event.findUnique({ where: { id: cart.eventId }, include: { tiers: true, venue: true } });
     if (!event) return;
     const qtyMap = cart.qtyMap as Record<string, number>;
-    const [tierId, qty] = Object.entries(qtyMap)[0] ?? [];
-    const tier = tierId ? event.tiers.find((t) => t.id === tierId) : undefined;
-    if (!tier || !qty) {
+    let lines: { tier: (typeof event.tiers)[number]; qty: number }[];
+    try {
+      lines = this.resolveTierLines(event, Object.entries(qtyMap).map(([tierId, qty]) => ({ tierId, qty })));
+    } catch {
       await this.staffAlerts.alert(`⚠ Offline payment-link order ${merchantOrderId} completed but its tier/qty couldn't be resolved. Needs manual recovery.`).catch(() => {});
       return;
     }
+    const qty = this.sumQty(lines);
 
     // Locked in at order-creation time (createOfflineBookingPaymentLink) —
     // reused here rather than re-derived from amountPaise, so a
@@ -1560,23 +1645,23 @@ export class BookingsService {
     ];
     const qrToken = await this.jwt.signAsync({ bookingId: id }, { expiresIn: '30d' });
     const paymentMethodResult = await this.phonepe.getPaymentMethod(merchantOrderId).catch(() => null);
+    const { tierBreakdown, tierName } = this.tierBreakdownAndName(lines);
 
     const booking = await this.prisma.$transaction(async (tx) => {
-      const res = await tx.ticketTier.updateMany({ where: { id: tier.id, sold: { lte: tier.quantity - qty } }, data: { sold: { increment: qty } } });
-      if (res.count === 0) throw new Error(`"${tier.name}" sold out`);
+      await this.decrementInventoryForLines(tx, lines);
 
       const created = await tx.booking.create({
         data: {
           id, userId: cart.userId, eventId: event.id,
-          tierName: `${qty}× ${tier.name}`,
-          tierBreakdown: { [tier.id]: qty } as Prisma.InputJsonValue,
+          tierName,
+          tierBreakdown,
           qty, subtotal, fee, total,
           guests: guests as unknown as Prisma.InputJsonValue,
           mainGuest: payload.mainGuest, whatsapp: payload.whatsapp,
           paymentId: merchantOrderId, paymentMethod: paymentMethodResult?.method,
           bookingSource: 'offline', offlinePaymentMode: 'payment_link', createdByUserId: payload.createdByUserId,
           qrToken, commission,
-          coverCharge: (tierWindowState(tier, event.date) === 'free' ? 0 : tier.coverCharge) * qty,
+          coverCharge: this.sumCoverCharge(lines, event.date),
         },
       });
       await tx.cart.updateMany({ where: { holdId: cart.holdId }, data: { status: 'completed' } });

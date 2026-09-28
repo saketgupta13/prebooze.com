@@ -181,7 +181,7 @@ export class OrganizerController {
   createOfflineBooking(
     @Req() req: AuthedReq,
     @Body() body: {
-      eventId: string; tierId: string; qty: number; guestName: string; whatsapp: string; gender?: string;
+      eventId: string; lines: { tierId: string; qty: number }[]; guestName: string; whatsapp: string; gender?: string;
       others?: { name: string; gender?: string; whatsapp?: string }[];
       paymentMode: 'self_collected' | 'payment_link';
     },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -29,7 +29,13 @@ const GENDERS = ['Male', 'Female', 'Other'];
  * link" (a real PhonePe order texted to the guest, fee+GST-inclusive —
  * confirms once they actually pay, same webhook pipeline every online
  * checkout already uses). See PayoutsScreen's "Offline booking charges"
- * section for what self-collected mode's cut came to per booking. */
+ * section for what self-collected mode's cut came to per booking.
+ *
+ * Real gap closed 2026-09-28: this used to lock a booking to exactly ONE
+ * tier — a mixed order like "2 Male + 1 Female" couldn't be recorded as a
+ * single booking. Now a per-tier qty stepper list (same lines[] model
+ * web's own OfflineBooking.tsx and guest checkout already use), so any
+ * tier combination prices and validates as one order. */
 export default function OfflineBookingScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<BookingsStackParamList>>();
   const [events, setEvents] = useState<Event[]>([]);
@@ -38,8 +44,8 @@ export default function OfflineBookingScreen() {
   const [bookingFee, setBookingFee] = useState(1.5);
   const [gstPct, setGstPct] = useState(0);
   const [eventId, setEventId] = useState('');
-  const [tierId, setTierId] = useState('');
-  const [qty, setQty] = useState(1);
+  // tierId -> qty, only tiers with qty > 0 are part of the order.
+  const [tierQty, setTierQty] = useState<Record<string, number>>({});
   const [guestName, setGuestName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [gender, setGender] = useState('');
@@ -60,18 +66,18 @@ export default function OfflineBookingScreen() {
   }, []);
 
   const event = events.find((e) => e.id === eventId);
-  const tier = event?.tiers.find((t) => t.id === tierId);
-  const partySize = tier ? partySizeFromTierName(tier.name) : 1;
-  const extraNeeded = tier ? Math.max(0, qty * partySize - 1) : 0;
-  const tierPrice = tier && event ? displayTierPrice(tier, event.date) : 0;
-  const subtotal = tierPrice * qty;
+  const lines = event
+    ? event.tiers.map((t) => ({ tier: t, qty: tierQty[t.id] ?? 0 })).filter((l) => l.qty > 0)
+    : [];
+  const expectedHeadcount = lines.reduce((a, l) => a + l.qty * partySizeFromTierName(l.tier.name), 0);
+  const extraNeeded = Math.max(0, expectedHeadcount - 1);
+  const subtotal = event ? lines.reduce((a, l) => a + l.qty * displayTierPrice(l.tier, event.date), 0) : 0;
   // Preview only — same formula as the backend's real computation
   // (prepareOfflineBooking), off the same public platform settings web's
   // Checkout.tsx already uses, so what's shown here matches what's charged.
   const fee = subtotal > 0 ? Math.round((subtotal * bookingFee) / 100) : 0;
   const gst = Math.round((fee * gstPct) / 100);
   const total = subtotal + fee + gst;
-  const maxQty = tier ? tier.quantity - tier.sold : 1;
 
   useEffect(() => {
     setOthers((prev) => {
@@ -81,21 +87,21 @@ export default function OfflineBookingScreen() {
     });
   }, [extraNeeded]);
 
-  const tierOptions = useMemo(
-    () => (event?.tiers ?? []).map((t) => `${t.name} — ${fmtMoney(displayTierPrice(t, event!.date))} (${t.quantity - t.sold} left)`),
-    [event],
-  );
-  const tierLabel = tier && event ? `${tier.name} — ${fmtMoney(displayTierPrice(tier, event.date))} (${tier.quantity - tier.sold} left)` : '';
+  const setQtyFor = (tierId: string, max: number, next: number) => {
+    setTierQty((prev) => ({ ...prev, [tierId]: Math.max(0, Math.min(max, next)) }));
+  };
 
-  const canSubmit = !!eventId && !!tierId && qty >= 1 && guestName.trim() && whatsapp.trim() && !submitting;
+  const canSubmit = !!eventId && lines.length > 0 && guestName.trim() && whatsapp.trim() && !submitting;
 
   const submit = async () => {
-    if (!tier || !event) return;
+    if (!event || lines.length === 0) return;
     setErr('');
     setSubmitting(true);
     try {
       const body = {
-        eventId, tierId, qty, guestName: guestName.trim(), whatsapp: whatsapp.trim(), gender: gender || undefined,
+        eventId,
+        lines: lines.map((l) => ({ tierId: l.tier.id, qty: l.qty })),
+        guestName: guestName.trim(), whatsapp: whatsapp.trim(), gender: gender || undefined,
         others: others.map((o) => ({ name: o.name.trim(), gender: o.gender || undefined })).filter((o) => o.name),
         paymentMode,
       };
@@ -115,8 +121,8 @@ export default function OfflineBookingScreen() {
 
   // Couple tiers need exactly one Male + one Female per pair, same door
   // policy the real guest checkout enforces — kept as a soft nudge here
-  // (not a hard block), matching the web modal's reasoning.
-  const coupleHint = tier && isCoupleTierName(tier.name);
+  // (not a hard block), matching the web page's reasoning.
+  const anyCouple = lines.some((l) => isCoupleTierName(l.tier.name));
 
   const copyLink = async () => {
     if (!linkResult) return;
@@ -170,7 +176,7 @@ export default function OfflineBookingScreen() {
             ) : (
               <SearchableSelect
                 value={event?.title ?? ''}
-                onChange={(title) => { const e = events.find((x) => x.title === title); if (e) { setEventId(e.id); setTierId(''); } }}
+                onChange={(title) => { const e = events.find((x) => x.title === title); if (e) { setEventId(e.id); setTierQty({}); } }}
                 options={events.map((e) => e.title)}
                 placeholder="Pick an event"
               />
@@ -180,42 +186,42 @@ export default function OfflineBookingScreen() {
 
             {event && event.tiers.length > 0 && (
               <View style={styles.fieldGap}>
-                <Txt style={styles.label}>Ticket tier</Txt>
-                <SearchableSelect
-                  value={tierLabel}
-                  onChange={(label) => {
-                    const idx = tierOptions.indexOf(label);
-                    const t = idx >= 0 ? event.tiers[idx] : undefined;
-                    if (t) setTierId(t.id);
-                  }}
-                  options={tierOptions}
-                  placeholder="Pick a tier"
-                />
-              </View>
-            )}
-
-            {tier && (
-              <View style={styles.fieldGap}>
-                <Txt style={styles.label}>Quantity</Txt>
-                <View style={styles.stepperRow}>
-                  <Pressable style={styles.stepperBtn} disabled={qty <= 1} onPress={() => setQty((q) => Math.max(1, q - 1))}>
-                    <Minus size={15} color={qty <= 1 ? colors.muted : colors.text} />
-                  </Pressable>
-                  <Txt style={styles.stepperValue}>{qty}</Txt>
-                  <Pressable style={styles.stepperBtn} disabled={qty >= maxQty} onPress={() => setQty((q) => Math.min(maxQty, q + 1))}>
-                    <Plus size={15} color={qty >= maxQty ? colors.muted : colors.text} />
-                  </Pressable>
+                <Txt style={styles.label}>Ticket tiers — mix as many as this booking needs</Txt>
+                <View style={{ gap: spacing.s }}>
+                  {event.tiers.map((t) => {
+                    const left = t.quantity - t.sold;
+                    const q = tierQty[t.id] ?? 0;
+                    return (
+                      <View key={t.id} style={[styles.tierRow, left < 1 ? { opacity: 0.5 } : undefined]}>
+                        <View>
+                          <Txt style={styles.bold}>{t.name}</Txt>
+                          <Muted style={styles.tiny}>{fmtMoney(displayTierPrice(t, event.date))} · {left} left</Muted>
+                        </View>
+                        <View style={styles.stepperRow}>
+                          <Pressable style={styles.stepperBtn} disabled={q <= 0} onPress={() => setQtyFor(t.id, left, q - 1)}>
+                            <Minus size={15} color={q <= 0 ? colors.muted : colors.text} />
+                          </Pressable>
+                          <Txt style={styles.stepperValue}>{q}</Txt>
+                          <Pressable style={styles.stepperBtn} disabled={q >= left} onPress={() => setQtyFor(t.id, left, q + 1)}>
+                            <Plus size={15} color={q >= left ? colors.muted : colors.text} />
+                          </Pressable>
+                        </View>
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
             )}
 
-            {tier && (
+            {lines.length > 0 && event && (
               <Card style={[styles.breakdownCard, styles.fieldGap]}>
                 <Muted style={styles.tiny}>Price breakdown</Muted>
-                <View style={styles.breakdownRow}>
-                  <Muted style={styles.tiny}>{qty} × {tier.name} ({fmtMoney(tierPrice)})</Muted>
-                  <Txt style={styles.tiny}>{fmtMoney(subtotal)}</Txt>
-                </View>
+                {lines.map((l) => (
+                  <View key={l.tier.id} style={styles.breakdownRow}>
+                    <Muted style={styles.tiny}>{l.qty} × {l.tier.name} ({fmtMoney(displayTierPrice(l.tier, event.date))})</Muted>
+                    <Txt style={styles.tiny}>{fmtMoney(l.qty * displayTierPrice(l.tier, event.date))}</Txt>
+                  </View>
+                ))}
                 <View style={styles.breakdownRow}>
                   <Muted style={styles.tiny}>Booking fee</Muted>
                   <Txt style={styles.tiny}>{fmtMoney(fee)}</Txt>
@@ -254,7 +260,7 @@ export default function OfflineBookingScreen() {
             {others.length > 0 && (
               <View style={styles.fieldGap}>
                 <Muted style={styles.tiny}>
-                  {tier?.name} needs {qty * partySize} names total{coupleHint ? ' — one Male, one Female per pair' : ''}.
+                  This booking needs {expectedHeadcount} names total{anyCouple ? ' — one Male, one Female per Couple pair' : ''}.
                 </Muted>
                 {others.map((o, i) => (
                   <View key={i} style={[styles.row2, { marginTop: spacing.s }]}>
@@ -320,6 +326,7 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s, marginTop: spacing.s },
   linkText: { flex: 1, fontSize: 11.5, color: colors.muted },
+  tierRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.m, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.m },
   stepperBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   stepperValue: { fontFamily: fontFamily.bold, fontSize: fontSize.l, minWidth: 28, textAlign: 'center' },
