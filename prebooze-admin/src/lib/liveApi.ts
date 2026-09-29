@@ -226,7 +226,7 @@ export const liveMarketing = {
   // shape to restore.
   subscriptions: () => liveFetch<LiveMarketingSubscription[]>('/admin/marketing/subscriptions'),
   setCampaign: (id: string, metaCampaignId: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/campaign`, { method: 'PATCH', body: { metaCampaignId } }),
-  reject: (id: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/reject`, { method: 'POST' }),
+  reject: (id: string, reason?: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/reject`, { method: 'POST', body: { reason } }),
   rates: () => liveFetch<LiveMarketingRates>('/admin/marketing/rates'),
   updateRates: (body: Partial<LiveMarketingRates>) => liveFetch<LiveMarketingRates>('/admin/marketing/rates', { method: 'PATCH', body }),
 };

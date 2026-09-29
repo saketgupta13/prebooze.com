@@ -331,6 +331,7 @@ export interface MarketingOrder {
   isSubscriptionPeriod: boolean;
   periodStart: string | null;
   periodEnd: string | null;
+  rejectionReason: string | null;
 }
 
 /** A standing Razorpay Subscription funding ad marketing across all of an

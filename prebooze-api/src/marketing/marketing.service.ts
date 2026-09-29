@@ -9,6 +9,7 @@ import { AnalyticsReportService } from '../analytics/analytics-report.service';
 import { calculateGatewayFee, type PaymentMethod } from '../payments/gateway-fee';
 import { computeGst } from '../common/gst';
 import { postIncome } from '../common/post-income';
+import { OrgNotificationsService } from '../notifications/org-notifications';
 
 export type MarketingOwnerType = 'organizer' | 'venue';
 
@@ -37,6 +38,7 @@ export class MarketingService {
     private wallet: WalletService,
     private staffAlerts: StaffAlertsService,
     private analyticsReport: AnalyticsReportService,
+    private orgNotifications: OrgNotificationsService,
   ) {}
 
   private async resolveOwner(userId: string, ownerType: MarketingOwnerType): Promise<{ organizerId?: string; venueId?: string; brand: string; city: string; state: string | null }> {
@@ -107,11 +109,11 @@ export class MarketingService {
   // `amount` stays the base rate (unchanged meaning, matches every existing
   // caller); `total` is what was/will be actually charged, amount+GST —
   // equal to amount on every pre-GST-launch or gstEnabled:false order.
-  private toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; gstPct: number | null; gstAmount: number | null; total: number | null; status: string; createdAt: Date; periodEnd: Date | null }) {
+  private toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; gstPct: number | null; gstAmount: number | null; total: number | null; status: string; createdAt: Date; periodEnd: Date | null; rejectionReason?: string | null }) {
     return {
       id: row.id, eventId: row.eventId, eventTitle: row.eventTitle, amount: row.amount,
       gstPct: row.gstPct ?? 0, gstAmount: row.gstAmount ?? 0, total: row.total ?? row.amount, status: row.status,
-      createdAt: row.createdAt, isSubscriptionPeriod: false, periodEnd: row.periodEnd,
+      createdAt: row.createdAt, isSubscriptionPeriod: false, periodEnd: row.periodEnd, rejectionReason: row.rejectionReason ?? null,
     };
   }
 
@@ -359,6 +361,24 @@ export class MarketingService {
     return (await this.prisma.venue.findUnique({ where: { id: ownerId } }))?.name ?? null;
   }
 
+  /** Real userId + contact details for whoever owns this order — the other
+   * direction from resolveOwner() (that one needs the caller's own userId
+   * to find their organizer/venue; this needs the reverse, given only the
+   * order's organizerId/venueId, for the two admin-only methods below that
+   * have no caller userId to start from). */
+  private async resolveOwnerContact(row: { ownerType: MarketingOwnerType; organizerId: string | null; venueId: string | null }) {
+    if (row.ownerType === 'organizer') {
+      const org = row.organizerId ? await this.prisma.organizer.findUnique({ where: { id: row.organizerId } }) : null;
+      if (!org?.userId) return null;
+      const user = await this.prisma.user.findUnique({ where: { id: org.userId } });
+      return user ? { userId: user.id, email: user.email, name: user.name } : null;
+    }
+    const venue = row.venueId ? await this.prisma.venue.findUnique({ where: { id: row.venueId } }) : null;
+    if (!venue?.userId) return null;
+    const user = await this.prisma.user.findUnique({ where: { id: venue.userId } });
+    return user ? { userId: user.id, email: user.email, name: user.name } : null;
+  }
+
   /** The human handoff point — admin has actually created the real Meta
    * campaign for this order/subscription and is recording its id + marking
    * it live. Requires the order to be paid first (mirrors
@@ -367,12 +387,46 @@ export class MarketingService {
     const row = await this.prisma.marketingOrder.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Marketing order not found');
     if (!row.paymentId) throw new BadRequestException('Cannot activate a marketing order that hasn’t been paid for yet');
-    return this.prisma.marketingOrder.update({ where: { id }, data: { metaCampaignId, status: 'active' } });
+    const updated = await this.prisma.marketingOrder.update({ where: { id }, data: { metaCampaignId, status: 'active' } });
+
+    // Real notification the moment the campaign actually goes live — before
+    // this, the organizer/venue had no way to find out except by refreshing
+    // the Marketing page themselves.
+    const owner = await this.resolveOwnerContact(row);
+    if (owner) {
+      if (owner.email) {
+        await this.email.sendTemplate(owner.email, 'marketing_campaign_active', {
+          name: owner.name, eventTitle: row.eventTitle ?? 'your campaign', eventId: row.eventId ?? '',
+        }).catch(() => {});
+      }
+      if (row.ownerType === 'organizer') {
+        await this.orgNotifications.notify(owner.userId, 'approved', `Your ad campaign for "${row.eventTitle ?? 'your event'}" is now live`, `/organizer/marketing/analytics?eventId=${encodeURIComponent(row.eventId ?? '')}`).catch(() => {});
+      }
+    }
+
+    return updated;
   }
 
-  async adminReject(id: string) {
+  async adminReject(id: string, reason?: string) {
     const row = await this.prisma.marketingOrder.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Marketing order not found');
-    return this.prisma.marketingOrder.update({ where: { id }, data: { status: 'rejected' } });
+    const updated = await this.prisma.marketingOrder.update({ where: { id }, data: { status: 'rejected', rejectionReason: reason ?? null } });
+
+    const owner = await this.resolveOwnerContact(row);
+    if (owner) {
+      if (owner.email) {
+        const reasonBlock = reason
+          ? `<p style="background:rgba(255,107,94,.08);border:1px solid rgba(255,107,94,.25);border-radius:8px;padding:10px 12px;">${reason}</p>`
+          : '';
+        await this.email.sendTemplate(owner.email, 'marketing_rejected', {
+          name: owner.name, eventTitle: row.eventTitle ?? 'your campaign', reasonBlock,
+        }).catch(() => {});
+      }
+      if (row.ownerType === 'organizer') {
+        await this.orgNotifications.notify(owner.userId, 'rejected', `Your marketing order for "${row.eventTitle ?? 'your event'}" was rejected${reason ? ` — ${reason}` : ''}`, '/organizer/marketing').catch(() => {});
+      }
+    }
+
+    return updated;
   }
 }

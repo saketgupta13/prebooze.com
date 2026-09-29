@@ -11,12 +11,15 @@ import { PhonePeService } from '../payments/phonepe.service';
 import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { AnalyticsReportService } from '../analytics/analytics-report.service';
+import { PushService } from '../notifications/push';
+import { OrgNotificationsService } from '../notifications/org-notifications';
 
 @Module({
   controllers: [MarketingController, VenueMarketingController, AdminMarketingController],
   providers: [
     MarketingService, JwtAuthGuard, StaffAuthGuard, PermissionGuard,
     EmailService, WhatsappService, InvoicesService, PhonePeService, WalletService, StaffAlertsService, AnalyticsReportService,
+    PushService, OrgNotificationsService,
   ],
   exports: [MarketingService],
 })

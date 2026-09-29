@@ -167,8 +167,8 @@ export class AdminMarketingController {
 
   @Post(':id/reject')
   @RequirePermission('Marketing campaigns', 'approve')
-  reject(@Param('id') id: string) {
-    return this.marketing.adminReject(id);
+  reject(@Param('id') id: string, @Body('reason') reason?: string) {
+    return this.marketing.adminReject(id, reason);
   }
 
   @Get('rates')

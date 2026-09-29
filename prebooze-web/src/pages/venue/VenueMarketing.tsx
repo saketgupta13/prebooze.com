@@ -185,6 +185,9 @@ export default function Marketing() {
                     </span>
                     <span className="muted small">{STATUS_LABEL[o.status]} · {fmtDate(o.createdAt)}</span>
                   </div>
+                  {o.status === 'rejected' && o.rejectionReason && (
+                    <p className="tiny danger-text" style={{ margin: '2px 0 0' }}>{o.rejectionReason}</p>
+                  )}
                   {/* Full breakup, not just the total — base rate + GST separately,
                       so it's clear exactly what was charged and why. */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>

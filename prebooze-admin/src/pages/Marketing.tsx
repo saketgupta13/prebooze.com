@@ -46,6 +46,8 @@ export default function Marketing() {
   const [savingRates, setSavingRates] = useState(false);
   const [campaignDraft, setCampaignDraft] = useState<Record<string, string>>({});
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -115,7 +117,9 @@ export default function Marketing() {
   };
   const reject = async (id: string) => {
     try {
-      await liveMarketing.reject(id);
+      await liveMarketing.reject(id, rejectReason.trim() || undefined);
+      setRejectingId(null);
+      setRejectReason('');
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to reject');
@@ -166,6 +170,18 @@ export default function Marketing() {
         <span style={{ flex: 1.6, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
           {!r.paymentId ? (
             <span className="tiny muted">awaiting payment</span>
+          ) : rejectingId === r.id ? (
+            <>
+              <input
+                className="input" style={{ padding: '5px 8px', width: 160 }}
+                placeholder="reason (optional)"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                autoFocus
+              />
+              <button className="btn btn-danger btn-sm" onClick={() => reject(r.id)}>Confirm reject</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setRejectingId(null); setRejectReason(''); }}>Cancel</button>
+            </>
           ) : (
             <>
               <input
@@ -175,7 +191,7 @@ export default function Marketing() {
                 onChange={(e) => setCampaignDraft((d) => ({ ...d, [r.id]: e.target.value }))}
               />
               <button className="btn btn-pri btn-sm" onClick={() => activateOrder(r.id)}>Activate</button>
-              <button className="btn btn-danger btn-sm" onClick={() => reject(r.id)}>Reject</button>
+              <button className="btn btn-danger btn-sm" onClick={() => setRejectingId(r.id)}>Reject</button>
             </>
           )}
         </span>

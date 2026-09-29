@@ -484,6 +484,23 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     defaultBody: `<p>Hey {{name}},</p><p>Your invoice <b>{{invoiceNumber}}</b> for {{description}} is attached as a PDF — total <b>{{total}}</b>.</p>`,
     tokens: ['name', 'invoiceNumber', 'description', 'total'],
   },
+  {
+    id: 'marketing_campaign_active', name: 'Marketing campaign activated', category: 'Roles',
+    trigger: 'Admin sets a real Meta campaign id on a paid marketing order (MarketingService.adminSetCampaign)',
+    preheader: 'Your ad campaign is live',
+    defaultSubject: 'Your ad campaign for "{{eventTitle}}" is live ✓',
+    defaultBody: `<p>Hey {{name}},</p><p>Good news — the marketing campaign you paid for on <b>{{eventTitle}}</b> is now running. Check the Analytics tab on that event for real performance numbers as they come in.</p>`,
+    cta: { label: 'View performance →', urlTemplate: '{{webUrl}}/organizer/marketing/analytics?eventId={{eventId}}' },
+    tokens: ['name', 'eventTitle', 'eventId'],
+  },
+  {
+    id: 'marketing_rejected', name: 'Marketing order rejected', category: 'Roles',
+    trigger: 'Admin rejects a paid marketing order, with a reason (MarketingService.adminReject)',
+    preheader: 'Update on your ad campaign request',
+    defaultSubject: 'Update on your marketing order for "{{eventTitle}}"',
+    defaultBody: `<p>Hey {{name}},</p><p>Your marketing order for <b>{{eventTitle}}</b> wasn't approved.</p>{{reasonBlock}}<p style="color:${MUTED};">Contact support if you have questions, or reach out about a refund.</p>`,
+    tokens: ['name', 'eventTitle', 'reasonBlock'],
+  },
 ];
 
 function substitute(tpl: string, data: Record<string, string>): string {
