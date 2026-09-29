@@ -84,6 +84,11 @@ export interface EventInput {
   teaserVideoUrl?: string | null;
   socialBanners?: unknown;
   posterUrl?: string | null;
+  // Deliberate per-event exception to the platform-wide refund policy — see
+  // Event.nonRefundable's own schema comment. Omitting on an edit leaves
+  // the event's existing value untouched, same convention as the rest of
+  // this input.
+  nonRefundable?: boolean;
   tiers?: TierInput[];
   // Real, registered co-organizers on this event — Organizer.id strings
   // only, resolved via search-and-select in the wizard, never free text.
@@ -561,6 +566,7 @@ export class OrganizerService {
       teaserVideoUrl: input.teaserVideoUrl !== undefined ? input.teaserVideoUrl : (existing?.teaserVideoUrl ?? null),
       socialBanners: (input.socialBanners ?? existing?.socialBanners) as Prisma.InputJsonValue,
       posterUrl: input.posterUrl !== undefined ? input.posterUrl : (existing?.posterUrl ?? null),
+      nonRefundable: input.nonRefundable ?? existing?.nonRefundable ?? false,
     };
 
     await this.prisma.event.upsert({

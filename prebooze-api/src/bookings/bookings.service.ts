@@ -1903,10 +1903,11 @@ export class BookingsService {
    * stay untouched until an admin actually approves, so a decline can put
    * the booking back exactly as it was with nothing to unwind. */
   async cancel(userId: string, id: string, refundTo: 'wallet' | 'source') {
-    const booking = await this.prisma.booking.findUnique({ where: { id } });
+    const booking = await this.prisma.booking.findUnique({ where: { id }, include: { event: { select: { nonRefundable: true } } } });
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.userId !== userId) throw new ForbiddenException();
     if (booking.status !== 'confirmed') throw new BadRequestException('This booking is not eligible for refund');
+    if (booking.event.nonRefundable) throw new BadRequestException('This event is non-refundable — tickets cannot be cancelled for a refund');
     // Prebooze only ever handles money that actually moved through its own
     // gateway. A self-collected offline booking's cash/UPI went straight to
     // the organizer, never through Prebooze at all — so there's nothing on

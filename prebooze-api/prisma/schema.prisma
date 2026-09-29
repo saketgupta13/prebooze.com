@@ -1013,6 +1013,13 @@ model Event {
   posterUrl String?
   payoutUtr String?
 
+  // Deliberate per-event exception to the platform-wide refund policy
+  // (guests can normally cancel any time before the event — see
+  // /legal/refund-policy) — set only when an organizer's own published
+  // T&Cs genuinely say tickets are non-refundable/non-transferable, never
+  // as a default. Gates BookingsService.cancel() directly.
+  nonRefundable Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
