@@ -9,7 +9,7 @@ import type { Event, EventStatus, Featured } from '../../types';
 import { eventCity, eventPath } from '../../lib/urls';
 import Poster from '../../components/Poster';
 import CategoryIcon from '../../components/CategoryIcon';
-import { CheckCircle2, X, Star, Pencil, Trash2, MapPin } from 'lucide-react';
+import { CheckCircle2, X, Star, Pencil, Trash2, MapPin, BarChart3 } from 'lucide-react';
 
 const TABS: { key: 'all' | EventStatus; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -246,6 +246,11 @@ export default function MyEvents() {
                       >
                         <MapPin size={13} /> {resendingLocationId === e.id ? 'Sending…' : resentLocationId === e.id ? 'Sent' : 'Resend location'}
                       </button>
+                    )}
+                    {e.status === 'approved' && (
+                      <Link to={`/organizer/marketing/analytics?eventId=${e.id}`} className="btn btn-ghost btn-sm" title="Performance — on-site funnel for this event" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        <BarChart3 size={13} /> Performance
+                      </Link>
                     )}
                     <span style={{ flex: 1 }} />
                     <Link to={`/organizer/events/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Edit — resubmits for approval" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
