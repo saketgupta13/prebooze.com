@@ -19,14 +19,13 @@ import { goBackOrHome } from '../../lib/navBack';
 import type { EventsStackParamList } from '../../navigation/types';
 import type { CollaboratorOption, Event, LineupProfile, PromoterProfile, Venue } from '../../types';
 
-// Rules/Promoters/SEO are edit-only (per organizer feedback 2026-09-15) —
-// during creation those default silently (empty rules stay DEFAULT_RULES,
-// promoters stay off, SEO falls back to title/description) and the
-// organizer can fill them in later via Edit. Line-up stays in the create
-// flow. Editing an existing event keeps the full original 6-step flow so
-// nothing already set is hidden.
+// Promoters/SEO are edit-only (per organizer feedback 2026-09-15) —
+// during creation those default silently (promoters stay off, SEO falls
+// back to title/description) and the organizer can fill them in later via
+// Edit. Line-up stays in the create flow. Editing an existing event keeps
+// the full original step flow so nothing already set is hidden.
 const CREATE_STEPS = ['1 Basics', '2 Media', '3 Tickets', '4 Co-hosts & line-up'];
-const EDIT_STEPS = ['1 Basics', '2 Media', '3 Tickets', '4 Rules & line-up', '5 Promoters', '6 SEO & publish'];
+const EDIT_STEPS = ['1 Basics', '2 Media', '3 Tickets', '4 Line-up', '5 Promoters', '6 SEO & publish'];
 const INCLUDE_OPTIONS = ['Entry', 'Welcome drink', 'Food coupon', 'Standing zone', 'Lounge access', '2 drinks', 'Meet & greet'];
 const AGE_LIMITS = ['All ages', '18+', '21+'];
 
@@ -52,13 +51,6 @@ interface TierDraft {
 }
 const DEFAULT_TIERS: TierDraft[] = [{ name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '', coverCharge: '', coverChargeNote: '', freeCutoff: '', lateFeePrice: '' }];
 
-interface RuleDraft { title: string; body: string }
-const DEFAULT_RULES: RuleDraft[] = [
-  { title: 'Dress code', body: 'Smart casual — no flip-flops or sleeveless shirts.' },
-  { title: 'Food & drinks', body: 'Full bar inside. Outside food & drinks not permitted.' },
-  { title: 'Prohibited items', body: 'No weapons, illegal substances or professional cameras.' },
-];
-
 /** Faithful port of prebooze-web/src/pages/organizer/CreateEvent.tsx — same
  * POST /organizer/events upsert semantics, same real media uploads (POST
  * /organizer/upload). Real, disclosed simplifications vs web (noted inline
@@ -69,9 +61,9 @@ const DEFAULT_RULES: RuleDraft[] = [
  * picker dialogs (DD-MM-YYYY / 12-hour display) — everything else, every
  * field, validation rule and payload shape, matches web exactly.
  * Step count differs from web on purpose: creating a new event only walks
- * Basics/Media/Tickets/Line-up (Rules, Promoters and SEO default silently
- * and are edited later); editing an existing event keeps all 6 original
- * steps so nothing already set is hidden. */
+ * Basics/Media/Tickets/Line-up (Promoters and SEO default silently and are
+ * edited later); editing an existing event keeps all original steps so
+ * nothing already set is hidden. */
 export default function EventWizardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<EventsStackParamList>>();
   const route = useRoute<RouteProp<EventsStackParamList, 'EventWizard'>>();
@@ -151,7 +143,6 @@ export default function EventWizardScreen() {
   const [customIncludeInputs, setCustomIncludeInputs] = useState<Record<number, string>>({});
 
   const [conditions, setConditions] = useState('Photo ID required\nNo re-entry');
-  const [rules, setRules] = useState<RuleDraft[]>(DEFAULT_RULES);
   const [lineupSel, setLineupSel] = useState<{ name: string; role: string; instagramUrl?: string }[]>([]);
   // Real gap closed 2026-09-28: same as web — a typed name with no match
   // opens this inline form instead of being silently dropped.
@@ -246,7 +237,6 @@ export default function EventWizardScreen() {
           setSocialStoryUrl(ev.socialBanners?.storyUrl ?? '');
           setTiers(ev.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), includes: t.includes, description: t.description ?? '', coverCharge: t.coverCharge ? String(t.coverCharge) : '', coverChargeNote: t.coverChargeNote ?? '', freeCutoff: t.freeCutoff ?? '', lateFeePrice: t.lateFeePrice != null ? String(t.lateFeePrice) : '' })));
           setConditions(ev.conditions.join('\n'));
-          setRules(ev.rules.length ? ev.rules.map((r) => ({ title: r.title, body: r.body })) : DEFAULT_RULES);
           setLineupSel(ev.lineup);
           setCollaboratorSel(ev.collaboratorOrganizerIds);
           setFreeTextCollaboratorsSel(ev.freeTextCollaborators ?? []);
@@ -279,7 +269,6 @@ export default function EventWizardScreen() {
   const toggleLineup = (l: { name: string; role: string; instagramUrl?: string }) =>
     setLineupSel((prev) => (prev.some((x) => x.name === l.name) ? prev.filter((x) => x.name !== l.name) : [...prev, l]));
   const venueLabel = (v: Venue) => `${v.name} · ${v.locality || v.city}`;
-  const setRule = (i: number, patch: Partial<RuleDraft>) => setRules((prev) => prev.map((r, x) => (x === i ? { ...r, ...patch } : r)));
 
   const slug = useMemo(
     () => (seoSlug || title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
@@ -307,7 +296,6 @@ export default function EventWizardScreen() {
       : { venueId }),
     status,
     conditions: conditions.split('\n').filter(Boolean),
-    rules: rules.filter((r) => r.title.trim() || r.body.trim()),
     collaboratorOrganizerIds: collaboratorSel,
     freeTextCollaborators: freeTextCollaboratorsSel,
     lineup: lineupSel,
@@ -839,7 +827,7 @@ export default function EventWizardScreen() {
             />
             <View style={styles.navRow}>
               <Button label="Back" variant="ghost" onPress={() => setStep(1)} style={{ flex: 1 }} />
-              <Button label={isEdit ? 'Next: Rules & line-up' : 'Next: Co-hosts & line-up'} disabled={!tiersValid} onPress={() => setStep(3)} style={{ flex: 1 }} />
+              <Button label={isEdit ? 'Next: Line-up' : 'Next: Co-hosts & line-up'} disabled={!tiersValid} onPress={() => setStep(3)} style={{ flex: 1 }} />
             </View>
           </Card>
         )}
@@ -850,21 +838,6 @@ export default function EventWizardScreen() {
               <>
                 <FieldLabel>Event conditions (one per line)</FieldLabel>
                 <Input value={conditions} onChangeText={setConditions} multiline numberOfLines={4} style={[styles.fieldGap, styles.textarea]} />
-                <Txt style={styles.stepTitle}>Event rules</Txt>
-                {rules.map((r, i) => (
-                  <View key={i} style={styles.ruleRow}>
-                    <View style={{ flex: 1 }}>
-                      <Input value={r.title} onChangeText={(v) => setRule(i, { title: v })} placeholder="e.g. Age policy" style={styles.fieldGap} />
-                      <Input value={r.body} onChangeText={(v) => setRule(i, { body: v })} placeholder="Details" style={{ marginTop: spacing.s }} />
-                    </View>
-                    <IconButton tone="danger" onPress={() => setRules((prev) => prev.filter((_, x) => x !== i))}>
-                      <X size={14} color={colors.danger} />
-                    </IconButton>
-                  </View>
-                ))}
-                <View style={{ marginBottom: spacing.l }}>
-                  <Chip label="+ Add rule" onPress={() => setRules((prev) => [...prev, { title: '', body: '' }])} />
-                </View>
               </>
             )}
 
@@ -1194,7 +1167,6 @@ const styles = StyleSheet.create({
   },
   customIncludeRow: { flexDirection: 'row', gap: spacing.s, alignItems: 'center', marginTop: spacing.s },
   customIncludeInput: { flex: 1 },
-  ruleRow: { flexDirection: 'row', gap: spacing.s, alignItems: 'flex-start', marginBottom: spacing.s },
   enableBox: { borderWidth: 1.5, borderColor: colors.border3, borderRadius: radius.m, padding: spacing.m, marginBottom: spacing.m },
   promoterBox: { borderWidth: 1.5, borderColor: colors.border3, borderRadius: radius.m, padding: spacing.m, marginBottom: spacing.s },
   promoterOptions: { marginTop: spacing.s, marginLeft: 30, gap: spacing.s },

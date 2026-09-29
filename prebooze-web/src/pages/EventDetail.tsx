@@ -38,7 +38,6 @@ import CategoryIcon from '../components/CategoryIcon';
 import TeaserReel from '../components/TeaserReel';
 import ImageLightbox from '../components/ImageLightbox';
 import { PageLoader } from '../components/Loader';
-import Accordion from '../components/Accordion';
 import Stars from '../components/Stars';
 import Stepper from '../components/Stepper';
 import EventCard from '../components/EventCard';
@@ -532,19 +531,6 @@ export default function EventDetail() {
           </div>
 
           <div className="detail-rest">
-            {/* Event rules */}
-            {event.rules.length > 0 && (
-              <section className="section">
-                <div className="section-hd">
-                  <h2>Event rules</h2>
-                </div>
-                {event.rules.map((r, i) => (
-                  <Accordion key={r.title} title={r.title} defaultOpen={i === 0}>
-                    {r.body}
-                  </Accordion>
-                ))}
-              </section>
-            )}
 
             {/* Conditions */}
             {event.conditions.length > 0 && (

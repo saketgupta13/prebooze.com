@@ -17,7 +17,7 @@ import {
   Eye, Pencil, ArrowRight, ArrowLeft, X, Calendar, MapPin, Clock, BadgeCheck, Check, Upload, Ticket, Banknote,
 } from 'lucide-react';
 
-const STEPS = ['1 Basics', '2 Media', '3 Tickets', '4 Rules & line-up', '5 Promoters', '6 SEO & publish'];
+const STEPS = ['1 Basics', '2 Media', '3 Tickets', '4 Line-up', '5 Promoters', '6 SEO & publish'];
 // Keys admin's reject flow flags via Event.rejectedSections — one per wizard
 // step, same order as STEPS, so a flagged key maps straight to a step index.
 const STEP_KEYS = ['basics', 'media', 'tickets', 'rules_lineup', 'promoters', 'seo'];
@@ -40,13 +40,6 @@ interface TierDraft {
 }
 
 const DEFAULT_TIERS: TierDraft[] = [{ name: 'General', price: '29', quantity: '500', includes: ['Entry', 'Welcome drink'], description: '', coverCharge: '', coverChargeNote: '', freeCutoff: '', lateFeePrice: '' }];
-
-interface RuleDraft { title: string; body: string }
-const DEFAULT_RULES: RuleDraft[] = [
-  { title: 'Dress code', body: 'Smart casual — no flip-flops or sleeveless shirts.' },
-  { title: 'Food & drinks', body: 'Full bar inside. Outside food & drinks not permitted.' },
-  { title: 'Prohibited items', body: 'No weapons, illegal substances or professional cameras.' },
-];
 
 /** Real event create/edit wizard — POST /organizer/events (upsert semantics,
  * see OrganizerService.saveEvent). Poster/gallery/teaser/social images upload
@@ -140,9 +133,8 @@ export default function CreateEvent() {
   const [tiers, setTiers] = useState<TierDraft[]>(DEFAULT_TIERS);
   const [customIncludeInputs, setCustomIncludeInputs] = useState<Record<number, string>>({});
 
-  // Step 3 — rules & lineup
+  // Step 3 — lineup
   const [conditions, setConditions] = useState('Photo ID required\nNo re-entry');
-  const [rules, setRules] = useState<RuleDraft[]>(DEFAULT_RULES);
   const [lineupSel, setLineupSel] = useState<{ name: string; role: string; instagramUrl?: string }[]>([]);
   // Real gap closed 2026-09-28: an artist/partner not yet registered on
   // Prebooze used to be un-addable at all. A typed name with no match now
@@ -258,7 +250,6 @@ export default function CreateEvent() {
           setSocialStoryUrl(ev.socialBanners?.storyUrl ?? '');
           setTiers(ev.tiers.map((t) => ({ id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity), includes: t.includes, description: t.description ?? '', coverCharge: t.coverCharge ? String(t.coverCharge) : '', coverChargeNote: t.coverChargeNote ?? '', freeCutoff: t.freeCutoff ?? '', lateFeePrice: t.lateFeePrice != null ? String(t.lateFeePrice) : '' })));
           setConditions(ev.conditions.join('\n'));
-          setRules(ev.rules.length ? ev.rules.map((r) => ({ title: r.title, body: r.body })) : DEFAULT_RULES);
           setLineupSel(ev.lineup);
           const pc = ev.promoterConfig;
           if (pc) {
@@ -300,7 +291,6 @@ export default function CreateEvent() {
       prev.some((x) => x.name === l.name) ? prev.filter((x) => x.name !== l.name) : [...prev, l]
     );
   const venueLabel = (v: Venue) => `${v.name} · ${v.locality || v.city}`;
-  const setRule = (i: number, patch: Partial<RuleDraft>) => setRules((prev) => prev.map((r, x) => (x === i ? { ...r, ...patch } : r)));
 
   const slug = useMemo(
     () =>
@@ -334,7 +324,6 @@ export default function CreateEvent() {
       : { venueId }),
     status,
     conditions: conditions.split('\n').filter(Boolean),
-    rules: rules.filter((r) => r.title.trim() || r.body.trim()),
     lineup: lineupSel,
     collaboratorOrganizerIds: collaboratorSel,
     freeTextCollaborators: freeTextCollaboratorsSel,
@@ -994,7 +983,7 @@ export default function CreateEvent() {
               <ArrowLeft size={15} /> Back
             </button>
             <button className="btn btn-pri" disabled={!tiersValid} onClick={() => setStep(3)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              Next: Rules & line-up <ArrowRight size={15} />
+              Next: Line-up <ArrowRight size={15} />
             </button>
           </div>
         </div>
@@ -1005,32 +994,6 @@ export default function CreateEvent() {
           <div className="field">
             <span>Event conditions (one per line — shown as bullets)</span>
             <textarea value={conditions} onChange={(e) => setConditions(e.target.value)} />
-          </div>
-          <h3 style={{ margin: '6px 0 10px' }}>Event rules (accordions on event page)</h3>
-          {rules.map((r, i) => (
-            <div key={i} className="form-row" style={{ alignItems: 'center' }}>
-              <div className="field" style={{ flex: '0 0 160px' }}>
-                <span>Rule title</span>
-                <input value={r.title} onChange={(e) => setRule(i, { title: e.target.value })} placeholder="e.g. Age policy" />
-              </div>
-              <div className="field" style={{ flex: 1 }}>
-                <span>Details</span>
-                <input value={r.body} onChange={(e) => setRule(i, { body: e.target.value })} />
-              </div>
-              <button
-                className="icon-round"
-                style={{ alignSelf: 'center', flex: '0 0 auto', background: 'none' }}
-                onClick={() => setRules((prev) => prev.filter((_, x) => x !== i))}
-                title="Remove rule"
-              >
-                <X size={15} />
-              </button>
-            </div>
-          ))}
-          <div className="chip-row" style={{ marginBottom: 16 }}>
-            <button type="button" className="chip" onClick={() => setRules((prev) => [...prev, { title: '', body: '' }])}>
-              + Add rule
-            </button>
           </div>
           <div className="field">
             <span>Line-up & partners</span>
