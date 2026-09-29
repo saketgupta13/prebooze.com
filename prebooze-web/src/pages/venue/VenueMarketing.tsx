@@ -110,9 +110,9 @@ export default function Marketing() {
   return (
     <div className="stack fade" style={{ maxWidth: 760, gap: 16 }}>
       <div className="page-hd">
-        <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Marketing <Rocket size={20} /></h1>
+        <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Marketing <Rocket size={20} style={{ flexShrink: 0 }} /></h1>
       </div>
-      <p className="muted small" style={{ marginTop: -8 }}>
+      <p className="muted small">
         Prebooze runs a dedicated ad campaign for your event(s). Pay per event, or subscribe for a rolling 30-day
         window covering everything you run. For real performance numbers once a campaign is live, see the Analytics
         tab on that event.
