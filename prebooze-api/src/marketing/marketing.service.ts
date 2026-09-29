@@ -127,7 +127,27 @@ export class MarketingService {
     const event = await this.resolveOwnedEvent(ownerType, ownerId, eventId);
 
     const existing = await this.prisma.marketingOrder.findFirst({ where: { eventId, status: { in: ['pending', 'active'] } } });
-    if (existing) throw new BadRequestException('This event already has a marketing order in progress or active');
+    if (existing) {
+      // A still-genuinely-in-progress or already-paid order really does
+      // block a second purchase. But a 'pending' order this old was created
+      // the instant someone clicked Pay — before any payment happened — and
+      // if they abandoned the PhonePe checkout (closed the tab, backed out,
+      // payment failed) it would otherwise sit here forever with no way to
+      // ever buy marketing for this event again, since nothing else ever
+      // expires or cancels it. Self-heal it here instead of needing a
+      // separate cron: re-check its real PhonePe state once it's stale
+      // enough that a genuine checkout would have finished one way or the
+      // other, and only then decide whether it's actually done or dead.
+      const STALE_MS = 15 * 60 * 1000;
+      const isStale = existing.status === 'pending' && Date.now() - existing.createdAt.getTime() > STALE_MS;
+      if (!isStale) throw new BadRequestException('This event already has a marketing order in progress or active');
+
+      const status = existing.phonepeMerchantOrderId ? await this.phonepe.getOrderStatus(existing.phonepeMerchantOrderId).catch(() => null) : null;
+      if (status?.state === 'COMPLETED') throw new BadRequestException('This event already has a marketing order in progress or active');
+      // Genuinely abandoned — never paid, and old enough that it's not still
+      // in flight. Delete it so the event becomes purchasable again.
+      await this.prisma.marketingOrder.delete({ where: { id: existing.id } });
+    }
 
     const rates = await this.rates();
     const amount = rates.perEvent;
