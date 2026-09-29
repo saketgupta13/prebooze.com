@@ -166,7 +166,7 @@ export default function Otp() {
                 ·{' '}
               </>
             )}
-            <Link to="/login" className="link">
+            <Link to="/login" state={location.state} className="link">
               change number
             </Link>
           </div>
