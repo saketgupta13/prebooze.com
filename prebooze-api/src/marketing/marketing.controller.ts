@@ -38,6 +38,12 @@ export class MarketingController {
     return this.marketing.confirmPayment(req.user.sub, 'organizer', id);
   }
 
+  @Post(':id/abandon')
+  @UseGuards(JwtAuthGuard)
+  abandon(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.marketing.abandon(req.user.sub, 'organizer', id);
+  }
+
   @Get('orders')
   @UseGuards(JwtAuthGuard)
   myOrders(@Req() req: AuthedReq) {
@@ -91,6 +97,12 @@ export class VenueMarketingController {
   @UseGuards(JwtAuthGuard)
   confirmPayment(@Req() req: AuthedReq, @Param('id') id: string) {
     return this.marketing.confirmPayment(req.user.sub, 'venue', id);
+  }
+
+  @Post(':id/abandon')
+  @UseGuards(JwtAuthGuard)
+  abandon(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.marketing.abandon(req.user.sub, 'venue', id);
   }
 
   @Get('orders')

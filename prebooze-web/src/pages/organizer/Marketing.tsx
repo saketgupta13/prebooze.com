@@ -66,9 +66,19 @@ export default function Marketing() {
           // before giving up, same reasoning as Checkout.tsx's resume loop.
         }
       }
+      // Genuinely never confirmed after 6 tries (~10s) — abandon() re-checks
+      // PhonePe's real status one last time server-side (never discards an
+      // actually-completed payment) and frees the event up immediately
+      // instead of leaving it stuck for 15 minutes.
+      try {
+        await organizer.marketing.abandon(phonepeReturnOrderId);
+      } catch {
+        // best-effort — worst case it just waits out the normal staleness window
+      }
       if (cancelled) return;
       setResumingPhonePe(false);
-      setErr(`If your payment went through, check back in a minute — if it's still not showing, contact support with reference ${phonepeReturnOrderId}.`);
+      setErr('Payment was not completed — you can try again.');
+      load();
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

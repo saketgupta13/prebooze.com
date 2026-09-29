@@ -634,6 +634,11 @@ const marketingApi = (base: string) => ({
   // truth server-side, same as guest ticket checkout.
   confirmPayment: (id: string) =>
     apiFetch<MarketingOrder>(`${base}/${id}/confirm-payment`, { body: {} }),
+  // Called once the resume loop gives up on an unconfirmed payment — frees
+  // the event up for a fresh purchase attempt immediately, instead of
+  // leaving it stuck until requestForEvent()'s own 15-minute staleness
+  // fallback kicks in.
+  abandon: (id: string) => apiFetch<{ deleted: boolean }>(`${base}/${id}/abandon`, { body: {} }),
   orders: () => apiFetch<MarketingOrder[]>(`${base}/orders`),
   subscribe: () => apiFetch<{ ok: boolean; requiresAuthorization: boolean; shortUrl?: string; subscriptionId?: string; keyId?: string }>(`${base}/subscribe`, { body: {} }),
   cancelSubscription: () => apiFetch<{ ok: boolean }>(`${base}/subscription/cancel`, { body: {} }),

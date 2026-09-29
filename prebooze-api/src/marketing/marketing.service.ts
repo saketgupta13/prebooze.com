@@ -177,6 +177,32 @@ export class MarketingService {
     return { id: row.id, amount, gstPct, gstAmount, total, phonepeRedirectUrl: order.redirectUrl };
   }
 
+  /** Called by the frontend right after it gives up retrying confirmPayment
+   * on return from a PhonePe checkout (Marketing.tsx/VenueMarketing.tsx's
+   * resume loop) — the whole point is to free up the event immediately
+   * instead of making an abandoned/failed payment wait out the 15-minute
+   * staleness window in requestForEvent() before it can be retried. Only
+   * ever deletes a row that's genuinely still unpaid by PhonePe's own
+   * real-time status — if the payment actually completed in the last few
+   * seconds (a slow UPI collect finishing right as the frontend's retries
+   * ran out), this finishes confirming it exactly like confirmPayment()
+   * would, never discards a real payment just because the client gave up
+   * watching for it. */
+  async abandon(userId: string, ownerType: MarketingOwnerType, id: string) {
+    const row = await this.prisma.marketingOrder.findUnique({ where: { id } });
+    if (!row) return { deleted: true };
+    const owner = await this.resolveOwner(userId, ownerType);
+    const ownerId = this.ownerIdOf(ownerType, owner);
+    if (row.ownerType !== ownerType || (ownerType === 'organizer' ? row.organizerId : row.venueId) !== ownerId) throw new ForbiddenException();
+    if (row.paymentId) return this.toPublicOrder(row); // already paid — nothing to abandon
+
+    const status = row.phonepeMerchantOrderId ? await this.phonepe.getOrderStatus(row.phonepeMerchantOrderId).catch(() => null) : null;
+    if (status?.state === 'COMPLETED') return this.confirmPayment(userId, ownerType, id);
+
+    await this.prisma.marketingOrder.delete({ where: { id } });
+    return { deleted: true };
+  }
+
   async confirmPayment(userId: string, ownerType: MarketingOwnerType, id: string) {
     const row = await this.prisma.marketingOrder.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Marketing order not found');
