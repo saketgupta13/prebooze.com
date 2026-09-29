@@ -48,10 +48,14 @@ export default function Marketing() {
   const load = () => {
     setLoading(true);
     setErr('');
-    Promise.all([liveMarketing.orders(), liveMarketing.subscriptions(), liveMarketing.rates()])
-      .then(([r, s, ra]) => {
+    // Subscriptions were disabled with the Razorpay removal (2026-09-21) —
+    // that endpoint 404s now, and this used to sit inside the same
+    // Promise.all() as orders()/rates(), so the one dead call failed the
+    // entire load and hid every real, paid marketing order from admin.
+    setSubs([]);
+    Promise.all([liveMarketing.orders(), liveMarketing.rates()])
+      .then(([r, ra]) => {
         setRows(r);
-        setSubs(s);
         setRates(ra);
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))

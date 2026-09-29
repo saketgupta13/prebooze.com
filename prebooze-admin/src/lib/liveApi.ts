@@ -198,6 +198,13 @@ export interface LiveMarketingRates { perEvent: number; monthly: number; marginP
  * the real Meta campaign id once it's been set up by hand. */
 export const liveMarketing = {
   orders: (status?: string) => liveFetch<LiveMarketingOrder[]>('/admin/marketing/orders' + (status ? `?status=${status}` : '')),
+  // Subscriptions were disabled with the Razorpay removal (2026-09-21) — the
+  // backend route (AdminMarketingController.listSubscriptions) is commented
+  // out, so calling it 404s. Marketing.tsx used to Promise.all() this
+  // alongside orders()/rates(), which meant the whole page failed to load —
+  // hiding real, paid orders — the instant this dead call ran. Left here,
+  // unused, only so a future recurring-billing rebuild has the exact real
+  // shape to restore.
   subscriptions: () => liveFetch<LiveMarketingSubscription[]>('/admin/marketing/subscriptions'),
   setCampaign: (id: string, metaCampaignId: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/campaign`, { method: 'PATCH', body: { metaCampaignId } }),
   reject: (id: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/reject`, { method: 'POST' }),
