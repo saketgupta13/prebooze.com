@@ -2,10 +2,11 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Rocket } from 'lucide-react';
 import { organizer } from '../../api';
-import type { Event as PbEvent } from '../../types';
+import type { Event as PbEvent, Invoice } from '../../types';
 import { ApiError } from '../../api/client';
 import { fmtMoney, isEventOver } from '../../data/mock';
 import { PageLoader } from '../../components/Loader';
+import { Download } from 'lucide-react';
 import type { MarketingOrder, MarketingRates } from '../../types';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -29,9 +30,11 @@ export default function Marketing() {
   const [events, setEvents] = useState<PbEvent[]>([]);
   const [orders, setOrders] = useState<MarketingOrder[]>([]);
   const [rates, setRates] = useState<MarketingRates | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // ---- resuming after a PhonePe redirect (real full-page checkout, not an
   // embedded widget — see Checkout.tsx, the original of this pattern) ----
@@ -86,16 +89,32 @@ export default function Marketing() {
 
   const load = () => {
     setErr('');
-    Promise.all([organizer.events(), organizer.marketing.orders(), organizer.marketing.rates()])
-      .then(([e, o, r]) => {
+    // invoices() already returns every real invoice for this organizer
+    // (GET /organizer/invoices), marketing ones included — matched to a
+    // specific order below by refId, so "Download invoice" here is just a
+    // shortcut into data that already existed, not a new endpoint.
+    Promise.all([organizer.events(), organizer.marketing.orders(), organizer.marketing.rates(), organizer.invoices()])
+      .then(([e, o, r, inv]) => {
         setEvents(e);
         setOrders(o);
         setRates(r);
+        setInvoices(inv);
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   };
   useEffect(load, []);
+
+  const downloadInvoice = async (inv: Invoice) => {
+    setDownloadingId(inv.id);
+    try {
+      await organizer.downloadInvoicePdf(inv.id, `${inv.number}.pdf`);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Failed to download invoice');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   if (resumingPhonePe) return <PageLoader />;
   if (loading) return <div className="stack fade"><p className="muted">Loading…</p></div>;
@@ -156,18 +175,35 @@ export default function Marketing() {
         {orders.length === 0 ? (
           <p className="muted small" style={{ marginTop: 8 }}>No marketing payments yet.</p>
         ) : (
-          <div className="stack" style={{ gap: 6, marginTop: 8 }}>
-            {orders.map((o) => (
-              <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13.5 }}>
-                <span>
-                  {o.isSubscriptionPeriod ? `30-day period${o.periodStart ? ` · from ${fmtDate(o.periodStart)}` : ''}` : o.eventTitle}
-                  {o.status === 'active' && !o.isSubscriptionPeriod && (
-                    <> · <Link to={`/organizer/marketing/analytics?eventId=${o.eventId}`} className="link tiny">view analytics</Link></>
-                  )}
-                </span>
-                <span className="muted">{fmtMoney(o.total)}{o.gstAmount > 0 ? ` (incl. ${fmtMoney(o.gstAmount)} GST)` : ''} · {STATUS_LABEL[o.status]} · {fmtDate(o.createdAt)}</span>
-              </div>
-            ))}
+          <div className="stack" style={{ gap: 10, marginTop: 8 }}>
+            {orders.map((o) => {
+              const inv = invoices.find((i) => i.type === 'marketing' && i.refId === o.id);
+              return (
+                <div key={o.id} style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                    <span>
+                      {o.isSubscriptionPeriod ? `30-day period${o.periodStart ? ` · from ${fmtDate(o.periodStart)}` : ''}` : o.eventTitle}
+                      {o.status === 'active' && !o.isSubscriptionPeriod && (
+                        <> · <Link to={`/organizer/marketing/analytics?eventId=${o.eventId}`} className="link tiny">view analytics</Link></>
+                      )}
+                    </span>
+                    <span className="muted small">{STATUS_LABEL[o.status]} · {fmtDate(o.createdAt)}</span>
+                  </div>
+                  {/* Full breakup, not just the total — base rate + GST separately,
+                      so it's clear exactly what was charged and why. */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span className="tiny muted">
+                      {fmtMoney(o.amount)} campaign fee{o.gstAmount > 0 ? ` + ${fmtMoney(o.gstAmount)} GST` : ''} = <span className="bold" style={{ color: 'var(--text)' }}>{fmtMoney(o.total)}</span>
+                    </span>
+                    {inv && (
+                      <button className="btn btn-ghost btn-sm" disabled={downloadingId === inv.id} onClick={() => downloadInvoice(inv)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        <Download size={12} /> {downloadingId === inv.id ? 'Downloading…' : 'Invoice'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

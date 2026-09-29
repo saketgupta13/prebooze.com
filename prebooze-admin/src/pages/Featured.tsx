@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react';
-import { Ticket, Mic2, Landmark, Megaphone, Headphones, RotateCcw, Check } from 'lucide-react';
+import { Ticket, Mic2, Landmark, Megaphone, Headphones, RotateCcw, Check, Download } from 'lucide-react';
 import { Kpi } from '../components/ui';
-import { liveFeatured, LiveApiError, type LiveFeatured, type LiveFeaturedRates, type LiveFeaturedSubscription } from '../lib/liveApi';
+import { liveFeatured, liveInvoices, LiveApiError, type LiveFeatured, type LiveFeaturedRates, type LiveFeaturedSubscription, type LiveInvoice } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
@@ -40,21 +40,39 @@ export default function Featured() {
   const [rows, setRows] = useState<LiveFeatured[]>([]);
   const [subs, setSubs] = useState<LiveFeaturedSubscription[]>([]);
   const [rates, setRates] = useState<LiveFeaturedRates | null>(null);
+  const [invoices, setInvoices] = useState<LiveInvoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [savingRates, setSavingRates] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
     setErr('');
-    Promise.all([liveFeatured.list(), liveFeatured.subscriptions(), liveFeatured.rates()])
-      .then(([r, s, ra]) => {
+    // Subscriptions were disabled with the Razorpay removal (2026-09-21) —
+    // that endpoint 404s now. This used to sit inside the same Promise.all()
+    // as list()/rates(), so the one dead call failed the ENTIRE load — the
+    // identical bug Marketing.tsx's own admin page had.
+    setSubs([]);
+    Promise.all([liveFeatured.list(), liveFeatured.rates(), liveInvoices.list({ type: 'featured' })])
+      .then(([r, ra, inv]) => {
         setRows(r);
-        setSubs(s);
         setRates(ra);
+        setInvoices(inv);
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
+  };
+
+  const downloadInvoice = async (inv: LiveInvoice) => {
+    setDownloadingId(inv.id);
+    try {
+      await liveInvoices.downloadPdf(inv.id, `${inv.number}.pdf`);
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to download invoice');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   useEffect(() => {
@@ -70,6 +88,11 @@ export default function Featured() {
   const expired = rows.filter((f) => f.status === 'expired');
   const monthlyRecurring = active.filter((f) => f.billing === 'monthly').reduce((a, f) => a + f.amount, 0);
   const perEventRevenue = active.filter((f) => f.billing === 'per_event').reduce((a, f) => a + f.amount, 0);
+  // Unlike Marketing (margin-only), the whole base amount here is real
+  // Prebooze income — no ad-spend pass-through behind a Featured placement.
+  // Counted across every paid row regardless of approval status, matching
+  // when FeaturedService.confirmPayment actually posts it to the ledger.
+  const totalIncome = rows.filter((f) => f.paid).reduce((a, f) => a + f.amount, 0);
   const activeSubs = subs.filter((s) => s.status === 'active');
   const haltedSubs = subs.filter((s) => s.status === 'halted');
 
@@ -109,40 +132,65 @@ export default function Featured() {
     }
   };
 
-  const Row = ({ f, actions }: { f: LiveFeatured; actions?: boolean }) => (
-    <div className="trow" style={{ minWidth: 640, background: f.status === 'pending' ? 'rgba(255,107,94,.06)' : undefined }}>
-      <span style={{ flex: 1.6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={f.type} /> {f.entityName}</span>
-      <span style={{ flex: 0.9 }} className="muted">{f.type}</span>
-      <span style={{ flex: 0.8 }} className="muted">{f.city}</span>
-      <span style={{ flex: 1 }}>
-        ₹{fmt(f.amount)} <span className="tiny muted">{f.billing === 'monthly' ? '/mo' : 'one-off'}</span>
-        {f.featuredSubscriptionId && <span className="tiny" style={{ marginLeft: 6, color: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><RotateCcw size={11} /> auto</span>}
-      </span>
-      <span style={{ flex: 0.9 }} className="muted tiny">{f.status === 'active' ? `until ${fmtDate(f.expiresAt)}` : fmtDate(f.createdAt)}</span>
-      <span style={{ flex: 1.3, display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-        {actions ? (
-          <>
-            <button className="btn btn-pri btn-sm" onClick={() => approve(f.id)}>Approve</button>
-            <button className="btn btn-danger btn-sm" onClick={() => reject(f.id)}>Reject</button>
-          </>
-        ) : (
-          <span className="tag tag-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>live <Check size={11} /></span>
+  // Full money breakup, admin-only — base rate, GST, and the invoice. The
+  // whole base amount is real Prebooze income here (unlike Marketing, where
+  // only a margin cut is) — no ad-spend pass-through behind a placement.
+  const Breakup = ({ f }: { f: LiveFeatured }) => {
+    const inv = invoices.find((i) => i.refId === f.id);
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5 }} className="muted">
+        <span>₹{fmt(f.amount)} base{f.gstAmount ? ` + ₹${fmt(f.gstAmount)} GST` : ''} = <span className="bold" style={{ color: 'var(--text)' }}>₹{fmt(f.total ?? f.amount)}</span></span>
+        <span>·</span>
+        <span>all of it is <span className="bold green">Prebooze income</span></span>
+        {inv && (
+          <button className="btn btn-ghost btn-sm" disabled={downloadingId === inv.id} onClick={() => downloadInvoice(inv)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px' }}>
+            <Download size={11} /> {downloadingId === inv.id ? 'Downloading…' : 'Invoice'}
+          </button>
         )}
-      </span>
+      </div>
+    );
+  };
+
+  const Row = ({ f, actions }: { f: LiveFeatured; actions?: boolean }) => (
+    <div className="trow" style={{ minWidth: 640, background: f.status === 'pending' ? 'rgba(255,107,94,.06)' : undefined, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ flex: 1.6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={f.type} /> {f.entityName}</span>
+        <span style={{ flex: 0.9 }} className="muted">{f.type}</span>
+        <span style={{ flex: 0.8 }} className="muted">{f.city}</span>
+        <span style={{ flex: 1 }}>
+          ₹{fmt(f.amount)} <span className="tiny muted">{f.billing === 'monthly' ? '/mo' : 'one-off'}</span>
+          {f.featuredSubscriptionId && <span className="tiny" style={{ marginLeft: 6, color: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><RotateCcw size={11} /> auto</span>}
+        </span>
+        <span style={{ flex: 0.9 }} className="muted tiny">{f.status === 'active' ? `until ${fmtDate(f.expiresAt)}` : fmtDate(f.createdAt)}</span>
+        <span style={{ flex: 1.3, display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+          {actions ? (
+            <>
+              <button className="btn btn-pri btn-sm" onClick={() => approve(f.id)}>Approve</button>
+              <button className="btn btn-danger btn-sm" onClick={() => reject(f.id)}>Reject</button>
+            </>
+          ) : (
+            <span className="tag tag-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>live <Check size={11} /></span>
+          )}
+        </span>
+      </div>
+      {f.paid && <Breakup f={f} />}
     </div>
   );
 
   const ExpiredRow = ({ f }: { f: LiveFeatured }) => (
-    <div className="trow" style={{ minWidth: 640 }}>
-      <span style={{ flex: 1.6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={f.type} /> {f.entityName}</span>
-      <span style={{ flex: 0.9 }} className="muted">{f.type}</span>
-      <span style={{ flex: 0.8 }} className="muted">{f.city}</span>
-      <span style={{ flex: 1 }}>₹{fmt(f.amount)} <span className="tiny muted">{f.billing === 'monthly' ? '/mo' : 'one-off'}</span></span>
-      <span style={{ flex: 0.9 }} className="muted tiny">expired {fmtDate(f.expiresAt)}</span>
-      <span style={{ flex: 1.3, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
-        {f.expiryReminderSentAt && <span className="tiny muted">reminded {fmtDate(f.expiryReminderSentAt)}</span>}
-        <button className="btn btn-ghost btn-sm" onClick={() => remind(f.id)}>Send renewal reminder</button>
-      </span>
+    <div className="trow" style={{ minWidth: 640, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ flex: 1.6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={f.type} /> {f.entityName}</span>
+        <span style={{ flex: 0.9 }} className="muted">{f.type}</span>
+        <span style={{ flex: 0.8 }} className="muted">{f.city}</span>
+        <span style={{ flex: 1 }}>₹{fmt(f.amount)} <span className="tiny muted">{f.billing === 'monthly' ? '/mo' : 'one-off'}</span></span>
+        <span style={{ flex: 0.9 }} className="muted tiny">expired {fmtDate(f.expiresAt)}</span>
+        <span style={{ flex: 1.3, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+          {f.expiryReminderSentAt && <span className="tiny muted">reminded {fmtDate(f.expiryReminderSentAt)}</span>}
+          <button className="btn btn-ghost btn-sm" onClick={() => remind(f.id)}>Send renewal reminder</button>
+        </span>
+      </div>
+      {f.paid && <Breakup f={f} />}
     </div>
   );
 
@@ -163,6 +211,7 @@ export default function Featured() {
         <Kpi label="Live placements" value={fmt(active.length)} />
         <Kpi label="Monthly recurring" value={`₹${fmt(monthlyRecurring)}`} delta="from active placements" deltaColor="var(--green)" />
         <Kpi label="Per-event revenue" value={`₹${fmt(perEventRevenue)}`} delta="active one-offs" deltaColor="var(--muted)" />
+        <Kpi label="Prebooze income" value={`₹${fmt(totalIncome)}`} delta="real income, all paid" deltaColor="var(--green)" />
         <Kpi label="Expired" value={fmt(expired.length)} delta="lapsed — not renewed" deltaColor="var(--red)" />
       </div>
 

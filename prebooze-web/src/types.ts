@@ -488,7 +488,7 @@ export interface Coupon {
 export interface Invoice {
   id: string;
   number: string;
-  type: 'booking' | 'featured';
+  type: 'booking' | 'featured' | 'marketing';
   refId: string;
   role: 'guest' | 'organizer' | 'promoter' | 'venue' | 'lineup';
   payerName: string;

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react';
-import { Briefcase, Landmark, Check } from 'lucide-react';
+import { Briefcase, Landmark, Check, Download } from 'lucide-react';
 import { Kpi } from '../components/ui';
-import { liveMarketing, LiveApiError, type LiveMarketingOrder, type LiveMarketingSubscription, type LiveMarketingRates } from '../lib/liveApi';
+import { liveMarketing, liveInvoices, LiveApiError, type LiveMarketingOrder, type LiveMarketingSubscription, type LiveMarketingRates, type LiveInvoice } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
@@ -40,10 +40,12 @@ export default function Marketing() {
   const [rows, setRows] = useState<LiveMarketingOrder[]>([]);
   const [subs, setSubs] = useState<LiveMarketingSubscription[]>([]);
   const [rates, setRates] = useState<LiveMarketingRates | null>(null);
+  const [invoices, setInvoices] = useState<LiveInvoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [savingRates, setSavingRates] = useState(false);
   const [campaignDraft, setCampaignDraft] = useState<Record<string, string>>({});
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -53,13 +55,25 @@ export default function Marketing() {
     // Promise.all() as orders()/rates(), so the one dead call failed the
     // entire load and hid every real, paid marketing order from admin.
     setSubs([]);
-    Promise.all([liveMarketing.orders(), liveMarketing.rates()])
-      .then(([r, ra]) => {
+    Promise.all([liveMarketing.orders(), liveMarketing.rates(), liveInvoices.list({ type: 'marketing' })])
+      .then(([r, ra, inv]) => {
         setRows(r);
         setRates(ra);
+        setInvoices(inv);
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
+  };
+
+  const downloadInvoice = async (inv: LiveInvoice) => {
+    setDownloadingId(inv.id);
+    try {
+      await liveInvoices.downloadPdf(inv.id, `${inv.number}.pdf`);
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to download invoice');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   useEffect(() => {
@@ -78,6 +92,11 @@ export default function Marketing() {
   // remaining order is a one-time purchase, so there's no split left to
   // make; all active revenue is per-event now.
   const activeRevenue = active.reduce((a, r) => a + r.amount, 0);
+  // The actual, real Prebooze profit — everything else in `amount` is
+  // pass-through ad spend meant to fund the Meta campaign, never ours. Only
+  // counted for paid orders (paymentId set), same as what actually posts to
+  // the income ledger in MarketingService.confirmPayment.
+  const marginEarned = rows.filter((r) => r.paymentId).reduce((a, r) => a + Math.round((r.amount * r.marginPct) / 100), 0);
   const activeSubs = subs.filter((s) => s.status === 'active');
   const haltedSubs = subs.filter((s) => s.status === 'halted');
 
@@ -114,41 +133,69 @@ export default function Marketing() {
     }
   };
 
-  const PendingRow = ({ r }: { r: LiveMarketingOrder }) => (
-    <div className="trow" style={{ minWidth: 720, background: 'rgba(255,107,94,.06)' }}>
-      <span style={{ flex: 1.4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={r.ownerType} /> {r.entityName}</span>
-      <span style={{ flex: 1.2 }} className="muted">{r.eventTitle ?? '30-day subscription period'}</span>
-      <span style={{ flex: 0.8 }}>₹{fmt(r.amount)}</span>
-      <span style={{ flex: 0.9 }} className="muted tiny">{fmtDate(r.createdAt)}</span>
-      <span style={{ flex: 1.6, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
-        {!r.paymentId ? (
-          <span className="tiny muted">awaiting payment</span>
-        ) : (
-          <>
-            <input
-              className="input" style={{ padding: '5px 8px', width: 160 }}
-              placeholder="Meta campaign id"
-              value={campaignDraft[r.id] ?? ''}
-              onChange={(e) => setCampaignDraft((d) => ({ ...d, [r.id]: e.target.value }))}
-            />
-            <button className="btn btn-pri btn-sm" onClick={() => activateOrder(r.id)}>Activate</button>
-            <button className="btn btn-danger btn-sm" onClick={() => reject(r.id)}>Reject</button>
-          </>
+  // Full money breakup, admin-only — base rate, GST, what Prebooze actually
+  // keeps (margin) vs. what's pass-through ad spend meant to fund the real
+  // Meta campaign. Never shown to the organizer/venue themselves (see this
+  // page's own closing hint).
+  const Breakup = ({ r }: { r: LiveMarketingOrder }) => {
+    const margin = Math.round((r.amount * r.marginPct) / 100);
+    const adSpend = r.amount - margin;
+    const inv = invoices.find((i) => i.refId === r.id);
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5 }} className="muted">
+        <span>₹{fmt(r.amount)} base{r.gstAmount ? ` + ₹${fmt(r.gstAmount)} GST` : ''} = <span className="bold" style={{ color: 'var(--text)' }}>₹{fmt(r.total ?? r.amount)}</span></span>
+        <span>·</span>
+        <span>margin (ours) <span className="bold green">₹{fmt(margin)}</span></span>
+        <span>·</span>
+        <span>ad spend (theirs) ₹{fmt(adSpend)}</span>
+        {inv && (
+          <button className="btn btn-ghost btn-sm" disabled={downloadingId === inv.id} onClick={() => downloadInvoice(inv)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px' }}>
+            <Download size={11} /> {downloadingId === inv.id ? 'Downloading…' : 'Invoice'}
+          </button>
         )}
-      </span>
+      </div>
+    );
+  };
+
+  const PendingRow = ({ r }: { r: LiveMarketingOrder }) => (
+    <div className="trow" style={{ minWidth: 720, background: 'rgba(255,107,94,.06)', flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ flex: 1.4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={r.ownerType} /> {r.entityName}</span>
+        <span style={{ flex: 1.2 }} className="muted">{r.eventTitle ?? '30-day subscription period'}</span>
+        <span style={{ flex: 0.9 }} className="muted tiny">{fmtDate(r.createdAt)}</span>
+        <span style={{ flex: 1.6, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+          {!r.paymentId ? (
+            <span className="tiny muted">awaiting payment</span>
+          ) : (
+            <>
+              <input
+                className="input" style={{ padding: '5px 8px', width: 160 }}
+                placeholder="Meta campaign id"
+                value={campaignDraft[r.id] ?? ''}
+                onChange={(e) => setCampaignDraft((d) => ({ ...d, [r.id]: e.target.value }))}
+              />
+              <button className="btn btn-pri btn-sm" onClick={() => activateOrder(r.id)}>Activate</button>
+              <button className="btn btn-danger btn-sm" onClick={() => reject(r.id)}>Reject</button>
+            </>
+          )}
+        </span>
+      </div>
+      {r.paymentId && <Breakup r={r} />}
     </div>
   );
 
   const Row = ({ r }: { r: LiveMarketingOrder }) => (
-    <div className="trow" style={{ minWidth: 720 }}>
-      <span style={{ flex: 1.4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={r.ownerType} /> {r.entityName}</span>
-      <span style={{ flex: 1.2 }} className="muted">{r.eventTitle ?? '30-day subscription period'}</span>
-      <span style={{ flex: 0.8 }}>₹{fmt(r.amount)}</span>
-      <span style={{ flex: 0.9 }} className="muted tiny">{fmtDate(r.createdAt)}</span>
-      <span style={{ flex: 1.6, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
-        <span className="tiny muted">campaign: {r.metaCampaignId}</span>
-        <span className="tag tag-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>live <Check size={11} /></span>
-      </span>
+    <div className="trow" style={{ minWidth: 720, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ flex: 1.4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={r.ownerType} /> {r.entityName}</span>
+        <span style={{ flex: 1.2 }} className="muted">{r.eventTitle ?? '30-day subscription period'}</span>
+        <span style={{ flex: 0.9 }} className="muted tiny">{fmtDate(r.createdAt)}</span>
+        <span style={{ flex: 1.6, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+          <span className="tiny muted">campaign: {r.metaCampaignId}</span>
+          <span className="tag tag-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>live <Check size={11} /></span>
+        </span>
+      </div>
+      <Breakup r={r} />
     </div>
   );
 
@@ -167,7 +214,8 @@ export default function Marketing() {
       <div className="kpi-grid">
         <Kpi label="Awaiting campaign setup" value={fmt(pending.length)} />
         <Kpi label="Live campaigns" value={fmt(active.length)} />
-        <Kpi label="Active revenue" value={`₹${fmt(activeRevenue)}`} delta="one-time purchases" deltaColor="var(--green)" />
+        <Kpi label="Active revenue" value={`₹${fmt(activeRevenue)}`} delta="gross, incl. ad spend" deltaColor="var(--muted)" />
+        <Kpi label="Prebooze margin earned" value={`₹${fmt(marginEarned)}`} delta="real income, all paid orders" deltaColor="var(--green)" />
         <Kpi label="Lapsed" value={fmt(expired.length)} deltaColor="var(--red)" />
       </div>
 

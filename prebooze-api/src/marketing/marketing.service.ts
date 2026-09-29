@@ -8,6 +8,7 @@ import { StaffAlertsService } from '../notifications/staff-alerts';
 import { AnalyticsReportService } from '../analytics/analytics-report.service';
 import { calculateGatewayFee, type PaymentMethod } from '../payments/gateway-fee';
 import { computeGst } from '../common/gst';
+import { postIncome } from '../common/post-income';
 
 export type MarketingOwnerType = 'organizer' | 'venue';
 
@@ -243,6 +244,22 @@ export class MarketingService {
       }).catch(() => {});
       await this.staffAlerts.alert(`📣 New marketing order paid — ${owner.brand} (${row.eventTitle ?? 'event'}), ₹${row.total ?? row.amount}`).catch(() => {});
     }
+
+    // Real Prebooze income is only the margin — the rest of row.amount is
+    // pass-through ad spend meant to actually get spent on the organizer/
+    // venue's Meta campaign, never Prebooze's own revenue (see this
+    // service's own doc comment on marginPct). GST goes to the same
+    // "GST collected (payable)" bucket bookings already use — owed to the
+    // government, not real income either. Both were previously never
+    // posted anywhere at all, so this order's real profit was invisible in
+    // every financial report since the feature launched.
+    const margin = Math.round((row.amount * row.marginPct) / 100);
+    await postIncome(this.prisma, {
+      category: 'Marketing campaign margin', amount: margin, note: row.eventTitle ?? owner.brand, eventId: row.eventId,
+    }).catch(() => {});
+    await postIncome(this.prisma, {
+      category: 'GST collected (payable)', amount: row.gstAmount ?? 0, note: row.eventTitle ?? owner.brand, eventId: row.eventId,
+    }).catch(() => {});
 
     return this.toPublicOrder(updated);
   }

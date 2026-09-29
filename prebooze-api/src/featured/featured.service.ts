@@ -9,6 +9,7 @@ import { WalletService } from '../wallet/wallet.service';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { calculateGatewayFee, type PaymentMethod } from '../payments/gateway-fee';
 import { computeGst } from '../common/gst';
+import { postIncome } from '../common/post-income';
 
 /** Mirrors prebooze-web's FEATURED_PRICING (src/data/mock.ts), including
  * venueMonthly (the frontend contract, src/api/index.ts featured.rates(),
@@ -189,6 +190,20 @@ export class FeaturedService {
         subtotal: row.amount, gstPct: gstSplit.gstPct, gstAmount: gstSplit.gstAmount, igstAmount: gstSplit.igstAmount,
         total: row.total ?? row.amount,
       }).catch(() => {});
+
+      // Unlike Marketing (which passes ad spend through to Meta on the
+      // buyer's behalf), a Featured placement has no real cost behind it —
+      // the whole base amount is Prebooze's own income, not just a margin
+      // cut. GST goes to the same "GST collected (payable)" bucket bookings/
+      // Marketing already use. Both were never posted anywhere before this,
+      // so real Featured revenue was invisible in every financial report
+      // since launch. Only a 'event' placement has a real eventId to key
+      // an accumulating per-event row against (see postIncome) — every
+      // other type (organizer/promoter/lineup/venue) posts a plain one-off
+      // row instead, same as those placements have no per-event home.
+      const eventId = row.type === 'event' ? row.refId : null;
+      await postIncome(this.prisma, { category: 'Featured placement', amount: row.amount, note: itemLabel, eventId }).catch(() => {});
+      await postIncome(this.prisma, { category: 'GST collected (payable)', amount: row.gstAmount ?? 0, note: itemLabel, eventId }).catch(() => {});
     }
 
     return updated;

@@ -121,6 +121,14 @@ export interface LiveFeatured {
   status: 'pending' | 'active' | 'rejected' | 'expired';
   billing: 'per_event' | 'monthly';
   amount: number;
+  // Present on every row (the API returns the full Featured record), just
+  // not previously declared here — GST-inclusive total actually charged.
+  // The whole `amount` is real Prebooze income for Featured (no ad-spend
+  // pass-through the way Marketing has), so there's no separate margin
+  // field the way LiveMarketingOrder has one.
+  gstPct: number | null;
+  gstAmount: number | null;
+  total: number | null;
   createdAt: string;
   expiresAt: string;
   paid: boolean;
@@ -153,9 +161,13 @@ export const liveFeatured = {
   remind: (id: string) => liveFetch<{ ok: true; sentTo: string }>(`/admin/featured/${id}/remind`, { method: 'POST' }),
   rates: () => liveFetch<LiveFeaturedRates>('/featured/rates'),
   updateRates: (body: Partial<LiveFeaturedRates>) => liveFetch<LiveFeaturedRates>('/admin/featured/rates', { method: 'PATCH', body }),
-  // Read-only — the standing auto-renewal mandate itself is only ever
-  // cancelled by its owner from their own console (self-serve boundary,
-  // same as /admin/subscriptions).
+  // Disabled server-side with the Razorpay removal (2026-09-21) — the route
+  // (AdminFeaturedController.subscriptions) is commented out, so this 404s.
+  // Featured.tsx used to Promise.all() this alongside list()/rates(), which
+  // meant the one dead call failed the WHOLE page load — the identical bug
+  // MarketingService's own admin page had (see liveMarketing.subscriptions'
+  // comment). Left here, unused, for whenever recurring billing is rebuilt
+  // on PhonePe.
   subscriptions: () => liveFetch<LiveFeaturedSubscription[]>('/admin/featured/subscriptions'),
 };
 
@@ -168,7 +180,14 @@ export interface LiveMarketingOrder {
   eventId: string | null;
   eventTitle: string | null;
   amount: number;
+  // marginPct of `amount` is the only part that's real Prebooze income —
+  // the rest is pass-through ad spend meant to actually fund the Meta
+  // campaign, never Prebooze's own revenue (unlike Featured, where the
+  // whole amount is income — see LiveFeatured's own comment).
   marginPct: number;
+  gstPct: number | null;
+  gstAmount: number | null;
+  total: number | null;
   status: 'pending' | 'active' | 'rejected' | 'expired';
   metaCampaignId: string | null;
   paymentId: string | null;
