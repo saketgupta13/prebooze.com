@@ -18,7 +18,9 @@ const SUB_STATUS_LABEL: Record<string, string> = {
 
 const RATE_FIELDS: { key: keyof LiveMarketingRates; label: string }[] = [
   { key: 'perEvent', label: 'Per event (one-off)' },
-  { key: 'monthly', label: 'Subscription / 30 days' },
+  { key: 'day7', label: 'Plan / 7 days' },
+  { key: 'day15', label: 'Plan / 15 days' },
+  { key: 'monthly', label: 'Plan / 30 days' },
   { key: 'marginPct', label: 'Prebooze margin %' },
 ];
 

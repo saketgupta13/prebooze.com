@@ -346,7 +346,7 @@ export interface MarketingSubscription {
   shortUrl: string | null;
 }
 
-export interface MarketingRates { perEvent: number; monthly: number; gstPct: number; }
+export interface MarketingRates { perEvent: number; day7: number; day15: number; monthly: number; gstPct: number; }
 
 /** Redacted on-site funnel data for one event with an active/completed paid
  * marketing arrangement — see MarketingService.analyticsFor. No revenue,

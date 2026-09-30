@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "PlatformSettings" ADD COLUMN "marketing7Day" INTEGER NOT NULL DEFAULT 5000;
+ALTER TABLE "PlatformSettings" ADD COLUMN "marketing15Day" INTEGER NOT NULL DEFAULT 9000;

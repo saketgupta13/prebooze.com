@@ -87,12 +87,17 @@ export class MarketingService {
 
   async rates() {
     const s = await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
-    return { perEvent: s.marketingPerEvent, monthly: s.marketingMonthly, marginPct: s.marketingMarginPct, gstPct: s.gstEnabled ? s.gstPct : 0 };
+    return {
+      perEvent: s.marketingPerEvent, day7: s.marketing7Day, day15: s.marketing15Day, monthly: s.marketingMonthly,
+      marginPct: s.marketingMarginPct, gstPct: s.gstEnabled ? s.gstPct : 0,
+    };
   }
 
-  async updateRates(body: { perEvent?: number; monthly?: number; marginPct?: number }) {
+  async updateRates(body: { perEvent?: number; day7?: number; day15?: number; monthly?: number; marginPct?: number }) {
     const data: Record<string, number> = {};
     if (body.perEvent !== undefined) data.marketingPerEvent = body.perEvent;
+    if (body.day7 !== undefined) data.marketing7Day = body.day7;
+    if (body.day15 !== undefined) data.marketing15Day = body.day15;
     if (body.monthly !== undefined) data.marketingMonthly = body.monthly;
     if (body.marginPct !== undefined) data.marketingMarginPct = body.marginPct;
     await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: data, create: { id: 'main', ...data } });
@@ -188,16 +193,17 @@ export class MarketingService {
   }
 
   /** A single, one-time purchase covering every event this owner runs over
-   * the following 30 days — NOT a recurring subscription/mandate (real
-   * PhonePe AutoPay support doesn't exist yet, and building on top of a
-   * hand-rolled one would be its own separate, larger project — see this
-   * repo's standing payment-migration plan). It just naturally stops at
-   * periodEnd; buying the next month is a fresh, separate purchase, same as
-   * this one. Reuses the exact same MarketingOrder row shape a per-event
-   * purchase does — eventId: null + periodEnd is what the schema already
-   * modeled this as (isEventCovered/analyticsForPeriod below read it the
-   * same way). */
-  async requestForPeriod(userId: string, ownerType: MarketingOwnerType) {
+   * the chosen window — 7, 15, or 30 days — NOT a recurring subscription/
+   * mandate (real PhonePe AutoPay support doesn't exist yet, and building
+   * on top of a hand-rolled one would be its own separate, larger project —
+   * see this repo's standing payment-migration plan). It just naturally
+   * stops at periodEnd; buying the next window is a fresh, separate
+   * purchase, same as this one. Reuses the exact same MarketingOrder row
+   * shape a per-event purchase does — eventId: null + periodEnd is what the
+   * schema already modeled this as (isEventCovered/analyticsForPeriod below
+   * read it the same way, regardless of which of the three lengths it is). */
+  async requestForPeriod(userId: string, ownerType: MarketingOwnerType, days: 7 | 15 | 30) {
+    if (![7, 15, 30].includes(days)) throw new BadRequestException('Plan length must be 7, 15, or 30 days');
     const owner = await this.resolveOwner(userId, ownerType);
     const ownerId = this.ownerIdOf(ownerType, owner);
 
@@ -207,19 +213,19 @@ export class MarketingService {
     if (existing) {
       const STALE_MS = 15 * 60 * 1000;
       const isStale = existing.status === 'pending' && Date.now() - existing.createdAt.getTime() > STALE_MS;
-      if (!isStale) throw new BadRequestException('You already have a 30-day plan in progress or active');
+      if (!isStale) throw new BadRequestException('You already have a plan in progress or active');
       const status = existing.phonepeMerchantOrderId ? await this.phonepe.getOrderStatus(existing.phonepeMerchantOrderId).catch(() => null) : null;
-      if (status?.state === 'COMPLETED') throw new BadRequestException('You already have a 30-day plan in progress or active');
+      if (status?.state === 'COMPLETED') throw new BadRequestException('You already have a plan in progress or active');
       await this.prisma.marketingOrder.delete({ where: { id: existing.id } });
     }
 
     const rates = await this.rates();
-    const amount = rates.monthly;
+    const amount = days === 7 ? rates.day7 : days === 15 ? rates.day15 : rates.monthly;
     const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
     const gstPct = settings?.gstEnabled ? (settings?.gstPct ?? 0) : 0;
     const gstAmount = Math.round((amount * gstPct) / 100);
     const total = amount + gstAmount;
-    const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const periodEnd = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
     const row = await this.prisma.marketingOrder.create({
       data: {

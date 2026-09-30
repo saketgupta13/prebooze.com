@@ -630,11 +630,11 @@ const marketingApi = (base: string) => ({
   rates: () => apiFetch<MarketingRates>(`${base}/rates`),
   request: (eventId: string) =>
     apiFetch<{ id: string; amount: number; phonepeRedirectUrl: string }>(`${base}/request`, { body: { eventId } }),
-  // A one-time purchase covering every event run over the next 30 days —
-  // NOT a recurring subscription/mandate (no PhonePe AutoPay yet). Same
-  // request/confirm/abandon flow as a per-event purchase.
-  requestPeriod: () =>
-    apiFetch<{ id: string; amount: number; phonepeRedirectUrl: string }>(`${base}/request-period`, { body: {} }),
+  // A one-time purchase covering every event run over the chosen window
+  // (7/15/30 days) — NOT a recurring subscription/mandate (no PhonePe
+  // AutoPay yet). Same request/confirm/abandon flow as a per-event purchase.
+  requestPeriod: (days: 7 | 15 | 30) =>
+    apiFetch<{ id: string; amount: number; phonepeRedirectUrl: string }>(`${base}/request-period`, { body: { days } }),
   // No proof body — PhonePe's own getOrderStatus is the sole source of
   // truth server-side, same as guest ticket checkout.
   confirmPayment: (id: string) =>

@@ -34,8 +34,8 @@ export class MarketingController {
 
   @Post('request-period')
   @UseGuards(JwtAuthGuard)
-  requestPeriod(@Req() req: AuthedReq) {
-    return this.marketing.requestForPeriod(req.user.sub, 'organizer');
+  requestPeriod(@Req() req: AuthedReq, @Body('days') days: 7 | 15 | 30) {
+    return this.marketing.requestForPeriod(req.user.sub, 'organizer', days);
   }
 
   @Post(':id/confirm-payment')
@@ -107,8 +107,8 @@ export class VenueMarketingController {
 
   @Post('request-period')
   @UseGuards(JwtAuthGuard)
-  requestPeriod(@Req() req: AuthedReq) {
-    return this.marketing.requestForPeriod(req.user.sub, 'venue');
+  requestPeriod(@Req() req: AuthedReq, @Body('days') days: 7 | 15 | 30) {
+    return this.marketing.requestForPeriod(req.user.sub, 'venue', days);
   }
 
   @Post(':id/confirm-payment')

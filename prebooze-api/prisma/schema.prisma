@@ -1154,6 +1154,11 @@ model PlatformSettings {
   // purchase time so a later rate change never silently recalculates an
   // already-paid arrangement's economics.
   marketingPerEvent  Int @default(5000)
+  // Three one-time plan lengths, not recurring tiers — a plan just covers
+  // every event run in its own window then stops (see MarketingService.
+  // requestForPeriod's own doc comment on why there's no auto-renewal here).
+  marketing7Day      Int @default(5000)
+  marketing15Day     Int @default(9000)
   marketingMonthly   Int @default(15000)
   marketingMarginPct Int @default(25)
 

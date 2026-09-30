@@ -208,7 +208,7 @@ export interface LiveMarketingSubscription {
   paidCount: number;
   updatedAt: string;
 }
-export interface LiveMarketingRates { perEvent: number; monthly: number; marginPct: number; }
+export interface LiveMarketingRates { perEvent: number; day7: number; day15: number; monthly: number; marginPct: number; }
 export interface LiveMarketingRealPerformance {
   spend: number; impressions: number; reach: number; clicks: number; ctr: number;
   assumedMargin: number; assumedAdSpend: number;
