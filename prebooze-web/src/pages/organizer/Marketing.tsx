@@ -35,6 +35,7 @@ export default function Marketing() {
   const [err, setErr] = useState('');
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [buyingPeriod, setBuyingPeriod] = useState(false);
 
   // ---- resuming after a PhonePe redirect (real full-page checkout, not an
   // embedded widget — see Checkout.tsx, the original of this pattern) ----
@@ -121,7 +122,12 @@ export default function Marketing() {
 
   const upcoming = events.filter((e) => !isEventOver(e));
   const eventsWithOrder = new Set(orders.filter((o) => o.status === 'pending' || o.status === 'active').map((o) => o.eventId));
-  const eligibleEvents = upcoming.filter((e) => !eventsWithOrder.has(e.id));
+  // An active 30-day plan already covers every event running in its window —
+  // buying a per-event campaign on top would just be paying twice for the
+  // same coverage.
+  const activePeriods = orders.filter((o) => o.isSubscriptionPeriod && o.status === 'active');
+  const coveredByPeriod = (date: string) => activePeriods.some((o) => o.periodStart && o.periodEnd && date >= o.periodStart && date <= o.periodEnd);
+  const eligibleEvents = upcoming.filter((e) => !eventsWithOrder.has(e.id) && !coveredByPeriod(e.date));
 
   const buyForEvent = async (eventId: string) => {
     setErr('');
@@ -132,6 +138,19 @@ export default function Marketing() {
       // this component instance is about to be torn down by the navigation
     } catch (e) {
       setBusyEventId(null);
+      setErr(e instanceof ApiError ? e.message : 'Could not start payment — try again');
+    }
+  };
+
+  const hasPeriodOrder = orders.some((o) => o.isSubscriptionPeriod && (o.status === 'pending' || o.status === 'active'));
+  const buyForPeriod = async () => {
+    setErr('');
+    setBuyingPeriod(true);
+    try {
+      const { phonepeRedirectUrl } = await organizer.marketing.requestPeriod();
+      window.location.href = phonepeRedirectUrl;
+    } catch (e) {
+      setBuyingPeriod(false);
       setErr(e instanceof ApiError ? e.message : 'Could not start payment — try again');
     }
   };
@@ -169,6 +188,24 @@ export default function Marketing() {
         )}
       </div>
 
+      {/* Pay for the month — a one-time purchase, no auto-renewal (real
+          PhonePe AutoPay support doesn't exist yet); covers every event run
+          in the next 30 days, then just stops. */}
+      <div className="card">
+        <h3>Pay for 30 days — all events</h3>
+        <p className="muted small" style={{ marginTop: 4 }}>
+          One payment runs a dedicated campaign covering every event you run over the next 30 days. It's a one-time
+          purchase, not an auto-renewing subscription — buying next month's coverage is a separate purchase once this one ends.
+        </p>
+        {hasPeriodOrder ? (
+          <p className="muted small" style={{ marginTop: 10 }}>You already have a 30-day plan in progress or active.</p>
+        ) : (
+          <button className="btn btn-pri btn-sm" style={{ marginTop: 10 }} disabled={buyingPeriod || !rates} onClick={buyForPeriod}>
+            {buyingPeriod ? 'Opening payment…' : `Run ads for 30 days — ${rates ? fmtMoney(rates.monthly + Math.round((rates.monthly * rates.gstPct) / 100)) : ''} →`}
+          </button>
+        )}
+      </div>
+
       {/* Billing history */}
       <div className="card">
         <h3>Billing history</h3>
@@ -183,8 +220,8 @@ export default function Marketing() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                     <span>
                       {o.isSubscriptionPeriod ? `30-day period${o.periodStart ? ` · from ${fmtDate(o.periodStart)}` : ''}` : o.eventTitle}
-                      {o.status === 'active' && !o.isSubscriptionPeriod && (
-                        <> · <Link to={`/organizer/marketing/analytics?eventId=${o.eventId}`} className="link tiny">view analytics</Link></>
+                      {o.status === 'active' && (
+                        <> · <Link to={o.isSubscriptionPeriod ? `/organizer/marketing/analytics?orderId=${o.id}` : `/organizer/marketing/analytics?eventId=${o.eventId}`} className="link tiny">view analytics</Link></>
                       )}
                     </span>
                     <span className="muted small">{STATUS_LABEL[o.status]} · {fmtDate(o.createdAt)}</span>

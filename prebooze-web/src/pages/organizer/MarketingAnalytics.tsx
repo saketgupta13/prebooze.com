@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye, Users, MousePointerClick, Percent } from 'lucide-react';
 import { organizer } from '../../api';
 import { ApiError } from '../../api/client';
-import type { MarketingAnalytics as MarketingAnalyticsData } from '../../types';
+import type { MarketingAnalytics as MarketingAnalyticsData, MarketingPeriodAnalytics } from '../../types';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 const STAGE_LABEL: Record<string, string> = {
@@ -42,25 +42,27 @@ function RankedList({ title, rows }: { title: string; rows: { label: string; ses
 export default function MarketingAnalytics() {
   const [params] = useSearchParams();
   const eventId = params.get('eventId') ?? '';
-  const [data, setData] = useState<MarketingAnalyticsData | null>(null);
+  const orderId = params.get('orderId') ?? '';
+  const [data, setData] = useState<MarketingAnalyticsData | MarketingPeriodAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [locked, setLocked] = useState(false);
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    if (!eventId) {
+    if (!eventId && !orderId) {
       setLoading(false);
       setErr('No event selected');
       return;
     }
-    organizer.marketing.analytics(eventId)
+    const req = orderId ? organizer.marketing.analyticsPeriod(orderId) : organizer.marketing.analytics(eventId);
+    req
       .then(setData)
       .catch((e) => {
         if (e instanceof ApiError && e.status === 403) setLocked(true);
         else setErr(e instanceof ApiError ? e.message : 'Failed to load analytics');
       })
       .finally(() => setLoading(false));
-  }, [eventId]);
+  }, [eventId, orderId]);
 
   if (loading) return <div className="stack fade"><p className="muted">Loading…</p></div>;
 
@@ -82,12 +84,40 @@ export default function MarketingAnalytics() {
 
   if (err || !data) return <div className="stack fade"><div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>{err || 'No data'}</div></div>;
 
+  const isPeriod = 'events' in data;
+
   return (
     <div className="stack fade" style={{ maxWidth: 900, gap: 16 }}>
       <Link to="/organizer/marketing" className="link tiny" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ArrowLeft size={14} /> Back to Marketing</Link>
       <div className="page-hd">
-        <h1 className="page-title">Event performance</h1>
+        <h1 className="page-title">{isPeriod ? '30-day plan performance' : 'Event performance'}</h1>
       </div>
+
+      {isPeriod && (
+        <div className="card">
+          <h4 style={{ marginBottom: 8 }}>Events covered this period</h4>
+          {data.events.length === 0 ? (
+            <p className="muted small">No events scheduled in this window yet.</p>
+          ) : (
+            <div className="stack" style={{ gap: 4 }}>
+              {data.events.map((e) => <div key={e.id} className="tiny">{e.title}</div>)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {data.adPerformance && (
+        <div className="card">
+          <h4 style={{ marginBottom: 8 }}>Real ad performance</h4>
+          <p className="tiny muted" style={{ marginBottom: 10 }}>Straight from Meta — how the actual ad campaign is doing.</p>
+          <div className="kpi-row" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Eye size={14} className="muted" /> <span className="bold">{data.adPerformance.impressions.toLocaleString('en-IN')}</span> <span className="tiny muted">impressions</span></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Users size={14} className="muted" /> <span className="bold">{data.adPerformance.reach.toLocaleString('en-IN')}</span> <span className="tiny muted">people reached</span></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><MousePointerClick size={14} className="muted" /> <span className="bold">{data.adPerformance.clicks.toLocaleString('en-IN')}</span> <span className="tiny muted">clicks</span></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Percent size={14} className="muted" /> <span className="bold">{data.adPerformance.ctr}%</span> <span className="tiny muted">CTR</span></div>
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <h4 style={{ marginBottom: 8 }}>Funnel</h4>

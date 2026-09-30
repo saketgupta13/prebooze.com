@@ -10,6 +10,7 @@ import { calculateGatewayFee, type PaymentMethod } from '../payments/gateway-fee
 import { computeGst } from '../common/gst';
 import { postIncome } from '../common/post-income';
 import { OrgNotificationsService } from '../notifications/org-notifications';
+import { MetaInsightsService } from '../meta/meta-insights.service';
 
 export type MarketingOwnerType = 'organizer' | 'venue';
 
@@ -39,6 +40,7 @@ export class MarketingService {
     private staffAlerts: StaffAlertsService,
     private analyticsReport: AnalyticsReportService,
     private orgNotifications: OrgNotificationsService,
+    private metaInsights: MetaInsightsService,
   ) {}
 
   private async resolveOwner(userId: string, ownerType: MarketingOwnerType): Promise<{ organizerId?: string; venueId?: string; brand: string; city: string; state: string | null }> {
@@ -113,7 +115,12 @@ export class MarketingService {
     return {
       id: row.id, eventId: row.eventId, eventTitle: row.eventTitle, amount: row.amount,
       gstPct: row.gstPct ?? 0, gstAmount: row.gstAmount ?? 0, total: row.total ?? row.amount, status: row.status,
-      createdAt: row.createdAt, isSubscriptionPeriod: false, periodEnd: row.periodEnd, rejectionReason: row.rejectionReason ?? null,
+      createdAt: row.createdAt,
+      // A real 30-day-plan order (requestForPeriod) is exactly what
+      // eventId: null already meant here — this used to be hardcoded false
+      // because nothing ever created that shape before now.
+      isSubscriptionPeriod: row.eventId === null, periodStart: row.eventId === null ? row.createdAt : null,
+      periodEnd: row.periodEnd, rejectionReason: row.rejectionReason ?? null,
     };
   }
 
@@ -172,6 +179,58 @@ export class MarketingService {
     // Return path differs by owner type — organizer/venue each have their
     // own Marketing page (Marketing.tsx / VenueMarketing.tsx), both reading
     // the same orderId query param to resume.
+    const returnPath = ownerType === 'organizer' ? '/organizer/marketing' : '/venue/hosting/marketing';
+    const returnUrl = `${process.env.WEB_APP_URL || 'https://prebooze.com'}${returnPath}?phonepe_return=1&orderId=${encodeURIComponent(row.id)}`;
+    const order = await this.phonepe.createOrder(row.id, total * 100, returnUrl);
+    await this.prisma.marketingOrder.update({ where: { id: row.id }, data: { phonepeMerchantOrderId: row.id } });
+
+    return { id: row.id, amount, gstPct, gstAmount, total, phonepeRedirectUrl: order.redirectUrl };
+  }
+
+  /** A single, one-time purchase covering every event this owner runs over
+   * the following 30 days — NOT a recurring subscription/mandate (real
+   * PhonePe AutoPay support doesn't exist yet, and building on top of a
+   * hand-rolled one would be its own separate, larger project — see this
+   * repo's standing payment-migration plan). It just naturally stops at
+   * periodEnd; buying the next month is a fresh, separate purchase, same as
+   * this one. Reuses the exact same MarketingOrder row shape a per-event
+   * purchase does — eventId: null + periodEnd is what the schema already
+   * modeled this as (isEventCovered/analyticsForPeriod below read it the
+   * same way). */
+  async requestForPeriod(userId: string, ownerType: MarketingOwnerType) {
+    const owner = await this.resolveOwner(userId, ownerType);
+    const ownerId = this.ownerIdOf(ownerType, owner);
+
+    const existing = await this.prisma.marketingOrder.findFirst({
+      where: { eventId: null, status: { in: ['pending', 'active'] }, ...(ownerType === 'organizer' ? { organizerId: ownerId } : { venueId: ownerId }) },
+    });
+    if (existing) {
+      const STALE_MS = 15 * 60 * 1000;
+      const isStale = existing.status === 'pending' && Date.now() - existing.createdAt.getTime() > STALE_MS;
+      if (!isStale) throw new BadRequestException('You already have a 30-day plan in progress or active');
+      const status = existing.phonepeMerchantOrderId ? await this.phonepe.getOrderStatus(existing.phonepeMerchantOrderId).catch(() => null) : null;
+      if (status?.state === 'COMPLETED') throw new BadRequestException('You already have a 30-day plan in progress or active');
+      await this.prisma.marketingOrder.delete({ where: { id: existing.id } });
+    }
+
+    const rates = await this.rates();
+    const amount = rates.monthly;
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+    const gstPct = settings?.gstEnabled ? (settings?.gstPct ?? 0) : 0;
+    const gstAmount = Math.round((amount * gstPct) / 100);
+    const total = amount + gstAmount;
+    const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    const row = await this.prisma.marketingOrder.create({
+      data: {
+        ownerType: ownerType as never,
+        organizerId: ownerType === 'organizer' ? ownerId : undefined,
+        venueId: ownerType === 'venue' ? ownerId : undefined,
+        eventId: null, eventTitle: null, periodEnd,
+        amount, marginPct: rates.marginPct, gstPct, gstAmount, total, status: 'pending',
+      },
+    });
+
     const returnPath = ownerType === 'organizer' ? '/organizer/marketing' : '/venue/hosting/marketing';
     const returnUrl = `${process.env.WEB_APP_URL || 'https://prebooze.com'}${returnPath}?phonepe_return=1&orderId=${encodeURIComponent(row.id)}`;
     const order = await this.phonepe.createOrder(row.id, total * 100, returnUrl);
@@ -300,20 +359,49 @@ export class MarketingService {
    * AnalyticsReportService — see MarketingController. (Previously also
    * checked an active MarketingSubscription's current 30-day window —
    * removed alongside recurring billing, see subscribe() above.) */
-  async isEventCovered(ownerType: MarketingOwnerType, ownerId: string, eventId: string): Promise<boolean> {
-    const order = await this.prisma.marketingOrder.findFirst({
-      where: {
-        eventId,
-        status: { in: ['active', 'expired'] }, // 'expired' = event has passed but was legitimately run
-        ...(ownerType === 'organizer' ? { organizerId: ownerId } : { venueId: ownerId }),
-      },
+  /** Returns the real MarketingOrder covering this event, or null — a
+   * direct per-event order first, otherwise a 30-day-plan order (eventId:
+   * null) whose window the event's own date falls inside. A plan only ever
+   * covers events that exist/are scheduled while it's active, same
+   * "currentStart/currentEnd" reasoning the old MarketingSubscription
+   * design already used, just against this order's own createdAt/periodEnd
+   * instead of a recurring mandate's billing cycle. */
+  private async coveringOrder(ownerType: MarketingOwnerType, ownerId: string, eventId: string) {
+    const ownerWhere = ownerType === 'organizer' ? { organizerId: ownerId } : { venueId: ownerId };
+    const direct = await this.prisma.marketingOrder.findFirst({
+      where: { eventId, status: { in: ['active', 'expired'] }, ...ownerWhere }, // 'expired' = event has passed but was legitimately run
     });
-    return !!order;
+    if (direct) return direct;
+
+    const event = await this.prisma.event.findUnique({ where: { id: eventId }, select: { date: true } });
+    if (!event) return null;
+    return this.prisma.marketingOrder.findFirst({
+      where: { eventId: null, status: { in: ['active', 'expired'] }, periodEnd: { gte: event.date }, createdAt: { lte: event.date }, ...ownerWhere },
+    });
+  }
+
+  async isEventCovered(ownerType: MarketingOwnerType, ownerId: string, eventId: string): Promise<boolean> {
+    return !!(await this.coveringOrder(ownerType, ownerId, eventId));
+  }
+
+  /** Real ad performance from Meta, non-monetary only — impressions/reach/
+   * clicks/ctr, deliberately never spend. Showing spend would let an
+   * organizer/venue back into Prebooze's real margin themselves (spend =
+   * what they paid minus margin, and they already know what they paid),
+   * which is exactly the number this whole product deliberately never
+   * shows them (see MarketingOrder.marginPct's own doc comment). Null (the
+   * section just doesn't render) if no campaign id is set yet or the Meta
+   * call fails — never blocks the rest of the analytics page. */
+  private async safeAdPerformance(metaCampaignId: string | null) {
+    if (!metaCampaignId) return null;
+    const insights = await this.metaInsights.getCombinedInsights(metaCampaignId);
+    if (!insights) return null;
+    return { impressions: insights.impressions, reach: insights.reach, clicks: insights.clicks, ctr: insights.ctr };
   }
 
   /** The "Analytics" screen's one data source — reuses
    * AnalyticsReportService.get() verbatim (the exact same aggregation admin
-   * already sees) but gated on isEventCovered above and stripped down to a
+   * already sees) but gated on coveringOrder above and stripped down to a
    * safe subset. Deliberately excludes `revenue`, `promoterAttribution`,
    * `ticketTierSales`, `revenueByAdPlatform`, `revenueByCampaign` — those
    * carry platform-internal money/commission figures that have nothing to
@@ -325,8 +413,8 @@ export class MarketingService {
     const owner = await this.resolveOwner(userId, ownerType);
     const ownerId = this.ownerIdOf(ownerType, owner);
     await this.resolveOwnedEvent(ownerType, ownerId, eventId); // throws if not theirs
-    const covered = await this.isEventCovered(ownerType, ownerId, eventId);
-    if (!covered) throw new ForbiddenException('No active marketing arrangement for this event');
+    const order = await this.coveringOrder(ownerType, ownerId, eventId);
+    if (!order) throw new ForbiddenException('No active marketing arrangement for this event');
 
     const full = await this.analyticsReport.get({ eventId });
     return {
@@ -338,6 +426,47 @@ export class MarketingService {
       trafficSources: full.trafficSources, campaigns: full.campaigns, geographies: full.geographies,
       regions: full.regions, adPlatforms: full.adPlatforms, visitorType: full.visitorType,
       heatmap: full.heatmap, paymentFailures: full.paymentFailures,
+      adPerformance: await this.safeAdPerformance(order.metaCampaignId),
+      isPeriodCovered: order.eventId === null,
+    };
+  }
+
+  /** Same shape as analyticsFor, but for a 30-day-plan order rather than one
+   * specific event — aggregates the real on-site funnel across every event
+   * this owner ran (or has scheduled) within [order.createdAt, periodEnd],
+   * via AnalyticsReportService's new eventIds override, plus the combined
+   * real Meta numbers across every campaign id behind the plan. */
+  async analyticsForPeriod(userId: string, ownerType: MarketingOwnerType, orderId: string) {
+    const owner = await this.resolveOwner(userId, ownerType);
+    const ownerId = this.ownerIdOf(ownerType, owner);
+    const order = await this.prisma.marketingOrder.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Marketing order not found');
+    if (order.eventId !== null) throw new BadRequestException('This order is a per-event purchase, not a 30-day plan');
+    if (order.ownerType !== ownerType || (ownerType === 'organizer' ? order.organizerId : order.venueId) !== ownerId) throw new ForbiddenException();
+    if (!['active', 'expired'].includes(order.status)) throw new ForbiddenException('This plan is not active');
+
+    const events = await this.prisma.event.findMany({
+      where: {
+        date: { gte: order.createdAt, lte: order.periodEnd ?? order.createdAt },
+        ...(ownerType === 'organizer' ? { organizerId: ownerId } : { venueId: ownerId, hostedByVenue: true }),
+      },
+      select: { id: true, title: true },
+    });
+    const eventIds = events.map((e) => e.id);
+
+    const full = eventIds.length > 0
+      ? await this.analyticsReport.get({ eventIds })
+      : { stages: [], totalEvents: 0, daily: [], devices: [], browsers: [], operatingSystems: [], trafficSources: [], campaigns: [], geographies: [], regions: [], adPlatforms: [], visitorType: [], heatmap: [], paymentFailures: [] };
+
+    return {
+      periodEnd: order.periodEnd, events: events.map((e) => ({ id: e.id, title: e.title })),
+      stages: full.stages, totalEvents: full.totalEvents,
+      daily: full.daily.map((d) => ({ date: d.date, viewed: d.viewed, completed: d.completed })),
+      devices: full.devices, browsers: full.browsers, operatingSystems: full.operatingSystems,
+      trafficSources: full.trafficSources, campaigns: full.campaigns, geographies: full.geographies,
+      regions: full.regions, adPlatforms: full.adPlatforms, visitorType: full.visitorType,
+      heatmap: full.heatmap, paymentFailures: full.paymentFailures,
+      adPerformance: await this.safeAdPerformance(order.metaCampaignId),
     };
   }
 
@@ -377,6 +506,24 @@ export class MarketingService {
     if (!venue?.userId) return null;
     const user = await this.prisma.user.findUnique({ where: { id: venue.userId } });
     return user ? { userId: user.id, email: user.email, name: user.name } : null;
+  }
+
+  /** Admin-only reconciliation — real spend/impressions/reach/clicks from
+   * Meta for this order's own campaign id(s), fetched fresh on every call
+   * (see MetaInsightsService's own doc comment on why this is never
+   * cached/persisted). Lets admin catch the assumed margin/ad-spend split
+   * drifting from what actually got spent, without exposing real spend to
+   * the organizer/venue themselves (see analyticsFor's adPerformance,
+   * which deliberately strips spend for exactly that reason). */
+  async adminRealPerformance(id: string) {
+    const row = await this.prisma.marketingOrder.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException('Marketing order not found');
+    if (!row.metaCampaignId) throw new BadRequestException('No Meta campaign id set on this order yet');
+    const insights = await this.metaInsights.getCombinedInsights(row.metaCampaignId);
+    if (!insights) throw new BadRequestException('Could not fetch real data from Meta — check the campaign id(s) are correct');
+    const assumedMargin = Math.round((row.amount * row.marginPct) / 100);
+    const assumedAdSpend = row.amount - assumedMargin;
+    return { ...insights, assumedMargin, assumedAdSpend };
   }
 
   /** The human handoff point — admin has actually created the real Meta

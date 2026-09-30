@@ -209,6 +209,10 @@ export interface LiveMarketingSubscription {
   updatedAt: string;
 }
 export interface LiveMarketingRates { perEvent: number; monthly: number; marginPct: number; }
+export interface LiveMarketingRealPerformance {
+  spend: number; impressions: number; reach: number; clicks: number; ctr: number;
+  assumedMargin: number; assumedAdSpend: number;
+}
 
 /** Admin visibility + the Meta-campaign handoff for the organizer/venue-paid
  * ads product (MarketingService) — same read-only-plus-review-queue
@@ -226,6 +230,9 @@ export const liveMarketing = {
   // shape to restore.
   subscriptions: () => liveFetch<LiveMarketingSubscription[]>('/admin/marketing/subscriptions'),
   setCampaign: (id: string, metaCampaignId: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/campaign`, { method: 'PATCH', body: { metaCampaignId } }),
+  // Real spend/impressions/reach/clicks from Meta, fetched fresh on every
+  // call (never cached) — see MetaInsightsService's own doc comment.
+  realPerformance: (id: string) => liveFetch<LiveMarketingRealPerformance>(`/admin/marketing/${id}/real-performance`),
   reject: (id: string, reason?: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/reject`, { method: 'POST', body: { reason } }),
   rates: () => liveFetch<LiveMarketingRates>('/admin/marketing/rates'),
   updateRates: (body: Partial<LiveMarketingRates>) => liveFetch<LiveMarketingRates>('/admin/marketing/rates', { method: 'PATCH', body }),

@@ -32,6 +32,12 @@ export class MarketingController {
     return this.marketing.requestForEvent(req.user.sub, 'organizer', eventId);
   }
 
+  @Post('request-period')
+  @UseGuards(JwtAuthGuard)
+  requestPeriod(@Req() req: AuthedReq) {
+    return this.marketing.requestForPeriod(req.user.sub, 'organizer');
+  }
+
   @Post(':id/confirm-payment')
   @UseGuards(JwtAuthGuard)
   confirmPayment(@Req() req: AuthedReq, @Param('id') id: string) {
@@ -74,6 +80,12 @@ export class MarketingController {
   analytics(@Req() req: AuthedReq, @Query('eventId') eventId: string) {
     return this.marketing.analyticsFor(req.user.sub, 'organizer', eventId);
   }
+
+  @Get('analytics-period')
+  @UseGuards(JwtAuthGuard)
+  analyticsPeriod(@Req() req: AuthedReq, @Query('orderId') orderId: string) {
+    return this.marketing.analyticsForPeriod(req.user.sub, 'organizer', orderId);
+  }
 }
 
 /** Identical shape, venue side — matches VenueController's own
@@ -91,6 +103,12 @@ export class VenueMarketingController {
   @UseGuards(JwtAuthGuard)
   request(@Req() req: AuthedReq, @Body('eventId') eventId: string) {
     return this.marketing.requestForEvent(req.user.sub, 'venue', eventId);
+  }
+
+  @Post('request-period')
+  @UseGuards(JwtAuthGuard)
+  requestPeriod(@Req() req: AuthedReq) {
+    return this.marketing.requestForPeriod(req.user.sub, 'venue');
   }
 
   @Post(':id/confirm-payment')
@@ -135,6 +153,12 @@ export class VenueMarketingController {
   analytics(@Req() req: AuthedReq, @Query('eventId') eventId: string) {
     return this.marketing.analyticsFor(req.user.sub, 'venue', eventId);
   }
+
+  @Get('analytics-period')
+  @UseGuards(JwtAuthGuard)
+  analyticsPeriod(@Req() req: AuthedReq, @Query('orderId') orderId: string) {
+    return this.marketing.analyticsForPeriod(req.user.sub, 'venue', orderId);
+  }
 }
 
 /** Admin review queue + the human handoff point — admin has actually
@@ -163,6 +187,12 @@ export class AdminMarketingController {
   @RequirePermission('Marketing campaigns', 'edit')
   setCampaign(@Param('id') id: string, @Body('metaCampaignId') metaCampaignId: string) {
     return this.marketing.adminSetCampaign(id, metaCampaignId);
+  }
+
+  @Get(':id/real-performance')
+  @RequirePermission('Marketing campaigns', 'view')
+  realPerformance(@Param('id') id: string) {
+    return this.marketing.adminRealPerformance(id);
   }
 
   @Post(':id/reject')

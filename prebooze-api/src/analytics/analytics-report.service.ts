@@ -121,6 +121,15 @@ export class AnalyticsReportService {
   async get(params: {
     from?: string; to?: string; eventId?: string; city?: string; organizerId?: string;
     visitorState?: string; visitorCity?: string; eventScope?: string;
+    // Explicit event id list — wins outright over eventId/city/organizerId/
+    // eventScope, same "wins outright" precedence as a single eventId
+    // already has (see eventScopeWhere below). Added for MarketingService's
+    // 30-day-plan analytics, which needs "exactly these N events this owner
+    // ran in their paid window" — not expressible through the existing
+    // city/organizer/eventScope resolver, which has no concept of a date
+    // range on the *event's own* date (only on funnel/booking activity
+    // time via from/to).
+    eventIds?: string[];
   }) {
     const scopedEventIds = await this.resolveEventIds(params.city, params.organizerId, params.eventScope);
     // `from`/`to` are bare "YYYY-MM-DD" IST calendar days (Analytics.tsx's
@@ -143,7 +152,13 @@ export class AnalyticsReportService {
     // scopedEventIds is defined on nearly every request). The Event
     // dropdown is already built from the same city/organizer/eventScope-
     // scoped list, so a specific pick from it needs no further narrowing.
-    const eventScopeWhere = params.eventId ? { eventId: params.eventId } : scopedEventIds ? { eventId: { in: scopedEventIds } } : {};
+    const eventScopeWhere = params.eventIds
+      ? { eventId: { in: params.eventIds } }
+      : params.eventId
+        ? { eventId: params.eventId }
+        : scopedEventIds
+          ? { eventId: { in: scopedEventIds } }
+          : {};
     // Visitor state/city are FunnelEvent-only properties (Booking has no geo
     // of its own) — applied to the funnel query below directly, and to the
     // Booking query further down via a userId join (see visitorUserIds).

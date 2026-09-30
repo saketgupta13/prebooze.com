@@ -4,7 +4,7 @@
 import { apiFetch, apiUpload, API_URL, getToken, ApiError } from './client';
 import type {
   Booking, CareerJob, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, FeaturedSubscription, HelpTicket, HelpTicketReply,
-  Invoice, JobApplication, LineupProfile, MarketingAnalytics, MarketingOrder, MarketingRates, MarketingSubscription, Organizer, PayMethod, PaymentProfile,
+  Invoice, JobApplication, LineupProfile, MarketingAnalytics, MarketingPeriodAnalytics, MarketingOrder, MarketingRates, MarketingSubscription, Organizer, PayMethod, PaymentProfile,
   Person, PersonDetail, PromoterProfile, User, Venue, WaitlistEntry,
 } from '../types';
 import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, WalletTx } from '../store/AppContext';
@@ -630,6 +630,11 @@ const marketingApi = (base: string) => ({
   rates: () => apiFetch<MarketingRates>(`${base}/rates`),
   request: (eventId: string) =>
     apiFetch<{ id: string; amount: number; phonepeRedirectUrl: string }>(`${base}/request`, { body: { eventId } }),
+  // A one-time purchase covering every event run over the next 30 days —
+  // NOT a recurring subscription/mandate (no PhonePe AutoPay yet). Same
+  // request/confirm/abandon flow as a per-event purchase.
+  requestPeriod: () =>
+    apiFetch<{ id: string; amount: number; phonepeRedirectUrl: string }>(`${base}/request-period`, { body: {} }),
   // No proof body — PhonePe's own getOrderStatus is the sole source of
   // truth server-side, same as guest ticket checkout.
   confirmPayment: (id: string) =>
@@ -644,6 +649,7 @@ const marketingApi = (base: string) => ({
   cancelSubscription: () => apiFetch<{ ok: boolean }>(`${base}/subscription/cancel`, { body: {} }),
   mySubscription: () => apiFetch<MarketingSubscription | null>(`${base}/subscription`),
   analytics: (eventId: string) => apiFetch<MarketingAnalytics>(`${base}/analytics`, { query: { eventId } }),
+  analyticsPeriod: (orderId: string) => apiFetch<MarketingPeriodAnalytics>(`${base}/analytics-period`, { query: { orderId } }),
 });
 
 export const organizer = {

@@ -367,6 +367,18 @@ export interface MarketingAnalytics {
   visitorType: { label: string; sessions: number }[];
   heatmap: { weekday: number; hour: number; sessions: number }[];
   paymentFailures: { reason: string; count: number }[];
+  // Real Meta ad numbers — non-monetary only (never spend, see this
+  // field's own backend doc comment on why). Null when no campaign id is
+  // set yet, or Meta's API call failed — the section just doesn't render.
+  adPerformance: { impressions: number; reach: number; clicks: number; ctr: number } | null;
+  isPeriodCovered?: boolean;
+}
+
+/** Same shape as MarketingAnalytics, aggregated across every event a 30-day
+ * plan covers rather than one specific event. */
+export interface MarketingPeriodAnalytics extends MarketingAnalytics {
+  periodEnd: string | null;
+  events: { id: string; title: string }[];
 }
 
 /** A followable guest — the social graph behind "Who's going". */

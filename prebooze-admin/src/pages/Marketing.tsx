@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react';
-import { Briefcase, Landmark, Check, Download } from 'lucide-react';
+import { Briefcase, Landmark, Check, Download, Radar } from 'lucide-react';
 import { Kpi } from '../components/ui';
-import { liveMarketing, liveInvoices, LiveApiError, type LiveMarketingOrder, type LiveMarketingSubscription, type LiveMarketingRates, type LiveInvoice } from '../lib/liveApi';
+import { liveMarketing, liveInvoices, LiveApiError, type LiveMarketingOrder, type LiveMarketingSubscription, type LiveMarketingRates, type LiveInvoice, type LiveMarketingRealPerformance } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
@@ -48,6 +48,7 @@ export default function Marketing() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [realPerf, setRealPerf] = useState<Record<string, LiveMarketingRealPerformance | 'loading' | 'error'>>({});
 
   const load = () => {
     setLoading(true);
@@ -75,6 +76,16 @@ export default function Marketing() {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to download invoice');
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const checkRealPerformance = async (id: string) => {
+    setRealPerf((p) => ({ ...p, [id]: 'loading' }));
+    try {
+      const data = await liveMarketing.realPerformance(id);
+      setRealPerf((p) => ({ ...p, [id]: data }));
+    } catch {
+      setRealPerf((p) => ({ ...p, [id]: 'error' }));
     }
   };
 
@@ -145,17 +156,37 @@ export default function Marketing() {
     const margin = Math.round((r.amount * r.marginPct) / 100);
     const adSpend = r.amount - margin;
     const inv = invoices.find((i) => i.refId === r.id);
+    const perf = realPerf[r.id];
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5 }} className="muted">
-        <span>₹{fmt(r.amount)} base{r.gstAmount ? ` + ₹${fmt(r.gstAmount)} GST` : ''} = <span className="bold" style={{ color: 'var(--text)' }}>₹{fmt(r.total ?? r.amount)}</span></span>
-        <span>·</span>
-        <span>margin (ours) <span className="bold green">₹{fmt(margin)}</span></span>
-        <span>·</span>
-        <span>ad spend (theirs) ₹{fmt(adSpend)}</span>
-        {inv && (
-          <button className="btn btn-ghost btn-sm" disabled={downloadingId === inv.id} onClick={() => downloadInvoice(inv)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px' }}>
-            <Download size={11} /> {downloadingId === inv.id ? 'Downloading…' : 'Invoice'}
-          </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5 }} className="muted">
+          <span>₹{fmt(r.amount)} base{r.gstAmount ? ` + ₹${fmt(r.gstAmount)} GST` : ''} = <span className="bold" style={{ color: 'var(--text)' }}>₹{fmt(r.total ?? r.amount)}</span></span>
+          <span>·</span>
+          <span>margin (ours) <span className="bold green">₹{fmt(margin)}</span></span>
+          <span>·</span>
+          <span>ad spend (theirs) ₹{fmt(adSpend)}</span>
+          {inv && (
+            <button className="btn btn-ghost btn-sm" disabled={downloadingId === inv.id} onClick={() => downloadInvoice(inv)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px' }}>
+              <Download size={11} /> {downloadingId === inv.id ? 'Downloading…' : 'Invoice'}
+            </button>
+          )}
+          {r.metaCampaignId && (
+            <button className="btn btn-ghost btn-sm" disabled={perf === 'loading'} onClick={() => checkRealPerformance(r.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px' }}>
+              <Radar size={11} /> {perf === 'loading' ? 'Checking…' : 'Check real spend'}
+            </button>
+          )}
+        </div>
+        {perf === 'error' && <div className="tiny" style={{ color: 'var(--red)' }}>Could not fetch real data from Meta — check the campaign id(s).</div>}
+        {perf && perf !== 'loading' && perf !== 'error' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5 }} className="muted">
+            <span>real spend <span className="bold" style={{ color: perf.spend > perf.assumedAdSpend ? 'var(--red)' : 'var(--text)' }}>₹{fmt(perf.spend)}</span> <span className="tiny">(assumed ₹{fmt(perf.assumedAdSpend)})</span></span>
+            <span>·</span>
+            <span>{fmt(perf.impressions)} impressions</span>
+            <span>·</span>
+            <span>{fmt(perf.reach)} reach</span>
+            <span>·</span>
+            <span>{fmt(perf.clicks)} clicks · {perf.ctr}% CTR</span>
+          </div>
         )}
       </div>
     );
@@ -186,7 +217,8 @@ export default function Marketing() {
             <>
               <input
                 className="input" style={{ padding: '5px 8px', width: 160 }}
-                placeholder="Meta campaign id"
+                placeholder={r.eventTitle ? 'Meta campaign id' : 'Campaign id(s), comma-separated'}
+                title={r.eventTitle ? undefined : 'A 30-day plan can cover several events — comma-separate a campaign id per event, or however the real campaigns were structured'}
                 value={campaignDraft[r.id] ?? ''}
                 onChange={(e) => setCampaignDraft((d) => ({ ...d, [r.id]: e.target.value }))}
               />
