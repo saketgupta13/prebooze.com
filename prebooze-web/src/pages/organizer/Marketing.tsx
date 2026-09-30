@@ -165,7 +165,7 @@ export default function Marketing() {
     : null;
 
   return (
-    <div className="stack fade" style={{ maxWidth: 840, gap: 28 }}>
+    <div className="stack fade" style={{ maxWidth: 840, gap: 36 }}>
       <div className="page-hd">
         <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ display: 'inline-flex', width: 36, height: 36, borderRadius: 10, background: 'rgba(155,225,61,.12)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -174,7 +174,7 @@ export default function Marketing() {
           Marketing
         </h1>
       </div>
-      <p className="muted small" style={{ maxWidth: 560 }}>
+      <p className="muted small" style={{ maxWidth: 560, marginTop: 8 }}>
         Prebooze runs a dedicated Meta ad campaign for your event(s) — pay per event, or pick a plan that covers
         everything you run over a set window. Once a campaign is live, real performance numbers show up on that
         event's Analytics tab.
@@ -222,7 +222,7 @@ export default function Marketing() {
         {hasPeriodOrder ? (
           <p className="muted small">You already have a plan in progress or active — see it in Billing history below.</p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 18 }}>
             {([7, 15, 30] as const).map((days) => {
               const rate = periodRate(days);
               const total = rate + Math.round((rate * (rates?.gstPct ?? 0)) / 100);
