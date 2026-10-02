@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import { Briefcase, Landmark, Check, Download, Radar } from 'lucide-react';
 import { Kpi } from '../components/ui';
-import { liveMarketing, liveInvoices, LiveApiError, type LiveMarketingOrder, type LiveMarketingSubscription, type LiveMarketingRates, type LiveInvoice, type LiveMarketingRealPerformance } from '../lib/liveApi';
+import { liveMarketing, liveInvoices, liveMe, LiveApiError, type LiveMarketingOrder, type LiveMarketingSubscription, type LiveMarketingRates, type LiveInvoice, type LiveMarketingRealPerformance, type LiveStaffMe } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
@@ -51,6 +51,7 @@ export default function Marketing() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [realPerf, setRealPerf] = useState<Record<string, LiveMarketingRealPerformance | 'loading' | 'error'>>({});
+  const [staffMeta, setStaffMeta] = useState<LiveStaffMe | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -96,8 +97,22 @@ export default function Marketing() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  useEffect(() => {
+    if (token) liveMe.get().then(setStaffMeta).catch(() => {});
+  }, [token]);
+
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
+
+  // Pricing + margin/ad-spend figures are admin-only money the organizer/
+  // venue themselves never see (see this page's own closing hint) — a
+  // staffer whose whole job is just working the campaign-setup queue (e.g.
+  // the "Marketing" role) shouldn't see them either, same boundary already
+  // drawn around "Payments & payouts" elsewhere in this admin panel. Owner
+  // always passes regardless of what's in its stored matrix, same special
+  // case AdminLayout's own sidebar check already makes. Defaults to hidden
+  // until staffMeta loads, not shown-then-hidden.
+  const canSeeFinance = !!staffMeta && (staffMeta.roleName === 'Owner' || !!staffMeta.permissions['Payments & payouts']?.view);
 
   const pending = rows.filter((r) => r.status === 'pending');
   const active = rows.filter((r) => r.status === 'active');
@@ -163,23 +178,27 @@ export default function Marketing() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5 }} className="muted">
           <span>₹{fmt(r.amount)} base{r.gstAmount ? ` + ₹${fmt(r.gstAmount)} GST` : ''} = <span className="bold" style={{ color: 'var(--text)' }}>₹{fmt(r.total ?? r.amount)}</span></span>
-          <span>·</span>
-          <span>margin (ours) <span className="bold green">₹{fmt(margin)}</span></span>
-          <span>·</span>
-          <span>ad spend (theirs) ₹{fmt(adSpend)}</span>
+          {canSeeFinance && (
+            <>
+              <span>·</span>
+              <span>margin (ours) <span className="bold green">₹{fmt(margin)}</span></span>
+              <span>·</span>
+              <span>ad spend (theirs) ₹{fmt(adSpend)}</span>
+            </>
+          )}
           {inv && (
             <button className="btn btn-ghost btn-sm" disabled={downloadingId === inv.id} onClick={() => downloadInvoice(inv)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px' }}>
               <Download size={11} /> {downloadingId === inv.id ? 'Downloading…' : 'Invoice'}
             </button>
           )}
-          {r.metaCampaignId && (
+          {canSeeFinance && r.metaCampaignId && (
             <button className="btn btn-ghost btn-sm" disabled={perf === 'loading'} onClick={() => checkRealPerformance(r.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px' }}>
               <Radar size={11} /> {perf === 'loading' ? 'Checking…' : 'Check real spend'}
             </button>
           )}
         </div>
-        {perf === 'error' && <div className="tiny" style={{ color: 'var(--red)' }}>Could not fetch real data from Meta — check the campaign id(s).</div>}
-        {perf && perf !== 'loading' && perf !== 'error' && (
+        {canSeeFinance && perf === 'error' && <div className="tiny" style={{ color: 'var(--red)' }}>Could not fetch real data from Meta — check the campaign id(s).</div>}
+        {canSeeFinance && perf && perf !== 'loading' && perf !== 'error' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5 }} className="muted">
             <span>real spend <span className="bold" style={{ color: perf.spend > perf.assumedAdSpend ? 'var(--red)' : 'var(--text)' }}>₹{fmt(perf.spend)}</span> <span className="tiny">(assumed ₹{fmt(perf.assumedAdSpend)})</span></span>
             <span>·</span>
@@ -264,35 +283,37 @@ export default function Marketing() {
       <div className="kpi-grid">
         <Kpi label="Awaiting campaign setup" value={fmt(pending.length)} />
         <Kpi label="Live campaigns" value={fmt(active.length)} />
-        <Kpi label="Active revenue" value={`₹${fmt(activeRevenue)}`} delta="gross, incl. ad spend" deltaColor="var(--muted)" />
-        <Kpi label="Prebooze margin earned" value={`₹${fmt(marginEarned)}`} delta="real income, all paid orders" deltaColor="var(--green)" />
+        {canSeeFinance && <Kpi label="Active revenue" value={`₹${fmt(activeRevenue)}`} delta="gross, incl. ad spend" deltaColor="var(--muted)" />}
+        {canSeeFinance && <Kpi label="Prebooze margin earned" value={`₹${fmt(marginEarned)}`} delta="real income, all paid orders" deltaColor="var(--green)" />}
         <Kpi label="Lapsed" value={fmt(expired.length)} deltaColor="var(--red)" />
       </div>
 
-      <div className="card">
-        <div className="display" style={{ fontWeight: 700, marginBottom: 4 }}>Pricing</div>
-        <div className="tiny hint" style={{ marginBottom: 10 }}>what organizers/venues pay us — margin is never shown to them, only to admin{savingRates && ' · saving…'}</div>
-        <div className="kpi-grid">
-          {RATE_FIELDS.map((r) => (
-            <div className="field" key={r.key}>
-              <label>{r.label}</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span className="muted">{r.key === 'marginPct' ? '' : '₹'}</span>
-                <input
-                  className="input"
-                  style={{ padding: '6px 8px' }}
-                  value={rates ? String(rates[r.key]) : ''}
-                  inputMode="numeric"
-                  disabled={!rates}
-                  onChange={(e) => setRates((prev) => (prev ? { ...prev, [r.key]: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 } : prev))}
-                  onBlur={(e) => updateRate({ [r.key]: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 } as Partial<LiveMarketingRates>)}
-                />
-                {r.key === 'marginPct' && <span className="muted">%</span>}
+      {canSeeFinance && (
+        <div className="card">
+          <div className="display" style={{ fontWeight: 700, marginBottom: 4 }}>Pricing</div>
+          <div className="tiny hint" style={{ marginBottom: 10 }}>what organizers/venues pay us — margin is never shown to them, only to admin{savingRates && ' · saving…'}</div>
+          <div className="kpi-grid">
+            {RATE_FIELDS.map((r) => (
+              <div className="field" key={r.key}>
+                <label>{r.label}</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="muted">{r.key === 'marginPct' ? '' : '₹'}</span>
+                  <input
+                    className="input"
+                    style={{ padding: '6px 8px' }}
+                    value={rates ? String(rates[r.key]) : ''}
+                    inputMode="numeric"
+                    disabled={!rates}
+                    onChange={(e) => setRates((prev) => (prev ? { ...prev, [r.key]: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 } : prev))}
+                    onBlur={(e) => updateRate({ [r.key]: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 } as Partial<LiveMarketingRates>)}
+                  />
+                  {r.key === 'marginPct' && <span className="muted">%</span>}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="tblwrap">
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(139,195,74,.15)' }}>
