@@ -18,6 +18,12 @@ import { BookingsService } from '../bookings/bookings.service';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService — a cart still `active` past this is abandoned
 
+// Applied on approval when nothing's set yet — 2026-10-02, matches the
+// rate already in effect for most real events (54/65 were already at 10%
+// by hand before this went in). A negotiated rate set for a specific
+// organizer always wins; see adminApprove's own comment.
+const DEFAULT_COMMISSION_PCT = 10;
+
 interface TierInput {
   id?: string;
   name: string;
@@ -1413,7 +1419,23 @@ export class OrganizerService {
   async adminApprove(eventId: string) {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    const updated = await this.prisma.event.update({ where: { id: eventId }, data: { status: 'approved', rejectionReason: null, rejectedSections: [] } });
+    // Real default commission (2026-10-02) — approval used to leave
+    // commission null until a staffer separately visited "Event commission
+    // (per event)" and set one by hand; a forgotten event stayed invisible
+    // to every payout/revenue screen (they all filter on commission != null,
+    // see ReportsService.finance's `selling` filter) even though it had
+    // real sales. Only applied when nothing's been set yet — an event an
+    // admin already gave a negotiated rate (e.g. 5%) during a real
+    // conversation with the organizer must never be silently overwritten.
+    // prebooze-originals is Prebooze's own in-house organizer account —
+    // charging itself a commission is a real-money wash, not a business
+    // decision, so it's kept at 0% rather than the default, per the user's
+    // explicit instruction (2026-10-02).
+    const defaultCommission = event.organizerId === 'prebooze-originals' ? 0 : DEFAULT_COMMISSION_PCT;
+    const updated = await this.prisma.event.update({
+      where: { id: eventId },
+      data: { status: 'approved', rejectionReason: null, rejectedSections: [], commission: event.commission ?? defaultCommission },
+    });
     const owner = await this.notifyEventOwner(event);
     if (owner) {
       if (owner.email) {
