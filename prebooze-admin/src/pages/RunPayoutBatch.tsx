@@ -55,8 +55,11 @@ export default function RunPayoutBatch() {
 
   const picked = due.filter((d) => selected.has(d.id));
   const totals = picked.reduce(
-    (a, d) => ({ gross: a.gross + d.revenue, comm: a.comm + d.commissionAmt, net: a.net + d.net }),
-    { gross: 0, comm: 0, net: 0 }
+    (a, d) => ({
+      gross: a.gross + d.revenue, comm: a.comm + d.commissionAmt,
+      gstTcs: a.gstTcs + d.commissionGstAmount + d.tcsAmount, net: a.net + d.net,
+    }),
+    { gross: 0, comm: 0, gstTcs: 0, net: 0 }
   );
   const missingUtr = picked.some((d) => !utrs[d.id]?.trim());
 
@@ -91,21 +94,23 @@ export default function RunPayoutBatch() {
         <Kpi label="Transfers selected" value={picked.length} />
         <Kpi label="Gross covered" value={`₹${fmt(totals.gross)}`} />
         <Kpi label="Commission kept" value={`₹${fmt(totals.comm)}`} />
+        <Kpi label="GST + TCS deducted" value={`₹${fmt(totals.gstTcs)}`} />
         <Kpi label="Total payable now" value={<span className="green">₹{fmt(totals.net)}</span>} />
       </div>
 
       <div className="tblwrap">
-        <div className="thead" style={{ minWidth: 750 }}>
+        <div className="thead" style={{ minWidth: 850 }}>
           <span style={{ width: 26 }} />
-          <span style={{ flex: 1.3 }}>Organizer</span>
-          <span style={{ flex: 1.3 }}>Event</span>
-          <span style={{ flex: 0.9 }}>Gross</span>
-          <span style={{ flex: 0.9 }}>Commission</span>
-          <span style={{ flex: 0.9 }}>Net payout</span>
+          <span style={{ flex: 1.2 }}>Organizer</span>
+          <span style={{ flex: 1.2 }}>Event</span>
+          <span style={{ flex: 0.8 }}>Gross</span>
+          <span style={{ flex: 0.8 }}>Commission</span>
+          <span style={{ flex: 0.9 }}>GST + TCS</span>
+          <span style={{ flex: 0.8 }}>Net payout</span>
           <span style={{ flex: 1.3 }}>UTR / reference</span>
         </div>
         {due.map((d) => (
-          <div key={d.id} className="trow" style={{ minWidth: 750, opacity: selected.has(d.id) ? 1 : 0.5 }}>
+          <div key={d.id} className="trow" style={{ minWidth: 850, opacity: selected.has(d.id) ? 1 : 0.5 }}>
             <span style={{ width: 26 }}>
               <input
                 type="checkbox"
@@ -114,7 +119,7 @@ export default function RunPayoutBatch() {
                 style={{ accentColor: 'var(--green)', width: 14, height: 14 }}
               />
             </span>
-            <span style={{ flex: 1.3, fontWeight: 700 }}>
+            <span style={{ flex: 1.2, fontWeight: 700 }}>
               {d.payeeId ? (
                 <Link to={`/payments/details?type=${d.payeeType}&id=${d.payeeId}`} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} title="View payment details (opens in new tab)">
                   {d.organizer} <Landmark size={12} style={{ opacity: 0.6 }} />
@@ -123,10 +128,15 @@ export default function RunPayoutBatch() {
                 d.organizer
               )}
             </span>
-            <span style={{ flex: 1.3 }} className="muted">{d.title}</span>
-            <span style={{ flex: 0.9 }}>₹{fmt(d.revenue)}</span>
-            <span style={{ flex: 0.9 }}>₹{fmt(d.commissionAmt)} <span className="muted">({d.commission ?? 0}%)</span></span>
-            <span style={{ flex: 0.9, fontWeight: 700 }} className="green">₹{fmt(d.net)}</span>
+            <span style={{ flex: 1.2 }} className="muted">{d.title}</span>
+            <span style={{ flex: 0.8 }}>₹{fmt(d.revenue)}</span>
+            <span style={{ flex: 0.8 }}>₹{fmt(d.commissionAmt)} <span className="muted">({d.commission ?? 0}%)</span></span>
+            <span style={{ flex: 0.9 }} className="muted">
+              {d.commissionGstAmount > 0 && <span style={{ display: 'block' }}>GST ₹{fmt(d.commissionGstAmount)}</span>}
+              {d.tcsAmount > 0 && <span style={{ display: 'block' }}>TCS ₹{fmt(d.tcsAmount)}</span>}
+              {d.commissionGstAmount === 0 && d.tcsAmount === 0 && '—'}
+            </span>
+            <span style={{ flex: 0.8, fontWeight: 700 }} className="green">₹{fmt(d.net)}</span>
             <span style={{ flex: 1.3 }}>
               {selected.has(d.id) && (
                 <input

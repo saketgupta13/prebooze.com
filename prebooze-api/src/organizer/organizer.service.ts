@@ -1008,6 +1008,11 @@ export class OrganizerService {
           // fee+GST straight from the guest via the gateway, so they never
           // touch the organizer's side at all — only commission does.
           includesFeeAndGst: b.offlinePaymentMode === 'self_collected',
+          // GST on Prebooze's own commission (added on top, never carved
+          // from it) + TCS withheld under the organizer's own GSTIN —
+          // snapshotted on this row at sale time, see OrganizerLedgerTx's
+          // schema comment for why these aren't recomputed here.
+          commissionGstAmount: t.commissionGstAmount, tcsAmount: t.tcsAmount,
         },
       };
     });

@@ -13,6 +13,17 @@ export interface SettingsInput {
   gstPct?: number;
   gstEnabled?: boolean;
   gstin?: string | null;
+  // Prebooze's own commission income (Event.commission%, deducted from an
+  // organizer/venue's payout) is a real taxable B2B supply — see
+  // common/payout-breakdown.ts's own doc comment for why this gets its own
+  // rate field rather than reusing gstPct, even though both often land on
+  // 18%. Takes effect only once gstEnabled is also true.
+  commissionGstPct?: number;
+  // TCS (GST Act s.52) — stays off until a real registration exists in
+  // every state an event happens in; see PlatformSettings.tcsEnabled's own
+  // schema comment.
+  tcsEnabled?: boolean;
+  tcsPct?: number;
   feeLabel?: string;
   absorbedBy?: string;
   payoutDay?: string;
@@ -32,7 +43,7 @@ export interface SettingsInput {
 }
 
 const SETTINGS_FIELDS: (keyof SettingsInput)[] = [
-  'bookingFee', 'gstPct', 'gstEnabled', 'gstin', 'feeLabel', 'absorbedBy', 'payoutDay', 'autoPayout',
+  'bookingFee', 'gstPct', 'gstEnabled', 'gstin', 'commissionGstPct', 'tcsEnabled', 'tcsPct', 'feeLabel', 'absorbedBy', 'payoutDay', 'autoPayout',
   'weeklyEmail', 'whatsappAlerts', 'require2fa', 'maintenanceMode', 'salesPaused', 'comingSoonMode',
   'socials', 'siteSeo', 'contact', 'footerCopyright', 'logoUrl', 'faviconUrl',
 ];
@@ -115,22 +126,34 @@ export class ReportsService {
     // nothing to scope it by.
     const ledgerEventFilter = city ? { eventId: { in: [...scopedEventIds] } } : {};
 
+    // Neither "Commission GST (payable)" nor "TCS collected (held for
+    // payee)" (2026-10-02) are ever real Prebooze income — the first is
+    // owed to the government on the next GST return (same reasoning as
+    // "GST collected (payable)"), the second isn't even Prebooze's money at
+    // all (held under the payee's own GSTIN). Both excluded here the same
+    // way.
+    const NON_INCOME_CATEGORIES = ['Ticket commission', 'Booking fees', 'GST collected (payable)', 'Commission GST (payable)', 'TCS collected (held for payee)'];
     const otherIncome = (
       await this.prisma.ledgerEntry.aggregate({
-        where: { kind: 'income', category: { notIn: ['Ticket commission', 'Booking fees', 'GST collected (payable)'] }, createdAt: dateWhere, ...ledgerEventFilter },
+        where: { kind: 'income', category: { notIn: NON_INCOME_CATEGORIES }, createdAt: dateWhere, ...ledgerEventFilter },
         _sum: { amount: true },
       })
     )._sum.amount ?? 0;
 
-    // Real GST collected on guests' behalf (real GSTIN activated
-    // 2026-09-21) — kept out of otherIncome/totalIncome/netProfit
-    // deliberately: it's owed to the government on the next GST return, not
-    // real Prebooze revenue, same reasoning as its own postEventLedger call
-    // site. Still counted into `cash` below since it's real money currently
-    // sitting in the account, just earmarked rather than free to spend.
+    // Real GST collected on guests'/payees' behalf (real GSTIN activated
+    // 2026-09-21; commission GST + TCS added 2026-10-02) — kept out of
+    // otherIncome/totalIncome/netProfit deliberately: owed to the
+    // government (or to the payee's own GSTIN, for TCS) on the next return,
+    // never real Prebooze revenue, same reasoning as each one's own
+    // postEventLedger call site. Still counted into `cash` below since it's
+    // real money currently sitting in the account, just earmarked rather
+    // than free to spend. TCS specifically needs this too — Prebooze
+    // physically holds that cash until it's deposited under the payee's
+    // GSTIN via GSTR-8, same as any other GST collected on someone else's
+    // behalf.
     const gstCollected = (
       await this.prisma.ledgerEntry.aggregate({
-        where: { kind: 'income', category: 'GST collected (payable)', createdAt: dateWhere, ...ledgerEventFilter },
+        where: { kind: 'income', category: { in: ['GST collected (payable)', 'Commission GST (payable)', 'TCS collected (held for payee)'] }, createdAt: dateWhere, ...ledgerEventFilter },
         _sum: { amount: true },
       })
     )._sum.amount ?? 0;

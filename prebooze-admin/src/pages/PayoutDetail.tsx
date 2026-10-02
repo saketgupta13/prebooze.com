@@ -162,19 +162,25 @@ export default function PayoutDetail() {
       <div className="card">
         <h3 style={{ marginBottom: 10 }}>Events — commission breakdown</h3>
         <div className="tblwrap">
-          <div className="thead" style={{ minWidth: 560 }}>
-            <span style={{ flex: 1.8 }}>Event</span>
-            <span style={{ flex: 1 }}>Gross</span>
-            <span style={{ flex: 1.1 }}>Commission</span>
+          <div className="thead" style={{ minWidth: 720 }}>
+            <span style={{ flex: 1.6 }}>Event</span>
+            <span style={{ flex: 0.9 }}>Gross</span>
+            <span style={{ flex: 1 }}>Commission</span>
+            <span style={{ flex: 1 }}>GST + TCS</span>
             <span style={{ flex: 1 }}>Net payout</span>
             <span style={{ flex: 0.9 }} />
           </div>
           {detail.events.length === 0 && <div className="trow muted">No completed events yet.</div>}
           {detail.events.map((r) => (
-            <div key={r.id} className="trow" style={{ minWidth: 560, flexWrap: payingEventId === r.id ? 'wrap' : undefined }}>
-              <span style={{ flex: 1.8 }} className="muted">{r.title}</span>
-              <span style={{ flex: 1 }}>₹{fmt(r.revenue)}</span>
-              <span style={{ flex: 1.1 }}>₹{fmt(r.commissionAmt)} <span className="muted">({r.commission ?? 0}%)</span></span>
+            <div key={r.id} className="trow" style={{ minWidth: 720, flexWrap: payingEventId === r.id ? 'wrap' : undefined }}>
+              <span style={{ flex: 1.6 }} className="muted">{r.title}</span>
+              <span style={{ flex: 0.9 }}>₹{fmt(r.revenue)}</span>
+              <span style={{ flex: 1 }}>₹{fmt(r.commissionAmt)} <span className="muted">({r.commission ?? 0}%)</span></span>
+              <span style={{ flex: 1 }} className="muted">
+                {r.commissionGstAmount > 0 && <span style={{ display: 'block' }}>GST ₹{fmt(r.commissionGstAmount)}</span>}
+                {r.tcsAmount > 0 && <span style={{ display: 'block' }}>TCS ₹{fmt(r.tcsAmount)}</span>}
+                {r.commissionGstAmount === 0 && r.tcsAmount === 0 && '—'}
+              </span>
               <span style={{ flex: 1, fontWeight: 700 }} className="green">
                 ₹{fmt(r.net)}
                 {r.paidOut && r.payoutUtr && <span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>{r.payoutUtr}</span>}

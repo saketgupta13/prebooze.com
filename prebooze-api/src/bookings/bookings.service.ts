@@ -27,6 +27,7 @@ import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { LeadsService } from '../admin/leads.service';
 import { getGatewayAndMethod, calculateGatewayFee, getGatewayFeeLostOnRefund, type PaymentMethod } from '../payments/gateway-fee';
 import { computeGst } from '../common/gst';
+import { computePayoutBreakdown } from '../common/payout-breakdown';
 import { notifyEventOwner } from '../common/notify-event-owner';
 import { OrgNotificationsService } from '../notifications/org-notifications';
 import { OrgAccessService } from '../organizer/org-access.service';
@@ -179,6 +180,61 @@ export class BookingsService {
       create: { kind, category, amount, note: eventTitle, eventId, auto: true },
       update: { amount: { increment: amount } },
     });
+  }
+
+  /** The one place a sale actually credits an organizer/venue's ledger —
+   * every real booking-creation path (online, offline, waitlist conversion)
+   * must call this instead of inserting its own organizerLedgerTx/
+   * venueLedgerTx row directly, same "duplication is how this drifts"
+   * reasoning as computePayoutBreakdown's own doc comment. Deducts
+   * commission GST + TCS at the exact moment of sale, not just at payout
+   * settlement (PaymentsService.markPaid) — an organizer/venue's ledger
+   * balance is also what a self-serve withdrawal reads from, independent of
+   * admin's own payout screen, so crediting the pre-tax figure here and
+   * only deducting later would let someone self-withdraw the GST/TCS
+   * portion before admin ever gets to it. Posts the GST/TCS ledger
+   * recognition right here too (same moment 'Ticket commission'/'Booking
+   * fees' already get posted) — GST liability arises at time of supply,
+   * not at time of later payout. */
+  private async creditPayeeForSale(
+    tx: Prisma.TransactionClient,
+    event: { id: string; title: string; hostedByVenue: boolean; organizerId: string | null; venueId: string | null; organizer?: { state: string | null } | null; venue?: { state: string | null } | null },
+    params: { preTcsCredit: number; ticketSubtotal: number; commissionAmt: number; bookingId?: string; note: string },
+  ): Promise<number> {
+    const settings = await tx.platformSettings.findUnique({ where: { id: 'main' } });
+    const breakdown = computePayoutBreakdown({
+      preTcsCredit: params.preTcsCredit, ticketSubtotal: params.ticketSubtotal, commissionAmt: params.commissionAmt,
+      payeeState: event.organizer?.state ?? event.venue?.state ?? null,
+      gstEnabled: settings?.gstEnabled ?? false, commissionGstPct: settings?.commissionGstPct ?? 18,
+      tcsEnabled: settings?.tcsEnabled ?? false, tcsPct: settings?.tcsPct ?? 1,
+    });
+
+    if (event.hostedByVenue && event.venueId) {
+      await tx.venueLedgerTx.create({
+        data: {
+          venueId: event.venueId, type: 'sale', amount: breakdown.net, eventId: event.id, eventTitle: event.title, note: params.note,
+          bookingId: params.bookingId,
+          commissionGstAmount: breakdown.commissionGst.gstAmount, tcsAmount: breakdown.tcsAmount,
+        },
+      });
+    } else if (event.organizerId) {
+      await tx.organizerLedgerTx.create({
+        data: {
+          organizerId: event.organizerId, type: 'sale', amount: breakdown.net, eventId: event.id, eventTitle: event.title, bookingId: params.bookingId, note: params.note,
+          commissionGstAmount: breakdown.commissionGst.gstAmount, tcsAmount: breakdown.tcsAmount,
+        },
+      });
+    }
+
+    await this.postEventLedger(tx, event.id, event.title, 'Commission GST (payable)', 'income', breakdown.commissionGst.gstAmount);
+    // Not Prebooze's income — held under the payee's own GSTIN, deposited
+    // via GSTR-8 — but modeled as 'income' kind for the same reason booking-
+    // fee GST already is (LedgerEntry has no separate "liability" kind):
+    // ReportsService excludes this category from otherIncome/totalIncome
+    // the same way it already excludes 'GST collected (payable)'.
+    await this.postEventLedger(tx, event.id, event.title, 'TCS collected (held for payee)', 'income', breakdown.tcsAmount);
+
+    return breakdown.net;
   }
 
   /** Shared by quote() and create() — never trust a client-supplied amount,
@@ -905,25 +961,25 @@ export class BookingsService {
       await tx.cart.updateMany({ where: { holdId: input.holdId }, data: { status: 'completed' } });
 
       // With no promoter markup, the organizer nets subtotal minus Prebooze's
-      // carved-out commission — unchanged from before. With a markup active,
-      // both the promoter's and Prebooze's cuts were funded by the guest on
-      // top of baseSubtotal, so the organizer nets baseSubtotal in full.
-      const organizerCredit = promoterMarkupApplies ? baseSubtotal : subtotal - commission;
+      // carved-out commission (minus commission GST + TCS, see
+      // creditPayeeForSale) — unchanged in shape from before. With a markup
+      // active, both the promoter's and Prebooze's cuts were funded by the
+      // guest on top of baseSubtotal, so the organizer nets baseSubtotal in
+      // full — Prebooze's commission GST liability on that guest-funded cut
+      // isn't deducted from the organizer here (they never received it to
+      // begin with), only TCS still applies (always on the real gross
+      // ticket value, regardless of how commission itself was funded).
+      const preTcsCredit = promoterMarkupApplies ? baseSubtotal : subtotal - commission;
       // Venue-hosted events (see Event.hostedByVenue) credit the venue's own
       // ledger instead — the venue is the platform's ledger-of-record for
       // its own hosted events even when collaborating with an organizer;
       // that split happens offline between them (see VenueLedgerTx doc
       // comment). Every event created the normal organizer way is
       // hostedByVenue: false and hits the exact same branch as before.
-      if (event.hostedByVenue && event.venueId) {
-        await tx.venueLedgerTx.create({
-          data: { venueId: event.venueId, type: 'sale', amount: organizerCredit, eventId: event.id, eventTitle: event.title, note: `Booking ${id}` },
-        });
-      } else if (event.organizerId) {
-        await tx.organizerLedgerTx.create({
-          data: { organizerId: event.organizerId, type: 'sale', amount: organizerCredit, eventId: event.id, eventTitle: event.title, bookingId: id, note: `Booking ${id}` },
-        });
-      }
+      await this.creditPayeeForSale(tx, event, {
+        preTcsCredit, ticketSubtotal: subtotal, commissionAmt: promoterMarkupApplies ? 0 : commission,
+        bookingId: id, note: `Booking ${id}`,
+      });
 
       // platform's own finance ledger (Admin API finance ledger slice) — one
       // running total per event per category, not one row per booking
@@ -1197,7 +1253,7 @@ export class BookingsService {
   }) {
     if (!input.guestName?.trim() || !input.phone?.trim()) throw new BadRequestException('Guest name and phone are required');
 
-    const event = await this.prisma.event.findUnique({ where: { id: input.eventId }, include: { tiers: true, organizer: true } });
+    const event = await this.prisma.event.findUnique({ where: { id: input.eventId }, include: { tiers: true, organizer: true, venue: true } });
     if (!event) throw new NotFoundException('Event not found');
     const lines = this.resolveTierLines(event, input.lines);
     const qty = this.sumQty(lines);
@@ -1276,15 +1332,10 @@ export class BookingsService {
       }
 
       if (subtotal > 0) {
-        if (event.hostedByVenue && event.venueId) {
-          await tx.venueLedgerTx.create({
-            data: { venueId: event.venueId, type: 'sale', amount: subtotal - commission, eventId: event.id, eventTitle: event.title, note: `Booking ${id} (manual)` },
-          });
-        } else if (event.organizerId) {
-          await tx.organizerLedgerTx.create({
-            data: { organizerId: event.organizerId, type: 'sale', amount: subtotal - commission, eventId: event.id, eventTitle: event.title, bookingId: id, note: `Booking ${id} (manual)` },
-          });
-        }
+        await this.creditPayeeForSale(tx, event, {
+          preTcsCredit: subtotal - commission, ticketSubtotal: subtotal, commissionAmt: commission,
+          bookingId: id, note: `Booking ${id} (manual)`,
+        });
       }
       await this.postEventLedger(tx, event.id, event.title, 'Ticket commission', 'income', commission);
       await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
@@ -1432,19 +1483,29 @@ export class BookingsService {
       // has this guest's money in hand (the FULL total, including
       // Prebooze's own booking fee + GST — there's no gateway here to
       // collect those separately), so what they owe Prebooze is the flat
-      // 2% commission PLUS the fee + GST portion of the cash they're
-      // holding on Prebooze's behalf — everything except (subtotal minus
-      // commission), which is genuinely theirs to keep.
-      const owedToPrebooze = commission + fee + gstSplit.gstAmount;
+      // 2% commission + commission GST PLUS the fee + GST portion of the
+      // cash they're holding on Prebooze's behalf — everything except
+      // (subtotal minus commission minus commission GST), which is
+      // genuinely theirs to keep. No TCS here though — TCS (GST Act s.52)
+      // only exists because an e-commerce operator COLLECTS the payment;
+      // Prebooze never touches this guest's money at all in a self-collected
+      // sale, so there's no ECO collection event to withhold against.
+      const commissionGstSettings = await tx.platformSettings.findUnique({ where: { id: 'main' } });
+      const commissionGst = commissionGstSettings?.gstEnabled
+        ? computeGst(commission, commissionGstSettings?.commissionGstPct ?? 18, org.state)
+        : { gstPct: 0, gstAmount: 0, cgstAmount: 0, sgstAmount: 0, igstAmount: 0 };
+      const owedToPrebooze = commission + commissionGst.gstAmount + fee + gstSplit.gstAmount;
       if (owedToPrebooze > 0) {
         await tx.organizerLedgerTx.create({
           data: {
             organizerId: org.id, type: 'offline_commission', amount: -owedToPrebooze, eventId: event.id, eventTitle: event.title,
-            bookingId: id, note: `Offline booking ${id} — ${input.guestName.trim()} paid ₹${total} directly, Prebooze's cut (2% commission + booking fee + GST) = ₹${owedToPrebooze}`,
+            bookingId: id, note: `Offline booking ${id} — ${input.guestName.trim()} paid ₹${total} directly, Prebooze's cut (2% commission + GST + booking fee + GST) = ₹${owedToPrebooze}`,
+            commissionGstAmount: commissionGst.gstAmount,
           },
         });
       }
       await this.postEventLedger(tx, event.id, event.title, 'Ticket commission', 'income', commission);
+      await this.postEventLedger(tx, event.id, event.title, 'Commission GST (payable)', 'income', commissionGst.gstAmount);
       await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
       if (gstSplit.gstAmount > 0) await this.postEventLedger(tx, event.id, event.title, 'GST collected (payable)', 'income', gstSplit.gstAmount);
       return created;
@@ -1673,13 +1734,28 @@ export class BookingsService {
       // organizer is credited the normal way, just at the flat offline rate.
       // The fee+GST portion never touches the organizer's ledger at all —
       // it's Prebooze's own revenue, collected directly via the gateway,
-      // same as it always is on a normal online booking.
+      // same as it always is on a normal online booking. Not routed through
+      // creditPayeeForSale: that helper picks organizer-vs-venue off the
+      // EVENT's own hostedByVenue/organizerId/venueId, but this path always
+      // targets payload.offlineOrganizerId explicitly, which isn't
+      // guaranteed to be the same id — fetched fresh rather than assumed.
+      const offlineOrganizer = await tx.organizer.findUnique({ where: { id: payload.offlineOrganizerId }, select: { state: true } });
+      const settings = await tx.platformSettings.findUnique({ where: { id: 'main' } });
+      const breakdown = computePayoutBreakdown({
+        preTcsCredit: subtotal - commission, ticketSubtotal: subtotal, commissionAmt: commission,
+        payeeState: offlineOrganizer?.state ?? null,
+        gstEnabled: settings?.gstEnabled ?? false, commissionGstPct: settings?.commissionGstPct ?? 18,
+        tcsEnabled: settings?.tcsEnabled ?? false, tcsPct: settings?.tcsPct ?? 1,
+      });
       await tx.organizerLedgerTx.create({
         data: {
-          organizerId: payload.offlineOrganizerId, type: 'sale', amount: subtotal - commission,
+          organizerId: payload.offlineOrganizerId, type: 'sale', amount: breakdown.net,
           eventId: event.id, eventTitle: event.title, bookingId: id, note: `Offline booking ${id} (payment link)`,
+          commissionGstAmount: breakdown.commissionGst.gstAmount, tcsAmount: breakdown.tcsAmount,
         },
       });
+      await this.postEventLedger(tx, event.id, event.title, 'Commission GST (payable)', 'income', breakdown.commissionGst.gstAmount);
+      await this.postEventLedger(tx, event.id, event.title, 'TCS collected (held for payee)', 'income', breakdown.tcsAmount);
       await this.postEventLedger(tx, event.id, event.title, 'Ticket commission', 'income', commission);
       await this.postEventLedger(tx, event.id, event.title, 'Booking fees', 'income', fee);
       if (gstAmount > 0) await this.postEventLedger(tx, event.id, event.title, 'GST collected (payable)', 'income', gstAmount);
@@ -2004,10 +2080,28 @@ export class BookingsService {
       // unbalanced the finance ledger whenever commission % changed between
       // a sale and its later refund.
       const commission = booking.commission;
+      // The original 'sale' credit (when one exists — self-collected offline
+      // never posts one, see below) is looked up rather than recomputed as
+      // subtotal-commission: real bug found 2026-10-02 — once commission GST
+      // and TCS launched, the actual credit (breakdown.net) is further
+      // reduced by those, snapshotted on that row's own
+      // commissionGstAmount/tcsAmount. Recomputing -(subtotal - commission)
+      // here would over-reverse by exactly the GST+TCS withheld, silently
+      // debiting the payee for money they were never actually given.
+      const originalSale = booking.bookingSource !== 'offline' || booking.offlinePaymentMode !== 'self_collected'
+        ? (event?.hostedByVenue && event.venueId
+            ? await tx.venueLedgerTx.findFirst({ where: { eventId: booking.eventId, bookingId: id, type: 'sale' } })
+            : event?.organizerId
+              ? await tx.organizerLedgerTx.findFirst({ where: { eventId: booking.eventId, bookingId: id, type: 'sale' } })
+              : null)
+        : null;
       if (event) {
         if (event.hostedByVenue && event.venueId) {
           await tx.venueLedgerTx.create({
-            data: { venueId: event.venueId, type: 'refund', amount: -(booking.subtotal - commission), eventId: booking.eventId, eventTitle: event.title, note: `Refund — booking ${id}` },
+            data: {
+              venueId: event.venueId, type: 'refund', amount: -(originalSale?.amount ?? booking.subtotal - commission),
+              eventId: booking.eventId, eventTitle: event.title, note: `Refund — booking ${id}`,
+            },
           });
         } else if (event.organizerId && booking.bookingSource === 'offline' && booking.offlinePaymentMode === 'self_collected') {
           // Real bug found 2026-09-24: a self-collected offline booking never
@@ -2023,7 +2117,10 @@ export class BookingsService {
           });
         } else if (event.organizerId) {
           await tx.organizerLedgerTx.create({
-            data: { organizerId: event.organizerId, type: 'refund', amount: -(booking.subtotal - commission), eventId: booking.eventId, eventTitle: event.title, bookingId: id, note: `Refund — booking ${id}` },
+            data: {
+              organizerId: event.organizerId, type: 'refund', amount: -(originalSale?.amount ?? booking.subtotal - commission),
+              eventId: booking.eventId, eventTitle: event.title, bookingId: id, note: `Refund — booking ${id}`,
+            },
           });
         }
       }
@@ -2042,7 +2139,11 @@ export class BookingsService {
       // netted directly against the income categories, so gross income and
       // gross refunds both stay visible.
       if (event) {
-        await this.postEventLedger(tx, booking.eventId, event.title, 'Refund losses', 'expense', booking.fee + commission);
+        // Includes the commission GST + TCS that were withheld on the
+        // original sale (see originalSale lookup above) — those liabilities
+        // are void too once the sale itself is reversed.
+        const gstTcsVoided = (originalSale?.commissionGstAmount ?? 0) + (originalSale?.tcsAmount ?? 0);
+        await this.postEventLedger(tx, booking.eventId, event.title, 'Refund losses', 'expense', booking.fee + commission + gstTcsVoided);
       }
     });
 

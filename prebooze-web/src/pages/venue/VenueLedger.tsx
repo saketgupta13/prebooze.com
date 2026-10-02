@@ -79,7 +79,15 @@ export default function VenueLedger() {
                   {t.type === 'withdrawal' && t.withdrawalStatus === 'complete' && t.withdrawalPaidUtr && <div className="tiny muted-2">{t.withdrawalPaidUtr}</div>}
                   {t.type === 'withdrawal' && t.withdrawalStatus === 'rejected' && t.withdrawalRejectedReason && <div className="tiny danger-text">{t.withdrawalRejectedReason}</div>}
                 </td>
-                <td className="bold">{t.type === 'withdrawal' ? 'Manual withdrawal' : t.type === 'withdrawal_reversal' ? 'Withdrawal refunded' : t.eventTitle ?? '—'}</td>
+                <td className="bold">
+                  {t.type === 'withdrawal' ? 'Manual withdrawal' : t.type === 'withdrawal_reversal' ? 'Withdrawal refunded' : t.eventTitle ?? '—'}
+                  {t.type === 'sale' && ((t.commissionGstAmount ?? 0) > 0 || (t.tcsAmount ?? 0) > 0) && (
+                    <div className="tiny muted-2" style={{ fontWeight: 400 }}>
+                      {(t.commissionGstAmount ?? 0) > 0 && <>GST −{fmtMoney(t.commissionGstAmount!)} </>}
+                      {(t.tcsAmount ?? 0) > 0 && <>TCS −{fmtMoney(t.tcsAmount!)}</>}
+                    </div>
+                  )}
+                </td>
                 <td className={t.amount < 0 ? 'danger-text' : ''}>{t.amount < 0 ? '-' : ''}{fmtMoney(Math.abs(t.amount))}</td>
                 <td>
                   {t.type === 'sale' && <span className="badge badge-ok">Sale</span>}

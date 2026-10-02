@@ -6,7 +6,7 @@ import { money } from '../notifications/email-templates';
 import { invoicePdfBuffer } from './invoice-pdf';
 
 export interface CreateInvoiceInput {
-  type: 'booking' | 'featured' | 'marketing';
+  type: 'booking' | 'featured' | 'marketing' | 'commission';
   refId: string;
   role: 'guest' | 'organizer' | 'promoter' | 'venue' | 'lineup';
   payerName: string;

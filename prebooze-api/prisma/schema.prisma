@@ -421,6 +421,16 @@ model VenueLedgerTx {
   note       String?
   createdAt  DateTime @default(now())
 
+  // Same sale-time GST/TCS snapshot as OrganizerLedgerTx — see its comment.
+  commissionGstAmount Int @default(0)
+  tcsAmount           Int @default(0)
+
+  // Same bookingId join as OrganizerLedgerTx — added 2026-10-02 alongside it
+  // so a refund can look up its exact original 'sale' row (amount +
+  // GST/TCS) instead of recomputing, which drifts once GST/TCS deductions
+  // exist. Only set for a real Booking-linked row.
+  bookingId String?
+
   // Same denormalized-payout-snapshot precedent as OrganizerLedgerTx — a
   // later edit or deletion of the profile must never change the historical
   // record of where a past payout went. Only set for type:'withdrawal'.
@@ -1162,6 +1172,30 @@ model PlatformSettings {
   marketingMonthly   Int @default(15000)
   marketingMarginPct Int @default(25)
 
+  // Real commission GST + TCS — added 2026-10-02. Prebooze's commission
+  // (Event.commission%, deducted from an organizer/venue's payout) is its
+  // own real taxable B2B supply of facilitation service, same reasoning as
+  // the booking-fee GST already charged to guests — distinct rate field
+  // since the two are legally separate supplies even though both often
+  // land on 18%. Deliberately ADDITIONAL to the commission, not carved out
+  // of it: GST is never meant to come out of the supplier's own margin,
+  // it's billed on top and remitted net of input credits. commissionGstPct
+  // only takes effect once gstEnabled is true (same kill switch as the
+  // booking-fee GST).
+  commissionGstPct Int @default(18)
+  // TCS (Tax Collected at Source, GST Act s.52) — Prebooze is an e-commerce
+  // operator collecting payment centrally and settling organizers/venues
+  // later, so it must withhold this % of their GROSS ticket revenue (never
+  // Prebooze's own commission) and deposit it under the supplier's own
+  // GSTIN/state, not as Prebooze's own tax. Requires a real TCS
+  // registration in every state an event happens in — tcsEnabled stays off
+  // until that's actually done; flipping it on before registration is
+  // complete would mean withholding money with nowhere compliant to send
+  // it. 1% is the statutory rate as of this writing; kept editable in case
+  // that ever changes, not because it's expected to vary by state/payee.
+  tcsEnabled Boolean @default(false)
+  tcsPct     Int     @default(1)
+
   updatedAt DateTime @updatedAt
 }
 
@@ -1843,6 +1877,15 @@ model OrganizerLedgerTx {
   // — lets the "Offline booking charges" UI join straight back to the real
   // booking (guest name, amount actually paid) instead of parsing `note`.
   bookingId String?
+
+  // Real GST (on Prebooze's commission) + TCS actually withheld on this
+  // 'sale' row's event, in rupees — snapshotted at sale time (not
+  // recomputed later) because PlatformSettings' rates/toggles can change
+  // after the fact and a historical row must keep showing what was really
+  // deducted then, not what today's settings would produce. Both 0 when
+  // the corresponding setting was off. See computePayoutBreakdown.
+  commissionGstAmount Int @default(0)
+  tcsAmount           Int @default(0)
 
   // Denormalized snapshot of which PaymentProfile a withdrawal actually paid
   // out to — same "capture the name alongside the id" precedent as

@@ -138,24 +138,30 @@ export default function Payments() {
         </div>
       ) : tab === 'All events' ? (
         <div className="tblwrap">
-          <div className="thead" style={{ minWidth: 700 }}>
-            <span style={{ flex: 1.3 }}>Event</span>
-            <span style={{ flex: 1.2 }}>Organizer / venue</span>
-            <span style={{ flex: 0.8 }}>Date</span>
-            <span style={{ flex: 0.9 }}>Gross</span>
-            <span style={{ flex: 1 }}>Our earning</span>
+          <div className="thead" style={{ minWidth: 800 }}>
+            <span style={{ flex: 1.2 }}>Event</span>
+            <span style={{ flex: 1.1 }}>Organizer / venue</span>
+            <span style={{ flex: 0.7 }}>Date</span>
+            <span style={{ flex: 0.8 }}>Gross</span>
+            <span style={{ flex: 0.9 }}>Our earning</span>
+            <span style={{ flex: 0.9 }}>GST + TCS</span>
             <span style={{ flex: 1 }}>Payout</span>
           </div>
           {allEvents.length === 0 && !loading && <div className="trow muted">No finished events yet.</div>}
           {allEvents.map((r) => (
-            <div key={r.id} className="trow" style={{ minWidth: 700 }}>
-              <span style={{ flex: 1.3 }} className="muted small">{r.title}</span>
-              <span style={{ flex: 1.2, fontWeight: 700 }}>
+            <div key={r.id} className="trow" style={{ minWidth: 800 }}>
+              <span style={{ flex: 1.2 }} className="muted small">{r.title}</span>
+              <span style={{ flex: 1.1, fontWeight: 700 }}>
                 {r.payeeType && r.payeeId ? <Link to={`/payments/payee/${r.payeeType}/${r.payeeId}`} className="link" style={{ color: 'var(--green)' }}>{r.organizer}</Link> : r.organizer}
               </span>
-              <span style={{ flex: 0.8 }} className="tiny muted">{fmtDate(r.date)}</span>
-              <span style={{ flex: 0.9 }}>₹{fmt(r.revenue)}</span>
-              <span style={{ flex: 1 }}>₹{fmt(r.commissionAmt)} <span className="muted">({r.commission ?? 0}%)</span></span>
+              <span style={{ flex: 0.7 }} className="tiny muted">{fmtDate(r.date)}</span>
+              <span style={{ flex: 0.8 }}>₹{fmt(r.revenue)}</span>
+              <span style={{ flex: 0.9 }}>₹{fmt(r.commissionAmt)} <span className="muted">({r.commission ?? 0}%)</span></span>
+              <span style={{ flex: 0.9 }} className="muted">
+                {r.commissionGstAmount > 0 && <span style={{ display: 'block' }}>GST ₹{fmt(r.commissionGstAmount)}</span>}
+                {r.tcsAmount > 0 && <span style={{ display: 'block' }}>TCS ₹{fmt(r.tcsAmount)}</span>}
+                {r.commissionGstAmount === 0 && r.tcsAmount === 0 && '—'}
+              </span>
               <span style={{ flex: 1 }}>
                 {r.paidOut ? (
                   <span className="tag tag-green">Paid{r.payoutUtr ? ` · ${r.payoutUtr}` : ''}</span>

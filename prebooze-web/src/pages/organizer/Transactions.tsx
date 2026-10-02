@@ -120,11 +120,24 @@ export default function Transactions() {
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span className="muted-2">Prebooze commission</span><span className="danger-text">−{fmtMoney(b.commission)}</span>
                           </div>
+                          {b.commissionGstAmount > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span className="muted-2">GST on commission</span><span className="danger-text">−{fmtMoney(b.commissionGstAmount)}</span>
+                            </div>
+                          )}
+                          {b.tcsAmount > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span className="muted-2">TCS withheld</span><span className="danger-text">−{fmtMoney(b.tcsAmount)}</span>
+                            </div>
+                          )}
                           <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 4, marginTop: 2, fontWeight: 700 }}>
                             <span>You get</span><span>{fmtMoney(Math.abs(t.amount))}</span>
                           </div>
                           {!b.includesFeeAndGst && (
                             <div className="muted-2" style={{ marginTop: 2 }}>Booking fee + GST were collected directly from the guest — they never touch your balance.</div>
+                          )}
+                          {b.tcsAmount > 0 && (
+                            <div className="muted-2" style={{ marginTop: 2 }}>TCS is withheld under your own GSTIN (GST Act s.52), not kept by Prebooze — your CA reconciles it against your GST filings.</div>
                           )}
                         </div>
                       </td>

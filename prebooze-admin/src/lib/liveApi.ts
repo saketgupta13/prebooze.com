@@ -927,7 +927,13 @@ export interface LiveWithdrawalRow {
 }
 export interface LivePayeeEventRow {
   id: string; title: string; date: string; organizer: string; payeeType: 'organizer' | 'venue' | null; payeeId: string | null;
-  revenue: number; commission: number | null; commissionAmt: number; net: number; paidOut: boolean; payoutUtr: string | null;
+  revenue: number; commission: number | null; commissionAmt: number;
+  // Added 2026-10-02 — real deductions on top of the bare commission, see
+  // common/payout-breakdown.ts. Both 0 whenever the corresponding platform
+  // setting is off (TCS defaults off until a real multi-state registration
+  // exists).
+  commissionGstAmount: number; tcsAmount: number;
+  net: number; paidOut: boolean; payoutUtr: string | null;
   payeeBalance: number | null;
 }
 export interface LivePayeeDetail {
@@ -1303,6 +1309,9 @@ export interface LiveSettings {
   gstPct: number;
   gstEnabled: boolean;
   gstin: string | null;
+  commissionGstPct: number;
+  tcsEnabled: boolean;
+  tcsPct: number;
   feeLabel: string;
   absorbedBy: string;
   payoutDay: string;

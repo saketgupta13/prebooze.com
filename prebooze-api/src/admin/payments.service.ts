@@ -5,6 +5,8 @@ import { CatalogService } from '../catalog/catalog.service';
 import { NotificationsService } from './notifications.service';
 import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
+import { computePayoutBreakdown } from '../common/payout-breakdown';
+import { InvoicesService } from '../invoices/invoices.service';
 
 const LIVE_BOOKING_STATUSES: BookingStatus[] = ['confirmed', 'refund_requested'];
 
@@ -28,6 +30,7 @@ export class PaymentsService {
     private prisma: PrismaService,
     private notifications: NotificationsService,
     private email: EmailService,
+    private invoices: InvoicesService,
   ) {}
 
   /** Real current withdrawable balance for one payee — the actual source of
@@ -62,11 +65,20 @@ export class PaymentsService {
   /** Every non-draft, already-happened event's own revenue/commission/net —
    * the one real computation both payoutsDue() (grouped by payee) and
    * payeeDetail() (scoped to one payee) build on, so the two screens can
-   * never show different numbers for the same event. */
+   * never show different numbers for the same event — and the one
+   * markPaid() itself now also calls, so what's shown as "due" and what
+   * actually gets paid can never drift apart (real past bug class: several
+   * call sites used to each recompute `revenue * commission / 100` inline
+   * — harmless while that was the only deduction, but exactly the kind of
+   * duplication that silently diverges the moment a second deduction
+   * (commission GST, TCS) enters the picture). */
   private async eventPayoutRows() {
     const events = await this.prisma.event.findMany({
       where: { status: { not: 'draft' }, commission: { not: null } },
-      select: { id: true, title: true, date: true, durationHrs: true, seriesEndDate: true, commission: true, paidOut: true, payoutUtr: true, organizerId: true, venueId: true, organizer: { select: { brandName: true } }, venue: { select: { name: true } }, hostedByVenue: true },
+      select: {
+        id: true, title: true, date: true, durationHrs: true, seriesEndDate: true, commission: true, paidOut: true, payoutUtr: true, organizerId: true, venueId: true, hostedByVenue: true,
+        organizer: { select: { brandName: true, state: true } }, venue: { select: { name: true, state: true } },
+      },
     }).then((rows) => rows.filter((e) => CatalogService.isEventOver(e)));
     const revenueByEvent = await this.prisma.booking.groupBy({
       by: ['eventId'],
@@ -74,18 +86,25 @@ export class PaymentsService {
       _sum: { subtotal: true },
     });
     const revMap = new Map(revenueByEvent.map((r) => [r.eventId, r._sum.subtotal ?? 0]));
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
 
-    // Prebooze isn't GST-registered, so nothing is withheld from an
-    // organizer's payout beyond its own commission — `net` here is exactly
-    // what OrganizerLedgerTx already credits them (see BookingsService),
-    // so this on-screen figure and the real ledger balance always agree.
     return events.map((e) => {
       const revenue = revMap.get(e.id) ?? 0;
-      const commissionAmt = Math.round((revenue * (e.commission as number)) / 100);
-      // Solo venue-hosted event (no organizer) — this is who staff actually
-      // need to pay out for this event's commission.
       const payeeType: 'organizer' | 'venue' | null = e.organizerId ? 'organizer' : e.venueId ? 'venue' : null;
       const payeeId = e.organizerId ?? e.venueId ?? null;
+      // This is an aggregate display view (whole-event revenue, not
+      // booking-by-booking), so it can't see any promoter-markup exception
+      // a specific booking might have had — commission is simply
+      // revenue * commission%, same as this screen always computed it, fed
+      // into the same shared breakdown every other screen and the real
+      // per-booking credit (BookingsService) use.
+      const commissionAmt = Math.round((revenue * (e.commission as number)) / 100);
+      const breakdown = computePayoutBreakdown({
+        preTcsCredit: revenue - commissionAmt, ticketSubtotal: revenue, commissionAmt,
+        payeeState: e.organizer?.state ?? e.venue?.state ?? null,
+        gstEnabled: settings?.gstEnabled ?? false, commissionGstPct: settings?.commissionGstPct ?? 18,
+        tcsEnabled: settings?.tcsEnabled ?? false, tcsPct: settings?.tcsPct ?? 1,
+      });
       return {
         id: e.id,
         title: e.title,
@@ -95,8 +114,10 @@ export class PaymentsService {
         payeeId,
         revenue,
         commission: e.commission,
-        commissionAmt,
-        net: revenue - commissionAmt,
+        commissionAmt: breakdown.commissionAmt,
+        commissionGstAmount: breakdown.commissionGst.gstAmount,
+        tcsAmount: breakdown.tcsAmount,
+        net: breakdown.net,
         paidOut: e.paidOut,
         payoutUtr: e.payoutUtr,
       };
@@ -297,7 +318,7 @@ export class PaymentsService {
    * so the two can never drift apart again. */
   async markPaid(eventId: string, utr: string, staffEmail: string) {
     if (!utr?.trim()) throw new BadRequestException('Enter the real UTR / transaction reference for this transfer');
-    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    const event = await this.prisma.event.findUnique({ where: { id: eventId }, include: { organizer: { select: { brandName: true, state: true } }, venue: { select: { name: true, state: true } } } });
     if (!event) throw new BadRequestException('Event not found');
     if (event.paidOut) throw new BadRequestException('This event is already marked paid');
     if (!CatalogService.isEventOver(event)) {
@@ -313,7 +334,18 @@ export class PaymentsService {
     });
     const revenue = revenueAgg._sum.subtotal ?? 0;
     const commissionAmt = Math.round((revenue * (event.commission ?? 0)) / 100);
-    const net = revenue - commissionAmt;
+    // Same shared breakdown eventPayoutRows() (the "payouts due" screen) and
+    // every per-booking credit (BookingsService) use — this is the exact
+    // figure admin was shown before clicking "mark paid", so it can never
+    // silently differ from what's actually withdrawn here.
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+    const breakdown = computePayoutBreakdown({
+      preTcsCredit: revenue - commissionAmt, ticketSubtotal: revenue, commissionAmt,
+      payeeState: event.organizer?.state ?? event.venue?.state ?? null,
+      gstEnabled: settings?.gstEnabled ?? false, commissionGstPct: settings?.commissionGstPct ?? 18,
+      tcsEnabled: settings?.tcsEnabled ?? false, tcsPct: settings?.tcsPct ?? 1,
+    });
+    const net = breakdown.net;
 
     const profile = await this.defaultPaymentProfile(payeeType, payeeId);
     if (!profile) {
@@ -361,6 +393,30 @@ export class PaymentsService {
     await this.prisma.payoutStatusEvent.create({
       data: { payeeType, payeeId, ledgerTxId: ledgerTx.id, status: 'complete', utr: utr.trim(), staffEmail },
     });
+
+    // A real tax invoice for Prebooze's own commission on this event — one
+    // consolidated document at settlement time (not per-booking; an event
+    // can have hundreds of bookings, and this is the moment the commission
+    // "transaction" with this payee is actually considered final), same
+    // real-document requirement as every other GST-bearing charge on this
+    // platform already gets (booking fees, Marketing, Featured). The
+    // underlying GST liability itself is already recognized per-booking in
+    // BookingsService (same moment 'Ticket commission' income is posted) —
+    // this is purely the paper trail, not a second tax event.
+    if (breakdown.commissionGst.gstAmount > 0) {
+      const user = await this.payeeUser(payeeType, payeeId);
+      if (user) {
+        await this.invoices.create({
+          type: 'commission', refId: eventId, role: payeeType,
+          payerName: user.name, payerEmail: user.email, payerPhone: user.phone,
+          payerBrand: event.organizer?.brandName ?? event.venue?.name, payerGstin: profile.gstin, payerPan: profile.pan,
+          description: `Prebooze platform commission — "${event.title}"`,
+          subtotal: commissionAmt, gstPct: breakdown.commissionGst.gstPct, gstAmount: breakdown.commissionGst.gstAmount, igstAmount: breakdown.commissionGst.igstAmount,
+          total: commissionAmt + breakdown.commissionGst.gstAmount,
+        }).catch(() => {});
+      }
+    }
+
     await this.notifications.notify('💸', `Payout marked paid — "${event.title}" · ${utr.trim()}`, '/admin/payments');
     return updated;
   }

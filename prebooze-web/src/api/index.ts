@@ -621,7 +621,10 @@ export interface OrgLedgerTx {
   withdrawalPaidUtr?: string;
   // Only present for a row with a real Booking behind it — see
   // OrganizerService.payouts().
-  bookingBreakup?: { subtotal: number; fee: number; gstAmount: number; commission: number; includesFeeAndGst: boolean };
+  bookingBreakup?: {
+    subtotal: number; fee: number; gstAmount: number; commission: number; includesFeeAndGst: boolean;
+    commissionGstAmount: number; tcsAmount: number;
+  };
 }
 /** Shared client for the organizer/venue-paid Meta ad marketing endpoints —
  * identical shape on both sides (see MarketingController/
@@ -973,6 +976,10 @@ export interface VenueLedgerTx {
   withdrawalStatus?: 'requested' | 'received' | 'initiated' | 'processed' | 'complete' | 'rejected';
   withdrawalRejectedReason?: string;
   withdrawalPaidUtr?: string;
+  // Real GST (on Prebooze's commission) + TCS withheld on this 'sale', in
+  // rupees — see VenueLedgerTx's schema comment. Both 0 when off.
+  commissionGstAmount?: number;
+  tcsAmount?: number;
 }
 export interface VenueHostingRequest {
   id: string;

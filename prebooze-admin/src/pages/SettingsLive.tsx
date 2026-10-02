@@ -160,6 +160,10 @@ export default function SettingsLive() {
             <label>GST %</label>
             <input className="input" inputMode="decimal" value={settings.gstPct} onChange={(e) => set('gstPct', parseFloat(e.target.value) || 0)} />
           </div>
+          <div className="field" style={{ width: 160 }}>
+            <label>Commission GST %</label>
+            <input className="input" inputMode="decimal" value={settings.commissionGstPct} onChange={(e) => set('commissionGstPct', parseFloat(e.target.value) || 0)} />
+          </div>
           <div className="field" style={{ flex: 1, minWidth: 220 }}>
             <label>GSTIN</label>
             <input className="input" value={settings.gstin ?? ''} onChange={(e) => set('gstin', e.target.value || null)} placeholder="e.g. 27FDXPG4610R1ZO" />
@@ -168,9 +172,32 @@ export default function SettingsLive() {
         <div className="tiny hint">
           When on: guest ticket bookings charge GST on the booking fee only (not the full ticket price — the ticket
           itself is the organizer's own sale). Featured placements and Marketing campaigns charge GST on the full
-          amount (that revenue is Prebooze's own). Invoices print as a real "Tax Invoice" with this GSTIN shown, and
-          split into CGST+SGST or IGST depending on the buyer's state. When off, everything behaves exactly as before
-          GST registration — invoices stay plain "Invoice", no GST is added anywhere.
+          amount (that revenue is Prebooze's own). <b>Commission GST</b> is ADDITIONAL to Prebooze's own commission cut
+          deducted from every organizer/venue payout — it's never carved out of the commission itself, same "never
+          comes out of the supplier's own margin" principle as any GST. Invoices print as a real "Tax Invoice" with
+          this GSTIN shown, split into CGST+SGST or IGST depending on the payee's state. When off, everything behaves
+          exactly as before GST registration — invoices stay plain "Invoice", no GST is added anywhere.
+        </div>
+      </div>
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="display" style={{ fontWeight: 700 }}>TCS (Tax Collected at Source)</div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <Toggle on={settings.tcsEnabled} onChange={() => set('tcsEnabled', !settings.tcsEnabled)} />
+          <span style={{ fontSize: 13 }}>Collect TCS (stays OFF until a real TCS registration exists in every state an event actually happens in)</span>
+        </div>
+        <div className="field" style={{ width: 120 }}>
+          <label>TCS %</label>
+          <input className="input" inputMode="decimal" value={settings.tcsPct} onChange={(e) => set('tcsPct', parseFloat(e.target.value) || 0)} />
+        </div>
+        <div className="tiny hint">
+          GST Act s.52 — Prebooze is an e-commerce operator collecting payment centrally and settling organizers/
+          venues later, so it must withhold this % of their GROSS ticket revenue (never Prebooze's own commission) and
+          deposit it under the payee's own GSTIN via GSTR-8, not as Prebooze's own tax — this isn't your income or
+          expense, just a pass-through withholding. Doesn't apply to self-collected offline bookings (the organizer
+          holds that cash directly — Prebooze never collects it, so there's no ECO collection event to withhold
+          against). <b>Do not switch this on before your CA confirms the registration is actually in place</b> —
+          withholding money with nowhere compliant to deposit it is worse than not collecting it at all.
         </div>
       </div>
 
