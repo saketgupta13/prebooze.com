@@ -332,6 +332,10 @@ export interface MarketingOrder {
   periodStart: string | null;
   periodEnd: string | null;
   rejectionReason: string | null;
+  // Both only set once status is 'active' — never margin or real spend, see
+  // MarketingService.toPublicOrder's own doc comment.
+  metaCampaignId: string | null;
+  adPerformance: { impressions: number; reach: number; clicks: number; ctr: number } | null;
 }
 
 /** A standing Razorpay Subscription funding ad marketing across all of an

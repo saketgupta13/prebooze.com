@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Rocket, Download, Sparkles, TrendingUp } from 'lucide-react';
+import { Rocket, Download, Sparkles, TrendingUp, Eye, Users, MousePointerClick, Percent } from 'lucide-react';
 import { venuePartner } from '../../api';
 import type { Event as PbEvent, Invoice } from '../../types';
 import { ApiError } from '../../api/client';
@@ -291,6 +291,22 @@ export default function Marketing() {
                     <p className="tiny danger-text" style={{ margin: '8px 0 0', background: 'rgba(255,92,73,.08)', border: '1px solid rgba(255,92,73,.2)', borderRadius: 8, padding: '6px 10px' }}>
                       {o.rejectionReason}
                     </p>
+                  )}
+                  {o.status === 'pending' && (
+                    <p className="tiny muted" style={{ margin: '8px 0 0' }}>
+                      Payment received — our team is setting up the real Meta ad campaign now. This usually takes a few hours; you'll see it switch to "running" here once it's live.
+                    </p>
+                  )}
+                  {o.status === 'active' && o.adPerformance && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 8, fontSize: 12.5 }} className="muted">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Eye size={13} /> {o.adPerformance.impressions.toLocaleString('en-IN')} impressions</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Users size={13} /> {o.adPerformance.reach.toLocaleString('en-IN')} reach</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><MousePointerClick size={13} /> {o.adPerformance.clicks.toLocaleString('en-IN')} clicks</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Percent size={13} /> {o.adPerformance.ctr}% CTR</span>
+                    </div>
+                  )}
+                  {o.status === 'active' && o.metaCampaignId && (
+                    <div className="tiny muted" style={{ marginTop: 4 }}>Campaign ID: {o.metaCampaignId}</div>
                   )}
                   {/* Full breakup, not just the total — base rate + GST separately,
                       so it's clear exactly what was charged and why. */}

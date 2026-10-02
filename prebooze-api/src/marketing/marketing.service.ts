@@ -104,9 +104,14 @@ export class MarketingService {
     return this.rates();
   }
 
-  /** Strips everything that isn't meant for organizer/venue eyes —
-   * marginPct, metaCampaignId, and the raw Razorpay ids never leave this
-   * service. Only what they paid, for what, and its status. */
+  /** Strips everything that isn't meant for organizer/venue eyes — margin,
+   * the real ad spend, and raw PhonePe ids never leave this service. Real
+   * gap closed 2026-10-02: metaCampaignId and non-monetary ad performance
+   * (impressions/reach/clicks/CTR, via safeAdPerformance — already strips
+   * spend) are NOW included once a campaign is live, so the organizer/venue
+   * can actually see their campaign is real and working without a
+   * click-through to the separate Analytics page. Still never includes
+   * marginPct or spend — see safeAdPerformance's own doc comment. */
   // isSubscriptionPeriod is always false now — real Razorpay Subscriptions
   // recurring billing (and the marketingSubscriptionId column that marked a
   // row as subscription-generated) was fully removed 2026-09-21 (see
@@ -116,7 +121,7 @@ export class MarketingService {
   // `amount` stays the base rate (unchanged meaning, matches every existing
   // caller); `total` is what was/will be actually charged, amount+GST —
   // equal to amount on every pre-GST-launch or gstEnabled:false order.
-  private toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; gstPct: number | null; gstAmount: number | null; total: number | null; status: string; createdAt: Date; periodEnd: Date | null; rejectionReason?: string | null }) {
+  private async toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; gstPct: number | null; gstAmount: number | null; total: number | null; status: string; createdAt: Date; periodEnd: Date | null; rejectionReason?: string | null; metaCampaignId?: string | null }) {
     return {
       id: row.id, eventId: row.eventId, eventTitle: row.eventTitle, amount: row.amount,
       gstPct: row.gstPct ?? 0, gstAmount: row.gstAmount ?? 0, total: row.total ?? row.amount, status: row.status,
@@ -126,6 +131,8 @@ export class MarketingService {
       // because nothing ever created that shape before now.
       isSubscriptionPeriod: row.eventId === null, periodStart: row.eventId === null ? row.createdAt : null,
       periodEnd: row.periodEnd, rejectionReason: row.rejectionReason ?? null,
+      metaCampaignId: row.status === 'active' ? (row.metaCampaignId ?? null) : null,
+      adPerformance: row.status === 'active' ? await this.safeAdPerformance(row.metaCampaignId ?? null) : null,
     };
   }
 
@@ -236,7 +243,7 @@ export class MarketingService {
     const owner = await this.resolveOwner(userId, ownerType);
     const ownerId = this.ownerIdOf(ownerType, owner);
     if (row.ownerType !== ownerType || (ownerType === 'organizer' ? row.organizerId : row.venueId) !== ownerId) throw new ForbiddenException();
-    if (row.paymentId) return this.toPublicOrder(row); // already paid — nothing to abandon
+    if (row.paymentId) return await this.toPublicOrder(row); // already paid — nothing to abandon
 
     const status = row.phonepeMerchantOrderId ? await this.phonepe.getOrderStatus(row.phonepeMerchantOrderId).catch(() => null) : null;
     if (status?.state === 'COMPLETED') return this.confirmPayment(userId, ownerType, id);
@@ -252,7 +259,7 @@ export class MarketingService {
     const ownerId = this.ownerIdOf(ownerType, owner);
     if (row.ownerType !== ownerType || (ownerType === 'organizer' ? row.organizerId : row.venueId) !== ownerId) throw new ForbiddenException();
     if (!row.phonepeMerchantOrderId) throw new BadRequestException('This order has no payment to confirm');
-    if (row.paymentId) return this.toPublicOrder(row); // already confirmed
+    if (row.paymentId) return await this.toPublicOrder(row); // already confirmed
 
     const status = await this.phonepe.getOrderStatus(row.phonepeMerchantOrderId);
     if (!status || status.state !== 'COMPLETED') throw new BadRequestException('Payment verification failed');
@@ -302,7 +309,7 @@ export class MarketingService {
       category: 'GST collected (payable)', amount: row.gstAmount ?? 0, note: row.eventTitle ?? owner.brand, eventId: row.eventId,
     }).catch(() => {});
 
-    return this.toPublicOrder(updated);
+    return await this.toPublicOrder(updated);
   }
 
   /** Deletes any genuinely-abandoned 'pending' order matching `where` — old
@@ -342,7 +349,7 @@ export class MarketingService {
       where: ownerWhere,
       orderBy: { createdAt: 'desc' },
     });
-    return rows.map((r) => this.toPublicOrder(r));
+    return await Promise.all(rows.map((r) => this.toPublicOrder(r)));
   }
 
   // ---------- auto-renewing subscription (org-wide, rolling 30-day) ----------
