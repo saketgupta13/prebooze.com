@@ -138,6 +138,42 @@ export default function GstReport() {
         </div>
       )}
 
+      {gst && gst.invoices.length > 0 && (
+        <div className="card">
+          <h3 style={{ marginBottom: 4 }}>GST transactions</h3>
+          <p className="tiny muted" style={{ marginBottom: 12 }}>Every invoice behind the summary above, real CGST/SGST/IGST per row.</p>
+          <div className="tblwrap">
+            <div className="thead" style={{ minWidth: 820 }}>
+              <span style={{ flex: 1 }}>Invoice #</span>
+              <span style={{ flex: 0.7 }}>Date</span>
+              <span style={{ flex: 0.9 }}>Type</span>
+              <span style={{ flex: 1.4 }}>Payer</span>
+              <span style={{ flex: 1.1 }}>GSTIN</span>
+              <span style={{ flex: 1 }}>Taxable value</span>
+              <span style={{ flex: 1.1 }}>CGST / SGST / IGST</span>
+              <span style={{ flex: 0.9 }}>Total</span>
+            </div>
+            {gst.invoices.map((i) => (
+              <div key={i.number} className="trow" style={{ minWidth: 820 }}>
+                <span style={{ flex: 1 }} className="tiny bold">{i.number}</span>
+                <span style={{ flex: 0.7 }} className="tiny muted">{fmtDate(i.date)}</span>
+                <span style={{ flex: 0.9, textTransform: 'capitalize' }} className="muted">{i.type}</span>
+                <span style={{ flex: 1.4 }}>
+                  {i.payerBrand ?? i.payerName}
+                  {i.city && <span className="tiny muted" style={{ display: 'block' }}>{i.city}</span>}
+                </span>
+                <span style={{ flex: 1.1 }} className="tiny muted">{i.payerGstin ?? 'not on file'}</span>
+                <span style={{ flex: 1 }}>₹{fmt(i.taxableValue)} <span className="tiny muted">({i.gstPct}%)</span></span>
+                <span style={{ flex: 1.1 }} className="tiny muted">
+                  {i.igst > 0 ? `IGST ₹${fmt(i.igst)}` : `CGST ₹${fmt(i.cgst)} + SGST ₹${fmt(i.sgst)}`}
+                </span>
+                <span style={{ flex: 0.9, fontWeight: 700 }}>₹{fmt(i.total)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {tcs && (
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
