@@ -3,7 +3,7 @@
  * already serving the web console. Field names match exactly. */
 import { apiFetch, apiUpload } from './client';
 import type {
-  CartRecord, CollaboratorOption, Coupon, Event, Invoice, MarketingAnalytics, OrgAttendee, OrgBooking, OrgBookingDetail, OrgGuestListEntry, OrgLedgerTx, OrgLiveMonitor, OrgModulePerms,
+  CartRecord, CollaboratorOption, Coupon, Event, Invoice, MarketingAnalytics, MarketingOrder, OrgAttendee, OrgBooking, OrgBookingDetail, OrgGuestListEntry, OrgLedgerTx, OrgLiveMonitor, OrgModulePerms,
   OrgPermKey, OrgPromoterGuest, OrgPromoterPayoutRow, OrgPromoterRosterEntry, OrgStaffMember, OrgTeamAccess, Organizer, PaymentProfile,
 } from '../types';
 
@@ -67,6 +67,10 @@ export const organizer = {
   // MarketingOrder or falls inside an active subscription period —
   // enforced server-side (403 otherwise), same as web.
   marketingAnalytics: (eventId: string) => apiFetch<MarketingAnalytics>('/organizer/marketing/analytics', { query: { eventId } }),
+  // Read-only order list for MarketingScreen.tsx — same "no purchase
+  // action, so not excluded" reasoning as marketingAnalytics above. Buying
+  // ads itself stays web-only (App Store IAP policy).
+  marketingOrders: () => apiFetch<MarketingOrder[]>('/organizer/marketing/orders'),
   invoices: () => apiFetch<Invoice[]>('/organizer/invoices'),
   collaboratorOptions: () => apiFetch<CollaboratorOption[]>('/organizer/collaborator-options'),
   attendees: (eventId: string) => apiFetch<OrgAttendee[]>(`/organizer/events/${eventId}/attendees`),

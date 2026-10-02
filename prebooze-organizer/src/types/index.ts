@@ -429,6 +429,31 @@ export interface MarketingAnalytics {
   visitorType: { label: string; sessions: number }[];
   heatmap: { weekday: number; hour: number; sessions: number }[];
   paymentFailures: { reason: string; count: number }[];
+  // Real gap found 2026-10-02: present on web's identical type since launch,
+  // never ported here — never includes spend, see MarketingService's own
+  // doc comment.
+  adPerformance: { impressions: number; reach: number; clicks: number; ctr: number } | null;
+}
+
+// Real shape from prebooze-web/src/types.ts's MarketingOrder — read-only
+// order list only, RN never offers the purchase flow (App Store IAP
+// policy, see MarketingScreen.tsx's own doc comment).
+export interface MarketingOrder {
+  id: string;
+  eventId: string | null;
+  eventTitle: string | null;
+  amount: number;
+  gstPct: number;
+  gstAmount: number;
+  total: number;
+  status: 'pending' | 'active' | 'rejected' | 'expired';
+  createdAt: string;
+  isSubscriptionPeriod: boolean;
+  periodStart: string | null;
+  periodEnd: string | null;
+  rejectionReason: string | null;
+  metaCampaignId: string | null;
+  adPerformance: { impressions: number; reach: number; clicks: number; ctr: number } | null;
 }
 
 // Real shape from prebooze-web/src/api/index.ts's OrgLedgerTx.

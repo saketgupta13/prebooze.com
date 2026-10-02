@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Eye, Users, MousePointerClick, Percent } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { ApiError } from '../../api/client';
 import { Card, H1, IconButton, Muted, Screen, Txt } from '../../components/ui';
@@ -71,6 +71,19 @@ export default function MarketingAnalyticsScreen() {
 
         {!loading && !locked && data && (
           <>
+            {data.adPerformance && (
+              <Card style={styles.card}>
+                <Txt style={styles.sectionTitle}>Real ad performance</Txt>
+                <Muted style={styles.tiny}>Straight from Meta — how the actual ad campaign is doing.</Muted>
+                <View style={styles.adPerfRow}>
+                  <View style={styles.adPerfItem}><Eye size={14} color={colors.muted} /><Txt style={styles.tiny}><Txt style={{ fontFamily: fontFamily.bold }}>{data.adPerformance.impressions.toLocaleString('en-IN')}</Txt> impressions</Txt></View>
+                  <View style={styles.adPerfItem}><Users size={14} color={colors.muted} /><Txt style={styles.tiny}><Txt style={{ fontFamily: fontFamily.bold }}>{data.adPerformance.reach.toLocaleString('en-IN')}</Txt> reached</Txt></View>
+                  <View style={styles.adPerfItem}><MousePointerClick size={14} color={colors.muted} /><Txt style={styles.tiny}><Txt style={{ fontFamily: fontFamily.bold }}>{data.adPerformance.clicks.toLocaleString('en-IN')}</Txt> clicks</Txt></View>
+                  <View style={styles.adPerfItem}><Percent size={14} color={colors.muted} /><Txt style={styles.tiny}><Txt style={{ fontFamily: fontFamily.bold }}>{data.adPerformance.ctr}%</Txt> CTR</Txt></View>
+                </View>
+              </Card>
+            )}
+
             <Card style={styles.card}>
               <Txt style={styles.sectionTitle}>Funnel</Txt>
               {data.stages.map((s, i) => {
@@ -153,4 +166,6 @@ const styles = StyleSheet.create({
   barRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s },
   barTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.surface2, overflow: 'hidden' },
   barFill: { height: '100%', backgroundColor: colors.accent },
+  adPerfRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.m, marginTop: 2 },
+  adPerfItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
 });

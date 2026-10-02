@@ -78,6 +78,9 @@ export type MoreStackParamList = {
   // OrganizerBilling.tsx is deliberately excluded (App Store IAP policy),
   // this is just the real invoice list + PDF download behind it.
   Billing: undefined;
+  // Read-only campaign status list — same carve-out as Billing above, the
+  // "Run ads" purchase itself deep-links to web instead.
+  Marketing: undefined;
   // Phase 4 — settings, team & roles, verification, payment profiles
   // (2026-09-16).
   Settings: undefined;
