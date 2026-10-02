@@ -141,28 +141,9 @@ export class MarketingService {
     const ownerId = this.ownerIdOf(ownerType, owner);
     const event = await this.resolveOwnedEvent(ownerType, ownerId, eventId);
 
+    await this.reapStaleOrders({ eventId });
     const existing = await this.prisma.marketingOrder.findFirst({ where: { eventId, status: { in: ['pending', 'active'] } } });
-    if (existing) {
-      // A still-genuinely-in-progress or already-paid order really does
-      // block a second purchase. But a 'pending' order this old was created
-      // the instant someone clicked Pay — before any payment happened — and
-      // if they abandoned the PhonePe checkout (closed the tab, backed out,
-      // payment failed) it would otherwise sit here forever with no way to
-      // ever buy marketing for this event again, since nothing else ever
-      // expires or cancels it. Self-heal it here instead of needing a
-      // separate cron: re-check its real PhonePe state once it's stale
-      // enough that a genuine checkout would have finished one way or the
-      // other, and only then decide whether it's actually done or dead.
-      const STALE_MS = 15 * 60 * 1000;
-      const isStale = existing.status === 'pending' && Date.now() - existing.createdAt.getTime() > STALE_MS;
-      if (!isStale) throw new BadRequestException('This event already has a marketing order in progress or active');
-
-      const status = existing.phonepeMerchantOrderId ? await this.phonepe.getOrderStatus(existing.phonepeMerchantOrderId).catch(() => null) : null;
-      if (status?.state === 'COMPLETED') throw new BadRequestException('This event already has a marketing order in progress or active');
-      // Genuinely abandoned — never paid, and old enough that it's not still
-      // in flight. Delete it so the event becomes purchasable again.
-      await this.prisma.marketingOrder.delete({ where: { id: existing.id } });
-    }
+    if (existing) throw new BadRequestException('This event already has a marketing order in progress or active');
 
     const rates = await this.rates();
     const amount = rates.perEvent;
@@ -207,17 +188,10 @@ export class MarketingService {
     const owner = await this.resolveOwner(userId, ownerType);
     const ownerId = this.ownerIdOf(ownerType, owner);
 
-    const existing = await this.prisma.marketingOrder.findFirst({
-      where: { eventId: null, status: { in: ['pending', 'active'] }, ...(ownerType === 'organizer' ? { organizerId: ownerId } : { venueId: ownerId }) },
-    });
-    if (existing) {
-      const STALE_MS = 15 * 60 * 1000;
-      const isStale = existing.status === 'pending' && Date.now() - existing.createdAt.getTime() > STALE_MS;
-      if (!isStale) throw new BadRequestException('You already have a plan in progress or active');
-      const status = existing.phonepeMerchantOrderId ? await this.phonepe.getOrderStatus(existing.phonepeMerchantOrderId).catch(() => null) : null;
-      if (status?.state === 'COMPLETED') throw new BadRequestException('You already have a plan in progress or active');
-      await this.prisma.marketingOrder.delete({ where: { id: existing.id } });
-    }
+    const ownerWhere = ownerType === 'organizer' ? { organizerId: ownerId } : { venueId: ownerId };
+    await this.reapStaleOrders({ eventId: null, ...ownerWhere });
+    const existing = await this.prisma.marketingOrder.findFirst({ where: { eventId: null, status: { in: ['pending', 'active'] }, ...ownerWhere } });
+    if (existing) throw new BadRequestException('You already have a plan in progress or active');
 
     const rates = await this.rates();
     const amount = days === 7 ? rates.day7 : days === 15 ? rates.day15 : rates.monthly;
@@ -331,11 +305,41 @@ export class MarketingService {
     return this.toPublicOrder(updated);
   }
 
+  /** Deletes any genuinely-abandoned 'pending' order matching `where` — old
+   * enough (15+ min) that a real PhonePe checkout would have resolved one
+   * way or the other, and confirmed (via a fresh getOrderStatus call, never
+   * trusted from the stale row) to not have actually completed. This used
+   * to live inline inside requestForEvent/requestForPeriod, which meant it
+   * only ever ran at the exact moment someone re-clicked "Pay" for the same
+   * thing — but the frontend hides that button the instant ANY order
+   * (including a dead one) exists, so there was no way to ever reach that
+   * code again. Real bug: an organizer whose PhonePe checkout failed/was
+   * abandoned without the app's own return-URL resume flow ever firing
+   * (closed the tab, backed out of the UPI app, browser crash) was stuck
+   * seeing "awaiting payment" forever with no retry button anywhere. Now
+   * called at the top of every listing read (myOrders/listOrdersForAdmin)
+   * instead, so the stale row is gone and the real "Run ads" button is back
+   * by the time anyone next loads the page — no click required to trigger it. */
+  private async reapStaleOrders(where: { eventId?: string | null; organizerId?: string; venueId?: string }) {
+    const STALE_MS = 15 * 60 * 1000;
+    const candidates = await this.prisma.marketingOrder.findMany({
+      where: { ...where, status: 'pending', createdAt: { lt: new Date(Date.now() - STALE_MS) } },
+    });
+    for (const row of candidates) {
+      if (!row.phonepeMerchantOrderId) continue;
+      const status = await this.phonepe.getOrderStatus(row.phonepeMerchantOrderId).catch(() => null);
+      if (status?.state === 'COMPLETED') continue; // leave it — a resume/webhook should still confirm it properly
+      await this.prisma.marketingOrder.delete({ where: { id: row.id } }).catch(() => {});
+    }
+  }
+
   async myOrders(userId: string, ownerType: MarketingOwnerType) {
     const owner = await this.resolveOwner(userId, ownerType);
     const ownerId = this.ownerIdOf(ownerType, owner);
+    const ownerWhere = ownerType === 'organizer' ? { organizerId: ownerId } : { venueId: ownerId };
+    await this.reapStaleOrders(ownerWhere).catch(() => {});
     const rows = await this.prisma.marketingOrder.findMany({
-      where: ownerType === 'organizer' ? { organizerId: ownerId } : { venueId: ownerId },
+      where: ownerWhere,
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((r) => this.toPublicOrder(r));
@@ -479,6 +483,7 @@ export class MarketingService {
   // ---------- admin: minimal review queue + Meta campaign handoff ----------
 
   async listOrdersForAdmin(status?: string) {
+    await this.reapStaleOrders({}).catch(() => {});
     const rows = await this.prisma.marketingOrder.findMany({
       where: status ? { status: status as never } : undefined,
       orderBy: { createdAt: 'desc' },
