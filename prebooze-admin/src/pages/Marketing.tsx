@@ -199,17 +199,26 @@ export default function Marketing() {
               <Download size={11} /> {downloadingId === inv.id ? 'Downloading…' : 'Invoice'}
             </button>
           )}
-          {canSeeFinance && r.metaCampaignId && (
+          {r.metaCampaignId && (
             <button className="btn btn-ghost btn-sm" disabled={perf === 'loading'} onClick={() => checkRealPerformance(r.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px' }}>
-              <Radar size={11} /> {perf === 'loading' ? 'Checking…' : 'Check real spend'}
+              <Radar size={11} /> {perf === 'loading' ? 'Checking…' : canSeeFinance ? 'Check real spend' : 'Check performance'}
             </button>
           )}
         </div>
-        {canSeeFinance && perf === 'error' && <div className="tiny" style={{ color: 'var(--red)' }}>Could not fetch real data from Meta — check the campaign id(s).</div>}
-        {canSeeFinance && perf && perf !== 'loading' && perf !== 'error' && (
+        {perf === 'error' && <div className="tiny" style={{ color: 'var(--red)' }}>Could not fetch real data from Meta — check the campaign id(s).</div>}
+        {perf && perf !== 'loading' && perf !== 'error' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5 }} className="muted">
-            <span>real spend <span className="bold" style={{ color: perf.spend > perf.assumedAdSpend ? 'var(--red)' : 'var(--text)' }}>₹{fmt(perf.spend)}</span> <span className="tiny">(assumed ₹{fmt(perf.assumedAdSpend)})</span></span>
-            <span>·</span>
+            {/* Real spend (and the assumed-vs-actual comparison it implies
+                about margin) stays finance-only — impressions/reach/clicks/
+                CTR are genuine campaign-performance numbers the person
+                actually running the campaign needs regardless of whether
+                they can see money figures. */}
+            {canSeeFinance && (
+              <>
+                <span>real spend <span className="bold" style={{ color: perf.spend > perf.assumedAdSpend ? 'var(--red)' : 'var(--text)' }}>₹{fmt(perf.spend)}</span> <span className="tiny">(assumed ₹{fmt(perf.assumedAdSpend)})</span></span>
+                <span>·</span>
+              </>
+            )}
             <span>{fmt(perf.impressions)} impressions</span>
             <span>·</span>
             <span>{fmt(perf.reach)} reach</span>
