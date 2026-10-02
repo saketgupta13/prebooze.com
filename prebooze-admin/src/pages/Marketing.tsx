@@ -61,14 +61,22 @@ export default function Marketing() {
     // Promise.all() as orders()/rates(), so the one dead call failed the
     // entire load and hid every real, paid marketing order from admin.
     setSubs([]);
-    Promise.all([liveMarketing.orders(), liveMarketing.rates(), liveInvoices.list({ type: 'marketing' })])
-      .then(([r, ra, inv]) => {
+    Promise.all([liveMarketing.orders(), liveMarketing.rates()])
+      .then(([r, ra]) => {
         setRows(r);
         setRates(ra);
-        setInvoices(inv);
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
+    // Invoices need "Payments & payouts" view — a narrower role (e.g.
+    // "Marketing", which only has "Marketing campaigns") genuinely can't
+    // see these, same boundary canSeeFinance already draws elsewhere on
+    // this page. That's correct to enforce, but it must never crash the
+    // rest of the page the way bundling this into the same Promise.all()
+    // above did — the one 403 failed EVERYTHING, including orders/rates,
+    // showing "0 pending"/"0 active" even though real data existed. Fetched
+    // separately now; failing here just means no Invoice download buttons.
+    liveInvoices.list({ type: 'marketing' }).then(setInvoices).catch(() => setInvoices([]));
   };
 
   const downloadInvoice = async (inv: LiveInvoice) => {
