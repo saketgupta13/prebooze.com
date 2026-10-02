@@ -766,11 +766,36 @@ function reportQs(city?: string, from?: string, to?: string) {
   const qs = params.toString();
   return qs ? `?${qs}` : '';
 }
+export interface LiveGstSource {
+  type: 'booking' | 'commission' | 'featured' | 'marketing';
+  label: string; count: number; taxableValue: number; cgst: number; sgst: number; igst: number; gstTotal: number;
+}
+export interface LiveGstInvoiceRow {
+  number: string; date: string; type: string; payerName: string; payerBrand: string | null; payerGstin: string | null;
+  city: string | null; taxableValue: number; gstPct: number; cgst: number; sgst: number; igst: number; total: number;
+}
+export interface LiveGstReport {
+  month: string;
+  sources: LiveGstSource[];
+  totals: { taxableValue: number; cgst: number; sgst: number; igst: number; gstTotal: number };
+  invoices: LiveGstInvoiceRow[];
+}
+export interface LiveTcsRow {
+  payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string; gstin: string | null; state: string | null;
+  grossValue: number; tcsAmount: number; cgst: number; sgst: number;
+}
+export interface LiveTcsReport {
+  month: string;
+  rows: LiveTcsRow[];
+  totals: { grossValue: number; tcsAmount: number; cgst: number; sgst: number };
+}
 export const liveReports = {
   finance: (city?: string, from?: string, to?: string) => liveFetch<LiveFinance>('/admin/reports/finance' + reportQs(city, from, to)),
   daily: (city?: string, from?: string, to?: string) => liveFetch<LiveDailyPoint[]>('/admin/reports/daily' + reportQs(city, from, to)),
   refunds: (city?: string, from?: string, to?: string) => liveFetch<LiveRefundsReport>('/admin/reports/refunds' + reportQs(city, from, to)),
   attendance: (city?: string, from?: string, to?: string) => liveFetch<LiveAttendanceReport>('/admin/reports/attendance' + reportQs(city, from, to)),
+  gst: (month: string) => liveFetch<LiveGstReport>(`/admin/reports/gst?month=${encodeURIComponent(month)}`),
+  tcs: (month: string) => liveFetch<LiveTcsReport>(`/admin/reports/tcs?month=${encodeURIComponent(month)}`),
 };
 export const liveFinance = {
   get: (city?: string) => liveFetch<LiveFinance>('/admin/reports/finance' + reportQs(city)),

@@ -422,8 +422,9 @@ model VenueLedgerTx {
   createdAt  DateTime @default(now())
 
   // Same sale-time GST/TCS snapshot as OrganizerLedgerTx — see its comment.
-  commissionGstAmount Int @default(0)
-  tcsAmount           Int @default(0)
+  commissionGstAmount Int  @default(0)
+  tcsAmount           Int  @default(0)
+  tcsBaseAmount       Int?
 
   // Same bookingId join as OrganizerLedgerTx — added 2026-10-02 alongside it
   // so a refund can look up its exact original 'sale' row (amount +
@@ -1884,8 +1885,14 @@ model OrganizerLedgerTx {
   // after the fact and a historical row must keep showing what was really
   // deducted then, not what today's settings would produce. Both 0 when
   // the corresponding setting was off. See computePayoutBreakdown.
-  commissionGstAmount Int @default(0)
-  tcsAmount           Int @default(0)
+  commissionGstAmount Int  @default(0)
+  tcsAmount           Int  @default(0)
+  // The real ticket subtotal TCS was computed against (1% of this, when
+  // tcsEnabled) — needed for the monthly TCS/GSTR-8 report's "gross value
+  // of supplies" column, which can't be reverse-derived from tcsAmount
+  // alone once rounding and a changed tcsPct are involved. Null on rows
+  // from before this field existed.
+  tcsBaseAmount       Int?
 
   // Denormalized snapshot of which PaymentProfile a withdrawal actually paid
   // out to — same "capture the name alongside the id" precedent as

@@ -309,6 +309,135 @@ export class ReportsService {
       rows: [...byEvent.entries()].map(([id, v]) => ({ id, ...v })).sort((a, b) => b.sold - a.sold),
     };
   }
+
+  private monthRange(month: string): { from: string; to: string } {
+    const [y, m] = month.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate(); // plain JS date math — only used to find how many days the month has
+    return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, '0')}` };
+  }
+
+  /** Real monthly GST output report — single source of truth is the Invoice
+   * table, which already carries real CGST/SGST/IGST splits for every
+   * GST-bearing flow (booking fee, Prebooze's own commission, Featured,
+   * Marketing). Built for handing straight to a CA on the 1st of the month:
+   * a per-source summary plus the real invoice-level rows behind it.
+   * Booking-type invoices' taxable value is `fee` (the booking fee), not
+   * `subtotal` (the ticket price, which carries no GST of its own) — every
+   * other type's taxable value is `subtotal` directly. See each service's
+   * own invoices.create() call for why. */
+  async gst(month: string) {
+    const { from, to } = this.monthRange(month);
+    const invoices = await this.prisma.invoice.findMany({
+      where: { issuedAt: dateRangeWhere(from, to), status: 'issued', type: { in: ['booking', 'commission', 'featured', 'marketing'] } },
+      orderBy: { issuedAt: 'asc' },
+    });
+
+    const taxableOf = (inv: (typeof invoices)[number]) => (inv.type === 'booking' ? inv.fee : inv.subtotal);
+    const label: Record<string, string> = {
+      booking: 'Booking fees (from guests)', commission: 'Prebooze commission',
+      featured: 'Featured placements', marketing: 'Marketing campaigns',
+    };
+
+    const bySource = new Map<string, { count: number; taxableValue: number; cgst: number; sgst: number; igst: number }>();
+    for (const inv of invoices) {
+      const cur = bySource.get(inv.type) ?? { count: 0, taxableValue: 0, cgst: 0, sgst: 0, igst: 0 };
+      cur.count += 1;
+      cur.taxableValue += taxableOf(inv);
+      if (inv.igstAmount > 0) cur.igst += inv.igstAmount;
+      else { cur.cgst += inv.gstAmount / 2; cur.sgst += inv.gstAmount / 2; }
+      bySource.set(inv.type, cur);
+    }
+
+    const sources = (['booking', 'commission', 'featured', 'marketing'] as const).map((type) => {
+      const v = bySource.get(type) ?? { count: 0, taxableValue: 0, cgst: 0, sgst: 0, igst: 0 };
+      return {
+        type, label: label[type], count: v.count, taxableValue: Math.round(v.taxableValue),
+        cgst: Math.round(v.cgst), sgst: Math.round(v.sgst), igst: Math.round(v.igst),
+        gstTotal: Math.round(v.cgst + v.sgst + v.igst),
+      };
+    });
+    const totals = sources.reduce(
+      (a, s) => ({ taxableValue: a.taxableValue + s.taxableValue, cgst: a.cgst + s.cgst, sgst: a.sgst + s.sgst, igst: a.igst + s.igst, gstTotal: a.gstTotal + s.gstTotal }),
+      { taxableValue: 0, cgst: 0, sgst: 0, igst: 0, gstTotal: 0 },
+    );
+
+    return {
+      month, sources, totals,
+      invoices: invoices.map((inv) => ({
+        number: inv.number, date: inv.issuedAt, type: inv.type, payerName: inv.payerName, payerBrand: inv.payerBrand,
+        payerGstin: inv.payerGstin, city: inv.city, taxableValue: Math.round(taxableOf(inv)), gstPct: inv.gstPct,
+        cgst: inv.igstAmount > 0 ? 0 : Math.round(inv.gstAmount / 2), sgst: inv.igstAmount > 0 ? 0 : Math.round(inv.gstAmount / 2),
+        igst: Math.round(inv.igstAmount), total: Math.round(inv.total),
+      })),
+    };
+  }
+
+  /** Real monthly TCS report (GST Act s.52) — supplier-wise (organizer/
+   * venue), the shape a GSTR-8 filing needs: gross value of taxable
+   * supplies made through Prebooze and the TCS withheld against each, under
+   * THAT supplier's own GSTIN — never Prebooze's own income. Sourced from
+   * OrganizerLedgerTx/VenueLedgerTx 'sale' rows' own tcsAmount/
+   * tcsBaseAmount snapshots (not recomputed), same reasoning as the refund
+   * reversal fix — a changed tcsPct later must never change what an
+   * already-reported month shows. Empty while PlatformSettings.tcsEnabled
+   * is off, by design. */
+  async tcs(month: string) {
+    const { from, to } = this.monthRange(month);
+    const dateWhere = dateRangeWhere(from, to);
+    const [orgRows, venueRows] = await Promise.all([
+      this.prisma.organizerLedgerTx.findMany({ where: { type: 'sale', tcsAmount: { gt: 0 }, createdAt: dateWhere }, select: { organizerId: true, tcsAmount: true, tcsBaseAmount: true } }),
+      this.prisma.venueLedgerTx.findMany({ where: { type: 'sale', tcsAmount: { gt: 0 }, createdAt: dateWhere }, select: { venueId: true, tcsAmount: true, tcsBaseAmount: true } }),
+    ]);
+
+    const byPayee = new Map<string, { payeeType: 'organizer' | 'venue'; payeeId: string; grossValue: number; tcsAmount: number }>();
+    for (const r of orgRows) {
+      const key = `organizer:${r.organizerId}`;
+      const cur = byPayee.get(key) ?? { payeeType: 'organizer' as const, payeeId: r.organizerId, grossValue: 0, tcsAmount: 0 };
+      cur.grossValue += r.tcsBaseAmount ?? 0;
+      cur.tcsAmount += r.tcsAmount;
+      byPayee.set(key, cur);
+    }
+    for (const r of venueRows) {
+      const key = `venue:${r.venueId}`;
+      const cur = byPayee.get(key) ?? { payeeType: 'venue' as const, payeeId: r.venueId, grossValue: 0, tcsAmount: 0 };
+      cur.grossValue += r.tcsBaseAmount ?? 0;
+      cur.tcsAmount += r.tcsAmount;
+      byPayee.set(key, cur);
+    }
+
+    const organizerIds = [...byPayee.values()].filter((v) => v.payeeType === 'organizer').map((v) => v.payeeId);
+    const venueIds = [...byPayee.values()].filter((v) => v.payeeType === 'venue').map((v) => v.payeeId);
+    const [organizers, venues, orgProfiles, venueProfiles] = await Promise.all([
+      this.prisma.organizer.findMany({ where: { id: { in: organizerIds } }, select: { id: true, brandName: true, state: true } }),
+      this.prisma.venue.findMany({ where: { id: { in: venueIds } }, select: { id: true, name: true, state: true } }),
+      this.prisma.paymentProfile.findMany({ where: { organizerId: { in: organizerIds }, isDefault: true }, select: { organizerId: true, gstin: true } }),
+      this.prisma.venuePaymentProfile.findMany({ where: { venueId: { in: venueIds }, isDefault: true }, select: { venueId: true, gstin: true } }),
+    ]);
+    const orgMap = new Map(organizers.map((o) => [o.id, o]));
+    const venueMap = new Map(venues.map((v) => [v.id, v]));
+    const orgGstinMap = new Map(orgProfiles.map((p) => [p.organizerId, p.gstin]));
+    const venueGstinMap = new Map(venueProfiles.map((p) => [p.venueId, p.gstin]));
+
+    const rows = [...byPayee.values()]
+      .map((v) => {
+        const name = v.payeeType === 'organizer' ? orgMap.get(v.payeeId)?.brandName : venueMap.get(v.payeeId)?.name;
+        const state = v.payeeType === 'organizer' ? orgMap.get(v.payeeId)?.state : venueMap.get(v.payeeId)?.state;
+        const gstin = v.payeeType === 'organizer' ? orgGstinMap.get(v.payeeId) : venueGstinMap.get(v.payeeId);
+        const half = Math.round(v.tcsAmount / 2);
+        return {
+          payeeType: v.payeeType, payeeId: v.payeeId, payeeName: name ?? v.payeeId, gstin: gstin ?? null, state: state ?? null,
+          grossValue: Math.round(v.grossValue), tcsAmount: Math.round(v.tcsAmount), cgst: half, sgst: v.tcsAmount - half,
+        };
+      })
+      .sort((a, b) => b.tcsAmount - a.tcsAmount);
+
+    const totals = rows.reduce(
+      (a, r) => ({ grossValue: a.grossValue + r.grossValue, tcsAmount: a.tcsAmount + r.tcsAmount, cgst: a.cgst + r.cgst, sgst: a.sgst + r.sgst }),
+      { grossValue: 0, tcsAmount: 0, cgst: 0, sgst: 0 },
+    );
+
+    return { month, rows, totals };
+  }
 }
 
 /** `to` from an HTML date input is a bare `YYYY-MM-DD` — treated as UTC

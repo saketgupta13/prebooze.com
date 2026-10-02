@@ -35,6 +35,21 @@ export class AdminReportsController {
   attendance(@Query('city') city?: string, @Query('from') from?: string, @Query('to') to?: string) {
     return this.reports.attendance(city, from, to);
   }
+
+  // Monthly CA-facing exports — 'month' is a plain "YYYY-MM" string, not a
+  // from/to range, since both reports are inherently calendar-month filings
+  // (GST return, GSTR-8).
+  @Get('gst')
+  @RequirePermission(MODULE, 'view')
+  gst(@Query('month') month: string) {
+    return this.reports.gst(month);
+  }
+
+  @Get('tcs')
+  @RequirePermission(MODULE, 'view')
+  tcs(@Query('month') month: string) {
+    return this.reports.tcs(month);
+  }
 }
 
 @Controller('admin/settings')

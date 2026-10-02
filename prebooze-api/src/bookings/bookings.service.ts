@@ -214,14 +214,14 @@ export class BookingsService {
         data: {
           venueId: event.venueId, type: 'sale', amount: breakdown.net, eventId: event.id, eventTitle: event.title, note: params.note,
           bookingId: params.bookingId,
-          commissionGstAmount: breakdown.commissionGst.gstAmount, tcsAmount: breakdown.tcsAmount,
+          commissionGstAmount: breakdown.commissionGst.gstAmount, tcsAmount: breakdown.tcsAmount, tcsBaseAmount: params.ticketSubtotal,
         },
       });
     } else if (event.organizerId) {
       await tx.organizerLedgerTx.create({
         data: {
           organizerId: event.organizerId, type: 'sale', amount: breakdown.net, eventId: event.id, eventTitle: event.title, bookingId: params.bookingId, note: params.note,
-          commissionGstAmount: breakdown.commissionGst.gstAmount, tcsAmount: breakdown.tcsAmount,
+          commissionGstAmount: breakdown.commissionGst.gstAmount, tcsAmount: breakdown.tcsAmount, tcsBaseAmount: params.ticketSubtotal,
         },
       });
     }
@@ -1751,7 +1751,7 @@ export class BookingsService {
         data: {
           organizerId: payload.offlineOrganizerId, type: 'sale', amount: breakdown.net,
           eventId: event.id, eventTitle: event.title, bookingId: id, note: `Offline booking ${id} (payment link)`,
-          commissionGstAmount: breakdown.commissionGst.gstAmount, tcsAmount: breakdown.tcsAmount,
+          commissionGstAmount: breakdown.commissionGst.gstAmount, tcsAmount: breakdown.tcsAmount, tcsBaseAmount: subtotal,
         },
       });
       await this.postEventLedger(tx, event.id, event.title, 'Commission GST (payable)', 'income', breakdown.commissionGst.gstAmount);

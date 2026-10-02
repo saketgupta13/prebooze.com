@@ -202,6 +202,7 @@ export default function Reports() {
           <button className={`chip ${compare ? 'on' : ''}`} onClick={() => setCompare((v) => !v)}>vs prev. period</button>
           <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={!fin}>⬇ Export</button>
           {exported && <span className="tiny muted">Exported ✓</span>}
+          <Link to="/reports/gst" className="btn btn-ghost btn-sm">GST &amp; TCS report →</Link>
         </div>
       </div>
 

@@ -31,6 +31,7 @@ import PaymentDetails from './pages/PaymentDetails';
 import PromoterPayouts from './pages/PromoterPayouts';
 import Promos from './pages/Promos';
 import Reports from './pages/Reports';
+import GstReport from './pages/GstReport';
 import Analytics from './pages/Analytics';
 import { Banners, Blogs, Pages } from './pages/Content';
 import Categories from './pages/Categories';
@@ -127,6 +128,7 @@ export default function App() {
         <Route path="/promos/:code/edit" element={<PromoEdit />} />
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/reports/gst" element={<GstReport />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/settlements" element={<Settlements />} />
