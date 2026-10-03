@@ -87,6 +87,9 @@ export default function VenueLedger() {
                       {(t.tcsAmount ?? 0) > 0 && <>TCS −{fmtMoney(t.tcsAmount!)}</>}
                     </div>
                   )}
+                  {(t.type === 'commission_adjustment' || t.type === 'commission_gst_adjustment') && t.note && (
+                    <div className="tiny muted-2" style={{ fontWeight: 400 }}>{t.note}</div>
+                  )}
                 </td>
                 <td className={t.amount < 0 ? 'danger-text' : ''}>{t.amount < 0 ? '-' : ''}{fmtMoney(Math.abs(t.amount))}</td>
                 <td>
@@ -94,6 +97,8 @@ export default function VenueLedger() {
                   {t.type === 'refund' && <span className="badge badge-danger">Refund</span>}
                   {t.type === 'withdrawal' && <span className={`badge ${WITHDRAWAL_STATUS_CLS[t.withdrawalStatus ?? 'requested']}`}>{WITHDRAWAL_STATUS_LABEL[t.withdrawalStatus ?? 'requested']}</span>}
                   {t.type === 'withdrawal_reversal' && <span className="badge badge-accent">Refunded to balance</span>}
+                  {t.type === 'commission_adjustment' && <span className="badge badge-pending">Commission correction</span>}
+                  {t.type === 'commission_gst_adjustment' && <span className="badge badge-pending">GST correction</span>}
                 </td>
               </tr>
             ))}

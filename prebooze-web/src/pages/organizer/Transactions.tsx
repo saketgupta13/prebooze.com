@@ -92,11 +92,18 @@ export default function Transactions() {
                       {b && (isOpen ? <ChevronDown size={14} className="muted-2" /> : <ChevronRight size={14} className="muted-2" />)}
                     </td>
                     <td>{fmtDate(t.createdAt)}</td>
-                    <td className="bold">{t.eventTitle ?? '—'}</td>
+                    <td className="bold">
+                      {t.eventTitle ?? '—'}
+                      {(t.type === 'commission_adjustment' || t.type === 'commission_gst_adjustment') && t.note && (
+                        <div className="tiny muted-2" style={{ fontWeight: 400 }}>{t.note}</div>
+                      )}
+                    </td>
                     <td className={t.amount < 0 ? 'danger-text' : ''}>{t.amount < 0 ? '-' : ''}{fmtMoney(Math.abs(t.amount))}</td>
                     <td>
                       {t.type === 'sale' && <span className="badge badge-ok">Sale</span>}
                       {t.type === 'refund' && <span className="badge badge-danger">Refund</span>}
+                      {t.type === 'commission_adjustment' && <span className="badge badge-pending">Commission correction</span>}
+                      {t.type === 'commission_gst_adjustment' && <span className="badge badge-pending">GST correction</span>}
                     </td>
                   </tr>
                   {b && isOpen && (
