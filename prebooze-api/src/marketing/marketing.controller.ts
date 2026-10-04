@@ -185,8 +185,14 @@ export class AdminMarketingController {
 
   @Patch(':id/campaign')
   @RequirePermission('Marketing campaigns', 'edit')
-  setCampaign(@Param('id') id: string, @Body('metaCampaignId') metaCampaignId: string) {
-    return this.marketing.adminSetCampaign(id, metaCampaignId);
+  setCampaign(@Param('id') id: string, @Body('metaCampaignId') metaCampaignId: string, @Body('endDate') endDate?: string) {
+    return this.marketing.adminSetCampaign(id, metaCampaignId, endDate);
+  }
+
+  @Post(':id/stop')
+  @RequirePermission('Marketing campaigns', 'edit')
+  stop(@Param('id') id: string) {
+    return this.marketing.adminStopCampaign(id);
   }
 
   @Get(':id/real-performance')

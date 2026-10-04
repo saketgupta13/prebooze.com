@@ -1416,6 +1416,17 @@ model MarketingOrder {
   createdAt       DateTime @default(now())
 
   periodEnd DateTime?
+
+  // Admin-set at activation time (2026-10-04) — when this specific live
+  // campaign/ad set is meant to stop, independent of periodEnd (which only
+  // ever applies to a 30-day-plan row, auto-computed at purchase, not
+  // activation). Optional: left null, the campaign just runs until admin
+  // manually stops it, same as before this existed. MarketingCronService's
+  // hourly tick flips status to 'expired' once this passes, mirroring
+  // CronService.featuredExpiryTick exactly. The "Stop now" admin action is
+  // just this same mechanism fast-forwarded — it sets endDate to now and
+  // status to 'expired' in one step, rather than a separate code path.
+  endDate DateTime?
 }
 
 /**

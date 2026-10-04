@@ -193,6 +193,10 @@ export interface LiveMarketingOrder {
   paymentId: string | null;
   createdAt: string;
   periodEnd: string | null;
+  // Admin-set at activation (2026-10-04), independent of periodEnd (which
+  // only ever applies to a 30-day-plan row) — when this specific campaign
+  // is meant to stop. Null means it runs until manually stopped.
+  endDate: string | null;
 }
 export interface LiveMarketingSubscription {
   id: string;
@@ -229,7 +233,8 @@ export const liveMarketing = {
   // unused, only so a future recurring-billing rebuild has the exact real
   // shape to restore.
   subscriptions: () => liveFetch<LiveMarketingSubscription[]>('/admin/marketing/subscriptions'),
-  setCampaign: (id: string, metaCampaignId: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/campaign`, { method: 'PATCH', body: { metaCampaignId } }),
+  setCampaign: (id: string, metaCampaignId: string, endDate?: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/campaign`, { method: 'PATCH', body: { metaCampaignId, endDate } }),
+  stop: (id: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/stop`, { method: 'POST' }),
   // Real spend/impressions/reach/clicks from Meta, fetched fresh on every
   // call (never cached) — see MetaInsightsService's own doc comment.
   realPerformance: (id: string) => liveFetch<LiveMarketingRealPerformance>(`/admin/marketing/${id}/real-performance`),

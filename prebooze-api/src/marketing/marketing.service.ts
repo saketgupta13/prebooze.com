@@ -548,11 +548,15 @@ export class MarketingService {
    * campaign for this order/subscription and is recording its id + marking
    * it live. Requires the order to be paid first (mirrors
    * FeaturedService.adminApprove's "can't approve unpaid" rule). */
-  async adminSetCampaign(id: string, metaCampaignId: string) {
+  async adminSetCampaign(id: string, metaCampaignId: string, endDate?: string | null) {
     const row = await this.prisma.marketingOrder.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Marketing order not found');
     if (!row.paymentId) throw new BadRequestException('Cannot activate a marketing order that hasn’t been paid for yet');
-    const updated = await this.prisma.marketingOrder.update({ where: { id }, data: { metaCampaignId, status: 'active' } });
+    const parsedEndDate = endDate ? new Date(endDate) : null;
+    if (parsedEndDate && (isNaN(parsedEndDate.getTime()) || parsedEndDate <= new Date())) {
+      throw new BadRequestException('End date must be a real date in the future');
+    }
+    const updated = await this.prisma.marketingOrder.update({ where: { id }, data: { metaCampaignId, status: 'active', endDate: parsedEndDate } });
 
     // Real notification the moment the campaign actually goes live — before
     // this, the organizer/venue had no way to find out except by refreshing
@@ -570,6 +574,20 @@ export class MarketingService {
     }
 
     return updated;
+  }
+
+  /** Manual kill switch for a live campaign — e.g. the organizer asked to
+   * pull it early, or the real Meta ad set was already paused by hand and
+   * the record needs to catch up. Just fast-forwards endDate to now and
+   * flips status, the same state MarketingCronService's expiry tick would
+   * eventually produce on its own — no separate "stopped" status, since
+   * nothing downstream (analytics-coverage queries, the organizer-facing
+   * view) needs to distinguish "ran its course" from "cut short". */
+  async adminStopCampaign(id: string) {
+    const row = await this.prisma.marketingOrder.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException('Marketing order not found');
+    if (row.status !== 'active') throw new BadRequestException('This campaign is not currently active');
+    return this.prisma.marketingOrder.update({ where: { id }, data: { status: 'expired', endDate: new Date() } });
   }
 
   async adminReject(id: string, reason?: string) {

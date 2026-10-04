@@ -47,9 +47,11 @@ export default function Marketing() {
   const [err, setErr] = useState('');
   const [savingRates, setSavingRates] = useState(false);
   const [campaignDraft, setCampaignDraft] = useState<Record<string, string>>({});
+  const [endDateDraft, setEndDateDraft] = useState<Record<string, string>>({});
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [stoppingId, setStoppingId] = useState<string | null>(null);
   const [realPerf, setRealPerf] = useState<Record<string, LiveMarketingRealPerformance | 'loading' | 'error'>>({});
   const [staffMeta, setStaffMeta] = useState<LiveStaffMe | null>(null);
 
@@ -144,11 +146,21 @@ export default function Marketing() {
       setErr('Enter the real Meta ad set id before activating');
       return;
     }
+    const endDateDraftVal = endDateDraft[id]?.trim();
     try {
-      await liveMarketing.setCampaign(id, metaCampaignId);
+      await liveMarketing.setCampaign(id, metaCampaignId, endDateDraftVal ? new Date(`${endDateDraftVal}T23:59:59`).toISOString() : undefined);
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to activate');
+    }
+  };
+  const stopCampaign = async (id: string) => {
+    try {
+      await liveMarketing.stop(id);
+      setStoppingId(null);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to stop');
     }
   };
   const reject = async (id: string) => {
@@ -260,6 +272,13 @@ export default function Marketing() {
                 value={campaignDraft[r.id] ?? ''}
                 onChange={(e) => setCampaignDraft((d) => ({ ...d, [r.id]: e.target.value }))}
               />
+              <input
+                className="input" style={{ padding: '5px 8px', width: 140 }}
+                type="date"
+                title="End date (optional) — leave blank to run until manually stopped"
+                value={endDateDraft[r.id] ?? ''}
+                onChange={(e) => setEndDateDraft((d) => ({ ...d, [r.id]: e.target.value }))}
+              />
               <button className="btn btn-pri btn-sm" onClick={() => activateOrder(r.id)}>Activate</button>
               <button className="btn btn-danger btn-sm" onClick={() => setRejectingId(r.id)}>Reject</button>
             </>
@@ -276,9 +295,18 @@ export default function Marketing() {
         <span style={{ flex: 1.4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={r.ownerType} /> {r.entityName}</span>
         <span style={{ flex: 1.2 }} className="muted">{r.eventTitle ?? '30-day subscription period'}</span>
         <span style={{ flex: 0.9 }} className="muted tiny">{fmtDate(r.createdAt)}</span>
-        <span style={{ flex: 1.6, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
-          <span className="tiny muted">ad set: {r.metaCampaignId}</span>
+        <span style={{ flex: 1.9, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span className="tiny muted">ad set: {r.metaCampaignId}{r.endDate ? ` · runs until ${fmtDate(r.endDate)}` : ''}</span>
           <span className="tag tag-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>live <Check size={11} /></span>
+          {stoppingId === r.id ? (
+            <>
+              <span className="tiny" style={{ color: 'var(--red)' }}>Stop this campaign now?</span>
+              <button className="btn btn-danger btn-sm" onClick={() => stopCampaign(r.id)}>Confirm stop</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setStoppingId(null)}>Cancel</button>
+            </>
+          ) : (
+            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setStoppingId(r.id)}>Stop</button>
+          )}
         </span>
       </div>
       <Breakup r={r} />
@@ -390,7 +418,7 @@ export default function Marketing() {
       </div>
 
       <div className="tiny hint">
-        activating a paid order requires a real Meta ad set id — reuse the city's shared campaign (create one if this city doesn't have one yet, with Ad Set Budget Optimization, not Campaign Budget Optimization, so one org's spend can never shift into another's), add a new ad set under it for this org, then paste that ad set's id here · the organizer/venue only ever sees what they paid, never this margin or the real ad spend
+        activating a paid order requires a real Meta ad set id — reuse the city's shared campaign (create one if this city doesn't have one yet, with Ad Set Budget Optimization, not Campaign Budget Optimization, so one org's spend can never shift into another's), add a new ad set under it for this org, then paste that ad set's id here · the organizer/venue only ever sees what they paid, never this margin or the real ad spend · end date is optional — leave it blank to run until stopped by hand, or set one to auto-expire it; a live campaign can also be stopped early any time from the Active tab
       </div>
     </div>
   );

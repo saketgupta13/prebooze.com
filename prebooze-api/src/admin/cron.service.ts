@@ -125,6 +125,22 @@ export class CronService {
     if (res.count) this.log.log(`Featured expiry: marked ${res.count} placement(s) expired`);
   }
 
+  /** Same real gap, same fix, for marketing campaigns (2026-10-04) —
+   * MarketingOrder.endDate is optional (admin can leave a campaign running
+   * indefinitely), so this only ever touches rows where one was actually
+   * set at activation time. The admin "Stop now" action already flips
+   * status immediately on its own (MarketingService.adminStopCampaign) —
+   * this tick only ever catches a campaign that was given an end date up
+   * front and simply ran past it unattended. */
+  @Cron('0 * * * *')
+  async marketingExpiryTick() {
+    const res = await this.prisma.marketingOrder.updateMany({
+      where: { status: 'active', endDate: { lte: new Date() } },
+      data: { status: 'expired' },
+    });
+    if (res.count) this.log.log(`Marketing expiry: marked ${res.count} campaign(s) expired`);
+  }
+
   /** Proactive — the manual "Send renewal reminder" button (Expired tab)
    * only ever reaches placements that have *already* lapsed. This runs
    * daily and emails the owner while there's still time to renew, once per
