@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import { Briefcase, Landmark, Check, Download, Radar } from 'lucide-react';
 import { Kpi } from '../components/ui';
-import { liveMarketing, liveInvoices, liveMe, LiveApiError, type LiveMarketingOrder, type LiveMarketingSubscription, type LiveMarketingRates, type LiveInvoice, type LiveMarketingRealPerformance, type LiveStaffMe } from '../lib/liveApi';
+import { liveMarketing, liveInvoices, liveMe, LiveApiError, type LiveMarketingOrder, type LiveMarketingSubscription, type LiveMarketingRates, type LiveInvoice, type LiveMarketingRealPerformance, type LiveAdSpendSummary, type LiveStaffMe } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
@@ -67,6 +67,7 @@ export default function Marketing() {
   const [editDraft, setEditDraft] = useState<{ metaCampaignId: string; endDate: string }>({ metaCampaignId: '', endDate: '' });
   const [realPerf, setRealPerf] = useState<Record<string, LiveMarketingRealPerformance | 'loading' | 'error'>>({});
   const [staffMeta, setStaffMeta] = useState<LiveStaffMe | null>(null);
+  const [adSpendSummary, setAdSpendSummary] = useState<LiveAdSpendSummary | 'loading' | 'error' | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -112,6 +113,15 @@ export default function Marketing() {
       setRealPerf((p) => ({ ...p, [id]: data }));
     } catch {
       setRealPerf((p) => ({ ...p, [id]: 'error' }));
+    }
+  };
+  const refreshAdSpendSummary = async () => {
+    setAdSpendSummary('loading');
+    try {
+      const data = await liveMarketing.adSpendSummary();
+      setAdSpendSummary(data);
+    } catch {
+      setAdSpendSummary('error');
     }
   };
 
@@ -431,7 +441,26 @@ export default function Marketing() {
         {canSeeFinance && <Kpi label="Prebooze margin earned" value={`₹${fmt(marginEarned)}`} delta="real income, all paid orders" deltaColor="var(--green)" />}
         <Kpi label="Lapsed" value={fmt(expired.length)} deltaColor="var(--red)" />
         <Kpi label="Ad spend held" value={`₹${fmt(adSpendHeld)}`} delta="paid, not yet in a live campaign" deltaColor="var(--muted)" />
-        <Kpi label="Ad spend in live campaigns" value={`₹${fmt(adSpendInUse)}`} delta="already spent or spending now" deltaColor="var(--green)" />
+        <Kpi label="Ad spend in live campaigns" value={`₹${fmt(adSpendInUse)}`} delta="budget — see real spend below" deltaColor="var(--muted)" />
+      </div>
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <div className="display" style={{ fontWeight: 700 }}>Real ad spend</div>
+            <div className="tiny muted">Fetched fresh from Meta, lifetime totals — not cached, so this calls Meta once per live/ran campaign each time you refresh.</div>
+          </div>
+          <button className="btn btn-ghost btn-sm" disabled={adSpendSummary === 'loading'} onClick={refreshAdSpendSummary}>
+            {adSpendSummary === 'loading' ? 'Fetching from Meta…' : 'Refresh real spend'}
+          </button>
+        </div>
+        {adSpendSummary === 'error' && <div className="tiny" style={{ color: 'var(--red)' }}>Could not fetch real data from Meta for one or more campaigns.</div>}
+        {adSpendSummary && adSpendSummary !== 'loading' && adSpendSummary !== 'error' && (
+          <div className="kpi-grid">
+            <Kpi label="Currently spending" value={`₹${fmt(adSpendSummary.currentlySpending)}`} delta="real lifetime spend, from Meta" deltaColor="var(--green)" />
+            <Kpi label="Remaining in live campaigns" value={`₹${fmt(adSpendSummary.remainingInLiveCampaigns)}`} delta="budget not yet spent" deltaColor="var(--muted)" />
+          </div>
+        )}
       </div>
 
       {canSeeFinance && (

@@ -222,6 +222,15 @@ export interface LiveMarketingRealPerformance {
   spend: number; impressions: number; reach: number; clicks: number; ctr: number;
   assumedMargin: number; assumedAdSpend: number;
 }
+// Real lifetime spend fetched fresh from Meta across every live/ran
+// campaign (2026-10-04) — on-demand only, one Graph API call per campaign,
+// never auto-fetched on page load. See MarketingService.adminAdSpendSummary.
+export interface LiveAdSpendSummary {
+  heldAwaitingActivation: number;
+  inLiveCampaignsBudget: number;
+  currentlySpending: number;
+  remainingInLiveCampaigns: number;
+}
 
 /** Admin visibility + the Meta-campaign handoff for the organizer/venue-paid
  * ads product (MarketingService) — same read-only-plus-review-queue
@@ -244,6 +253,7 @@ export const liveMarketing = {
   // Real spend/impressions/reach/clicks from Meta, fetched fresh on every
   // call (never cached) — see MetaInsightsService's own doc comment.
   realPerformance: (id: string) => liveFetch<LiveMarketingRealPerformance>(`/admin/marketing/${id}/real-performance`),
+  adSpendSummary: () => liveFetch<LiveAdSpendSummary>('/admin/marketing/ad-spend-summary'),
   reject: (id: string, reason?: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/reject`, { method: 'POST', body: { reason } }),
   rates: () => liveFetch<LiveMarketingRates>('/admin/marketing/rates'),
   updateRates: (body: Partial<LiveMarketingRates>) => liveFetch<LiveMarketingRates>('/admin/marketing/rates', { method: 'PATCH', body }),

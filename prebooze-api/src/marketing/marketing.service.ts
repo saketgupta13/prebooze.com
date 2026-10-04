@@ -561,6 +561,38 @@ export class MarketingService {
     return { ...insights, assumedMargin, assumedAdSpend };
   }
 
+  /** Real aggregate across every live-or-ran campaign (2026-10-04) — the
+   * "ad spend held" liability (see confirmPayment's own comment) never
+   * gets decremented in the ledger as money actually gets spent, so this
+   * is the live view of how much of it is real spend so far vs still
+   * sitting unspent, fetched fresh from Meta each call (same on-demand,
+   * never-cached discipline as MetaInsightsService's own doc comment —
+   * one Graph API call per campaign, so this is a deliberate admin action,
+   * not something the page fires automatically on every load). Lifetime
+   * spend ('maximum' date_preset), not the 7-day default the per-row
+   * "check performance" button uses — what matters against a lifetime
+   * budget is the real lifetime total, not last week's. */
+  async adminAdSpendSummary() {
+    const rows = await this.prisma.marketingOrder.findMany({
+      where: { paymentId: { not: null }, status: { in: ['active', 'expired'] }, metaCampaignId: { not: null } },
+    });
+    let budgetTotal = 0, spendTotal = 0, remaining = 0;
+    for (const row of rows) {
+      const margin = Math.round((row.amount * row.marginPct) / 100);
+      const budget = row.amount - margin;
+      budgetTotal += budget;
+      const insights = await this.metaInsights.getCombinedInsights(row.metaCampaignId!, 'maximum');
+      const spend = insights?.spend ?? 0;
+      spendTotal += spend;
+      remaining += Math.max(0, budget - spend);
+    }
+    const heldAwaitingActivationAgg = await this.prisma.marketingOrder.findMany({
+      where: { paymentId: { not: null }, status: { in: ['pending', 'rejected'] } },
+    });
+    const heldAwaitingActivation = heldAwaitingActivationAgg.reduce((a, r) => a + (r.amount - Math.round((r.amount * r.marginPct) / 100)), 0);
+    return { heldAwaitingActivation, inLiveCampaignsBudget: budgetTotal, currentlySpending: spendTotal, remainingInLiveCampaigns: remaining };
+  }
+
   /** The human handoff point — admin has actually created the real Meta
    * campaign for this order/subscription and is recording its id + marking
    * it live. Requires the order to be paid first (mirrors

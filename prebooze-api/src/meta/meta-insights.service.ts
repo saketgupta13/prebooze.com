@@ -31,10 +31,16 @@ export class MetaInsightsService {
    * rate limit) rather than throwing — this is always a nice-to-have
    * overlay on top of the platform's own real on-site funnel data, never
    * something that should break the page it's shown on. */
-  async getCampaignInsights(campaignId: string): Promise<CampaignInsights | null> {
+  // datePreset is left unset by every existing caller — Graph API then
+  // defaults to the last 7 days, which is what the on-demand "check
+  // performance" button has always shown. 'maximum' (added 2026-10-04,
+  // used only by adminAdSpendSummary) asks for the real lifetime total
+  // instead — the number that actually matters against a lifetime ad set
+  // budget, where a 7-day window would understate what's really been spent.
+  async getCampaignInsights(campaignId: string, datePreset?: string): Promise<CampaignInsights | null> {
     if (!this.live || !campaignId.trim()) return null;
     try {
-      const url = `https://graph.facebook.com/v19.0/${encodeURIComponent(campaignId.trim())}/insights?fields=spend,impressions,reach,clicks,ctr&access_token=${process.env.META_ACCESS_TOKEN}`;
+      const url = `https://graph.facebook.com/v19.0/${encodeURIComponent(campaignId.trim())}/insights?fields=spend,impressions,reach,clicks,ctr${datePreset ? `&date_preset=${datePreset}` : ''}&access_token=${process.env.META_ACCESS_TOKEN}`;
       const res = await fetch(url);
       const body = await res.json();
       if (!res.ok || body.error) {
@@ -64,10 +70,10 @@ export class MetaInsightsService {
    * querying Meta for a combined figure — ctr is recomputed from the
    * summed clicks/impressions instead of averaging the per-campaign ctr
    * values, which would be wrong once campaigns have different volumes. */
-  async getCombinedInsights(campaignIdsCsv: string): Promise<CampaignInsights | null> {
+  async getCombinedInsights(campaignIdsCsv: string, datePreset?: string): Promise<CampaignInsights | null> {
     const ids = campaignIdsCsv.split(',').map((s) => s.trim()).filter(Boolean);
     if (ids.length === 0) return null;
-    const results = await Promise.all(ids.map((id) => this.getCampaignInsights(id)));
+    const results = await Promise.all(ids.map((id) => this.getCampaignInsights(id, datePreset)));
     const found = results.filter((r): r is CampaignInsights => r !== null);
     if (found.length === 0) return null;
     const spend = found.reduce((a, r) => a + r.spend, 0);

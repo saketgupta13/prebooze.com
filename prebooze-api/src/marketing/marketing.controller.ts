@@ -207,6 +207,12 @@ export class AdminMarketingController {
     return this.marketing.adminRealPerformance(id);
   }
 
+  @Get('ad-spend-summary')
+  @RequirePermission('Marketing campaigns', 'view')
+  adSpendSummary() {
+    return this.marketing.adminAdSpendSummary();
+  }
+
   @Post(':id/reject')
   @RequirePermission('Marketing campaigns', 'approve')
   reject(@Param('id') id: string, @Body('reason') reason?: string) {
