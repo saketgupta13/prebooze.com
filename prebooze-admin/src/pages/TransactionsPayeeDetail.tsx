@@ -17,7 +17,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day
 export default function TransactionsPayeeDetail() {
   const session = useLiveSession();
   const { token } = session;
-  const { payeeType, payeeId } = useParams<{ payeeType: 'organizer' | 'venue'; payeeId: string }>();
+  const { payeeType, payeeId } = useParams<{ payeeType: 'organizer' | 'venue' | 'platform'; payeeId: string }>();
 
   const [payeeName, setPayeeName] = useState('');
   const [rows, setRows] = useState<LiveTxEventRow[]>([]);
@@ -70,7 +70,12 @@ export default function TransactionsPayeeDetail() {
 
       <div className="page-hd" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 className="page-title" style={{ marginBottom: 0 }}>{payeeName}</h1>
-        {payeeType && <Tag label={payeeType === 'organizer' ? 'Organizer' : 'Venue'} cls="tag-dim" />}
+        {payeeType && (
+          <Tag
+            label={payeeType === 'organizer' ? 'Organizer' : payeeType === 'venue' ? 'Venue' : 'Prebooze'}
+            cls={payeeType === 'platform' ? 'tag-green' : 'tag-dim'}
+          />
+        )}
       </div>
 
       <div className="kpi-grid">

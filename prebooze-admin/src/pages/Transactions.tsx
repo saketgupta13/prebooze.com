@@ -54,7 +54,7 @@ export default function Transactions() {
           {(from || to) && <button className="btn btn-ghost btn-sm" onClick={() => { setFrom(''); setTo(''); }}>All time</button>}
         </div>
       </div>
-      <div className="tiny muted">Every real sale and refund, grouped by organizer/venue — click a name for the event-by-event breakdown.</div>
+      <div className="tiny muted">Every real sale and refund, grouped by organizer/venue — plus Prebooze's own cut of that same money as its own row. Click a name for the event-by-event breakdown.</div>
 
       <div className="kpi-grid">
         <Kpi label="Sales" value={`₹${fmt(totals.salesTotal)}`} />
@@ -77,7 +77,12 @@ export default function Transactions() {
             <span style={{ flex: 1.4, fontWeight: 700 }}>
               <Link to={`/transactions/payee/${r.payeeType}/${r.payeeId}`} className="link" style={{ color: 'var(--green)' }}>{r.payeeName}</Link>
             </span>
-            <span style={{ flex: 0.9 }}><Tag label={r.payeeType === 'organizer' ? 'Organizer' : 'Venue'} cls="tag-dim" /></span>
+            <span style={{ flex: 0.9 }}>
+              <Tag
+                label={r.payeeType === 'organizer' ? 'Organizer' : r.payeeType === 'venue' ? 'Venue' : 'Prebooze'}
+                cls={r.payeeType === 'platform' ? 'tag-green' : 'tag-dim'}
+              />
+            </span>
             <span style={{ flex: 1 }} className="green">₹{fmt(r.salesTotal)} <span className="tiny muted">({r.salesCount})</span></span>
             <span style={{ flex: 1 }}>
               {r.refundsTotal > 0 ? <span className="red">₹{fmt(r.refundsTotal)} <span className="tiny muted">({r.refundsCount})</span></span> : <span className="tiny muted">—</span>}

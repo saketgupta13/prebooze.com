@@ -1049,7 +1049,10 @@ export const livePayments = {
 };
 
 export interface LiveTxPayeeSummary {
-  payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string;
+  // 'platform' (2026-10-04) is the synthetic "Prebooze (platform income)"
+  // row — its own real commission+fee income, additive alongside every
+  // real organizer/venue row, not a real payee. Excluded from `totals`.
+  payeeType: 'organizer' | 'venue' | 'platform'; payeeId: string; payeeName: string;
   salesCount: number; salesTotal: number;
   refundsCount: number; refundsTotal: number; commissionReversed: number; pendingRefundsCount: number;
   net: number;
@@ -1077,7 +1080,7 @@ export const liveTransactions = {
     const q = new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString();
     return liveFetch<{ rows: LiveTxPayeeSummary[]; totals: { salesTotal: number; refundsTotal: number; net: number } }>(`/admin/transactions${q ? `?${q}` : ''}`);
   },
-  payeeEvents: (payeeType: 'organizer' | 'venue', payeeId: string, from?: string, to?: string) => {
+  payeeEvents: (payeeType: 'organizer' | 'venue' | 'platform', payeeId: string, from?: string, to?: string) => {
     const q = new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString();
     return liveFetch<{ payeeName: string; rows: LiveTxEventRow[] }>(`/admin/transactions/payee/${payeeType}/${encodeURIComponent(payeeId)}${q ? `?${q}` : ''}`);
   },

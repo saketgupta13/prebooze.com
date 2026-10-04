@@ -1,7 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
-type PayeeType = 'organizer' | 'venue';
+type PayeeType = 'organizer' | 'venue' | 'platform';
+// Synthetic payee (2026-10-04) — not a real Organizer/Venue row, used to
+// surface Prebooze's own real income (commission + booking fee, both
+// already real per-booking money, just never shown anywhere in this
+// payee-centric view before) alongside every other payee's own numbers
+// instead of only in Reports' P&L. id/name match PlatformSettings-style
+// synthetic ids elsewhere (see 'prebooze-originals' itself) rather than a
+// row in any real payee table.
+const PLATFORM_PAYEE_ID = 'prebooze';
+const PLATFORM_PAYEE_NAME = 'Prebooze (platform income)';
 
 /** A standalone admin section (2026-09-18) — previously a "Transactions"
  * tab bolted onto /payments, but a raw sale/refund ledger feed isn't really
@@ -49,7 +58,7 @@ export class TransactionsService {
   async payeesSummary(from?: string, to?: string) {
     const bookings = await this.prisma.booking.findMany({
       where: { status: { in: ['confirmed', 'refund_requested', 'refunded'] }, ...this.dateFilter(from, to) },
-      select: { eventId: true, subtotal: true, commission: true, status: true },
+      select: { eventId: true, subtotal: true, commission: true, fee: true, status: true },
     });
     if (!bookings.length) return { rows: [], totals: { salesTotal: 0, refundsTotal: 0, net: 0 } };
 
@@ -62,6 +71,7 @@ export class TransactionsService {
       refundsCount: number; refundsTotal: number; commissionReversed: number;
       pendingRefundsCount: number;
     }>();
+    const platformKey = `platform:${PLATFORM_PAYEE_ID}`;
     for (const b of bookings) {
       const payee = eventMap.get(b.eventId)?.payee;
       if (!payee) continue;
@@ -75,12 +85,36 @@ export class TransactionsService {
       else if (b.status === 'refunded') { g.refundsCount += 1; g.refundsTotal += net; g.commissionReversed += b.commission; }
       else { g.pendingRefundsCount += 1; }
       grouped.set(key, g);
+
+      // Prebooze's own real income on this exact booking — commission +
+      // booking fee, both real money Prebooze actually keeps (fee always;
+      // commission unless a promoter-markup-funded sale deducted none at
+      // all, same "nothing to credit" case creditPayeeForSale encodes).
+      // Shown as its own payee row, additive to the real organizer/venue
+      // row above, same real per-booking money just from Prebooze's own
+      // side rather than the payee's. Prebooze Originals (in-house events,
+      // kept at 0% commission — self-dealing, no real external payee) is
+      // the one exception: the full ticket subtotal is Prebooze's own
+      // money too, same as ReportsService.finance's effectiveCommission.
+      const isPrebozeOriginals = payee.type === 'organizer' && payee.id === 'prebooze-originals';
+      const platformNet = isPrebozeOriginals ? b.subtotal + b.fee : b.commission + b.fee;
+      const pg = grouped.get(platformKey) ?? {
+        payeeType: 'platform' as PayeeType, payeeId: PLATFORM_PAYEE_ID, payeeName: PLATFORM_PAYEE_NAME,
+        salesCount: 0, salesTotal: 0, refundsCount: 0, refundsTotal: 0, commissionReversed: 0, pendingRefundsCount: 0,
+      };
+      if (b.status === 'confirmed') { pg.salesCount += 1; pg.salesTotal += platformNet; }
+      else if (b.status === 'refunded') { pg.refundsCount += 1; pg.refundsTotal += platformNet; }
+      else { pg.pendingRefundsCount += 1; }
+      grouped.set(platformKey, pg);
     }
 
     const rows = [...grouped.values()]
       .map((g) => ({ ...g, net: g.salesTotal - g.refundsTotal }))
       .sort((a, b) => b.net - a.net);
-    const totals = rows.reduce((a, r) => ({ salesTotal: a.salesTotal + r.salesTotal, refundsTotal: a.refundsTotal + r.refundsTotal, net: a.net + r.net }), { salesTotal: 0, refundsTotal: 0, net: 0 });
+    // Totals stay payee-only (organizer+venue) — the platform row is
+    // Prebooze's own cut OF that same money, not additional money moving
+    // through the system, so summing it in here would double-count.
+    const totals = rows.filter((r) => r.payeeType !== 'platform').reduce((a, r) => ({ salesTotal: a.salesTotal + r.salesTotal, refundsTotal: a.refundsTotal + r.refundsTotal, net: a.net + r.net }), { salesTotal: 0, refundsTotal: 0, net: 0 });
     return { rows, totals };
   }
 
@@ -88,8 +122,10 @@ export class TransactionsService {
    * list you land on after clicking a payee in payeesSummary(). */
   async payeeEvents(payeeType: PayeeType, payeeId: string, from?: string, to?: string) {
     const events = await this.prisma.event.findMany({
-      where: payeeType === 'organizer' ? { organizerId: payeeId } : { venueId: payeeId },
-      select: { id: true, title: true, date: true },
+      // 'platform' (the synthetic Prebooze row) covers every event — its
+      // income comes from all of them, not a single organizer's/venue's.
+      where: payeeType === 'organizer' ? { organizerId: payeeId } : payeeType === 'venue' ? { venueId: payeeId } : {},
+      select: { id: true, title: true, date: true, organizerId: true },
     });
     if (!events.length) return { payeeName: '—', rows: [] };
     const eventIds = events.map((e) => e.id);
@@ -97,13 +133,18 @@ export class TransactionsService {
 
     const bookings = await this.prisma.booking.findMany({
       where: { eventId: { in: eventIds }, status: { in: ['confirmed', 'refund_requested', 'refunded'] }, ...this.dateFilter(from, to) },
-      select: { eventId: true, subtotal: true, commission: true, status: true },
+      select: { eventId: true, subtotal: true, commission: true, fee: true, status: true },
     });
 
     const byEvent = new Map<string, { salesCount: number; salesTotal: number; refundsCount: number; refundsTotal: number; commissionReversed: number; pendingRefundsCount: number }>();
     for (const b of bookings) {
       const g = byEvent.get(b.eventId) ?? { salesCount: 0, salesTotal: 0, refundsCount: 0, refundsTotal: 0, commissionReversed: 0, pendingRefundsCount: 0 };
-      const net = b.subtotal - b.commission;
+      // Same per-booking framing as payeesSummary: the platform row's "net"
+      // is Prebooze's own cut (commission+fee, or full subtotal+fee for
+      // Prebooze Originals), everyone else's is what they themselves keep.
+      const isPlatform = payeeType === 'platform';
+      const isPrebozeOriginals = isPlatform && eventById.get(b.eventId)?.organizerId === 'prebooze-originals';
+      const net = isPlatform ? (isPrebozeOriginals ? b.subtotal + b.fee : b.commission + b.fee) : b.subtotal - b.commission;
       if (b.status === 'confirmed') { g.salesCount += 1; g.salesTotal += net; }
       else if (b.status === 'refunded') { g.refundsCount += 1; g.refundsTotal += net; g.commissionReversed += b.commission; }
       else { g.pendingRefundsCount += 1; }
@@ -112,7 +153,9 @@ export class TransactionsService {
 
     const payeeName = payeeType === 'organizer'
       ? (await this.prisma.organizer.findUnique({ where: { id: payeeId }, select: { brandName: true } }))?.brandName ?? '—'
-      : (await this.prisma.venue.findUnique({ where: { id: payeeId }, select: { name: true } }))?.name ?? '—';
+      : payeeType === 'venue'
+        ? (await this.prisma.venue.findUnique({ where: { id: payeeId }, select: { name: true } }))?.name ?? '—'
+        : PLATFORM_PAYEE_NAME;
 
     const rows = eventIds
       .filter((id) => byEvent.has(id))

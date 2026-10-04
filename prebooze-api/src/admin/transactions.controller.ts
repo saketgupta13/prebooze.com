@@ -20,7 +20,7 @@ export class AdminTransactionsController {
   @Get('payee/:payeeType/:payeeId')
   @RequirePermission(MODULE, 'view')
   payeeEvents(
-    @Param('payeeType') payeeType: 'organizer' | 'venue',
+    @Param('payeeType') payeeType: 'organizer' | 'venue' | 'platform',
     @Param('payeeId') payeeId: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
