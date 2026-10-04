@@ -141,7 +141,7 @@ export default function Marketing() {
   const activateOrder = async (id: string) => {
     const metaCampaignId = campaignDraft[id]?.trim();
     if (!metaCampaignId) {
-      setErr('Enter the real Meta campaign id before activating');
+      setErr('Enter the real Meta ad set id before activating');
       return;
     }
     try {
@@ -205,7 +205,7 @@ export default function Marketing() {
             </button>
           )}
         </div>
-        {perf === 'error' && <div className="tiny" style={{ color: 'var(--red)' }}>Could not fetch real data from Meta — check the campaign id(s).</div>}
+        {perf === 'error' && <div className="tiny" style={{ color: 'var(--red)' }}>Could not fetch real data from Meta — check the ad set id(s).</div>}
         {perf && perf !== 'loading' && perf !== 'error' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5 }} className="muted">
             {/* Real spend (and the assumed-vs-actual comparison it implies
@@ -255,8 +255,8 @@ export default function Marketing() {
             <>
               <input
                 className="input" style={{ padding: '5px 8px', width: 160 }}
-                placeholder={r.eventTitle ? 'Meta campaign id' : 'Campaign id(s), comma-separated'}
-                title={r.eventTitle ? undefined : 'A 30-day plan can cover several events — comma-separate a campaign id per event, or however the real campaigns were structured'}
+                placeholder={r.eventTitle ? 'Meta ad set id' : 'Ad set id(s), comma-separated'}
+                title={r.eventTitle ? undefined : 'A 30-day plan can cover several events — comma-separate an ad set id per event, or however the real ad sets were structured'}
                 value={campaignDraft[r.id] ?? ''}
                 onChange={(e) => setCampaignDraft((d) => ({ ...d, [r.id]: e.target.value }))}
               />
@@ -277,7 +277,7 @@ export default function Marketing() {
         <span style={{ flex: 1.2 }} className="muted">{r.eventTitle ?? '30-day subscription period'}</span>
         <span style={{ flex: 0.9 }} className="muted tiny">{fmtDate(r.createdAt)}</span>
         <span style={{ flex: 1.6, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
-          <span className="tiny muted">campaign: {r.metaCampaignId}</span>
+          <span className="tiny muted">ad set: {r.metaCampaignId}</span>
           <span className="tag tag-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>live <Check size={11} /></span>
         </span>
       </div>
@@ -390,7 +390,7 @@ export default function Marketing() {
       </div>
 
       <div className="tiny hint">
-        activating a paid order requires a real Meta campaign id — create the campaign by hand first (same process as the platform's own city-wide campaigns), then paste its id here · the organizer/venue only ever sees what they paid, never this margin or the real ad spend
+        activating a paid order requires a real Meta ad set id — reuse the city's shared campaign (create one if this city doesn't have one yet, with Ad Set Budget Optimization, not Campaign Budget Optimization, so one org's spend can never shift into another's), add a new ad set under it for this org, then paste that ad set's id here · the organizer/venue only ever sees what they paid, never this margin or the real ad spend
       </div>
     </div>
   );
