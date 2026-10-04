@@ -86,7 +86,7 @@ export class ReportsService {
 
     const events = await this.prisma.event.findMany({
       where: { status: { not: 'draft' } },
-      select: { id: true, title: true, category: true, commission: true, paidOut: true, privateCity: true, venue: { select: { city: true } } },
+      select: { id: true, title: true, category: true, commission: true, paidOut: true, privateCity: true, organizerId: true, venue: { select: { city: true } } },
     });
     const scopedEvents = city ? events.filter((e) => (e.venue?.city ?? e.privateCity) === city) : events;
     const scopedEventIds = new Set(scopedEvents.map((e) => e.id));
@@ -102,13 +102,23 @@ export class ReportsService {
       id: e.id, title: e.title, category: e.category, commission: e.commission, paidOut: e.paidOut,
       city: e.venue?.city ?? e.privateCity ?? null,
       revenue: revMap.get(e.id)?.revenue ?? 0,
+      // Prebooze's own in-house events (organizer "prebooze-originals") —
+      // kept at 0% commission in Event.commission itself (self-dealing, no
+      // real payout owed — see adminApprove's own comment), but that same
+      // 0% would also make the P&L treat its full ticket revenue as
+      // nobody's income at all. There's no external organizer here: the
+      // whole ticket revenue genuinely IS Prebooze's own money, so it's
+      // counted as 100% commission for every calculation below (income,
+      // payouts due/paid) without touching the real stored Event.commission
+      // value other code (BookingsService's ledger crediting) still reads.
+      effectiveCommission: e.organizerId === 'prebooze-originals' ? 100 : e.commission,
     }));
-    const selling = enriched.filter((e) => e.commission != null && e.revenue > 0);
+    const selling = enriched.filter((e) => e.effectiveCommission != null && e.revenue > 0);
 
     const revenueByCategory = new Map<string, number>();
     for (const e of enriched) if (e.revenue > 0) revenueByCategory.set(e.category, (revenueByCategory.get(e.category) ?? 0) + e.revenue);
 
-    const commissionIncome = Math.round(selling.reduce((a, e) => a + (e.revenue * (e.commission as number)) / 100, 0));
+    const commissionIncome = Math.round(selling.reduce((a, e) => a + (e.revenue * (e.effectiveCommission as number)) / 100, 0));
     const feeIncome = revenueByEvent.reduce((a, r) => a + (r._sum.fee ?? 0), 0);
     // "Ticket commission" and "Booking fees" are excluded here — they're
     // the exact same real activity as commissionIncome/feeIncome above,
@@ -164,8 +174,8 @@ export class ReportsService {
     const totalExpenses = Object.values(expensesByCat).reduce((a, v) => a + v, 0);
 
     const gross = selling.reduce((a, e) => a + e.revenue, 0);
-    const payoutsDue = Math.round(selling.filter((e) => !e.paidOut).reduce((a, e) => a + (e.revenue - (e.revenue * (e.commission as number)) / 100), 0));
-    const paidOut = Math.round(selling.filter((e) => e.paidOut).reduce((a, e) => a + (e.revenue - (e.revenue * (e.commission as number)) / 100), 0));
+    const payoutsDue = Math.round(selling.filter((e) => !e.paidOut).reduce((a, e) => a + (e.revenue - (e.revenue * (e.effectiveCommission as number)) / 100), 0));
+    const paidOut = Math.round(selling.filter((e) => e.paidOut).reduce((a, e) => a + (e.revenue - (e.revenue * (e.effectiveCommission as number)) / 100), 0));
     const totalIncome = commissionIncome + feeIncome + otherIncome;
     const netProfit = totalIncome - totalExpenses;
     const cash = gross + otherIncome + gstCollected - paidOut - totalExpenses;
@@ -178,7 +188,7 @@ export class ReportsService {
 
     const sellingEvents = [...selling]
       .sort((a, b) => b.revenue - a.revenue)
-      .map((e) => ({ id: e.id, title: e.title, city: e.city, revenue: e.revenue, commission: e.commission as number, commissionAmt: Math.round((e.revenue * (e.commission as number)) / 100), paidOut: e.paidOut }));
+      .map((e) => ({ id: e.id, title: e.title, city: e.city, revenue: e.revenue, commission: e.effectiveCommission as number, commissionAmt: Math.round((e.revenue * (e.effectiveCommission as number)) / 100), paidOut: e.paidOut }));
 
     return {
       commissionIncome, feeIncome, otherIncome, gstCollected, expensesByCat, totalExpenses,
