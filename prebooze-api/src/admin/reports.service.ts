@@ -384,9 +384,14 @@ export class ReportsService {
   async tcs(month: string) {
     const { from, to } = this.monthRange(month);
     const dateWhere = dateRangeWhere(from, to);
+    // 'tcs_adjustment' rows (2026-10-04) are a retroactive backfill for a
+    // sale credited before TCS was turned on for that event — real TCS
+    // withheld, same as a 'sale' row's own tcsAmount, just applied after
+    // the fact. Missing them here would silently under-report a month that
+    // happened to include a backfill.
     const [orgRows, venueRows] = await Promise.all([
-      this.prisma.organizerLedgerTx.findMany({ where: { type: 'sale', tcsAmount: { gt: 0 }, createdAt: dateWhere }, select: { organizerId: true, tcsAmount: true, tcsBaseAmount: true } }),
-      this.prisma.venueLedgerTx.findMany({ where: { type: 'sale', tcsAmount: { gt: 0 }, createdAt: dateWhere }, select: { venueId: true, tcsAmount: true, tcsBaseAmount: true } }),
+      this.prisma.organizerLedgerTx.findMany({ where: { type: { in: ['sale', 'tcs_adjustment'] }, tcsAmount: { gt: 0 }, createdAt: dateWhere }, select: { organizerId: true, tcsAmount: true, tcsBaseAmount: true } }),
+      this.prisma.venueLedgerTx.findMany({ where: { type: { in: ['sale', 'tcs_adjustment'] }, tcsAmount: { gt: 0 }, createdAt: dateWhere }, select: { venueId: true, tcsAmount: true, tcsBaseAmount: true } }),
     ]);
 
     const byPayee = new Map<string, { payeeType: 'organizer' | 'venue'; payeeId: string; grossValue: number; tcsAmount: number }>();

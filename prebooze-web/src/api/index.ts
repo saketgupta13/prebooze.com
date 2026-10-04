@@ -608,11 +608,12 @@ export interface OrgAttendee {
 }
 export interface OrgLedgerTx {
   id: string;
-  // commission_adjustment/commission_gst_adjustment: a one-time retroactive
-  // correction (2026-10-02/03) for a sale credited before the commission or
-  // its GST was actually set on the event — real money, same as a 'sale'
-  // row, just applied after the fact. See `note` for why each one happened.
-  type: 'sale' | 'refund' | 'withdrawal' | 'withdrawal_reversal' | 'commission_adjustment' | 'commission_gst_adjustment';
+  // commission_adjustment/commission_gst_adjustment/tcs_adjustment: a
+  // one-time retroactive correction (2026-10-02/03/04) for a sale credited
+  // before the commission, its GST, or TCS was actually turned on for the
+  // event — real money, same as a 'sale' row, just applied after the fact.
+  // See `note` for why each one happened.
+  type: 'sale' | 'refund' | 'withdrawal' | 'withdrawal_reversal' | 'commission_adjustment' | 'commission_gst_adjustment' | 'tcs_adjustment';
   amount: number;
   eventId?: string;
   eventTitle?: string;
@@ -969,7 +970,7 @@ export const platform = {
 
 export interface VenueLedgerTx {
   id: string;
-  type: 'sale' | 'refund' | 'withdrawal' | 'withdrawal_reversal' | 'commission_adjustment' | 'commission_gst_adjustment';
+  type: 'sale' | 'refund' | 'withdrawal' | 'withdrawal_reversal' | 'commission_adjustment' | 'commission_gst_adjustment' | 'tcs_adjustment';
   amount: number;
   eventId?: string;
   eventTitle?: string;

@@ -414,7 +414,7 @@ model VenueLedgerTx {
   id         String   @id @default(cuid())
   venueId    String
   venue      Venue    @relation(fields: [venueId], references: [id])
-  type       String // sale | refund | withdrawal | commission_adjustment | commission_gst_adjustment
+  type       String // sale | refund | withdrawal | commission_adjustment | commission_gst_adjustment | tcs_adjustment
   amount     Int // + credit, - debit
   eventId    String?
   eventTitle String?
@@ -1888,7 +1888,7 @@ model OrganizerLedgerTx {
   id          String    @id @default(cuid())
   organizerId String
   organizer   Organizer @relation(fields: [organizerId], references: [id])
-  type        String // sale | refund | withdrawal | offline_commission | commission_adjustment | commission_gst_adjustment
+  type        String // sale | refund | withdrawal | offline_commission | commission_adjustment | commission_gst_adjustment | tcs_adjustment
   amount      Int // + credit, - debit
   eventId     String?
   eventTitle  String?

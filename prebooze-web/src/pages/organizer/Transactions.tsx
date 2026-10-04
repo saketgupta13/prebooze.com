@@ -94,7 +94,7 @@ export default function Transactions() {
                     <td>{fmtDate(t.createdAt)}</td>
                     <td className="bold">
                       {t.eventTitle ?? '—'}
-                      {(t.type === 'commission_adjustment' || t.type === 'commission_gst_adjustment') && t.note && (
+                      {(t.type === 'commission_adjustment' || t.type === 'commission_gst_adjustment' || t.type === 'tcs_adjustment') && t.note && (
                         <div className="tiny muted-2" style={{ fontWeight: 400 }}>{t.note}</div>
                       )}
                     </td>
@@ -104,6 +104,7 @@ export default function Transactions() {
                       {t.type === 'refund' && <span className="badge badge-danger">Refund</span>}
                       {t.type === 'commission_adjustment' && <span className="badge badge-pending">Commission correction</span>}
                       {t.type === 'commission_gst_adjustment' && <span className="badge badge-pending">GST correction</span>}
+                      {t.type === 'tcs_adjustment' && <span className="badge badge-pending">TCS correction</span>}
                     </td>
                   </tr>
                   {b && isOpen && (
