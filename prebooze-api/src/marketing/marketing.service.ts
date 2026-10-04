@@ -556,12 +556,16 @@ export class MarketingService {
     if (parsedEndDate && (isNaN(parsedEndDate.getTime()) || parsedEndDate <= new Date())) {
       throw new BadRequestException('End date must be a real date in the future');
     }
+    const wasAlreadyActive = row.status === 'active';
     const updated = await this.prisma.marketingOrder.update({ where: { id }, data: { metaCampaignId, status: 'active', endDate: parsedEndDate } });
 
     // Real notification the moment the campaign actually goes live — before
     // this, the organizer/venue had no way to find out except by refreshing
-    // the Marketing page themselves.
-    const owner = await this.resolveOwnerContact(row);
+    // the Marketing page themselves. Only on the genuine pending→active
+    // transition — this same method doubles as the "edit a live campaign"
+    // path (2026-10-04, ad set id/end date corrections), and re-sending
+    // "your campaign is now live" on every routine edit would be real spam.
+    const owner = wasAlreadyActive ? null : await this.resolveOwnerContact(row);
     if (owner) {
       if (owner.email) {
         await this.email.sendTemplate(owner.email, 'marketing_campaign_active', {

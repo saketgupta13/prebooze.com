@@ -52,6 +52,8 @@ export default function Marketing() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [stoppingId, setStoppingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<{ metaCampaignId: string; endDate: string }>({ metaCampaignId: '', endDate: '' });
   const [realPerf, setRealPerf] = useState<Record<string, LiveMarketingRealPerformance | 'loading' | 'error'>>({});
   const [staffMeta, setStaffMeta] = useState<LiveStaffMe | null>(null);
 
@@ -127,6 +129,11 @@ export default function Marketing() {
   const pending = rows.filter((r) => r.status === 'pending');
   const active = rows.filter((r) => r.status === 'active');
   const expired = rows.filter((r) => r.status === 'expired');
+  // Most recently ended first — endDate is always set once a campaign
+  // actually expires (see MarketingService.adminStopCampaign/
+  // CronService.marketingExpiryTick), so this is a real "most recently
+  // stopped" ordering, not just insertion order.
+  const expiredSorted = [...expired].sort((a, b) => (b.endDate ?? b.createdAt).localeCompare(a.endDate ?? a.createdAt));
   // Real Razorpay Subscriptions recurring billing was fully removed
   // 2026-09-21 (see prebooze_razorpay_complete_removal memory) — every
   // remaining order is a one-time purchase, so there's no split left to
@@ -163,6 +170,24 @@ export default function Marketing() {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to stop');
     }
   };
+  const startEdit = (r: LiveMarketingOrder) => {
+    setEditingId(r.id);
+    setEditDraft({ metaCampaignId: r.metaCampaignId ?? '', endDate: r.endDate ? r.endDate.slice(0, 10) : '' });
+  };
+  const saveEdit = async (id: string) => {
+    const metaCampaignId = editDraft.metaCampaignId.trim();
+    if (!metaCampaignId) {
+      setErr('Ad set id can’t be blank');
+      return;
+    }
+    try {
+      await liveMarketing.setCampaign(id, metaCampaignId, editDraft.endDate ? new Date(`${editDraft.endDate}T23:59:59`).toISOString() : undefined);
+      setEditingId(null);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to save changes');
+    }
+  };
   const reject = async (id: string) => {
     try {
       await liveMarketing.reject(id, rejectReason.trim() || undefined);
@@ -185,10 +210,13 @@ export default function Marketing() {
     }
   };
 
-  // Full money breakup, admin-only — base rate, GST, what Prebooze actually
-  // keeps (margin) vs. what's pass-through ad spend meant to fund the real
-  // Meta campaign. Never shown to the organizer/venue themselves (see this
-  // page's own closing hint).
+  // Full money breakup, admin-only — base rate, GST, and the ad set
+  // lifetime budget (pass-through ad spend, not Prebooze's own money) shown
+  // to anyone with Marketing campaigns access, since whoever actually
+  // builds the Meta ad set needs this number to configure its budget
+  // correctly. Margin (Prebooze's real cut) stays finance-only. Never
+  // shown to the organizer/venue themselves (see this page's own closing
+  // hint).
   const Breakup = ({ r }: { r: LiveMarketingOrder }) => {
     const margin = Math.round((r.amount * r.marginPct) / 100);
     const adSpend = r.amount - margin;
@@ -198,12 +226,12 @@ export default function Marketing() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5 }} className="muted">
           <span>₹{fmt(r.amount)} base{r.gstAmount ? ` + ₹${fmt(r.gstAmount)} GST` : ''} = <span className="bold" style={{ color: 'var(--text)' }}>₹{fmt(r.total ?? r.amount)}</span></span>
+          <span>·</span>
+          <span>ad set lifetime budget <span className="bold" style={{ color: 'var(--text)' }}>₹{fmt(adSpend)}</span></span>
           {canSeeFinance && (
             <>
               <span>·</span>
               <span>margin (ours) <span className="bold green">₹{fmt(margin)}</span></span>
-              <span>·</span>
-              <span>ad spend (theirs) ₹{fmt(adSpend)}</span>
             </>
           )}
           {inv && (
@@ -291,23 +319,46 @@ export default function Marketing() {
 
   const Row = ({ r }: { r: LiveMarketingOrder }) => (
     <div className="trow" style={{ minWidth: 720, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span style={{ flex: 1.4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={r.ownerType} /> {r.entityName}</span>
         <span style={{ flex: 1.2 }} className="muted">{r.eventTitle ?? '30-day subscription period'}</span>
         <span style={{ flex: 0.9 }} className="muted tiny">{fmtDate(r.createdAt)}</span>
-        <span style={{ flex: 1.9, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span className="tiny muted">ad set: {r.metaCampaignId}{r.endDate ? ` · runs until ${fmtDate(r.endDate)}` : ''}</span>
-          <span className="tag tag-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>live <Check size={11} /></span>
-          {stoppingId === r.id ? (
-            <>
-              <span className="tiny" style={{ color: 'var(--red)' }}>Stop this campaign now?</span>
-              <button className="btn btn-danger btn-sm" onClick={() => stopCampaign(r.id)}>Confirm stop</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setStoppingId(null)}>Cancel</button>
-            </>
-          ) : (
-            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setStoppingId(r.id)}>Stop</button>
-          )}
-        </span>
+        {editingId === r.id ? (
+          <span style={{ flex: 2.3, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              className="input" style={{ padding: '5px 8px', width: 160 }}
+              placeholder="Meta ad set id"
+              value={editDraft.metaCampaignId}
+              onChange={(e) => setEditDraft((d) => ({ ...d, metaCampaignId: e.target.value }))}
+            />
+            <input
+              className="input" style={{ padding: '5px 8px', width: 140 }}
+              type="date"
+              title="End date — leave blank to run until manually stopped"
+              value={editDraft.endDate}
+              onChange={(e) => setEditDraft((d) => ({ ...d, endDate: e.target.value }))}
+            />
+            <button className="btn btn-pri btn-sm" onClick={() => saveEdit(r.id)}>Save</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>Cancel</button>
+          </span>
+        ) : (
+          <span style={{ flex: 1.9, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className="tiny muted">ad set: {r.metaCampaignId}{r.endDate ? ` · runs until ${fmtDate(r.endDate)}` : ''}</span>
+            <span className="tag tag-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>live <Check size={11} /></span>
+            {stoppingId === r.id ? (
+              <>
+                <span className="tiny" style={{ color: 'var(--red)' }}>Stop this campaign now?</span>
+                <button className="btn btn-danger btn-sm" onClick={() => stopCampaign(r.id)}>Confirm stop</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setStoppingId(null)}>Cancel</button>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-ghost btn-sm" onClick={() => startEdit(r)}>Edit</button>
+                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setStoppingId(r.id)}>Stop</button>
+              </>
+            )}
+          </span>
+        )}
       </div>
       <Breakup r={r} />
     </div>
@@ -383,6 +434,34 @@ export default function Marketing() {
           <div className="trow muted">No live marketing campaigns.</div>
         ) : (
           active.map((r) => <Row key={r.id} r={r} />)
+        )}
+      </div>
+
+      <div className="tblwrap">
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(139,195,74,.15)' }}>
+          <span className="display" style={{ fontWeight: 700 }}>Past campaigns</span>
+          <span className="small muted">{expired.length} lapsed or stopped</span>
+        </div>
+        <div className="tiny hint" style={{ padding: '0 16px 10px' }}>
+          Every campaign that's run its course or been stopped early stays visible here — stopping a live campaign never hides it, it just moves from Live to this list.
+        </div>
+        {expiredSorted.length === 0 ? (
+          <div className="trow muted">No past campaigns yet.</div>
+        ) : (
+          expiredSorted.map((r) => (
+            <div key={r.id} className="trow" style={{ minWidth: 720, flexDirection: 'column', alignItems: 'stretch', gap: 6, opacity: 0.85 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ flex: 1.4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={r.ownerType} /> {r.entityName}</span>
+                <span style={{ flex: 1.2 }} className="muted">{r.eventTitle ?? '30-day subscription period'}</span>
+                <span style={{ flex: 0.9 }} className="muted tiny">{fmtDate(r.createdAt)}</span>
+                <span style={{ flex: 1.9, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span className="tiny muted">ad set: {r.metaCampaignId ?? '—'}{r.endDate ? ` · ended ${fmtDate(r.endDate)}` : ''}</span>
+                  <span className="tag tag-dim" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>lapsed</span>
+                </span>
+              </div>
+              <Breakup r={r} />
+            </div>
+          ))
         )}
       </div>
 
