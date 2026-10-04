@@ -195,6 +195,12 @@ export class AdminMarketingController {
     return this.marketing.adminStopCampaign(id);
   }
 
+  @Patch(':id/pipeline')
+  @RequirePermission('Marketing campaigns', 'edit')
+  advancePipeline(@Param('id') id: string, @Body('pipelineStatus') pipelineStatus: string) {
+    return this.marketing.adminAdvancePipeline(id, pipelineStatus);
+  }
+
   @Get(':id/real-performance')
   @RequirePermission('Marketing campaigns', 'view')
   realPerformance(@Param('id') id: string) {

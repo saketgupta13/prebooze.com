@@ -189,6 +189,11 @@ export interface LiveMarketingOrder {
   gstAmount: number | null;
   total: number | null;
   status: 'pending' | 'active' | 'rejected' | 'expired';
+  // Forward-only progress while status is 'pending' — see MarketingOrder's
+  // own schema comment. Admin's raw rows always have the real string;
+  // listOrdersForAdmin returns the table row as-is (unlike toPublicOrder's
+  // organizer/venue view, which nulls this out once no longer pending).
+  pipelineStatus: 'requested' | 'received' | 'initiated' | 'processed';
   metaCampaignId: string | null;
   paymentId: string | null;
   createdAt: string;
@@ -235,6 +240,7 @@ export const liveMarketing = {
   subscriptions: () => liveFetch<LiveMarketingSubscription[]>('/admin/marketing/subscriptions'),
   setCampaign: (id: string, metaCampaignId: string, endDate?: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/campaign`, { method: 'PATCH', body: { metaCampaignId, endDate } }),
   stop: (id: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/stop`, { method: 'POST' }),
+  advancePipeline: (id: string, pipelineStatus: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/pipeline`, { method: 'PATCH', body: { pipelineStatus } }),
   // Real spend/impressions/reach/clicks from Meta, fetched fresh on every
   // call (never cached) — see MetaInsightsService's own doc comment.
   realPerformance: (id: string) => liveFetch<LiveMarketingRealPerformance>(`/admin/marketing/${id}/real-performance`),

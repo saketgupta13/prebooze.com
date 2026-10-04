@@ -16,6 +16,17 @@ const SUB_STATUS_LABEL: Record<string, string> = {
   pending: 'payment retrying', halted: 'halted — payment failed', cancelled: 'cancelled', completed: 'completed', expired: 'expired',
 };
 
+// Forward-only progress while a paid order awaits campaign setup — same
+// shape as the payout withdrawal pipeline. Activation (entering the ad set
+// id) is the real terminal step, not a pipeline value — see
+// MarketingService.adminAdvancePipeline's own comment.
+const PIPELINE: { key: LiveMarketingOrder['pipelineStatus']; label: string }[] = [
+  { key: 'requested', label: 'Requested' },
+  { key: 'received', label: 'Received' },
+  { key: 'initiated', label: 'Initiated' },
+  { key: 'processed', label: 'Processed' },
+];
+
 const RATE_FIELDS: { key: keyof LiveMarketingRates; label: string }[] = [
   { key: 'perEvent', label: 'Per event (one-off)' },
   { key: 'day7', label: 'Plan / 7 days' },
@@ -188,6 +199,14 @@ export default function Marketing() {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to save changes');
     }
   };
+  const advancePipeline = async (id: string, next: LiveMarketingOrder['pipelineStatus']) => {
+    try {
+      await liveMarketing.advancePipeline(id, next);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to update status');
+    }
+  };
   const reject = async (id: string) => {
     try {
       await liveMarketing.reject(id, rejectReason.trim() || undefined);
@@ -270,7 +289,10 @@ export default function Marketing() {
     );
   };
 
-  const PendingRow = ({ r }: { r: LiveMarketingOrder }) => (
+  const PendingRow = ({ r }: { r: LiveMarketingOrder }) => {
+    const stageIdx = PIPELINE.findIndex((s) => s.key === r.pipelineStatus);
+    const nextStage = PIPELINE[stageIdx + 1];
+    return (
     <div className="trow" style={{ minWidth: 720, background: 'rgba(255,107,94,.06)', flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ flex: 1.4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={r.ownerType} /> {r.entityName}</span>
@@ -313,9 +335,23 @@ export default function Marketing() {
           )}
         </span>
       </div>
+      {r.paymentId && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {PIPELINE.map((s, i) => (
+            <span key={s.key} className="tiny" style={{ color: i <= stageIdx ? 'var(--text)' : 'var(--muted)', fontWeight: i === stageIdx ? 700 : 400 }}>
+              {s.label}{i < PIPELINE.length - 1 ? ' →' : ''}
+            </span>
+          ))}
+          {nextStage && (
+            <button className="btn btn-ghost btn-sm" onClick={() => advancePipeline(r.id, nextStage.key)}>
+              Mark {nextStage.label.toLowerCase()}
+            </button>
+          )}
+        </div>
+      )}
       {r.paymentId && <Breakup r={r} />}
     </div>
-  );
+  );};
 
   const Row = ({ r }: { r: LiveMarketingOrder }) => (
     <div className="trow" style={{ minWidth: 720, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>

@@ -121,10 +121,12 @@ export class MarketingService {
   // `amount` stays the base rate (unchanged meaning, matches every existing
   // caller); `total` is what was/will be actually charged, amount+GST —
   // equal to amount on every pre-GST-launch or gstEnabled:false order.
-  private async toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; gstPct: number | null; gstAmount: number | null; total: number | null; status: string; createdAt: Date; periodEnd: Date | null; rejectionReason?: string | null; metaCampaignId?: string | null }) {
+  private async toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; gstPct: number | null; gstAmount: number | null; total: number | null; status: string; pipelineStatus?: string; createdAt: Date; periodEnd: Date | null; rejectionReason?: string | null; metaCampaignId?: string | null }) {
     return {
       id: row.id, eventId: row.eventId, eventTitle: row.eventTitle, amount: row.amount,
       gstPct: row.gstPct ?? 0, gstAmount: row.gstAmount ?? 0, total: row.total ?? row.amount, status: row.status,
+      // Only meaningful while status is 'pending' — see schema comment.
+      pipelineStatus: row.status === 'pending' ? (row.pipelineStatus ?? 'requested') : null,
       createdAt: row.createdAt,
       // A real 30-day-plan order (requestForPeriod) is exactly what
       // eventId: null already meant here — this used to be hardcoded false
@@ -592,6 +594,27 @@ export class MarketingService {
     if (!row) throw new NotFoundException('Marketing order not found');
     if (row.status !== 'active') throw new BadRequestException('This campaign is not currently active');
     return this.prisma.marketingOrder.update({ where: { id }, data: { status: 'expired', endDate: new Date() } });
+  }
+
+  private static readonly PIPELINE_ORDER = ['requested', 'received', 'initiated', 'processed'] as const;
+
+  /** Forward-only progress marker while a paid order sits in 'pending' —
+   * same "requested→received→initiated→processed" shape as the payout
+   * withdrawal pipeline, so the organizer/venue can see their order is
+   * actually being worked on instead of a flat "awaiting campaign setup"
+   * the whole time. Activation (adminSetCampaign) is the real terminal
+   * step — it flips `status` itself, not pipelineStatus, so there's no
+   * "complete" value to advance into here. */
+  async adminAdvancePipeline(id: string, pipelineStatus: string) {
+    const row = await this.prisma.marketingOrder.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException('Marketing order not found');
+    if (row.status !== 'pending') throw new BadRequestException('This order is no longer awaiting setup');
+    const order = MarketingService.PIPELINE_ORDER;
+    const from = order.indexOf(row.pipelineStatus as (typeof order)[number]);
+    const to = order.indexOf(pipelineStatus as (typeof order)[number]);
+    if (to === -1) throw new BadRequestException(`Unknown status "${pipelineStatus}"`);
+    if (to <= from) throw new BadRequestException('Can only move the pipeline forward');
+    return this.prisma.marketingOrder.update({ where: { id }, data: { pipelineStatus } });
   }
 
   async adminReject(id: string, reason?: string) {

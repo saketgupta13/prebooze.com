@@ -327,6 +327,9 @@ export interface MarketingOrder {
   gstAmount: number;
   total: number;
   status: 'pending' | 'active' | 'rejected' | 'expired';
+  // Forward-only progress while status is 'pending' — null once it's no
+  // longer pending (see MarketingService.toPublicOrder's own comment).
+  pipelineStatus: 'requested' | 'received' | 'initiated' | 'processed' | null;
   createdAt: string;
   isSubscriptionPeriod: boolean;
   periodStart: string | null;

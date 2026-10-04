@@ -1398,6 +1398,17 @@ model MarketingOrder {
   total     Int?
   status    FeaturedStatus @default(pending)
 
+  // Real forward-only progress through setup, shown to the organizer/venue
+  // while status is 'pending' (2026-10-04) — before this, a paid order sat
+  // as a flat "awaiting campaign setup" badge with no sense of whether
+  // anyone had even looked at it yet. Same shape as OrganizerLedgerTx.
+  // withdrawalStatus's pipeline, minus the separate event-history table —
+  // nothing here needs a reason/utr/staff-attribution audit trail, just a
+  // forward marker. Meaningless once status flips to 'active' — the real
+  // "it's live" signal from then on is status itself, same as before this
+  // field existed.
+  pipelineStatus String @default("requested") // requested | received | initiated | processed
+
   // Filled in by admin once the real Meta campaign has actually been
   // created for this org/venue (AdminMarketingController) — the human
   // handoff point.

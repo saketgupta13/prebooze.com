@@ -16,6 +16,13 @@ const STATUS_LABEL: Record<MarketingOrder['status'], string> = {
 const STATUS_BADGE: Record<MarketingOrder['status'], string> = {
   pending: 'badge-pending', active: 'badge-ok', rejected: 'badge-danger', expired: 'badge-outline',
 };
+// Real progress while 'pending' (2026-10-02) — before this, every paid
+// order just said "awaiting campaign setup" the whole way through, with no
+// way to tell whether anyone had even looked at it yet.
+const PIPELINE_LABEL: Record<NonNullable<MarketingOrder['pipelineStatus']>, string> = {
+  requested: 'Request received', received: 'Our team has picked this up',
+  initiated: 'Campaign setup in progress', processed: 'Campaign ready — going live shortly',
+};
 
 /** Organizer-side of the paid Meta ad marketing product — pay per event, or
  * a rolling 30-day subscription covering every event. Deliberately shows
@@ -301,10 +308,13 @@ export default function Marketing() {
                       an organizer had no way to tell if that was normal or
                       stuck. Our team builds the real Meta campaign by hand
                       after payment, same as every other order; this is
-                      routine, not a sign of a problem. */}
-                  {o.status === 'pending' && (
+                      routine, not a sign of a problem. Now also shows real
+                      forward progress (requested → received → initiated →
+                      processed), not just one flat "pending" message the
+                      whole way through. */}
+                  {o.status === 'pending' && o.pipelineStatus && (
                     <p className="tiny muted" style={{ margin: '8px 0 0' }}>
-                      Payment received — our team is setting up the real Meta ad campaign now. This usually takes a few hours; you'll see it switch to "running" here once it's live.
+                      {PIPELINE_LABEL[o.pipelineStatus]} — this usually takes a few hours; you'll see it switch to "running" here once it's live.
                     </p>
                   )}
                   {o.status === 'active' && o.adPerformance && (
