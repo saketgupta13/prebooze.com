@@ -300,15 +300,30 @@ export class MarketingService {
     // venue's Meta campaign, never Prebooze's own revenue (see this
     // service's own doc comment on marginPct). GST goes to the same
     // "GST collected (payable)" bucket bookings already use — owed to the
-    // government, not real income either. Both were previously never
+    // government, not real income either. All three were previously never
     // posted anywhere at all, so this order's real profit was invisible in
     // every financial report since the feature launched.
     const margin = Math.round((row.amount * row.marginPct) / 100);
+    const adSpend = row.amount - margin;
     await postIncome(this.prisma, {
       category: 'Marketing campaign margin', amount: margin, note: row.eventTitle ?? owner.brand, eventId: row.eventId,
     }).catch(() => {});
     await postIncome(this.prisma, {
       category: 'GST collected (payable)', amount: row.gstAmount ?? 0, note: row.eventTitle ?? owner.brand, eventId: row.eventId,
+    }).catch(() => {});
+    // Real money sitting in the account, earmarked to actually fund this
+    // org's/venue's Meta campaign — not Prebooze's own cash to spend, but
+    // also not nothing: before this, it was invisible in `cash` the same
+    // way margin/GST used to be. Modeled as a held liability (same
+    // income-kind-but-excluded convention as GST/TCS — see
+    // ReportsService.finance's NON_INCOME_CATEGORIES), not released when
+    // the campaign activates: Admin's Marketing page computes "held vs in
+    // live campaigns" live off MarketingOrder.status instead, so this
+    // total never needs decrementing/double-booking the way an actual
+    // expense posting would (that admin spends it by hand on the real
+    // Meta ad set is not a second Prebooze transaction to record).
+    await postIncome(this.prisma, {
+      category: 'Ad spend held for campaign (payable)', amount: adSpend, note: row.eventTitle ?? owner.brand, eventId: row.eventId,
     }).catch(() => {});
 
     return await this.toPublicOrder(updated);

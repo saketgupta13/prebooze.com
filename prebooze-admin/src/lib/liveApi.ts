@@ -737,6 +737,11 @@ export interface LiveFinance {
   // to the government, not real revenue) but counted into `cash` below,
   // since it's real money currently held.
   gstCollected: number;
+  // Real pass-through ad spend organizers/venues have paid for (Marketing
+  // campaign) — real money held in the account, not Prebooze's own
+  // revenue, same "excluded from income, counted into cash" treatment as
+  // gstCollected, just a different kind of liability (2026-10-04).
+  adSpendHeld: number;
   expensesByCat: Record<string, number>;
   totalExpenses: number;
   gross: number;

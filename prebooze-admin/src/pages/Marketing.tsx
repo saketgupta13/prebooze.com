@@ -155,6 +155,18 @@ export default function Marketing() {
   // counted for paid orders (paymentId set), same as what actually posts to
   // the income ledger in MarketingService.confirmPayment.
   const marginEarned = rows.filter((r) => r.paymentId).reduce((a, r) => a + Math.round((r.amount * r.marginPct) / 100), 0);
+  // Real pass-through ad spend, split by whether it's actually been spent
+  // on a live campaign yet — not two different ledger totals (the backing
+  // "Ad spend held for campaign (payable)" liability never gets
+  // decremented, see MarketingService.confirmPayment's own comment), just
+  // this page computing it live off each order's own status, per org.
+  // 'active'/'expired' both count as "in use" — the campaign genuinely ran
+  // either way. 'rejected' stays in "held" since a paid-but-rejected order
+  // has no mechanism to refund the ad spend portion — it's real money
+  // sitting uncollected until someone follows up.
+  const adSpendOf = (r: LiveMarketingOrder) => r.amount - Math.round((r.amount * r.marginPct) / 100);
+  const adSpendHeld = rows.filter((r) => r.paymentId && (r.status === 'pending' || r.status === 'rejected')).reduce((a, r) => a + adSpendOf(r), 0);
+  const adSpendInUse = rows.filter((r) => r.paymentId && (r.status === 'active' || r.status === 'expired')).reduce((a, r) => a + adSpendOf(r), 0);
   const activeSubs = subs.filter((s) => s.status === 'active');
   const haltedSubs = subs.filter((s) => s.status === 'halted');
 
@@ -418,6 +430,8 @@ export default function Marketing() {
         {canSeeFinance && <Kpi label="Active revenue" value={`₹${fmt(activeRevenue)}`} delta="gross, incl. ad spend" deltaColor="var(--muted)" />}
         {canSeeFinance && <Kpi label="Prebooze margin earned" value={`₹${fmt(marginEarned)}`} delta="real income, all paid orders" deltaColor="var(--green)" />}
         <Kpi label="Lapsed" value={fmt(expired.length)} deltaColor="var(--red)" />
+        <Kpi label="Ad spend held" value={`₹${fmt(adSpendHeld)}`} delta="paid, not yet in a live campaign" deltaColor="var(--muted)" />
+        <Kpi label="Ad spend in live campaigns" value={`₹${fmt(adSpendInUse)}`} delta="already spent or spending now" deltaColor="var(--green)" />
       </div>
 
       {canSeeFinance && (

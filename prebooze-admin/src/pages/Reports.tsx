@@ -140,6 +140,7 @@ export default function Reports() {
         ['Income', 'Other income (sponsorships etc.)', Math.round(fin.otherIncome)],
         ['Income', 'Total income', Math.round(fin.totalIncome)],
         ['GST', 'GST collected (payable to government, excluded from income above)', Math.round(fin.gstCollected)],
+        ['Liabilities held', 'Ad spend held for marketing campaigns (not Prebooze revenue, excluded from income above)', Math.round(fin.adSpendHeld)],
         ...Object.entries(fin.expensesByCat).map(([cat, amt]) => ['Expenses', cat, -Math.round(amt)]),
         ['Expenses', 'Total expenses', -Math.round(fin.totalExpenses)],
         ['Summary', 'Net profit', Math.round(fin.netProfit)],
@@ -236,6 +237,12 @@ export default function Reports() {
             <div className="tiny hint" style={{ marginTop: 4 }}>
               GST collected on guests' behalf: ₹{fmt(fin.gstCollected)} — owed to the government on the next GST
               return, deliberately excluded from income/profit above.
+            </div>
+          )}
+          {fin.adSpendHeld > 0 && (
+            <div className="tiny hint" style={{ marginTop: 4 }}>
+              Ad spend held for organizer/venue marketing campaigns: ₹{fmt(fin.adSpendHeld)} — real money in the
+              account meant to fund their Meta ads, not Prebooze's own revenue, excluded from income/profit above.
             </div>
           )}
           <div style={{ height: 10 }} />

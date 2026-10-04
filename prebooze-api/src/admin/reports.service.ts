@@ -142,7 +142,7 @@ export class ReportsService {
     // "GST collected (payable)"), the second isn't even Prebooze's money at
     // all (held under the payee's own GSTIN). Both excluded here the same
     // way.
-    const NON_INCOME_CATEGORIES = ['Ticket commission', 'Booking fees', 'GST collected (payable)', 'Commission GST (payable)', 'TCS collected (held for payee)'];
+    const NON_INCOME_CATEGORIES = ['Ticket commission', 'Booking fees', 'GST collected (payable)', 'Commission GST (payable)', 'TCS collected (held for payee)', 'Ad spend held for campaign (payable)'];
     const otherIncome = (
       await this.prisma.ledgerEntry.aggregate({
         where: { kind: 'income', category: { notIn: NON_INCOME_CATEGORIES }, createdAt: dateWhere, ...ledgerEventFilter },
@@ -168,6 +168,21 @@ export class ReportsService {
       })
     )._sum.amount ?? 0;
 
+    // Same "real money held, not free cash, not Prebooze income" shape as
+    // gstCollected above, kept as its own field rather than folded in
+    // there — this isn't tax, it's pass-through ad-spend an organizer/
+    // venue paid for (MarketingService.confirmPayment), and the P&L's GST
+    // line would mislabel it if merged. Never decremented when a campaign
+    // activates and the money actually gets spent on Meta — see
+    // confirmPayment's own comment for why; Admin's Marketing page shows
+    // the live held-vs-in-use split off MarketingOrder.status instead.
+    const adSpendHeld = (
+      await this.prisma.ledgerEntry.aggregate({
+        where: { kind: 'income', category: 'Ad spend held for campaign (payable)', createdAt: dateWhere, ...ledgerEventFilter },
+        _sum: { amount: true },
+      })
+    )._sum.amount ?? 0;
+
     const expensesByCat: Record<string, number> = {};
     const expenseRows = await this.prisma.ledgerEntry.findMany({ where: { kind: 'expense', createdAt: dateWhere, ...ledgerEventFilter } });
     for (const row of expenseRows) expensesByCat[row.category] = (expensesByCat[row.category] ?? 0) + row.amount;
@@ -178,7 +193,7 @@ export class ReportsService {
     const paidOut = Math.round(selling.filter((e) => e.paidOut).reduce((a, e) => a + (e.revenue - (e.revenue * (e.effectiveCommission as number)) / 100), 0));
     const totalIncome = commissionIncome + feeIncome + otherIncome;
     const netProfit = totalIncome - totalExpenses;
-    const cash = gross + otherIncome + gstCollected - paidOut - totalExpenses;
+    const cash = gross + otherIncome + gstCollected + adSpendHeld - paidOut - totalExpenses;
 
     const refundsPendingAgg = await this.prisma.booking.aggregate({
       where: { status: 'refund_requested', eventId: { in: [...scopedEventIds] }, createdAt: dateWhere },
@@ -191,7 +206,7 @@ export class ReportsService {
       .map((e) => ({ id: e.id, title: e.title, city: e.city, revenue: e.revenue, commission: e.effectiveCommission as number, commissionAmt: Math.round((e.revenue * (e.effectiveCommission as number)) / 100), paidOut: e.paidOut }));
 
     return {
-      commissionIncome, feeIncome, otherIncome, gstCollected, expensesByCat, totalExpenses,
+      commissionIncome, feeIncome, otherIncome, gstCollected, adSpendHeld, expensesByCat, totalExpenses,
       gross, payoutsDue, paidOut, totalIncome, netProfit, cash, refundsPending, sellingEvents,
       revenueByCategory: Object.fromEntries(revenueByCategory),
       settings: { bookingFee: settings.bookingFee },
