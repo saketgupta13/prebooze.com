@@ -2137,7 +2137,18 @@ export class BookingsService {
       // the same real cost twice. Recorded as a separate "Refund losses"
       // expense (aggregated per event, same as the income side) rather than
       // netted directly against the income categories, so gross income and
-      // gross refunds both stay visible.
+      // gross refunds both stay visible. Confirmed by design (2026-10-05
+      // growth audit flagged this as a possible bug): 'Ticket commission'/
+      // 'Booking fees' themselves are NEVER decremented on refund — only
+      // ever incremented at sale time. This doesn't overstate the real P&L
+      // headline though: ReportsService.finance's commissionIncome/
+      // feeIncome are always recomputed live straight from Booking rows
+      // (which correctly exclude refunded ones via LIVE_BOOKING_STATUSES),
+      // never summed from these stale-on-refund ledger categories — see
+      // NON_INCOME_CATEGORIES there. A raw LedgerEntry export/dump of
+      // 'Ticket commission' is the one place this would read as inflated
+      // for an event with real refunds; 'Refund losses' is where that
+      // same money shows up as a real expense instead.
       if (event) {
         // Includes the commission GST + TCS that were withheld on the
         // original sale (see originalSale lookup above) — those liabilities

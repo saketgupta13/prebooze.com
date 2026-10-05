@@ -140,12 +140,18 @@ export class PhonePeService {
    * treats `undefined` as "nothing to save," same as any other method it
    * doesn't recognize. */
   async getPaymentMethod(merchantOrderId: string): Promise<{ method: string; vpa?: string } | undefined> {
-    if (!this.live || merchantOrderId.startsWith('phonepe_dev_')) return { method: 'upi', vpa: 'dev@upi' };
+    // Real inconsistency found 2026-10-05 (growth audit): this returned
+    // lowercase 'upi', written straight to Booking.paymentMethod, while the
+    // Razorpay-era code wrote uppercase 'UPI' — getBaseFeePercent
+    // (gateway-fee.ts) already compares case-insensitively so the fee
+    // itself was never actually wrong, but the stored value should match
+    // the typed PaymentMethod union ('UPI' | 'CARD' | ...) regardless.
+    if (!this.live || merchantOrderId.startsWith('phonepe_dev_')) return { method: 'UPI', vpa: 'dev@upi' };
     try {
       const res = await this.getClient().getOrderStatus(merchantOrderId, true);
       const latest = res.paymentDetails?.[res.paymentDetails.length - 1];
       const rail = latest?.rail as { vpa?: string } | undefined;
-      if (rail?.vpa) return { method: 'upi', vpa: rail.vpa };
+      if (rail?.vpa) return { method: 'UPI', vpa: rail.vpa };
       return undefined;
     } catch {
       return undefined;

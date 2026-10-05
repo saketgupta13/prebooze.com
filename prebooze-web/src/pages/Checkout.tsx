@@ -419,6 +419,15 @@ export default function Checkout() {
   resumePhonePeRef.current = async () => {
     const holdIdToResume = phonepeReturnHoldId;
     if (!holdIdToResume) return;
+    // Real gap found 2026-10-05 (growth audit): 'payment_submitted' barely
+    // fired at all post-PhonePe-cutover — the old Razorpay modal had an
+    // in-page "submit" callback to hang this on, but a redirect flow has no
+    // such moment while the guest is away on PhonePe's own domain. The
+    // guest actually reaching the real PhonePe payment page and coming back
+    // (success or not) is the closest honest equivalent — fired once here,
+    // not inside the retry loop below, so a flaky confirm doesn't count it
+    // more than once per real redirect round trip.
+    track('payment_submitted', { eventId: event?.id });
     const raw = sessionStorage.getItem(`pb_phonepe_${holdIdToResume}`);
     if (!raw) {
       setResumingPhonePe(false);
