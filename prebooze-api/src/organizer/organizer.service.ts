@@ -1487,6 +1487,16 @@ export class OrganizerService {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
     if (commission != null && (commission < 0 || commission > 100)) throw new BadRequestException('commission must be between 0 and 100');
+    // Hard-locked, not just a default (2026-10-05, confirmed with Saket
+    // after a growth audit found an event on this organizer with real
+    // locked-in nonzero commission mid-sale, from before this existed) —
+    // prebooze-originals is Prebooze's own in-house organizer, charging
+    // itself commission is a real-money wash, never a business decision
+    // someone should be able to opt back into by hand. Same reasoning as
+    // adminApprove's own default-commission exclusion for this organizer.
+    if (event.organizerId === 'prebooze-originals' && commission !== 0) {
+      throw new BadRequestException('prebooze-originals is Prebooze’s own in-house organizer — commission is permanently locked at 0%');
+    }
     return this.prisma.event.update({ where: { id: eventId }, data: { commission } });
   }
 
