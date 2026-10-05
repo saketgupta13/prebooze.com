@@ -185,7 +185,17 @@ export default function PayoutDetail() {
                 ₹{fmt(r.net)}
                 {r.paidOut && r.payoutUtr && <span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>{r.payoutUtr}</span>}
                 {!r.paidOut && r.payeeBalance !== null && r.payeeBalance < r.net && (
-                  <span className="tiny" style={{ display: 'block', fontWeight: 400, color: 'var(--red)' }}>already withdrawn — only ₹{fmt(r.payeeBalance)} left</span>
+                  <span className="tiny" style={{ display: 'block', fontWeight: 400, color: 'var(--red)' }}>
+                    {/* Balance is reserved the instant a self-serve withdrawal is
+                        REQUESTED (OrganizerService.withdraw), not just once it's
+                        actually paid — so a lower balance here often means a
+                        still-pending request, not a completed payout. Real
+                        confusion this caused: "already withdrawn" read as "we
+                        already sent this money" when it just meant "they asked
+                        for it and haven't been paid yet" — hasOpenWithdrawal
+                        (the banner above) is exactly that same signal. */}
+                    {detail.hasOpenWithdrawal ? 'pending withdrawal request' : 'already withdrawn'} — only ₹{fmt(r.payeeBalance)} left uncollected
+                  </span>
                 )}
               </span>
               <span style={{ flex: 0.9, display: 'flex', justifyContent: 'flex-end' }}>

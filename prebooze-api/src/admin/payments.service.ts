@@ -357,9 +357,18 @@ export class PaymentsService {
     const balance = await this.payeeBalance(payeeType, payeeId);
     if (net > balance) {
       const already = net - balance;
+      // Real confusion this message used to cause: a self-serve withdrawal
+      // reserves the balance the instant it's REQUESTED (OrganizerService.
+      // withdraw), not once it's actually paid — so "already been
+      // self-withdrawn" was flatly wrong whenever the real cause was a
+      // still-pending request, not a completed payout. Distinguishes the
+      // two using the exact same signal payeeDetail's hasOpenWithdrawal
+      // already surfaces on the admin UI.
+      const openWithdrawalPayees = already > 0 ? await this.openWithdrawalPayees() : null;
+      const hasOpenWithdrawal = openWithdrawalPayees?.has(`${payeeType}:${payeeId}`) ?? false;
       throw new BadRequestException(
         already > 0
-          ? `This event's payout is ₹${net.toLocaleString('en-IN')}, but only ₹${balance.toLocaleString('en-IN')} of that is still uncollected — the rest (₹${already.toLocaleString('en-IN')}) looks like it's already been self-withdrawn. Check the Withdrawal requests tab before marking this paid.`
+          ? `This event's payout is ₹${net.toLocaleString('en-IN')}, but only ₹${balance.toLocaleString('en-IN')} of that is still uncollected — the rest (₹${already.toLocaleString('en-IN')}) ${hasOpenWithdrawal ? "is reserved by a pending self-serve withdrawal request they haven't been paid yet" : 'looks like it has already been self-withdrawn and paid'}. Check the Withdrawal requests tab before marking this paid.`
           : `This event's payout (₹${net.toLocaleString('en-IN')}) exceeds this ${payeeType}'s current balance (₹${balance.toLocaleString('en-IN')}) — can't mark it paid.`
       );
     }
