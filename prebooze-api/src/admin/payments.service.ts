@@ -257,12 +257,18 @@ export class PaymentsService {
 
     const naiveDue = events.filter((r) => !r.paidOut).reduce((a, r) => a + r.net, 0);
     const dueTotal = Math.max(0, Math.min(naiveDue, balance));
+    // Real lifetime total — every event's own net (post commission/GST/TCS),
+    // paid or not, across this payee's entire history. Distinct from
+    // `balance` (which nets out everything they've already withdrawn) —
+    // this is "how much have they ever actually earned from us", not
+    // "how much is currently sitting uncollected".
+    const lifetimeEarned = events.reduce((a, r) => a + r.net, 0);
 
     const withdrawals = await this.payeeWithdrawals(payeeType, payeeId);
     const hasOpenWithdrawal = withdrawals.some((w) => w.status !== 'complete' && w.status !== 'rejected');
 
     return {
-      payeeType, payeeId, payeeName, balance, dueTotal, hasOpenWithdrawal,
+      payeeType, payeeId, payeeName, balance, dueTotal, lifetimeEarned, hasOpenWithdrawal,
       events: events.map((r) => ({ ...r, payeeBalance: r.paidOut ? null : balance })),
       withdrawals,
     };

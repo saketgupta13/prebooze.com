@@ -988,7 +988,12 @@ export interface LivePayeeEventRow {
   payeeBalance: number | null;
 }
 export interface LivePayeeDetail {
-  payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string; balance: number; dueTotal: number; hasOpenWithdrawal: boolean;
+  payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string; balance: number; dueTotal: number;
+  // Every event's own net (post commission/GST/TCS), paid or not, across
+  // this payee's whole history — "how much have they ever earned from us",
+  // distinct from `balance` which nets out what they've already withdrawn.
+  lifetimeEarned: number;
+  hasOpenWithdrawal: boolean;
   events: LivePayeeEventRow[];
   withdrawals: (Omit<LiveWithdrawalRow, 'payeeType' | 'payeeId' | 'payeeName'> & { statusEvents: LivePayoutStatusEvent[] })[];
 }

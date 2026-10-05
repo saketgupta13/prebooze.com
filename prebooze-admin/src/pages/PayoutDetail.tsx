@@ -140,6 +140,7 @@ export default function PayoutDetail() {
       </div>
 
       <div className="kpi-grid">
+        <div className="kpi"><div className="l">Lifetime earned from us</div><div className="v green">₹{fmt(detail.lifetimeEarned)}</div></div>
         <div className="kpi"><div className="l">Current balance</div><div className="v">₹{fmt(detail.balance)}</div></div>
         <div className="kpi"><div className="l">Due now</div><div className="v" style={{ color: detail.dueTotal > 0 ? 'var(--red)' : undefined }}>₹{fmt(detail.dueTotal)}</div></div>
       </div>
