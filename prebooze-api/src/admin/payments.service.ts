@@ -551,6 +551,7 @@ export class PaymentsService {
       const user = await this.payeeUser(payeeType, payeeId);
       if (user) await this.email.sendTemplate(user.email, 'payout_processed', { name: user.name, amount: money(amount), role: payeeType }).catch(() => {});
       await this.notifications.notify('💸', `Withdrawal marked complete — ₹${amount.toLocaleString('en-IN')} · ${utr}`, '/admin/payments');
+      await this.reconcilePaidEvents(payeeType, payeeId, utr);
       return { ok: true };
     }
 
@@ -560,6 +561,65 @@ export class PaymentsService {
     await update({ withdrawalStatus: next.status });
     await this.prisma.payoutStatusEvent.create({ data: { payeeType, payeeId, ledgerTxId: row.id, status: next.status, staffEmail } });
     return { ok: true };
+  }
+
+  /** Real gap found 2026-10-05 — a self-serve withdrawal isn't tied to any
+   * specific event (an organizer/venue can draw down their combined
+   * balance across several events in one request), so completing one never
+   * had any way to tell markPaid's separate event-level flow that money
+   * for a given event had, in fact, already gone out. Events sat forever
+   * showing "not paid" with "Mark paid…" permanently disabled (payeeBalance
+   * stays 0 — it was reserved at REQUEST time, completing doesn't change
+   * it) even once the real transfer had genuinely happened, which read as
+   * stuck/broken to staff. Runs after every real 'complete' transition:
+   * walks this payee's unpaid events oldest-first, and marks any whose net
+   * is now fully covered by their all-time total of COMPLETED withdrawals
+   * (not just this one — covers the same "draws spanning multiple events"
+   * case the Royal Flush/Hum Tum & Hangover investigation surfaced).
+   * Deliberately conservative: only marks an event paid once its full net
+   * fits under what's actually been sent, never partially / never guesses
+   * which specific event a given withdrawal "was for". `utr` is the real
+   * reference from the self-serve request that was just completed — reused
+   * on the reconciled event(s) directly instead of a placeholder string, so
+   * admin sees the actual transfer reference, not just that one exists.
+   *
+   * Critical filter: `eventId: null`. markPaid() ALSO creates a
+   * type:'withdrawal' row born already 'complete' (admin's own event-level
+   * payout flow), but that row IS tied to the specific event it just paid
+   * (eventId set) and that event's paidOut is already true from markPaid
+   * itself — summing it in here too would double-count money that's
+   * already spoken for against a different, already-settled event. Only a
+   * genuine self-serve draw (OrganizerService.withdraw /
+   * VenueService.withdraw) ever leaves eventId null. */
+  private async reconcilePaidEvents(payeeType: 'organizer' | 'venue', payeeId: string, utr: string) {
+    const completedAgg = payeeType === 'organizer'
+      ? await this.prisma.organizerLedgerTx.aggregate({ where: { organizerId: payeeId, type: 'withdrawal', withdrawalStatus: 'complete', eventId: null }, _sum: { amount: true } })
+      : await this.prisma.venueLedgerTx.aggregate({ where: { venueId: payeeId, type: 'withdrawal', withdrawalStatus: 'complete', eventId: null }, _sum: { amount: true } });
+    const totalCompleted = Math.abs(completedAgg._sum.amount ?? 0);
+    if (totalCompleted <= 0) return;
+
+    const rows = await this.eventPayoutRows();
+    const unpaid = rows
+      .filter((r) => r.payeeType === payeeType && r.payeeId === payeeId && !r.paidOut)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    let cumulative = 0;
+    const toMarkPaid: string[] = [];
+    for (const r of unpaid) {
+      cumulative += r.net;
+      if (cumulative <= totalCompleted) toMarkPaid.push(r.id);
+      else break; // oldest-first — once one event isn't fully covered, none further along the queue are either
+    }
+    if (toMarkPaid.length) {
+      // Real caveat: when more than one self-serve withdrawal combines to
+      // cover an event (or one withdrawal spans several events), this UTR
+      // is just the one that happened to trigger reconciliation — not
+      // necessarily the only transfer behind that event's money. Still far
+      // more useful than a placeholder: the real Payout tracking section
+      // below has the full withdrawal-by-withdrawal history if admin needs
+      // the exact breakdown.
+      await this.prisma.event.updateMany({ where: { id: { in: toMarkPaid } }, data: { paidOut: true, payoutUtr: utr } });
+    }
   }
 
   /** Marks a rejected withdrawal request's underlying issue as actually
