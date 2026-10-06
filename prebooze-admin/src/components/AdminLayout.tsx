@@ -98,13 +98,14 @@ const SECTION_NAV = [...MAIN_NAV, ...CONTENT_NAV, ...EXTRA_NAV];
 // staff.service.ts — identical strings on both sides) actually gates each
 // route's data on the backend. Mirrors every RequirePermission(MODULE, …)
 // call site exactly, including the few surprising reuses (Settings/
-// Refer&earn/Invoices/Promoter payouts all share 'Payments & payouts'
-// because their controllers do) — this only decides whether the *link* is
-// shown, so it has to match what the API would actually let the request
-// through for, not what the label suggests. '/reports' got its own
-// 'Financial reports' module (2026-10-06, split out of 'Payments &
-// payouts' so a Finance role can read reports without also being able to
-// trigger real payouts) — see reports.controller.ts and
+// Refer&earn/Promoter payouts all share 'Payments & payouts' because their
+// controllers do) — this only decides whether the *link* is shown, so it
+// has to match what the API would actually let the request through for,
+// not what the label suggests. '/reports' and '/invoices' each got their
+// own module (2026-10-06, split out of 'Payments & payouts' so a role —
+// e.g. a CA who only needs to read reports/invoices — doesn't also need
+// access to real payout-moving actions just to get there) — see
+// reports.controller.ts/invoices-admin.controller.ts and
 // permissions.util.ts's resolvePermissions for the existing-role carryover.
 // '/staff' and '/profile' aren't
 // in here: staff&role management is Owner-only and isn't part of the
@@ -133,7 +134,7 @@ const NAV_MODULE: Record<string, string> = {
   '/payments': 'Payments & payouts',
   '/transactions': 'Transactions',
   '/promoter-payouts': 'Payments & payouts',
-  '/invoices': 'Payments & payouts',
+  '/invoices': 'Invoices',
   '/finance': 'Payments & payouts',
   '/settlements': 'Payments & payouts',
   '/promos': 'Promo codes',

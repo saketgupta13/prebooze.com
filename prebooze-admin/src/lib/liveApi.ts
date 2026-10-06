@@ -1318,7 +1318,7 @@ export const liveSettlements = {
 
 export const PERM_MODULES = [
   'Dashboard', 'Events & approvals', 'Event commission (per event)', 'Bookings', 'Refunds',
-  'Payments & payouts', 'Financial reports', 'Transactions', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
+  'Payments & payouts', 'Financial reports', 'Invoices', 'Transactions', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
   'Verifications (KYC)', 'Reviews', 'Locations', 'Abandoned carts', 'Featured', 'Marketing campaigns', 'Content',
   'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Analytics', 'Leads', 'Support tickets',
 ] as const;

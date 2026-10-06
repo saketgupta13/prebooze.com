@@ -7,6 +7,7 @@ export const PERM_MODULES = [
   'Refunds',
   'Payments & payouts',
   'Financial reports',
+  'Invoices',
   'Transactions',
   'Customers',
   'Organizers',
@@ -73,6 +74,9 @@ export function resolvePermissions(role: { permissions: unknown; defaultOpen: bo
       // see Reports loses that the moment this ships; an Owner/admin can
       // narrow it afterward per role if they want the split enforced.
       : m === 'Financial reports' ? (stored['Financial reports'] ?? stored['Payments & payouts'] ?? fallback)
+      // 'Invoices' is new (2026-10-06), same split + same carryover
+      // reasoning as 'Financial reports' immediately above.
+      : m === 'Invoices' ? (stored.Invoices ?? stored['Payments & payouts'] ?? fallback)
       : (stored[m] ?? fallback),
     ]),
   );

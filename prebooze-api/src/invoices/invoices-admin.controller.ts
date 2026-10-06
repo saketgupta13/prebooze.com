@@ -5,7 +5,11 @@ import { StaffAuthGuard } from '../admin/staff-auth.guard';
 import { PermissionGuard } from '../admin/permission.guard';
 import { RequirePermission } from '../admin/permission.decorator';
 
-const MODULE = 'Payments & payouts';
+// Split 2026-10-06 from 'Payments & payouts' — same reasoning as Financial
+// reports (reports.controller.ts): a role that only needs to read/export
+// real tax invoices (e.g. for a CA) shouldn't also need access to real
+// payout-moving actions just to get there.
+const MODULE = 'Invoices';
 
 @Controller('admin/invoices')
 @UseGuards(StaffAuthGuard, PermissionGuard)
