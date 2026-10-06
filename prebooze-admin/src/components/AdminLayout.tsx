@@ -97,11 +97,16 @@ const SECTION_NAV = [...MAIN_NAV, ...CONTENT_NAV, ...EXTRA_NAV];
 // Which PERM_MODULES cell (see prebooze-admin's data.ts / prebooze-api's
 // staff.service.ts — identical strings on both sides) actually gates each
 // route's data on the backend. Mirrors every RequirePermission(MODULE, …)
-// call site exactly, including the few surprising reuses (Settings/Reports/
+// call site exactly, including the few surprising reuses (Settings/
 // Refer&earn/Invoices/Promoter payouts all share 'Payments & payouts'
 // because their controllers do) — this only decides whether the *link* is
 // shown, so it has to match what the API would actually let the request
-// through for, not what the label suggests. '/staff' and '/profile' aren't
+// through for, not what the label suggests. '/reports' got its own
+// 'Financial reports' module (2026-10-06, split out of 'Payments &
+// payouts' so a Finance role can read reports without also being able to
+// trigger real payouts) — see reports.controller.ts and
+// permissions.util.ts's resolvePermissions for the existing-role carryover.
+// '/staff' and '/profile' aren't
 // in here: staff&role management is Owner-only and isn't part of the
 // delegatable matrix at all (OwnerOnlyGuard), and a staffer's own profile
 // page has no permission gate on the backend — both handled as special
@@ -133,7 +138,7 @@ const NAV_MODULE: Record<string, string> = {
   '/settlements': 'Payments & payouts',
   '/promos': 'Promo codes',
   '/reviews': 'Reviews',
-  '/reports': 'Payments & payouts',
+  '/reports': 'Financial reports',
   '/analytics': 'Analytics',
   '/banners': 'Content',
   '/reels': 'Reels',

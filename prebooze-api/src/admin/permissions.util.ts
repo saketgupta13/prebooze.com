@@ -6,6 +6,7 @@ export const PERM_MODULES = [
   'Bookings',
   'Refunds',
   'Payments & payouts',
+  'Financial reports',
   'Transactions',
   'Customers',
   'Organizers',
@@ -61,7 +62,18 @@ export function resolvePermissions(role: { permissions: unknown; defaultOpen: bo
       // not 'Analytics', so this falls back to that exact old value before
       // falling all the way back to defaultOpen. Keeps every existing
       // role's Analytics access exactly what its Reports access already was.
-      m === 'Analytics' ? (stored.Analytics ?? stored.Reports ?? fallback) : (stored[m] ?? fallback),
+      m === 'Analytics' ? (stored.Analytics ?? stored.Reports ?? fallback)
+      // 'Financial reports' is new (2026-10-06) — split out of 'Payments &
+      // payouts' because that module also gates real payout actions
+      // (mark-paid, advancing a withdrawal), so a Finance role that only
+      // needed to READ reports had no way to get that without also being
+      // able to trigger real payouts. No existing role has this key stored
+      // yet, so every one falls back to its own CURRENT 'Payments &
+      // payouts' value (not just defaultOpen) — nobody who could already
+      // see Reports loses that the moment this ships; an Owner/admin can
+      // narrow it afterward per role if they want the split enforced.
+      : m === 'Financial reports' ? (stored['Financial reports'] ?? stored['Payments & payouts'] ?? fallback)
+      : (stored[m] ?? fallback),
     ]),
   );
 }
