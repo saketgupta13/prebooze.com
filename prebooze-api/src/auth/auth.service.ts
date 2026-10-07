@@ -17,6 +17,18 @@ const OTP_TTL_S = 300; // 5 minutes
 const MAX_VERIFY_ATTEMPTS = 5;
 const MAX_OTPS_PER_HOUR = 5;
 
+// Play/App Store review bypass (2026-10-07) — a store reviewer can't
+// receive a real WhatsApp OTP sent to someone else's phone, so Google's
+// "Sign in details" requirement needs one fixed, scoped login path a
+// reviewer can complete themselves. Both env vars, never hardcoded, so the
+// real values never sit in git history and can be rotated without a
+// deploy. requestOtp() is untouched — a real OTP still gets sent to this
+// number every time, it's simply never the one that's actually checked
+// here. Scoped to ONE phone number only: every other number still goes
+// through the real `rec.code !== code` check below, completely unchanged.
+const PLAY_REVIEW_TEST_PHONE = process.env.PLAY_REVIEW_TEST_PHONE || null;
+const PLAY_REVIEW_TEST_OTP = process.env.PLAY_REVIEW_TEST_OTP || null;
+
 /** "+91 9990001111" — collapse whitespace, keep leading + and digits. */
 export function normalizePhone(raw: string): string {
   const cleaned = raw.trim().replace(/[^\d+]/g, '');
@@ -160,7 +172,8 @@ export class AuthService {
       await this.redis.del(key);
       throw new UnauthorizedException('Too many attempts — request a new OTP');
     }
-    if (rec.code !== code) {
+    const isReviewBypass = PLAY_REVIEW_TEST_PHONE && PLAY_REVIEW_TEST_OTP && rec.phone === PLAY_REVIEW_TEST_PHONE && code === PLAY_REVIEW_TEST_OTP;
+    if (!isReviewBypass && rec.code !== code) {
       rec.attempts += 1;
       const ttl = await this.redis.ttl(key);
       await this.redis.set(key, JSON.stringify(rec), 'EX', Math.max(ttl, 1));
