@@ -206,7 +206,7 @@ export class BookingsService {
       preTcsCredit: params.preTcsCredit, ticketSubtotal: params.ticketSubtotal, commissionAmt: params.commissionAmt,
       payeeState: event.organizer?.state ?? event.venue?.state ?? null,
       gstEnabled: settings?.gstEnabled ?? false, commissionGstPct: settings?.commissionGstPct ?? 18,
-      tcsEnabled: settings?.tcsEnabled ?? false, tcsPct: settings?.tcsPct ?? 1,
+      tcsEnabled: settings?.tcsEnabled ?? false, tcsPct: settings?.tcsPct ?? 0.5,
     });
 
     if (event.hostedByVenue && event.venueId) {
@@ -1745,7 +1745,7 @@ export class BookingsService {
         preTcsCredit: subtotal - commission, ticketSubtotal: subtotal, commissionAmt: commission,
         payeeState: offlineOrganizer?.state ?? null,
         gstEnabled: settings?.gstEnabled ?? false, commissionGstPct: settings?.commissionGstPct ?? 18,
-        tcsEnabled: settings?.tcsEnabled ?? false, tcsPct: settings?.tcsPct ?? 1,
+        tcsEnabled: settings?.tcsEnabled ?? false, tcsPct: settings?.tcsPct ?? 0.5,
       });
       await tx.organizerLedgerTx.create({
         data: {

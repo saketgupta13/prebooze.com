@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { BookingStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { istDateKey, istDayStart, istDayEnd } from '../common/ist-date';
+import { PREBOOZE_GST_STATE } from '../common/gst';
 
 // Statuses that still hold inventory / haven't had their revenue reversed —
 // mirrors the same set BookingsService treats as "not yet given back" (see
@@ -453,17 +454,25 @@ export class ReportsService {
         const name = v.payeeType === 'organizer' ? orgMap.get(v.payeeId)?.brandName : venueMap.get(v.payeeId)?.name;
         const state = v.payeeType === 'organizer' ? orgMap.get(v.payeeId)?.state : venueMap.get(v.payeeId)?.state;
         const gstin = v.payeeType === 'organizer' ? orgGstinMap.get(v.payeeId) : venueGstinMap.get(v.payeeId);
-        const half = Math.round(v.tcsAmount / 2);
+        // Same intra/inter-state comparison payout-breakdown.ts's computeGst
+        // call uses — the payee's own state vs Prebooze's Maharashtra
+        // registration. A whole payee's monthly total is either all
+        // same-state or all inter-state (their registered state doesn't
+        // change mid-month), so splitting the aggregate this way matches
+        // what summing each sale's own computeGst() result would give.
+        const sameState = !state || state.trim().toLowerCase() === PREBOOZE_GST_STATE.toLowerCase();
+        const half = sameState ? Math.round(v.tcsAmount / 2) : 0;
         return {
           payeeType: v.payeeType, payeeId: v.payeeId, payeeName: name ?? v.payeeId, gstin: gstin ?? null, state: state ?? null,
-          grossValue: Math.round(v.grossValue), tcsAmount: Math.round(v.tcsAmount), cgst: half, sgst: v.tcsAmount - half,
+          grossValue: Math.round(v.grossValue), tcsAmount: Math.round(v.tcsAmount),
+          cgst: half, sgst: sameState ? v.tcsAmount - half : 0, igst: sameState ? 0 : v.tcsAmount,
         };
       })
       .sort((a, b) => b.tcsAmount - a.tcsAmount);
 
     const totals = rows.reduce(
-      (a, r) => ({ grossValue: a.grossValue + r.grossValue, tcsAmount: a.tcsAmount + r.tcsAmount, cgst: a.cgst + r.cgst, sgst: a.sgst + r.sgst }),
-      { grossValue: 0, tcsAmount: 0, cgst: 0, sgst: 0 },
+      (a, r) => ({ grossValue: a.grossValue + r.grossValue, tcsAmount: a.tcsAmount + r.tcsAmount, cgst: a.cgst + r.cgst, sgst: a.sgst + r.sgst, igst: a.igst + r.igst }),
+      { grossValue: 0, tcsAmount: 0, cgst: 0, sgst: 0, igst: 0 },
     );
 
     return { month, rows, totals };

@@ -103,7 +103,7 @@ export class PaymentsService {
         preTcsCredit: revenue - commissionAmt, ticketSubtotal: revenue, commissionAmt,
         payeeState: e.organizer?.state ?? e.venue?.state ?? null,
         gstEnabled: settings?.gstEnabled ?? false, commissionGstPct: settings?.commissionGstPct ?? 18,
-        tcsEnabled: settings?.tcsEnabled ?? false, tcsPct: settings?.tcsPct ?? 1,
+        tcsEnabled: settings?.tcsEnabled ?? false, tcsPct: settings?.tcsPct ?? 0.5,
       });
       return {
         id: e.id,
@@ -349,7 +349,7 @@ export class PaymentsService {
       preTcsCredit: revenue - commissionAmt, ticketSubtotal: revenue, commissionAmt,
       payeeState: event.organizer?.state ?? event.venue?.state ?? null,
       gstEnabled: settings?.gstEnabled ?? false, commissionGstPct: settings?.commissionGstPct ?? 18,
-      tcsEnabled: settings?.tcsEnabled ?? false, tcsPct: settings?.tcsPct ?? 1,
+      tcsEnabled: settings?.tcsEnabled ?? false, tcsPct: settings?.tcsPct ?? 0.5,
     });
     const net = breakdown.net;
 

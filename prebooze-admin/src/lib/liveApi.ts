@@ -808,12 +808,12 @@ export interface LiveGstReport {
 }
 export interface LiveTcsRow {
   payeeType: 'organizer' | 'venue'; payeeId: string; payeeName: string; gstin: string | null; state: string | null;
-  grossValue: number; tcsAmount: number; cgst: number; sgst: number;
+  grossValue: number; tcsAmount: number; cgst: number; sgst: number; igst: number;
 }
 export interface LiveTcsReport {
   month: string;
   rows: LiveTcsRow[];
-  totals: { grossValue: number; tcsAmount: number; cgst: number; sgst: number };
+  totals: { grossValue: number; tcsAmount: number; cgst: number; sgst: number; igst: number };
 }
 export const liveReports = {
   finance: (city?: string, from?: string, to?: string) => liveFetch<LiveFinance>('/admin/reports/finance' + reportQs(city, from, to)),

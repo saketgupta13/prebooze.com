@@ -1192,10 +1192,12 @@ model PlatformSettings {
   // registration in every state an event happens in — tcsEnabled stays off
   // until that's actually done; flipping it on before registration is
   // complete would mean withholding money with nowhere compliant to send
-  // it. 1% is the statutory rate as of this writing; kept editable in case
-  // that ever changes, not because it's expected to vary by state/payee.
+  // it. 0.5% is the statutory rate as of this writing (Notification No.
+  // 52/2018-Central Tax -- 0.25% CGST + 0.25% SGST intra-state, halved
+  // from the Section 52 ceiling of 1%); kept editable in case that ever
+  // changes, not because it's expected to vary by state/payee.
   tcsEnabled Boolean @default(false)
-  tcsPct     Int     @default(1)
+  tcsPct     Float   @default(0.5)
 
   updatedAt DateTime @updatedAt
 }

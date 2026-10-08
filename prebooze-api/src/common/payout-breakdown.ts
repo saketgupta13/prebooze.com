@@ -1,4 +1,4 @@
-import { computeGst, type GstBreakdown } from './gst';
+import { computeGst, zeroGst, type GstBreakdown } from './gst';
 
 export interface PayoutBreakdown {
   preTcsCredit: number;
@@ -18,6 +18,7 @@ export interface PayoutBreakdown {
   tcsAmount: number;
   tcsCgstAmount: number;
   tcsSgstAmount: number;
+  tcsIgstAmount: number;
   // What the organizer/venue actually receives — preTcsCredit minus
   // commission GST and TCS. This is the real number that changes the
   // moment either gets switched on; every payout-facing screen must show
@@ -40,13 +41,11 @@ export interface PayoutBreakdown {
  * commission-GST/TCS existed — that duplication is exactly how a shown
  * "due" amount could drift from what actually got paid.
  *
- * TCS is deliberately always split CGST+SGST (never IGST): unlike
- * commission GST (Prebooze's own supply, measured against Prebooze's
- * single Maharashtra registration, so a different-state payee genuinely is
- * inter-state), a TCS registration is always local to wherever the event
- * itself happens — once registered in every state Prebooze operates in (the
- * whole point of a multi-state TCS registration), a TCS collection there is
- * definitionally intra-state relative to that registration. */
+ * TCS follows the exact same intra/inter-state split as commission GST —
+ * same-state-as-payeeState charges CGST+SGST (half each), a different state
+ * charges a single IGST line — reusing computeGst's comparison against
+ * PREBOOZE_GST_STATE (Maharashtra) rather than a separate rule, so the two
+ * taxes never silently disagree about which payees are "local". */
 export function computePayoutBreakdown(params: {
   // What would be credited before any TCS deduction — organizerCredit in
   // the booking context (subtotal-commission normally, or baseSubtotal in
@@ -70,10 +69,11 @@ export function computePayoutBreakdown(params: {
 }): PayoutBreakdown {
   const { preTcsCredit, ticketSubtotal, commissionAmt, payeeState, gstEnabled, commissionGstPct, tcsEnabled, tcsPct } = params;
   const commissionGst = gstEnabled && commissionAmt > 0 ? computeGst(commissionAmt, commissionGstPct, payeeState) : { gstPct: 0, gstAmount: 0, cgstAmount: 0, sgstAmount: 0, igstAmount: 0 };
-  const tcsAmount = tcsEnabled ? Math.round((ticketSubtotal * tcsPct) / 100) : 0;
-  const tcsHalf = Math.round(tcsAmount / 2);
-  const tcsCgstAmount = tcsHalf;
-  const tcsSgstAmount = tcsAmount - tcsHalf;
+  const tcsSplit = tcsEnabled ? computeGst(ticketSubtotal, tcsPct, payeeState) : zeroGst();
+  const tcsAmount = tcsSplit.gstAmount;
+  const tcsCgstAmount = tcsSplit.cgstAmount;
+  const tcsSgstAmount = tcsSplit.sgstAmount;
+  const tcsIgstAmount = tcsSplit.igstAmount;
   const net = preTcsCredit - commissionGst.gstAmount - tcsAmount;
-  return { preTcsCredit, commissionAmt, commissionGst, tcsAmount, tcsCgstAmount, tcsSgstAmount, net };
+  return { preTcsCredit, commissionAmt, commissionGst, tcsAmount, tcsCgstAmount, tcsSgstAmount, tcsIgstAmount, net };
 }

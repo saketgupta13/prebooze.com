@@ -66,9 +66,9 @@ export default function GstReport() {
     if (!tcs) return;
     const rows: (string | number)[][] = [
       [`Prebooze — TCS report (GSTR-8 shaped)`, monthLabel(month)],
-      ['Supplier', 'Type', 'GSTIN', 'State', 'Gross value of supplies (₹)', 'TCS collected (₹)', 'CGST (₹)', 'SGST (₹)'],
-      ...tcs.rows.map((r) => [r.payeeName, r.payeeType, r.gstin ?? '', r.state ?? '', r.grossValue, r.tcsAmount, r.cgst, r.sgst]),
-      ['Total', '', '', '', tcs.totals.grossValue, tcs.totals.tcsAmount, tcs.totals.cgst, tcs.totals.sgst],
+      ['Supplier', 'Type', 'GSTIN', 'State', 'Gross value of supplies (₹)', 'TCS collected (₹)', 'CGST (₹)', 'SGST (₹)', 'IGST (₹)'],
+      ...tcs.rows.map((r) => [r.payeeName, r.payeeType, r.gstin ?? '', r.state ?? '', r.grossValue, r.tcsAmount, r.cgst, r.sgst, r.igst]),
+      ['Total', '', '', '', tcs.totals.grossValue, tcs.totals.tcsAmount, tcs.totals.cgst, tcs.totals.sgst, tcs.totals.igst],
     ];
     downloadCsv(`prebooze-tcs-${month}.csv`, rows);
   };
@@ -202,7 +202,10 @@ export default function GstReport() {
                 <span style={{ flex: 1.1 }} className="tiny muted">{r.gstin ?? 'not on file'}</span>
                 <span style={{ flex: 0.9 }} className="muted">{r.state ?? '—'}</span>
                 <span style={{ flex: 1 }}>₹{fmt(r.grossValue)}</span>
-                <span style={{ flex: 0.9, fontWeight: 700 }}>₹{fmt(r.tcsAmount)} <span className="tiny muted">(₹{fmt(r.cgst)}+₹{fmt(r.sgst)})</span></span>
+                <span style={{ flex: 0.9, fontWeight: 700 }}>
+                  ₹{fmt(r.tcsAmount)}{' '}
+                  <span className="tiny muted">{r.igst > 0 ? `(IGST ₹${fmt(r.igst)})` : `(₹${fmt(r.cgst)}+₹${fmt(r.sgst)})`}</span>
+                </span>
               </div>
             ))}
             {tcs.rows.length === 0 && <div className="trow muted">No TCS withheld in {monthLabel(month)}.</div>}
