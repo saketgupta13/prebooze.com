@@ -186,15 +186,17 @@ export default function SettingsLive() {
           <Toggle on={settings.tcsEnabled} onChange={() => set('tcsEnabled', !settings.tcsEnabled)} />
           <span style={{ fontSize: 13 }}>Collect TCS (stays OFF until a real TCS registration exists in every state an event actually happens in)</span>
         </div>
-        <div className="field" style={{ width: 120 }}>
-          <label>TCS %</label>
+        <div className="field" style={{ width: 160 }}>
+          <label>TCS % (intra-state, Maharashtra)</label>
           <input className="input" inputMode="decimal" value={settings.tcsPct} onChange={(e) => set('tcsPct', parseFloat(e.target.value) || 0)} />
         </div>
         <div className="tiny hint">
           GST Act s.52 — Prebooze is an e-commerce operator collecting payment centrally and settling organizers/
           venues later, so it must withhold this % of their GROSS ticket revenue (never Prebooze's own commission) and
           deposit it under the payee's own GSTIN via GSTR-8, not as Prebooze's own tax — this isn't your income or
-          expense, just a pass-through withholding. Doesn't apply to self-collected offline bookings (the organizer
+          expense, just a pass-through withholding. This % is the intra-state rate (payee in Maharashtra, split
+          CGST+SGST); a payee in any other state is automatically charged <b>double this as a single IGST line</b> —
+          not independently editable here. Doesn't apply to self-collected offline bookings (the organizer
           holds that cash directly — Prebooze never collects it, so there's no ECO collection event to withhold
           against). <b>Do not switch this on before your CA confirms the registration is actually in place</b> —
           withholding money with nowhere compliant to deposit it is worse than not collecting it at all.

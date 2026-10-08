@@ -1192,10 +1192,12 @@ model PlatformSettings {
   // registration in every state an event happens in — tcsEnabled stays off
   // until that's actually done; flipping it on before registration is
   // complete would mean withholding money with nowhere compliant to send
-  // it. 0.5% is the statutory rate as of this writing (Notification No.
-  // 52/2018-Central Tax -- 0.25% CGST + 0.25% SGST intra-state, halved
-  // from the Section 52 ceiling of 1%); kept editable in case that ever
-  // changes, not because it's expected to vary by state/payee.
+  // it. tcsPct is the INTRA-state rate (payee in Maharashtra): 0.5% as
+  // of this writing (Notification No. 52/2018-Central Tax -- 0.25%
+  // CGST + 0.25% SGST). A payee in any other state is charged DOUBLE
+  // this as a single IGST line (1% by default, per Notification No.
+  // 02/2018-Integrated Tax) -- see payout-breakdown.ts's own doc
+  // comment. Kept editable in case the notified rate ever changes.
   tcsEnabled Boolean @default(false)
   tcsPct     Float   @default(0.5)
 

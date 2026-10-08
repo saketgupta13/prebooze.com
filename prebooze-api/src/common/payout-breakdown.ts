@@ -1,4 +1,4 @@
-import { computeGst, zeroGst, type GstBreakdown } from './gst';
+import { computeGst, PREBOOZE_GST_STATE, type GstBreakdown } from './gst';
 
 export interface PayoutBreakdown {
   preTcsCredit: number;
@@ -41,11 +41,13 @@ export interface PayoutBreakdown {
  * commission-GST/TCS existed — that duplication is exactly how a shown
  * "due" amount could drift from what actually got paid.
  *
- * TCS follows the exact same intra/inter-state split as commission GST —
- * same-state-as-payeeState charges CGST+SGST (half each), a different state
- * charges a single IGST line — reusing computeGst's comparison against
- * PREBOOZE_GST_STATE (Maharashtra) rather than a separate rule, so the two
- * taxes never silently disagree about which payees are "local". */
+ * Unlike commission GST, TCS does NOT charge the same total rate both ways
+ * — tcsPct (0.5% by default) is the INTRA-state rate (payee in Maharashtra,
+ * split 0.25% CGST + 0.25% SGST); a payee in any other state is charged
+ * double that as a single IGST line (1% by default). This mirrors the two
+ * separate GST TCS rate notifications (52/2018-Central Tax for intra-state,
+ * 02/2018-Integrated Tax for inter-state) rather than reusing computeGst's
+ * same-rate-different-split model, which only fits ordinary GST. */
 export function computePayoutBreakdown(params: {
   // What would be credited before any TCS deduction — organizerCredit in
   // the booking context (subtotal-commission normally, or baseSubtotal in
@@ -69,11 +71,16 @@ export function computePayoutBreakdown(params: {
 }): PayoutBreakdown {
   const { preTcsCredit, ticketSubtotal, commissionAmt, payeeState, gstEnabled, commissionGstPct, tcsEnabled, tcsPct } = params;
   const commissionGst = gstEnabled && commissionAmt > 0 ? computeGst(commissionAmt, commissionGstPct, payeeState) : { gstPct: 0, gstAmount: 0, cgstAmount: 0, sgstAmount: 0, igstAmount: 0 };
-  const tcsSplit = tcsEnabled ? computeGst(ticketSubtotal, tcsPct, payeeState) : zeroGst();
-  const tcsAmount = tcsSplit.gstAmount;
-  const tcsCgstAmount = tcsSplit.cgstAmount;
-  const tcsSgstAmount = tcsSplit.sgstAmount;
-  const tcsIgstAmount = tcsSplit.igstAmount;
+  const tcsSameState = !payeeState || payeeState.trim().toLowerCase() === PREBOOZE_GST_STATE.toLowerCase();
+  // Inter-state TCS is double the intra-state rate (1% vs 0.5% by default),
+  // not just a different split of the same rate — see this function's own
+  // doc comment for why computeGst's model doesn't apply here.
+  const tcsRate = tcsSameState ? tcsPct : tcsPct * 2;
+  const tcsAmount = tcsEnabled ? Math.round((ticketSubtotal * tcsRate) / 100) : 0;
+  const tcsHalf = tcsSameState ? Math.round(tcsAmount / 2) : 0;
+  const tcsCgstAmount = tcsSameState ? tcsHalf : 0;
+  const tcsSgstAmount = tcsSameState ? tcsAmount - tcsHalf : 0;
+  const tcsIgstAmount = tcsSameState ? 0 : tcsAmount;
   const net = preTcsCredit - commissionGst.gstAmount - tcsAmount;
   return { preTcsCredit, commissionAmt, commissionGst, tcsAmount, tcsCgstAmount, tcsSgstAmount, tcsIgstAmount, net };
 }
