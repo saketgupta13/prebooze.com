@@ -1,9 +1,13 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../prisma.service';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private jwt: JwtService) {}
+  constructor(
+    private jwt: JwtService,
+    private prisma: PrismaService,
+  ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest();
@@ -17,6 +21,11 @@ export class JwtAuthGuard implements CanActivate {
       // outright rather than letting `req.user.sub` come back undefined and
       // fail ambiguously downstream.
       if (!payload.sub || !payload.phone) throw new Error('not a guest token');
+      // Tokens are valid for 30 days — a deleted account's existing session
+      // must stop working immediately, not just once the token expires, so
+      // deletion is checked on every request rather than relying on expiry.
+      const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, select: { deletedAt: true } });
+      if (!user || user.deletedAt) throw new Error('account deleted');
       req.user = payload;
       return true;
     } catch {

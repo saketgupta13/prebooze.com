@@ -73,6 +73,14 @@ model User {
   idVerified    Boolean @default(false)
   profilePct    Int     @default(20)
   blocked       Boolean @default(false) // admin action — see AdminCustomersController; enforced at booking creation
+  // Self-service deletion (AuthService.deleteAccount) — set once, never
+  // cleared. Personal fields get scrubbed at the same time; financial/
+  // booking rows are deliberately kept (under this same anonymized id) for
+  // accounting/dispute history, never hard-deleted. `phone` is rewritten to
+  // a sentinel so the real number frees up for a fresh signup, and
+  // JwtAuthGuard rejects any token for a user with deletedAt set, so an
+  // old session can't keep acting as this account after deletion.
+  deletedAt     DateTime?
 
   // one number = one elevated role (enforced in service layer too).
   // `role` is only ever set by an admin approving a KycSubmission — never

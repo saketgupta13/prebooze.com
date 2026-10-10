@@ -62,6 +62,12 @@ export class AuthController {
     return this.auth.updateMe(req.user.sub, patch);
   }
 
+  @Post('me/delete')
+  @UseGuards(JwtAuthGuard)
+  deleteAccount(@Req() req: { user: { sub: string } }) {
+    return this.auth.deleteAccount(req.user.sub);
+  }
+
   /** Real guest avatar upload — same local-disk StorageService as every
    * other role's logo upload (organizer/venue/lineup), just guest-scoped.
    * Guests had no real photo upload at all before this. */

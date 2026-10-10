@@ -268,6 +268,50 @@ export class AuthService {
     return toApiUser(user);
   }
 
+  /** Self-service account deletion — required by Apple/Google for any app
+   * that creates accounts (phone+OTP auto-creates one on first login here).
+   * Scrubs personal info and frees the real phone number for a future
+   * signup (by rewriting it to a sentinel, since `phone` is unique), but
+   * deliberately does NOT touch Organizer/Venue/Promoter/Lineup business
+   * profile rows or any Booking/Transaction/Event history — those stay
+   * intact under this same user id for accounting/dispute records and so a
+   * real guest's past receipts/bookings don't end up pointing at a wiped
+   * organizer. `deletedAt` is what actually locks the account out — see
+   * JwtAuthGuard, which rejects any token for a user with it set. */
+  async deleteAccount(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+    if (user.deletedAt) return { ok: true };
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          phone: `deleted:${userId}`,
+          name: 'Deleted user',
+          email: '',
+          avatarUrl: null,
+          dob: '',
+          age: null,
+          gender: '',
+          profession: '',
+          languages: '',
+          bio: '',
+          socials: '',
+          socialLinks: {},
+          interests: [],
+          city: '',
+          state: null,
+          country: null,
+          pincode: null,
+          deletedAt: new Date(),
+        },
+      }),
+      this.prisma.pushToken.deleteMany({ where: { userId } }),
+    ]);
+    return { ok: true };
+  }
+
   /** Self-serve login-number change, step 1 of 2 — same OTP mechanics as
    * requestOtp (rate limit, 4-digit code, 5 min TTL, WhatsApp delivery) but
    * scoped to the calling user and a specific new number, not anonymous
