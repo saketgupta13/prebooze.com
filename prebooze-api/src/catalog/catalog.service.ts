@@ -548,30 +548,30 @@ export class CatalogService {
     // just the ones under the currently-selected state, instead of showing
     // every enabled city regardless of state.
     const cities = await this.prisma.city.findMany({ where: { enabled: true }, orderBy: { sort: 'asc' }, include: { state: true } });
-    // Three counts, not one — a private-address or unlisted-venue event has
-    // no venueId to group by, so it'd silently vanish from every city's
-    // tally without this.
-    const [venueCounts, privateCounts, unlistedCounts] = await Promise.all([
-      this.prisma.event.groupBy({ by: ['venueId'], where: { status: 'approved', venueId: { not: null } }, _count: true }),
-      this.prisma.event.groupBy({ by: ['privateCity'], where: { status: 'approved', privateCity: { not: null } }, _count: true }),
-      this.prisma.event.groupBy({ by: ['unlistedVenueCity'], where: { status: 'approved', unlistedVenueCity: { not: null } }, _count: true }),
+    // `events` here means LIVE events only (isEventOver false), not every
+    // approved event ever — a city whose only approved events are all past
+    // must show as empty, same as the main Home/Categories browse already
+    // treats a past event as invisible. Was previously a groupBy COUNT with
+    // no date filter at all (2026-10-11 fix): a city with 30 past events
+    // and zero upcoming ones showed as "has events" in the picker/footer,
+    // which is exactly backwards for "where can I actually book something
+    // right now." Fetches raw rows instead of groupBy since isEventOver's
+    // cutoff depends on each row's own durationHrs/seriesEndDate, same
+    // reasoning as events()'s own isEventOver filter above.
+    const [venues, liveEvents] = await Promise.all([
+      this.prisma.venue.findMany({ select: { id: true, city: true } }),
+      this.prisma.event.findMany({
+        where: { status: 'approved' },
+        select: { venueId: true, privateCity: true, unlistedVenueCity: true, date: true, durationHrs: true, seriesEndDate: true },
+      }),
     ]);
-    // map venueId -> city, then aggregate counts per city
-    const venues = await this.prisma.venue.findMany({ select: { id: true, city: true } });
     const venueCity = new Map(venues.map((v) => [v.id, v.city]));
     const eventsByCity = new Map<string, number>();
-    for (const c of venueCounts) {
-      const city = venueCity.get(c.venueId!);
+    for (const e of liveEvents) {
+      if (CatalogService.isEventOver(e)) continue;
+      const city = e.venueId ? venueCity.get(e.venueId) : (e.privateCity ?? e.unlistedVenueCity);
       if (!city) continue;
-      eventsByCity.set(city, (eventsByCity.get(city) ?? 0) + c._count);
-    }
-    for (const c of privateCounts) {
-      if (!c.privateCity) continue;
-      eventsByCity.set(c.privateCity, (eventsByCity.get(c.privateCity) ?? 0) + c._count);
-    }
-    for (const c of unlistedCounts) {
-      if (!c.unlistedVenueCity) continue;
-      eventsByCity.set(c.unlistedVenueCity, (eventsByCity.get(c.unlistedVenueCity) ?? 0) + c._count);
+      eventsByCity.set(city, (eventsByCity.get(city) ?? 0) + 1);
     }
     // Real venue count per city too, not just events — a city can have a
     // real, live venue onboarded before its first event goes up, and
