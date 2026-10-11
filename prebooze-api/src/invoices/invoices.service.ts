@@ -45,16 +45,31 @@ export class InvoicesService {
 
   /** Sequential, gap-free numbering (Indian GST invoicing convention) via an
    * atomic counter increment in the same transaction as the row create —
-   * two concurrent bookings can never be handed the same number. */
+   * two concurrent bookings can never be handed the same number.
+   *
+   * Two series, never mixed: the original 'main' counter (INV-{year}-NNNNNN)
+   * numbered invoices #1-#71, back when GST wasn't consistently live yet.
+   * 2026-10-11 — discussed with Saket, confirmed nothing had been filed
+   * against those numbers yet (CA hadn't touched GSTR-1/3B referencing
+   * them) — invoices #72 onward (the ones genuinely issued once GST was
+   * live) were renumbered into a fresh 'gst' counter under the INV-GST-
+   * {year}-NNNNNN prefix, restarting at 000001 (see the one-time
+   * renumber-gst-invoices script, not kept in the repo). Deliberately a
+   * DIFFERENT prefix, not a reset of 'main' — reusing INV-2026-000001
+   * would collide with whatever the original #1 once was (now deleted,
+   * but if it was ever actually issued to someone, two different
+   * documents must never share a number). Every invoice from here on uses
+   * this 'gst' counter permanently — GST is live and staying on, so there
+   * is no longer a "pre-GST" case to keep the old counter around for. */
   async create(input: CreateInvoiceInput) {
     const year = new Date().getFullYear();
     return this.prisma.$transaction(async (tx) => {
       const counter = await tx.invoiceCounter.upsert({
-        where: { id: 'main' },
+        where: { id: 'gst' },
         update: { value: { increment: 1 } },
-        create: { id: 'main', value: 1 },
+        create: { id: 'gst', value: 1 },
       });
-      const number = `INV-${year}-${String(counter.value).padStart(6, '0')}`;
+      const number = `INV-GST-${year}-${String(counter.value).padStart(6, '0')}`;
       return tx.invoice.create({
         data: {
           number,
