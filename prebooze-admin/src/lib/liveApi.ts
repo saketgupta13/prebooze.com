@@ -1607,12 +1607,18 @@ export interface LiveInvoice {
   payerName: string;
   payerEmail: string | null;
   payerPhone: string | null;
+  payerBrand: string | null;
+  payerGstin: string | null;
+  payerPan: string | null;
   city: string | null;
   description: string;
   subtotal: number;
   fee: number;
   discount: number;
   walletCredit: number;
+  gstPct: number;
+  gstAmount: number;
+  igstAmount: number;
   total: number;
   status: string;
   issuedAt: string;

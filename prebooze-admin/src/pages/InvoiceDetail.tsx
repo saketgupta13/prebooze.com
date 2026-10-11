@@ -121,6 +121,8 @@ export default function InvoiceDetail() {
           {inv.payerEmail && <div className="tiny muted">{inv.payerEmail}</div>}
           {inv.payerPhone && <div className="tiny muted">{inv.payerPhone}</div>}
           {inv.city && <div className="tiny muted">{inv.city}</div>}
+          {inv.payerGstin && <div className="tiny muted">GSTIN: {inv.payerGstin}</div>}
+          {inv.payerPan && <div className="tiny muted">PAN: {inv.payerPan}</div>}
           <div className="tiny muted">Role: {ROLE_LABEL[inv.role] ?? inv.role}</div>
         </div>
 
@@ -139,6 +141,27 @@ export default function InvoiceDetail() {
               <span style={{ flex: 1, textAlign: 'right' }} className="muted">₹{fmt(inv.fee)}</span>
             </div>
           )}
+          {/* Same igstAmount>0-means-inter-state branch as invoice-pdf.ts —
+              this on-screen view had silently drifted from the PDF (which
+              already got this fix 2026-08-28), jumping straight from
+              subtotal/fee to TOTAL with no GST line at all (2026-10-11). */}
+          {inv.igstAmount > 0 ? (
+            <div className="trow">
+              <span style={{ flex: 2 }} className="muted">IGST ({inv.gstPct}%)</span>
+              <span style={{ flex: 1, textAlign: 'right' }} className="muted">₹{fmt(inv.igstAmount)}</span>
+            </div>
+          ) : inv.gstAmount > 0 ? (
+            <>
+              <div className="trow">
+                <span style={{ flex: 2 }} className="muted">CGST ({inv.gstPct / 2}%)</span>
+                <span style={{ flex: 1, textAlign: 'right' }} className="muted">₹{fmt(Math.round(inv.gstAmount / 2))}</span>
+              </div>
+              <div className="trow">
+                <span style={{ flex: 2 }} className="muted">SGST ({inv.gstPct / 2}%)</span>
+                <span style={{ flex: 1, textAlign: 'right' }} className="muted">₹{fmt(inv.gstAmount - Math.round(inv.gstAmount / 2))}</span>
+              </div>
+            </>
+          ) : null}
           {inv.discount > 0 && (
             <div className="trow">
               <span style={{ flex: 2 }} className="muted">Discount</span>

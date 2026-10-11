@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ticket, Star } from 'lucide-react';
+import { Ticket, Star, Radar, Percent } from 'lucide-react';
+import type { ComponentType } from 'react';
 import { CityFilterDropdown, Kpi, Tag } from '../components/ui';
 import { liveInvoices, LiveApiError, type LiveInvoice } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
@@ -9,9 +10,15 @@ import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 const TITLE = 'Invoices';
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
 const ROLE_LABEL: Record<string, string> = { guest: 'Guest', organizer: 'Organizer', promoter: 'Promoter', venue: 'Venue', lineup: 'Line-up' };
+// Matches InvoicesService.CreateInvoiceInput's real `type` union exactly —
+// everything that isn't 'booking' used to fall through to "Featured" below,
+// silently mislabeling every real marketing/commission invoice (2026-10-11).
+const TYPE_LABEL: Record<string, string> = { booking: 'Booking', featured: 'Featured', marketing: 'Marketing', commission: 'Commission' };
+const TYPE_ICON: Record<string, ComponentType<{ size?: number }>> = { booking: Ticket, featured: Star, marketing: Radar, commission: Percent };
 
 /** Every real payment received (booking) or billable request (featured
- * placement), from every role — real InvoicesService.list, server-side
+ * placement, marketing campaign, Prebooze commission), from every role —
+ * real InvoicesService.list, server-side
  * filtered (role/city/type/date range) same as the mock's filter set. */
 export default function Invoices() {
   const session = useLiveSession();
@@ -94,6 +101,8 @@ export default function Invoices() {
           <option value="All">All types</option>
           <option value="booking">Booking</option>
           <option value="featured">Featured</option>
+          <option value="marketing">Marketing</option>
+          <option value="commission">Commission</option>
         </select>
         <input className="input" type="date" style={{ width: 140 }} value={from} onChange={(e) => setFrom(e.target.value)} title="From date" />
         <span className="tiny muted">–</span>
@@ -114,7 +123,9 @@ export default function Invoices() {
         {list.map((inv) => (
           <div key={inv.id} className="trow clickable" style={{ minWidth: 900 }} onClick={() => navigate(`/invoices/${inv.id}`)}>
             <span style={{ flex: 1.3, fontWeight: 700 }}>{inv.number}</span>
-            <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4 }} className="muted">{inv.type === 'booking' ? <><Ticket size={12} /> Booking</> : <><Star size={12} /> Featured</>}</span>
+            <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4 }} className="muted">
+              {(() => { const Icon = TYPE_ICON[inv.type] ?? Ticket; return <Icon size={12} />; })()} {TYPE_LABEL[inv.type] ?? inv.type}
+            </span>
             <span style={{ flex: 1.4 }}>{inv.payerName}</span>
             <span style={{ flex: 0.9 }} className="muted">{ROLE_LABEL[inv.role] ?? inv.role}</span>
             <span style={{ flex: 0.9 }} className="muted">{inv.city ?? '—'}</span>
