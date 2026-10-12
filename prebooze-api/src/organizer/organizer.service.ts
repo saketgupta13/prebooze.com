@@ -15,6 +15,7 @@ import { notifyEventOwner } from '../common/notify-event-owner';
 import { OrgAccessService } from './org-access.service';
 import { toCitySlug } from '../common/city-slug';
 import { BookingsService } from '../bookings/bookings.service';
+import { PushService } from '../notifications/push';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService — a cart still `active` past this is abandoned
 
@@ -130,6 +131,7 @@ export class OrganizerService {
     private orgAccess: OrgAccessService,
     private jwt: JwtService,
     private bookingsSvc: BookingsService,
+    private push: PushService,
   ) {}
 
   /** Any team member (any role) can call this for basic org display context
@@ -1445,7 +1447,45 @@ export class OrganizerService {
       }
       await this.orgNotifications.notify(owner.userId, 'approved', `"${updated.title}" was approved — it's live now`, `/events/${encodeURIComponent(updated.id)}`);
     }
+    await this.notifyFollowersOfNewEvent(updated);
     return updated;
+  }
+
+  /** The guest app's core follow → push → book loop — every guest following
+   * this event's organizer, venue, and/or a performing lineup (bare
+   * organizerId / `venue:<id>` / `lineup:<slug>` followeeKey, matching
+   * SocialService.follow's key format) gets pushed the moment the event
+   * goes live. Event.lineup is free-text {name, role}[] JSON, not a real
+   * relation, so matching a followed lineup to it is case-insensitive name
+   * matching against the real Lineup directory — same resolution
+   * EventDetail.tsx already uses to decide whether a lineup entry links to
+   * a real profile at all (lineups.find by lowercased name). */
+  private async notifyFollowersOfNewEvent(event: { id: string; slug: string; title: string; organizerId: string | null; venueId: string | null; lineup: unknown }) {
+    const keys: string[] = [];
+    if (event.organizerId) keys.push(event.organizerId);
+    if (event.venueId) keys.push(`venue:${event.venueId}`);
+
+    const lineupNames = (Array.isArray(event.lineup) ? event.lineup : [])
+      .map((l) => (l && typeof l === 'object' && typeof (l as { name?: unknown }).name === 'string' ? (l as { name: string }).name : null))
+      .filter((n): n is string => !!n);
+    if (lineupNames.length) {
+      const matchedLineups = await this.prisma.lineup.findMany({
+        where: { name: { in: lineupNames, mode: 'insensitive' } },
+        select: { slug: true },
+      });
+      keys.push(...matchedLineups.map((l) => `lineup:${l.slug}`));
+    }
+    if (keys.length === 0) return;
+
+    const follows = await this.prisma.follow.findMany({ where: { followeeKey: { in: keys } }, select: { followerId: true } });
+    const followerIds = [...new Set(follows.map((f) => f.followerId))];
+    if (followerIds.length === 0) return;
+
+    await Promise.all(
+      followerIds.map((userId) =>
+        this.push.send(userId, 'New event', `"${event.title}" just went live — tap to check it out`, { eventSlug: event.slug }).catch(() => {}),
+      ),
+    );
   }
 
   async adminReject(eventId: string, reason: string, rejectedSections: string[] = []) {
