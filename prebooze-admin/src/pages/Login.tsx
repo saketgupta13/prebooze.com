@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAdmin } from '../store/AdminContext';
 import { ToastHost } from '../components/AdminLayout';
@@ -124,6 +124,7 @@ export default function Login() {
             <button type="submit" className="btn btn-pri" style={{ padding: 11, fontSize: 13.5 }}>
               {copy.button}
             </button>
+            <Link to="/forgot-password" className="tiny" style={{ textAlign: 'center' }}>Forgot password?</Link>
             <div className="tiny hint" style={{ textAlign: 'center' }}>{copy.footnote}</div>
           </form>
         ) : (

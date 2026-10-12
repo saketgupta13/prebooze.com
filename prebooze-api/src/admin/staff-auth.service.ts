@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { randomInt } from 'crypto';
+import { randomBytes, randomInt } from 'crypto';
 import type Redis from 'ioredis';
 import type { Staff, StaffRole } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
@@ -11,6 +11,10 @@ import { resolvePermissions } from './permissions.util';
 
 type StaffWithRole = Staff & { role: StaffRole };
 const TWOFA_TTL_S = 300; // 5 minutes, same window as guest OTP
+// Longer than the 2FA window on purpose — a reset link sits in an inbox
+// rather than being typed in immediately, same reasoning a guest OTP's 5min
+// window doesn't apply to an email link.
+const RESET_TTL_S = 1800; // 30 minutes
 
 @Injectable()
 export class StaffAuthService {
@@ -93,6 +97,37 @@ export class StaffAuthService {
     if (newPassword.length < 8) throw new BadRequestException('New password must be at least 8 characters');
     const staff = await this.prisma.staff.findUniqueOrThrow({ where: { id: staffId } });
     if (!verifyPassword(currentPassword, staff.passwordHash)) throw new BadRequestException('Current password is incorrect');
+    await this.prisma.staff.update({ where: { id: staffId }, data: { passwordHash: hashPassword(newPassword) } });
+    return { ok: true };
+  }
+
+  /** Always returns the same generic response whether or not the email
+   * matches a real Staff row — never reveal which emails have accounts
+   * (the same enumeration-safety reasoning as every OTP flow in this
+   * codebase, just with an email link instead of an SMS code). A real
+   * match gets a one-shot Redis token (same TTL-token shape as verify2fa's
+   * code, just a 32-byte hex string instead of 6 digits, and longer-lived
+   * since this sits in an inbox rather than being typed in immediately). */
+  async forgotPassword(email: string) {
+    const staff = await this.prisma.staff.findUnique({ where: { email: email.toLowerCase().trim() } });
+    if (staff) {
+      const token = randomBytes(32).toString('hex');
+      await this.redis.set(`staff-reset:${token}`, staff.id, 'EX', RESET_TTL_S);
+      await this.email.sendTemplate(staff.email, 'staff_password_reset', { name: staff.name, token });
+    }
+    return { ok: true };
+  }
+
+  /** The other half of forgotPassword — token is one-shot (deleted on any
+   * use, valid or not, same discipline as verify2fa's code) so a leaked or
+   * reused link can't be replayed. */
+  async resetPassword(token: string, newPassword: string) {
+    if (!token || !newPassword) throw new BadRequestException('token and newPassword are required');
+    if (newPassword.length < 8) throw new BadRequestException('New password must be at least 8 characters');
+    const key = `staff-reset:${token}`;
+    const staffId = await this.redis.get(key);
+    await this.redis.del(key);
+    if (!staffId) throw new UnauthorizedException('This reset link has expired or already been used — request a new one');
     await this.prisma.staff.update({ where: { id: staffId }, data: { passwordHash: hashPassword(newPassword) } });
     return { ok: true };
   }

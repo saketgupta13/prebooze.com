@@ -446,6 +446,15 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     tokens: ['name', 'code'],
   },
   {
+    id: 'staff_password_reset', name: 'Staff password reset', category: 'Admin',
+    trigger: 'A staff member requests a password reset link from the admin panel login page',
+    preheader: 'Reset your Prebooze admin password',
+    defaultSubject: 'Reset your Prebooze admin password',
+    defaultBody: `<p>Hey {{name}},</p><p>Someone requested a password reset for your Prebooze admin account. This link expires in 30 minutes.</p><p style="color:${MUTED};">Didn't request this? Ignore this email — your password stays unchanged.</p>`,
+    cta: { label: 'Reset password →', urlTemplate: '{{adminUrl}}/reset-password?token={{token}}' },
+    tokens: ['name', 'token'],
+  },
+  {
     id: 'job_application', name: 'Job application received', category: 'Admin',
     trigger: 'Someone applies to an open role on the Careers page',
     preheader: 'Application received',

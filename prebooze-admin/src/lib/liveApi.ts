@@ -59,6 +59,8 @@ export const liveAuth = {
       body: { email, password },
     }),
   verify2fa: (staffId: string, code: string) => liveFetch<{ token: string; staff: { name: string; roleName: string } }>('/admin/auth/verify-2fa', { body: { staffId, code } }),
+  forgotPassword: (email: string) => liveFetch<{ ok: true }>('/admin/auth/forgot-password', { body: { email } }),
+  resetPassword: (token: string, newPassword: string) => liveFetch<{ ok: true }>('/admin/auth/reset-password', { body: { token, newPassword } }),
 };
 
 export interface LiveStaffMe {

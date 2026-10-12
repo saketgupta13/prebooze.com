@@ -18,6 +18,18 @@ export class StaffAuthController {
     return this.staffAuth.verify2fa(body.staffId, body.code);
   }
 
+  @Post('forgot-password')
+  forgotPassword(@Body('email') email?: string) {
+    if (!email) throw new BadRequestException('email is required');
+    return this.staffAuth.forgotPassword(email);
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() body: { token?: string; newPassword?: string }) {
+    if (!body.token || !body.newPassword) throw new BadRequestException('token and newPassword are required');
+    return this.staffAuth.resetPassword(body.token, body.newPassword);
+  }
+
   @Get('me')
   @UseGuards(StaffAuthGuard)
   me(@Req() req: { staff: StaffTokenPayload }) {
