@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash, randomBytes } from 'crypto';
-import { StandardCheckoutClient, StandardCheckoutPayRequest, RefundRequest, Env } from '@phonepe-pg/pg-sdk-node';
+import { StandardCheckoutClient, StandardCheckoutPayRequest, CreateSdkOrderRequest, RefundRequest, Env } from '@phonepe-pg/pg-sdk-node';
 
 /** PhonePe Payment Gateway integration (2026-09-18) — replacing the
  * temporary/borrowed Razorpay account with Prebooze's own real merchant
@@ -77,6 +77,32 @@ export class PhonePeService {
       .build();
     const res = await this.getClient().pay(request);
     return { orderId: res.orderId, redirectUrl: res.redirectUrl, state: res.state };
+  }
+
+  /** Native-app counterpart to createOrder — mints a token for PhonePe's
+   * in-app SDK (react-native-phonepe-pg) instead of a browser redirect URL,
+   * so the guest app can show PhonePe's PAY_PAGE as a true native overlay
+   * with zero browser chrome (no Custom Tab, no redirect/poll-to-dismiss
+   * dance the hosted-checkout flow needed). Added 2026-10-13 alongside the
+   * guest app's native SDK integration — web/hosted checkout keeps using
+   * createOrder unchanged. `merchantOrderId`/getOrderStatus/webhook
+   * reconciliation are identical either way; only how the guest actually
+   * pays differs. `redirectUrl` is still accepted by the builder (used as a
+   * fallback for flows like card 3DS inside the SDK's own webview) but is
+   * never shown to the guest directly the way the hosted-checkout one is. */
+  async createSdkOrder(merchantOrderId: string, amountPaise: number, redirectUrl: string): Promise<{ orderId: string; token: string; state: string }> {
+    if (!this.live) {
+      const orderId = `phonepe_dev_${randomBytes(8).toString('hex')}`;
+      this.log.log(`[dev] sdk order created ${orderId} (merchantOrderId ${merchantOrderId}) for ₹${amountPaise / 100}`);
+      return { orderId, token: `dev_token_${orderId}`, state: 'CREATED' };
+    }
+    const request = CreateSdkOrderRequest.StandardCheckoutBuilder()
+      .merchantOrderId(merchantOrderId)
+      .amount(amountPaise)
+      .redirectUrl(redirectUrl)
+      .build();
+    const res = await this.getClient().createSdkOrder(request);
+    return { orderId: res.orderId, token: res.token, state: res.state };
   }
 
   /** The one real source of truth for "did this actually get paid" — never

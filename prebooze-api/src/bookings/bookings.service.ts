@@ -444,7 +444,7 @@ export class BookingsService {
    * PhonePeService's doc comment). Real end-to-end checkout is now a
    * browser redirect to `redirectUrl`, not an embedded widget — the
    * frontend must navigate there directly, not open it in a modal. */
-  async quote(userId: string, holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string, returnUrlOverride?: string) {
+  async quote(userId: string, holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string, returnUrlOverride?: string, useSdk?: boolean) {
     const p = await this.priceHold(userId, holdId, couponCode, walletCredit, promoterRef);
     // The RN guest app passes its own custom-scheme return URL
     // (prebooze-guest://checkout-return?...) so expo-web-browser's
@@ -468,10 +468,23 @@ export class BookingsService {
     // hold. Unpaid stray orders simply expire on PhonePe's own side.
     let phonepeRedirectUrl: string | undefined;
     let phonepeMerchantOrderId: string | undefined;
+    let phonepeSdkToken: string | undefined;
+    let phonepeMerchantId: string | undefined;
     if (p.total > 0) {
       const merchantOrderId = `${holdId}-${randomBytes(6).toString('hex')}`;
-      const order = await this.phonepe.createOrder(merchantOrderId, p.total * 100, returnUrl);
-      phonepeRedirectUrl = order.redirectUrl;
+      if (useSdk) {
+        // Native guest/organizer app — no browser at all. The RN SDK needs
+        // this token plus PHONEPE_MERCHANT_ID (a separate legacy-style
+        // merchant id from the clientId/secret used to authenticate our own
+        // API calls — already provisioned, just unused until now) to start
+        // its in-app PAY_PAGE overlay.
+        const order = await this.phonepe.createSdkOrder(merchantOrderId, p.total * 100, returnUrl);
+        phonepeSdkToken = order.token;
+        phonepeMerchantId = process.env.PHONEPE_MERCHANT_ID;
+      } else {
+        const order = await this.phonepe.createOrder(merchantOrderId, p.total * 100, returnUrl);
+        phonepeRedirectUrl = order.redirectUrl;
+      }
       phonepeMerchantOrderId = merchantOrderId;
       // Durable record of this exact id, for the PhonePe webhook fallback
       // (reconcilePhonePePayment) to look this cart up by — best-effort,
@@ -487,6 +500,8 @@ export class BookingsService {
       platformShare: p.promoterMarkupApplies ? p.commission : 0,
       phonepeRedirectUrl,
       phonepeMerchantOrderId,
+      phonepeSdkToken,
+      phonepeMerchantId,
     };
   }
 
