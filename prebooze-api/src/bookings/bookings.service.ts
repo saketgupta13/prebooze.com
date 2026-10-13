@@ -444,9 +444,19 @@ export class BookingsService {
    * PhonePeService's doc comment). Real end-to-end checkout is now a
    * browser redirect to `redirectUrl`, not an embedded widget — the
    * frontend must navigate there directly, not open it in a modal. */
-  async quote(userId: string, holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string) {
+  async quote(userId: string, holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string, returnUrlOverride?: string) {
     const p = await this.priceHold(userId, holdId, couponCode, walletCredit, promoterRef);
-    const returnUrl = `${process.env.WEB_APP_URL || 'https://prebooze.com'}/checkout?holdId=${encodeURIComponent(holdId)}&phonepe_return=1`;
+    // The RN guest app passes its own custom-scheme return URL
+    // (prebooze-guest://checkout-return?...) so expo-web-browser's
+    // openAuthSessionAsync can actually detect the redirect and close
+    // itself automatically — without this, PhonePe redirects the in-app
+    // browser to the real prebooze.com website instead, which the browser
+    // session has no way to interpret as "done" (real bug hit 2026-10-13:
+    // a guest's payment succeeded for real, but the app never found out —
+    // it sat on the live website asking the guest to log in). Restricted
+    // to our own two schemes so this can never become an open redirect.
+    const isSafeReturnUrl = !!returnUrlOverride && /^(prebooze-guest:\/\/|https:\/\/prebooze\.com\/)/.test(returnUrlOverride);
+    const returnUrl = isSafeReturnUrl ? returnUrlOverride! : `${process.env.WEB_APP_URL || 'https://prebooze.com'}/checkout?holdId=${encodeURIComponent(holdId)}&phonepe_return=1`;
     // A fresh, disposable merchantOrderId on every call — never holdId
     // itself. The checkout page's quote effect legitimately re-fires more
     // than once per session (a coupon applied, wallet-credit toggled), and

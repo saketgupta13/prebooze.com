@@ -61,8 +61,8 @@ export class BookingsController {
    * (post-coupon, post-wallet-credit) plus a Razorpay order id to pay against. */
   @Post('bookings/quote')
   @UseGuards(JwtAuthGuard)
-  quote(@Req() req: AuthedReq, @Body() body: { holdId: string; couponCode?: string; walletCredit?: number; promoterRef?: string }) {
-    return this.bookings.quote(req.user.sub, body.holdId, body.couponCode, body.walletCredit, body.promoterRef);
+  quote(@Req() req: AuthedReq, @Body() body: { holdId: string; couponCode?: string; walletCredit?: number; promoterRef?: string; returnUrl?: string }) {
+    return this.bookings.quote(req.user.sub, body.holdId, body.couponCode, body.walletCredit, body.promoterRef, body.returnUrl);
   }
 
   /** Called right before the Razorpay checkout widget opens — snapshots the
