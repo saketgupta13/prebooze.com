@@ -5,7 +5,6 @@ import { bookings } from '../api';
 import { ApiError } from '../api/client';
 import { PageLoader } from '../components/Loader';
 import QRCode from '../components/QRCode';
-import { downloadTicket } from '../lib/ticket';
 import { downloadIcs } from '../lib/calendar';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -75,16 +74,7 @@ export default function TicketView() {
                 </div>
               )}
               <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                <button
-                  className="btn btn-ghost btn-block"
-                  onClick={() =>
-                    downloadTicket(
-                      { id: ticket.id, qrToken: ticket.qrToken, tierName: ticket.tierName, qty: ticket.qty, mainGuest: ticket.mainGuest, coverCharge: ticket.coverCharge, guests: ticket.guests },
-                      { title: ticket.event.title, date: ticket.event.date, organizer: ticket.event.organizerBrandName ? { brandName: ticket.event.organizerBrandName } : null },
-                      ticket.event.venueName ? { name: ticket.event.venueName, city: ticket.event.city ?? '' } : undefined,
-                    )
-                  }
-                >
+                <button className="btn btn-ghost btn-block" onClick={() => bookings.ticketPdf(ticket.qrToken)}>
                   <Download size={14} /> Download ticket
                 </button>
                 <button

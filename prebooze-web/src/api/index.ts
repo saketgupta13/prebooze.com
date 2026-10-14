@@ -306,6 +306,32 @@ export const bookings = {
       bookingSource: 'online' | 'offline'; offlinePaymentMode: 'self_collected' | 'payment_link' | null;
       event: { title: string; slug: string; date: string; durationHrs: number; venueName: string | null; city: string | null; organizerBrandName: string | null };
     }>(`/bookings/ticket-view/${encodeURIComponent(token)}`),
+  // Public, no auth, same qrToken-as-credential model as ticketView — the
+  // real server-generated PDF (identical to what's emailed at booking
+  // time), not a JSON response, so this triggers the browser download
+  // directly rather than going through apiFetch. Every "Download ticket"
+  // button in the app calls this now (2026-10-14), replacing the separate
+  // client-side canvas/PNG lib/ticket.ts used to generate.
+  ticketPdf: async (token: string) => {
+    const res = await fetch(`${API_URL}/bookings/ticket-pdf/${encodeURIComponent(token)}`);
+    if (!res.ok) throw new ApiError(res.status, 'DOWNLOAD_FAILED', 'Could not download your ticket');
+    // Real filename comes from the server's Content-Disposition
+    // (prebooze-ticket-<booking id>.pdf) — once the response becomes a
+    // blob that header is gone, so it has to be read here before that,
+    // not re-derived from the token.
+    const disposition = res.headers.get('content-disposition') ?? '';
+    const match = /filename="([^"]+)"/.exec(disposition);
+    const filename = match?.[1] ?? 'prebooze-ticket.pdf';
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
 };
 
 // ---------- wallet / payments ----------

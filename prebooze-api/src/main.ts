@@ -14,6 +14,10 @@ async function bootstrap() {
   app.enableCors({
     origin: (process.env.CORS_ORIGINS ?? '').split(',').filter(Boolean),
     credentials: true,
+    // Content-Disposition isn't readable cross-origin by default — the
+    // guest web app reads it to name a downloaded ticket PDF after the
+    // booking id (bookings.ticketPdf) rather than a generic fallback.
+    exposedHeaders: ['Content-Disposition'],
   });
   // KYC document uploads — served outside the /v1 prefix, matches the paths
   // StorageService returns ("/uploads/…"). Swap for S3/CDN URLs later.

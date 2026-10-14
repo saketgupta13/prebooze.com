@@ -7,7 +7,6 @@ import { bookings as bookingsApi } from '../api';
 import { isBackendEnabled } from '../api/client';
 import type { Booking } from '../types';
 import QRCode from '../components/QRCode';
-import { downloadTicket } from '../lib/ticket';
 import { downloadIcs } from '../lib/calendar';
 import { eventLocation } from '../lib/venue';
 import { copyToClipboard } from '../lib/clipboard';
@@ -127,7 +126,7 @@ export default function Confirmation() {
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
-            <button className="btn btn-pri" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => downloadTicket(booking, event, venue)}>
+            <button className="btn btn-pri" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => booking.qrToken && bookingsApi.ticketPdf(booking.qrToken)}>
               <Download size={15} /> Download ticket
             </button>
             <button className="btn btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => downloadIcs(event, venue)}><Calendar size={15} /> Add to calendar</button>

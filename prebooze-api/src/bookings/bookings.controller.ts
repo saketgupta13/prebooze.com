@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards, Redirect } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards, Redirect } from '@nestjs/common';
+import type { Response } from 'express';
 import { BookingsService } from './bookings.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import type { CreateBookingInput } from './bookings.service';
@@ -43,6 +44,21 @@ export class BookingsController {
   @Get('bookings/ticket-view/:token')
   ticketView(@Param('token') token: string) {
     return this.bookings.ticketView(token);
+  }
+
+  /** Same no-auth, qrToken-as-credential model as ticketView above — the
+   * real PDF file every "Download ticket" button downloads now, generated
+   * on demand rather than re-serving a previously-emailed copy (not every
+   * booking has one). */
+  @Get('bookings/ticket-pdf/:token')
+  async ticketPdf(@Param('token') token: string, @Res() res: Response) {
+    const { filename, buffer } = await this.bookings.ticketPdf(token);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+    });
+    res.send(buffer);
   }
 
   @Post('bookings/hold')

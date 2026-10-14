@@ -1671,6 +1671,33 @@ export class BookingsService {
     };
   }
 
+  /** Same qrToken-as-credential model as ticketView, generating on demand
+   * the exact same PDF every "Download ticket" button across the app now
+   * downloads (Confirmation.tsx, TicketView.tsx, MyBookings.tsx all call
+   * this now, 2026-10-14 — previously each used lib/ticket.ts's separate
+   * client-side canvas/PNG renderer, a visibly different file than the one
+   * actually emailed at booking time). Generated fresh rather than
+   * re-serving a stored copy — not every booking has an email on file
+   * (offline/no-email paths never generate or send one at all, see
+   * ticketPdfBuffer's own call sites), so this is the only way every
+   * booking, not just the ones that happened to get emailed, can produce
+   * this file on request. */
+  async ticketPdf(qrToken: string): Promise<{ filename: string; buffer: Buffer }> {
+    let payload: { bookingId: string };
+    try {
+      payload = await this.jwt.verifyAsync(qrToken);
+    } catch {
+      throw new BadRequestException('Invalid or expired ticket link');
+    }
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: payload.bookingId },
+      include: { event: { include: { venue: true, organizer: true } } },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    const buffer = await ticketPdfBuffer(booking, booking.event, booking.event.venue);
+    return { filename: `prebooze-ticket-${booking.id.replace(/[^\w-]/g, '')}.pdf`, buffer };
+  }
+
   /** What /pay/complete polls — real bug found 2026-09-25: that page used
    * to unconditionally say "Payment received" the instant a guest landed
    * back on it, regardless of whether they'd actually paid or backed out

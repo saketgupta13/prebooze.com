@@ -6,7 +6,6 @@ import { bookings as bookingsApi } from '../api';
 import { isBackendEnabled, ApiError } from '../api/client';
 import type { Booking } from '../types';
 import QRCode from '../components/QRCode';
-import { downloadTicket } from '../lib/ticket';
 import { downloadIcs } from '../lib/calendar';
 import { eventLocation } from '../lib/venue';
 import { cityBrowse } from '../lib/urls';
@@ -202,7 +201,7 @@ export default function MyBookings() {
                   <div style={{ textAlign: 'center' }}>
                     <QRCode value={selected.qrToken || selected.id} caption={`valid for ${selected.guests.length} guest${selected.guests.length > 1 ? 's' : ''}`} />
                     <div style={{ marginTop: 10 }}>
-                      <button className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={() => downloadTicket(selected, event, venue)}>
+                      <button className="btn btn-pri btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={() => selected.qrToken && bookingsApi.ticketPdf(selected.qrToken)}>
                         <Download size={13} /> Download ticket
                       </button>{' '}
                       <button className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={() => downloadIcs(event, venue)}>
