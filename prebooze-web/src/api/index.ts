@@ -301,9 +301,10 @@ export const bookings = {
   ticketView: (token: string) =>
     apiFetch<{
       id: string; mainGuest: string; tierName: string; qty: number; total: number; status: string; checkedIn: boolean; qrToken: string;
+      coverCharge: number;
       guests: { name: string; checkedIn: boolean; gender?: string }[];
       bookingSource: 'online' | 'offline'; offlinePaymentMode: 'self_collected' | 'payment_link' | null;
-      event: { title: string; date: string; durationHrs: number; venueName: string | null; city: string | null };
+      event: { title: string; slug: string; date: string; durationHrs: number; venueName: string | null; city: string | null; organizerBrandName: string | null };
     }>(`/bookings/ticket-view/${encodeURIComponent(token)}`),
 };
 

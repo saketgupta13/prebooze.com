@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { CheckCircle2, Calendar, MapPin } from 'lucide-react';
+import { CheckCircle2, Calendar, MapPin, Download } from 'lucide-react';
 import { bookings } from '../api';
 import { ApiError } from '../api/client';
 import { PageLoader } from '../components/Loader';
 import QRCode from '../components/QRCode';
+import { downloadTicket } from '../lib/ticket';
+import { downloadIcs } from '../lib/calendar';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -72,6 +74,31 @@ export default function TicketView() {
                   {ticket.offlinePaymentMode === 'self_collected' ? 'Paid directly to the organizer' : 'Paid via WhatsApp payment link'}
                 </div>
               )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                <button
+                  className="btn btn-ghost btn-block"
+                  onClick={() =>
+                    downloadTicket(
+                      { id: ticket.id, qrToken: ticket.qrToken, tierName: ticket.tierName, qty: ticket.qty, mainGuest: ticket.mainGuest, coverCharge: ticket.coverCharge, guests: ticket.guests },
+                      { title: ticket.event.title, date: ticket.event.date, organizer: ticket.event.organizerBrandName ? { brandName: ticket.event.organizerBrandName } : null },
+                      ticket.event.venueName ? { name: ticket.event.venueName, city: ticket.event.city ?? '' } : undefined,
+                    )
+                  }
+                >
+                  <Download size={14} /> Download ticket
+                </button>
+                <button
+                  className="btn btn-ghost btn-block"
+                  onClick={() =>
+                    downloadIcs(
+                      { id: ticket.id, slug: ticket.event.slug, title: ticket.event.title, date: ticket.event.date, durationHrs: ticket.event.durationHrs },
+                      ticket.event.venueName ? { name: ticket.event.venueName, city: ticket.event.city ?? '' } : undefined,
+                    )
+                  }
+                >
+                  <Calendar size={14} /> Add to calendar
+                </button>
+              </div>
             </>
           ) : (
             <p className="muted small">This ticket is {ticket.status.replace('_', ' ')} and can't be used for entry.</p>

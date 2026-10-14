@@ -1,7 +1,16 @@
-import type { Event, Venue } from '../types';
+// Narrowed to exactly the fields this function reads — see lib/ticket.ts's
+// identical TicketEvent/TicketVenue doc comment for why (the public, no-
+// login /ticket/:token page needs to call this with a slimmer shape than
+// the full app Event/Venue types).
+export interface IcsEvent {
+  id: string; slug: string; title: string; date: string; durationHrs: number;
+}
+export interface IcsVenue {
+  name: string; city: string;
+}
 
 /** Download an .ics calendar file for an event (works with Google/Apple/Outlook). */
-export function downloadIcs(event: Event, venue: Venue | undefined) {
+export function downloadIcs(event: IcsEvent, venue: IcsVenue | undefined) {
   const start = new Date(event.date);
   const end = new Date(start.getTime() + (event.durationHrs || 3) * 3600000);
   const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');

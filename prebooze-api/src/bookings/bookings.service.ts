@@ -444,7 +444,7 @@ export class BookingsService {
    * PhonePeService's doc comment). Real end-to-end checkout is now a
    * browser redirect to `redirectUrl`, not an embedded widget — the
    * frontend must navigate there directly, not open it in a modal. */
-  async quote(userId: string, holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string, returnUrlOverride?: string, useSdk?: boolean) {
+  async quote(userId: string, holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string, returnUrlOverride?: string) {
     const p = await this.priceHold(userId, holdId, couponCode, walletCredit, promoterRef);
     // The RN guest app passes its own custom-scheme return URL
     // (prebooze-guest://checkout-return?...) so expo-web-browser's
@@ -468,23 +468,10 @@ export class BookingsService {
     // hold. Unpaid stray orders simply expire on PhonePe's own side.
     let phonepeRedirectUrl: string | undefined;
     let phonepeMerchantOrderId: string | undefined;
-    let phonepeSdkToken: string | undefined;
-    let phonepeMerchantId: string | undefined;
     if (p.total > 0) {
       const merchantOrderId = `${holdId}-${randomBytes(6).toString('hex')}`;
-      if (useSdk) {
-        // Native guest/organizer app — no browser at all. The RN SDK needs
-        // this token plus PHONEPE_MERCHANT_ID (a separate legacy-style
-        // merchant id from the clientId/secret used to authenticate our own
-        // API calls — already provisioned, just unused until now) to start
-        // its in-app PAY_PAGE overlay.
-        const order = await this.phonepe.createSdkOrder(merchantOrderId, p.total * 100, returnUrl);
-        phonepeSdkToken = order.token;
-        phonepeMerchantId = process.env.PHONEPE_MERCHANT_ID;
-      } else {
-        const order = await this.phonepe.createOrder(merchantOrderId, p.total * 100, returnUrl);
-        phonepeRedirectUrl = order.redirectUrl;
-      }
+      const order = await this.phonepe.createOrder(merchantOrderId, p.total * 100, returnUrl);
+      phonepeRedirectUrl = order.redirectUrl;
       phonepeMerchantOrderId = merchantOrderId;
       // Durable record of this exact id, for the PhonePe webhook fallback
       // (reconcilePhonePePayment) to look this cart up by — best-effort,
@@ -500,8 +487,6 @@ export class BookingsService {
       platformShare: p.promoterMarkupApplies ? p.commission : 0,
       phonepeRedirectUrl,
       phonepeMerchantOrderId,
-      phonepeSdkToken,
-      phonepeMerchantId,
     };
   }
 
@@ -1072,8 +1057,12 @@ export class BookingsService {
     // URL replaces the plain booking-id slot rather than adding a new one.
     // Still just a substituted value, not new template wording, so no new
     // Meta approval needed — same plain-text-URL pattern guest_pass/
-    // waitlist_offer already use.
-    await this.wa.send(input.whatsapp, 'booking_confirmed', [input.mainGuest.trim(), event.title, String(qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`, String(total)]).catch(() => {});
+    // waitlist_offer already use. /ticket/:qrToken, not /confirmation/:id
+    // (2026-10-14 fix) — see ticketView's own doc comment for why a bare
+    // booking id isn't a safe public credential and /confirmation/:id's
+    // RequireAuth gate was leaving guests with no session (most commonly
+    // someone a friend booked for) unable to ever reach their own ticket.
+    await this.wa.send(input.whatsapp, 'booking_confirmed', [input.mainGuest.trim(), event.title, String(qty), `${process.env.WEB_APP_URL ?? ''}/ticket/${encodeURIComponent(qrToken)}`, String(total)]).catch(() => {});
     await this.maybeSendLocationForLateBooking(event.id, id);
     const ticketVenue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
     // A guest's profile city/state/country is often blank — never asked for
@@ -1370,7 +1359,7 @@ export class BookingsService {
       return created;
     });
 
-    await this.wa.send(phone, 'booking_confirmed', [input.guestName.trim(), event.title, String(qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(id)}`, String(total)]).catch(() => {});
+    await this.wa.send(phone, 'booking_confirmed', [input.guestName.trim(), event.title, String(qty), `${process.env.WEB_APP_URL ?? ''}/ticket/${encodeURIComponent(qrToken)}`, String(total)]).catch(() => {});
     await this.maybeSendLocationForLateBooking(event.id, id);
     const venue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
     // Same backfill as the guest checkout path (BookingsService.create) —
@@ -1634,7 +1623,22 @@ export class BookingsService {
    * booking-specific JWT — see create()'s own qrToken) doubles as the
    * access credential here: nothing extra to generate or store, and
    * exactly as forgeable/guessable as the QR code itself already is (you
-   * need the same token to check someone in). */
+   * need the same token to check someone in).
+   *
+   * 2026-10-14 — also the link every ONLINE booking's WhatsApp confirmation
+   * carries now (see create()'s own wa.send call), replacing a bare
+   * /confirmation/:id link that was RequireAuth-gated. Booking.id is only
+   * a 5-digit random number (randomInt(10000, 99999), ~90k possibilities)
+   * — nowhere near enough entropy to be a safe bare credential the way
+   * qrToken's signed JWT is, which is exactly why that page required a
+   * real login instead: anyone could have enumerated every booking by id.
+   * A guest with no account at all (most commonly someone a friend booked
+   * for and forwarded the WhatsApp message to) was silently redirected to
+   * /login and could never reach their own ticket. coverCharge/slug/
+   * organizerBrandName added below so TicketView.tsx's Download
+   * ticket/Add to calendar buttons have everything lib/ticket.ts and
+   * lib/calendar.ts actually read — see those files' own narrowed
+   * parameter types. */
   async ticketView(qrToken: string) {
     let payload: { bookingId: string };
     try {
@@ -1644,16 +1648,18 @@ export class BookingsService {
     }
     const booking = await this.prisma.booking.findUnique({
       where: { id: payload.bookingId },
-      include: { event: { include: { venue: true } } },
+      include: { event: { include: { venue: true, organizer: true } } },
     });
     if (!booking) throw new NotFoundException('Booking not found');
     return {
       id: booking.id, mainGuest: booking.mainGuest, tierName: booking.tierName, qty: booking.qty,
       total: booking.total, status: booking.status, checkedIn: booking.checkedIn, qrToken: booking.qrToken,
+      coverCharge: booking.coverCharge,
       guests: booking.guests, bookingSource: booking.bookingSource, offlinePaymentMode: booking.offlinePaymentMode,
       event: {
-        title: booking.event.title, date: booking.event.date, durationHrs: booking.event.durationHrs,
+        title: booking.event.title, slug: booking.event.slug, date: booking.event.date, durationHrs: booking.event.durationHrs,
         venueName: booking.event.venue?.name ?? null, city: booking.event.venue?.city ?? booking.event.privateCity,
+        organizerBrandName: booking.event.organizer?.brandName ?? null,
       },
     };
   }
@@ -1991,7 +1997,7 @@ export class BookingsService {
     const booking = await this.prisma.booking.findUnique({ where: { id }, include: { event: true } });
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.userId !== userId) throw new ForbiddenException();
-    await this.wa.send(booking.whatsapp, 'booking_confirmed', [booking.mainGuest, booking.event.title, String(booking.qty), `${process.env.WEB_APP_URL ?? ''}/confirmation/${encodeURIComponent(booking.id)}`, String(booking.total)]);
+    await this.wa.send(booking.whatsapp, 'booking_confirmed', [booking.mainGuest, booking.event.title, String(booking.qty), `${process.env.WEB_APP_URL ?? ''}/ticket/${encodeURIComponent(booking.qrToken)}`, String(booking.total)]);
     return { ok: true };
   }
 

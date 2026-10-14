@@ -1,5 +1,4 @@
 import QRCodeLib from 'qrcode';
-import type { Booking, Event, Venue } from '../types';
 import { fmtDate, fmtTime } from '../data/mock';
 import { platform } from '../api';
 import { instagramHandle } from './social';
@@ -12,8 +11,25 @@ const loadImg = (src: string): Promise<HTMLImageElement | null> =>
     img.src = src;
   });
 
+// Narrowed to exactly the fields this function reads — a real Booking/
+// Event/Venue (Confirmation.tsx, the logged-in path) already satisfies
+// these structurally, no changes needed there. Also lets TicketView.tsx
+// (the public, no-login /ticket/:token page — 2026-10-14) call this with
+// the much slimmer shape BookingsService.ticketView returns, without
+// faking out a full app Booking/Event/Venue object it doesn't have.
+export interface TicketBooking {
+  id: string; qrToken?: string; tierName: string; qty: number; mainGuest: string;
+  coverCharge?: number; guests: { name: string }[];
+}
+export interface TicketEvent {
+  title: string; date: string; organizer?: { brandName: string } | null;
+}
+export interface TicketVenue {
+  name: string; city: string;
+}
+
 /** Render the ticket in our design onto a canvas and download it as a PNG. */
-export async function downloadTicket(booking: Booking, event: Event, venue: Venue | undefined) {
+export async function downloadTicket(booking: TicketBooking, event: TicketEvent, venue: TicketVenue | undefined) {
   // Two different marks: the wordmark-ish full logo up top, and the plain
   // bunny icon cut into the QR's centre lower down — same split the rest
   // of the app already uses (compare the guest header vs. QRCode.tsx).
