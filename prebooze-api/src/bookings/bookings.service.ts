@@ -444,7 +444,14 @@ export class BookingsService {
    * PhonePeService's doc comment). Real end-to-end checkout is now a
    * browser redirect to `redirectUrl`, not an embedded widget — the
    * frontend must navigate there directly, not open it in a modal. */
-  async quote(userId: string, holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string, returnUrlOverride?: string) {
+  // `useSdk` accepted but currently unused — the controller passes it
+  // (guest app's native-SDK checkout experiment), the actual payment-method
+  // branching for that happens via returnUrlOverride's custom-scheme check
+  // below, not here. Kept as a no-op param rather than removed so the
+  // build doesn't keep breaking while that work is still in progress
+  // elsewhere (2026-10-14, build was failing on `main` with this
+  // param accepted by the controller but not the service).
+  async quote(userId: string, holdId: string, couponCode?: string, walletCredit?: number, promoterRef?: string, returnUrlOverride?: string, _useSdk?: boolean) {
     const p = await this.priceHold(userId, holdId, couponCode, walletCredit, promoterRef);
     // The RN guest app passes its own custom-scheme return URL
     // (prebooze-guest://checkout-return?...) so expo-web-browser's
