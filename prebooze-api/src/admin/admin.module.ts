@@ -64,6 +64,7 @@ import { LeadsService } from './leads.service';
 import { SettlementsService } from './settlements.service';
 import { OrgNotificationsService } from '../notifications/org-notifications';
 import { PushService } from '../notifications/push';
+import { GuestNotificationsService } from '../notifications/guest-notifications';
 import { AdminSupportTicketsService } from './support-tickets.service';
 import { SocialService } from '../social/social.service';
 import { StaffAuthGuard } from './staff-auth.guard';
@@ -154,6 +155,7 @@ import { redisProvider } from '../redis.provider';
     AmenitiesService,
     CartsService,
     OrgNotificationsService,
+    GuestNotificationsService,
     PushService,
     PaymentsService,
     TransactionsService,
