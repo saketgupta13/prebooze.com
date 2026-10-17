@@ -24,6 +24,7 @@ import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from '../auth/guest-user
 import { missingProfileFields } from '../auth/profile-completeness';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { PushService } from '../notifications/push';
+import { GuestNotificationsService } from '../notifications/guest-notifications';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { LeadsService } from '../admin/leads.service';
 import { getGatewayAndMethod, calculateGatewayFee, getGatewayFeeLostOnRefund, type PaymentMethod } from '../payments/gateway-fee';
@@ -102,6 +103,7 @@ export class BookingsService {
     private orgNotifications: OrgNotificationsService,
     private orgAccess: OrgAccessService,
     private push: PushService,
+    private guestNotifications: GuestNotificationsService,
   ) {}
 
   /** The guest-follows-guest half of the follow → push loop — mirrors
@@ -121,7 +123,7 @@ export class BookingsService {
     const firstName = buyer.name?.trim().split(/\s+/)[0] || 'Someone you follow';
     await Promise.all(
       follows.map((f) =>
-        this.push.send(f.followerId, 'Going', `${firstName} is going to "${event.title}" — check it out`, { eventSlug: event.slug }).catch(() => {}),
+        this.guestNotifications.notify(f.followerId, 'going', `${firstName} is going to "${event.title}" — check it out`, event.slug).catch(() => {}),
       ),
     );
   }

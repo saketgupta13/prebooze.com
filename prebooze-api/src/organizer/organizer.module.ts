@@ -16,12 +16,13 @@ import { LiveMonitorService } from '../admin/live-monitor.service';
 import { StorageService } from '../kyc/storage.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { PushService } from '../notifications/push';
+import { GuestNotificationsService } from '../notifications/guest-notifications';
 import { OrgNotificationsService } from '../notifications/org-notifications';
 import { BookingsModule } from '../bookings/bookings.module';
 
 @Module({
   imports: [BookingsModule],
   controllers: [OrganizerController, AdminEventsController, OrgTeamController, OrgRolesController, VipPassController],
-  providers: [OrganizerService, OrgTeamService, OrgAccessService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, GuestListService, LiveMonitorService, StorageService, InvoicesService, PushService, OrgNotificationsService],
+  providers: [OrganizerService, OrgTeamService, OrgAccessService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, WhatsappService, EmailService, NotificationsService, StaffAlertsService, GuestListService, LiveMonitorService, StorageService, InvoicesService, PushService, OrgNotificationsService, GuestNotificationsService],
 })
 export class OrganizerModule {}

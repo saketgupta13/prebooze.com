@@ -8,6 +8,7 @@ import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { NotificationsService } from '../admin/notifications.service';
 import { OrgNotificationsService } from '../notifications/org-notifications';
+import { GuestNotificationsService } from '../notifications/guest-notifications';
 import { GuestListService } from '../admin/guestlist.service';
 import { LiveMonitorService } from '../admin/live-monitor.service';
 import { CatalogService } from '../catalog/catalog.service';
@@ -132,6 +133,7 @@ export class OrganizerService {
     private jwt: JwtService,
     private bookingsSvc: BookingsService,
     private push: PushService,
+    private guestNotifications: GuestNotificationsService,
   ) {}
 
   /** Any team member (any role) can call this for basic org display context
@@ -1483,7 +1485,7 @@ export class OrganizerService {
 
     await Promise.all(
       followerIds.map((userId) =>
-        this.push.send(userId, 'New event', `"${event.title}" just went live — tap to check it out`, { eventSlug: event.slug }).catch(() => {}),
+        this.guestNotifications.notify(userId, 'event', `"${event.title}" just went live — tap to check it out`, event.slug).catch(() => {}),
       ),
     );
   }

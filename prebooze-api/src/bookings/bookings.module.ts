@@ -19,12 +19,13 @@ import { LeadsService } from '../admin/leads.service';
 import { OrgNotificationsService } from '../notifications/org-notifications';
 import { PushService } from '../notifications/push';
 import { OrgAccessService } from '../organizer/org-access.service';
+import { GuestNotificationsService } from '../notifications/guest-notifications';
 
 // JwtModule is registered `global: true` in AuthModule, so JwtService is
 // already available here without importing it again (see kyc.module.ts).
 @Module({
   controllers: [BookingsController, AdminBookingsController],
-  providers: [BookingsService, HoldsService, RazorpayService, PhonePeService, WhatsappService, EmailService, redisProvider, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService, InvoicesService, StaffAlertsService, WalletService, MetaConversionsService, LeadsService, OrgNotificationsService, PushService, OrgAccessService],
+  providers: [BookingsService, HoldsService, RazorpayService, PhonePeService, WhatsappService, EmailService, redisProvider, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService, InvoicesService, StaffAlertsService, WalletService, MetaConversionsService, LeadsService, OrgNotificationsService, PushService, OrgAccessService, GuestNotificationsService],
   // RazorpayWebhookController (SubscriptionsModule) calls
   // BookingsService.reconcilePayment for the payment.captured fallback.
   exports: [BookingsService],

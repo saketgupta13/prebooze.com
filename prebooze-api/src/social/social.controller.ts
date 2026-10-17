@@ -1,12 +1,37 @@
 import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { SocialService } from './social.service';
+import { GuestNotificationsService } from '../notifications/guest-notifications';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 
 type AuthedReq = { user: { sub: string } };
 
 @Controller()
 export class SocialController {
-  constructor(private social: SocialService) {}
+  constructor(private social: SocialService, private guestNotifications: GuestNotificationsService) {}
+
+  @Get('me/notifications')
+  @UseGuards(JwtAuthGuard)
+  listNotifications(@Req() req: AuthedReq) {
+    return this.guestNotifications.list(req.user.sub);
+  }
+
+  @Get('me/notifications/unread-count')
+  @UseGuards(JwtAuthGuard)
+  async unreadNotificationCount(@Req() req: AuthedReq) {
+    return { count: await this.guestNotifications.unreadCount(req.user.sub) };
+  }
+
+  @Post('me/notifications/:id/read')
+  @UseGuards(JwtAuthGuard)
+  markNotificationRead(@Req() req: AuthedReq, @Param('id') id: string) {
+    return this.guestNotifications.markRead(req.user.sub, id);
+  }
+
+  @Post('me/notifications/read-all')
+  @UseGuards(JwtAuthGuard)
+  markAllNotificationsRead(@Req() req: AuthedReq) {
+    return this.guestNotifications.markAllRead(req.user.sub);
+  }
 
   @Post('follows')
   @UseGuards(JwtAuthGuard)
