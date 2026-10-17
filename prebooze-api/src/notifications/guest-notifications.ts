@@ -37,12 +37,18 @@ export class GuestNotificationsService {
    * `to`, when present, is always a bare event slug today (both current
    * trigger points — new event from a followed profile, a followed person
    * going — are event-shaped) — sent as `eventSlug` in the push payload to
-   * match the guest app's existing navigateToNotificationTarget handler,
-   * which was already live before this inbox existed. */
+   * match the guest app's existing navigateToNotificationTarget handler.
+   * The created row's own id rides along too (`notificationId`) so tapping
+   * the OS tray notification can mark that exact inbox row read, not just
+   * deep-link — before this, a tray tap left the row sitting unread in the
+   * in-app feed even after the guest had already seen and acted on it. */
   async notify(userId: string, icon: string, text: string, to?: string): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { notificationsEnabled: true } });
     if (user && user.notificationsEnabled === false) return;
-    await this.prisma.guestNotification.create({ data: { userId, icon, text, to } }).catch(() => {});
-    await this.push.send(userId, 'Prebooze', text, to ? { eventSlug: to } : undefined).catch(() => {});
+    const row = await this.prisma.guestNotification.create({ data: { userId, icon, text, to } }).catch(() => null);
+    const data: Record<string, string> = {};
+    if (to) data.eventSlug = to;
+    if (row) data.notificationId = row.id;
+    await this.push.send(userId, 'Prebooze', text, Object.keys(data).length ? data : undefined).catch(() => {});
   }
 }
