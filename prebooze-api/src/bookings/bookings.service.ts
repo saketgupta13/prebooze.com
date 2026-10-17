@@ -23,6 +23,7 @@ import { normalizePhone } from '../auth/auth.service';
 import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from '../auth/guest-username';
 import { missingProfileFields } from '../auth/profile-completeness';
 import { StaffAlertsService } from '../notifications/staff-alerts';
+import { PushService } from '../notifications/push';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
 import { LeadsService } from '../admin/leads.service';
 import { getGatewayAndMethod, calculateGatewayFee, getGatewayFeeLostOnRefund, type PaymentMethod } from '../payments/gateway-fee';
@@ -100,7 +101,30 @@ export class BookingsService {
     private leads: LeadsService,
     private orgNotifications: OrgNotificationsService,
     private orgAccess: OrgAccessService,
+    private push: PushService,
   ) {}
+
+  /** The guest-follows-guest half of the follow → push loop — mirrors
+   * OrganizerService.notifyFollowersOfNewEvent, just keyed off a `person:
+   * <userId>` followeeKey instead of an organizer/venue/lineup one. Fires
+   * once per confirmed booking (both online and offline), never on a
+   * resend. Respects the booker's own attendanceVisibility ('off' skips
+   * entirely — same privacy gate ProfileScreen's "Who's going" card and
+   * PersonDetail's going/interested sections already enforce; 'public' and
+   * 'followers' both cover "my followers can see this", which a push to
+   * exactly those followers is consistent with). */
+  private async notifyFollowersOfGoing(userId: string, event: { slug: string; title: string }) {
+    const buyer = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true, attendanceVisibility: true } });
+    if (!buyer || buyer.attendanceVisibility === 'off') return;
+    const follows = await this.prisma.follow.findMany({ where: { followeeKey: `person:${userId}` }, select: { followerId: true } });
+    if (follows.length === 0) return;
+    const firstName = buyer.name?.trim().split(/\s+/)[0] || 'Someone you follow';
+    await Promise.all(
+      follows.map((f) =>
+        this.push.send(f.followerId, 'Going', `${firstName} is going to "${event.title}" — check it out`, { eventSlug: event.slug }).catch(() => {}),
+      ),
+    );
+  }
 
   // Real gap (2026-09-24): OrgNotificationsService.notify() was only ever
   // wired up for event approved/rejected — its own doc comment already
@@ -1070,6 +1094,7 @@ export class BookingsService {
     // RequireAuth gate was leaving guests with no session (most commonly
     // someone a friend booked for) unable to ever reach their own ticket.
     await this.wa.send(input.whatsapp, 'booking_confirmed', [input.mainGuest.trim(), event.title, String(qty), `${process.env.WEB_APP_URL ?? ''}/ticket/${encodeURIComponent(qrToken)}`, String(total)]).catch(() => {});
+    await this.notifyFollowersOfGoing(userId, event);
     await this.maybeSendLocationForLateBooking(event.id, id);
     const ticketVenue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
     // A guest's profile city/state/country is often blank — never asked for
@@ -1845,7 +1870,7 @@ export class BookingsService {
    * experience is exactly the same as any other confirmed booking, per the
    * feature's own requirement. */
   private async sendOfflineBookingConfirmation(
-    booking: Booking, event: { id: string; title: string; venueId: string | null; privateCity: string | null },
+    booking: Booking, event: { id: string; slug: string; title: string; venueId: string | null; privateCity: string | null },
     guest: { id: string; email: string | null; city: string | null; state: string | null; country: string | null } | null,
     guestName: string, qty: number, total: number, id: string,
     // Self-collected guests are a bare-minimum record (2026-09-25) — never
@@ -1860,6 +1885,7 @@ export class BookingsService {
     // access credential (see BookingsService.ticketView).
     const ticketUrl = `${process.env.WEB_APP_URL ?? ''}/ticket/${encodeURIComponent(booking.qrToken)}`;
     await this.wa.send(booking.whatsapp, 'booking_confirmed', [guestName, event.title, String(qty), ticketUrl, String(total)]).catch(() => {});
+    await this.notifyFollowersOfGoing(booking.userId, event);
     await this.maybeSendLocationForLateBooking(event.id, booking.id);
     const venue = event.venueId ? await this.prisma.venue.findUnique({ where: { id: event.venueId } }) : null;
     if (backfillProfile && guest && !guest.city && (venue?.city || event.privateCity)) {
