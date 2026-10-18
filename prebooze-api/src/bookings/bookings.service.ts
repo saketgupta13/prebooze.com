@@ -2072,11 +2072,23 @@ export class BookingsService {
    * stay untouched until an admin actually approves, so a decline can put
    * the booking back exactly as it was with nothing to unwind. */
   async cancel(userId: string, id: string, refundTo: 'wallet' | 'source') {
-    const booking = await this.prisma.booking.findUnique({ where: { id }, include: { event: { select: { nonRefundable: true } } } });
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      include: { event: { select: { nonRefundable: true, date: true, durationHrs: true, seriesEndDate: true } } },
+    });
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.userId !== userId) throw new ForbiddenException();
     if (booking.status !== 'confirmed') throw new BadRequestException('This booking is not eligible for refund');
     if (booking.event.nonRefundable) throw new BadRequestException('This event is non-refundable — tickets cannot be cancelled for a refund');
+    // Real gap found live (2026-10-18) — nothing anywhere stopped a guest
+    // from cancelling a booking for an event that's already happened,
+    // which makes no business sense (there's nothing left to refund them
+    // out of attending, and it lets a guest claw back money for a night
+    // they already had). Same isEventOver formula as every other
+    // past/upcoming split in the app.
+    if (CatalogService.isEventOver(booking.event)) {
+      throw new BadRequestException("This event has already happened — bookings can't be cancelled after the event.");
+    }
     // Prebooze only ever handles money that actually moved through its own
     // gateway. A self-collected offline booking's cash/UPI went straight to
     // the organizer, never through Prebooze at all — so there's nothing on
