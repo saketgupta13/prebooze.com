@@ -29,6 +29,13 @@ export class SocialService {
   // "lineup:<slug>" | a bare venue/organizer id.
   async follow(userId: string, key: string) {
     if (!key) throw new BadRequestException('`key` is required');
+    // Real bug found live (2026-10-18): nothing stopped a guest from
+    // following their own person:<id> key — the RN/web clients both guard
+    // their own Follow button against this now, but the backend itself
+    // never did, so a stale call (or a client predating that guard) could
+    // still create the row and silently inflate the guest's own
+    // "following" count forever.
+    if (key === `person:${userId}`) throw new BadRequestException("You can't follow yourself");
     await this.prisma.follow.upsert({
       where: { followerId_followeeKey: { followerId: userId, followeeKey: key } },
       create: { followerId: userId, followeeKey: key },
