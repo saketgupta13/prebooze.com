@@ -57,6 +57,15 @@ export default function MyBookings() {
   const selected = list.find((b) => b.id === selectedId) ?? list[0];
   const event = selected ? resolveEvent(selected) : undefined;
   const venue = event ? (event.venue ?? (event.venueId ? venueById(event.venueId) : undefined)) : undefined;
+  // Real gap found live (2026-10-18): nothing stopped cancelling a
+  // booking for an event that already happened — same new guard as the
+  // backend's BookingsService.cancel (CatalogService.isEventOver formula:
+  // date + durationHrs, or seriesEndDate for a multi-day event).
+  const eventOver = !!event && (
+    event.seriesEndDate
+      ? new Date(event.seriesEndDate).getTime() + 24 * 3600_000 < Date.now()
+      : new Date(event.date).getTime() + event.durationHrs * 3600_000 < Date.now()
+  );
 
   const doRefund = async (id: string, refundTo: 'wallet' | 'source') => {
     if (liveBookings) {
@@ -158,12 +167,17 @@ export default function MyBookings() {
                         {resendingId === selected.id ? 'Resending…' : 'Resend to WhatsApp'}
                       </button>
                     )}
-                    {selected.status === 'confirmed' && refundingId !== selected.id && selected.offlinePaymentMode !== 'self_collected' && (
+                    {selected.status === 'confirmed' && refundingId !== selected.id && !eventOver && selected.offlinePaymentMode !== 'self_collected' && (
                       <button className="btn btn-danger btn-sm" onClick={() => setRefundingId(selected.id)}>
                         Cancel booking
                       </button>
                     )}
                   </div>
+                  {selected.status === 'confirmed' && eventOver && selected.offlinePaymentMode !== 'self_collected' && (
+                    <div className="tiny muted-2" style={{ marginTop: 10 }}>
+                      This event has already happened — bookings can't be cancelled after the event.
+                    </div>
+                  )}
                   {selected.status === 'confirmed' && selected.offlinePaymentMode === 'self_collected' && (
                     <div className="tiny muted-2" style={{ marginTop: 10 }}>
                       This ticket's payment was collected directly by the organizer, not through Prebooze — contact them
