@@ -10,9 +10,33 @@ import EventCard from '../components/EventCard';
 import { useSeo } from '../lib/useSeo';
 
 const DATE_FILTERS = ['Any date', 'This weekend', 'This month'];
-const PRICES = ['Price', 'Under ₹30', '₹30–₹80', '₹80+'];
 const SORTS = ['sorted by date', 'price low→high', 'price high→low'];
 const SORT_PARAM: Record<string, string | undefined> = { [SORTS[0]]: undefined, [SORTS[1]]: 'price_asc', [SORTS[2]]: 'price_desc' };
+
+/** Real bug fixed (2026-10-19): the old price filter was 3 hardcoded
+ * buckets (Under ₹30 / ₹30–₹80 / ₹80+) that made no sense once ticket
+ * prices moved outside that range — a city where everything starts at
+ * ₹500 made every bucket either empty or useless. Instead, band edges are
+ * derived from the real min/max price actually on screen right now: the
+ * range is split into 3 equal-width bands (average difference between
+ * edges), so the three options always roughly three-way-split whatever's
+ * actually bookable. Rounded to a clean ₹10 so labels read as real prices,
+ * not a raw division artifact like "₹173". */
+function priceBands(prices: number[]): { label: string; test: (p: number) => boolean }[] | null {
+  if (prices.length === 0) return null;
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  if (min === max) return null; // nothing to band — every event is the same price
+  const round10 = (n: number) => Math.round(n / 10) * 10;
+  const low = round10(min + (max - min) / 3);
+  const high = round10(min + (2 * (max - min)) / 3);
+  if (low === min || high === low) return null; // range too narrow to produce 3 distinct bands
+  return [
+    { label: `Under ₹${low}`, test: (p) => p < low },
+    { label: `₹${low}–₹${high}`, test: (p) => p >= low && p <= high },
+    { label: `₹${high}+`, test: (p) => p > high },
+  ];
+}
 
 /** Real event search — server does city/category/sub-category/search/sort
  * (GET /events already supports all of these); price band and "this
@@ -25,7 +49,7 @@ export default function Browse() {
   const [dateF, setDateF] = useState(DATE_FILTERS[0]);
   const [cat, setCat] = useState(params.get('cat') ?? 'Category');
   const [sub, setSub] = useState(params.get('sub') ?? '');
-  const [price, setPrice] = useState(PRICES[0]);
+  const [priceIdx, setPriceIdx] = useState(0); // 0 = "Price" (no filter), else 1-indexed into bands
   const [sort, setSort] = useState(SORTS[0]);
 
   const [liveEvents, setLiveEvents] = useState<Event[] | null>(null);
@@ -68,15 +92,16 @@ export default function Browse() {
       if (cat !== 'Category') list = list.filter((e) => e.category === cat);
       if (sub) list = list.filter((e) => e.subCategory === sub);
     }
-    if (price === PRICES[1]) list = list.filter((e) => Math.min(...e.tiers.map((t) => t.price)) < 30);
-    if (price === PRICES[2])
-      list = list.filter((e) => {
-        const p = Math.min(...e.tiers.map((t) => t.price));
-        return p >= 30 && p <= 80;
-      });
-    if (price === PRICES[3]) list = list.filter((e) => Math.min(...e.tiers.map((t) => t.price)) > 80);
     if (dateF === 'This weekend') {
       list = list.filter((e) => [0, 5, 6].includes(new Date(e.date).getDay()));
+    }
+    // Bands computed from this exact list (post date/category/search, pre
+    // price) — the same set the dropdown's band labels below are built
+    // from, so "Under ₹X" always matches what's actually filtered here.
+    const bands = priceBands(list.map((e) => Math.min(...e.tiers.map((t) => t.price))));
+    if (bands && priceIdx > 0) {
+      const band = bands[priceIdx - 1];
+      if (band) list = list.filter((e) => band.test(Math.min(...e.tiers.map((t) => t.price))));
     }
     if (!liveEvents) {
       // server already sorts real results; mock fallback still needs local sorting
@@ -85,7 +110,16 @@ export default function Browse() {
       if (sort === SORTS[2]) list = [...list].sort((a, b) => Math.min(...b.tiers.map((t) => t.price)) - Math.min(...a.tiers.map((t) => t.price)));
     }
     return featuredFirst(list, (e) => e.id, featuredRefs(featured, 'event', city));
-  }, [liveEvents, q, cat, sub, price, dateF, sort, city, featured]);
+  }, [liveEvents, q, cat, sub, priceIdx, dateF, sort, city, featured]);
+
+  // Same band computation, reused by the dropdown render below so its
+  // option labels always match what `events` above just filtered by —
+  // computed from the pre-price-filter list (liveEvents or the mock
+  // equivalent), not the already-price-filtered `events` result.
+  const priceBandOptions = useMemo(() => {
+    const source = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved' && (e.venueId ? venueById(e.venueId).city : e.privateCity) === city));
+    return priceBands(source.map((e) => Math.min(...e.tiers.map((t) => t.price))));
+  }, [liveEvents, city]);
 
   // sub-category counts within the selected city + category
   const subCounts = useMemo(() => {
@@ -107,9 +141,12 @@ export default function Browse() {
           <select value={cat} onChange={(e) => { setCat(e.target.value); setSub(''); }} style={{ width: 'auto' }}>
             {CATS.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
-          <select value={price} onChange={(e) => setPrice(e.target.value)} style={{ width: 'auto' }}>
-            {PRICES.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
+          {priceBandOptions && (
+            <select value={priceIdx} onChange={(e) => setPriceIdx(Number(e.target.value))} style={{ width: 'auto' }}>
+              <option value={0}>Price</option>
+              {priceBandOptions.map((b, i) => <option key={b.label} value={i + 1}>{b.label}</option>)}
+            </select>
+          )}
           <span style={{ flex: 1 }} />
           <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ width: 'auto' }}>
             {SORTS.map((o) => <option key={o} value={o}>{o}</option>)}
