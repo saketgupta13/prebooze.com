@@ -14,7 +14,29 @@ const TYPE_PLACEHOLDER = 'Venue type';
 // Offline fallback only — real vocabulary comes from GET /venue-types
 // (Admin > Content > Venue types) below.
 const TYPES_FALLBACK = [TYPE_PLACEHOLDER, 'Nightclub', 'Bar & lounge', 'Rooftop', 'Warehouse', 'Live-music hall', 'Comedy club', 'Banquet / open ground', 'Cafe & brewery'];
-const CAPS = ['Capacity', 'Under 500', '500–2500', '2500+'];
+
+/** Same dynamic-band logic as Browse.tsx's priceBands — real bug fixed
+ * 2026-10-19: the old filter was 3 hardcoded buckets (Under 500 / 500–2500
+ * / 2500+) that made no sense once venue capacities in a city clustered
+ * outside that range (e.g. a city of only small bars, or only big
+ * warehouses). Band edges are derived from the real min/max capacity
+ * actually on screen right now, split into 3 equal-width bands, rounded to
+ * a clean 10. */
+function capacityBands(capacities: number[]): { label: string; test: (c: number) => boolean }[] | null {
+  if (capacities.length === 0) return null;
+  const min = Math.min(...capacities);
+  const max = Math.max(...capacities);
+  if (min === max) return null;
+  const round10 = (n: number) => Math.round(n / 10) * 10;
+  const low = round10(min + (max - min) / 3);
+  const high = round10(min + (2 * (max - min)) / 3);
+  if (low === min || high === low) return null;
+  return [
+    { label: `Under ${low}`, test: (c) => c < low },
+    { label: `${low}–${high}`, test: (c) => c >= low && c <= high },
+    { label: `${high}+`, test: (c) => c > high },
+  ];
+}
 
 export default function Venues() {
   const { city, favVenues, toggleFavVenue } = useApp();
@@ -22,7 +44,7 @@ export default function Venues() {
   // Deep-link support for the #Hashtag venue-type links on VenueDetail.tsx
   // (?type=Nightclub) — falls back to the "no filter" placeholder otherwise.
   const [type, setType] = useState(params.get('type') || TYPE_PLACEHOLDER);
-  const [cap, setCap] = useState(CAPS[0]);
+  const [capIdx, setCapIdx] = useState(0); // 0 = no filter, else 1-indexed into the computed bands
   const [q, setQ] = useState('');
 
   const [liveVenues, setLiveVenues] = useState<Venue[] | null>(null);
@@ -46,18 +68,23 @@ export default function Venues() {
 
   // Mock is only a stand-in for offline dev mode — never a "loading"
   // placeholder in production (see the equivalent note in Organizers.tsx).
-  const venues = useMemo(() => {
+  const venuesPreCap = useMemo(() => {
     let list = liveVenues ?? (isBackendEnabled() ? [] : VENUES.filter((v) => v.city === city));
     if (q) list = list.filter((v) => v.name.toLowerCase().includes(q.toLowerCase()));
     // v.type is a comma-joined multi-select string (e.g. "Nightclub, Rooftop")
     // — match if the selected filter is one of the venue's types, not an
     // exact-equal on the whole string.
     if (type !== TYPE_PLACEHOLDER) list = list.filter((v) => v.type.split(',').map((t) => t.trim()).includes(type));
-    if (cap === CAPS[1]) list = list.filter((v) => v.capacity < 500);
-    if (cap === CAPS[2]) list = list.filter((v) => v.capacity >= 500 && v.capacity <= 2500);
-    if (cap === CAPS[3]) list = list.filter((v) => v.capacity > 2500);
     return list;
-  }, [liveVenues, q, type, cap, city]);
+  }, [liveVenues, q, type, city]);
+
+  // Computed from venuesPreCap (post search/type, pre capacity) — same set
+  // the dropdown's band labels below are built from, so a band always
+  // matches what it actually filters to when picked.
+  const capBands = useMemo(() => capacityBands(venuesPreCap.map((v) => v.capacity)), [venuesPreCap]);
+  const venues = capBands && capIdx > 0
+    ? venuesPreCap.filter((v) => capBands[capIdx - 1]?.test(v.capacity))
+    : venuesPreCap;
 
   return (
     <main className="page">
@@ -72,9 +99,12 @@ export default function Venues() {
           <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: 'auto' }}>
             {TYPES.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
-          <select value={cap} onChange={(e) => setCap(e.target.value)} style={{ width: 'auto' }}>
-            {CAPS.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
+          {capBands && (
+            <select value={capIdx} onChange={(e) => setCapIdx(Number(e.target.value))} style={{ width: 'auto' }}>
+              <option value={0}>Capacity</option>
+              {capBands.map((b, i) => <option key={b.label} value={i + 1}>{b.label}</option>)}
+            </select>
+          )}
         </div>
 
         <h1 style={{ fontSize: 21, marginBottom: 4 }}>
