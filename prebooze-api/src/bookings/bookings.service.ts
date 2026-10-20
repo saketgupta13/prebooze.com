@@ -2332,6 +2332,13 @@ export class BookingsService {
         await this.email.sendTemplate(waiter.email, 'waitlist_offer', {
           name: waiter.name, eventTitle: event.title, eventUrl,
         }).catch(() => {});
+        // Push too, same as every other guest-facing trigger goes through
+        // GuestNotificationsService — a freed waitlist spot is the most
+        // time-sensitive push this app sends (another waiter can take it),
+        // so WhatsApp/email alone (easy to miss for minutes) wasn't enough.
+        await this.guestNotifications
+          .notify(waiter.id, 'ticket', `A spot opened up for "${event.title}" — grab it before it's gone`, event.slug)
+          .catch(() => {});
       }
     }
 

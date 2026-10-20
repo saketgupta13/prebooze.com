@@ -908,6 +908,12 @@ model Event {
   // client-side mirror in prebooze-web/src/data/mock.ts. Null means a normal
   // single-day/single-session event, unchanged from before this field existed.
   seriesEndDate       DateTime?
+  // Set once CronService.lowStockWishlistTick fires the "almost sold out"
+  // push to everyone who's wishlisted this event — a dedup flag, same
+  // pattern as Cart.remindedAt, so the push only ever fires once per event
+  // (the first tick that finds combined tier inventory below the low-stock
+  // threshold) rather than re-firing on every 10-minute tick afterward.
+  lowStockNotifiedAt  DateTime?
   // Optional — an organizer running a secret/guest-list-only event can skip
   // registering a real Venue partner entirely and instead set privateCity/
   // privateLocality below. Guests then only ever see "{locality}, {city}",

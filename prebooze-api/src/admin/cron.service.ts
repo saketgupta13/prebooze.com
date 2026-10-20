@@ -13,6 +13,7 @@ import { CartsService } from './carts.service';
 import { SettlementsService } from './settlements.service';
 import { SocialService } from '../social/social.service';
 import { PhonePeService } from '../payments/phonepe.service';
+import { GuestNotificationsService } from '../notifications/guest-notifications';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -37,6 +38,7 @@ export class CronService {
     private settlements: SettlementsService,
     private social: SocialService,
     private phonepe: PhonePeService,
+    private guestNotifications: GuestNotificationsService,
   ) {}
 
   /** Payouts are never marked paid automatically — there's no real bank
@@ -295,5 +297,45 @@ export class CronService {
   async followerDigestTick() {
     const { sent } = await this.social.sendFollowerDigest();
     if (sent) this.log.log(`Follower digest: sent to ${sent} account(s)`);
+  }
+
+  /** Every 15 minutes — a real conversion nudge for exactly the guests
+   * who've already signalled intent (wishlisted) but haven't booked yet:
+   * push them once an upcoming event's combined tier inventory drops below
+   * a low-stock threshold. Not every tick — Event.lowStockNotifiedAt dedupes
+   * so this fires exactly once per event, the first tick that finds it
+   * genuinely low (never re-fires on every subsequent tick). Skips events
+   * already fully sold out (remaining 0) — that's a different, less
+   * actionable message ("sold out" vs "almost sold out") this doesn't send
+   * today. 15 min, not 5 like the cart/lead nudges above, because this is
+   * scanning every upcoming approved event's tier sums, not a narrow
+   * recently-changed set — cheap enough at today's event volume but no
+   * reason to run it as often as a genuinely time-critical recovery flow. */
+  @Cron('*/15 * * * *')
+  async lowStockWishlistTick() {
+    const LOW_STOCK_THRESHOLD = 15;
+    const events = await this.prisma.event.findMany({
+      where: { status: 'approved', date: { gt: new Date() }, lowStockNotifiedAt: null },
+      include: { tiers: true },
+    });
+    let notified = 0;
+    for (const event of events) {
+      const remaining = event.tiers.reduce((sum, t) => sum + Math.max(0, t.quantity - t.sold), 0);
+      if (remaining === 0 || remaining > LOW_STOCK_THRESHOLD) continue;
+      // Event has no direct wishlists relation (EventWishlist only relates
+      // back to User) — queried separately rather than added just for this.
+      const wishlisters = await this.prisma.eventWishlist.findMany({ where: { eventId: event.id }, select: { userId: true } });
+      if (wishlisters.length === 0) continue;
+      await Promise.all(
+        wishlisters.map((w) =>
+          this.guestNotifications
+            .notify(w.userId, 'ticket', `Only ${remaining} spot${remaining === 1 ? '' : 's'} left for "${event.title}" — you wishlisted this one`, event.slug)
+            .catch(() => {}),
+        ),
+      );
+      await this.prisma.event.update({ where: { id: event.id }, data: { lowStockNotifiedAt: new Date() } });
+      notified += wishlisters.length;
+    }
+    if (notified) this.log.log(`Low-stock wishlist tick: notified ${notified} guest(s) across ${events.length} event(s) checked`);
   }
 }
