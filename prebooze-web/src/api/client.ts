@@ -50,6 +50,7 @@ export async function apiFetch<T>(path: string, options: { method?: string; body
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    if (err.code === 'SESSION_EXPIRED') window.dispatchEvent(new Event('pb:session-expired'));
     throw new ApiError(res.status, err.code ?? 'ERROR', err.message ?? res.statusText);
   }
   if (res.status === 204) return undefined as T;
@@ -69,6 +70,7 @@ export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    if (err.code === 'SESSION_EXPIRED') window.dispatchEvent(new Event('pb:session-expired'));
     throw new ApiError(res.status, err.code ?? 'ERROR', err.message ?? res.statusText);
   }
   return res.json();

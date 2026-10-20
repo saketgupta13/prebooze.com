@@ -13,7 +13,7 @@ export class JwtAuthGuard implements CanActivate {
     const req = ctx.switchToHttp().getRequest();
     const header: string = req.headers.authorization ?? '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-    if (!token) throw new UnauthorizedException('Missing token');
+    if (!token) throw new UnauthorizedException({ code: 'SESSION_EXPIRED', message: 'Missing token' });
     try {
       const payload = await this.jwt.verifyAsync(token);
       // guest and staff tokens share the same signing secret (see
@@ -29,7 +29,10 @@ export class JwtAuthGuard implements CanActivate {
       req.user = payload;
       return true;
     } catch {
-      throw new UnauthorizedException('Invalid or expired token');
+      // Distinct `code` (not just the message string) so the frontend can
+      // reliably tell "your session died, log in again" apart from other
+      // unrelated 401s (e.g. wrong OTP) without string-matching.
+      throw new UnauthorizedException({ code: 'SESSION_EXPIRED', message: 'Invalid or expired token' });
     }
   }
 }

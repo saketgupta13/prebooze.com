@@ -5,7 +5,7 @@ import Loader, { PageLoader } from '../components/Loader';
 import { eventById, fmtDate, fmtTime, venueById } from '../data/mock';
 import type { Booking, Event, PayMethod } from '../types';
 import { auth, bookings, catalog, wallet, type AvailableCoupon, type BookingQuote, type CreateBookingInput } from '../api';
-import { isBackendEnabled } from '../api/client';
+import { isBackendEnabled, ApiError } from '../api/client';
 import { existingRole, roleHome, roleLabel } from '../lib/roles';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { track } from '../lib/track';
@@ -151,7 +151,15 @@ export default function Checkout() {
         setHold(new Date(h.expiresAt).getTime());
         track('checkout_viewed', { eventId: liveEvent.id });
       })
-      .catch((e) => setHoldErr(e.message ?? 'Could not hold your tickets — they may have sold out'));
+      .catch((e) => {
+        // A dead session (SESSION_EXPIRED) is handled app-wide by
+        // AppContext's 'pb:session-expired' listener — logout + redirect to
+        // /login — so don't flash this checkout-specific error box (with
+        // its misleading "Pick tickets again" CTA) for what's actually a
+        // logged-out guest, not a failed ticket hold.
+        if (e instanceof ApiError && e.code === 'SESSION_EXPIRED') return;
+        setHoldErr(e.message ?? 'Could not hold your tickets — they may have sold out');
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveEvent, selection, user, phonepeReturnHoldId]);
 

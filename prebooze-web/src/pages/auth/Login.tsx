@@ -28,8 +28,10 @@ export default function Login() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const from = (location.state as { from?: string } | null)?.from;
+  const state = location.state as { from?: string; sessionExpired?: boolean } | null;
+  const from = state?.from;
   const onboardingCopy = from ? ONBOARDING_COPY[from] : undefined;
+  const sessionExpired = Boolean(state?.sessionExpired);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,10 +60,19 @@ export default function Login() {
         </div>
 
         <form className="card card-shadow auth-card" onSubmit={submit} style={{ width: '100%' }}>
-          <h1 style={{ fontSize: 24 }}>{onboardingCopy ? onboardingCopy.heading : 'Welcome'}</h1>
-          <p className="muted small" style={{ margin: '6px 0 18px' }}>
-            Login or sign up — no password needed
-          </p>
+          <h1 style={{ fontSize: 24 }}>{sessionExpired ? 'Please log in again' : onboardingCopy ? onboardingCopy.heading : 'Welcome'}</h1>
+          {sessionExpired ? (
+            <div
+              className="danger-text small"
+              style={{ margin: '6px 0 18px', padding: '10px 12px', borderRadius: 8, background: 'rgba(255, 92, 73, 0.1)' }}
+            >
+              Your session has expired. Log in again to continue.
+            </div>
+          ) : (
+            <p className="muted small" style={{ margin: '6px 0 18px' }}>
+              Login or sign up — no password needed
+            </p>
+          )}
 
           <div className="field">
             <span>Phone number</span>

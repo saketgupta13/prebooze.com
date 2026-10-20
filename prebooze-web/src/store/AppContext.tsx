@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayMethod, Person, ReviewTargetType, User, Venue, WaitlistEntry } from '../types';
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } from '../data/mock';
@@ -263,6 +264,7 @@ function inferPendingRole(u: User): User['pendingRole'] {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(() => normalizeUser(load('pb_user', null)));
   // 'Austin' was the original mock-data default, from before this app
   // localized to the Indian market — anyone who visited before this fix has
@@ -410,7 +412,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     auth
       .me()
       .then((apiUser) => setUser(normalizeUser({ ...apiUser, pendingRole: inferPendingRole(apiUser) })))
-      .catch(() => {}); // expired/invalid token — leave cached user as-is rather than force a logout on a transient error
+      // A real expired/dead session (SESSION_EXPIRED) is handled by the
+      // global 'pb:session-expired' listener below, which logs out and
+      // redirects — nothing to do here. Anything else (offline, a
+      // transient network blip) should leave the cached user as-is rather
+      // than force a logout.
+      .catch(() => {});
   }, []);
   // Real follow/interested/wishlist/favourite state — a real backend (Follow/
   // EventInterest/EventWishlist/VenueFavourite models) has existed the whole
@@ -555,10 +562,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Cross-tab logout detection: if another tab clears the auth token
   // (via clearToken/logout), this tab's cached follow/interested/wishlist
   // state should also clear to avoid stale state. Listen for storage changes
-  // of the token key and clear state if it's removed.
+  // of the real token key ('pb_auth_token', not 'token' — this never
+  // actually fired before, since clearToken() removes a different key than
+  // this was checking for) and clear state if it's removed.
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'token' && e.newValue === null && user) {
+      if (e.key === 'pb_auth_token' && e.newValue === null && user) {
         setUser(null);
         setFollowing([]);
         setInterested([]);
@@ -594,6 +603,53 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
+
+  // Real follow/interested/wishlist/favourite/followers state is per-account
+  // (bootstrapped from the real backend on login), but this only ever
+  // cleared the auth token — the arrays themselves, and their localStorage
+  // cache, stayed exactly as they were. A logged-out visitor (or a second
+  // guest logging in on the same device) would still see "Following ✓" on
+  // everything the previous session followed, since nothing here or on next
+  // boot ever re-fetched to overwrite it.
+  const logout = useCallback(() => {
+    setUser(null);
+    setOrgTeamAccess(null);
+    setOrgTeamAccessLoaded(true);
+    setVenueTeamAccess(null);
+    setVenueTeamAccessLoaded(true);
+    setFollowing([]);
+    setFollowers([]);
+    setFollowerDeltas({});
+    setInterested([]);
+    setWishlist([]);
+    setFavVenues([]);
+    localStorage.removeItem('pb_following');
+    localStorage.removeItem('pb_interested');
+    localStorage.removeItem('pb_wishlist');
+    localStorage.removeItem('pb_fav_venues');
+    clearToken();
+  }, []);
+
+  // A 401 anywhere in the app (not just Checkout) with code SESSION_EXPIRED
+  // means the 30-day guest JWT died — previously the app just kept showing
+  // the cached `user` as logged in (auth.me()'s failure was silently
+  // swallowed) until the first authenticated write call, almost always
+  // bookings.hold() on Checkout, surfaced the backend's raw
+  // "Invalid or expired token" string in a checkout-specific error box with
+  // a misleading "Pick tickets again" CTA. This logs the dead session out
+  // app-wide, from wherever it was actually detected, and sends the guest to
+  // a real re-login instead — Login.tsx reads `sessionExpired` off
+  // location.state to show the explanatory message there.
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      if (!getToken() && !user) return; // already logged out, nothing to do
+      logout();
+      navigate('/login', { state: { sessionExpired: true } });
+    };
+    window.addEventListener('pb:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('pb:session-expired', handleSessionExpired);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logout]);
 
   const value = useMemo<AppState>(
     () => ({
@@ -768,32 +824,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return next;
         });
       },
-      // Real follow/interested/wishlist/favourite/followers state is
-      // per-account (bootstrapped from the real backend on login — see the
-      // mySocialState/social.followers() effects above), but this only ever
-      // cleared the auth token — the arrays themselves, and their
-      // localStorage cache, stayed exactly as they were. A logged-out
-      // visitor (or a second guest logging in on the same device) would
-      // still see "Following ✓" on everything the previous session followed,
-      // since nothing here or on next boot ever re-fetched to overwrite it.
-      logout: () => {
-        setUser(null);
-        setOrgTeamAccess(null);
-        setOrgTeamAccessLoaded(true);
-        setVenueTeamAccess(null);
-        setVenueTeamAccessLoaded(true);
-        setFollowing([]);
-        setFollowers([]);
-        setFollowerDeltas({});
-        setInterested([]);
-        setWishlist([]);
-        setFavVenues([]);
-        localStorage.removeItem('pb_following');
-        localStorage.removeItem('pb_interested');
-        localStorage.removeItem('pb_wishlist');
-        localStorage.removeItem('pb_fav_venues');
-        clearToken();
-      },
+      logout,
       // changing the cart always resets any active hold; checkout re-arms it on entry
       setSelection: (s) => {
         setSelectionState(s);
@@ -1115,7 +1146,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       venueTeamAccess,
       venueTeamAccessLoaded,
     }),
-    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, pendingExistingName, pendingRequestId, myVenues, promoterRefByEvent, promoterViaByEvent, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded, venueTeamAccess, venueTeamAccessLoaded]
+    [user, city, bookings, selection, holdExpiry, carts, myEvents, coupons, following, followerDeltas, interested, featured, wallets, referrals, liveReferrals, refCodes, walletTxs, walletBalance, refreshWallet, creditWallet, wishlist, favVenues, payMethodsMap, livePayMethods, ticketsMap, liveHelpTickets, waitlists, jobApps, reviews, followers, followersLoading, pendingPhone, pendingExistingName, pendingRequestId, myVenues, promoterRefByEvent, promoterViaByEvent, toastMsg, toast, orgTeamAccess, orgTeamAccessLoaded, venueTeamAccess, venueTeamAccessLoaded, logout]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
