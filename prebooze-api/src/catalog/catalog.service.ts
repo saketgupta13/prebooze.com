@@ -91,6 +91,54 @@ export class CatalogService {
     return new Map(rows.map((r) => [r.followeeKey, r._count]));
   }
 
+  /** Real approved-event counts for organizers/venues, same "never written,
+   * always reads stale" bug realFollowerCounts' own comment describes —
+   * Organizer.eventsHosted is a stored column nothing ever increments, so
+   * it permanently reads 0 no matter how many real events an organizer has
+   * run. Computed live from the real Event rows instead, same pattern. */
+  private async realOrganizerEventCounts(organizerIds: string[]): Promise<Map<string, number>> {
+    if (!organizerIds.length) return new Map();
+    const rows = await this.prisma.event.groupBy({ by: ['organizerId'], where: { status: 'approved', organizerId: { in: organizerIds } }, _count: true });
+    return new Map(rows.filter((r) => r.organizerId).map((r) => [r.organizerId as string, r._count]));
+  }
+
+  private async realVenueEventCounts(venueIds: string[]): Promise<Map<string, number>> {
+    if (!venueIds.length) return new Map();
+    const rows = await this.prisma.event.groupBy({ by: ['venueId'], where: { status: 'approved', venueId: { in: venueIds } }, _count: true });
+    return new Map(rows.filter((r) => r.venueId).map((r) => [r.venueId as string, r._count]));
+  }
+
+  /** Lineup.eventsPlayed has the exact same always-0 bug as above, but
+   * Event.lineup isn't a real relation — it's a freeform JSON array
+   * ({name, role}[], see the schema's own comment on Event.lineup), the
+   * same reason LineupProfile.tsx has always had to match by name
+   * client-side rather than query a relation. No portable Prisma query can
+   * count JSON-array matches, so this fetches every approved event's
+   * lineup column once and counts matches in JS — fine at today's event
+   * volume (hundreds, not millions), same one-query-regardless-of-fan-out
+   * shape as attachCollaborators above. Case-insensitive, matching
+   * LineupProfile.tsx's own `.toLowerCase()` comparison exactly. */
+  private async realLineupEventCounts(names: string[]): Promise<Map<string, number>> {
+    if (!names.length) return new Map();
+    const wanted = new Set(names.map((n) => n.toLowerCase()));
+    const rows = await this.prisma.event.findMany({ where: { status: 'approved' }, select: { lineup: true } });
+    const counts = new Map<string, number>(names.map((n) => [n, 0]));
+    const byLower = new Map(names.map((n) => [n.toLowerCase(), n]));
+    for (const row of rows) {
+      const entries = Array.isArray(row.lineup) ? (row.lineup as { name?: string }[]) : [];
+      const seen = new Set<string>(); // a name listed twice on one event still counts as one event played
+      for (const entry of entries) {
+        const lower = entry.name?.toLowerCase();
+        if (lower && wanted.has(lower) && !seen.has(lower)) {
+          seen.add(lower);
+          const original = byLower.get(lower)!;
+          counts.set(original, (counts.get(original) ?? 0) + 1);
+        }
+      }
+    }
+    return counts;
+  }
+
   /** Resolves each event's raw collaboratorOrganizerIds into real, public
    * organizer objects (real registered co-organizers only — see
    * Event.collaboratorOrganizerIds/OrganizerService.saveEvent, which is
@@ -218,8 +266,11 @@ export class CatalogService {
       orderBy: { rating: 'desc' },
       select: PUBLIC_VENUE_SELECT,
     });
-    const counts = await this.realFollowerCounts(rows.map((v) => `venue:${v.id}`));
-    return rows.map((v) => ({ ...v, followers: counts.get(`venue:${v.id}`) ?? 0 }));
+    const [followerCounts, eventCounts] = await Promise.all([
+      this.realFollowerCounts(rows.map((v) => `venue:${v.id}`)),
+      this.realVenueEventCounts(rows.map((v) => v.id)),
+    ]);
+    return rows.map((v) => ({ ...v, followers: followerCounts.get(`venue:${v.id}`) ?? 0, eventsHosted: eventCounts.get(v.id) ?? 0 }));
   }
 
   /** Single-venue fetch — the detail page used to call venues() (every venue
@@ -233,8 +284,11 @@ export class CatalogService {
       select: PUBLIC_VENUE_SELECT,
     });
     if (!venue) throw new NotFoundException('Venue not found');
-    const counts = await this.realFollowerCounts([`venue:${venue.id}`]);
-    return { ...venue, followers: counts.get(`venue:${venue.id}`) ?? 0 };
+    const [followerCounts, eventCounts] = await Promise.all([
+      this.realFollowerCounts([`venue:${venue.id}`]),
+      this.realVenueEventCounts([venue.id]),
+    ]);
+    return { ...venue, followers: followerCounts.get(`venue:${venue.id}`) ?? 0, eventsHosted: eventCounts.get(venue.id) ?? 0 };
   }
 
   // A touring organizer (e.g. a full-India tour) is registered under one
@@ -247,11 +301,18 @@ export class CatalogService {
       where: city
         ? { OR: [{ city }, { events: { some: { status: 'approved', OR: [{ venue: { city } }, { privateCity: city }, { unlistedVenueCity: city }] } } }] }
         : {},
-      orderBy: { eventsHosted: 'desc' },
+      // Was `orderBy: { eventsHosted: 'desc' }` — that column is always 0
+      // (see realOrganizerEventCounts' doc comment), so this sort was a
+      // no-op in practice. Rating is the next-best real signal to sort by
+      // until/unless a second query is worth adding just for sort order.
+      orderBy: { rating: 'desc' },
       select: PUBLIC_ORGANIZER_SELECT,
     });
-    const counts = await this.realFollowerCounts(rows.map((o) => o.id));
-    const withCounts = rows.map((o) => ({ ...o, followers: counts.get(o.id) ?? 0 }));
+    const [followerCounts, eventCounts] = await Promise.all([
+      this.realFollowerCounts(rows.map((o) => o.id)),
+      this.realOrganizerEventCounts(rows.map((o) => o.id)),
+    ]);
+    const withCounts = rows.map((o) => ({ ...o, followers: followerCounts.get(o.id) ?? 0, eventsHosted: eventCounts.get(o.id) ?? 0 }));
     if (!city) return withCounts;
     const featured = await this.activeFeaturedRefs('organizer', city);
     return this.sortFeaturedFirst(withCounts, (o) => o.id, featured);
@@ -260,8 +321,11 @@ export class CatalogService {
   async organizer(id: string) {
     const org = await this.prisma.organizer.findUnique({ where: { id }, select: PUBLIC_ORGANIZER_SELECT });
     if (!org) throw new NotFoundException('Organizer not found');
-    const counts = await this.realFollowerCounts([org.id]);
-    return { ...org, followers: counts.get(org.id) ?? 0 };
+    const [followerCounts, eventCounts] = await Promise.all([
+      this.realFollowerCounts([org.id]),
+      this.realOrganizerEventCounts([org.id]),
+    ]);
+    return { ...org, followers: followerCounts.get(org.id) ?? 0, eventsHosted: eventCounts.get(org.id) ?? 0 };
   }
 
   /** Live show-rate — same "decided" definition (arrived, or the event's
@@ -319,8 +383,11 @@ export class CatalogService {
 
   async lineups(city?: string) {
     const rows = await this.prisma.lineup.findMany({ where: city ? { city } : {}, orderBy: { followers: 'desc' } });
-    const counts = await this.realFollowerCounts(rows.map((l) => `lineup:${l.slug}`));
-    const withCounts = rows.map((l) => ({ ...l, followers: counts.get(`lineup:${l.slug}`) ?? 0 }));
+    const [followerCounts, eventCounts] = await Promise.all([
+      this.realFollowerCounts(rows.map((l) => `lineup:${l.slug}`)),
+      this.realLineupEventCounts(rows.map((l) => l.name)),
+    ]);
+    const withCounts = rows.map((l) => ({ ...l, followers: followerCounts.get(`lineup:${l.slug}`) ?? 0, eventsPlayed: eventCounts.get(l.name) ?? 0 }));
     if (!city) return withCounts;
     const featured = await this.activeFeaturedRefs('lineup', city);
     return this.sortFeaturedFirst(withCounts, (l) => l.slug, featured);
@@ -329,8 +396,11 @@ export class CatalogService {
   async lineup(slug: string) {
     const lineup = await this.prisma.lineup.findUnique({ where: { slug } });
     if (!lineup) throw new NotFoundException('Line-up not found');
-    const counts = await this.realFollowerCounts([`lineup:${slug}`]);
-    return { ...lineup, followers: counts.get(`lineup:${slug}`) ?? 0 };
+    const [followerCounts, eventCounts] = await Promise.all([
+      this.realFollowerCounts([`lineup:${slug}`]),
+      this.realLineupEventCounts([lineup.name]),
+    ]);
+    return { ...lineup, followers: followerCounts.get(`lineup:${slug}`) ?? 0, eventsPlayed: eventCounts.get(lineup.name) ?? 0 };
   }
 
   /** Real "People" directory (GET /people?city=) — opt-in guests only
