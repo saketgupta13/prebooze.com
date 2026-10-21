@@ -19,6 +19,7 @@ import { useTicker } from '../lib/useTicker';
 import { partySizeFromTierName, isCoupleTierName } from '../lib/partySize';
 import { requiredAgeFor } from '../lib/ageGate';
 import { isInAppBrowser, inAppBrowserName } from '../lib/inAppBrowser';
+import { sanitizeName, isValidName, sanitizePhoneChars, isValidWhatsapp } from '../lib/attendeeValidation';
 import { Clock, Lock, AlertTriangle, CheckCircle2, User, Camera, Ticket, XCircle, CreditCard, Wallet, Hourglass, Smartphone, ExternalLink } from 'lucide-react';
 
 const ABSORBED_NOTE: Record<string, string> = {
@@ -803,6 +804,14 @@ export default function Checkout() {
       failAttendee('Main attendee name and WhatsApp number are required');
       return;
     }
+    if (!isValidName(name)) {
+      failAttendee('Main attendee name should only contain letters and spaces');
+      return;
+    }
+    if (!isValidWhatsapp(whatsapp)) {
+      failAttendee('Enter a valid WhatsApp number');
+      return;
+    }
     if (!gender) {
       failAttendee('Main attendee gender is required');
       return;
@@ -827,6 +836,16 @@ export default function Checkout() {
     for (let i = 0; i < extraSlots.length; i++) {
       if (!(guestNames[i] ?? '').trim() || !guestGenders[i]) {
         failAttendee(`Guest ${i + 2}'s name and gender are required`);
+        return;
+      }
+      if (!isValidName(guestNames[i])) {
+        failAttendee(`Guest ${i + 2}'s name should only contain letters and spaces`);
+        return;
+      }
+      // WhatsApp number stays optional for extra guests — only validate
+      // format if they actually entered one.
+      if ((guestPhones[i] ?? '').trim() && !isValidWhatsapp(guestPhones[i])) {
+        failAttendee(`Enter a valid WhatsApp number for Guest ${i + 2}, or leave it blank`);
         return;
       }
     }
@@ -1003,7 +1022,7 @@ export default function Checkout() {
                 <>
                   <div className="field">
                     <span>Full name (main attendee) *</span>
-                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
+                    <input value={name} onChange={(e) => setName(sanitizeName(e.target.value))} placeholder="Full name" />
                   </div>
                   <div className="form-row">
                     <div className="field">
@@ -1018,7 +1037,7 @@ export default function Checkout() {
                     </div>
                     <div className="field">
                       <span>WhatsApp number *</span>
-                      <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+91" />
+                      <input value={whatsapp} inputMode="numeric" onChange={(e) => setWhatsapp(sanitizePhoneChars(e.target.value))} placeholder="+91" />
                     </div>
                   </div>
                 </>
@@ -1053,7 +1072,7 @@ export default function Checkout() {
                           onChange={(e) =>
                             setGuestNames((g) => {
                               const next = [...g];
-                              next[i] = e.target.value;
+                              next[i] = sanitizeName(e.target.value);
                               return next;
                             })
                           }
@@ -1087,7 +1106,7 @@ export default function Checkout() {
                           onChange={(e) =>
                             setGuestPhones((g) => {
                               const next = [...g];
-                              next[i] = e.target.value.replace(/[^\d+ ]/g, '').slice(0, 14);
+                              next[i] = sanitizePhoneChars(e.target.value);
                               return next;
                             })
                           }

@@ -1591,6 +1591,24 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
      height when it was positioned, this just brings the page padding in
      line with that. */
   .event-detail-page-mobile { padding-bottom: 100px; }
+  /* Home's "continue browsing" sticky bar — same fixed-bottom-bar pattern
+     as .ticket-box-bar above, reserving the same amount of page bottom
+     padding so the FAQs section's last content doesn't sit behind it. */
+  .recent-sticky-bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(0,0,0,.3);
+  }
+  .recent-sticky-bar .poster { width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--radius-s); }
+  .home-page-mobile { padding-bottom: 100px; }
 }
 /* .hdr-logo's <img> had default flex-shrink:1 with nothing constraining
    its minimum size — measured on a real narrow phone, the flex algorithm

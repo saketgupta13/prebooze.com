@@ -5,7 +5,7 @@ import type { Booking, Coupon, Event, Featured, HelpTicket, JobApplication, PayM
 import { registerVenue } from '../data/mock';
 import { COUPONS, EVENTS, REFERRAL_CONFIG, SEED_FEATURED, VENUES, eventById } from '../data/mock';
 import { notify } from '../lib/notify';
-import { auth, referrals as referralsApi, social as socialApi, orgTeam as orgTeamApi, venueTeam as venueTeamApi, bookings as bookingsApi, wallet as walletApi, support as supportApi, careers as careersApi, type OrgTeamAccess, type VenueTeamAccess } from '../api';
+import { auth, catalog, referrals as referralsApi, social as socialApi, orgTeam as orgTeamApi, venueTeam as venueTeamApi, bookings as bookingsApi, wallet as walletApi, support as supportApi, careers as careersApi, type OrgTeamAccess, type VenueTeamAccess } from '../api';
 import { isBackendEnabled, setToken, clearToken, getToken } from '../api/client';
 import { track } from '../lib/track';
 import { pushEvent } from '../lib/gtm';
@@ -277,6 +277,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const cached = load<string>('pb_city', 'Hyderabad');
     return cached === 'Austin' ? 'Hyderabad' : cached;
   });
+  // Captured once, synchronously, before the pb_city-persisting effect
+  // below ever runs — that effect writes pb_city on every render including
+  // the very first one, so checking localStorage for it any later would
+  // always find it already there. This is the one honest way to tell "a
+  // guest who's genuinely never been here" apart from "a guest whose city
+  // just happens to match the default."
+  const isFirstEverVisit = useState(() => localStorage.getItem('pb_city') === null && !localStorage.getItem('pb_city_manual'))[0];
   const [bookings, setBookings] = useState<Booking[]>(() => load('pb_bookings', []));
   const [selection, setSelectionState] = useState<Selection | null>(() => load('pb_selection', null));
   const [holdExpiry, setHoldExpiry] = useState<number | null>(() => load('pb_hold_expiry', null));
@@ -486,6 +493,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('pb_city', JSON.stringify(city));
   }, [city]);
+  // One-time, best-effort city auto-detect — only for a guest with no
+  // cached city preference at all (isFirstEverVisit) and no account city
+  // set yet (a logged-in guest's own `city` always wins over a guess).
+  // Asks for location permission exactly once ever: success or failure,
+  // denial or no match, `pb_geo_attempted` is set regardless so this never
+  // prompts again. Same reverse-geocode endpoint and real-city-list match
+  // CityPicker's manual "Detect my location" button already uses — this
+  // mirrors that logic automatically, silently, a single time.
+  useEffect(() => {
+    if (!isFirstEverVisit || !isBackendEnabled() || localStorage.getItem('pb_geo_attempted') || !navigator.geolocation) return;
+    // A logged-in guest's profile (and its city) loads async via auth.me()
+    // — with a token present but no user yet, wait for it rather than
+    // guessing; a token-less guest has no account city to wait for at all.
+    if (getToken() && !user) return;
+    if (user?.city) return; // an account city already answers "which city" — nothing to detect
+    localStorage.setItem('pb_geo_attempted', '1');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const r = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`
+          );
+          const d = await r.json();
+          const detected = (d.city || d.locality || '').trim();
+          const rows = await catalog.cities().catch(() => []);
+          const match = rows.find((c) => c.name.toLowerCase() === detected.toLowerCase() && c.events > 0);
+          if (match) setCity(match.name);
+        } catch {
+          // best-effort — leave the existing default city in place
+        }
+      },
+      () => {}, // denied — leave the existing default city in place
+      { timeout: 8000 }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFirstEverVisit, user]);
   useEffect(() => {
     localStorage.setItem('pb_bookings', JSON.stringify(bookings));
   }, [bookings]);

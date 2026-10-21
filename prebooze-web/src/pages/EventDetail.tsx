@@ -27,6 +27,7 @@ import { buildEventSchema, buildBreadcrumbSchema } from '../lib/schema';
 import { useCityReconcile } from '../lib/useCityReconcile';
 import { eventCity, eventPath, cityHome, cityBrowse, organizerPath, venuePath, lineupPath, promoterPath } from '../lib/urls';
 import { track } from '../lib/track';
+import { recordEventView } from '../lib/recentlyViewed';
 import { trackMeta } from '../lib/meta';
 import { usePlatformInfo } from '../lib/usePlatformInfo';
 import { formatPrice, formatFromPrice } from '../lib/formatPrice';
@@ -206,6 +207,9 @@ export default function EventDetail() {
 
   useEffect(() => {
     if (event) track('event_viewed', { eventId: event.id, meta: refSlug ? { promoterRef: refSlug, promoterVia: via ?? undefined } : undefined });
+    if (event && eventCityName) {
+      recordEventView({ id: event.id, slug: event.slug, title: event.title, posterUrl: event.posterUrl, posterHue: event.posterHue, date: event.date, city: eventCityName });
+    }
     // Client-only — no server-side CAPI mirror (see MetaConversionsService
     // call sites: only Purchase/Lead/CompleteRegistration have a real backend
     // moment to confirm from). Feeds retargeting ("viewed, didn't buy") and

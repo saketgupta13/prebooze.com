@@ -10,7 +10,10 @@ import { isBackendEnabled } from '../api/client';
 import type { CmsTestimonial, CmsBlogSummary, Event, Organizer, PromoterProfile, LineupProfile, Person, Venue } from '../types';
 import { personFollowKey } from '../lib/social';
 import { featuredRefs, featuredFirst } from '../lib/featured';
-import { organizerPath, promoterPath, lineupPath, venuePath, cityBrowse, cityOrganizers, cityPromoters, cityLineups, cityVenues, cityPeople as cityPeoplePath } from '../lib/urls';
+import { organizerPath, promoterPath, lineupPath, venuePath, eventPath, cityBrowse, cityOrganizers, cityPromoters, cityLineups, cityVenues, cityPeople as cityPeoplePath } from '../lib/urls';
+import { fmtDate } from '../data/mock';
+import { getRecentlyViewed, type RecentlyViewedEvent } from '../lib/recentlyViewed';
+import { useIsMobile } from '../lib/useIsMobile';
 import { todaysVenueHours } from '../lib/venueTimings';
 import EventCard from '../components/EventCard';
 import DirectoryCard from '../components/DirectoryCard';
@@ -170,6 +173,11 @@ export default function Home() {
   const [howTab, setHowTab] = useState<'guests' | 'organizers' | 'promoters' | 'lineups' | 'venues'>('guests');
   const [dismissed, setDismissed] = useState(false);
   const [heroIdx, setHeroIdx] = useState(0);
+  const isMobile = useIsMobile();
+  // Read once on mount — recordEventView() only ever runs from
+  // EventDetail, a full navigation away from Home, so there's nothing to
+  // re-sync while this page itself stays mounted.
+  const [recentlyViewed] = useState<RecentlyViewedEvent[]>(() => getRecentlyViewed());
 
   // auto-advance the hero every 5s
   useEffect(() => {
@@ -335,8 +343,9 @@ export default function Home() {
       </button>
     );
 
+  const showRecentBar = isMobile && recentlyViewed.length > 0;
   return (
-    <main className="page">
+    <main className={`page ${showRecentBar ? 'home-page-mobile' : ''}`}>
       <div className="container">
         {resumeCart && !dismissed && (
           <div className="card resume-cart-card" style={{ marginBottom: 16, padding: '16px 18px', borderColor: 'var(--accent)', background: 'rgba(155,225,61,.06)', position: 'relative' }}>
@@ -414,6 +423,28 @@ export default function Home() {
             </div>
           );
         })()}
+
+        {/* Recently viewed — locally tracked (see lib/recentlyViewed.ts),
+            not server data, so it renders immediately with no loading
+            state and simply doesn't show up at all for a first-time or
+            privacy-mode visitor. Small landscape thumbnails (not full
+            event-grid-card size), distinct from "Top selling events" below. */}
+        {recentlyViewed.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div className="section-hd">
+              <h2 style={{ fontSize: 16 }}>Recently viewed</h2>
+            </div>
+            <Slider slideWidth={180}>
+              {recentlyViewed.map((e) => (
+                <Link key={e.id} to={eventPath(e.city, e.slug)} style={{ textDecoration: 'none', display: 'block' }}>
+                  <Poster hue={e.posterHue} variant="landscape" imageUrl={e.posterUrl} alt={e.title} />
+                  <div className="tiny bold" style={{ marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.title}</div>
+                  <div className="tiny muted">{fmtDate(e.date)}</div>
+                </Link>
+              ))}
+            </Slider>
+          </div>
+        )}
 
         {/* Top selling events */}
         <div className="section-hd">
@@ -695,6 +726,20 @@ export default function Home() {
         </section>
 
       </div>
+
+      {/* Sticky "continue browsing" bar — the single most-recent viewed
+          event, pinned at the bottom of Home on mobile only (same
+          position:fixed pattern as EventDetail's .ticket-box-bar). */}
+      {showRecentBar && (
+        <div className="recent-sticky-bar">
+          <Poster hue={recentlyViewed[0].posterHue} variant="square" imageUrl={recentlyViewed[0].posterUrl} alt={recentlyViewed[0].title} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="tiny muted">Continue browsing</div>
+            <div className="small bold" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{recentlyViewed[0].title}</div>
+          </div>
+          <Link to={eventPath(recentlyViewed[0].city, recentlyViewed[0].slug)} className="btn btn-pri btn-sm">Book</Link>
+        </div>
+      )}
     </main>
   );
 }
