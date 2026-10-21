@@ -176,8 +176,14 @@ export default function Home() {
   const isMobile = useIsMobile();
   // Read once on mount — recordEventView() only ever runs from
   // EventDetail, a full navigation away from Home, so there's nothing to
-  // re-sync while this page itself stays mounted.
-  const [recentlyViewed] = useState<RecentlyViewedEvent[]>(() => getRecentlyViewed());
+  // re-sync while this page itself stays mounted. Filtered to the
+  // currently-browsed city — a city page is scoped to that city's own
+  // events (same as "Top selling events in {city}" below), so a Hyderabad
+  // event viewed earlier has no business showing up on the Nagpur page,
+  // and recomputed (not filtered once) since switching city via CityPicker
+  // can update `city` without necessarily remounting this component.
+  const [recentlyViewedAll] = useState<RecentlyViewedEvent[]>(() => getRecentlyViewed());
+  const recentlyViewed = useMemo(() => recentlyViewedAll.filter((e) => e.city === city), [recentlyViewedAll, city]);
 
   // Real, admin-managed hero banners (Admin > Content > Banners) — the
   // HERO const below stays only as the fallback for offline/dev mode and

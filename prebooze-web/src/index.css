@@ -750,7 +750,12 @@ video.poster { width: 100%; height: 100%; object-fit: cover; display: block; bac
 /* horizontal sliders */
 .slider-wrap { position: relative; }
 .slider-track { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x proximity; scroll-behavior: smooth; padding: 2px 2px 8px; }
-.slider-track > * { flex: 0 0 var(--slide-w, 260px); scroll-snap-align: start; }
+/* min-width:0 overrides the flex item default of min-width:auto — without
+   it, a card containing nowrap/ellipsis text (long event titles) grows
+   past its own flex-basis to fit that text's full intrinsic width instead
+   of actually truncating, making just that one card visibly wider than
+   its siblings. Real bug: Home.tsx's Recently Viewed strip, long title. */
+.slider-track > * { flex: 0 0 var(--slide-w, 260px); min-width: 0; scroll-snap-align: start; }
 .slider-track::-webkit-scrollbar { height: 6px; }
 .slider-track::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
 .slider-btn {
