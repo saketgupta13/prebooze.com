@@ -11,11 +11,12 @@ export class CmsService {
   }
   async createBanner(body: Record<string, unknown>) {
     if (!body.title) throw new BadRequestException('title is required');
-    return this.prisma.banner.create({ data: body as never });
+    return this.prisma.banner.create({ data: { ...body, ...deriveBannerFields(body.statusLabel) } as never });
   }
   async updateBanner(id: string, patch: Record<string, unknown>) {
     if (!(await this.prisma.banner.findUnique({ where: { id } }))) throw new NotFoundException('Banner not found');
-    return this.prisma.banner.update({ where: { id }, data: omit(patch, ['id']) as never });
+    const fields = 'statusLabel' in patch ? deriveBannerFields(patch.statusLabel) : {};
+    return this.prisma.banner.update({ where: { id }, data: omit({ ...patch, ...fields }, ['id']) as never });
   }
   async removeBanner(id: string) {
     if (!(await this.prisma.banner.findUnique({ where: { id } }))) throw new NotFoundException('Banner not found');
@@ -147,4 +148,18 @@ function omit(obj: Record<string, unknown>, keys: string[]): Record<string, unkn
   const out = { ...obj };
   for (const k of keys) delete out[k];
   return out;
+}
+
+/** The admin banner editor's `statusLabel` ("Live · #1" / "Scheduled" /
+ * "Paused") is the only control it actually exposes for whether a banner
+ * shows on the live guest-facing hero and in what order — it never sent
+ * `active`/`sort` directly, which left those two columns stuck at their
+ * Prisma defaults (active:true, sort:0) for every banner ever created, so
+ * every banner (including ones marked "Paused") showed live, in creation
+ * order. Deriving both from statusLabel here is what makes the dropdown's
+ * choice actually mean something. */
+function deriveBannerFields(statusLabel: unknown): { active: boolean; sort: number } {
+  const label = typeof statusLabel === 'string' ? statusLabel : '';
+  const m = /^Live\s*·\s*#(\d+)/.exec(label);
+  return m ? { active: true, sort: Number(m[1]) } : { active: false, sort: 0 };
 }

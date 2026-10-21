@@ -3,7 +3,7 @@
  * feature swaps from localStorage to live data. */
 import { apiFetch, apiUpload, API_URL, getToken, ApiError } from './client';
 import type {
-  Booking, CareerJob, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, FeaturedSubscription, HelpTicket, HelpTicketReply,
+  Booking, CareerJob, CmsBanner, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, FeaturedSubscription, HelpTicket, HelpTicketReply,
   Invoice, JobApplication, LineupProfile, MarketingAnalytics, MarketingPeriodAnalytics, MarketingOrder, MarketingRates, MarketingSubscription, Organizer, PayMethod, PaymentProfile,
   Person, PersonDetail, PromoterProfile, User, Venue, WaitlistEntry,
 } from '../types';
@@ -171,6 +171,7 @@ export const catalog = {
 
 // ---------- CMS content (guest-facing reads of admin's Content section) ----------
 export const content = {
+  banners: () => apiFetch<CmsBanner[]>('/banners'),
   testimonials: (featuredOnly?: boolean) => apiFetch<CmsTestimonial[]>('/testimonials', { query: { featured: featuredOnly } }),
   faqs: (audience?: 'guests' | 'organizers') => apiFetch<CmsFaq[]>('/faqs', { query: { audience } }),
   policies: () => apiFetch<CmsPolicySummary[]>('/policies'),

@@ -7,7 +7,7 @@ import {
 } from '../data/mock';
 import { catalog, content } from '../api';
 import { isBackendEnabled } from '../api/client';
-import type { CmsTestimonial, CmsBlogSummary, Event, Organizer, PromoterProfile, LineupProfile, Person, Venue } from '../types';
+import type { CmsBanner, CmsTestimonial, CmsBlogSummary, Event, Organizer, PromoterProfile, LineupProfile, Person, Venue } from '../types';
 import { personFollowKey } from '../lib/social';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import { organizerPath, promoterPath, lineupPath, venuePath, eventPath, cityBrowse, cityOrganizers, cityPromoters, cityLineups, cityVenues, cityPeople as cityPeoplePath } from '../lib/urls';
@@ -179,11 +179,30 @@ export default function Home() {
   // re-sync while this page itself stays mounted.
   const [recentlyViewed] = useState<RecentlyViewedEvent[]>(() => getRecentlyViewed());
 
+  // Real, admin-managed hero banners (Admin > Content > Banners) — the
+  // HERO const below stays only as the fallback for offline/dev mode and
+  // for the gap before an admin has created any real "Live" banner yet, so
+  // the hero slider is never empty. null = not fetched yet, [] = fetched
+  // and genuinely none live right now (same fallback as null).
+  const [liveBannersRaw, setLiveBannersRaw] = useState<CmsBanner[] | null>(null);
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+    content.banners().then(setLiveBannersRaw).catch(() => setLiveBannersRaw([]));
+  }, []);
+  // A banner with no image can't render the real hero (it needs a 16:5
+  // background photo) — one real production row (seeded before the admin
+  // editor required an image upload) has imageUrl: null, so without this
+  // filter the hero would show up as a blank dark box the moment this
+  // deploys, not a graceful fallback to HERO.
+  const liveBanners = useMemo(() => (liveBannersRaw ?? []).filter((b) => b.imageUrl), [liveBannersRaw]);
+  const usingRealBanners = liveBanners.length > 0;
+  const heroSlideCount = usingRealBanners ? liveBanners.length : HERO.length;
+
   // auto-advance the hero every 5s
   useEffect(() => {
-    const t = setInterval(() => setHeroIdx((i) => (i + 1) % HERO.length), 5000);
+    const t = setInterval(() => setHeroIdx((i) => (i + 1) % heroSlideCount), 5000);
     return () => clearInterval(t);
-  }, []);
+  }, [heroSlideCount]);
 
   // Real catalog events (all cities — city filtering happens below, same as
   // the mock path) with a mock fallback when the backend is unreachable.
@@ -361,10 +380,27 @@ export default function Home() {
           </div>
         )}
 
-        {/* Hero slider */}
+        {/* Hero slider — real, admin-managed banners (Admin > Content >
+            Banners) when any are live; the hardcoded HERO slides are only
+            the offline/dev-mode and "no real banner created yet" fallback. */}
         <div className="hero-slider">
           {(() => {
-            const h = HERO[heroIdx];
+            const safeIdx = heroIdx % heroSlideCount;
+            if (usingRealBanners) {
+              const b = liveBanners[safeIdx];
+              return (
+                <div className="hero-slide">
+                  <div className="hero-bg" style={{ backgroundImage: `linear-gradient(rgba(0,0,0,.35),rgba(0,0,0,.35)), url(${b.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                  <div className="hero-ov" />
+                  <div className="hero-inner">
+                    <h1>{b.heading}</h1>
+                    {b.description && <p>{b.description}</p>}
+                    {b.ctaLink && <Link to={b.ctaLink} className="btn btn-pri btn-lg hero-cta">{b.ctaLabel || 'Book now →'}</Link>}
+                  </div>
+                </div>
+              );
+            }
+            const h = HERO[safeIdx];
             return (
               <div className="hero-slide">
                 <div className="hero-bg" style={{ background: `radial-gradient(ellipse at 28% 24%, hsla(${h.hue},70%,52%,.42), transparent 60%), radial-gradient(ellipse at 78% 82%, hsla(${(h.hue + 60) % 360},65%,45%,.30), transparent 55%), var(--surface-2)` }} />
@@ -378,11 +414,11 @@ export default function Home() {
               </div>
             );
           })()}
-          <button className="hero-arrow left" onClick={() => setHeroIdx((i) => (i - 1 + HERO.length) % HERO.length)} aria-label="Previous">‹</button>
-          <button className="hero-arrow right" onClick={() => setHeroIdx((i) => (i + 1) % HERO.length)} aria-label="Next">›</button>
+          <button className="hero-arrow left" onClick={() => setHeroIdx((i) => (i - 1 + heroSlideCount) % heroSlideCount)} aria-label="Previous">‹</button>
+          <button className="hero-arrow right" onClick={() => setHeroIdx((i) => (i + 1) % heroSlideCount)} aria-label="Next">›</button>
           <div className="hero-dots">
-            {HERO.map((_, i) => (
-              <button key={i} className={i === heroIdx ? 'on' : ''} onClick={() => setHeroIdx(i)} aria-label={`Slide ${i + 1}`} />
+            {Array.from({ length: heroSlideCount }, (_, i) => (
+              <button key={i} className={i === heroIdx % heroSlideCount ? 'on' : ''} onClick={() => setHeroIdx(i)} aria-label={`Slide ${i + 1}`} />
             ))}
           </div>
         </div>

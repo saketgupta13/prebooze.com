@@ -697,6 +697,19 @@ export interface CmsTestimonial {
   createdAt: string;
 }
 
+export interface CmsBanner {
+  id: string;
+  title: string; // internal campaign name, not shown to guests
+  statusLabel: string;
+  heading: string | null;
+  description: string | null;
+  ctaLabel: string | null;
+  ctaLink: string | null;
+  imageUrl: string | null;
+  active: boolean;
+  sort: number;
+}
+
 export interface CmsFaq {
   id: string;
   question: string;
