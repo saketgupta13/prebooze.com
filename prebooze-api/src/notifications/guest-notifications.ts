@@ -49,6 +49,6 @@ export class GuestNotificationsService {
     const data: Record<string, string> = {};
     if (to) data.eventSlug = to;
     if (row) data.notificationId = row.id;
-    await this.push.send(userId, 'Prebooze', text, Object.keys(data).length ? data : undefined).catch(() => {});
+    await this.push.send(userId, 'Prebooze', text, Object.keys(data).length ? data : undefined, 'guest').catch(() => {});
   }
 }

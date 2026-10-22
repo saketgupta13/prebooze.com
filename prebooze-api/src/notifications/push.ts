@@ -30,17 +30,22 @@ export class PushService {
     await this.prisma.pushToken.deleteMany({ where: { token } });
   }
 
-  async send(userId: string, title: string, body: string, data?: Record<string, unknown>): Promise<void> {
-    const tokens = await this.prisma.pushToken.findMany({ where: { userId } });
+  /** `app` scopes delivery to just that app's devices — required, not
+   * optional, for every real caller (GuestNotificationsService always
+   * passes 'guest', OrgNotificationsService always passes 'organizer').
+   * Fixed alongside the PUSH_TOO_MANY_EXPERIENCE_IDS crash: that fix alone
+   * stopped the Expo API error, but on its own would still have delivered
+   * e.g. a guest's "you left a ticket in your cart" push to the same
+   * person's organizer-app device too (one User row serves both roles,
+   * see existingRole/roleLabel) — confusing and wrong, not just a crash
+   * risk. Grouping by app in the one remaining multi-app-aware caller
+   * (unregister has none) is no longer needed now that every real send is
+   * already scoped to one app, but the Map-based batching stays as cheap,
+   * correct insurance against a future caller that isn't. */
+  async send(userId: string, title: string, body: string, data: Record<string, unknown> | undefined, app: string): Promise<void> {
+    const tokens = await this.prisma.pushToken.findMany({ where: { userId, app } });
     if (tokens.length === 0) return;
-
-    const byApp = new Map<string, typeof tokens>();
-    for (const t of tokens) {
-      const group = byApp.get(t.app) ?? [];
-      group.push(t);
-      byApp.set(t.app, group);
-    }
-    for (const group of byApp.values()) await this.sendBatch(group, title, body, data);
+    await this.sendBatch(tokens, title, body, data);
   }
 
   private async sendBatch(tokens: { token: string }[], title: string, body: string, data?: Record<string, unknown>): Promise<void> {

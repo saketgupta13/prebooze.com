@@ -63,6 +63,6 @@ export class OrgNotificationsService {
     // right screen on tap instead of just landing on the Dashboard
     // (organizer feedback 2026-09-17: tapping a tray notification did
     // nothing screen-specific at all).
-    await this.push.send(userId, 'Prebooze', text, to ? { to } : undefined).catch(() => {});
+    await this.push.send(userId, 'Prebooze', text, to ? { to } : undefined, 'organizer').catch(() => {});
   }
 }
