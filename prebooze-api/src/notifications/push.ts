@@ -5,20 +5,22 @@ import { PrismaService } from '../prisma.service';
  * needed (unlike WhatsappService/EmailService), Expo's own infra relays to
  * APNs/FCM using the project id embedded in the token itself. One user can
  * have more than one registered device (a PushToken row per device, see
- * schema.prisma) — send() fans out to all of them in a single batched Expo
- * request (Expo accepts up to 100 messages per call; this app has nowhere
- * near that many devices per user, so no chunking is needed yet). */
+ * schema.prisma) — send() fans out to all of them, one batched Expo request
+ * per app/project (Expo accepts up to 100 messages per call; this app has
+ * nowhere near that many devices per user, so no further chunking is
+ * needed yet — see PushToken.app's own schema comment for why grouping by
+ * app is required at all, not just a nice-to-have). */
 @Injectable()
 export class PushService {
   private readonly log = new Logger('Push');
 
   constructor(private prisma: PrismaService) {}
 
-  async register(userId: string, token: string, platform: string): Promise<void> {
+  async register(userId: string, token: string, platform: string, app: string): Promise<void> {
     await this.prisma.pushToken.upsert({
       where: { token },
-      update: { userId, platform },
-      create: { userId, token, platform },
+      update: { userId, platform, app },
+      create: { userId, token, platform, app },
     });
   }
 
@@ -32,6 +34,16 @@ export class PushService {
     const tokens = await this.prisma.pushToken.findMany({ where: { userId } });
     if (tokens.length === 0) return;
 
+    const byApp = new Map<string, typeof tokens>();
+    for (const t of tokens) {
+      const group = byApp.get(t.app) ?? [];
+      group.push(t);
+      byApp.set(t.app, group);
+    }
+    for (const group of byApp.values()) await this.sendBatch(group, title, body, data);
+  }
+
+  private async sendBatch(tokens: { token: string }[], title: string, body: string, data?: Record<string, unknown>): Promise<void> {
     const messages = tokens.map((t) => ({ to: t.token, title, body, data, sound: 'default' }));
     const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',

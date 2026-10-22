@@ -60,9 +60,13 @@ export class OrganizerController {
    * refresh, or a different account logging into the same physical device)
    * is always a safe no-op/reassignment rather than growing duplicate rows. */
   @Post('push-token')
-  registerPushToken(@Req() req: AuthedReq, @Body() body: { token: string; platform: string }) {
+  registerPushToken(@Req() req: AuthedReq, @Body() body: { token: string; platform: string; app?: string }) {
     if (!body?.token || !body?.platform) throw new BadRequestException('token and platform are required');
-    return this.push.register(req.user.sub, body.token, body.platform);
+    // `app` distinguishes which Expo project this token belongs to — see
+    // PushToken.app's schema comment. Defaults to 'organizer' since that
+    // was this route's only caller before the guest app started reusing
+    // it; an updated guest app build always sends 'guest' explicitly.
+    return this.push.register(req.user.sub, body.token, body.platform, body.app || 'organizer');
   }
 
   /** Called on logout so a signed-out device stops receiving this account's

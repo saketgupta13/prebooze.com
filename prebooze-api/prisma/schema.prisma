@@ -228,6 +228,19 @@ model PushToken {
   user     User   @relation(fields: [userId], references: [id])
   token    String @unique // Expo push token, e.g. "ExponentPushToken[xxxx]"
   platform String // ios | android
+  // Real bug fixed 2026-10-22: the guest and organizer/Partners apps are
+  // two different Expo projects (different projectId, see each app's own
+  // app.json), but both registered through the same shared /organizer/
+  // push-token route into the same userId-keyed rows with nothing telling
+  // them apart. One person with both a guest and organizer account hit
+  // "PUSH_TOO_MANY_EXPERIENCE_IDS" — Expo refuses a single batch call
+  // mixing tokens from different projects, and the WHOLE call failed, not
+  // just the mismatched token, silently dropping every push to that user
+  // including on the app whose tokens were fine. PushService.send now
+  // groups by this field before calling Expo. Existing rows predate this
+  // field (default 'unknown') — they self-heal the next time that device
+  // re-registers (every login / notification-permission grant).
+  app      String @default("unknown")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
