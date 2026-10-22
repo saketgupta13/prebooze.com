@@ -150,7 +150,7 @@ export class PromoterService {
   // ---------- promotions & guest lists ----------
   async promotions(userId: string) {
     const promoter = await this.myPromoter(userId);
-    const events = await this.prisma.event.findMany({ where: { status: 'approved' }, include: { tiers: true, venue: true, organizer: true } });
+    const events = await this.prisma.event.findMany({ where: { status: 'approved', reviewOnly: false }, include: { tiers: true, venue: true, organizer: true } });
     return events.filter((e) => {
       const cfg = e.promoterConfig as unknown as PromoterConfig | null;
       return !!cfg?.enabled && cfg.allowedPromoters?.includes(promoter.slug);
@@ -172,6 +172,7 @@ export class PromoterService {
     const events = await this.prisma.event.findMany({
       where: {
         status: 'approved',
+        reviewOnly: false,
         OR: [{ venue: { city: promoter.city } }, { privateCity: promoter.city }],
       },
       select: {

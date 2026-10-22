@@ -47,7 +47,7 @@ export class SitemapService {
 
   async build(): Promise<string> {
     const [events, venues, organizers, promoters, lineups, pages, blogs] = await Promise.all([
-      this.prisma.event.findMany({ where: { status: 'approved' }, select: { slug: true, updatedAt: true, privateCity: true, organizerId: true, venue: { select: { city: true } } } }),
+      this.prisma.event.findMany({ where: { status: 'approved', reviewOnly: false }, select: { slug: true, updatedAt: true, privateCity: true, organizerId: true, venue: { select: { city: true } } } }),
       this.prisma.venue.findMany({ select: { id: true, updatedAt: true, city: true } }),
       this.prisma.organizer.findMany({ select: { id: true, updatedAt: true, city: true } }),
       this.prisma.promoter.findMany({ select: { slug: true, updatedAt: true, city: true } }),

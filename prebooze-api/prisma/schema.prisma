@@ -927,6 +927,18 @@ model Event {
   // (the first tick that finds combined tier inventory below the low-stock
   // threshold) rather than re-firing on every 10-minute tick afterward.
   lowStockNotifiedAt  DateTime?
+  // Set on an event meant to behave exactly like a real, approved event
+  // for the owning organizer's own app (scanner, coupons, live monitor,
+  // offline booking, dashboard — none of those screens check this flag,
+  // same code path as any real event, deliberately) while being fully
+  // invisible everywhere a guest could reach it — every CatalogService
+  // guest-facing query below filters this out alongside its existing
+  // `status: 'approved'` check. Built for a real App Store review demo
+  // account (2026-10-22): the reviewer needed full organizer-app
+  // functionality to test against, but the event itself must never
+  // reach the real public guest site/app. Default false — every real
+  // organizer's real event is unaffected.
+  reviewOnly          Boolean                   @default(false)
   // Optional — an organizer running a secret/guest-list-only event can skip
   // registering a real Venue partner entirely and instead set privateCity/
   // privateLocality below. Guests then only ever see "{locality}, {city}",

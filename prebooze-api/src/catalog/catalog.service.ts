@@ -98,13 +98,13 @@ export class CatalogService {
    * run. Computed live from the real Event rows instead, same pattern. */
   private async realOrganizerEventCounts(organizerIds: string[]): Promise<Map<string, number>> {
     if (!organizerIds.length) return new Map();
-    const rows = await this.prisma.event.groupBy({ by: ['organizerId'], where: { status: 'approved', organizerId: { in: organizerIds } }, _count: true });
+    const rows = await this.prisma.event.groupBy({ by: ['organizerId'], where: { status: 'approved', reviewOnly: false, organizerId: { in: organizerIds } }, _count: true });
     return new Map(rows.filter((r) => r.organizerId).map((r) => [r.organizerId as string, r._count]));
   }
 
   private async realVenueEventCounts(venueIds: string[]): Promise<Map<string, number>> {
     if (!venueIds.length) return new Map();
-    const rows = await this.prisma.event.groupBy({ by: ['venueId'], where: { status: 'approved', venueId: { in: venueIds } }, _count: true });
+    const rows = await this.prisma.event.groupBy({ by: ['venueId'], where: { status: 'approved', reviewOnly: false, venueId: { in: venueIds } }, _count: true });
     return new Map(rows.filter((r) => r.venueId).map((r) => [r.venueId as string, r._count]));
   }
 
@@ -121,7 +121,7 @@ export class CatalogService {
   private async realLineupEventCounts(names: string[]): Promise<Map<string, number>> {
     if (!names.length) return new Map();
     const wanted = new Set(names.map((n) => n.toLowerCase()));
-    const rows = await this.prisma.event.findMany({ where: { status: 'approved' }, select: { lineup: true } });
+    const rows = await this.prisma.event.findMany({ where: { status: 'approved', reviewOnly: false }, select: { lineup: true } });
     const counts = new Map<string, number>(names.map((n) => [n, 0]));
     const byLower = new Map(names.map((n) => [n.toLowerCase(), n]));
     for (const row of rows) {
@@ -170,7 +170,7 @@ export class CatalogService {
   async events(q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string; includePast?: boolean }) {
     const events = await this.prisma.event.findMany({
       where: {
-        status: 'approved',
+        status: 'approved', reviewOnly: false,
         // city and organizerId each need their own OR clause (venue-city-or-
         // privateCity; owner-or-collaborator) — combined via AND rather than
         // both spreading a same-named `OR` key into one object, which would
@@ -225,13 +225,23 @@ export class CatalogService {
    * preview token CatalogController already verified) names this exact
    * event, letting a staffer see it exactly as it'll look once approved. */
   async event(slug: string, previewEventId?: string) {
+    // Cheap pre-check, not folded into PUBLIC_EVENT_SELECT below — that
+    // select is the real public API response shape, and reviewOnly must
+    // never appear in it (an internal flag, not guest-facing data) even
+    // though it still has to gate access here. reviewOnly always 404s
+    // regardless of previewEventId — that escape hatch is for an
+    // organizer previewing their own real not-yet-approved event, not a
+    // reason a review-only event should ever be guest-reachable even via
+    // a shared preview link.
+    const flags = await this.prisma.event.findUnique({ where: { slug }, select: { id: true, status: true, reviewOnly: true } });
+    if (!flags || flags.reviewOnly || (flags.status !== 'approved' && flags.id !== previewEventId)) {
+      throw new NotFoundException('Event not found');
+    }
     const event = await this.prisma.event.findUnique({
       where: { slug },
       select: PUBLIC_EVENT_SELECT,
     });
-    if (!event || (event.status !== 'approved' && event.id !== previewEventId)) {
-      throw new NotFoundException('Event not found');
-    }
+    if (!event) throw new NotFoundException('Event not found');
     const recentActivity = await this.recentBookingActivity(event.id);
     const [withCollaborators] = await this.attachCollaborators([event]);
     return { ...withCollaborators, recentActivity };
@@ -299,7 +309,7 @@ export class CatalogService {
   async organizers(city?: string) {
     const rows = await this.prisma.organizer.findMany({
       where: city
-        ? { OR: [{ city }, { events: { some: { status: 'approved', OR: [{ venue: { city } }, { privateCity: city }, { unlistedVenueCity: city }] } } }] }
+        ? { OR: [{ city }, { events: { some: { status: 'approved', reviewOnly: false, OR: [{ venue: { city } }, { privateCity: city }, { unlistedVenueCity: city }] } } }] }
         : {},
       // Was `orderBy: { eventsHosted: 'desc' }` — that column is always 0
       // (see realOrganizerEventCounts' doc comment), so this sort was a
@@ -522,7 +532,7 @@ export class CatalogService {
       for (const b of bookings) goingEvents.set(b.event.id, b.event as never);
       const interests = await this.prisma.eventInterest.findMany({ where: { userId: user.id } });
       const interestedEvents = await this.prisma.event.findMany({
-        where: { id: { in: interests.map((i) => i.eventId) }, status: 'approved' },
+        where: { id: { in: interests.map((i) => i.eventId) }, status: 'approved', reviewOnly: false },
         select: PUBLIC_EVENT_SELECT,
       });
       interested = interestedEvents.filter((e) => !CatalogService.isEventOver(e as never));
@@ -631,7 +641,7 @@ export class CatalogService {
     const [venues, liveEvents] = await Promise.all([
       this.prisma.venue.findMany({ select: { id: true, city: true } }),
       this.prisma.event.findMany({
-        where: { status: 'approved' },
+        where: { status: 'approved', reviewOnly: false },
         select: { venueId: true, privateCity: true, unlistedVenueCity: true, date: true, durationHrs: true, seriesEndDate: true },
       }),
     ]);
@@ -673,7 +683,7 @@ export class CatalogService {
   async venueTypes() {
     const types = await this.prisma.venueType.findMany({ orderBy: { sort: 'asc' } });
     const events = await this.prisma.event.findMany({
-      where: { status: 'approved' },
+      where: { status: 'approved', reviewOnly: false },
       select: { venue: { select: { type: true } } },
     });
     const counts = new Map<string, number>();
@@ -697,7 +707,7 @@ export class CatalogService {
     if (!q.trim()) return [];
     const like = { contains: q, mode: 'insensitive' as const };
     const [events, venues, organizers, lineups] = await Promise.all([
-      this.prisma.event.findMany({ where: { status: 'approved', title: like }, take: 5, select: { title: true, slug: true, privateCity: true, unlistedVenueCity: true, venue: { select: { city: true } } } }),
+      this.prisma.event.findMany({ where: { status: 'approved', reviewOnly: false, title: like }, take: 5, select: { title: true, slug: true, privateCity: true, unlistedVenueCity: true, venue: { select: { city: true } } } }),
       this.prisma.venue.findMany({ where: { name: like }, take: 5, select: { name: true, id: true, city: true } }),
       this.prisma.organizer.findMany({ where: { brandName: like }, take: 5, select: { brandName: true, id: true, city: true } }),
       this.prisma.lineup.findMany({ where: { name: like }, take: 5, select: { name: true, slug: true, city: true } }),
@@ -730,7 +740,7 @@ export class CatalogService {
 
     const soon = new Date(Date.now() + 45 * 24 * 3600 * 1000);
     const events = await this.prisma.event.findMany({
-      where: { status: 'approved', date: { gte: new Date(), lte: soon } },
+      where: { status: 'approved', reviewOnly: false, date: { gte: new Date(), lte: soon } },
       select: { title: true },
     });
 

@@ -2599,6 +2599,7 @@ export class BookingsService {
     const events = await this.prisma.event.findMany({
       where: {
         status: 'approved',
+        reviewOnly: false,
         exactAddress: { not: null },
         locationSentAt: null,
         date: { gt: now, lte: new Date(now.getTime() + 3 * 3600000) },
