@@ -6,6 +6,7 @@ import { toCitySlug } from '../common/city-slug';
 import { CatalogService } from '../catalog/catalog.service';
 import { notifyEventOwner } from '../common/notify-event-owner';
 import { OrgNotificationsService } from '../notifications/org-notifications';
+import { GuestNotificationsService } from '../notifications/guest-notifications';
 
 const HOLD_TTL_MS = 8 * 60 * 1000; // matches HoldsService/OrganizerService — a cart still `active` past this is abandoned
 
@@ -29,6 +30,7 @@ export class CartsService {
     private wa: WhatsappService,
     private email: EmailService,
     private orgNotifications: OrgNotificationsService,
+    private guestNotifications: GuestNotificationsService,
   ) {}
 
   /** Platform-wide, across every organizer — distinct from
@@ -124,6 +126,16 @@ export class CartsService {
     await this.email.sendTemplate(cart.user.email, 'cart_reminder', {
       name: cart.user.name, eventTitle: cart.event.title, eventUrl,
     }).catch((err) => this.log.warn(`Cart reminder email to cart ${id} failed: ${(err as Error).message}`));
+    // Real gap: this was WhatsApp+email only, never a push, even though
+    // the guest has the app installed and already granted push permission
+    // at this exact funnel stage (the single highest-leverage recovery
+    // point — see this method's own callers' doc comments). Same
+    // GuestNotificationsService every other guest-facing trigger goes
+    // through, covers both the automated and manual (admin/organizer
+    // "resend reminder") call paths since both share this method.
+    await this.guestNotifications
+      .notify(cart.userId, 'ticket', `You left "${cart.event.title}" in your cart — grab your ticket before it sells out`, cart.event.slug)
+      .catch((err) => this.log.warn(`Cart reminder push to cart ${id} failed: ${(err as Error).message}`));
     return { ok: true };
   }
 

@@ -738,7 +738,11 @@ export class CatalogService {
     const counts = new Map<string, number>(); // lowercase word -> distinct-event count
     const display = new Map<string, string>(); // lowercase word -> first-seen original casing
     for (const e of events) {
-      const words = new Set(e.title.split(/[\s\-–—:,'"!?()]+/).map((w) => w.trim()).filter(Boolean));
+      // Real bug: "." wasn't a split delimiter, so "ft." in a title like
+      // "Vibeln ft. Layatmika" survived as its own word distinct from the
+      // "ft" stopword below (different strings — one has a trailing period)
+      // and leaked into real guest-facing trending search suggestions.
+      const words = new Set(e.title.split(/[\s\-–—:,'"!?().]+/).map((w) => w.trim()).filter(Boolean));
       for (const w of words) {
         const lower = w.toLowerCase();
         if (lower.length < 3 || TRENDING_STOPWORDS.has(lower) || pinnedLower.has(lower)) continue;
