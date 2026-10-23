@@ -53,6 +53,13 @@ const PUBLIC_EVENT_SELECT = {
   id: true, slug: true, title: true, description: true, category: true, subCategory: true,
   ageLimit: true, tags: true, date: true, durationHrs: true, seriesEndDate: true, venueId: true, status: true,
   privateCity: true, privateLocality: true, hostedByVenue: true,
+  // Third venue mode — a real public venue not yet on Prebooze, or (as with
+  // a "venue TBA" event) a placeholder until one's confirmed. Same gap as
+  // freeTextCollaborators below: EventDetail.tsx has always rendered
+  // these, and lib/urls.ts's eventCity() falls back to unlistedVenueCity to
+  // resolve the event's own URL — without it, an unlisted-venue event's
+  // page link couldn't even resolve a city, let alone show the venue name.
+  unlistedVenueName: true, unlistedVenueCity: true, unlistedVenueAddress: true, unlistedVenueInstagramUrl: true,
   conditions: true, rules: true, lineup: true, posterHue: true, seo: true, promoterConfig: true,
   socialBanners: true, salesPaused: true, posterUrl: true, galleryUrls: true, teaserVideoUrl: true,
   createdAt: true, updatedAt: true,
