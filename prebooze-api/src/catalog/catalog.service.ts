@@ -61,6 +61,12 @@ const PUBLIC_EVENT_SELECT = {
   // attachCollaborators() below, same "batch-resolve a denormalized id
   // array" pattern as the admin directory's eventCities computation.
   collaboratorOrganizerIds: true,
+  // Display-only co-host credits — {name, instagramUrl?}[], never validated
+  // against the Organizer table (see OrganizerService.EventInput's own doc
+  // comment). EventDetail.tsx has always rendered event.freeTextCollaborators
+  // directly; it just never arrived, since this select never included the
+  // column — every event using it silently showed no co-host credit at all.
+  freeTextCollaborators: true,
 } as const;
 
 @Injectable()
