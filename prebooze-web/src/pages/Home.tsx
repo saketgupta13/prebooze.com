@@ -317,7 +317,13 @@ export default function Home() {
   // mock EVENTS in production too, flashing wrong events before the real
   // GET /events response replaced them a moment later.
   const published = liveEvents ?? (isBackendEnabled() ? [] : EVENTS.filter((e) => e.status === 'approved'));
-  const cityOf = (e: Event) => e.venue?.city ?? e.privateCity ?? (e.venueId ? venueById(e.venueId)?.city : undefined);
+  // unlistedVenueCity (third venue mode — a real venue not yet on
+  // Prebooze, or a "venue TBA" placeholder) was missing from this chain
+  // entirely — any such event silently never appeared in "Top selling
+  // events in {city}" or the category tile counts above, even though it's
+  // a real, approved, city-scoped event. Real bug, caught 2026-10-24 via
+  // the Halloween Party (TBA venue) event not showing up in Nagpur's grid.
+  const cityOf = (e: Event) => e.venue?.city ?? e.privateCity ?? e.unlistedVenueCity ?? (e.venueId ? venueById(e.venueId)?.city : undefined);
   const soldOf = (e: Event) => e.tiers.reduce((a, t) => a + t.sold, 0);
   const events = useMemo(
     () =>
