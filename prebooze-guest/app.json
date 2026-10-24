@@ -1,0 +1,169 @@
+{
+  "expo": {
+    "name": "Prebooze",
+    "slug": "prebooze-guest",
+    "scheme": "prebooze-guest",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#1a1c17",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.prebooze.guest",
+      "associatedDomains": [
+        "applinks:prebooze.com"
+      ],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Prebooze needs photo library access to let you add a profile photo.",
+        "NSLocationWhenInUseUsageDescription": "Prebooze uses your location to show you events in your city automatically.",
+        "UIApplicationSceneManifest": {
+          "UIApplicationSupportsMultipleScenes": false,
+          "UISceneConfigurations": {
+            "UIWindowSceneSessionRoleApplication": [
+              {
+                "UISceneConfigurationName": "Default Configuration",
+                "UISceneDelegateClassName": "$(PRODUCT_MODULE_NAME).SceneDelegate"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "android": {
+      "package": "com.prebooze.guest",
+      "versionCode": 1,
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "backgroundColor": "#1a1c17",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "prebooze.com",
+              "pathPrefix": "/u"
+            },
+            {
+              "scheme": "https",
+              "host": "prebooze.com",
+              "pathPrefix": "/events"
+            },
+            {
+              "scheme": "https",
+              "host": "prebooze.com",
+              "pathPrefix": "/organizers"
+            },
+            {
+              "scheme": "https",
+              "host": "prebooze.com",
+              "pathPrefix": "/venues"
+            },
+            {
+              "scheme": "https",
+              "host": "prebooze.com",
+              "pathPrefix": "/promoter"
+            },
+            {
+              "scheme": "https",
+              "host": "prebooze.com",
+              "pathPrefix": "/lineup"
+            },
+            {
+              "scheme": "https",
+              "host": "prebooze.com",
+              "pathPrefix": "/p/"
+            },
+            {
+              "scheme": "https",
+              "host": "prebooze.com",
+              "pathPrefix": "/pass/"
+            },
+            {
+              "scheme": "https",
+              "host": "prebooze.com",
+              "pathPrefix": "/browse"
+            },
+            {
+              "scheme": "https",
+              "host": "prebooze.com",
+              "pathPrefix": "/people"
+            },
+            {
+              "scheme": "https",
+              "host": "prebooze.com",
+              "pathPrefix": "/r/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "./plugins/withSceneDelegate",
+      "expo-font",
+      "expo-image",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1a1c17",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 900,
+          "android": {
+            "image": "./assets/splash-icon-android.png",
+            "imageWidth": 200
+          }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Prebooze needs photo library access to let you add a profile photo."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#9be13d"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Prebooze uses your location to show you events in your city automatically."
+        }
+      ],
+      "expo-web-browser",
+      "expo-sharing",
+      "expo-video",
+      "@react-native-firebase/app",
+      "@react-native-firebase/analytics"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "82371970-a7bb-4bc4-a0f2-badc658049d6"
+      }
+    },
+    "owner": "prebooze"
+  }
+}
