@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import {
@@ -332,6 +332,33 @@ export default function Home() {
     [published, cat, city, eventFeat]
   );
 
+  // Infinite scroll — reveals more of the already-fetched `events` array as
+  // the guest scrolls near the bottom, HOME_EVENT_LIMIT at a time, instead
+  // of a hard cap + "Browse all" link. No extra network call: catalog.events
+  // already returns every event up front, this just controls how much of
+  // it is rendered. Resets whenever the underlying list changes (category
+  // chip or city switch) so a filter change doesn't leave it showing 40
+  // events from the previous filter while only 6 match the new one.
+  const [visibleCount, setVisibleCount] = useState(HOME_EVENT_LIMIT);
+  useEffect(() => {
+    setVisibleCount(HOME_EVENT_LIMIT);
+  }, [cat, city]);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((n) => Math.min(n + HOME_EVENT_LIMIT, events.length));
+        }
+      },
+      { rootMargin: '600px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [events.length]);
+
   // Strictly city-scoped top lists — empty sections are hidden. The
   // organizer/promoter/lineup/venue lists are real (server already
   // city-filters them); mock fallback only applies offline.
@@ -503,14 +530,16 @@ export default function Home() {
         <div className="grid-4">
           {eventsLoading
             ? Array.from({ length: 8 }, (_, i) => <EventCardSkeleton key={i} />)
-            : events.slice(0, HOME_EVENT_LIMIT).map((e) => <EventCard key={e.id} event={e} />)}
+            : events.slice(0, visibleCount).map((e) => <EventCard key={e.id} event={e} />)}
+          {!eventsLoading && visibleCount < events.length &&
+            Array.from({ length: Math.min(4, events.length - visibleCount) }, (_, i) => <EventCardSkeleton key={`more-${i}`} />)}
         </div>
         {!eventsLoading && events.length === 0 && <div className="empty">No events in {city} yet.</div>}
-        {events.length > HOME_EVENT_LIMIT && (
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <Link to={cityBrowse(city)} className="btn btn-ghost">Browse all events →</Link>
-          </div>
-        )}
+        {/* Sentinel — crossing into view (600px before it actually reaches
+            the viewport, so the next batch is already rendered by the time
+            a guest scrolls there) reveals the next HOME_EVENT_LIMIT events.
+            Renders nothing once everything's loaded. */}
+        {visibleCount < events.length && <div ref={loadMoreRef} style={{ height: 1 }} />}
 
         {/* People going out in the city — real, opt-in guests only
             (User.discoverable); PEOPLE mock stays only as the offline
