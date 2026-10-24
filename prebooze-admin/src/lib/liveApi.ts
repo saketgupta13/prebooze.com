@@ -1424,6 +1424,9 @@ export const livePublicBranding = {
 export interface LiveBanner {
   id: string; title: string; statusLabel: string; heading: string | null; description: string | null;
   ctaLabel: string | null; ctaLink: string | null; imageUrl: string | null; active: boolean; sort: number;
+  // Scopes it to that city's homepage only — null (the default, and every
+  // banner created before this field existed) shows everywhere.
+  city: string | null;
 }
 export interface LiveBlogCategory { id: string; name: string; bannerUrl: string | null; seo: Seo | null; }
 export interface LiveBlog {
@@ -1438,7 +1441,7 @@ export interface LiveMenu { header: { label: string; to: string }[]; footer: { t
 
 export const liveBanners = {
   list: () => liveFetch<LiveBanner[]>('/admin/banners'),
-  create: (body: { title: string; heading?: string; description?: string; ctaLabel?: string; ctaLink?: string; imageUrl?: string; statusLabel?: string; active?: boolean }) =>
+  create: (body: { title: string; heading?: string; description?: string; ctaLabel?: string; ctaLink?: string; imageUrl?: string; statusLabel?: string; active?: boolean; city?: string | null }) =>
     liveFetch<LiveBanner>('/admin/banners', { body }),
   update: (id: string, body: Partial<LiveBanner>) => liveFetch<LiveBanner>(`/admin/banners/${id}`, { method: 'PATCH', body }),
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/banners/${id}`, { method: 'DELETE' }),
@@ -1549,10 +1552,19 @@ export const livePromos = {
   remove: (code: string) => liveFetch<{ ok: true }>(`/admin/promos/${code}`, { method: 'DELETE' }),
 };
 
-export interface LiveReel { id: string; title: string; hue: number; active: boolean; videoUrl: string | null; posterUrl: string | null; }
+export interface LiveReel {
+  id: string; title: string; hue: number; active: boolean; videoUrl: string | null; posterUrl: string | null;
+  // city scopes it to that city's homepage only (null = shows everywhere,
+  // the original/default behavior); ctaLink is the admin-typed "Book now"
+  // link — see content.service.ts's reels() own doc comment on how this
+  // combines with a paid reel's eventId-resolved link.
+  city: string | null; ctaLink: string | null;
+}
 export const liveReels = {
   list: () => liveFetch<LiveReel[]>('/admin/reels'),
-  create: (body: { title: string; videoUrl?: string; posterUrl?: string }) => liveFetch<LiveReel>('/admin/reels', { body }),
+  create: (body: { title: string; videoUrl?: string; posterUrl?: string; city?: string; ctaLink?: string }) => liveFetch<LiveReel>('/admin/reels', { body }),
+  update: (id: string, body: { title?: string; videoUrl?: string; posterUrl?: string; city?: string | null; ctaLink?: string | null }) =>
+    liveFetch<LiveReel>(`/admin/reels/${id}`, { method: 'PATCH', body }),
   toggle: (id: string) => liveFetch<LiveReel>(`/admin/reels/${id}/toggle`, { method: 'POST' }),
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/reels/${id}`, { method: 'DELETE' }),
 };
@@ -1579,6 +1591,14 @@ export const liveLocations = {
   removeCountry: (id: string) => liveFetch<{ ok: true }>(`/admin/locations/countries/${id}`, { method: 'DELETE' }),
   removeState: (id: string) => liveFetch<{ ok: true }>(`/admin/locations/states/${id}`, { method: 'DELETE' }),
   removeCity: (name: string) => liveFetch<{ ok: true }>(`/admin/locations/cities/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  // Flattened, sorted, enabled-only city names — the shape a plain <select>
+  // needs. Shared by BannerEdit.tsx and Reels.tsx's own city pickers rather
+  // than each re-flattening tree() itself.
+  enabledCityNames: async (): Promise<string[]> => {
+    const tree = await liveLocations.tree();
+    const names = tree.flatMap((c) => c.states.flatMap((s) => s.cities.filter((city) => city.enabled).map((city) => city.name)));
+    return [...new Set(names)].sort();
+  },
 };
 
 export interface LiveJob { id: string; title: string; team: string; loc: string; type: string; status: string; about: string; }

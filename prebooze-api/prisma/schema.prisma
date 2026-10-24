@@ -2554,6 +2554,13 @@ model Reel {
   // the full reasoning (null city/owner = an ordinary admin-created reel,
   // unchanged from before this existed).
   city        String?
+  // Admin-typed "Book now" link (2026-10-25) — distinct from eventId: this
+  // is for an ordinary admin-created reel (no real paid order/event behind
+  // it) that admin still wants to point at something bookable. content.
+  // service.ts's reels() prefers this over the eventId-resolved link when
+  // both are somehow set, since an admin's explicit choice should win over
+  // the computed default.
+  ctaLink     String?
   eventId     String?
   organizerId String?
   organizer   Organizer? @relation(fields: [organizerId], references: [id])

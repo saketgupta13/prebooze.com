@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ReelsService } from './reels.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
@@ -19,8 +19,14 @@ export class AdminReelsController {
 
   @Post()
   @RequirePermission(MODULE, 'edit')
-  create(@Body() body: { title?: string; videoUrl?: string; posterUrl?: string }) {
+  create(@Body() body: { title?: string; videoUrl?: string; posterUrl?: string; city?: string; ctaLink?: string }) {
     return this.reels.create(body);
+  }
+
+  @Patch(':id')
+  @RequirePermission(MODULE, 'edit')
+  update(@Param('id') id: string, @Body() body: Parameters<ReelsService['update']>[1]) {
+    return this.reels.update(id, body);
   }
 
   @Post(':id/toggle')

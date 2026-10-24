@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { liveReels, liveMedia, LiveApiError, type LiveReel } from '../lib/liveApi';
+import { liveReels, liveMedia, liveLocations, LiveApiError, type LiveReel } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
@@ -20,14 +20,27 @@ export default function Reels() {
   const [title, setTitle] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [posterUrl, setPosterUrl] = useState('');
+  // '' = shows on every city's homepage (the original, still-default
+  // behavior) — a real city scopes it to just that one.
+  const [city, setCity] = useState('');
+  const [ctaLink, setCtaLink] = useState('');
+  const [cityOptions, setCityOptions] = useState<string[]>([]);
+  // Editing an existing reel's city/booking link (title/video stay
+  // create-only, same as before this existed) — id of the row being edited,
+  // or null when the create form above is the active one.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCity, setEditCity] = useState('');
+  const [editCtaLink, setEditCtaLink] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = () => {
     setLoading(true);
     setErr('');
-    liveReels
-      .list()
-      .then(setReels)
+    Promise.all([liveReels.list(), liveLocations.enabledCityNames()])
+      .then(([r, cities]) => {
+        setReels(r);
+        setCityOptions(cities);
+      })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   };
@@ -60,10 +73,12 @@ export default function Reels() {
     e.preventDefault();
     if (!videoUrl) return;
     try {
-      await liveReels.create({ title: title.trim(), videoUrl, posterUrl: posterUrl || undefined });
+      await liveReels.create({ title: title.trim(), videoUrl, posterUrl: posterUrl || undefined, city: city || undefined, ctaLink: ctaLink.trim() || undefined });
       setTitle('');
       setVideoUrl('');
       setPosterUrl('');
+      setCity('');
+      setCtaLink('');
       load();
     } catch (e2) {
       setErr(e2 instanceof LiveApiError ? e2.message : 'Failed to publish reel');
@@ -76,6 +91,20 @@ export default function Reels() {
   const remove = async (id: string) => {
     if (!window.confirm('Remove this reel?')) return;
     try { await liveReels.remove(id); load(); } catch (e) { setErr(e instanceof LiveApiError ? e.message : 'Failed to remove'); }
+  };
+  const startEdit = (r: LiveReel) => {
+    setEditingId(r.id);
+    setEditCity(r.city ?? '');
+    setEditCtaLink(r.ctaLink ?? '');
+  };
+  const saveEdit = async (id: string) => {
+    try {
+      await liveReels.update(id, { city: editCity || null, ctaLink: editCtaLink.trim() || null });
+      setEditingId(null);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to save changes');
+    }
   };
 
   return (
@@ -105,6 +134,17 @@ export default function Reels() {
           <label>Caption</label>
           <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Warehouse drop — crowd goes off" />
         </div>
+        <div className="field" style={{ minWidth: 150 }}>
+          <label>City</label>
+          <select className="input" value={city} onChange={(e) => setCity(e.target.value)}>
+            <option value="">All cities</option>
+            {cityOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="field" style={{ flex: 1, minWidth: 200 }}>
+          <label>Booking URL (optional)</label>
+          <input className="input" value={ctaLink} onChange={(e) => setCtaLink(e.target.value)} placeholder="/city/events/some-event" />
+        </div>
         <button className="btn btn-pri" style={{ height: 38 }} disabled={!videoUrl}>+ Publish reel</button>
       </form>
 
@@ -116,25 +156,45 @@ export default function Reels() {
           <span style={{ flex: 1 }} />
         </div>
         {reels.map((r) => (
-          <div key={r.id} className="trow" style={{ minWidth: 520, opacity: r.active ? 1 : 0.55 }}>
-            <span style={{ width: 56 }}>
-              {r.posterUrl ? (
-                <img src={r.posterUrl} alt="" style={{ width: 40, height: 56, objectFit: 'cover', borderRadius: 6 }} />
-              ) : r.videoUrl ? (
-                <video src={r.videoUrl} muted style={{ width: 40, height: 56, objectFit: 'cover', borderRadius: 6 }} />
-              ) : (
-                <span style={{ display: 'inline-flex', width: 40, height: 56, borderRadius: 6, alignItems: 'center', justifyContent: 'center', background: `radial-gradient(ellipse at 30% 25%, hsla(${r.hue},70%,55%,.4), transparent 60%), rgba(255,255,255,.04)` }}>▶</span>
-              )}
-            </span>
-            <span style={{ flex: 2, fontWeight: 700 }}>{r.title}</span>
-            <span style={{ flex: 1 }}>
-              <button className="chip" style={{ fontSize: 10.5, padding: '3px 10px', borderColor: r.active ? 'var(--green)' : 'var(--red)', color: r.active ? undefined : 'var(--red)' }} onClick={() => toggle(r.id)}>
-                {r.active ? 'Live' : 'Hidden'}
-              </button>
-            </span>
-            <span style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => remove(r.id)}><X size={14} /></button>
-            </span>
+          <div key={r.id} className="trow" style={{ minWidth: 520, flexDirection: 'column', alignItems: 'stretch', gap: 6, opacity: r.active ? 1 : 0.55 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 56 }}>
+                {r.posterUrl ? (
+                  <img src={r.posterUrl} alt="" style={{ width: 40, height: 56, objectFit: 'cover', borderRadius: 6 }} />
+                ) : r.videoUrl ? (
+                  <video src={r.videoUrl} muted style={{ width: 40, height: 56, objectFit: 'cover', borderRadius: 6 }} />
+                ) : (
+                  <span style={{ display: 'inline-flex', width: 40, height: 56, borderRadius: 6, alignItems: 'center', justifyContent: 'center', background: `radial-gradient(ellipse at 30% 25%, hsla(${r.hue},70%,55%,.4), transparent 60%), rgba(255,255,255,.04)` }}>▶</span>
+                )}
+              </span>
+              <span style={{ flex: 2, fontWeight: 700 }}>{r.title}</span>
+              <span style={{ flex: 1 }}>
+                <button className="chip" style={{ fontSize: 10.5, padding: '3px 10px', borderColor: r.active ? 'var(--green)' : 'var(--red)', color: r.active ? undefined : 'var(--red)' }} onClick={() => toggle(r.id)}>
+                  {r.active ? 'Live' : 'Hidden'}
+                </button>
+              </span>
+              <span style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => startEdit(r)}>Edit</button>
+                <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => remove(r.id)}><X size={14} /></button>
+              </span>
+            </div>
+            {editingId === r.id ? (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', paddingLeft: 66 }}>
+                <select className="input" style={{ padding: '5px 8px', width: 150 }} value={editCity} onChange={(e) => setEditCity(e.target.value)}>
+                  <option value="">All cities</option>
+                  {cityOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input className="input" style={{ padding: '5px 8px', flex: 1, minWidth: 160 }} placeholder="Booking URL (optional)" value={editCtaLink} onChange={(e) => setEditCtaLink(e.target.value)} />
+                <button className="btn btn-pri btn-sm" onClick={() => saveEdit(r.id)}>Save</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>Cancel</button>
+              </div>
+            ) : (
+              (r.city || r.ctaLink) && (
+                <div className="tiny muted" style={{ paddingLeft: 66 }}>
+                  {r.city ?? 'All cities'}{r.ctaLink ? ` · books to ${r.ctaLink}` : ''}
+                </div>
+              )
+            )}
           </div>
         ))}
         {reels.length === 0 && !loading && <div className="trow muted">No reels yet.</div>}

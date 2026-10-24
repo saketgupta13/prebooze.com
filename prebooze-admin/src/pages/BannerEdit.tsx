@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { liveBanners, liveEvents, livePages, liveMedia, LiveApiError, type LiveBanner, type LiveEvent, type LiveSitePage } from '../lib/liveApi';
+import { liveBanners, liveEvents, livePages, liveMedia, liveLocations, LiveApiError, type LiveBanner, type LiveEvent, type LiveSitePage } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate } from '../components/LiveChrome';
 import { ArrowLeft, CheckCircle2, Upload } from 'lucide-react';
@@ -19,6 +19,7 @@ export default function BannerEdit() {
   const [existing, setExisting] = useState<LiveBanner | null>(null);
   const [approvedEvents, setApprovedEvents] = useState<LiveEvent[]>([]);
   const [pages, setPages] = useState<LiveSitePage[]>([]);
+  const [cityOptions, setCityOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState('');
@@ -31,14 +32,18 @@ export default function BannerEdit() {
   const [ctaLink, setCtaLink] = useState('/browse');
   const [imageUrl, setImageUrl] = useState('');
   const [status, setStatus] = useState('Scheduled');
+  // '' = shows on every city's homepage (the original, still-default
+  // behavior) — a real city scopes it to just that one.
+  const [city, setCity] = useState('');
 
   const load = () => {
     setLoading(true);
     setErr('');
-    Promise.all([liveBanners.list(), liveEvents.list('approved'), livePages.list()])
-      .then(([banners, evs, pgs]) => {
+    Promise.all([liveBanners.list(), liveEvents.list('approved'), livePages.list(), liveLocations.enabledCityNames()])
+      .then(([banners, evs, pgs, cities]) => {
         setApprovedEvents(evs);
         setPages(pgs);
+        setCityOptions(cities);
         if (!isCreate) {
           const b = banners.find((x) => x.id === id);
           setExisting(b ?? null);
@@ -50,6 +55,7 @@ export default function BannerEdit() {
             setCtaLink(b.ctaLink ?? '/browse');
             setImageUrl(b.imageUrl ?? '');
             setStatus(b.statusLabel || 'Scheduled');
+            setCity(b.city ?? '');
           }
         }
       })
@@ -124,6 +130,7 @@ export default function BannerEdit() {
       ctaLink,
       imageUrl,
       statusLabel: status,
+      city: city || null,
     };
     try {
       if (isCreate) await liveBanners.create(patch);
@@ -190,6 +197,14 @@ export default function BannerEdit() {
           </div>
         </div>
         <div className="field">
+          <label>City</label>
+          <select className="input" value={city} onChange={(e) => setCity(e.target.value)}>
+            <option value="">All cities</option>
+            {cityOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <div className="tiny hint" style={{ marginTop: 4 }}>leave as "All cities" to show everywhere, same as before this existed</div>
+        </div>
+        <div className="field">
           <label>Banner heading (shown to guests)</label>
           <input className="input" value={heading} onChange={(e) => setHeading(e.target.value)} maxLength={60} />
         </div>
@@ -211,7 +226,7 @@ export default function BannerEdit() {
             </select>
           </div>
         </div>
-        <div className="tiny hint">banner rotates in the guest home hero · schedule start–end and city targeting come with the backend</div>
+        <div className="tiny hint">banner rotates in the guest home hero · city targeting is set above · scheduled start–end dates aren't built yet, use Status to pause/resume manually</div>
       </div>
 
       <div style={{ display: 'flex', gap: 10 }}>

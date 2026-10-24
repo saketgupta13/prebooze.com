@@ -79,13 +79,14 @@ export class ContentService {
   }
 
   /** Same city/expiry shape as banners() above. Also resolves a real
-   * "Book now" link for any reel tied to an event (paid reel marketing,
-   * 2026-10-24) — Reel.eventId is a plain denormalized string (no FK, same
-   * reasoning as Banner/MarketingOrder's own eventId fields), so this
-   * batch-fetches the event's slug + city itself rather than storing a
-   * second, separately-maintained ctaLink column. null bookUrl (an
-   * ordinary admin-created reel, or an event that's since been deleted)
-   * just means no CTA shows under that reel. */
+   * "Book now" link — Reel.ctaLink (admin-typed, 2026-10-25, for an
+   * ordinary reel with no real paid order behind it) wins if set; otherwise
+   * falls back to resolving it from eventId (paid reel marketing,
+   * 2026-10-24 — Reel.eventId is a plain denormalized string, no FK, same
+   * reasoning as Banner/MarketingOrder's own eventId fields, so this
+   * batch-fetches the event's slug + city itself). null bookUrl (neither
+   * set, or a linked event that's since been deleted) just means no CTA
+   * shows under that reel. */
   async reels(city?: string) {
     const rows = await this.prisma.reel.findMany({
       where: {
@@ -95,7 +96,7 @@ export class ContentService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    const eventIds = [...new Set(rows.map((r) => r.eventId).filter((id): id is string => !!id))];
+    const eventIds = [...new Set(rows.filter((r) => !r.ctaLink).map((r) => r.eventId).filter((id): id is string => !!id))];
     const events = eventIds.length
       ? await this.prisma.event.findMany({
           where: { id: { in: eventIds } },
@@ -104,6 +105,7 @@ export class ContentService {
       : [];
     const byId = new Map(events.map((e) => [e.id, e]));
     return rows.map((r) => {
+      if (r.ctaLink) return { ...r, bookUrl: r.ctaLink };
       const event = r.eventId ? byId.get(r.eventId) : undefined;
       const eventCity = event?.venue?.city ?? event?.privateCity ?? event?.unlistedVenueCity;
       const bookUrl = event && eventCity ? `/${toCitySlug(eventCity)}/events/${event.slug}` : null;
