@@ -6,7 +6,8 @@ import type { Event as PbEvent, Invoice } from '../../types';
 import { ApiError } from '../../api/client';
 import { fmtMoney, isEventOver } from '../../data/mock';
 import { PageLoader } from '../../components/Loader';
-import type { MarketingOrder, MarketingRates } from '../../types';
+import type { MarketingOrder, MarketingRates, PlacementRates } from '../../types';
+import PlacementPurchaseCard from '../../components/PlacementPurchaseCard';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -37,6 +38,8 @@ export default function Marketing() {
   const [events, setEvents] = useState<PbEvent[]>([]);
   const [orders, setOrders] = useState<MarketingOrder[]>([]);
   const [rates, setRates] = useState<MarketingRates | null>(null);
+  const [bannerRates, setBannerRates] = useState<PlacementRates | null>(null);
+  const [reelRates, setReelRates] = useState<PlacementRates | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -97,12 +100,17 @@ export default function Marketing() {
 
   const load = () => {
     setErr('');
-    Promise.all([venuePartner.hostedEvents(), venuePartner.marketing.orders(), venuePartner.marketing.rates(), venuePartner.invoices()])
-      .then(([e, o, r, inv]) => {
+    Promise.all([
+      venuePartner.hostedEvents(), venuePartner.marketing.orders(), venuePartner.marketing.rates(), venuePartner.invoices(),
+      venuePartner.marketing.placementRates('banner'), venuePartner.marketing.placementRates('reel'),
+    ])
+      .then(([e, o, r, inv, br, rr]) => {
         setEvents(e);
         setOrders(o);
         setRates(r);
         setInvoices(inv);
+        setBannerRates(br);
+        setReelRates(rr);
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
@@ -158,6 +166,14 @@ export default function Marketing() {
     }
   };
   const periodRate = (days: 7 | 15 | 30) => (rates ? (days === 7 ? rates.day7 : days === 15 ? rates.day15 : rates.monthly) : 0);
+
+  // No eligibility filtering here (unlike eligibleEvents above) — Saket:
+  // a venue can run several banner/reel promotions at once, no concurrency
+  // limit, so every upcoming event is always a valid pick.
+  const buyPlacement = async (productType: 'banner' | 'reel', eventId: string, days: 3 | 7 | 15 | 30, creativeUrl: string, creativePosterUrl?: string) => {
+    const { phonepeRedirectUrl } = await venuePartner.marketing.requestPlacement(productType, eventId, days, creativeUrl, creativePosterUrl);
+    window.location.href = phonepeRedirectUrl;
+  };
 
   // Whichever plan has the lowest cost-per-day is the one worth calling out —
   // computed, never hardcoded, since admin can retune these rates any time.
@@ -261,6 +277,24 @@ export default function Marketing() {
         )}
       </div>
 
+      {/* Hero banner / reel marketing (2026-10-24) — same shape as
+          organizer/Marketing.tsx's identical addition, see
+          PlacementPurchaseCard's own doc comment. */}
+      <PlacementPurchaseCard
+        productType="banner"
+        events={upcoming}
+        rates={bannerRates}
+        upload={venuePartner.upload}
+        onBuy={(eventId, days, creativeUrl, creativePosterUrl) => buyPlacement('banner', eventId, days, creativeUrl, creativePosterUrl)}
+      />
+      <PlacementPurchaseCard
+        productType="reel"
+        events={upcoming}
+        rates={reelRates}
+        upload={venuePartner.upload}
+        onBuy={(eventId, days, creativeUrl, creativePosterUrl) => buyPlacement('reel', eventId, days, creativeUrl, creativePosterUrl)}
+      />
+
       {/* Billing history */}
       <div className="card">
         <h3>Billing history</h3>
@@ -270,6 +304,7 @@ export default function Marketing() {
           <div className="stack" style={{ gap: 12, marginTop: 10 }}>
             {orders.map((o) => {
               const inv = invoices.find((i) => i.type === 'marketing' && i.refId === o.id);
+              const productLabel = o.productType === 'banner' ? 'Hero banner · ' : o.productType === 'reel' ? 'Reel · ' : '';
               const label = o.isSubscriptionPeriod
                 ? `${o.periodStart && o.periodEnd ? Math.round((new Date(o.periodEnd).getTime() - new Date(o.periodStart).getTime()) / 86400000) : 30}-day plan`
                 : o.eventTitle;
@@ -278,10 +313,11 @@ export default function Marketing() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
                     <div style={{ minWidth: 0 }}>
                       <div className="bold small">
-                        {label}
+                        {productLabel}{label}
                         {o.isSubscriptionPeriod && o.periodStart && <span className="tiny muted"> · from {fmtDate(o.periodStart)}</span>}
+                        {o.productType !== 'ads' && o.days && <span className="tiny muted"> · {o.days}-day{o.status === 'active' && o.endDate ? `, until ${fmtDate(o.endDate)}` : ''}</span>}
                       </div>
-                      {o.status === 'active' && (
+                      {o.productType === 'ads' && o.status === 'active' && (
                         <Link to={o.isSubscriptionPeriod ? `/venue/hosting/marketing/analytics?orderId=${o.id}` : `/venue/hosting/marketing/analytics?eventId=${o.eventId}`} className="link tiny">
                           view analytics →
                         </Link>

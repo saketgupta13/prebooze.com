@@ -11,6 +11,7 @@ import { computeGst } from '../common/gst';
 import { postIncome } from '../common/post-income';
 import { OrgNotificationsService } from '../notifications/org-notifications';
 import { MetaInsightsService } from '../meta/meta-insights.service';
+import { toCitySlug } from '../common/city-slug';
 
 export type MarketingOwnerType = 'organizer' | 'venue';
 
@@ -121,9 +122,9 @@ export class MarketingService {
   // `amount` stays the base rate (unchanged meaning, matches every existing
   // caller); `total` is what was/will be actually charged, amount+GST —
   // equal to amount on every pre-GST-launch or gstEnabled:false order.
-  private async toPublicOrder(row: { id: string; eventId: string | null; eventTitle: string | null; amount: number; gstPct: number | null; gstAmount: number | null; total: number | null; status: string; pipelineStatus?: string; createdAt: Date; periodEnd: Date | null; rejectionReason?: string | null; metaCampaignId?: string | null }) {
+  private async toPublicOrder(row: { id: string; productType?: string; eventId: string | null; eventTitle: string | null; amount: number; gstPct: number | null; gstAmount: number | null; total: number | null; status: string; pipelineStatus?: string; createdAt: Date; periodEnd: Date | null; endDate?: Date | null; days?: number | null; rejectionReason?: string | null; metaCampaignId?: string | null }) {
     return {
-      id: row.id, eventId: row.eventId, eventTitle: row.eventTitle, amount: row.amount,
+      id: row.id, productType: row.productType ?? 'ads', eventId: row.eventId, eventTitle: row.eventTitle, amount: row.amount,
       gstPct: row.gstPct ?? 0, gstAmount: row.gstAmount ?? 0, total: row.total ?? row.amount, status: row.status,
       // Only meaningful while status is 'pending' — see schema comment.
       pipelineStatus: row.status === 'pending' ? (row.pipelineStatus ?? 'requested') : null,
@@ -131,10 +132,15 @@ export class MarketingService {
       // A real 30-day-plan order (requestForPeriod) is exactly what
       // eventId: null already meant here — this used to be hardcoded false
       // because nothing ever created that shape before now.
-      isSubscriptionPeriod: row.eventId === null, periodStart: row.eventId === null ? row.createdAt : null,
-      periodEnd: row.periodEnd, rejectionReason: row.rejectionReason ?? null,
+      isSubscriptionPeriod: row.eventId === null && row.productType !== 'banner' && row.productType !== 'reel', periodStart: row.eventId === null ? row.createdAt : null,
+      periodEnd: row.periodEnd,
+      // banner/reel orders only — which tier was bought, and when the
+      // resulting live slot actually stops (set at admin activation, see
+      // adminActivatePlacement).
+      days: row.days ?? null, endDate: row.endDate ?? null,
+      rejectionReason: row.rejectionReason ?? null,
       metaCampaignId: row.status === 'active' ? (row.metaCampaignId ?? null) : null,
-      adPerformance: row.status === 'active' ? await this.safeAdPerformance(row.metaCampaignId ?? null) : null,
+      adPerformance: row.productType === 'ads' && row.status === 'active' ? await this.safeAdPerformance(row.metaCampaignId ?? null) : null,
     };
   }
 
@@ -228,6 +234,88 @@ export class MarketingService {
     return { id: row.id, amount, gstPct, gstAmount, total, phonepeRedirectUrl: order.redirectUrl };
   }
 
+  // ---------- hero banner / reel marketing (2026-10-24) ----------
+  // Deliberately separate rate methods/tiers from rates()/updateRates()
+  // above (Meta Ads) — flat placement pricing, no margin, 3/7/15/30-day
+  // tiers instead of perEvent/day7/day15/monthly. Shares everything else
+  // (MarketingOrder table, PhonePe flow, pipeline, billing history) via
+  // productType, per this feature's own architecture decision (see
+  // marketing-and-banner-reel planning discussion).
+  private static PLACEMENT_FIELDS: Record<'banner' | 'reel', { day3: keyof import('@prisma/client').PlatformSettings; day7: keyof import('@prisma/client').PlatformSettings; day15: keyof import('@prisma/client').PlatformSettings; day30: keyof import('@prisma/client').PlatformSettings }> = {
+    banner: { day3: 'bannerMarketing3Day', day7: 'bannerMarketing7Day', day15: 'bannerMarketing15Day', day30: 'bannerMarketing30Day' },
+    reel: { day3: 'reelMarketing3Day', day7: 'reelMarketing7Day', day15: 'reelMarketing15Day', day30: 'reelMarketing30Day' },
+  };
+
+  async placementRates(productType: 'banner' | 'reel') {
+    const s = await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
+    const f = MarketingService.PLACEMENT_FIELDS[productType];
+    return {
+      day3: s[f.day3] as number, day7: s[f.day7] as number, day15: s[f.day15] as number, day30: s[f.day30] as number,
+      gstPct: s.gstEnabled ? s.gstPct : 0,
+    };
+  }
+
+  async updatePlacementRates(productType: 'banner' | 'reel', body: { day3?: number; day7?: number; day15?: number; day30?: number }) {
+    const f = MarketingService.PLACEMENT_FIELDS[productType];
+    const data: Record<string, number> = {};
+    if (body.day3 !== undefined) data[f.day3] = body.day3;
+    if (body.day7 !== undefined) data[f.day7] = body.day7;
+    if (body.day15 !== undefined) data[f.day15] = body.day15;
+    if (body.day30 !== undefined) data[f.day30] = body.day30;
+    await this.prisma.platformSettings.upsert({ where: { id: 'main' }, update: data, create: { id: 'main', ...data } });
+    return this.placementRates(productType);
+  }
+
+  /** Buy a hero-banner or reel slot for one of the caller's own events —
+   * same one-time-purchase/PhonePe-redirect shape as requestForEvent above,
+   * minus the "only one order per event" rule (Saket: organizers can run
+   * several event banner/reel promotions at once, no concurrency limit).
+   * `creativeUrl` is the raw image/video the organizer/venue already
+   * uploaded via StorageService before calling this — admin builds the
+   * real Banner/Reel row from it at activation time (adminActivatePlacement
+   * below); this method only ever touches MarketingOrder. */
+  async requestPlacement(
+    userId: string,
+    ownerType: MarketingOwnerType,
+    productType: 'banner' | 'reel',
+    eventId: string,
+    days: 3 | 7 | 15 | 30,
+    creativeUrl: string,
+    creativePosterUrl?: string,
+  ) {
+    if (![3, 7, 15, 30].includes(days)) throw new BadRequestException('Plan length must be 3, 7, 15, or 30 days');
+    if (!creativeUrl?.trim()) throw new BadRequestException(productType === 'banner' ? 'A banner image is required' : 'A video is required');
+    const owner = await this.resolveOwner(userId, ownerType);
+    const ownerId = this.ownerIdOf(ownerType, owner);
+    const event = await this.resolveOwnedEvent(ownerType, ownerId, eventId);
+
+    const rates = await this.placementRates(productType);
+    const amount = days === 3 ? rates.day3 : days === 7 ? rates.day7 : days === 15 ? rates.day15 : rates.day30;
+    const settings = await this.prisma.platformSettings.findUnique({ where: { id: 'main' } });
+    const gstPct = settings?.gstEnabled ? (settings?.gstPct ?? 0) : 0;
+    const gstAmount = Math.round((amount * gstPct) / 100);
+    const total = amount + gstAmount;
+
+    const row = await this.prisma.marketingOrder.create({
+      data: {
+        productType,
+        ownerType: ownerType as never,
+        organizerId: ownerType === 'organizer' ? ownerId : undefined,
+        venueId: ownerType === 'venue' ? ownerId : undefined,
+        eventId: event.id, eventTitle: event.title, days,
+        creativeUrl: creativeUrl.trim(), creativePosterUrl: creativePosterUrl?.trim() || undefined,
+        amount, marginPct: 0, gstPct, gstAmount, total, status: 'pending',
+      },
+    });
+
+    const returnPath = ownerType === 'organizer' ? '/organizer/marketing' : '/venue/hosting/marketing';
+    const returnUrl = `${process.env.WEB_APP_URL || 'https://prebooze.com'}${returnPath}?phonepe_return=1&orderId=${encodeURIComponent(row.id)}`;
+    const order = await this.phonepe.createOrder(row.id, total * 100, returnUrl);
+    await this.prisma.marketingOrder.update({ where: { id: row.id }, data: { phonepeMerchantOrderId: row.id } });
+
+    return { id: row.id, amount, gstPct, gstAmount, total, phonepeRedirectUrl: order.redirectUrl };
+  }
+
   /** Called by the frontend right after it gives up retrying confirmPayment
    * on return from a PhonePe checkout (Marketing.tsx/VenueMarketing.tsx's
    * resume loop) — the whole point is to free up the event immediately
@@ -293,6 +381,19 @@ export class MarketingService {
         total: row.total ?? row.amount,
       }).catch(() => {});
       await this.staffAlerts.alert(`📣 New marketing order paid — ${owner.brand} (${row.eventTitle ?? 'event'}), ₹${row.total ?? row.amount}`).catch(() => {});
+    }
+
+    if (row.productType === 'banner' || row.productType === 'reel') {
+      // No real ad spend underneath a banner/reel slot — it's pure
+      // placement, so (unlike Meta Ads below) the FULL amount is real
+      // Prebooze income, same shape as FeaturedService.request's identical
+      // postIncome pair.
+      const category = row.productType === 'banner' ? 'Hero banner marketing' : 'Reel marketing';
+      await postIncome(this.prisma, { category, amount: row.amount, note: row.eventTitle ?? owner.brand, eventId: row.eventId }).catch(() => {});
+      await postIncome(this.prisma, {
+        category: 'GST collected (payable)', amount: row.gstAmount ?? 0, note: row.eventTitle ?? owner.brand, eventId: row.eventId,
+      }).catch(() => {});
+      return await this.toPublicOrder(updated);
     }
 
     // Real Prebooze income is only the margin — the rest of row.amount is
@@ -591,6 +692,107 @@ export class MarketingService {
     });
     const heldAwaitingActivation = heldAwaitingActivationAgg.reduce((a, r) => a + (r.amount - Math.round((r.amount * r.marginPct) / 100)), 0);
     return { heldAwaitingActivation, inLiveCampaignsBudget: budgetTotal, currentlySpending: spendTotal, remainingInLiveCampaigns: remaining };
+  }
+
+  /** The banner/reel equivalent of adminSetCampaign below — admin reviews
+   * the organizer/venue's uploaded creative (order.creativeUrl) and the
+   * event it's tied to, fills in whatever Banner/Reel-specific fields the
+   * guest-facing row needs (heading/description/CTA for a banner; nothing
+   * extra for a reel beyond the video itself — per Saket's "rest admin will
+   * do"), and this both creates the real Banner/Reel row AND flips the
+   * order to active in one step. expiresAt/endDate is activation-time +
+   * order.days, not purchase-time — an organizer who bought "7 days" gets
+   * 7 real days live, not 7 days minus however long admin took to review. */
+  async adminActivatePlacement(
+    id: string,
+    fields: { heading?: string; description?: string; ctaLabel?: string; imageUrl?: string; videoUrl?: string; posterUrl?: string },
+  ) {
+    const row = await this.prisma.marketingOrder.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException('Marketing order not found');
+    if (row.productType !== 'banner' && row.productType !== 'reel') throw new BadRequestException('Not a banner/reel order');
+    if (!row.paymentId) throw new BadRequestException('Cannot activate an order that hasn’t been paid for yet');
+    if (row.status === 'active') throw new BadRequestException('Already active');
+    if (!row.eventId) throw new NotFoundException('This order has no event to resolve a city from');
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: row.eventId },
+      select: { slug: true, title: true, venue: { select: { city: true } }, privateCity: true, unlistedVenueCity: true },
+    });
+    if (!event) throw new NotFoundException('Event not found');
+    const city = event.venue?.city ?? event.privateCity ?? event.unlistedVenueCity;
+    if (!city) throw new BadRequestException('This event has no resolvable city — cannot scope a hero slot to it');
+
+    const days = row.days ?? 7;
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const ctaLink = `/${toCitySlug(city)}/events/${event.slug}`;
+    const ownerFields = { organizerId: row.organizerId ?? undefined, venueId: row.venueId ?? undefined, city, eventId: row.eventId, orderId: row.id, expiresAt };
+
+    if (row.productType === 'banner') {
+      if (!fields.imageUrl && !row.creativeUrl) throw new BadRequestException('A banner image is required');
+      await this.prisma.banner.create({
+        data: {
+          title: `${event.title} (organizer-paid)`, statusLabel: 'Live',
+          heading: fields.heading?.trim() || event.title, description: fields.description?.trim() ?? null,
+          ctaLabel: fields.ctaLabel?.trim() || 'Book now →', ctaLink,
+          imageUrl: fields.imageUrl?.trim() || row.creativeUrl, active: true, sort: 0,
+          ...ownerFields,
+        },
+      });
+    } else {
+      await this.prisma.reel.create({
+        data: {
+          title: event.title, hue: Math.floor(Math.random() * 360), active: true,
+          videoUrl: fields.videoUrl?.trim() || row.creativeUrl,
+          posterUrl: fields.posterUrl?.trim() || row.creativePosterUrl,
+          ...ownerFields,
+        },
+      });
+    }
+
+    const updated = await this.prisma.marketingOrder.update({ where: { id }, data: { status: 'active', endDate: expiresAt } });
+
+    const placementLabel = row.productType === 'banner' ? 'hero banner' : 'reel';
+    const owner = await this.resolveOwnerContact(row);
+    if (owner) {
+      if (owner.email) {
+        await this.email.sendTemplate(owner.email, 'marketing_placement_active', {
+          name: owner.name, placementLabel, eventTitle: row.eventTitle ?? 'your event',
+          expiresOn: expiresAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+        }).catch(() => {});
+      }
+      if (row.ownerType === 'organizer') {
+        await this.orgNotifications.notify(owner.userId, 'approved', `Your ${placementLabel} for "${row.eventTitle ?? 'your event'}" is now live`, '/organizer/marketing').catch(() => {});
+      }
+    }
+
+    return await this.toPublicOrder(updated);
+  }
+
+  /** Same shape as FeaturedService.remindExpiringSoon — proactive, daily,
+   * fires once per order (expiryReminderSentAt gates re-sends) for a
+   * banner/reel order within 3 days of its endDate. Meta Ads orders are
+   * deliberately excluded (endDate there is optional/admin-set, often left
+   * open-ended — "expiring soon" doesn't mean the same thing for a
+   * human-run campaign the way it does for a fixed-duration placement). */
+  async remindPlacementsExpiringSoon(): Promise<{ remindedCount: number }> {
+    const in3Days = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.marketingOrder.findMany({
+      where: { status: 'active', productType: { in: ['banner', 'reel'] }, endDate: { lte: in3Days, gt: new Date() }, expiryReminderSentAt: null },
+    });
+
+    let remindedCount = 0;
+    for (const row of rows) {
+      const owner = await this.resolveOwnerContact(row);
+      if (!owner?.email || !row.endDate) continue;
+      await this.email.sendTemplate(owner.email, 'marketing_placement_expiring_soon', {
+        name: owner.name, placementLabel: row.productType === 'banner' ? 'hero banner' : 'reel',
+        eventTitle: row.eventTitle ?? 'your event',
+        expiresOn: row.endDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+      }).catch(() => {});
+      await this.prisma.marketingOrder.update({ where: { id: row.id }, data: { expiryReminderSentAt: new Date() } });
+      remindedCount++;
+    }
+    return { remindedCount };
   }
 
   /** The human handoff point — admin has actually created the real Meta

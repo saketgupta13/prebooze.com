@@ -86,6 +86,25 @@ export class MarketingController {
   analyticsPeriod(@Req() req: AuthedReq, @Query('orderId') orderId: string) {
     return this.marketing.analyticsForPeriod(req.user.sub, 'organizer', orderId);
   }
+
+  // ---------- hero banner / reel marketing ----------
+  @Get('placement-rates/:productType')
+  placementRates(@Param('productType') productType: 'banner' | 'reel') {
+    return this.marketing.placementRates(productType);
+  }
+
+  @Post('request-placement')
+  @UseGuards(JwtAuthGuard)
+  requestPlacement(
+    @Req() req: AuthedReq,
+    @Body('productType') productType: 'banner' | 'reel',
+    @Body('eventId') eventId: string,
+    @Body('days') days: 3 | 7 | 15 | 30,
+    @Body('creativeUrl') creativeUrl: string,
+    @Body('creativePosterUrl') creativePosterUrl?: string,
+  ) {
+    return this.marketing.requestPlacement(req.user.sub, 'organizer', productType, eventId, days, creativeUrl, creativePosterUrl);
+  }
 }
 
 /** Identical shape, venue side — matches VenueController's own
@@ -159,6 +178,25 @@ export class VenueMarketingController {
   analyticsPeriod(@Req() req: AuthedReq, @Query('orderId') orderId: string) {
     return this.marketing.analyticsForPeriod(req.user.sub, 'venue', orderId);
   }
+
+  // ---------- hero banner / reel marketing ----------
+  @Get('placement-rates/:productType')
+  placementRates(@Param('productType') productType: 'banner' | 'reel') {
+    return this.marketing.placementRates(productType);
+  }
+
+  @Post('request-placement')
+  @UseGuards(JwtAuthGuard)
+  requestPlacement(
+    @Req() req: AuthedReq,
+    @Body('productType') productType: 'banner' | 'reel',
+    @Body('eventId') eventId: string,
+    @Body('days') days: 3 | 7 | 15 | 30,
+    @Body('creativeUrl') creativeUrl: string,
+    @Body('creativePosterUrl') creativePosterUrl?: string,
+  ) {
+    return this.marketing.requestPlacement(req.user.sub, 'venue', productType, eventId, days, creativeUrl, creativePosterUrl);
+  }
 }
 
 /** Admin review queue + the human handoff point — admin has actually
@@ -229,5 +267,24 @@ export class AdminMarketingController {
   @RequirePermission('Marketing campaigns', 'edit')
   updateRates(@Body() body: Parameters<MarketingService['updateRates']>[0]) {
     return this.marketing.updateRates(body);
+  }
+
+  // ---------- hero banner / reel marketing ----------
+  @Get('placement-rates/:productType')
+  @RequirePermission('Marketing campaigns', 'view')
+  placementRates(@Param('productType') productType: 'banner' | 'reel') {
+    return this.marketing.placementRates(productType);
+  }
+
+  @Patch('placement-rates/:productType')
+  @RequirePermission('Marketing campaigns', 'edit')
+  updatePlacementRates(@Param('productType') productType: 'banner' | 'reel', @Body() body: Parameters<MarketingService['updatePlacementRates']>[1]) {
+    return this.marketing.updatePlacementRates(productType, body);
+  }
+
+  @Patch(':id/activate-placement')
+  @RequirePermission('Marketing campaigns', 'edit')
+  activatePlacement(@Param('id') id: string, @Body() body: Parameters<MarketingService['adminActivatePlacement']>[1]) {
+    return this.marketing.adminActivatePlacement(id, body);
   }
 }

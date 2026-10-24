@@ -346,6 +346,8 @@ model Venue {
   photoHue    Int
   events      Event[]
   marketingOrders        MarketingOrder[]
+  banners                Banner[]
+  reels                  Reel[]
 
   // Same pattern as Organizer/Promoter/Lineup.userId — added for symmetry
   // (this was previously the one elevated role with no forward FK; ownership
@@ -591,6 +593,8 @@ model Organizer {
   logoUrl      String?
   events       Event[]
   marketingOrders        MarketingOrder[]
+  banners                Banner[]
+  reels                  Reel[]
 
   // links this catalog row to the real User who owns the console — created
   // automatically the moment their organizer KYC is approved (see
@@ -1231,6 +1235,23 @@ model PlatformSettings {
   marketingMonthly   Int @default(15000)
   marketingMarginPct Int @default(25)
 
+  // Hero banner / reel marketing rates (2026-10-24) — same flat-rate, no-
+  // margin shape as Featured's rates above (organizer pays Prebooze
+  // directly for placement; unlike Marketing's Meta Ads product there's no
+  // real ad spend underneath to take a cut of). Tier shape mirrors
+  // Marketing's day7/day15/monthly, with "3-day" replacing "perEvent" as
+  // the shortest option (see MarketingService.rates()'s own 3-tier day
+  // lookup for banner/reel — deliberately NOT reusing marketingPerEvent's
+  // meaning, which stays Meta-Ads-specific).
+  bannerMarketing3Day  Int @default(1500)
+  bannerMarketing7Day  Int @default(2500)
+  bannerMarketing15Day Int @default(4500)
+  bannerMarketing30Day Int @default(8000)
+  reelMarketing3Day    Int @default(999)
+  reelMarketing7Day    Int @default(1999)
+  reelMarketing15Day   Int @default(3499)
+  reelMarketing30Day   Int @default(5999)
+
   // Real commission GST + TCS — added 2026-10-02. Prebooze's commission
   // (Event.commission%, deducted from an organizer/venue's payout) is its
   // own real taxable B2B supply of facilitation service, same reasoning as
@@ -1436,6 +1457,13 @@ enum MarketingOwnerType {
 model MarketingOrder {
   id          String             @id @default(cuid())
   ownerType   MarketingOwnerType
+  // 'ads' (the original, only product for a long time — Meta Ads, campaign
+  // run by hand in Meta Ads Manager) | 'banner' (hero rotation slot) |
+  // 'reel' (reels-strip slot) — added 2026-10-24. Every method below that's
+  // specific to one product filters on this; toPublicOrder/billing history
+  // stays shared across all three, same table, same pipeline, same invoice
+  // handling, rather than three separate order systems.
+  productType String             @default("ads")
   organizerId String?
   organizer   Organizer?         @relation(fields: [organizerId], references: [id])
   venueId     String?
@@ -1475,6 +1503,26 @@ model MarketingOrder {
   // created for this org/venue (AdminMarketingController) — the human
   // handoff point.
   metaCampaignId String?
+  // 'banner'/'reel' orders only — the raw creative the organizer/venue
+  // uploaded at purchase time (banner: just an image; reel: a video, or a
+  // pasted link same as Event.teaserVideoUrl's own upload-or-link pattern).
+  // Admin reads this during review and builds the real Banner/Reel row from
+  // it (filling in heading/description/CTA themselves, per Saket's "rest
+  // admin will do" — the organizer only ever supplies the creative itself).
+  // creativePosterUrl is StorageService.saveMedia's auto-extracted first-
+  // frame poster, reel orders only.
+  creativeUrl       String?
+  creativePosterUrl String?
+  // Which tier was purchased (3/15/7/30) — banner/reel orders only; 'ads'
+  // orders already express this via periodEnd/endDate directly and don't
+  // set this. Read at admin-activation time to compute the real Banner/
+  // Reel row's expiresAt (activation-time + days, not purchase-time + days
+  // — same "doesn't start counting until it's actually live" reasoning as
+  // endDate's own doc comment below).
+  days Int?
+  // Gates remindPlacementsExpiringSoon's daily re-send, same pattern as
+  // Featured.expiryReminderSentAt — banner/reel orders only.
+  expiryReminderSentAt DateTime?
   // Why a paid order was rejected — surfaced back to the organizer/venue via
   // email + in-app notification (MarketingService.adminReject), same
   // reasoning as Event.rejectionReason.
@@ -2379,6 +2427,28 @@ model Banner {
   active      Boolean @default(true)
   sort        Int     @default(0)
 
+  // Paid organizer/venue hero-slot marketing (2026-10-24) — null city/owner
+  // fields mean an ordinary admin-created banner (the original, still-
+  // supported shape); a non-null city scopes it to that city's homepage
+  // only, instead of the old site-wide-everywhere default. eventId is a
+  // plain denormalized string, no FK — same "must survive the event itself
+  // being deleted" reasoning as MarketingOrder.eventId's own comment.
+  // organizerId/venueId DO carry real FKs, same as MarketingOrder's.
+  city        String?
+  eventId     String?
+  organizerId String?
+  organizer   Organizer? @relation(fields: [organizerId], references: [id])
+  venueId     String?
+  venue       Venue?     @relation(fields: [venueId], references: [id])
+  // The MarketingOrder that paid for this slot — set only for a paid
+  // banner, never for an ordinary admin-created one. expiresAt is computed
+  // at admin-activation time (order.days from purchase, not from payment
+  // time) by the same CronService tick pattern as Featured.expiresAt/
+  // MarketingOrder.endDate; null means "doesn't expire" (every admin-
+  // created banner, same as before this feature existed).
+  orderId   String?   @unique
+  expiresAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -2478,6 +2548,19 @@ model Reel {
   // and only fetches the real video once a guest taps to play it, instead
   // of every reel autoplaying and downloading on page load.
   posterUrl String?
+
+  // Paid organizer/venue reel marketing (2026-10-24) — same shape as
+  // Banner's own identical fields just above; see that model's comment for
+  // the full reasoning (null city/owner = an ordinary admin-created reel,
+  // unchanged from before this existed).
+  city        String?
+  eventId     String?
+  organizerId String?
+  organizer   Organizer? @relation(fields: [organizerId], references: [id])
+  venueId     String?
+  venue       Venue?     @relation(fields: [venueId], references: [id])
+  orderId     String?    @unique
+  expiresAt   DateTime?
 
   createdAt DateTime @default(now())
 }

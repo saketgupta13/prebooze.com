@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import { Briefcase, Landmark, Check, Download, Radar } from 'lucide-react';
 import { Kpi } from '../components/ui';
-import { liveMarketing, liveInvoices, liveMe, LiveApiError, type LiveMarketingOrder, type LiveMarketingSubscription, type LiveMarketingRates, type LiveInvoice, type LiveMarketingRealPerformance, type LiveAdSpendSummary, type LiveStaffMe } from '../lib/liveApi';
+import { liveMarketing, liveInvoices, liveMe, LiveApiError, type LiveMarketingOrder, type LiveMarketingSubscription, type LiveMarketingRates, type LivePlacementRates, type LiveInvoice, type LiveMarketingRealPerformance, type LiveAdSpendSummary, type LiveStaffMe } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 
@@ -68,6 +68,10 @@ export default function Marketing() {
   const [realPerf, setRealPerf] = useState<Record<string, LiveMarketingRealPerformance | 'loading' | 'error'>>({});
   const [staffMeta, setStaffMeta] = useState<LiveStaffMe | null>(null);
   const [adSpendSummary, setAdSpendSummary] = useState<LiveAdSpendSummary | 'loading' | 'error' | null>(null);
+  const [placementDraft, setPlacementDraft] = useState<Record<string, { heading: string; description: string; ctaLabel: string }>>({});
+  const [bannerRates, setBannerRates] = useState<LivePlacementRates | null>(null);
+  const [reelRates, setReelRates] = useState<LivePlacementRates | null>(null);
+  const [savingPlacementRates, setSavingPlacementRates] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -77,10 +81,12 @@ export default function Marketing() {
     // Promise.all() as orders()/rates(), so the one dead call failed the
     // entire load and hid every real, paid marketing order from admin.
     setSubs([]);
-    Promise.all([liveMarketing.orders(), liveMarketing.rates()])
-      .then(([r, ra]) => {
+    Promise.all([liveMarketing.orders(), liveMarketing.rates(), liveMarketing.placementRates('banner'), liveMarketing.placementRates('reel')])
+      .then(([r, ra, br, rr]) => {
         setRows(r);
         setRates(ra);
+        setBannerRates(br);
+        setReelRates(rr);
       })
       .catch((e) => setErr(e instanceof LiveApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
@@ -147,9 +153,16 @@ export default function Marketing() {
   // until staffMeta loads, not shown-then-hidden.
   const canSeeFinance = !!staffMeta && (staffMeta.roleName === 'Owner' || !!staffMeta.permissions['Payments & payouts']?.view);
 
-  const pending = rows.filter((r) => r.status === 'pending');
-  const active = rows.filter((r) => r.status === 'active');
-  const expired = rows.filter((r) => r.status === 'expired');
+  // Meta Ads keeps its own "Awaiting campaign setup" queue/activation form
+  // unchanged below — banner/reel orders (2026-10-24) get a separate queue
+  // with a different activation form (adminActivatePlacement, not
+  // setCampaign), since there's no Meta ad set id involved at all.
+  const pending = rows.filter((r) => r.status === 'pending' && r.productType === 'ads');
+  const pendingPlacements = rows.filter((r) => r.status === 'pending' && r.productType !== 'ads');
+  const active = rows.filter((r) => r.status === 'active' && r.productType === 'ads');
+  const expired = rows.filter((r) => r.status === 'expired' && r.productType === 'ads');
+  const activePlacements = rows.filter((r) => r.status === 'active' && r.productType !== 'ads');
+  const expiredPlacements = rows.filter((r) => r.status === 'expired' && r.productType !== 'ads');
   // Most recently ended first — endDate is always set once a campaign
   // actually expires (see MarketingService.adminStopCampaign/
   // CronService.marketingExpiryTick), so this is a real "most recently
@@ -164,7 +177,12 @@ export default function Marketing() {
   // pass-through ad spend meant to fund the Meta campaign, never ours. Only
   // counted for paid orders (paymentId set), same as what actually posts to
   // the income ledger in MarketingService.confirmPayment.
-  const marginEarned = rows.filter((r) => r.paymentId).reduce((a, r) => a + Math.round((r.amount * r.marginPct) / 100), 0);
+  // 'ads'-only — a banner/reel order's full amount is real income with no
+  // margin split at all (postIncome's 'Hero banner marketing'/'Reel
+  // marketing' categories, not 'Marketing campaign margin'/'Ad spend held
+  // for campaign'), so folding it into this margin-only tally would
+  // understate real Prebooze income rather than add to it correctly.
+  const marginEarned = rows.filter((r) => r.paymentId && r.productType === 'ads').reduce((a, r) => a + Math.round((r.amount * r.marginPct) / 100), 0);
   // Real pass-through ad spend, split by whether it's actually been spent
   // on a live campaign yet — not two different ledger totals (the backing
   // "Ad spend held for campaign (payable)" liability never gets
@@ -175,8 +193,8 @@ export default function Marketing() {
   // has no mechanism to refund the ad spend portion — it's real money
   // sitting uncollected until someone follows up.
   const adSpendOf = (r: LiveMarketingOrder) => r.amount - Math.round((r.amount * r.marginPct) / 100);
-  const adSpendHeld = rows.filter((r) => r.paymentId && (r.status === 'pending' || r.status === 'rejected')).reduce((a, r) => a + adSpendOf(r), 0);
-  const adSpendInUse = rows.filter((r) => r.paymentId && (r.status === 'active' || r.status === 'expired')).reduce((a, r) => a + adSpendOf(r), 0);
+  const adSpendHeld = rows.filter((r) => r.paymentId && r.productType === 'ads' && (r.status === 'pending' || r.status === 'rejected')).reduce((a, r) => a + adSpendOf(r), 0);
+  const adSpendInUse = rows.filter((r) => r.paymentId && r.productType === 'ads' && (r.status === 'active' || r.status === 'expired')).reduce((a, r) => a + adSpendOf(r), 0);
   const activeSubs = subs.filter((s) => s.status === 'active');
   const haltedSubs = subs.filter((s) => s.status === 'halted');
 
@@ -248,6 +266,17 @@ export default function Marketing() {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to save rate');
     } finally {
       setSavingRates(false);
+    }
+  };
+  const updatePlacementRate = async (productType: 'banner' | 'reel', patch: Partial<LivePlacementRates>) => {
+    setSavingPlacementRates(true);
+    try {
+      const updated = await liveMarketing.updatePlacementRates(productType, patch);
+      (productType === 'banner' ? setBannerRates : setReelRates)(updated);
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to save rate');
+    } finally {
+      setSavingPlacementRates(false);
     }
   };
 
@@ -375,6 +404,70 @@ export default function Marketing() {
     </div>
   );};
 
+  /** Review queue for a paid banner/reel order — a thumbnail/video preview
+   * of the organizer/venue's own uploaded creative, optional heading/
+   * description/CTA for a banner (Saket: organizer only ever supplies the
+   * raw creative, admin fills everything else in), then Activate builds
+   * the real Banner/Reel row and flips the order live in one call
+   * (adminActivatePlacement) — no separate "set campaign id" step the way
+   * Meta Ads needs, since there's no external platform involved. */
+  const PendingPlacementRow = ({ r }: { r: LiveMarketingOrder }) => {
+    const draft = placementDraft[r.id] ?? { heading: '', description: '', ctaLabel: '' };
+    const setDraft = (patch: Partial<typeof draft>) => setPlacementDraft((d) => ({ ...d, [r.id]: { ...draft, ...patch } }));
+    const activate = async () => {
+      try {
+        await liveMarketing.activatePlacement(r.id, r.productType === 'banner'
+          ? { heading: draft.heading.trim() || undefined, description: draft.description.trim() || undefined, ctaLabel: draft.ctaLabel.trim() || undefined }
+          : {});
+        load();
+      } catch (e) {
+        setErr(e instanceof LiveApiError ? e.message : 'Failed to activate');
+      }
+    };
+    return (
+      <div className="trow" style={{ minWidth: 720, background: 'rgba(255,107,94,.06)', flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ flex: 1.4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={r.ownerType} /> {r.entityName}</span>
+          <span style={{ flex: 1.2 }} className="muted">{r.eventTitle}</span>
+          <span className="tag" style={{ textTransform: 'capitalize' }}>{r.productType}</span>
+          <span className="muted tiny">{r.days}-day</span>
+          <span style={{ flex: 0.9 }} className="muted tiny">{fmtDate(r.createdAt)}</span>
+        </div>
+        {!r.paymentId ? (
+          <span className="tiny muted">awaiting payment</span>
+        ) : (
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            {r.productType === 'banner' ? (
+              r.creativeUrl && <img src={r.creativeUrl} alt="banner creative" style={{ width: 200, aspectRatio: '16/5', objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+            ) : (
+              r.creativeUrl && <video src={r.creativeUrl} poster={r.creativePosterUrl ?? undefined} controls style={{ width: 110, aspectRatio: '9/16', borderRadius: 8, border: '1px solid var(--border)' }} />
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 220 }}>
+              {r.productType === 'banner' && (
+                <>
+                  <input className="input" style={{ padding: '5px 8px' }} placeholder={`Heading (defaults to "${r.eventTitle}")`} value={draft.heading} onChange={(e) => setDraft({ heading: e.target.value })} />
+                  <input className="input" style={{ padding: '5px 8px' }} placeholder="Description" value={draft.description} onChange={(e) => setDraft({ description: e.target.value })} />
+                  <input className="input" style={{ padding: '5px 8px' }} placeholder={'CTA label (defaults to "Book now →")'} value={draft.ctaLabel} onChange={(e) => setDraft({ ctaLabel: e.target.value })} />
+                </>
+              )}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="btn btn-pri btn-sm" onClick={activate}>Activate</button>
+                <button className="btn btn-danger btn-sm" onClick={() => setRejectingId(r.id)}>Reject</button>
+              </div>
+              {rejectingId === r.id && (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input className="input" style={{ padding: '5px 8px', flex: 1 }} placeholder="reason (optional)" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} autoFocus />
+                  <button className="btn btn-danger btn-sm" onClick={() => reject(r.id)}>Confirm reject</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => { setRejectingId(null); setRejectReason(''); }}>Cancel</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const Row = ({ r }: { r: LiveMarketingOrder }) => (
     <div className="trow" style={{ minWidth: 720, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -489,6 +582,79 @@ export default function Marketing() {
           </div>
         </div>
       )}
+
+      {/* Hero banner / reel marketing (2026-10-24) — separate products,
+          separate flat-rate pricing (no margin — see MarketingService's own
+          doc comment on confirmPayment's productType branch), same card
+          shape as Meta Ads pricing above. */}
+      {canSeeFinance && (
+        <div className="card">
+          <div className="display" style={{ fontWeight: 700, marginBottom: 4 }}>Hero banner / reel pricing</div>
+          <div className="tiny hint" style={{ marginBottom: 10 }}>flat rate, no margin split — the full amount is real Prebooze income{savingPlacementRates && ' · saving…'}</div>
+          {([['banner', bannerRates], ['reel', reelRates]] as const).map(([pt, r]) => (
+            <div key={pt} style={{ marginBottom: 10 }}>
+              <div className="tiny muted" style={{ marginBottom: 4, textTransform: 'capitalize' }}>{pt}</div>
+              <div className="kpi-grid">
+                {(['day3', 'day7', 'day15', 'day30'] as const).map((key) => (
+                  <div className="field" key={key}>
+                    <label>{key.replace('day', '')}-day</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="muted">₹</span>
+                      <input
+                        className="input"
+                        style={{ padding: '6px 8px' }}
+                        value={r ? String(r[key]) : ''}
+                        inputMode="numeric"
+                        disabled={!r}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value.replace(/\D/g, ''), 10) || 0;
+                          (pt === 'banner' ? setBannerRates : setReelRates)((prev) => (prev ? { ...prev, [key]: val } : prev));
+                        }}
+                        onBlur={(e) => updatePlacementRate(pt, { [key]: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 })}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="tblwrap">
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(139,195,74,.15)' }}>
+          <span className="display" style={{ fontWeight: 700 }}>Awaiting banner/reel review</span>
+          <span className="small muted">{pendingPlacements.length} pending</span>
+        </div>
+        {loading ? (
+          <div className="trow muted">Loading…</div>
+        ) : pendingPlacements.length === 0 ? (
+          <div className="trow muted">Nothing to review — all caught up.</div>
+        ) : (
+          pendingPlacements.map((r) => <PendingPlacementRow key={r.id} r={r} />)
+        )}
+      </div>
+
+      <div className="tblwrap">
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(139,195,74,.15)' }}>
+          <span className="display" style={{ fontWeight: 700 }}>Live / past banner &amp; reel promotions</span>
+          <span className="small muted">{activePlacements.length} live · {expiredPlacements.length} ended</span>
+        </div>
+        {activePlacements.length === 0 && expiredPlacements.length === 0 ? (
+          <div className="trow muted">None yet.</div>
+        ) : (
+          [...activePlacements, ...expiredPlacements].map((r) => (
+            <div key={r.id} className="trow" style={{ minWidth: 720, opacity: r.status === 'expired' ? 0.75 : 1 }}>
+              <span style={{ flex: 1.4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><TypeIcon type={r.ownerType} /> {r.entityName}</span>
+              <span style={{ flex: 1.2 }} className="muted">{r.eventTitle}</span>
+              <span className="tag" style={{ textTransform: 'capitalize' }}>{r.productType}</span>
+              <span className="muted tiny">{r.days}-day</span>
+              <span className="muted tiny">{r.status === 'active' ? `until ${r.endDate ? fmtDate(r.endDate) : '—'}` : `ended ${r.endDate ? fmtDate(r.endDate) : '—'}`}</span>
+              <span className={`tag ${r.status === 'active' ? 'tag-green' : 'tag-dim'}`}>{r.status === 'active' ? 'live' : 'ended'}</span>
+            </div>
+          ))
+        )}
+      </div>
 
       <div className="tblwrap">
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(139,195,74,.15)' }}>

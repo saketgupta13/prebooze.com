@@ -44,11 +44,16 @@ export class VenueController {
   /** Onboarding's license/address-proof fields are plain string URLs, not
    * multipart uploads (see VenueService.onboard) — this is what produces
    * those URLs, same local-disk StorageService as KYC docs / admin media. */
+  // Bumped from 20MB/save() to 80MB/saveMedia() (2026-10-24, same shape as
+  // OrganizerController's identical upload) — the hero-reel marketing
+  // purchase flow needs real video (and its posterUrl) through this same
+  // endpoint; every existing caller (onboarding license docs, hosted-event
+  // posters) only ever destructured {url} and is unaffected.
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 80 * 1024 * 1024 } }))
   async upload(@UploadedFile() file?: Express.Multer.File) {
-    if (!file) throw new BadRequestException('file is required (max 20MB)');
-    return { url: await this.storage.save(file) };
+    if (!file) throw new BadRequestException('file is required (max 80MB)');
+    return this.storage.saveMedia(file);
   }
 
   @Post('onboard')

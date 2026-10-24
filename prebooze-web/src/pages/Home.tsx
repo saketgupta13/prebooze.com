@@ -7,7 +7,7 @@ import {
 } from '../data/mock';
 import { catalog, content } from '../api';
 import { isBackendEnabled } from '../api/client';
-import type { CmsBanner, CmsTestimonial, CmsBlogSummary, Event, Organizer, PromoterProfile, LineupProfile, Person, Venue } from '../types';
+import type { CmsBanner, CmsReel, CmsTestimonial, CmsBlogSummary, Event, Organizer, PromoterProfile, LineupProfile, Person, Venue } from '../types';
 import { personFollowKey } from '../lib/social';
 import { featuredRefs, featuredFirst } from '../lib/featured';
 import { organizerPath, promoterPath, lineupPath, venuePath, eventPath, cityBrowse, cityOrganizers, cityPromoters, cityLineups, cityVenues, cityPeople as cityPeoplePath } from '../lib/urls';
@@ -193,8 +193,8 @@ export default function Home() {
   const [liveBannersRaw, setLiveBannersRaw] = useState<CmsBanner[] | null>(null);
   useEffect(() => {
     if (!isBackendEnabled()) return;
-    content.banners().then(setLiveBannersRaw).catch(() => setLiveBannersRaw([]));
-  }, []);
+    content.banners(city).then(setLiveBannersRaw).catch(() => setLiveBannersRaw([]));
+  }, [city]);
   // A banner with no image can't render the real hero (it needs a 16:5
   // background photo) — one real production row (seeded before the admin
   // editor required an image upload) has imageUrl: null, so without this
@@ -230,11 +230,11 @@ export default function Home() {
   // events" strip used to be 12 hardcoded hue placeholders with no data
   // behind them at all, even though a real Reel model + admin CRUD + public
   // GET /reels already existed and just had no frontend consumer.
-  const [liveReels, setLiveReels] = useState<{ id: string; title: string; hue: number; videoUrl: string | null; posterUrl: string | null }[] | null>(null);
+  const [liveReels, setLiveReels] = useState<CmsReel[] | null>(null);
   useEffect(() => {
     if (!isBackendEnabled()) return;
-    catalog.reels().then(setLiveReels).catch(() => setLiveReels([]));
-  }, []);
+    catalog.reels(city).then(setLiveReels).catch(() => setLiveReels([]));
+  }, [city]);
   // REEL_HUES was reused as the live loading placeholder too (see the old
   // comment this replaced), reasoned to be fine since the color blocks
   // aren't "fabricated claims" — but it's a fixed 12 items swapping for

@@ -79,6 +79,9 @@ import { PhonePeService } from '../payments/phonepe.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { WalletService } from '../wallet/wallet.service';
 import { FeaturedService } from '../featured/featured.service';
+import { MarketingService } from '../marketing/marketing.service';
+import { AnalyticsReportService } from '../analytics/analytics-report.service';
+import { MetaInsightsService } from '../meta/meta-insights.service';
 import { BookingsService } from '../bookings/bookings.service';
 import { OrgAccessService } from '../organizer/org-access.service';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
@@ -171,6 +174,9 @@ import { redisProvider } from '../redis.provider';
     PhonePeService,
     SubscriptionsService,
     FeaturedService,
+    MarketingService,
+    AnalyticsReportService,
+    MetaInsightsService,
     BookingsService,
     OrgAccessService,
     MetaConversionsService,

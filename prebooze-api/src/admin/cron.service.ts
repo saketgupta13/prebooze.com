@@ -6,6 +6,7 @@ import { EmailService } from '../notifications/email';
 import { money } from '../notifications/email-templates';
 import { StaffAlertsService } from '../notifications/staff-alerts';
 import { FeaturedService } from '../featured/featured.service';
+import { MarketingService } from '../marketing/marketing.service';
 import { BookingsService } from '../bookings/bookings.service';
 import { LeadsService } from './leads.service';
 import { NotificationsService } from './notifications.service';
@@ -31,6 +32,7 @@ export class CronService {
     private email: EmailService,
     private staffAlerts: StaffAlertsService,
     private featured: FeaturedService,
+    private marketing: MarketingService,
     private bookings: BookingsService,
     private leads: LeadsService,
     private notifications: NotificationsService,
@@ -152,6 +154,15 @@ export class CronService {
   async featuredExpiringSoonTick() {
     const { remindedCount } = await this.featured.remindExpiringSoon();
     if (remindedCount) this.log.log(`Featured expiring-soon: reminded ${remindedCount} owner(s)`);
+  }
+
+  /** Same shape as featuredExpiringSoonTick above, for hero banner / reel
+   * marketing orders specifically (not Meta Ads — see
+   * MarketingService.remindPlacementsExpiringSoon's own doc comment). */
+  @Cron('0 9 * * *')
+  async marketingPlacementsExpiringSoonTick() {
+    const { remindedCount } = await this.marketing.remindPlacementsExpiringSoon();
+    if (remindedCount) this.log.log(`Banner/reel marketing expiring-soon: reminded ${remindedCount} owner(s)`);
   }
 
   /** Daily — prompts guests with a real confirmed booking to review the

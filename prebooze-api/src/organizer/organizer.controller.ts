@@ -46,7 +46,12 @@ export class OrganizerController {
   async upload(@Req() req: AuthedReq, @UploadedFile() file?: Express.Multer.File) {
     await this.orgAccess.require(req.user.sub, 'Events & wizard', 'edit');
     if (!file) throw new BadRequestException('file is required (max 80MB)');
-    return { url: await this.storage.save(file) };
+    // saveMedia() (not save()) — posterUrl is needed by the hero-reel
+    // marketing purchase flow (RealVideoUploadBox's caller reads it off the
+    // response to prefill MarketingService.requestPlacement's
+    // creativePosterUrl); every existing caller only ever destructured
+    // {url}, so this is purely additive.
+    return this.storage.saveMedia(file);
   }
 
   @Patch('me')

@@ -204,7 +204,17 @@ export interface LiveMarketingOrder {
   // only ever applies to a 30-day-plan row) — when this specific campaign
   // is meant to stop. Null means it runs until manually stopped.
   endDate: string | null;
+  // 'ads' (Meta Ads, the default) | 'banner' | 'reel' (2026-10-24) — see
+  // MarketingOrder.productType's own schema comment. banner/reel orders
+  // carry creativeUrl/creativePosterUrl/days instead of ever getting a
+  // metaCampaignId; admin reviews the creative and calls activatePlacement
+  // (not setCampaign) to build the real Banner/Reel row and go live.
+  productType: 'ads' | 'banner' | 'reel';
+  creativeUrl: string | null;
+  creativePosterUrl: string | null;
+  days: 3 | 7 | 15 | 30 | null;
 }
+export interface LivePlacementRates { day3: number; day7: number; day15: number; day30: number; }
 export interface LiveMarketingSubscription {
   id: string;
   ownerType: 'organizer' | 'venue';
@@ -259,6 +269,15 @@ export const liveMarketing = {
   reject: (id: string, reason?: string) => liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/reject`, { method: 'POST', body: { reason } }),
   rates: () => liveFetch<LiveMarketingRates>('/admin/marketing/rates'),
   updateRates: (body: Partial<LiveMarketingRates>) => liveFetch<LiveMarketingRates>('/admin/marketing/rates', { method: 'PATCH', body }),
+  // ---------- hero banner / reel marketing ----------
+  placementRates: (productType: 'banner' | 'reel') => liveFetch<LivePlacementRates>(`/admin/marketing/placement-rates/${productType}`),
+  updatePlacementRates: (productType: 'banner' | 'reel', body: Partial<LivePlacementRates>) =>
+    liveFetch<LivePlacementRates>(`/admin/marketing/placement-rates/${productType}`, { method: 'PATCH', body }),
+  // Builds the real Banner/Reel row from the order's creative + whatever
+  // admin fills in here, and flips the order active in one step — see
+  // MarketingService.adminActivatePlacement.
+  activatePlacement: (id: string, body: { heading?: string; description?: string; ctaLabel?: string; imageUrl?: string; videoUrl?: string; posterUrl?: string }) =>
+    liveFetch<LiveMarketingOrder>(`/admin/marketing/${id}/activate-placement`, { method: 'PATCH', body }),
 };
 
 export interface LiveTicketTier {

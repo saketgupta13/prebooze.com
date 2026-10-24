@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { toCitySlug } from '../common/city-slug';
 
 /** Public reads for content the Admin API's CMS slice manages. Not called
  * for by prebooze-web's typed contract (src/api/index.ts has no equivalent
@@ -10,8 +11,26 @@ import { PrismaService } from '../prisma.service';
 export class ContentService {
   constructor(private prisma: PrismaService) {}
 
-  async banners() {
-    return this.prisma.banner.findMany({ where: { active: true }, orderBy: { sort: 'asc' } });
+  /** `city` scopes to a paid organizer/venue banner for that city
+   * (Banner.city) alongside every ordinary admin-created banner (city:
+   * null, shown everywhere, unchanged from before paid placements
+   * existed) — omit it to get only the global ones, same as before this
+   * param existed, rather than guessing which city to scope to.
+   * expiresAt is filtered here (not left to the frontend) since the same
+   * query-time-filter pattern Featured's activeFeaturedRefs already uses:
+   * an expired row just naturally stops matching, no cron needed to "end"
+   * it (CronService.marketingExpiryTick only flips the MarketingOrder's
+   * own status, for billing-history purposes — it doesn't need to touch
+   * this row at all for it to stop showing). */
+  async banners(city?: string) {
+    return this.prisma.banner.findMany({
+      where: {
+        active: true,
+        OR: [{ city: null }, ...(city ? [{ city }] : [])],
+        AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }],
+      },
+      orderBy: { sort: 'asc' },
+    });
   }
 
   async testimonials(featuredOnly?: boolean) {
@@ -59,8 +78,37 @@ export class ContentService {
     return (await this.prisma.menuConfig.findUnique({ where: { id: 'main' } })) ?? { header: [], footer: [] };
   }
 
-  async reels() {
-    return this.prisma.reel.findMany({ where: { active: true }, orderBy: { createdAt: 'desc' } });
+  /** Same city/expiry shape as banners() above. Also resolves a real
+   * "Book now" link for any reel tied to an event (paid reel marketing,
+   * 2026-10-24) — Reel.eventId is a plain denormalized string (no FK, same
+   * reasoning as Banner/MarketingOrder's own eventId fields), so this
+   * batch-fetches the event's slug + city itself rather than storing a
+   * second, separately-maintained ctaLink column. null bookUrl (an
+   * ordinary admin-created reel, or an event that's since been deleted)
+   * just means no CTA shows under that reel. */
+  async reels(city?: string) {
+    const rows = await this.prisma.reel.findMany({
+      where: {
+        active: true,
+        OR: [{ city: null }, ...(city ? [{ city }] : [])],
+        AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const eventIds = [...new Set(rows.map((r) => r.eventId).filter((id): id is string => !!id))];
+    const events = eventIds.length
+      ? await this.prisma.event.findMany({
+          where: { id: { in: eventIds } },
+          select: { id: true, slug: true, venue: { select: { city: true } }, privateCity: true, unlistedVenueCity: true },
+        })
+      : [];
+    const byId = new Map(events.map((e) => [e.id, e]));
+    return rows.map((r) => {
+      const event = r.eventId ? byId.get(r.eventId) : undefined;
+      const eventCity = event?.venue?.city ?? event?.privateCity ?? event?.unlistedVenueCity;
+      const bookUrl = event && eventCity ? `/${toCitySlug(eventCity)}/events/${event.slug}` : null;
+      return { ...r, bookUrl };
+    });
   }
 
   /** Guest-relevant slice of PlatformSettings only — payoutDay/autoPayout

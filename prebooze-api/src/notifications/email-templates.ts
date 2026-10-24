@@ -510,6 +510,24 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     defaultBody: `<p>Hey {{name}},</p><p>Your marketing order for <b>{{eventTitle}}</b> wasn't approved.</p>{{reasonBlock}}<p style="color:${MUTED};">Contact support if you have questions, or reach out about a refund.</p>`,
     tokens: ['name', 'eventTitle', 'reasonBlock'],
   },
+  {
+    id: 'marketing_placement_active', name: 'Hero banner / reel marketing activated', category: 'Roles',
+    trigger: 'Admin activates a paid hero-banner or reel marketing order (MarketingService.adminActivatePlacement)',
+    preheader: 'Your promotion is live',
+    defaultSubject: 'Your {{placementLabel}} for "{{eventTitle}}" is live ✓',
+    defaultBody: `<p>Hey {{name}},</p><p>Good news — your <b>{{placementLabel}}</b> promoting <b>{{eventTitle}}</b> is now live on Prebooze, and runs until <b>{{expiresOn}}</b>.</p>`,
+    cta: { label: 'Open Marketing →', urlTemplate: '{{webUrl}}/organizer/marketing' },
+    tokens: ['name', 'placementLabel', 'eventTitle', 'expiresOn'],
+  },
+  {
+    id: 'marketing_placement_expiring_soon', name: 'Hero banner / reel marketing expiring soon', category: 'Roles',
+    trigger: 'Automatic — daily cron, fires once when an active banner/reel marketing order is within 3 days of its end date',
+    preheader: 'Your promotion expires in 3 days',
+    defaultSubject: 'Your {{placementLabel}} for "{{eventTitle}}" expires in 3 days',
+    defaultBody: `<p>Hey {{name}},</p><p>Your <b>{{placementLabel}}</b> promoting <b>{{eventTitle}}</b> expires on <b>{{expiresOn}}</b> — buy another slot if you'd like to keep it running.</p>`,
+    cta: { label: 'Open Marketing →', urlTemplate: '{{webUrl}}/organizer/marketing' },
+    tokens: ['name', 'placementLabel', 'eventTitle', 'expiresOn'],
+  },
 ];
 
 function substitute(tpl: string, data: Record<string, string>): string {

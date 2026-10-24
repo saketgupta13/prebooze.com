@@ -6,8 +6,8 @@ export class ContentController {
   constructor(private content: ContentService) {}
 
   @Get('banners')
-  banners() {
-    return this.content.banners();
+  banners(@Query('city') city?: string) {
+    return this.content.banners(city);
   }
 
   @Get('testimonials')
@@ -51,8 +51,8 @@ export class ContentController {
   }
 
   @Get('reels')
-  reels() {
-    return this.content.reels();
+  reels(@Query('city') city?: string) {
+    return this.content.reels(city);
   }
 
   // No Cache-Control header was set at all, so browsers were free to apply

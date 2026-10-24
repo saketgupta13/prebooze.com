@@ -3,8 +3,8 @@
  * feature swaps from localStorage to live data. */
 import { apiFetch, apiUpload, API_URL, getToken, ApiError } from './client';
 import type {
-  Booking, CareerJob, CmsBanner, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, FeaturedSubscription, HelpTicket, HelpTicketReply,
-  Invoice, JobApplication, LineupProfile, MarketingAnalytics, MarketingPeriodAnalytics, MarketingOrder, MarketingRates, MarketingSubscription, Organizer, PayMethod, PaymentProfile,
+  Booking, CareerJob, CmsBanner, CmsReel, CmsBlog, CmsBlogSummary, CmsFaq, CmsPolicy, CmsPolicySummary, CmsTestimonial, Coupon, Event, Featured, FeaturedSubscription, HelpTicket, HelpTicketReply,
+  Invoice, JobApplication, LineupProfile, MarketingAnalytics, MarketingPeriodAnalytics, MarketingOrder, MarketingRates, PlacementRates, MarketingSubscription, Organizer, PayMethod, PaymentProfile,
   Person, PersonDetail, PromoterProfile, User, Venue, WaitlistEntry,
 } from '../types';
 import type { CartRecord, GuestReview, PromoterGuest, Referral, SubPromoter, WalletTx } from '../store/AppContext';
@@ -166,12 +166,12 @@ export const catalog = {
   amenities: () => apiFetch<{ name: string; icon?: string }[]>('/amenities'),
   search: (q: string) => apiFetch<{ label: string; type: string; to: string }[]>('/search', { query: { q } }),
   trending: () => apiFetch<string[]>('/search/trending'),
-  reels: () => apiFetch<{ id: string; title: string; hue: number; videoUrl: string | null; posterUrl: string | null }[]>('/reels'),
+  reels: (city?: string) => apiFetch<CmsReel[]>('/reels', { query: { city } }),
 };
 
 // ---------- CMS content (guest-facing reads of admin's Content section) ----------
 export const content = {
-  banners: () => apiFetch<CmsBanner[]>('/banners'),
+  banners: (city?: string) => apiFetch<CmsBanner[]>('/banners', { query: { city } }),
   testimonials: (featuredOnly?: boolean) => apiFetch<CmsTestimonial[]>('/testimonials', { query: { featured: featuredOnly } }),
   faqs: (audience?: 'guests' | 'organizers') => apiFetch<CmsFaq[]>('/faqs', { query: { audience } }),
   policies: () => apiFetch<CmsPolicySummary[]>('/policies'),
@@ -686,6 +686,10 @@ const marketingApi = (base: string) => ({
   mySubscription: () => apiFetch<MarketingSubscription | null>(`${base}/subscription`),
   analytics: (eventId: string) => apiFetch<MarketingAnalytics>(`${base}/analytics`, { query: { eventId } }),
   analyticsPeriod: (orderId: string) => apiFetch<MarketingPeriodAnalytics>(`${base}/analytics-period`, { query: { orderId } }),
+  // ---------- hero banner / reel marketing ----------
+  placementRates: (productType: 'banner' | 'reel') => apiFetch<PlacementRates>(`${base}/placement-rates/${productType}`),
+  requestPlacement: (productType: 'banner' | 'reel', eventId: string, days: 3 | 7 | 15 | 30, creativeUrl: string, creativePosterUrl?: string) =>
+    apiFetch<{ id: string; amount: number; phonepeRedirectUrl: string }>(`${base}/request-placement`, { body: { productType, eventId, days, creativeUrl, creativePosterUrl } }),
 });
 
 export const organizer = {
@@ -699,7 +703,7 @@ export const organizer = {
   upload: (file: File) => {
     const form = new FormData();
     form.append('file', file);
-    return apiUpload<{ url: string }>('/organizer/upload', form);
+    return apiUpload<{ url: string; posterUrl?: string }>('/organizer/upload', form);
   },
   invoices: () => apiFetch<Invoice[]>('/organizer/invoices'),
   downloadInvoicePdf: async (id: string, filename: string) => {
@@ -1055,7 +1059,7 @@ export const venuePartner = {
   upload: (file: File) => {
     const form = new FormData();
     form.append('file', file);
-    return apiUpload<{ url: string }>('/venue/upload', form);
+    return apiUpload<{ url: string; posterUrl?: string }>('/venue/upload', form);
   },
   onboard: (v: Partial<Venue>) => apiFetch<Venue>('/venue/onboard', { body: v }),
   myListing: () => apiFetch<Venue & { favourites: number }>('/venue/listing'),

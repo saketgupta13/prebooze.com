@@ -317,6 +317,9 @@ export interface FeaturedSubscription {
  * carries the real Meta ad spend or Prebooze's margin — only what was paid. */
 export interface MarketingOrder {
   id: string;
+  // 'ads' (Meta Ads, the original product) | 'banner' | 'reel' — see
+  // MarketingService's own doc comment on MarketingOrder.productType.
+  productType: 'ads' | 'banner' | 'reel';
   eventId: string | null;
   eventTitle: string | null;
   amount: number;
@@ -339,7 +342,12 @@ export interface MarketingOrder {
   // MarketingService.toPublicOrder's own doc comment.
   metaCampaignId: string | null;
   adPerformance: { impressions: number; reach: number; clicks: number; ctr: number } | null;
+  // 'banner'/'reel' orders only.
+  days: 3 | 7 | 15 | 30 | null;
+  endDate: string | null;
 }
+
+export interface PlacementRates { day3: number; day7: number; day15: number; day30: number; gstPct: number; }
 
 /** A standing Razorpay Subscription funding ad marketing across all of an
  * organizer's/venue's events for a rolling 30-day window. */
@@ -694,6 +702,20 @@ export interface CmsTestimonial {
   rating: number;
   quote: string;
   featured: boolean;
+  createdAt: string;
+}
+
+export interface CmsReel {
+  id: string;
+  title: string;
+  hue: number;
+  active: boolean;
+  videoUrl: string | null;
+  posterUrl: string | null;
+  // Set only for a paid organizer/venue reel (2026-10-24) tied to a real
+  // event — null for an ordinary admin-created reel. See api/index.ts's
+  // catalog.reels() / content.service.ts's reels() for how it's resolved.
+  bookUrl: string | null;
   createdAt: string;
 }
 
