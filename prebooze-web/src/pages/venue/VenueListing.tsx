@@ -29,7 +29,7 @@ const splitTypes = (s: string) => s.split(',').map((t) => t.trim()).filter(Boole
  * /venue/upload, Venue.galleryUrls) — this is the "media" section a newly
  * onboarded venue uses to add real photos. */
 export default function VenueListing() {
-  const { updateUser, toast } = useApp();
+  const { updateUser, toast, user } = useApp();
   const [venue, setVenue] = useState<Venue | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -83,8 +83,11 @@ export default function VenueListing() {
         setTimingsByDay(v.timingsByDay ?? {});
         setGalleryUrls(v.galleryUrls ?? []);
         setLogoUrl(v.logoUrl ?? null);
-        setContactPerson(v.contactPerson ?? '');
-        setContactPersonPhone(v.contactPersonPhone ?? '');
+        // Defaults to the account holder's own login name/number — a real
+        // value already saved on the venue takes priority, this is only a
+        // first-visit convenience, still editable.
+        setContactPerson(v.contactPerson || user?.name || '');
+        setContactPersonPhone(v.contactPersonPhone || user?.phone || '');
         setInstagram(v.socialLinks?.instagram ?? '');
         setFacebook(v.socialLinks?.facebook ?? '');
       })

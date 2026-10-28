@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useApp } from '../../store/AppContext';
 import { organizer, kyc } from '../../api';
 import { ApiError } from '../../api/client';
 import { FileDropBox } from '../../components/FileDropBox';
@@ -51,6 +52,7 @@ interface KycSubmission {
  * prebooze-organizer's VerificationScreen.tsx — same reasoning throughout. */
 export default function OrganizerVerification() {
   const navigate = useNavigate();
+  const { user } = useApp();
   const [org, setOrg] = useState<Organizer | null>(null);
   const [latestSub, setLatestSub] = useState<KycSubmission | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,8 +65,10 @@ export default function OrganizerVerification() {
   const [registration, setRegistration] = useState('');
   const [ownerAadhaar, setOwnerAadhaar] = useState('');
   const [selfie, setSelfie] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
+  // Defaults to the account holder's own login name/number — still
+  // editable (the real contact may be someone else, e.g. an accountant).
+  const [contactName, setContactName] = useState(user?.name ?? '');
+  const [contactPhone, setContactPhone] = useState(user?.phone ?? '');
   const [contactEmail, setContactEmail] = useState('');
   const [contactRole, setContactRole] = useState<ContactRole | ''>('');
   const [contactRoleOther, setContactRoleOther] = useState('');
@@ -88,8 +92,8 @@ export default function OrganizerVerification() {
   if (rejectedSub && prefilledFor !== rejectedSub.id) {
     const p = rejectedSub.payload;
     if (typeof p.entityType === 'string') setEntityType(p.entityType as 'individual' | 'firm');
-    setContactName(typeof p.contactName === 'string' ? p.contactName : '');
-    setContactPhone(typeof p.contactPhone === 'string' ? p.contactPhone : '');
+    setContactName(typeof p.contactName === 'string' ? p.contactName : (user?.name ?? ''));
+    setContactPhone(typeof p.contactPhone === 'string' ? p.contactPhone : (user?.phone ?? ''));
     setContactEmail(typeof p.contactEmail === 'string' ? p.contactEmail : '');
     setContactRole((typeof p.contactRole === 'string' ? p.contactRole : '') as ContactRole | '');
     setContactRoleOther(typeof p.contactRoleOther === 'string' ? p.contactRoleOther : '');

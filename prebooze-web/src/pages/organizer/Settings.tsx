@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../store/AppContext';
-import { organizer } from '../../api';
+import { organizer, catalog } from '../../api';
 import { ApiError } from '../../api/client';
 import { RealUploadBox } from '../../components/RealUploadBox';
 import Loader from '../../components/Loader';
@@ -9,9 +9,8 @@ import LocationPicker, { emptyLocation, type LocationValue } from '../../compone
 import ChangePhoneNumber from '../../components/ChangePhoneNumber';
 import type { Organizer, PaymentProfile } from '../../types';
 import { organizerPath } from '../../lib/urls';
+import CategoryIcon from '../../components/CategoryIcon';
 import { ExternalLink, X, Upload, Check, BadgeCheck, ArrowRight } from 'lucide-react';
-
-const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporate', 'Weddings & private', 'Mixed'];
 
 /** Real organizer self-serve settings — GET/PATCH /organizer/me. Every field
  * captured at onboarding (Onboarding.tsx) round-trips here pre-filled and
@@ -24,7 +23,7 @@ const EVENT_TYPES = ['Concerts', 'Comedy', 'Festivals', 'Club nights', 'Corporat
  * Prisma fields, no endpoints) — dropped rather than left as toggles that
  * silently do nothing. Team & roles stays reachable via its own nav item. */
 export default function Settings() {
-  const { updateUser } = useApp();
+  const { updateUser, user } = useApp();
   const [org, setOrg] = useState<Organizer | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -45,6 +44,16 @@ export default function Settings() {
   const [orgPhone, setOrgPhone] = useState('');
   const [eventTypes, setEventTypes] = useState<string[]>([]);
   const [profiles, setProfiles] = useState<PaymentProfile[]>([]);
+  // Real, admin-managed categories (Admin > Categories) — same source
+  // Onboarding.tsx's own "Event types you host" picker reads from. This
+  // used to be a separately hardcoded 7-item list here that could drift out
+  // of sync with the admin catalog (different names/casing, missing newer
+  // categories) — a category picked at onboarding that wasn't in this
+  // list's 7 strings showed as an orphaned, un-toggleable value here.
+  const [categories, setCategories] = useState<{ name: string; icon: string }[]>([]);
+  useEffect(() => {
+    catalog.categories().then(setCategories).catch(() => {});
+  }, []);
 
   useEffect(() => {
     Promise.all([organizer.me(), organizer.paymentProfiles()])
@@ -60,13 +69,18 @@ export default function Settings() {
         setFacebook(o.socialLinks?.facebook ?? '');
         const o2 = o.socialLinks?.other ?? [];
         setOther(o2.length ? o2 : ['']);
-        setContactPerson(o.contactPerson ?? '');
+        // Defaults to the account holder's own login name — a real
+        // "contact person" value already saved on the org takes priority,
+        // this is only a first-visit convenience, still editable (e.g. the
+        // real contact is a manager, not the account holder themselves).
+        setContactPerson(o.contactPerson || user?.name || '');
         setContact(o.contact ?? '');
         setOrgPhone(o.phone ?? '');
         setEventTypes(o.eventTypes ? o.eventTypes.split(',').map((t) => t.trim()).filter(Boolean) : []);
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleOpen = (key: string) => setOpen((o) => (o === key ? null : key));
@@ -193,9 +207,9 @@ export default function Settings() {
               <div className="field">
                 <span>Event types you host</span>
                 <div className="chip-row">
-                  {EVENT_TYPES.map((t) => (
-                    <button type="button" key={t} className={`chip ${eventTypes.includes(t) ? 'on' : ''}`} onClick={() => toggleType(t)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      {t}{eventTypes.includes(t) ? <Check size={12} /> : ''}
+                  {categories.map((c) => (
+                    <button type="button" key={c.name} className={`chip ${eventTypes.includes(c.name) ? 'on' : ''}`} onClick={() => toggleType(c.name)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <CategoryIcon name={c.name} size={15} /> {c.name}{eventTypes.includes(c.name) ? <Check size={12} /> : ''}
                     </button>
                   ))}
                 </div>

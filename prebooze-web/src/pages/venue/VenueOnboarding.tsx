@@ -67,8 +67,10 @@ export default function VenueOnboarding() {
   const [about, setAbout] = useState(draft0.about);
   const [logoUrl, setLogoUrl] = useState('');
   const [logoUploading, setLogoUploading] = useState(false);
-  const [contactPerson, setContactPerson] = useState('');
-  const [contactPersonPhone, setContactPersonPhone] = useState('');
+  // Defaults to the account holder's own login name/number — still
+  // editable (the real contact may be someone else, e.g. a manager).
+  const [contactPerson, setContactPerson] = useState(user?.name ?? '');
+  const [contactPersonPhone, setContactPersonPhone] = useState(user?.phone ?? '');
   const [instagram, setInstagram] = useState('');
   const [facebook, setFacebook] = useState('');
 

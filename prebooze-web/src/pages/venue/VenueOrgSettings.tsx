@@ -19,7 +19,7 @@ import { venuePath } from '../../lib/urls';
  * "two doors into one record" precedent as any two views of shared data
  * elsewhere in this console, not a duplicate data model. */
 export default function VenueOrgSettings() {
-  const { updateUser } = useApp();
+  const { updateUser, user } = useApp();
   const [venue, setVenue] = useState<Venue | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -48,8 +48,11 @@ export default function VenueOrgSettings() {
         setAbout(v.about ?? '');
         setInstagram(v.socialLinks?.instagram ?? '');
         setFacebook(v.socialLinks?.facebook ?? '');
-        setContactPerson(v.contactPerson ?? '');
-        setContactPersonPhone(v.contactPersonPhone ?? '');
+        // Defaults to the account holder's own login name/number — a real
+        // value already saved on the venue takes priority, this is only a
+        // first-visit convenience, still editable.
+        setContactPerson(v.contactPerson || user?.name || '');
+        setContactPersonPhone(v.contactPersonPhone || user?.phone || '');
       })
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
