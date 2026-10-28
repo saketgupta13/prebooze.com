@@ -64,6 +64,11 @@
             {
               "scheme": "https",
               "host": "prebooze.com",
+              "pathPattern": "/.*/events/.*"
+            },
+            {
+              "scheme": "https",
+              "host": "prebooze.com",
               "pathPrefix": "/organizers"
             },
             {
