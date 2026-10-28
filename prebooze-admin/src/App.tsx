@@ -38,6 +38,7 @@ import Analytics from './pages/Analytics';
 import { Banners, Blogs, Pages } from './pages/Content';
 import Categories from './pages/Categories';
 import TrendingSearches from './pages/TrendingSearches';
+import PushBroadcast from './pages/PushBroadcast';
 import VenueTypes from './pages/VenueTypes';
 import Amenities from './pages/Amenities';
 import StaffRoles from './pages/StaffRoles';
@@ -149,6 +150,7 @@ export default function App() {
         <Route path="/categories/new" element={<CategoryEdit />} />
         <Route path="/categories/:name/edit" element={<CategoryEdit />} />
         <Route path="/trending" element={<TrendingSearches />} />
+        <Route path="/push-notifications" element={<PushBroadcast />} />
         <Route path="/venue-types" element={<VenueTypes />} />
         <Route path="/amenities" element={<Amenities />} />
         <Route path="/blogs" element={<Blogs />} />

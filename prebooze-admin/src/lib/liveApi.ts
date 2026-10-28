@@ -1341,7 +1341,7 @@ export const PERM_MODULES = [
   'Dashboard', 'Events & approvals', 'Event commission (per event)', 'Bookings', 'Refunds',
   'Payments & payouts', 'Financial reports', 'Invoices', 'Transactions', 'Customers', 'Organizers', 'Promoters', 'Lineups', 'Venues',
   'Verifications (KYC)', 'Reviews', 'Locations', 'Abandoned carts', 'Featured', 'Marketing campaigns', 'Content',
-  'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Analytics', 'Leads', 'Support tickets',
+  'Careers', 'Reels', 'Promo codes', 'Gate check-in', 'Analytics', 'Leads', 'Support tickets', 'Push notifications',
 ] as const;
 export type PermKey = 'view' | 'edit' | 'approve';
 export type Perms = Record<string, Record<PermKey, boolean>>;
@@ -1503,6 +1503,12 @@ export const liveTrending = {
   reorder: (term: string, sort: number) =>
     liveFetch<LiveTrendingTerm>(`/admin/trending/${encodeURIComponent(term)}`, { method: 'PATCH', body: { sort } }),
   remove: (term: string) => liveFetch<{ ok: true }>(`/admin/trending/${encodeURIComponent(term)}`, { method: 'DELETE' }),
+};
+
+export const liveBroadcast = {
+  audience: (city?: string) => liveFetch<{ count: number }>(`/admin/broadcast/audience${city ? `?city=${encodeURIComponent(city)}` : ''}`),
+  send: (body: { title: string; message: string; city?: string; eventSlug?: string }) =>
+    liveFetch<{ sent: number }>('/admin/broadcast', { body }),
 };
 
 export interface LiveVenueType { name: string; icon: string | null; sort: number; events: number; }
