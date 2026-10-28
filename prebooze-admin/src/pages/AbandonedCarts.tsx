@@ -45,6 +45,15 @@ function timeAgo(iso: string): string {
   return `${Math.round(hrs / 24)}d ago`;
 }
 
+// Real calendar date + clock time, not just "2h ago" — the whole point of
+// letting a staffer pick a specific date/time for a logged call is to be
+// able to see that exact value back, not just how long ago it rounds to.
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+const eventCity = (e: LiveEvent) => e.venue?.city ?? e.privateCity ?? null;
+
 /** Platform-wide abandoned-cart recovery — real active carts (CartsService),
  * real KPIs (open/recoverable/recovered/recovery-rate — carts.stats(), added
  * alongside this merge since the recovered side wasn't exposed anywhere
@@ -94,11 +103,22 @@ export default function AbandonedCarts() {
   const eventTitle = (id: string) => events.find((e) => e.id === id)?.title ?? id;
 
   // Only events a guest could still be nudged back to actually book —
-  // approved and not yet over. Draft/pending/rejected/past titles would
-  // otherwise clutter this dropdown with nothing recoverable behind them.
-  const liveEventOptions = useMemo(() => events.filter((e) => e.status === 'approved' && !isPastEvent(e)), [events]);
+  // approved and not yet over — and, once a city is picked, only that
+  // city's events (an event filter that still lists Mumbai titles while
+  // "Nagpur" is selected is just confusing, never useful).
+  const liveEventOptions = useMemo(
+    () => events.filter((e) => e.status === 'approved' && !isPastEvent(e) && (cityF === 'all' || eventCity(e) === cityF)),
+    [events, cityF],
+  );
 
   const cityOptions = useMemo(() => [...new Set(carts.map((c) => c.city).filter((c): c is string => !!c))].sort(), [carts]);
+
+  // Switching city can orphan the currently-selected event (it belongs to
+  // the old city) — reset rather than silently filtering on a stale id.
+  useEffect(() => {
+    if (eventF !== 'all' && !liveEventOptions.some((e) => e.id === eventF)) setEventF('all');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cityF]);
 
   // The live/past split now happens server-side (CartsService.list's `past`
   // param) — carts is already scoped to whichever tab is active.
@@ -303,151 +323,147 @@ export default function AbandonedCarts() {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <SearchBox value={query} onChange={setQuery} placeholder="guest / phone…" style={{ flex: 1, minWidth: 180 }} />
-        <select
-          className="chip"
-          style={{ appearance: 'none', cursor: 'pointer', background: eventF !== 'all' ? 'var(--green)' : 'var(--bg)', color: eventF !== 'all' ? 'var(--on-green)' : '#c7cbb9' }}
-          value={eventF}
-          onChange={(e) => setEventF(e.target.value)}
-        >
-          <option value="all">Live events ▾</option>
-          {liveEventOptions.map((e) => (
-            <option key={e.id} value={e.id}>{e.title}</option>
-          ))}
-        </select>
-        <select
-          className="chip"
-          style={{ appearance: 'none', cursor: 'pointer', background: cityF !== 'all' ? 'var(--green)' : 'var(--bg)', color: cityF !== 'all' ? 'var(--on-green)' : '#c7cbb9' }}
-          value={cityF}
-          onChange={(e) => setCityF(e.target.value)}
-        >
-          <option value="all">All cities ▾</option>
-          {cityOptions.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-        <select
-          className="chip"
-          style={{ appearance: 'none', cursor: 'pointer', background: outcomeF !== 'all' ? 'var(--green)' : 'var(--bg)', color: outcomeF !== 'all' ? 'var(--on-green)' : '#c7cbb9' }}
-          value={outcomeF}
-          onChange={(e) => setOutcomeF(e.target.value as typeof outcomeF)}
-        >
-          <option value="all">All follow-up ▾</option>
-          <option value="not_contacted">Not contacted</option>
-          {(Object.keys(OUTCOME_LABELS) as LiveFollowUpOutcome[]).map((k) => (
-            <option key={k} value={k}>{OUTCOME_LABELS[k]}</option>
-          ))}
-        </select>
-        <select
-          className="chip"
-          style={{ appearance: 'none', cursor: 'pointer' }}
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-        >
-          <option value="value">Sort: highest value first</option>
-          <option value="oldest">Sort: oldest first</option>
-        </select>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <SearchBox value={query} onChange={setQuery} placeholder="search guest name or phone…" style={{ width: '100%' }} />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <select
+            className="chip"
+            style={{ appearance: 'none', cursor: 'pointer', background: cityF !== 'all' ? 'var(--green)' : 'var(--bg)', color: cityF !== 'all' ? 'var(--on-green)' : '#c7cbb9' }}
+            value={cityF}
+            onChange={(e) => setCityF(e.target.value)}
+          >
+            <option value="all">All cities ▾</option>
+            {cityOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            className="chip"
+            style={{ appearance: 'none', cursor: 'pointer', background: eventF !== 'all' ? 'var(--green)' : 'var(--bg)', color: eventF !== 'all' ? 'var(--on-green)' : '#c7cbb9' }}
+            value={eventF}
+            onChange={(e) => setEventF(e.target.value)}
+          >
+            <option value="all">{cityF === 'all' ? 'All live events ▾' : `Live events in ${cityF} ▾`}</option>
+            {liveEventOptions.map((e) => (
+              <option key={e.id} value={e.id}>{e.title}</option>
+            ))}
+          </select>
+          <select
+            className="chip"
+            style={{ appearance: 'none', cursor: 'pointer', background: outcomeF !== 'all' ? 'var(--green)' : 'var(--bg)', color: outcomeF !== 'all' ? 'var(--on-green)' : '#c7cbb9' }}
+            value={outcomeF}
+            onChange={(e) => setOutcomeF(e.target.value as typeof outcomeF)}
+          >
+            <option value="all">Any follow-up status ▾</option>
+            <option value="not_contacted">Not contacted</option>
+            {(Object.keys(OUTCOME_LABELS) as LiveFollowUpOutcome[]).map((k) => (
+              <option key={k} value={k}>{OUTCOME_LABELS[k]}</option>
+            ))}
+          </select>
+          <div style={{ flex: 1 }} />
+          <select
+            className="chip"
+            style={{ appearance: 'none', cursor: 'pointer' }}
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+          >
+            <option value="value">Sort: highest value first</option>
+            <option value="oldest">Sort: oldest first</option>
+          </select>
+        </div>
       </div>
 
-      <div className="tblwrap">
-        <div className="thead" style={{ minWidth: 900 }}>
-          <span style={{ flex: 1.3 }}>Guest</span>
-          <span style={{ flex: 1.5 }}>Event</span>
-          <span style={{ flex: 0.7 }}>Value</span>
-          <span style={{ flex: 0.6 }}>Abandoned</span>
-          <span style={{ flex: 0.8 }}>Status</span>
-          <span style={{ flex: 0.9 }}>Follow-up</span>
-          <span style={{ flex: 1.6 }} />
-        </div>
+      <div className="stack" style={{ gap: 10 }}>
         {groupedRows.map((r) => {
           const count = r.cartIds.length;
           const eventLabel = r.eventTitles.length > 2
             ? `${r.eventTitles.slice(0, 2).join(', ')} +${r.eventTitles.length - 2} more`
             : r.eventTitles.join(', ');
           const editing = editingPhone === r.phone;
+          const outcomeColor = r.followUpOutcome ? OUTCOME_COLORS[r.followUpOutcome] : 'var(--green)';
           return (
-          <div key={r.phone} className="trow" style={{ minWidth: 900, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={{ flex: 1.3 }}>
-                <b>{count > 1 ? `${count}× ` : ''}{r.guest}</b>
-                <span className="tiny muted" style={{ display: 'block' }}>{r.phone}</span>
-              </span>
-              <span style={{ flex: 1.5 }}>{eventLabel}</span>
-              <span style={{ flex: 0.7, fontWeight: 700 }}>₹{fmt(r.totalValue)}</span>
-              <span style={{ flex: 0.6 }} className="muted tiny">{timeAgo(r.latestCreatedAt)}</span>
-              <span style={{ flex: 0.8 }}>
-                {r.allReminded ? (
-                  <span className="tag" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>reminded</span>
-                ) : (
-                  <span className="tag" style={{ borderColor: 'var(--border)' }}>abandoned</span>
-                )}
-              </span>
-              <span style={{ flex: 0.9 }}>
-                <button
-                  className="chip"
-                  style={{
-                    fontSize: 10.5, padding: '3px 10px',
-                    borderColor: r.allContacted ? (r.followUpOutcome ? OUTCOME_COLORS[r.followUpOutcome] : 'var(--green)') : 'var(--border)',
-                    color: r.allContacted ? (r.followUpOutcome ? OUTCOME_COLORS[r.followUpOutcome] : 'var(--green)') : undefined,
-                  }}
-                  onClick={() => openEditor(r)}
-                >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <Phone size={10} /> {r.allContacted ? (r.followUpOutcome ? OUTCOME_LABELS[r.followUpOutcome] : 'Contacted') : 'Not contacted'}
-                  </span>
-                </button>
-              </span>
-              <span style={{ flex: 1.6, display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => bulkRemind(r.cartIds)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  {r.allReminded ? <><RotateCcw size={12} /> Remind again</> : <><MessageCircle size={12} /> Send reminder{count > 1 ? ` (${count})` : ''}</>}
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => openEditor(r)}>
-                  {r.allContacted ? 'Edit follow-up' : '+ Log call'}
-                </button>
-                <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => removeCarts(r)}>
-                  <Trash2 size={12} />
-                </button>
-              </span>
+          <div key={r.phone} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* Row 1 — who, what, how much, how long ago */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+              <div>
+                <div className="display" style={{ fontSize: 15, fontWeight: 700 }}>{count > 1 ? `${count}× ` : ''}{r.guest}</div>
+                <div className="tiny muted">{r.phone}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontWeight: 700 }}>₹{fmt(r.totalValue)}</div>
+                <div className="tiny muted">abandoned {timeAgo(r.latestCreatedAt)}</div>
+              </div>
             </div>
-            {r.allContacted && !editing && (
-              <div className="tiny muted" style={{ paddingLeft: 2 }}>
-                {r.followUpAt && <>called {timeAgo(r.followUpAt)} &middot; </>}
-                {r.note || 'no note'}
-                <button className="btn btn-ghost btn-sm" style={{ padding: '0 6px', marginLeft: 6 }} onClick={() => clearFollowUp(r)}><X size={10} /> clear</button>
-              </div>
+
+            <div className="tiny muted">{eventLabel}</div>
+
+            {/* Row 2 — status badges */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {r.allReminded ? (
+                <span className="tag" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>reminded</span>
+              ) : (
+                <span className="tag" style={{ borderColor: 'var(--border)' }}>not yet reminded</span>
+              )}
+              <span className="tag" style={{ borderColor: r.allContacted ? outcomeColor : 'var(--border)', color: r.allContacted ? outcomeColor : undefined, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <Phone size={10} /> {r.allContacted ? (r.followUpOutcome ? OUTCOME_LABELS[r.followUpOutcome] : 'Contacted') : 'Not contacted'}
+              </span>
+              {r.allContacted && r.followUpAt && (
+                <span className="tiny muted">called {formatDateTime(r.followUpAt)} ({timeAgo(r.followUpAt)})</span>
+              )}
+            </div>
+            {r.allContacted && !!r.note && !editing && (
+              <div className="tiny muted" style={{ background: 'rgba(255,255,255,.03)', padding: '6px 10px', borderRadius: 6 }}>note: {r.note}</div>
             )}
+
+            {/* Follow-up editor */}
             {editing && (
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                <input
-                  type="datetime-local"
-                  className="input"
-                  style={{ padding: '5px 8px', width: 190 }}
-                  value={draftAt}
-                  onChange={(e) => setDraftAt(e.target.value)}
-                />
-                <select className="input" style={{ padding: '5px 8px', width: 150 }} value={draftOutcome} onChange={(e) => setDraftOutcome(e.target.value as LiveFollowUpOutcome | '')}>
-                  <option value="">Outcome…</option>
-                  {(Object.keys(OUTCOME_LABELS) as LiveFollowUpOutcome[]).map((k) => (
-                    <option key={k} value={k}>{OUTCOME_LABELS[k]}</option>
-                  ))}
-                </select>
-                <input
-                  className="input"
-                  style={{ padding: '5px 8px', flex: 1, minWidth: 160 }}
-                  placeholder="what happened on the call…"
-                  value={draftNote}
-                  onChange={(e) => setDraftNote(e.target.value)}
-                  autoFocus
-                />
-                <button className="btn btn-pri btn-sm" onClick={() => saveFollowUp(r)}>Save</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setEditingPhone(null)}><X size={12} /></button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: 10, background: 'rgba(255,255,255,.03)', borderRadius: 8 }}>
+                <div className="field" style={{ minWidth: 190 }}>
+                  <label className="tiny muted">Call date &amp; time</label>
+                  <input type="datetime-local" className="input" style={{ padding: '6px 8px', width: '100%' }} value={draftAt} onChange={(e) => setDraftAt(e.target.value)} />
+                </div>
+                <div className="field" style={{ minWidth: 150 }}>
+                  <label className="tiny muted">Outcome</label>
+                  <select className="input" style={{ padding: '6px 8px', width: '100%' }} value={draftOutcome} onChange={(e) => setDraftOutcome(e.target.value as LiveFollowUpOutcome | '')}>
+                    <option value="">— none —</option>
+                    {(Object.keys(OUTCOME_LABELS) as LiveFollowUpOutcome[]).map((k) => (
+                      <option key={k} value={k}>{OUTCOME_LABELS[k]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field" style={{ flex: 1, minWidth: 180 }}>
+                  <label className="tiny muted">Note</label>
+                  <input className="input" style={{ padding: '6px 8px', width: '100%' }} placeholder="what happened on the call…" value={draftNote} onChange={(e) => setDraftNote(e.target.value)} autoFocus />
+                </div>
+                <div style={{ display: 'flex', gap: 6, alignSelf: 'flex-end' }}>
+                  <button className="btn btn-pri btn-sm" onClick={() => saveFollowUp(r)}>Save</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setEditingPhone(null)}><X size={12} /></button>
+                </div>
               </div>
             )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => bulkRemind(r.cartIds)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                {r.allReminded ? <><RotateCcw size={12} /> Remind again</> : <><MessageCircle size={12} /> Send reminder{count > 1 ? ` (${count})` : ''}</>}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => (editing ? setEditingPhone(null) : openEditor(r))}>
+                {r.allContacted ? 'Edit follow-up' : '+ Log call'}
+              </button>
+              {r.allContacted && (
+                <button className="btn btn-ghost btn-sm" onClick={() => clearFollowUp(r)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <X size={11} /> Clear follow-up
+                </button>
+              )}
+              <div style={{ flex: 1 }} />
+              <button className="btn btn-danger btn-sm" onClick={() => removeCarts(r)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Trash2 size={12} /> Remove
+              </button>
+            </div>
           </div>
           );
         })}
-        {filtered.length === 0 && !loading && <div className="trow muted">No {scope} abandoned carts match.</div>}
+        {filtered.length === 0 && !loading && <div className="card muted">No {scope} abandoned carts match.</div>}
       </div>
       <div className="tiny hint">
         recovery is a real WhatsApp + email reminder (no discount) · organizers pay nothing to recover — this is platform oversight
