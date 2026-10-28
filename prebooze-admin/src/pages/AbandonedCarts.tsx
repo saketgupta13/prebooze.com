@@ -1,12 +1,31 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { fmt } from '../store/data';
 import { Kpi, SearchBox } from '../components/ui';
-import { liveCarts, liveEvents, LiveApiError, type LiveCart, type LiveCartStats, type LiveEvent } from '../lib/liveApi';
+import { liveCarts, liveEvents, LiveApiError, type LiveCart, type LiveCartStats, type LiveEvent, type LiveFollowUpOutcome } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
 import { MessageCircle, CheckCircle2, RotateCcw, Phone, X, Trash2 } from 'lucide-react';
 
 const TITLE = 'Abandoned carts';
+
+const OUTCOME_LABELS: Record<LiveFollowUpOutcome, string> = {
+  no_answer: 'No answer',
+  declined: 'Declined',
+  will_book: 'Will book',
+};
+const OUTCOME_COLORS: Record<LiveFollowUpOutcome, string> = {
+  no_answer: 'var(--muted)',
+  declined: 'var(--red)',
+  will_book: 'var(--green)',
+};
+
+// <input type="datetime-local"> wants "YYYY-MM-DDTHH:mm" in local time, not
+// the ISO/UTC string the API returns or expects back.
+function toLocalInputValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 // Same formula as EventsReal.tsx's isPastEvent / prebooze-api's
 // CatalogService.isEventOver — used here only to keep the event filter
@@ -40,6 +59,11 @@ export default function AbandonedCarts() {
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [eventF, setEventF] = useState('all');
   const [cityF, setCityF] = useState('all');
+  const [outcomeF, setOutcomeF] = useState<'all' | 'not_contacted' | LiveFollowUpOutcome>('all');
+  // Priority queue: 'value' surfaces the highest-recoverable-value carts
+  // first (worth calling first), 'oldest' surfaces the longest-abandoned
+  // ones first (closest to being truly lost / least likely to self-recover).
+  const [sortBy, setSortBy] = useState<'value' | 'oldest'>('value');
   const [query, setQuery] = useState('');
   // A cart for an event that's already happened can't be recovered — nobody
   // can still buy that ticket — so Live/Past scopes on the event's own
@@ -84,12 +108,13 @@ export default function AbandonedCarts() {
     let l = scoped;
     if (eventF !== 'all') l = l.filter((c) => c.eventId === eventF);
     if (cityF !== 'all') l = l.filter((c) => c.city === cityF);
+    if (outcomeF !== 'all') l = l.filter((c) => (outcomeF === 'not_contacted' ? !c.contacted : c.followUpOutcome === outcomeF));
     if (query.trim()) {
       const q = query.toLowerCase();
       l = l.filter((c) => c.guest.toLowerCase().includes(q) || c.phone.includes(q));
     }
     return l;
-  }, [scoped, eventF, cityF, query]);
+  }, [scoped, eventF, cityF, outcomeF, query]);
 
   const unremindedIds = filtered.filter((c) => !c.reminded).map((c) => c.id);
 
@@ -107,6 +132,8 @@ export default function AbandonedCarts() {
     allReminded: boolean;
     allContacted: boolean;
     note: string | null;
+    followUpAt: string | null;
+    followUpOutcome: LiveFollowUpOutcome | null;
   }
   const groupedRows = useMemo(() => {
     const byPhone = new Map<string, GroupedRow>();
@@ -123,6 +150,8 @@ export default function AbandonedCarts() {
           allReminded: c.reminded,
           allContacted: c.contacted,
           note: c.followUpNote,
+          followUpAt: c.followUpAt,
+          followUpOutcome: c.followUpOutcome,
         });
         return;
       }
@@ -133,9 +162,13 @@ export default function AbandonedCarts() {
       row.allReminded = row.allReminded && c.reminded;
       row.allContacted = row.allContacted && c.contacted;
       if (!row.note && c.followUpNote) row.note = c.followUpNote;
+      if (!row.followUpAt && c.followUpAt) row.followUpAt = c.followUpAt;
+      if (!row.followUpOutcome && c.followUpOutcome) row.followUpOutcome = c.followUpOutcome;
     });
-    return [...byPhone.values()];
-  }, [filtered]);
+    const rows = [...byPhone.values()];
+    rows.sort((a, b) => (sortBy === 'value' ? b.totalValue - a.totalValue : new Date(a.latestCreatedAt).getTime() - new Date(b.latestCreatedAt).getTime()));
+    return rows;
+  }, [filtered, sortBy]);
 
   const byEvent = useMemo(() => {
     const m = new Map<string, { count: number; value: number }>();
@@ -148,8 +181,10 @@ export default function AbandonedCarts() {
     return [...m.entries()].sort((a, b) => b[1].value - a[1].value);
   }, [scoped]);
 
-  const [noteDraftPhone, setNoteDraftPhone] = useState<string | null>(null);
-  const [noteDraft, setNoteDraft] = useState('');
+  const [editingPhone, setEditingPhone] = useState<string | null>(null);
+  const [draftAt, setDraftAt] = useState('');
+  const [draftOutcome, setDraftOutcome] = useState<LiveFollowUpOutcome | ''>('');
+  const [draftNote, setDraftNote] = useState('');
 
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
@@ -166,28 +201,35 @@ export default function AbandonedCarts() {
     }
   };
 
-  // Toggling marks/unmarks every cart in the guest's group — "contacted" is
-  // a per-guest follow-up fact (one phone call covers all their open carts),
+  // Applies to every cart in the guest's group at once — "contacted" is a
+  // per-guest follow-up fact (one phone call covers all their open carts),
   // not a per-cart one.
-  const toggleContacted = async (r: GroupedRow) => {
+  const openEditor = (r: GroupedRow) => {
+    setEditingPhone(r.phone);
+    setDraftAt(toLocalInputValue(r.followUpAt ?? new Date().toISOString()));
+    setDraftOutcome(r.followUpOutcome ?? '');
+    setDraftNote(r.note ?? '');
+  };
+
+  const saveFollowUp = async (r: GroupedRow) => {
     setErr('');
     try {
-      const next = !r.allContacted;
-      await Promise.all(r.cartIds.map((id) => liveCarts.setContacted(id, next, next ? r.note ?? undefined : undefined)));
+      const at = draftAt ? new Date(draftAt).toISOString() : undefined;
+      await Promise.all(r.cartIds.map((id) => liveCarts.setFollowUp(id, true, { at, outcome: draftOutcome || null, note: draftNote.trim() })));
+      setEditingPhone(null);
       load();
     } catch (e) {
-      setErr(e instanceof LiveApiError ? e.message : 'Failed to update');
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to save follow-up');
     }
   };
 
-  const saveNote = async (r: GroupedRow) => {
+  const clearFollowUp = async (r: GroupedRow) => {
     setErr('');
     try {
-      await Promise.all(r.cartIds.map((id) => liveCarts.setContacted(id, true, noteDraft.trim())));
-      setNoteDraftPhone(null);
+      await Promise.all(r.cartIds.map((id) => liveCarts.setFollowUp(id, false)));
       load();
     } catch (e) {
-      setErr(e instanceof LiveApiError ? e.message : 'Failed to save note');
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to clear follow-up');
     }
   };
 
@@ -285,6 +327,27 @@ export default function AbandonedCarts() {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
+        <select
+          className="chip"
+          style={{ appearance: 'none', cursor: 'pointer', background: outcomeF !== 'all' ? 'var(--green)' : 'var(--bg)', color: outcomeF !== 'all' ? 'var(--on-green)' : '#c7cbb9' }}
+          value={outcomeF}
+          onChange={(e) => setOutcomeF(e.target.value as typeof outcomeF)}
+        >
+          <option value="all">All follow-up ▾</option>
+          <option value="not_contacted">Not contacted</option>
+          {(Object.keys(OUTCOME_LABELS) as LiveFollowUpOutcome[]).map((k) => (
+            <option key={k} value={k}>{OUTCOME_LABELS[k]}</option>
+          ))}
+        </select>
+        <select
+          className="chip"
+          style={{ appearance: 'none', cursor: 'pointer' }}
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+        >
+          <option value="value">Sort: highest value first</option>
+          <option value="oldest">Sort: oldest first</option>
+        </select>
       </div>
 
       <div className="tblwrap">
@@ -302,7 +365,7 @@ export default function AbandonedCarts() {
           const eventLabel = r.eventTitles.length > 2
             ? `${r.eventTitles.slice(0, 2).join(', ')} +${r.eventTitles.length - 2} more`
             : r.eventTitles.join(', ');
-          const editingNote = noteDraftPhone === r.phone;
+          const editing = editingPhone === r.phone;
           return (
           <div key={r.phone} className="trow" style={{ minWidth: 900, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -323,42 +386,62 @@ export default function AbandonedCarts() {
               <span style={{ flex: 0.9 }}>
                 <button
                   className="chip"
-                  style={{ fontSize: 10.5, padding: '3px 10px', borderColor: r.allContacted ? 'var(--green)' : 'var(--border)', color: r.allContacted ? 'var(--green)' : undefined }}
-                  onClick={() => toggleContacted(r)}
+                  style={{
+                    fontSize: 10.5, padding: '3px 10px',
+                    borderColor: r.allContacted ? (r.followUpOutcome ? OUTCOME_COLORS[r.followUpOutcome] : 'var(--green)') : 'var(--border)',
+                    color: r.allContacted ? (r.followUpOutcome ? OUTCOME_COLORS[r.followUpOutcome] : 'var(--green)') : undefined,
+                  }}
+                  onClick={() => openEditor(r)}
                 >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Phone size={10} /> {r.allContacted ? 'Contacted' : 'Not contacted'}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Phone size={10} /> {r.allContacted ? (r.followUpOutcome ? OUTCOME_LABELS[r.followUpOutcome] : 'Contacted') : 'Not contacted'}
+                  </span>
                 </button>
               </span>
               <span style={{ flex: 1.6, display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => bulkRemind(r.cartIds)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                   {r.allReminded ? <><RotateCcw size={12} /> Remind again</> : <><MessageCircle size={12} /> Send reminder{count > 1 ? ` (${count})` : ''}</>}
                 </button>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => { setNoteDraftPhone(r.phone); setNoteDraft(r.note ?? ''); }}
-                >
-                  {r.note ? 'Edit note' : '+ Note'}
+                <button className="btn btn-ghost btn-sm" onClick={() => openEditor(r)}>
+                  {r.allContacted ? 'Edit follow-up' : '+ Log call'}
                 </button>
                 <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => removeCarts(r)}>
                   <Trash2 size={12} />
                 </button>
               </span>
             </div>
-            {r.note && !editingNote && (
-              <div className="tiny muted" style={{ paddingLeft: 2 }}>note: {r.note}</div>
+            {r.allContacted && !editing && (
+              <div className="tiny muted" style={{ paddingLeft: 2 }}>
+                {r.followUpAt && <>called {timeAgo(r.followUpAt)} &middot; </>}
+                {r.note || 'no note'}
+                <button className="btn btn-ghost btn-sm" style={{ padding: '0 6px', marginLeft: 6 }} onClick={() => clearFollowUp(r)}><X size={10} /> clear</button>
+              </div>
             )}
-            {editingNote && (
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {editing && (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  type="datetime-local"
+                  className="input"
+                  style={{ padding: '5px 8px', width: 190 }}
+                  value={draftAt}
+                  onChange={(e) => setDraftAt(e.target.value)}
+                />
+                <select className="input" style={{ padding: '5px 8px', width: 150 }} value={draftOutcome} onChange={(e) => setDraftOutcome(e.target.value as LiveFollowUpOutcome | '')}>
+                  <option value="">Outcome…</option>
+                  {(Object.keys(OUTCOME_LABELS) as LiveFollowUpOutcome[]).map((k) => (
+                    <option key={k} value={k}>{OUTCOME_LABELS[k]}</option>
+                  ))}
+                </select>
                 <input
                   className="input"
-                  style={{ padding: '5px 8px', flex: 1 }}
+                  style={{ padding: '5px 8px', flex: 1, minWidth: 160 }}
                   placeholder="what happened on the call…"
-                  value={noteDraft}
-                  onChange={(e) => setNoteDraft(e.target.value)}
+                  value={draftNote}
+                  onChange={(e) => setDraftNote(e.target.value)}
                   autoFocus
                 />
-                <button className="btn btn-pri btn-sm" onClick={() => saveNote(r)}>Save</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setNoteDraftPhone(null)}><X size={12} /></button>
+                <button className="btn btn-pri btn-sm" onClick={() => saveFollowUp(r)}>Save</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditingPhone(null)}><X size={12} /></button>
               </div>
             )}
           </div>

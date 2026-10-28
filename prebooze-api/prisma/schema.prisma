@@ -1970,7 +1970,11 @@ model Cart {
   // nudge. This is for a staffer who actually called/messaged the guest
   // personally and wants that logged, same "Contacted" gate concept as
   // Leads/Venue-hosting elsewhere in admin.
-  contactedAt   DateTime?
+  contactedAt   DateTime? // date/time of the follow-up call itself (admin-editable, not just "now")
+  // no_answer | declined | will_book — outcome of the follow-up call;
+  // null means no outcome recorded yet even if contactedAt is set (legacy
+  // rows from before this field existed, or a plain toggle with no detail).
+  followUpOutcome String?
   followUpNote  String?
   // The guest's attendee-details form (mainGuest/whatsapp/guests) plus
   // coupon/wallet/promoter/payMethod choices, snapshotted the instant they

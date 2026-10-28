@@ -37,8 +37,14 @@ export class AdminCartsController {
 
   @Patch(':id/contacted')
   @RequirePermission(MODULE, 'edit')
-  setContacted(@Param('id') id: string, @Body('contacted') contacted: boolean, @Body('note') note?: string) {
-    return this.carts.setContacted(id, !!contacted, note);
+  setFollowUp(
+    @Param('id') id: string,
+    @Body('contacted') contacted: boolean,
+    @Body('at') at?: string,
+    @Body('outcome') outcome?: string | null,
+    @Body('note') note?: string,
+  ) {
+    return this.carts.setFollowUp(id, !!contacted, { at, outcome, note });
   }
 
   @Delete(':id')

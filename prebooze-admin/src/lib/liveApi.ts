@@ -1731,7 +1731,8 @@ export const liveGuestList = {
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/guest-list/${id}`, { method: 'DELETE' }),
 };
 
-export interface LiveCart { id: string; guest: string; phone: string; eventId: string; eventTitle: string; city: string | null; amount: number; reminded: boolean; contacted: boolean; followUpNote: string | null; createdAt: string; }
+export type LiveFollowUpOutcome = 'no_answer' | 'declined' | 'will_book';
+export interface LiveCart { id: string; guest: string; phone: string; eventId: string; eventTitle: string; city: string | null; amount: number; reminded: boolean; contacted: boolean; followUpAt: string | null; followUpOutcome: LiveFollowUpOutcome | null; followUpNote: string | null; createdAt: string; }
 export interface LiveCartStats { openCount: number; recoverable: number; recoveredCount: number; recoveredValue: number; recoveryRate: number; }
 export const liveCarts = {
   list: (eventId?: string, past?: boolean) => {
@@ -1746,7 +1747,8 @@ export const liveCarts = {
   bulkRemind: (ids: string[]) => liveFetch<{ ok: true; count: number }>('/admin/carts/bulk-remind', { body: { ids } }),
   remove: (id: string) => liveFetch<{ ok: true }>(`/admin/carts/${id}`, { method: 'DELETE' }),
   bulkRemove: (ids: string[]) => liveFetch<{ ok: true; count: number }>('/admin/carts/bulk-remove', { body: { ids } }),
-  setContacted: (id: string, contacted: boolean, note?: string) => liveFetch<LiveCart>(`/admin/carts/${id}/contacted`, { method: 'PATCH', body: { contacted, note } }),
+  setFollowUp: (id: string, contacted: boolean, fields?: { at?: string; outcome?: LiveFollowUpOutcome | null; note?: string }) =>
+    liveFetch<LiveCart>(`/admin/carts/${id}/contacted`, { method: 'PATCH', body: { contacted, ...fields } }),
 };
 
 export interface LiveMonitor {

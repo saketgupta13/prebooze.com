@@ -77,6 +77,8 @@ export class CartsService {
       amount: c.total,
       reminded: !!c.remindedAt,
       contacted: !!c.contactedAt,
+      followUpAt: c.contactedAt,
+      followUpOutcome: c.followUpOutcome,
       followUpNote: c.followUpNote,
       createdAt: c.createdAt,
     }));
@@ -170,15 +172,23 @@ export class CartsService {
 
   /** Manual follow-up tracking — a staffer who actually called/messaged the
    * guest personally, distinct from remindedAt (the automated/one-click
-   * WhatsApp+email nudge). `note` is optional free text (what was
-   * said/learned on the call); passing contacted:false clears both fields
-   * so a mis-click can be undone. */
-  async setContacted(id: string, contacted: boolean, note?: string) {
+   * WhatsApp+email nudge). `at` is the real date/time of the call (lets a
+   * staffer log a call they made earlier, not just "now"); `outcome` is one
+   * of no_answer/declined/will_book, or omitted for a plain contacted-with-
+   * no-detail toggle. Passing contacted:false clears all three fields so a
+   * mis-click/mis-log can be undone. */
+  async setFollowUp(id: string, contacted: boolean, fields?: { at?: string; outcome?: string | null; note?: string }) {
     const cart = await this.prisma.cart.findUnique({ where: { id } });
     if (!cart) throw new NotFoundException('Cart not found');
     return this.prisma.cart.update({
       where: { id },
-      data: contacted ? { contactedAt: new Date(), followUpNote: note ?? cart.followUpNote } : { contactedAt: null, followUpNote: null },
+      data: contacted
+        ? {
+            contactedAt: fields?.at ? new Date(fields.at) : (cart.contactedAt ?? new Date()),
+            followUpOutcome: fields?.outcome !== undefined ? fields.outcome : cart.followUpOutcome,
+            followUpNote: fields?.note !== undefined ? fields.note : cart.followUpNote,
+          }
+        : { contactedAt: null, followUpOutcome: null, followUpNote: null },
     });
   }
 
