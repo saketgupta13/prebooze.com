@@ -18,6 +18,7 @@ import { AdminReviewsController } from './reviews.controller';
 import { AdminReferralsController } from './referrals-admin.controller';
 import { AdminCategoriesController } from './categories.controller';
 import { AdminTrendingController } from './trending.controller';
+import { AdminBroadcastController } from './broadcast.controller';
 import { AdminVenueTypesController } from './venue-types.controller';
 import { AdminAmenitiesController } from './amenities.controller';
 import { AdminCartsController } from './carts.controller';
@@ -52,6 +53,7 @@ import { ReviewsService } from './reviews.service';
 import { ReferralsAdminService } from './referrals-admin.service';
 import { CategoriesService } from './categories.service';
 import { TrendingService } from './trending.service';
+import { BroadcastService } from './broadcast.service';
 import { VenueTypesService } from './venue-types.service';
 import { AmenitiesService } from './amenities.service';
 import { CartsService } from './carts.service';
@@ -118,6 +120,7 @@ import { redisProvider } from '../redis.provider';
     AdminReferralsController,
     AdminCategoriesController,
     AdminTrendingController,
+    AdminBroadcastController,
     AdminVenueTypesController,
     AdminAmenitiesController,
     AdminCartsController,
@@ -154,6 +157,7 @@ import { redisProvider } from '../redis.provider';
     ReferralsAdminService,
     CategoriesService,
     TrendingService,
+    BroadcastService,
     VenueTypesService,
     AmenitiesService,
     CartsService,

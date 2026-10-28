@@ -28,6 +28,7 @@ export const PERM_MODULES = [
   'Analytics',
   'Leads',
   'Support tickets',
+  'Push notifications',
 ] as const;
 
 export interface PermSet {
