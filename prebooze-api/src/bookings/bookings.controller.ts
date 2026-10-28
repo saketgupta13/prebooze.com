@@ -77,8 +77,8 @@ export class BookingsController {
    * (post-coupon, post-wallet-credit) plus a Razorpay order id to pay against. */
   @Post('bookings/quote')
   @UseGuards(JwtAuthGuard)
-  quote(@Req() req: AuthedReq, @Body() body: { holdId: string; couponCode?: string; walletCredit?: number; promoterRef?: string; returnUrl?: string; useSdk?: boolean }) {
-    return this.bookings.quote(req.user.sub, body.holdId, body.couponCode, body.walletCredit, body.promoterRef, body.returnUrl, body.useSdk);
+  quote(@Req() req: AuthedReq, @Body() body: { holdId: string; couponCode?: string; walletCredit?: number; promoterRef?: string; returnUrl?: string }) {
+    return this.bookings.quote(req.user.sub, body.holdId, body.couponCode, body.walletCredit, body.promoterRef, body.returnUrl);
   }
 
   /** Called right before the Razorpay checkout widget opens — snapshots the
@@ -90,6 +90,16 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard)
   prepare(@Req() req: AuthedReq, @Body() body: Parameters<BookingsService['prepare']>[1]) {
     return this.bookings.prepare(req.user.sub, body);
+  }
+
+  /** Checkout's PhonePe-return page calls this when sessionStorage (where
+   * the attendee-details form was stashed pre-redirect) comes back empty —
+   * see BookingsService.pendingOrder's doc comment for the full gap this
+   * closes. */
+  @Get('bookings/pending-order/:holdId')
+  @UseGuards(JwtAuthGuard)
+  pendingOrder(@Req() req: AuthedReq, @Param('holdId') holdId: string) {
+    return this.bookings.pendingOrder(req.user.sub, holdId);
   }
 
   @Post('bookings')

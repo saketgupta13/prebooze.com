@@ -589,6 +589,23 @@ export class BookingsService {
     return { ok: true };
   }
 
+  /** Checkout's PhonePe-return page calls this when it comes back to find
+   * sessionStorage empty (the attendee-details stash prepare() was supposed
+   * to also land server-side via Cart.bookingPayload never saved either —
+   * an OS-level app-switch to PhonePe's own app can kill the tab's pending
+   * fetch before it completes, keepalive or not). Rather than just telling
+   * the guest "contact support" (which is how a real ₹6,724 payment sat
+   * unbooked for hours until someone manually reconstructed the guest list
+   * from a screenshot), this hands the frontend enough to re-show the same
+   * attendee form and finish the booking for real — no admin needed. */
+  async pendingOrder(userId: string, holdId: string) {
+    const cart = await this.prisma.cart.findUnique({ where: { holdId } });
+    if (!cart || cart.userId !== userId) throw new NotFoundException('No matching checkout found for this link');
+    if (!cart.phonepeMerchantOrderId) return { merchantOrderId: null, bookingId: null };
+    const existing = await this.prisma.booking.findUnique({ where: { paymentId: cart.phonepeMerchantOrderId } });
+    return { merchantOrderId: cart.phonepeMerchantOrderId, bookingId: existing?.id ?? null };
+  }
+
   /** Razorpay webhook fallback for `payment.captured` (RazorpayWebhookController)
    * — closes the gap where a real payment gets captured but the guest's own
    * browser never comes back to finish create() (most commonly: a UPI

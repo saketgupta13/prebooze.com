@@ -65,6 +65,13 @@ export default function Checkout() {
   const phonepeReturnHoldId = searchParams.get('phonepe_return') === '1' ? searchParams.get('holdId') : null;
   const [resumingPhonePe, setResumingPhonePe] = useState(Boolean(phonepeReturnHoldId));
   const [resumeErr, setResumeErr] = useState<string | null>(null);
+  // Set only on a PhonePe-return resume that found sessionStorage empty but
+  // confirmed (via pendingOrder()) that a real PhonePe order exists for
+  // this hold — the form below renders normally, but pay()'s submit routes
+  // to finishRecovery() (direct bookings.create() against this order)
+  // instead of payLive()'s quote()+redirect (which would wrongly mint and
+  // pay for a SECOND order).
+  const [recoveryOrderId, setRecoveryOrderId] = useState<string | null>(null);
   // Mobile browsers commonly restore the PRE-redirect Checkout instance from
   // back-forward cache instead of truly remounting it when PhonePe redirects
   // back — the useState initializer above never re-runs on a bfcache
@@ -439,6 +446,35 @@ export default function Checkout() {
     track('payment_submitted', { eventId: event?.id });
     const raw = sessionStorage.getItem(`pb_phonepe_${holdIdToResume}`);
     if (!raw) {
+      // sessionStorage lost (most commonly: PhonePe's redirect was an
+      // OS-level app-switch, which can kill the tab harder than an ordinary
+      // navigation) — ask the server whether it at least knows this cart's
+      // real PhonePe order, instead of immediately giving up. See
+      // BookingsService.pendingOrder's doc comment for the full incident
+      // this closes (a real ₹6,724 payment that otherwise needed a human to
+      // manually reconstruct the guest list from a screenshot).
+      try {
+        const pending = await bookings.pendingOrder(holdIdToResume);
+        if (pending.bookingId) {
+          afterBookingSuccess(pending.bookingId);
+          return;
+        }
+        if (pending.merchantOrderId) {
+          // Fall through to the normal checkout form below instead of the
+          // error screen — pay()'s submit path checks recoveryOrderId and
+          // routes to finishRecovery() instead of re-paying. useCredit is
+          // forced off since finishRecovery() never sends walletCredit (the
+          // original choice, if any, can't be recovered) — leaving it on
+          // would show a "wallet credit applied" estimate that's not real.
+          setResumingPhonePe(false);
+          setUseCredit(false);
+          setRecoveryOrderId(pending.merchantOrderId);
+          return;
+        }
+      } catch {
+        // pendingOrder() itself failed (network, or a genuinely unknown
+        // holdId) — falls through to the same not-recoverable message below.
+      }
       setResumingPhonePe(false);
       setResumeErr("We couldn't find your booking details to finish this automatically — check My Bookings, or contact support if this was a real payment.");
       return;
@@ -659,6 +695,48 @@ export default function Checkout() {
     setCouponMsg({ ok: true, text: `${code} applied — you save ₹${save}` });
   };
 
+  // PhonePe-return resume path only (see recoveryOrderId's declaration) —
+  // the guest already paid against recoveryOrderId; this re-collects the
+  // attendee details the original pre-redirect snapshot lost and finishes
+  // the exact same booking create() would have, just without a quote()
+  // call (that would mint and redirect to a SECOND, unwanted PhonePe order).
+  const finishRecovery = async () => {
+    if (!holdId || !recoveryOrderId) return;
+    setPaying(true);
+    try {
+      if (email.trim() !== (user?.email ?? '')) {
+        await auth.updateMe({ email: email.trim() }).catch(() => {});
+      }
+      const guestsPayload = extraSlots.length > 0
+        ? extraSlots.map((_, i) => ({
+            name: (guestNames[i] ?? '').trim(),
+            gender: guestGenders[i] || undefined,
+            whatsapp: (guestPhones[i] ?? '').trim(),
+          })).filter((g) => g.name)
+        : undefined;
+      const confirmedAge = needsAgeConfirm ? parseInt(ageInput, 10) : undefined;
+      const booking = await bookings.create({
+        holdId,
+        mainGuest: name.trim(),
+        mainGuestGender: gender || undefined,
+        age: confirmedAge,
+        whatsapp: whatsapp.trim(),
+        guests: guestsPayload,
+        // Deliberately no couponCode/walletCredit — those choices from the
+        // original (lost) checkout session can't be recovered, so this
+        // re-prices at the plain subtotal+fee+GST. If that doesn't match
+        // what PhonePe actually captured, create() itself refuses with a
+        // clear "contact support" message rather than silently mis-booking
+        // — same safety net as the automated recovery paths use.
+        phonepe: { merchantOrderId: recoveryOrderId },
+      });
+      afterBookingSuccess(booking.id);
+    } catch (e) {
+      setPaying(false);
+      setCouponMsg({ ok: false, text: (e as Error).message ?? 'Something went wrong — please try again' });
+    }
+  };
+
   const payLive = async () => {
     if (!holdId) return;
     setPaying(true);
@@ -726,10 +804,27 @@ export default function Checkout() {
         // each quote() call mints its own). The resume flow on return must
         // confirm THIS exact order, not guess at holdId.
         sessionStorage.setItem(`pb_phonepe_${holdId}`, JSON.stringify({ ...attendeePayload, phonepeMerchantOrderId: q.phonepeMerchantOrderId }));
-        // Fire-and-forget snapshot, same safety net as before — closes the
-        // gap where the browser never makes it back from PhonePe at all
-        // (not just backgrounded) once a webhook is wired up server-side.
-        bookings.prepare({ holdId, ...attendeePayload }).catch(() => {});
+        // AWAITED, not fire-and-forget (real incident 2026-10-28: a guest's
+        // ₹6,724 PhonePe payment completed for real, but this snapshot never
+        // landed server-side — "redirect to PhonePe" is often an OS-level
+        // app-switch to the PhonePe app, not just a same-tab navigation, and
+        // that can suspend/kill the page before a keepalive fetch finishes
+        // even though keepalive makes it survive an ordinary same-browser
+        // unload. With sessionStorage ALSO unrecoverable in that scenario —
+        // same app-switch, same tab — the booking had nothing to auto-
+        // recover from and sat unbooked until someone manually reconstructed
+        // the guest list from a payment screenshot. Awaiting this closes the
+        // race instead of just narrowing it: the guest's own browser must
+        // now confirm the snapshot saved before it's allowed to navigate
+        // away, so the automated recovery sweep (CronService.
+        // stuckPhonePePaymentTick) always has a real cart.bookingPayload to
+        // work with even if the guest never makes it back at all. A failure
+        // here still never blocks the actual payment — logged, not thrown —
+        // the PhonePe-return resume page's own pendingOrder() fallback
+        // covers the remaining case where even this await didn't survive.
+        await bookings.prepare({ holdId, ...attendeePayload }).catch((e) => {
+          console.error('prepare() failed to save pre-redirect — relying on pendingOrder() resume fallback', e);
+        });
         track('payment_widget_opened', { eventId: event.id });
         window.location.href = q.phonepeRedirectUrl;
         return; // this component instance is about to be torn down by the navigation
@@ -883,7 +978,8 @@ export default function Checkout() {
       failAttendee('That email address doesn\'t look right');
       return;
     }
-    if (liveEvent) payLive();
+    if (recoveryOrderId) finishRecovery();
+    else if (liveEvent) payLive();
     else payMock();
   };
 
@@ -897,6 +993,19 @@ export default function Checkout() {
           <span className="accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Lock size={12} /> secure checkout</span>
         </div>
         <h1 style={{ fontSize: 24, marginBottom: 16 }}>Checkout</h1>
+
+        {recoveryOrderId && (
+          <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 10, alignItems: 'flex-start', borderColor: 'var(--accent)' }}>
+            <CheckCircle2 size={18} className="accent" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ flex: 1 }}>
+              <div className="small bold" style={{ marginBottom: 4 }}>We found your payment</div>
+              <p className="tiny muted-2">
+                Your payment went through, but we lost track of your checkout details on the way back. No need to pay
+                again — just confirm who's attending below and we'll finish issuing your ticket.
+              </p>
+            </div>
+          </div>
+        )}
 
         {inAppBrowser && !dismissedInAppWarning && (
           <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 10, alignItems: 'flex-start', borderColor: 'var(--danger)' }}>
@@ -1134,8 +1243,13 @@ export default function Checkout() {
 
             {/* Coupon — pointless on a genuinely free cart (nothing to
                 discount, no fee either), so it's skipped entirely rather
-                than showing an empty gesture at checkout. */}
-            {finalSubtotal > 0 && (
+                than showing an empty gesture at checkout. Also skipped in
+                recovery mode: finishRecovery() deliberately never sends a
+                coupon/credit choice (the original one, if any, can't be
+                recovered), so offering to apply one here would be a dead
+                end that just risks tripping create()'s price-mismatch
+                safety check. */}
+            {finalSubtotal > 0 && !recoveryOrderId && (
             <div className="card" style={{ marginBottom: 18 }}>
               <h3 style={{ marginBottom: 14 }}>Apply coupon</h3>
               <div className="form-row">
@@ -1281,7 +1395,7 @@ export default function Checkout() {
                 <span className="accent">−₹{finalDiscount}</span>
               </div>
             )}
-            {effectiveWalletBalance > 0 && (
+            {effectiveWalletBalance > 0 && !recoveryOrderId && (
               <label className="checkbox-row" style={{ margin: '8px 0 2px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input type="checkbox" checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} />
                 <Wallet size={13} /> Use ₹{Math.min(effectiveWalletBalance, Math.max(0, finalSubtotal + finalFee + finalGst - finalDiscount))} Prebooze credit (balance ₹{effectiveWalletBalance})
@@ -1295,10 +1409,15 @@ export default function Checkout() {
             )}
             <div className="total-row">
               <span>Total</span>
-              <span>{quotePending ? 'Calculating…' : formatPrice(finalTotal)}</span>
+              {/* Recovery mode never calls quote() (that would mint and pay
+                  for a second PhonePe order) — show what PhonePe already
+                  charged as a plain estimate instead of a permanent
+                  "Calculating…", which quotePending would otherwise show
+                  forever since nothing here ever sets `quote`. */}
+              <span>{recoveryOrderId ? formatPrice(finalTotal) : quotePending ? 'Calculating…' : formatPrice(finalTotal)}</span>
             </div>
-            <button className="btn btn-pri btn-block btn-lg" onClick={pay} disabled={paying || (liveEvent ? !holdId : false) || quoting || quotePending}>
-              {paying ? 'Processing…' : quotePending ? 'Calculating…' : finalTotal === 0 ? 'Confirm booking' : `Pay ₹${finalTotal}`}
+            <button className="btn btn-pri btn-block btn-lg" onClick={pay} disabled={paying || (liveEvent ? !holdId : false) || (!recoveryOrderId && (quoting || quotePending))}>
+              {paying ? 'Processing…' : recoveryOrderId ? 'Confirm & get my ticket' : quotePending ? 'Calculating…' : finalTotal === 0 ? 'Confirm booking' : `Pay ₹${finalTotal}`}
             </button>
             <div className="tiny muted-2 center" style={{ marginTop: 10 }}>
               {finalSubtotal > 0

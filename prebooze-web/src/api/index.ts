@@ -280,6 +280,12 @@ export const bookings = {
   // navigates away to PhonePe (see Checkout.tsx), so the request must
   // survive the page unloading, not just "best effort" fire-and-forget.
   prepare: (input: Omit<CreateBookingInput, 'razorpay'>) => apiFetch<{ ok: true }>('/bookings/prepare', { body: input, keepalive: true }),
+  // Checkout.tsx's PhonePe-return resume calls this when sessionStorage
+  // (where prepare()'s payload was ALSO meant to be stashed client-side)
+  // comes back empty — recovers the real PhonePe order id for this hold so
+  // the guest can be shown the attendee form again instead of hitting a
+  // dead end.
+  pendingOrder: (holdId: string) => apiFetch<{ merchantOrderId: string | null; bookingId: string | null }>(`/bookings/pending-order/${encodeURIComponent(holdId)}`),
   create: (input: CreateBookingInput) => apiFetch<Booking>('/bookings', { body: input }),
   list: () => apiFetch<Booking[]>('/bookings'),
   // booking ids contain a literal "#" (e.g. "#TKT-12345"), which the URL

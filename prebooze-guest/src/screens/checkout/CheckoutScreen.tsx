@@ -356,7 +356,13 @@ export default function CheckoutScreen() {
         navigation.replace('BookingConfirmed', { bookingId: booking.id });
         return;
       }
-      bookingsApi.prepare({ holdId, ...payload }).catch(() => {});
+      // Awaited (not fire-and-forget) — same reasoning as the web
+      // Checkout.tsx fix: the webhook/cron recovery sweep needs a real
+      // Cart.bookingPayload to work from if the guest never comes back at
+      // all, and a background fetch racing openAuthSessionAsync isn't
+      // guaranteed to win that race on every OS/browser combination. Never
+      // blocks the actual payment — swallowed below either way.
+      await bookingsApi.prepare({ holdId, ...payload }).catch(() => {});
       await WebBrowser.openAuthSessionAsync(q.phonepeRedirectUrl, returnUrl).catch(() => {});
       // The redirect closing the tab is never trusted alone — poll the
       // server's own getOrderStatus check regardless of how/why the tab
