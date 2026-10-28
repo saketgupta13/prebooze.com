@@ -49,7 +49,17 @@ export class PushService {
   }
 
   private async sendBatch(tokens: { token: string }[], title: string, body: string, data?: Record<string, unknown>): Promise<void> {
-    const messages = tokens.map((t) => ({ to: t.token, title, body, data, sound: 'default' }));
+    // priority:'high' is the one real lever FCM gives us against an idle
+    // device — it tells Android to wake the device out of Doze/app-standby
+    // and attempt immediate delivery instead of batching the push for the
+    // OS's next maintenance window, which is what a 'normal'-priority (the
+    // unset default) push sitting unseen on a phone that hasn't opened the
+    // app in days usually means. ttl keeps FCM retrying delivery for up to
+    // 3 days if the device is offline rather than giving up immediately.
+    // Still bounded by what FCM and the OEM's own battery-optimization
+    // layer allow through — no Expo/FCM flag can force delivery past a
+    // device the user has explicitly restricted at the OS level.
+    const messages = tokens.map((t) => ({ to: t.token, title, body, data, sound: 'default', priority: 'high' as const, ttl: 259200 }));
     const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
