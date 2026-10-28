@@ -52,7 +52,10 @@ export class CartsService {
     // and Abandoned carts here because of the gap).
     const rows = await this.prisma.cart.findMany({
       where: { user: { phone: { notIn: TEST_PHONE_NUMBERS } }, ...(eventId ? { eventId } : {}) },
-      include: { user: { select: { name: true, phone: true } }, event: { select: { title: true, date: true, durationHrs: true, seriesEndDate: true } } },
+      include: {
+        user: { select: { name: true, phone: true } },
+        event: { select: { title: true, date: true, durationHrs: true, seriesEndDate: true, privateCity: true, venue: { select: { city: true } } } },
+      },
       orderBy: { createdAt: 'desc' },
     });
     const seen = new Set<string>();
@@ -69,9 +72,12 @@ export class CartsService {
       phone: c.user.phone,
       eventId: c.eventId,
       eventTitle: c.event.title,
+      city: c.event.venue?.city ?? c.event.privateCity ?? null,
       qtyMap: c.qtyMap,
       amount: c.total,
       reminded: !!c.remindedAt,
+      contacted: !!c.contactedAt,
+      followUpNote: c.followUpNote,
       createdAt: c.createdAt,
     }));
   }
@@ -143,6 +149,43 @@ export class CartsService {
     let count = 0;
     for (const id of ids) {
       await this.remind(id).catch(() => {});
+      count++;
+    }
+    return { ok: true, count };
+  }
+
+  /** Admin-only manual removal — a stale/test cart that shouldn't be sitting
+   * in the recovery list (its Redis hold has either already expired or is
+   * irrelevant once the Cart row itself is gone; nothing else references
+   * Cart by FK, so this is a plain row delete, never a status flip). Never
+   * touches a 'completed' cart — that's a real booking's record, not an
+   * abandoned one, and must never disappear from here. */
+  async remove(id: string) {
+    const cart = await this.prisma.cart.findUnique({ where: { id } });
+    if (!cart) throw new NotFoundException('Cart not found');
+    if (cart.status === 'completed') throw new NotFoundException('This cart already converted to a real booking and cannot be removed here');
+    await this.prisma.cart.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  /** Manual follow-up tracking — a staffer who actually called/messaged the
+   * guest personally, distinct from remindedAt (the automated/one-click
+   * WhatsApp+email nudge). `note` is optional free text (what was
+   * said/learned on the call); passing contacted:false clears both fields
+   * so a mis-click can be undone. */
+  async setContacted(id: string, contacted: boolean, note?: string) {
+    const cart = await this.prisma.cart.findUnique({ where: { id } });
+    if (!cart) throw new NotFoundException('Cart not found');
+    return this.prisma.cart.update({
+      where: { id },
+      data: contacted ? { contactedAt: new Date(), followUpNote: note ?? cart.followUpNote } : { contactedAt: null, followUpNote: null },
+    });
+  }
+
+  async bulkRemove(ids: string[]) {
+    let count = 0;
+    for (const id of ids) {
+      await this.remove(id).catch(() => {});
       count++;
     }
     return { ok: true, count };

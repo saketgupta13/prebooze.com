@@ -4,9 +4,18 @@ import { Kpi, SearchBox } from '../components/ui';
 import { liveCarts, liveEvents, LiveApiError, type LiveCart, type LiveCartStats, type LiveEvent } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
-import { MessageCircle, CheckCircle2, RotateCcw } from 'lucide-react';
+import { MessageCircle, CheckCircle2, RotateCcw, Phone, X, Trash2 } from 'lucide-react';
 
 const TITLE = 'Abandoned carts';
+
+// Same formula as EventsReal.tsx's isPastEvent / prebooze-api's
+// CatalogService.isEventOver — used here only to keep the event filter
+// dropdown down to events a guest could still actually be nudged back to
+// book, not every draft/rejected/long-over title in the system.
+const isPastEvent = (e: LiveEvent) => {
+  if (e.seriesEndDate) return new Date(e.seriesEndDate).getTime() + 24 * 3600000 < Date.now();
+  return new Date(e.date).getTime() + e.durationHrs * 3600000 < Date.now();
+};
 
 function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -30,6 +39,7 @@ export default function AbandonedCarts() {
   const [stats, setStats] = useState<LiveCartStats | null>(null);
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [eventF, setEventF] = useState('all');
+  const [cityF, setCityF] = useState('all');
   const [query, setQuery] = useState('');
   // A cart for an event that's already happened can't be recovered — nobody
   // can still buy that ticket — so Live/Past scopes on the event's own
@@ -59,6 +69,13 @@ export default function AbandonedCarts() {
 
   const eventTitle = (id: string) => events.find((e) => e.id === id)?.title ?? id;
 
+  // Only events a guest could still be nudged back to actually book —
+  // approved and not yet over. Draft/pending/rejected/past titles would
+  // otherwise clutter this dropdown with nothing recoverable behind them.
+  const liveEventOptions = useMemo(() => events.filter((e) => e.status === 'approved' && !isPastEvent(e)), [events]);
+
+  const cityOptions = useMemo(() => [...new Set(carts.map((c) => c.city).filter((c): c is string => !!c))].sort(), [carts]);
+
   // The live/past split now happens server-side (CartsService.list's `past`
   // param) — carts is already scoped to whichever tab is active.
   const scoped = carts;
@@ -66,12 +83,13 @@ export default function AbandonedCarts() {
   const filtered = useMemo(() => {
     let l = scoped;
     if (eventF !== 'all') l = l.filter((c) => c.eventId === eventF);
+    if (cityF !== 'all') l = l.filter((c) => c.city === cityF);
     if (query.trim()) {
       const q = query.toLowerCase();
       l = l.filter((c) => c.guest.toLowerCase().includes(q) || c.phone.includes(q));
     }
     return l;
-  }, [scoped, eventF, query]);
+  }, [scoped, eventF, cityF, query]);
 
   const unremindedIds = filtered.filter((c) => !c.reminded).map((c) => c.id);
 
@@ -87,6 +105,8 @@ export default function AbandonedCarts() {
     totalValue: number;
     latestCreatedAt: string;
     allReminded: boolean;
+    allContacted: boolean;
+    note: string | null;
   }
   const groupedRows = useMemo(() => {
     const byPhone = new Map<string, GroupedRow>();
@@ -101,6 +121,8 @@ export default function AbandonedCarts() {
           totalValue: c.amount,
           latestCreatedAt: c.createdAt,
           allReminded: c.reminded,
+          allContacted: c.contacted,
+          note: c.followUpNote,
         });
         return;
       }
@@ -109,6 +131,8 @@ export default function AbandonedCarts() {
       row.totalValue += c.amount;
       if (c.createdAt > row.latestCreatedAt) row.latestCreatedAt = c.createdAt;
       row.allReminded = row.allReminded && c.reminded;
+      row.allContacted = row.allContacted && c.contacted;
+      if (!row.note && c.followUpNote) row.note = c.followUpNote;
     });
     return [...byPhone.values()];
   }, [filtered]);
@@ -124,6 +148,9 @@ export default function AbandonedCarts() {
     return [...m.entries()].sort((a, b) => b[1].value - a[1].value);
   }, [scoped]);
 
+  const [noteDraftPhone, setNoteDraftPhone] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+
   const gate = useLiveGate(TITLE, session);
   if (gate) return gate;
 
@@ -136,6 +163,43 @@ export default function AbandonedCarts() {
       load();
     } catch (e) {
       setErr(e instanceof LiveApiError ? e.message : 'Failed to send reminders');
+    }
+  };
+
+  // Toggling marks/unmarks every cart in the guest's group — "contacted" is
+  // a per-guest follow-up fact (one phone call covers all their open carts),
+  // not a per-cart one.
+  const toggleContacted = async (r: GroupedRow) => {
+    setErr('');
+    try {
+      const next = !r.allContacted;
+      await Promise.all(r.cartIds.map((id) => liveCarts.setContacted(id, next, next ? r.note ?? undefined : undefined)));
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to update');
+    }
+  };
+
+  const saveNote = async (r: GroupedRow) => {
+    setErr('');
+    try {
+      await Promise.all(r.cartIds.map((id) => liveCarts.setContacted(id, true, noteDraft.trim())));
+      setNoteDraftPhone(null);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to save note');
+    }
+  };
+
+  const removeCarts = async (r: GroupedRow) => {
+    if (!window.confirm(`Remove ${r.cartIds.length > 1 ? `all ${r.cartIds.length} carts` : 'this cart'} for ${r.guest}? This can't be undone.`)) return;
+    setErr('');
+    try {
+      await liveCarts.bulkRemove(r.cartIds);
+      setMsg(<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={13} /> removed</span>);
+      load();
+    } catch (e) {
+      setErr(e instanceof LiveApiError ? e.message : 'Failed to remove');
     }
   };
 
@@ -205,48 +269,98 @@ export default function AbandonedCarts() {
           value={eventF}
           onChange={(e) => setEventF(e.target.value)}
         >
-          <option value="all">All events ▾</option>
-          {events.map((e) => (
+          <option value="all">Live events ▾</option>
+          {liveEventOptions.map((e) => (
             <option key={e.id} value={e.id}>{e.title}</option>
+          ))}
+        </select>
+        <select
+          className="chip"
+          style={{ appearance: 'none', cursor: 'pointer', background: cityF !== 'all' ? 'var(--green)' : 'var(--bg)', color: cityF !== 'all' ? 'var(--on-green)' : '#c7cbb9' }}
+          value={cityF}
+          onChange={(e) => setCityF(e.target.value)}
+        >
+          <option value="all">All cities ▾</option>
+          {cityOptions.map((c) => (
+            <option key={c} value={c}>{c}</option>
           ))}
         </select>
       </div>
 
       <div className="tblwrap">
-        <div className="thead" style={{ minWidth: 720 }}>
-          <span style={{ flex: 1.4 }}>Guest</span>
-          <span style={{ flex: 1.6 }}>Event</span>
-          <span style={{ flex: 0.8 }}>Value</span>
-          <span style={{ flex: 0.7 }}>Abandoned</span>
-          <span style={{ flex: 1 }}>Status</span>
-          <span style={{ flex: 1.2 }} />
+        <div className="thead" style={{ minWidth: 900 }}>
+          <span style={{ flex: 1.3 }}>Guest</span>
+          <span style={{ flex: 1.5 }}>Event</span>
+          <span style={{ flex: 0.7 }}>Value</span>
+          <span style={{ flex: 0.6 }}>Abandoned</span>
+          <span style={{ flex: 0.8 }}>Status</span>
+          <span style={{ flex: 0.9 }}>Follow-up</span>
+          <span style={{ flex: 1.6 }} />
         </div>
         {groupedRows.map((r) => {
           const count = r.cartIds.length;
           const eventLabel = r.eventTitles.length > 2
             ? `${r.eventTitles.slice(0, 2).join(', ')} +${r.eventTitles.length - 2} more`
             : r.eventTitles.join(', ');
+          const editingNote = noteDraftPhone === r.phone;
           return (
-          <div key={r.phone} className="trow" style={{ minWidth: 720 }}>
-            <span style={{ flex: 1.4 }}>
-              <b>{count > 1 ? `${count}× ` : ''}{r.guest}</b>
-              <span className="tiny muted" style={{ display: 'block' }}>{r.phone}</span>
-            </span>
-            <span style={{ flex: 1.6 }}>{eventLabel}</span>
-            <span style={{ flex: 0.8, fontWeight: 700 }}>₹{fmt(r.totalValue)}</span>
-            <span style={{ flex: 0.7 }} className="muted tiny">{timeAgo(r.latestCreatedAt)}</span>
-            <span style={{ flex: 1 }}>
-              {r.allReminded ? (
-                <span className="tag" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>reminded</span>
-              ) : (
-                <span className="tag" style={{ borderColor: 'var(--border)' }}>abandoned</span>
-              )}
-            </span>
-            <span style={{ flex: 1.2, display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => bulkRemind(r.cartIds)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                {r.allReminded ? <><RotateCcw size={12} /> Remind again</> : <><MessageCircle size={12} /> Send reminder{count > 1 ? ` (${count})` : ''}</>}
-              </button>
-            </span>
+          <div key={r.phone} className="trow" style={{ minWidth: 900, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ flex: 1.3 }}>
+                <b>{count > 1 ? `${count}× ` : ''}{r.guest}</b>
+                <span className="tiny muted" style={{ display: 'block' }}>{r.phone}</span>
+              </span>
+              <span style={{ flex: 1.5 }}>{eventLabel}</span>
+              <span style={{ flex: 0.7, fontWeight: 700 }}>₹{fmt(r.totalValue)}</span>
+              <span style={{ flex: 0.6 }} className="muted tiny">{timeAgo(r.latestCreatedAt)}</span>
+              <span style={{ flex: 0.8 }}>
+                {r.allReminded ? (
+                  <span className="tag" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>reminded</span>
+                ) : (
+                  <span className="tag" style={{ borderColor: 'var(--border)' }}>abandoned</span>
+                )}
+              </span>
+              <span style={{ flex: 0.9 }}>
+                <button
+                  className="chip"
+                  style={{ fontSize: 10.5, padding: '3px 10px', borderColor: r.allContacted ? 'var(--green)' : 'var(--border)', color: r.allContacted ? 'var(--green)' : undefined }}
+                  onClick={() => toggleContacted(r)}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Phone size={10} /> {r.allContacted ? 'Contacted' : 'Not contacted'}</span>
+                </button>
+              </span>
+              <span style={{ flex: 1.6, display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => bulkRemind(r.cartIds)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  {r.allReminded ? <><RotateCcw size={12} /> Remind again</> : <><MessageCircle size={12} /> Send reminder{count > 1 ? ` (${count})` : ''}</>}
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => { setNoteDraftPhone(r.phone); setNoteDraft(r.note ?? ''); }}
+                >
+                  {r.note ? 'Edit note' : '+ Note'}
+                </button>
+                <button className="btn btn-danger btn-sm" style={{ padding: '2px 7px' }} onClick={() => removeCarts(r)}>
+                  <Trash2 size={12} />
+                </button>
+              </span>
+            </div>
+            {r.note && !editingNote && (
+              <div className="tiny muted" style={{ paddingLeft: 2 }}>note: {r.note}</div>
+            )}
+            {editingNote && (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  className="input"
+                  style={{ padding: '5px 8px', flex: 1 }}
+                  placeholder="what happened on the call…"
+                  value={noteDraft}
+                  onChange={(e) => setNoteDraft(e.target.value)}
+                  autoFocus
+                />
+                <button className="btn btn-pri btn-sm" onClick={() => saveNote(r)}>Save</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setNoteDraftPhone(null)}><X size={12} /></button>
+              </div>
+            )}
           </div>
           );
         })}

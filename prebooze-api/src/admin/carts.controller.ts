@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { CartsService } from './carts.service';
 import { StaffAuthGuard } from './staff-auth.guard';
 import { PermissionGuard } from './permission.guard';
@@ -33,5 +33,23 @@ export class AdminCartsController {
   @RequirePermission(MODULE, 'edit')
   bulkRemind(@Body('ids') ids: string[]) {
     return this.carts.bulkRemind(ids ?? []);
+  }
+
+  @Patch(':id/contacted')
+  @RequirePermission(MODULE, 'edit')
+  setContacted(@Param('id') id: string, @Body('contacted') contacted: boolean, @Body('note') note?: string) {
+    return this.carts.setContacted(id, !!contacted, note);
+  }
+
+  @Delete(':id')
+  @RequirePermission(MODULE, 'edit')
+  remove(@Param('id') id: string) {
+    return this.carts.remove(id);
+  }
+
+  @Post('bulk-remove')
+  @RequirePermission(MODULE, 'edit')
+  bulkRemove(@Body('ids') ids: string[]) {
+    return this.carts.bulkRemove(ids ?? []);
   }
 }
