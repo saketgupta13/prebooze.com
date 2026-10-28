@@ -186,30 +186,29 @@ export default function PushBroadcast() {
       </div>
 
       <div className="page-hd" style={{ marginTop: 20 }}><h2 className="page-title" style={{ fontSize: 16 }}>History</h2></div>
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <table className="table">
-          <thead>
-            <tr><th>Title</th><th>Audience</th><th>Reach</th><th>Status</th><th>When</th></tr>
-          </thead>
-          <tbody>
-            {history.length === 0 && (
-              <tr><td colSpan={5} className="tiny muted" style={{ padding: 12, textAlign: 'center' }}>No broadcasts sent yet</td></tr>
-            )}
-            {history.map((h) => (
-              <tr key={h.id}>
-                <td>{h.title}</td>
-                <td className="tiny muted">
-                  {h.audienceType === 'city' ? (h.city || 'All cities') : h.audienceType === 'event' ? `Event: ${h.eventSlug}` : `Follows: ${h.followeeKey}`}
-                </td>
-                <td className="tiny muted">{h.status === 'scheduled' ? h.audienceCount : h.sentCount}</td>
-                <td className="tiny muted">{h.status}</td>
-                <td className="tiny muted">
+      {history.length === 0 && <div className="card tiny muted" style={{ textAlign: 'center' }}>No broadcasts sent yet</div>}
+      <div className="stack" style={{ gap: 8 }}>
+        {history.map((h) => {
+          const audienceLabel = h.audienceType === 'city' ? (h.city || 'All cities') : h.audienceType === 'event' ? `Interested in: ${h.eventSlug}` : `Follows: ${h.followeeKey}`;
+          const reach = h.status === 'scheduled' ? h.audienceCount : h.sentCount;
+          const statusColor = h.status === 'sent' ? 'var(--green)' : h.status === 'scheduled' ? 'var(--amber, #c9a227)' : 'var(--red)';
+          return (
+            <div key={h.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                <div className="display" style={{ fontSize: 15, fontWeight: 700 }}>{h.title}</div>
+                <span className="tag" style={{ borderColor: statusColor, color: statusColor, flexShrink: 0 }}>{h.status}</span>
+              </div>
+              <div className="tiny muted">{h.message}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginTop: 2 }}>
+                <span className="tag" style={{ borderColor: 'var(--border)' }}>{audienceLabel}</span>
+                <span className="tiny muted">{reach} guest{reach === 1 ? '' : 's'}</span>
+                <span className="tiny muted">
                   {h.status === 'scheduled' && h.scheduledFor ? `due ${new Date(h.scheduledFor).toLocaleString()}` : h.sentAt ? timeAgo(h.sentAt) : timeAgo(h.createdAt)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
