@@ -149,6 +149,7 @@ const NAV_MODULE: Record<string, string> = {
   '/faqs': 'Content',
   '/categories': 'Content',
   '/trending': 'Content',
+  '/push-notifications': 'Push notifications',
   '/venue-types': 'Content',
   '/amenities': 'Content',
   '/blogs': 'Content',
