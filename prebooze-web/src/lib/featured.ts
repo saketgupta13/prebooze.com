@@ -28,3 +28,19 @@ export function findFeatured(featured: Featured[], type: Featured['type'], refId
 export function featuredFirst<T>(items: T[], refOf: (t: T) => string, refs: Set<string>): T[] {
   return [...items].sort((a, b) => (refs.has(refOf(b)) ? 1 : 0) - (refs.has(refOf(a)) ? 1 : 0));
 }
+
+/** Fisher-Yates shuffle — a new copy, original array untouched. Used so the
+ * Top organizers/promoters/lineups/venues home sections don't always show
+ * the exact same highest-rating/most-followed profiles in the exact same
+ * order on every single visit (a real fairness complaint: an org with 4.9
+ * rating and 50 followers would otherwise permanently bury a newer org with
+ * 4.6 and 40 followers). featuredFirst() is still applied on top of this,
+ * so a paid Featured placement always wins regardless of the shuffle. */
+export function shuffle<T>(items: T[]): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}

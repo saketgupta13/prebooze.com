@@ -7,9 +7,9 @@ import {
 } from '../data/mock';
 import { catalog, content } from '../api';
 import { isBackendEnabled } from '../api/client';
-import type { CmsBanner, CmsReel, CmsTestimonial, CmsBlogSummary, Event, Organizer, PromoterProfile, LineupProfile, Person, Venue } from '../types';
+import type { CmsBanner, CmsReel, CmsTestimonial, CmsBlogSummary, Event, Organizer, PromoterProfile, LineupProfile, Person, Venue, Featured } from '../types';
 import { personFollowKey } from '../lib/social';
-import { featuredRefs, featuredFirst } from '../lib/featured';
+import { featuredRefs, featuredFirst, shuffle } from '../lib/featured';
 import { organizerPath, promoterPath, lineupPath, venuePath, eventPath, cityBrowse, cityOrganizers, cityPromoters, cityLineups, cityVenues, cityPeople as cityPeoplePath } from '../lib/urls';
 import { fmtDate } from '../data/mock';
 import { getRecentlyViewed, type RecentlyViewedEvent } from '../lib/recentlyViewed';
@@ -163,11 +163,24 @@ const JOIN: { icon: LucideIcon; title: string; desc: string; cta: string; to: st
 export default function Home() {
   useSeo();
   const { city, user, carts, setSelection, following, toggleFollow, featured, netFollowers } = useApp();
-  const orgFeat = featuredRefs(featured, 'organizer', city);
-  const promoFeat = featuredRefs(featured, 'promoter', city);
-  const lineFeat = featuredRefs(featured, 'lineup', city);
-  const venueFeat = featuredRefs(featured, 'venue', city);
-  const eventFeat = featuredRefs(featured, 'event', city);
+  // Real gap found 2026-10-29: AppContext's `featured` is mock/localStorage
+  // only (GET /featured was defined in the API client but never actually
+  // called anywhere) — the "★ Featured" badges below, and any featured-first
+  // ordering, were never driven by a real paid placement. Fetched directly
+  // here (effect further down, alongside the other pool fetches) rather
+  // than threading a new live field through AppContext. Falls back to the
+  // mock `featured` only when the backend is off (dev/offline).
+  const [liveFeatured, setLiveFeatured] = useState<Featured[] | null>(null);
+  const featuredData = isBackendEnabled() ? (liveFeatured ?? []) : featured;
+  // Memoized — these feed the shuffled top-lists' useMemo deps below, and a
+  // fresh Set reference on every render (featuredRefs() builds a new one
+  // each call) would silently defeat that memoization and reshuffle on
+  // every unrelated re-render instead of only when featuredData/city change.
+  const orgFeat = useMemo(() => featuredRefs(featuredData, 'organizer', city), [featuredData, city]);
+  const promoFeat = useMemo(() => featuredRefs(featuredData, 'promoter', city), [featuredData, city]);
+  const lineFeat = useMemo(() => featuredRefs(featuredData, 'lineup', city), [featuredData, city]);
+  const venueFeat = useMemo(() => featuredRefs(featuredData, 'venue', city), [featuredData, city]);
+  const eventFeat = featuredRefs(featuredData, 'event', city);
   const navigate = useNavigate();
   const [cat, setCat] = useState('All');
   const [howTab, setHowTab] = useState<'guests' | 'organizers' | 'promoters' | 'lineups' | 'venues'>('guests');
@@ -294,6 +307,7 @@ export default function Home() {
     catalog.lineups(city).then(setLiveLineups).catch(() => setLiveLineups([]));
     catalog.venues(city).then(setLiveVenues).catch(() => setLiveVenues([]));
     catalog.people(city).then(setLivePeople).catch(() => setLivePeople([]));
+    catalog.featured(city).then(setLiveFeatured).catch(() => setLiveFeatured([]));
   }, [city]);
   // Each fetch above resolves at a different time — without tracking these,
   // every section below hid itself (rendered nothing) until its own call
@@ -373,10 +387,17 @@ export default function Home() {
   const promoterPool = livePromoters ?? (isBackendEnabled() ? [] : byCity(PROMOTERS));
   const lineupPool = liveLineups ?? (isBackendEnabled() ? [] : byCity(LINEUPS));
   const venuePool = liveVenues ?? (isBackendEnabled() ? [] : byCity(VENUES));
-  const topOrganizers = featuredFirst([...orgPool].sort((a, b) => b.eventsHosted - a.eventsHosted), (o) => o.id, orgFeat).slice(0, 10);
-  const topPromoters = featuredFirst([...promoterPool].sort((a, b) => b.showRate - a.showRate), (p) => p.slug, promoFeat).slice(0, 10);
-  const topLineups = featuredFirst([...lineupPool].sort((a, b) => b.followers - a.followers), (l) => l.slug, lineFeat).slice(0, 10);
-  const topVenues = featuredFirst([...venuePool].sort((a, b) => b.rating - a.rating), (v) => v.id, venueFeat).slice(0, 10);
+  // Randomized, not ranked by rating/followers/eventsHosted — otherwise the
+  // same handful of highest-scoring profiles would permanently occupy every
+  // slot and bury everyone else. A real Featured placement still always
+  // wins (featuredFirst applied on top). Reshuffles only when the
+  // underlying pool/featured set actually changes (useMemo), not on every
+  // unrelated re-render — a guest scrolling the page shouldn't see these
+  // cards visibly reorder under them.
+  const topOrganizers = useMemo(() => featuredFirst(shuffle(orgPool), (o) => o.id, orgFeat).slice(0, 10), [orgPool, orgFeat]);
+  const topPromoters = useMemo(() => featuredFirst(shuffle(promoterPool), (p) => p.slug, promoFeat).slice(0, 10), [promoterPool, promoFeat]);
+  const topLineups = useMemo(() => featuredFirst(shuffle(lineupPool), (l) => l.slug, lineFeat).slice(0, 10), [lineupPool, lineFeat]);
+  const topVenues = useMemo(() => featuredFirst(shuffle(venuePool), (v) => v.id, venueFeat).slice(0, 10), [venuePool, venueFeat]);
   const peoplePool = livePeople ?? (isBackendEnabled() ? [] : byCity(PEOPLE));
   const cityPeople = [...peoplePool].sort((a, b) => b.followers - a.followers).slice(0, 10);
 

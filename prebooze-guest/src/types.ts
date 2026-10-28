@@ -137,6 +137,17 @@ export interface PromoterConfig {
   revenueShare?: Record<string, number>;
 }
 
+/** Ported from prebooze-web/src/types.ts — a real paid placement, trimmed
+ * to what HomeScreen's featured-first ordering/badges need. */
+export interface Featured {
+  id: string;
+  type: 'event' | 'organizer' | 'promoter' | 'lineup' | 'venue';
+  refId: string; // event id | organizer id | promoter slug | lineup slug | venue id
+  city: string;
+  status: 'pending' | 'active' | 'rejected' | 'expired';
+  expiresAt: string;
+}
+
 export type VenueDayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 export type VenueDayTiming = { open: string; close: string; closed: boolean };
 export type VenueTimingsByDay = Partial<Record<VenueDayKey, VenueDayTiming>>;

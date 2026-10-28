@@ -25,7 +25,8 @@ import ReelCard from '../../components/ReelCard';
 import { Button, Chip, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../theme/tokens';
 import type { RootStackParamList } from '../../navigation/types';
-import type { Event, LineupProfile, Organizer, Person, PromoterProfile, Venue } from '../../types';
+import type { Event, Featured, LineupProfile, Organizer, Person, PromoterProfile, Venue } from '../../types';
+import { featuredRefs, featuredFirst, shuffle } from '../../lib/featured';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -75,6 +76,12 @@ export default function HomeScreen() {
   const [lineups, setLineups] = useState<LineupProfile[] | null>(null);
   const [venues, setVenues] = useState<Venue[] | null>(null);
   const [people, setPeople] = useState<Person[] | null>(null);
+  // Real active, non-expired, city-scoped paid placements — this screen had
+  // no featured-ordering concept at all before (same gap found and fixed on
+  // web 2026-10-29). Pins a Featured organizer/promoter/lineup/venue first
+  // and renders its badge; everything else below is shuffled, not always
+  // the same top-by-rating/followers handful every visit.
+  const [featured, setFeatured] = useState<Featured[]>([]);
   const [reels, setReels] = useState<CmsReel[]>([]);
   // Real, admin-managed hero banners — same source as prebooze-web's Home.tsx
   // (Admin > Content > Banners). HERO above stays only as the fallback for
@@ -105,6 +112,7 @@ export default function HomeScreen() {
     catalog.lineups(city).then(setLineups).catch(() => setLineups([]));
     catalog.venues(city).then(setVenues).catch(() => setVenues([]));
     catalog.people(city).then(setPeople).catch(() => setPeople([]));
+    catalog.featured(city).then(setFeatured).catch(() => setFeatured([]));
     content.reels(city).then(setReels).catch(() => setReels([]));
     content.banners(city).then(setLiveBannersRaw).catch(() => setLiveBannersRaw([]));
     getResumeCart().then(setResumeCart).catch(() => {});
@@ -163,6 +171,24 @@ export default function HomeScreen() {
   // The shared Button component is sized for full-width primary actions
   // (50dp tall, large label) — inside a 190dp DirectoryCard that dwarfed
   // the card. A small dedicated pill instead, same visual states.
+  // Memoized — featuredRefs() builds a new Set every call, and a fresh
+  // reference on every render would defeat the shuffle memoization below,
+  // reshuffling on every unrelated re-render instead of only when
+  // featured/city actually change.
+  const orgFeat = useMemo(() => featuredRefs(featured, 'organizer', city), [featured, city]);
+  const promoFeat = useMemo(() => featuredRefs(featured, 'promoter', city), [featured, city]);
+  const lineFeat = useMemo(() => featuredRefs(featured, 'lineup', city), [featured, city]);
+  const venueFeat = useMemo(() => featuredRefs(featured, 'venue', city), [featured, city]);
+  // Shuffled, not ranked by rating/followers/eventsHosted — otherwise the
+  // same handful of highest-scoring profiles would permanently occupy
+  // every slot. A real Featured placement still always wins (featuredFirst
+  // applied on top). Reshuffles only when the pool/featured set actually
+  // changes, not on every render.
+  const topOrganizers = useMemo(() => (organizers ? featuredFirst(shuffle(organizers), (o) => o.id, orgFeat).slice(0, 10) : []), [organizers, orgFeat]);
+  const topPromoters = useMemo(() => (promoters ? featuredFirst(shuffle(promoters), (p) => p.slug, promoFeat).slice(0, 10) : []), [promoters, promoFeat]);
+  const topLineups = useMemo(() => (lineups ? featuredFirst(shuffle(lineups), (l) => l.slug, lineFeat).slice(0, 10) : []), [lineups, lineFeat]);
+  const topVenues = useMemo(() => (venues ? featuredFirst(shuffle(venues), (v) => v.id, venueFeat).slice(0, 10) : []), [venues, venueFeat]);
+
   const followBtn = (key: string) => {
     const isFollowing = following.has(key);
     return (
@@ -439,7 +465,7 @@ export default function HomeScreen() {
         {!!organizers && organizers.length > 0 && (
           <View style={styles.section}>
             <SliderSection title={`Top organizers in ${city}`} onSeeAll={() => navigation.navigate('OrganizersDirectory')}>
-              {organizers.slice(0, 10).map((o) => (
+              {topOrganizers.map((o) => (
                 <DirectoryCard
                   key={o.id}
                   onPress={() => navigation.navigate('OrganizerProfile', { id: o.id })}
@@ -451,6 +477,7 @@ export default function HomeScreen() {
                   meta={`${o.city} · ★ ${o.rating}`}
                   stats={`${o.eventsHosted} events · ${o.followers} followers`}
                   action={followBtn(o.id)}
+                  featured={orgFeat.has(o.id)}
                 />
               ))}
             </SliderSection>
@@ -460,7 +487,7 @@ export default function HomeScreen() {
         {!!promoters && promoters.length > 0 && (
           <View style={styles.section}>
             <SliderSection title={`Top promoters in ${city}`} icon={<Megaphone size={16} color={colors.text} />} onSeeAll={() => navigation.navigate('PromotersDirectory')}>
-              {promoters.slice(0, 10).map((p) => (
+              {topPromoters.map((p) => (
                 <DirectoryCard
                   key={p.slug}
                   onPress={() => navigation.navigate('PromoterProfile', { slug: p.slug })}
@@ -472,6 +499,7 @@ export default function HomeScreen() {
                   meta={`${p.city} · ${p.followers} followers`}
                   stats={`${p.showRate}% show-rate · ${p.guestsBrought} brought`}
                   action={followBtn(`promoter:${p.slug}`)}
+                  featured={promoFeat.has(p.slug)}
                 />
               ))}
             </SliderSection>
@@ -481,7 +509,7 @@ export default function HomeScreen() {
         {!!lineups && lineups.length > 0 && (
           <View style={styles.section}>
             <SliderSection title={`Top line-ups in ${city}`} onSeeAll={() => navigation.navigate('LineupsDirectory')}>
-              {lineups.slice(0, 10).map((l) => (
+              {topLineups.map((l) => (
                 <DirectoryCard
                   key={l.slug}
                   onPress={() => navigation.navigate('LineupProfile', { slug: l.slug })}
@@ -493,6 +521,7 @@ export default function HomeScreen() {
                   meta={`${l.category} · ${l.city}`}
                   stats={`${l.followers} followers · ${l.eventsPlayed} shows`}
                   action={followBtn(`lineup:${l.slug}`)}
+                  featured={lineFeat.has(l.slug)}
                 />
               ))}
             </SliderSection>
@@ -502,13 +531,14 @@ export default function HomeScreen() {
         {!!venues && venues.length > 0 && (
           <View style={styles.section}>
             <SliderSection title={`Top venues in ${city}`} onSeeAll={() => navigation.navigate('VenuesDirectory')}>
-              {venues.slice(0, 10).map((v) => (
+              {topVenues.map((v) => (
                 <VenueCard
                   key={v.id}
                   venue={v}
                   eventCount={v.eventsHosted}
                   onPress={() => navigation.navigate('VenueProfile', { id: v.id })}
                   action={followBtn(`venue:${v.id}`)}
+                  featured={venueFeat.has(v.id)}
                 />
               ))}
             </SliderSection>

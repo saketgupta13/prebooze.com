@@ -1,7 +1,7 @@
 /** Read-only public catalog endpoints — same contract as
  * prebooze-web/src/api/index.ts's `catalog` export, no auth required. */
 import { apiFetch } from './client';
-import type { Event, LineupProfile, Organizer, Person, PersonDetail, PromoterProfile, Venue } from '../types';
+import type { Event, Featured, LineupProfile, Organizer, Person, PersonDetail, PromoterProfile, Venue } from '../types';
 
 export const catalog = {
   events: (q: { city?: string; cat?: string; sub?: string; search?: string; sort?: string; organizerId?: string; venueId?: string; includePast?: boolean }) =>
@@ -20,6 +20,12 @@ export const catalog = {
   categories: () => apiFetch<{ name: string; icon: string; subs: string[] }[]>('/categories'),
   venueTypes: () => apiFetch<{ name: string; icon?: string; events: number }[]>('/venue-types'),
   cities: () => apiFetch<{ name: string; icon?: string; top: boolean; state?: string; events: number; venues: number; organizers: number }[]>('/cities'),
+  // Real active, non-expired, city-scoped paid placements — HomeScreen uses
+  // this to pin a Featured organizer/promoter/lineup/venue/event first and
+  // to render the "★ Featured" badge. Added 2026-10-29: this app had no
+  // featured-ordering concept at all before (web had the same gap, since
+  // fixed — GET /featured existed on the backend but was never called).
+  featured: (city?: string) => apiFetch<Featured[]>('/featured', { query: { city } }),
   search: (q: string) => apiFetch<{ label: string; type: string; to: string }[]>('/search', { query: { q } }),
   trending: () => apiFetch<string[]>('/search/trending'),
 };
