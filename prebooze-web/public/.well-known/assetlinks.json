@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.prebooze.guest",
+      "sha256_cert_fingerprints": [
+        "BC:81:71:87:35:31:E6:57:7D:9B:8F:8F:0A:0A:A5:AB:A0:AA:53:0C:0D:C6:03:DC:0B:B8:63:51:75:AE:2B:03"
+      ]
+    }
+  }
+]
