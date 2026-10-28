@@ -1976,6 +1976,11 @@ model Cart {
   // rows from before this field existed, or a plain toggle with no detail).
   followUpOutcome String?
   followUpNote  String?
+  // When to call this guest again — a scheduled future reminder, distinct
+  // from contactedAt (when the last call actually happened). Set from the
+  // same follow-up editor; e.g. after a "no_answer" outcome a staffer picks
+  // a date/time to try again. Null means no callback is scheduled.
+  nextFollowUpAt DateTime?
   // The guest's attendee-details form (mainGuest/whatsapp/guests) plus
   // coupon/wallet/promoter/payMethod choices, snapshotted the instant they
   // click Pay (BookingsService.prepare) — before Razorpay opens, so it

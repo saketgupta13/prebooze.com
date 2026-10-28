@@ -41,10 +41,11 @@ export class AdminCartsController {
     @Param('id') id: string,
     @Body('contacted') contacted: boolean,
     @Body('at') at?: string,
+    @Body('nextAt') nextAt?: string | null,
     @Body('outcome') outcome?: string | null,
     @Body('note') note?: string,
   ) {
-    return this.carts.setFollowUp(id, !!contacted, { at, outcome, note });
+    return this.carts.setFollowUp(id, !!contacted, { at, nextAt, outcome, note });
   }
 
   @Delete(':id')

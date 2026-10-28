@@ -4,7 +4,7 @@ import { Kpi, SearchBox } from '../components/ui';
 import { liveCarts, liveEvents, LiveApiError, type LiveCart, type LiveCartStats, type LiveEvent, type LiveFollowUpOutcome } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
-import { MessageCircle, CheckCircle2, RotateCcw, Phone, X, Trash2 } from 'lucide-react';
+import { MessageCircle, CheckCircle2, RotateCcw, Phone, X, Trash2, CalendarClock } from 'lucide-react';
 
 const TITLE = 'Abandoned carts';
 
@@ -154,6 +154,7 @@ export default function AbandonedCarts() {
     note: string | null;
     followUpAt: string | null;
     followUpOutcome: LiveFollowUpOutcome | null;
+    nextFollowUpAt: string | null;
   }
   const groupedRows = useMemo(() => {
     const byPhone = new Map<string, GroupedRow>();
@@ -172,6 +173,7 @@ export default function AbandonedCarts() {
           note: c.followUpNote,
           followUpAt: c.followUpAt,
           followUpOutcome: c.followUpOutcome,
+          nextFollowUpAt: c.nextFollowUpAt,
         });
         return;
       }
@@ -184,6 +186,7 @@ export default function AbandonedCarts() {
       if (!row.note && c.followUpNote) row.note = c.followUpNote;
       if (!row.followUpAt && c.followUpAt) row.followUpAt = c.followUpAt;
       if (!row.followUpOutcome && c.followUpOutcome) row.followUpOutcome = c.followUpOutcome;
+      if (!row.nextFollowUpAt && c.nextFollowUpAt) row.nextFollowUpAt = c.nextFollowUpAt;
     });
     const rows = [...byPhone.values()];
     rows.sort((a, b) => (sortBy === 'value' ? b.totalValue - a.totalValue : new Date(a.latestCreatedAt).getTime() - new Date(b.latestCreatedAt).getTime()));
@@ -203,6 +206,7 @@ export default function AbandonedCarts() {
 
   const [editingPhone, setEditingPhone] = useState<string | null>(null);
   const [draftAt, setDraftAt] = useState('');
+  const [draftNextAt, setDraftNextAt] = useState('');
   const [draftOutcome, setDraftOutcome] = useState<LiveFollowUpOutcome | ''>('');
   const [draftNote, setDraftNote] = useState('');
 
@@ -227,6 +231,7 @@ export default function AbandonedCarts() {
   const openEditor = (r: GroupedRow) => {
     setEditingPhone(r.phone);
     setDraftAt(toLocalInputValue(r.followUpAt ?? new Date().toISOString()));
+    setDraftNextAt(r.nextFollowUpAt ? toLocalInputValue(r.nextFollowUpAt) : '');
     setDraftOutcome(r.followUpOutcome ?? '');
     setDraftNote(r.note ?? '');
   };
@@ -235,7 +240,8 @@ export default function AbandonedCarts() {
     setErr('');
     try {
       const at = draftAt ? new Date(draftAt).toISOString() : undefined;
-      await Promise.all(r.cartIds.map((id) => liveCarts.setFollowUp(id, true, { at, outcome: draftOutcome || null, note: draftNote.trim() })));
+      const nextAt = draftNextAt ? new Date(draftNextAt).toISOString() : null;
+      await Promise.all(r.cartIds.map((id) => liveCarts.setFollowUp(id, true, { at, nextAt, outcome: draftOutcome || null, note: draftNote.trim() })));
       setEditingPhone(null);
       load();
     } catch (e) {
@@ -410,6 +416,12 @@ export default function AbandonedCarts() {
               {r.allContacted && r.followUpAt && (
                 <span className="tiny muted">called {formatDateTime(r.followUpAt)} ({timeAgo(r.followUpAt)})</span>
               )}
+              {r.nextFollowUpAt && (
+                <span className="tag" style={{ borderColor: new Date(r.nextFollowUpAt).getTime() < Date.now() ? 'var(--red)' : 'var(--amber, #c9a227)', color: new Date(r.nextFollowUpAt).getTime() < Date.now() ? 'var(--red)' : undefined, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <CalendarClock size={10} /> call back {formatDateTime(r.nextFollowUpAt)}
+                  {new Date(r.nextFollowUpAt).getTime() < Date.now() && ' — overdue'}
+                </span>
+              )}
             </div>
             {r.allContacted && !!r.note && !editing && (
               <div className="tiny muted" style={{ background: 'rgba(255,255,255,.03)', padding: '6px 10px', borderRadius: 6 }}>note: {r.note}</div>
@@ -421,6 +433,10 @@ export default function AbandonedCarts() {
                 <div className="field" style={{ minWidth: 190 }}>
                   <label className="tiny muted">Call date &amp; time</label>
                   <input type="datetime-local" className="input" style={{ padding: '6px 8px', width: '100%' }} value={draftAt} onChange={(e) => setDraftAt(e.target.value)} />
+                </div>
+                <div className="field" style={{ minWidth: 190 }}>
+                  <label className="tiny muted">Call back on (optional)</label>
+                  <input type="datetime-local" className="input" style={{ padding: '6px 8px', width: '100%' }} value={draftNextAt} onChange={(e) => setDraftNextAt(e.target.value)} />
                 </div>
                 <div className="field" style={{ minWidth: 150 }}>
                   <label className="tiny muted">Outcome</label>

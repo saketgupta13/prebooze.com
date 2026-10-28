@@ -80,6 +80,7 @@ export class CartsService {
       followUpAt: c.contactedAt,
       followUpOutcome: c.followUpOutcome,
       followUpNote: c.followUpNote,
+      nextFollowUpAt: c.nextFollowUpAt,
       createdAt: c.createdAt,
     }));
   }
@@ -172,12 +173,14 @@ export class CartsService {
 
   /** Manual follow-up tracking — a staffer who actually called/messaged the
    * guest personally, distinct from remindedAt (the automated/one-click
-   * WhatsApp+email nudge). `at` is the real date/time of the call (lets a
-   * staffer log a call they made earlier, not just "now"); `outcome` is one
-   * of no_answer/declined/will_book, or omitted for a plain contacted-with-
-   * no-detail toggle. Passing contacted:false clears all three fields so a
+   * WhatsApp+email nudge). `at` is the real date/time of the call that
+   * already happened (lets a staffer log a call made earlier, not just
+   * "now"); `nextAt` is a separate scheduled callback — when to try this
+   * guest again, e.g. after a "no_answer" outcome. `outcome` is one of
+   * no_answer/declined/will_book, or omitted for a plain contacted-with-
+   * no-detail toggle. Passing contacted:false clears every field so a
    * mis-click/mis-log can be undone. */
-  async setFollowUp(id: string, contacted: boolean, fields?: { at?: string; outcome?: string | null; note?: string }) {
+  async setFollowUp(id: string, contacted: boolean, fields?: { at?: string; nextAt?: string | null; outcome?: string | null; note?: string }) {
     const cart = await this.prisma.cart.findUnique({ where: { id } });
     if (!cart) throw new NotFoundException('Cart not found');
     return this.prisma.cart.update({
@@ -187,8 +190,9 @@ export class CartsService {
             contactedAt: fields?.at ? new Date(fields.at) : (cart.contactedAt ?? new Date()),
             followUpOutcome: fields?.outcome !== undefined ? fields.outcome : cart.followUpOutcome,
             followUpNote: fields?.note !== undefined ? fields.note : cart.followUpNote,
+            nextFollowUpAt: fields?.nextAt !== undefined ? (fields.nextAt ? new Date(fields.nextAt) : null) : cart.nextFollowUpAt,
           }
-        : { contactedAt: null, followUpOutcome: null, followUpNote: null },
+        : { contactedAt: null, followUpOutcome: null, followUpNote: null, nextFollowUpAt: null },
     });
   }
 
