@@ -1505,10 +1505,35 @@ export const liveTrending = {
   remove: (term: string) => liveFetch<{ ok: true }>(`/admin/trending/${encodeURIComponent(term)}`, { method: 'DELETE' }),
 };
 
+export type LiveBroadcastAudienceType = 'city' | 'event' | 'follow';
+export interface LiveBroadcastLog {
+  id: string;
+  title: string;
+  message: string;
+  audienceType: LiveBroadcastAudienceType;
+  city: string | null;
+  eventSlug: string | null;
+  followeeKey: string | null;
+  audienceCount: number;
+  sentCount: number;
+  status: 'scheduled' | 'sent' | 'failed';
+  scheduledFor: string | null;
+  sentAt: string | null;
+  createdAt: string;
+}
 export const liveBroadcast = {
-  audience: (city?: string) => liveFetch<{ count: number }>(`/admin/broadcast/audience${city ? `?city=${encodeURIComponent(city)}` : ''}`),
-  send: (body: { title: string; message: string; city?: string; eventSlug?: string }) =>
-    liveFetch<{ sent: number }>('/admin/broadcast', { body }),
+  audience: (q: { audienceType?: LiveBroadcastAudienceType; city?: string; eventSlug?: string; followeeKey?: string }) => {
+    const p = new URLSearchParams();
+    if (q.audienceType) p.set('audienceType', q.audienceType);
+    if (q.city) p.set('city', q.city);
+    if (q.eventSlug) p.set('eventSlug', q.eventSlug);
+    if (q.followeeKey) p.set('followeeKey', q.followeeKey);
+    const qs = p.toString();
+    return liveFetch<{ count: number }>(`/admin/broadcast/audience${qs ? `?${qs}` : ''}`);
+  },
+  history: () => liveFetch<LiveBroadcastLog[]>('/admin/broadcast/history'),
+  send: (body: { title: string; message: string; audienceType?: LiveBroadcastAudienceType; city?: string; eventSlug?: string; followeeKey?: string; scheduledFor?: string }) =>
+    liveFetch<{ sent: number; scheduled: boolean }>('/admin/broadcast', { body }),
 };
 
 export interface LiveVenueType { name: string; icon: string | null; sort: number; events: number; }

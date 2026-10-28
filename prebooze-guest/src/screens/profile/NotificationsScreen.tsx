@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, Bell, PartyPopper, Ticket, X } from 'lucide-react-native';
+import { ArrowLeft, Bell, Megaphone, PartyPopper, Ticket, X } from 'lucide-react-native';
 import { social, type GuestNotification } from '../../api/social';
 import { ApiError } from '../../api/client';
 import { Card, H1, IconButton, Muted, Screen, Txt } from '../../components/ui';
@@ -22,6 +22,10 @@ const KIND_ICON: Record<string, { Icon: typeof Ticket; color: string; bg: string
   // than reusing the accent green that 'event'/'going' already use, so the
   // inbox visually separates "something to act on" from "fyi".
   ticket: { Icon: Ticket, color: '#f5c04a', bg: 'rgba(245,192,74,0.14)' },
+  // Admin-sent offers/promotions (BroadcastService) — a distinct blue tint,
+  // neither the "act now" amber above nor the accent green, since a promo
+  // is neither urgent nor directly earned by the guest's own activity.
+  promo: { Icon: Megaphone, color: '#4ab3f5', bg: 'rgba(74,179,245,0.14)' },
 };
 
 const timeAgo = (iso: string) => {

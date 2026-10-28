@@ -15,6 +15,7 @@ import { SettlementsService } from './settlements.service';
 import { SocialService } from '../social/social.service';
 import { PhonePeService } from '../payments/phonepe.service';
 import { GuestNotificationsService } from '../notifications/guest-notifications';
+import { BroadcastService } from './broadcast.service';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -41,6 +42,7 @@ export class CronService {
     private social: SocialService,
     private phonepe: PhonePeService,
     private guestNotifications: GuestNotificationsService,
+    private broadcast: BroadcastService,
   ) {}
 
   /** Payouts are never marked paid automatically — there's no real bank
@@ -230,6 +232,20 @@ export class CronService {
    * incident's root cause). Bounded to carts under 24h old so a
    * permanently abandoned cart doesn't get checked (and staff isn't
    * re-alerted about a genuinely unrecoverable one) forever. */
+  /** Every 5 minutes — fires a scheduled push broadcast (BroadcastService)
+   * once its scheduledFor time has actually passed, same cadence as the
+   * other near-real-time ticks above. */
+  @Cron('*/5 * * * *')
+  async broadcastTick() {
+    const due = await this.broadcast.dueScheduled();
+    for (const b of due) {
+      await this.broadcast
+        .sendNow(b.title, b.message, { audienceType: b.audienceType as 'city' | 'event' | 'follow', city: b.city || undefined, eventSlug: b.eventSlug || undefined, followeeKey: b.followeeKey || undefined }, b.id)
+        .catch((e) => this.log.error(`broadcastTick failed for ${b.id}: ${e.message}`));
+    }
+    if (due.length) this.log.log(`Broadcast tick: sent ${due.length} scheduled push(es)`);
+  }
+
   @Cron('*/10 * * * *')
   async stuckPhonePePaymentTick() {
     const now = Date.now();

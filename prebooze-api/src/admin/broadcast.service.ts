@@ -2,17 +2,8 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { GuestNotificationsService } from '../notifications/guest-notifications';
 
-/** Admin-sent promotional/offer pushes to the guest app — reuses
- * GuestNotificationsService.notify() for each recipient, the exact same
- * real pipeline (in-app inbox row + app-scoped Expo push, respecting the
- * guest's own notificationsEnabled mute switch) every other guest-facing
- * trigger in this app already goes through. Audience is "every guest who
- * actually has the guest app installed" (a real PushToken row tagged
- * app:'guest'), not every registered account — a guest who's never
- * installed the app, or an organizer-only account, has nothing to send
- * this to. Optional city filter narrows to guests whose own account city
- * matches (best-effort targeting; a guest's stored city is self-reported,
- * same caveat CityContext's own fallback-to-Nagpur comment already notes). */
+export type BroadcastAudience = { audienceType: 'city' | 'event' | 'follow'; city?: string; eventSlug?: string; followeeKey?: string };
+
 @Injectable()
 export class BroadcastService {
   private readonly log = new Logger('Broadcast');
@@ -22,32 +13,94 @@ export class BroadcastService {
     private guestNotifications: GuestNotificationsService,
   ) {}
 
-  async audienceCount(city?: string): Promise<number> {
-    const userIds = await this.targetUserIds(city);
-    return userIds.length;
+  async audienceCount(a: BroadcastAudience): Promise<number> {
+    const ids = await this.targetUserIds(a);
+    return ids.length;
   }
 
-  async send(title: string, message: string, city?: string, eventSlug?: string): Promise<{ sent: number }> {
+  /** Immediate or scheduled — a `scheduledFor` in the future just logs a
+   * row with status 'scheduled' and returns without sending; CronService's
+   * broadcastTick (every 5 min, same cadence as the abandoned-cart tick)
+   * picks it up and calls sendNow once it's actually due. */
+  async send(title: string, message: string, a: BroadcastAudience, scheduledFor?: string): Promise<{ sent: number; scheduled: boolean }> {
     if (!title?.trim()) throw new BadRequestException('Title is required');
     if (!message?.trim()) throw new BadRequestException('Message is required');
-    const userIds = await this.targetUserIds(city);
+    const when = scheduledFor ? new Date(scheduledFor) : null;
+    if (when && when.getTime() > Date.now()) {
+      const audienceCount = await this.audienceCount(a);
+      await this.prisma.broadcastLog.create({
+        data: { title: title.trim(), message: message.trim(), ...this.audienceFields(a), audienceCount, status: 'scheduled', scheduledFor: when },
+      });
+      return { sent: 0, scheduled: true };
+    }
+    const sent = await this.sendNow(title.trim(), message.trim(), a);
+    return { sent, scheduled: false };
+  }
+
+  /** Called directly for an immediate send, and by CronService.broadcastTick
+   * for a due scheduled one — always writes the BroadcastLog row itself so
+   * there's one real history regardless of which path triggered it. */
+  async sendNow(title: string, message: string, a: BroadcastAudience, logId?: string): Promise<number> {
+    const userIds = await this.targetUserIds(a);
     let sent = 0;
     for (const userId of userIds) {
-      await this.guestNotifications.notify(userId, 'promo', message.trim(), eventSlug || undefined).catch((err) =>
+      await this.guestNotifications.notify(userId, 'promo', message, a.eventSlug || undefined).catch((err) =>
         this.log.warn(`Broadcast to ${userId} failed: ${(err as Error).message}`),
       );
       sent += 1;
     }
-    this.log.log(`Broadcast "${title}" sent to ${sent} guest(s)${city ? ` in ${city}` : ''}`);
-    return { sent };
+    if (logId) {
+      await this.prisma.broadcastLog.update({ where: { id: logId }, data: { sentCount: sent, status: 'sent', sentAt: new Date() } });
+    } else {
+      await this.prisma.broadcastLog.create({
+        data: { title, message, ...this.audienceFields(a), audienceCount: userIds.length, sentCount: sent, status: 'sent', sentAt: new Date() },
+      });
+    }
+    this.log.log(`Broadcast "${title}" sent to ${sent} guest(s)`);
+    return sent;
   }
 
-  private async targetUserIds(city?: string): Promise<string[]> {
+  async dueScheduled() {
+    return this.prisma.broadcastLog.findMany({ where: { status: 'scheduled', scheduledFor: { lte: new Date() } } });
+  }
+
+  async history(limit = 50) {
+    return this.prisma.broadcastLog.findMany({ orderBy: { createdAt: 'desc' }, take: limit });
+  }
+
+  private audienceFields(a: BroadcastAudience) {
+    return { audienceType: a.audienceType, city: a.city || null, eventSlug: a.eventSlug || null, followeeKey: a.followeeKey || null };
+  }
+
+  /** Every audience type starts from guests who actually have the app
+   * installed (a real `app:'guest'` PushToken row) — sending to an account
+   * that never registered a device would just be a wasted write. */
+  private async targetUserIds(a: BroadcastAudience): Promise<string[]> {
     const tokens = await this.prisma.pushToken.findMany({ where: { app: 'guest' }, select: { userId: true }, distinct: ['userId'] });
-    if (!city) return tokens.map((t) => t.userId);
-    const ids = tokens.map((t) => t.userId);
-    if (!ids.length) return [];
-    const matching = await this.prisma.user.findMany({ where: { id: { in: ids }, city }, select: { id: true } });
+    const installed = new Set(tokens.map((t) => t.userId));
+    if (installed.size === 0) return [];
+
+    if (a.audienceType === 'event') {
+      if (!a.eventSlug) return [];
+      const event = await this.prisma.event.findUnique({ where: { slug: a.eventSlug }, select: { id: true } });
+      if (!event) return [];
+      const [interests, wishlists] = await Promise.all([
+        this.prisma.eventInterest.findMany({ where: { eventId: event.id }, select: { userId: true } }),
+        this.prisma.eventWishlist.findMany({ where: { eventId: event.id }, select: { userId: true } }),
+      ]);
+      const ids = new Set([...interests.map((r) => r.userId), ...wishlists.map((r) => r.userId)]);
+      return [...ids].filter((id) => installed.has(id));
+    }
+
+    if (a.audienceType === 'follow') {
+      if (!a.followeeKey) return [];
+      const follows = await this.prisma.follow.findMany({ where: { followeeKey: a.followeeKey }, select: { followerId: true } });
+      return follows.map((f) => f.followerId).filter((id) => installed.has(id));
+    }
+
+    // 'city' (default) — blank city reaches every installed guest
+    if (!a.city) return [...installed];
+    const matching = await this.prisma.user.findMany({ where: { id: { in: [...installed] }, city: a.city }, select: { id: true } });
     return matching.map((u) => u.id);
   }
 }

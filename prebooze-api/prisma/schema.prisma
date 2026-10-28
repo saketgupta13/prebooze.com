@@ -1913,6 +1913,26 @@ model EventWishlist {
   @@unique([userId, eventId])
 }
 
+// Every admin push broadcast (BroadcastService) — sent immediately or
+// scheduled for later via scheduledFor + cron (CronService.broadcastTick).
+// Kept even after sending so the admin panel can show real send history
+// instead of the feature being fire-and-forget with no record.
+model BroadcastLog {
+  id           String    @id @default(cuid())
+  title        String
+  message      String
+  audienceType String // 'city' | 'event' | 'follow'
+  city         String?
+  eventSlug    String?
+  followeeKey  String?
+  audienceCount Int      @default(0)
+  sentCount    Int       @default(0)
+  status       String    @default("sent") // 'scheduled' | 'sent' | 'failed'
+  scheduledFor DateTime?
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+}
+
 model VenueFavourite {
   id        String   @id @default(cuid())
   userId    String
