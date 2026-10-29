@@ -46,7 +46,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   }
 
   func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
-    RCTLinkingManager.application(UIApplication.shared, continueUserActivity: userActivity, restorationHandler: { _ in })
+    RCTLinkingManager.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
   }
 
   func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
