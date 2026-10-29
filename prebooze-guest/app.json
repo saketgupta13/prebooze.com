@@ -125,6 +125,7 @@
     },
     "plugins": [
       "./plugins/withSceneDelegate",
+      "./plugins/withFirebaseDisableSPM",
       "expo-font",
       "expo-image",
       "expo-secure-store",
