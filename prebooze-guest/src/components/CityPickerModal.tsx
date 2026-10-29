@@ -47,7 +47,6 @@ export default function CityPickerModal({ visible, currentCity, onClose, onSelec
               placeholder="Search city..."
               placeholderTextColor={colors.muted}
               style={styles.searchInput}
-              autoFocus
             />
           </View>
 
