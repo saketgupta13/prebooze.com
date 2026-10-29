@@ -19,6 +19,11 @@
     "production": {}
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "/Users/saketgupta/.prebooze-play-service-account.json",
+        "track": "alpha"
+      }
+    }
   }
 }
