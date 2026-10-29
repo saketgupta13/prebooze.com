@@ -11,6 +11,8 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.prebooze.guest",
+      "buildNumber": "1",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "associatedDomains": [
         "applinks:prebooze.com"
       ],
