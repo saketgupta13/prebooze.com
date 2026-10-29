@@ -1,0 +1,29 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "B324APRWNU.com.prebooze.guest",
+        "paths": [
+          "/u/*",
+          "/events/*",
+          "/organizers/*",
+          "/venues/*",
+          "/promoter/*",
+          "/lineup/*",
+          "/p/*",
+          "/pass/*",
+          "/browse",
+          "/people",
+          "/r/*",
+          "/*/events/*",
+          "/*/organizers/*",
+          "/*/venues/*",
+          "/*/promoter/*",
+          "/*/lineup/*",
+          "/*/u/*"
+        ]
+      }
+    ]
+  }
+}
