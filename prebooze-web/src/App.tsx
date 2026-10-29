@@ -50,6 +50,7 @@ const ReferralLanding = lazy(() => import('./pages/ReferralLanding'));
 const Wallet = lazy(() => import('./pages/Wallet'));
 const ReferEarn = lazy(() => import('./pages/ReferEarn'));
 const Wishlist = lazy(() => import('./pages/Wishlist'));
+const DeleteAccount = lazy(() => import('./pages/DeleteAccount'));
 const HelpCenter = lazy(() => import('./pages/HelpCenter'));
 const Careers = lazy(() => import('./pages/Careers'));
 const JobDetail = lazy(() => import('./pages/JobDetail'));
@@ -328,6 +329,14 @@ export default function App() {
           element={
             <RequireAuth>
               <Wishlist />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/delete-account"
+          element={
+            <RequireAuth>
+              <DeleteAccount />
             </RequireAuth>
           }
         />

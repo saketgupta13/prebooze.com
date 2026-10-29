@@ -32,6 +32,11 @@ export const auth = {
   /** Awards (or, if already claimed, just re-returns) the one-time 10%-off
    * coupon for finishing the soft-required "complete your profile" step. */
   claimProfileReward: () => apiFetch<{ code: string; maxDiscount: number; validTill: string; alreadyClaimed: boolean }>('/me/complete-profile-reward', { method: 'POST' }),
+  /** Same real backend contract (POST /me/delete) as the guest/organizer RN
+   * apps' DeleteAccountScreen — this is the web, no-app-required self-service
+   * equivalent Google's Play Console Data Safety form requires a public URL
+   * for (it won't accept an in-app-only deletion flow). */
+  deleteAccount: () => apiFetch<void>('/me/delete', { method: 'POST' }),
 };
 
 // ---------- identity & role verification ----------
