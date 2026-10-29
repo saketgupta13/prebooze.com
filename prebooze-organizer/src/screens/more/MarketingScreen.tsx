@@ -1,13 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, Eye, Users, MousePointerClick, Percent, X } from 'lucide-react-native';
 import { organizer } from '../../api/organizer';
 import { ApiError } from '../../api/client';
-import { Badge, Button, Card, H1, IconButton, Muted, Screen, Txt } from '../../components/ui';
+import { Badge, Card, H1, IconButton, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
-import { SITE_ORIGIN } from '../../lib/urls';
 import type { MoreStackParamList } from '../../navigation/types';
 import type { MarketingOrder } from '../../types';
 
@@ -26,7 +25,14 @@ const STATUS_TONE: Record<MarketingOrder['status'], 'default' | 'success' | 'dan
  * performance (impressions/reach/clicks/CTR, never spend) and the Meta
  * campaign ID once live. Buying ads itself stays web-only (App Store IAP
  * policy, same reasoning as BillingScreen.tsx's own Featured purchase
- * carve-out) — "Run ads" below just deep-links to the real web page. */
+ * carve-out) — real Apple rejection 2026-10-29 (Guideline 3.1.1) over
+ * the "Run ads for an event" button that deep-linked to the web
+ * purchase page: Apple's own fix is "remove... any other links to your
+ * site that could indirectly provide access to external purchase
+ * mechanisms," not just hide the purchase UI inside the app. Removed
+ * the button and the subhead's purchase instruction entirely — this is
+ * now purely a read-only status view, same carve-out shape 3.1.3(b)
+ * already covers for BillingScreen.tsx (which wasn't flagged). */
 export default function MarketingScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<MoreStackParamList>>();
   const [orders, setOrders] = useState<MarketingOrder[]>([]);
@@ -57,8 +63,7 @@ export default function MarketingScreen() {
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
         <Muted style={styles.subhead}>
-          Prebooze runs a dedicated Meta ad campaign for your event(s). Set up or pay for a new campaign from the web
-          console — this is a real-time status view of what's running.
+          Prebooze runs a dedicated Meta ad campaign for your event(s) — this is a real-time status view of what's running.
         </Muted>
         {!!err && (
           <View style={styles.errRow}>
@@ -66,8 +71,6 @@ export default function MarketingScreen() {
             <Txt style={{ color: colors.danger, fontSize: fontSize.s }}>{err}</Txt>
           </View>
         )}
-
-        <Button label="Run ads for an event →" onPress={() => Linking.openURL(`${SITE_ORIGIN}/organizer/marketing`)} style={{ marginBottom: spacing.m }} />
 
         {loading && <Muted style={styles.centerNote}>Loading…</Muted>}
         {!loading && orders.length === 0 && <Muted style={styles.centerNote}>No marketing payments yet.</Muted>}

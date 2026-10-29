@@ -1,11 +1,10 @@
-import { Image, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Award, Banknote, ChevronRight, CreditCard, LifeBuoy, type LucideIcon, Megaphone, Radio, Receipt, Rocket, Settings as SettingsIcon, ShieldCheck, ShoppingCart, Star, Tag, Users as UsersIcon } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, H1, H2, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, spacing } from '../../theme/tokens';
-import { SITE_ORIGIN } from '../../lib/urls';
 import type { MoreStackParamList } from '../../navigation/types';
 
 // Non-pinned NAV items from OrganizerLayout.tsx (Dashboard/Events/Scanner/
@@ -78,22 +77,6 @@ export default function MoreScreen() {
           </Pressable>
         ))}
       </Card>
-
-      {accessState.kind === 'owner' && (
-        <Card style={[styles.list, { marginTop: spacing.l }]}>
-          {/* Ad-campaign spend/billing is deliberately out of scope for this
-           * app (real money, Meta ad management — see CLAUDE.md) — opens the
-           * real web page instead of a native screen. Not an authed
-           * handoff: if the organizer isn't already logged into
-           * prebooze.com in their device browser, they'll hit web's own
-           * login there (same phone/OTP flow, just a second login). */}
-          <Pressable style={styles.row} onPress={() => Linking.openURL(`${SITE_ORIGIN}/organizer/billing`)}>
-            <Megaphone size={18} color={colors.muted} />
-            <Txt style={styles.rowLabel}>Buy Featured placement</Txt>
-            <ChevronRight size={16} color={colors.muted} />
-          </Pressable>
-        </Card>
-      )}
 
       {/* Personal-account items (2026-09-22) — shared across every role,
        * not organizer-business permissions, so always visible regardless
