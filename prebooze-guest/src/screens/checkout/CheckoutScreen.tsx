@@ -91,7 +91,7 @@ export default function CheckoutScreen() {
   const [paying, setPaying] = useState(false);
   const [quote, setQuote] = useState<BookingQuote | null>(null);
   const [quoting, setQuoting] = useState(false);
-  const [paymentFailed, setPaymentFailed] = useState<'failed' | 'unknown' | 'paidButUnconfirmed' | null>(null);
+  const [paymentFailed, setPaymentFailed] = useState<'failed' | 'unknown' | 'paidButUnconfirmed' | 'cancelled' | null>(null);
   const scrollRef = useRef<KeyboardAwareScrollView>(null);
   const attendeeY = useRef(0);
 
@@ -363,14 +363,23 @@ export default function CheckoutScreen() {
       // guaranteed to win that race on every OS/browser combination. Never
       // blocks the actual payment — swallowed below either way.
       await bookingsApi.prepare({ holdId, ...payload }).catch(() => {});
-      await WebBrowser.openAuthSessionAsync(q.phonepeRedirectUrl, returnUrl).catch(() => {});
-      // The redirect closing the tab is never trusted alone — poll the
-      // server's own getOrderStatus check regardless of how/why the tab
-      // closed (redirect, manual close, or a stale openAuthSessionAsync
-      // result on some OEM browsers).
-      const status = await pollPayStatus(holdId);
+      const result = await WebBrowser.openAuthSessionAsync(q.phonepeRedirectUrl, returnUrl).catch(() => null);
+      // The redirect closing the tab is never trusted alone — still poll
+      // the server's own getOrderStatus check regardless of how/why the
+      // tab closed (redirect, manual close, or a stale openAuthSessionAsync
+      // result on some OEM browsers), since payment can genuinely succeed
+      // in the instant before a manual close too. But an explicit 'cancel'
+      // (the guest closed the tab themselves, never hit any redirect) gets
+      // a short confirmatory poll instead of the full ~6.5min budget — that
+      // full budget exists for an in-progress UPI/bank-auth wait, which
+      // can't be happening if the tab was dismissed before any redirect.
+      // Previously this result was silently discarded entirely, so every
+      // cancel sat through the full poll with no indication anything had
+      // happened — looked exactly like the app had hung.
+      const isExplicitCancel = result?.type === 'cancel';
+      const status = await pollPayStatus(holdId, isExplicitCancel ? 8 : 260);
       if (status !== 'paid') {
-        setPaymentFailed(status === 'failed' ? 'failed' : 'unknown');
+        setPaymentFailed(status === 'failed' ? 'failed' : isExplicitCancel ? 'cancelled' : 'unknown');
         setPaying(false);
         return;
       }
@@ -473,10 +482,12 @@ export default function CheckoutScreen() {
       failed: 'Payment failed',
       unknown: "Couldn't confirm your payment",
       paidButUnconfirmed: 'Payment received',
+      cancelled: 'Payment cancelled',
     } as const;
     const subs = {
       failed: 'The payment was declined or cancelled. No amount was charged — give it another try.',
       unknown: "We couldn't confirm this with PhonePe yet. If money was deducted, it'll show up in My Bookings shortly — otherwise just try again.",
+      cancelled: 'You closed the payment screen before completing it. No amount was charged.',
       // Distinct from the two above on purpose — PhonePe already confirmed
       // this payment succeeded (real bug hit 2026-10-13: the booking was
       // genuinely created, but a transient lookup failure right after made
@@ -802,8 +813,8 @@ function fmtTime(iso: string): string {
  * under the 8min hold expiry. A too-short budget was a real bug hit
  * 2026-10-13: the poll gave up and showed an error while PhonePe's own
  * success screen was still sitting there, already paid. */
-async function pollPayStatus(holdId: string): Promise<'paid' | 'failed' | 'unknown'> {
-  for (let i = 0; i < 260; i++) {
+async function pollPayStatus(holdId: string, maxTries = 260): Promise<'paid' | 'failed' | 'unknown'> {
+  for (let i = 0; i < maxTries; i++) {
     const { status } = await bookingsApi.payStatus(holdId).catch(() => ({ status: 'unknown' as const }));
     if (status === 'paid' || status === 'failed') return status;
     await new Promise((r) => setTimeout(r, 1500));
