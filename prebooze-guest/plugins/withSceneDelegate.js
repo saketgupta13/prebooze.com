@@ -56,7 +56,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 }
 `;
 
-const BRIDGING_HEADER_IMPORT = '#import <RCTLinking/RCTLinkingManager.h>';
+// Confirmed against a real local build's generated Pods/Headers/Public
+// tree — despite React-RCTLinking.podspec's header_dir = "RCTLinking",
+// this RN version (0.86.3) actually publishes it under the main React
+// umbrella's own header namespace instead (Pods/Headers/Public/
+// React-Core/React/RCTLinkingManager.h), the same `React/` prefix
+// SceneDelegate.swift already imports successfully.
+const BRIDGING_HEADER_IMPORT = '#import <React/RCTLinkingManager.h>';
 
 function withSceneDelegateFile(config) {
   return withDangerousMod(config, [
