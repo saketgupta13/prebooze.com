@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { MapPin, Search, X } from 'lucide-react-native';
 import { catalog } from '../api/catalog';
@@ -15,11 +15,20 @@ export default function CityPickerModal({ visible, currentCity, onClose, onSelec
 }) {
   const [cities, setCities] = useState<CityRow[] | null>(null);
   const [search, setSearch] = useState('');
+  const listRef = useRef<FlatList<CityRow>>(null);
 
   useEffect(() => {
     if (!visible) return;
     catalog.cities().then(setCities).catch(() => setCities([]));
   }, [visible]);
+
+  // A guest who's scrolled down the full city list, then starts typing to
+  // search, would otherwise have the now-short filtered results sitting at
+  // whatever scroll offset the full list was at — looked like the search
+  // box and results had vanished rather than just being scrolled past.
+  useEffect(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [search]);
 
   // Only cities with at least one live (upcoming) event — a city can be
   // "enabled" admin-side with zero bookable events, which would otherwise
@@ -53,6 +62,7 @@ export default function CityPickerModal({ visible, currentCity, onClose, onSelec
           {!cities && <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} />}
 
           <FlatList
+            ref={listRef}
             data={filtered}
             keyExtractor={(c) => c.name}
             style={{ maxHeight: 420 }}

@@ -368,15 +368,19 @@ export default function CheckoutScreen() {
       // the server's own getOrderStatus check regardless of how/why the
       // tab closed (redirect, manual close, or a stale openAuthSessionAsync
       // result on some OEM browsers), since payment can genuinely succeed
-      // in the instant before a manual close too. But an explicit 'cancel'
+      // in the instant before a manual close too. But an explicit close
       // (the guest closed the tab themselves, never hit any redirect) gets
       // a short confirmatory poll instead of the full ~6.5min budget — that
       // full budget exists for an in-progress UPI/bank-auth wait, which
       // can't be happening if the tab was dismissed before any redirect.
-      // Previously this result was silently discarded entirely, so every
-      // cancel sat through the full poll with no indication anything had
-      // happened — looked exactly like the app had hung.
-      const isExplicitCancel = result?.type === 'cancel';
+      // iOS reports two distinct manual-close types — 'cancel' (e.g. swipe
+      // down) and 'dismiss' (tapping the browser's own close/X button,
+      // WebBrowserResultType.DISMISS) — real bug: only checking 'cancel'
+      // missed the X-button case entirely, which fell through to the full
+      // budget and looked exactly like an infinite hang. Android only ever
+      // reports 'dismiss' here (no 'cancel' on that platform), so this also
+      // covers Android's own equivalent manual-close case.
+      const isExplicitCancel = result?.type === 'cancel' || result?.type === 'dismiss';
       const status = await pollPayStatus(holdId, isExplicitCancel ? 8 : 260);
       if (status !== 'paid') {
         setPaymentFailed(status === 'failed' ? 'failed' : isExplicitCancel ? 'cancelled' : 'unknown');
