@@ -19,8 +19,15 @@ function withFirebaseDisableSPM(config) {
       let contents = fs.readFileSync(podfilePath, 'utf8');
       if (!contents.includes('$RNFirebaseDisableSPM')) {
         contents = `$RNFirebaseDisableSPM = true\n${contents}`;
-        fs.writeFileSync(podfilePath, contents);
       }
+      // With SPM disabled above, Firebase resolves via CocoaPods instead —
+      // but FirebaseCoreInternal (a Swift pod) depends on GoogleUtilities,
+      // which doesn't define modules, so static-library integration fails
+      // without this. Same fix CocoaPods itself suggests in the error.
+      if (!contents.includes('use_modular_headers!')) {
+        contents = contents.replace(/^(platform :ios.*\n)/m, `$1use_modular_headers!\n`);
+      }
+      fs.writeFileSync(podfilePath, contents);
       return config;
     },
   ]);
