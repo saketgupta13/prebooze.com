@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { MapPin, Search, X } from 'lucide-react-native';
 import { catalog } from '../api/catalog';
 import { Muted, Txt } from './ui';
@@ -39,7 +39,17 @@ export default function CityPickerModal({ visible, currentCity, onClose, onSelec
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      {/* Real bug: the sheet is bottom-anchored (backdrop's justifyContent:
+          'flex-end') with no keyboard avoidance at all — tapping the
+          search box (even after removing autoFocus, since the keyboard
+          still opens on a real manual tap) let the keyboard cover the
+          lower portion of the sheet, which is exactly where the search box
+          and results list live. KeyboardAvoidingView shifts the whole
+          sheet up by the keyboard's height instead. */}
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Txt style={styles.title}>Choose your city</Txt>
@@ -81,7 +91,7 @@ export default function CityPickerModal({ visible, currentCity, onClose, onSelec
             )}
           />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
