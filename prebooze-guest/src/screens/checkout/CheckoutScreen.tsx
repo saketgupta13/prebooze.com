@@ -364,26 +364,32 @@ export default function CheckoutScreen() {
       // blocks the actual payment — swallowed below either way.
       await bookingsApi.prepare({ holdId, ...payload }).catch(() => {});
       const result = await WebBrowser.openAuthSessionAsync(q.phonepeRedirectUrl, returnUrl).catch(() => null);
-      // The redirect closing the tab is never trusted alone — still poll
-      // the server's own getOrderStatus check regardless of how/why the
-      // tab closed (redirect, manual close, or a stale openAuthSessionAsync
-      // result on some OEM browsers), since payment can genuinely succeed
-      // in the instant before a manual close too. But an explicit close
-      // (the guest closed the tab themselves, never hit any redirect) gets
-      // a short confirmatory poll instead of the full ~6.5min budget — that
-      // full budget exists for an in-progress UPI/bank-auth wait, which
-      // can't be happening if the tab was dismissed before any redirect.
-      // iOS reports two distinct manual-close types — 'cancel' (e.g. swipe
-      // down) and 'dismiss' (tapping the browser's own close/X button,
-      // WebBrowserResultType.DISMISS) — real bug: only checking 'cancel'
-      // missed the X-button case entirely, which fell through to the full
-      // budget and looked exactly like an infinite hang. Android only ever
-      // reports 'dismiss' here (no 'cancel' on that platform), so this also
-      // covers Android's own equivalent manual-close case.
-      const isExplicitCancel = result?.type === 'cancel' || result?.type === 'dismiss';
-      const status = await pollPayStatus(holdId, isExplicitCancel ? 8 : 260);
+      // iOS reports two distinct manual-close types — 'cancel' (confirmed
+      // via the OS's own native "Cancel"/"Cancel Sign In?" flow, verified
+      // directly against expo-web-browser's native source: ASWebAuthentication
+      // Session's completionHandler resolves with exactly this type once
+      // the user confirms that system dialog — real, not speculative) and
+      // 'dismiss' (Android's equivalent manual-close signal). Either one
+      // means the guest explicitly, deliberately backed out before any
+      // redirect ever fired — skip the server poll entirely and show
+      // "cancelled" immediately instead of the redirect-trusting poll
+      // below, which previously ran even for a confirmed system-level
+      // cancel and could take up to ~2min in the worst case (every
+      // payStatus call hitting its own 15s timeout) — technically bounded,
+      // but indistinguishable from a true hang to anyone testing it.
+      if (result?.type === 'cancel' || result?.type === 'dismiss') {
+        setPaymentFailed('cancelled');
+        setPaying(false);
+        return;
+      }
+      // The redirect closing the tab is never trusted alone — poll the
+      // server's own getOrderStatus check regardless of how/why the tab
+      // closed (redirect, or a stale openAuthSessionAsync result on some
+      // OEM browsers), since payment can genuinely succeed in the instant
+      // before whatever closed it.
+      const status = await pollPayStatus(holdId);
       if (status !== 'paid') {
-        setPaymentFailed(status === 'failed' ? 'failed' : isExplicitCancel ? 'cancelled' : 'unknown');
+        setPaymentFailed(status === 'failed' ? 'failed' : 'unknown');
         setPaying(false);
         return;
       }
