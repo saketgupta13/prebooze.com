@@ -10,8 +10,10 @@
     "backgroundColor": "#1a1c17",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.prebooze.organizer",
+      "bundleIdentifier": "com.prebooze.partners",
+      "buildNumber": "6",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Prebooze needs camera access to scan attendee tickets and QR codes at the door.",
         "NSPhotoLibraryUsageDescription": "Prebooze needs photo library access to upload event posters, gallery images, and your brand logo.",
         "UIApplicationSceneManifest": {
@@ -28,7 +30,8 @@
       }
     },
     "android": {
-      "package": "com.prebooze.organizer",
+      "package": "com.prebooze.partners",
+      "versionCode": 2,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#1a1c17",
@@ -37,8 +40,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ],
       "predictiveBackGestureEnabled": false
     },
@@ -46,6 +48,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/withSceneDelegate",
       "expo-image",
       "expo-font",
       "expo-web-browser",
