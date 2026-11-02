@@ -72,8 +72,19 @@ function attribution(): Attribution {
 
 export function track(type: string, opts?: { eventId?: string; meta?: Record<string, unknown> }): void {
   if (!isBackendEnabled()) return;
+  // keepalive: several call sites (payment_widget_opened, most notably) fire
+  // this immediately before window.location.href navigates away to PhonePe.
+  // Without it, iOS Safari/WKWebView cancels the in-flight request the
+  // instant navigation starts — real gap found 2026-11-03: payment_submitted
+  // (fired on return) outnumbered payment_widget_opened across every iOS
+  // session in a week of funnel data, zero iOS sessions ever recorded
+  // opening the widget. Same mechanism as apiFetch's keepalive doc comment
+  // (the prepare()-before-redirect fix) — applied here to every track() call
+  // rather than just this one site, since any of them could race a
+  // navigation that follows close behind.
   apiFetch('/track', {
     body: { sessionId: sessionId(), type, eventId: opts?.eventId, meta: opts?.meta, ...attribution() },
+    keepalive: true,
   }).catch(() => {});
 }
 
