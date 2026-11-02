@@ -317,6 +317,10 @@ export default function Checkout() {
   // real event; it's only the pre-quote placeholder shown before this resolves. ----
   const [quote, setQuote] = useState<BookingQuote | null>(null);
   const [quoting, setQuoting] = useState(false);
+  // Bumped by the bfcache pageshow handler below to force the quote effect
+  // to re-run even though none of its other deps changed (clearing `quote`
+  // alone doesn't re-trigger it — it's not one of the effect's own deps).
+  const [quoteNonce, setQuoteNonce] = useState(0);
   useEffect(() => {
     // Resuming a PhonePe redirect must never re-quote — quote() creates a
     // brand-new PhonePe order every time it runs, and this holdId's order
@@ -348,7 +352,7 @@ export default function Checkout() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [holdId, appliedCode, useCredit, effectiveWalletBalance, event?.id, promoterRefByEvent]);
+  }, [holdId, appliedCode, useCredit, effectiveWalletBalance, event?.id, promoterRefByEvent, quoteNonce]);
 
   // Backing out of PhonePe with its own in-app back/close (not finishing or
   // cancelling) restores THIS SAME pre-redirect Checkout instance from
@@ -358,14 +362,18 @@ export default function Checkout() {
   // Real guest hit this on iOS Safari 2026-11-02 (session g47o9p). `pageshow`
   // with `persisted: true` is what actually fires on a bfcache restore
   // (unlike mount effects, which don't re-run since nothing remounted).
-  // Also clears `quote` — reusing it would resubmit the SAME, already-
-  // abandoned phonepeMerchantOrderId instead of minting a fresh PhonePe
-  // order on retry.
+  // Also clears `quote` and bumps `quoteNonce` to force a fresh quote() —
+  // reusing the stale quote would resubmit the SAME, already-abandoned
+  // phonepeMerchantOrderId instead of minting a new PhonePe order on retry.
+  // First attempt (afd3f35) only cleared `quote`, which just swapped
+  // "Processing…" for a permanently-disabled "Calculating…" button instead
+  // — `quote` isn't itself a dep of the quote effect, so nothing re-ran.
   useEffect(() => {
     const onPageShow = (e: PageTransitionEvent) => {
       if (!e.persisted) return;
       setPaying(false);
       setQuote(null);
+      setQuoteNonce((n) => n + 1);
     };
     window.addEventListener('pageshow', onPageShow);
     return () => window.removeEventListener('pageshow', onPageShow);
