@@ -776,7 +776,14 @@ export default function Checkout() {
       if (email.trim() !== (user?.email ?? '')) {
         await auth.updateMe({ email: email.trim() }).catch(() => {});
       }
-      const q = quote ?? (await bookings.quote(holdId, appliedCode ?? undefined, useCredit ? effectiveWalletBalance : 0));
+      // Always a FRESH quote() here, never the cached `quote` state — reusing
+      // it is what let a bfcache-restored retry resubmit an already-
+      // abandoned PhonePe order id (quoteNonce's pageshow re-fetch covers
+      // the displayed price/button, but this is the actual pay path, and a
+      // fresh call here makes a stale order id impossible rather than just
+      // avoided). Matches prebooze-guest's CheckoutScreen, which always
+      // re-quotes on every Pay tap for the same reason.
+      const q = await bookings.quote(holdId, appliedCode ?? undefined, useCredit ? effectiveWalletBalance : 0, event?.id ? promoterRefByEvent[event.id] : undefined);
       // Skipped guest slots (name left blank) aren't sent at all, rather than
       // padding the booking's guest list with empty placeholder entries.
       const guestsPayload = extraSlots.length > 0
