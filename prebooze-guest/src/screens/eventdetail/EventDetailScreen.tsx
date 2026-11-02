@@ -641,6 +641,7 @@ export default function EventDetailScreen() {
                 ? 'Sold out — join the waitlist'
                 : `Book ticket — ${minPrice > 0 || hasCurrentlyPaidTier(event.tiers, event.date) ? `from ₹${minPrice}` : 'Free'}`
           }
+          disabled={eventOver}
           onPress={() => setTicketSheetOpen(true)}
           style={styles.bookBtn}
         />
