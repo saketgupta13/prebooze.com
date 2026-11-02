@@ -350,6 +350,27 @@ export default function Checkout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holdId, appliedCode, useCredit, effectiveWalletBalance, event?.id, promoterRefByEvent]);
 
+  // Backing out of PhonePe with its own in-app back/close (not finishing or
+  // cancelling) restores THIS SAME pre-redirect Checkout instance from
+  // bfcache instead of reloading it — no ?phonepe_return=1, so none of the
+  // resume logic above runs. `paying` was left stuck true from just before
+  // the redirect, permanently showing "Processing…" with no way to retry.
+  // Real guest hit this on iOS Safari 2026-11-02 (session g47o9p). `pageshow`
+  // with `persisted: true` is what actually fires on a bfcache restore
+  // (unlike mount effects, which don't re-run since nothing remounted).
+  // Also clears `quote` — reusing it would resubmit the SAME, already-
+  // abandoned phonepeMerchantOrderId instead of minting a fresh PhonePe
+  // order on retry.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      setPaying(false);
+      setQuote(null);
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, []);
+
   const finalSubtotal = quote?.subtotal ?? subtotal;
   const finalFee = quote?.fee ?? fee;
   const finalGst = quote?.gst ?? gstEstimate;
