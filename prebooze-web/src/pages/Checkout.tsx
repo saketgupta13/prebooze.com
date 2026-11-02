@@ -34,7 +34,7 @@ export default function Checkout() {
   const {
     user, selection, coupons, myEvents, addBooking, setSelection, holdExpiry, startHold, setHold, clearHold,
     captureCart, setCartStatus, promoterRefByEvent, clearPromoterRefForEvent, promoterViaByEvent, walletBalance, spendWallet, payMethods,
-    setDefaultPayMethod, refreshWallet, city,
+    setDefaultPayMethod, refreshWallet, city, toast,
   } = useApp();
   const navigate = useNavigate();
   const { feeLabel, absorbedBy, bookingFee, gstPct, socials } = usePlatformInfo();
@@ -101,12 +101,48 @@ export default function Checkout() {
   useLayoutEffect(() => {
     if (phonepeReturnHoldId) setResumingPhonePe(true);
   }, [phonepeReturnHoldId]);
+  // 'checking' until the FIRST pay/status answer comes back, then
+  // 'confirming' only once that answer is 'paid'/'pending' (i.e. we're
+  // actually finalising a real payment) — drives which of the two loader
+  // copies renders below. Real bug hit 2026-11-02 (Saket): the resume effect
+  // used to wait on `event` before checking status at all, so a guest who
+  // cancelled inside PhonePe still saw "Confirming your payment… Don't
+  // close this tab" for ~2s (as long as the event fetch took) before
+  // "Payment failed" — alarming and wrong, since nothing was ever being
+  // confirmed. This runs independently of `event`, in parallel with it.
+  const [resumeStage, setResumeStage] = useState<'checking' | 'confirming'>('checking');
+  useEffect(() => {
+    if (!phonepeReturnHoldId) return;
+    let cancelled = false;
+    bookings
+      .offlinePaymentLinkStatus(phonepeReturnHoldId)
+      .then((r) => {
+        if (cancelled) return;
+        if (r.status === 'failed') {
+          setResumingPhonePe(false);
+          setPaymentFailed('failed');
+        } else {
+          setResumeStage('confirming');
+        }
+      })
+      .catch(() => {
+        // Genuinely unknown this early — fall through to 'confirming' and
+        // let the full resume flow below (which does its own real poll
+        // loop) sort out 'unknown' vs 'paid' properly, rather than guessing
+        // 'failed' from a network blip alone.
+        if (!cancelled) setResumeStage('confirming');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [phonepeReturnHoldId]);
   // afterBookingSuccess/finishCreate below need `lines`/`finalTotal`, only
   // computed further down this render — this ref lets the effect (declared
   // here, so it can depend on `event` without a temporal-dead-zone issue)
   // always call whatever the freshest version of that logic is, assigned
   // just before the JSX return.
   const resumePhonePeRef = useRef<(() => void) | null>(null);
+  const stashedPayloadRef = useRef<Omit<CreateBookingInput, 'holdId' | 'razorpay' | 'phonepe'> | null>(null);
   useEffect(() => {
     if (!phonepeReturnHoldId || !event) return;
     resumePhonePeRef.current?.();
@@ -520,6 +556,11 @@ export default function Checkout() {
       return;
     }
     const { phonepeMerchantOrderId, ...payload } = JSON.parse(raw) as Omit<CreateBookingInput, 'holdId' | 'razorpay' | 'phonepe'> & { phonepeMerchantOrderId: string };
+    // Kept for "Try again" (see retryInPlace below) to prefill the form
+    // instead of making a guest who just cancelled retype everything —
+    // deliberately NOT cleared on a 'failed'/'unknown' outcome, only on an
+    // actual confirmed booking (sessionStorage.removeItem calls below).
+    stashedPayloadRef.current = payload;
     // Same shape as prebooze-guest's pollPayStatus — ask the server what
     // PhonePe actually reports (GET /pay/status/:holdId, generic to any
     // PhonePe hold despite BookingsService.offlinePaymentLinkStatus's name)
@@ -573,6 +614,56 @@ export default function Checkout() {
     }
   };
 
+  // "Try again" from the failed/unknown payment screens — matches the app's
+  // behaviour (Saket's explicit ask 2026-11-02): back to the SAME checkout
+  // form, not a fresh pick-tickets trip. The old hold's real expiry is
+  // never known on this resume path (holdExpiry is only ever set by the
+  // hold-CREATION effect above, which this path skips since holdId arrives
+  // pre-seeded from the URL) — so rather than guess, this always mints a
+  // BRAND NEW hold for the same tiers/qty (selection.qty, still in
+  // localStorage — untouched by a cancelled payment) and swaps to it. A
+  // fresh hold always has a known expiry, which sidesteps the problem
+  // instead of solving the unknown one. Falls back to the event page (with
+  // a toast) only if that tier is no longer available, e.g. genuinely sold
+  // out in the meantime.
+  const retryInPlace = async () => {
+    if (!liveEvent || !selection) {
+      if (event) navigate(eventPath(eventCity(event) ?? city, event.slug));
+      else navigate('/');
+      return;
+    }
+    try {
+      const h = await bookings.hold(liveEvent.id, selection.qty);
+      setHoldId(h.holdId);
+      setHold(new Date(h.expiresAt).getTime());
+      const p = stashedPayloadRef.current;
+      if (p) {
+        setName(p.mainGuest);
+        setGender(p.mainGuestGender ?? '');
+        if (p.age != null) setAgeInput(String(p.age));
+        setWhatsapp(p.whatsapp);
+        // Approximate, not an exact inverse — payLive() drops blank-name
+        // guest slots before stashing, so an originally-skipped slot can't
+        // be told apart from one that's simply missing here. Good enough
+        // to save most of the retyping; the guest can still edit any slot.
+        if (p.guests?.length) {
+          setGuestNames(p.guests.map((g) => g.name));
+          setGuestGenders(p.guests.map((g) => g.gender ?? ''));
+          setGuestPhones(p.guests.map((g) => g.whatsapp ?? ''));
+        }
+        if (p.couponCode) setAppliedCode(p.couponCode);
+        setUseCredit(Boolean(p.walletCredit && p.walletCredit > 0));
+      }
+      setPaymentFailed(null);
+      // Strips ?phonepe_return=1&holdId=… so a refresh from here doesn't
+      // re-enter the resume flow against the NEW hold's id.
+      navigate(window.location.pathname, { replace: true });
+    } catch (e) {
+      toast((e as Error).message ?? "Those tickets aren't available anymore — pick again");
+      navigate(event ? eventPath(eventCity(event) ?? city, event.slug) : '/');
+    }
+  };
+
   // Capture the cart on checkout entry (abandoned-cart recovery) — we already have
   // the guest's name + WhatsApp from login.
   useEffect(() => {
@@ -620,8 +711,10 @@ export default function Checkout() {
       <main className="page">
         <div className="container center" style={{ padding: '80px 0' }}>
           <Loader size={56} />
-          <h1 style={{ marginTop: 16 }}>Confirming your payment…</h1>
-          <p className="muted" style={{ margin: '10px 0 0' }}>Don't close this tab — this only takes a few seconds.</p>
+          <h1 style={{ marginTop: 16 }}>{resumeStage === 'checking' ? 'Checking payment status…' : 'Confirming your payment…'}</h1>
+          <p className="muted" style={{ margin: '10px 0 0' }}>
+            {resumeStage === 'checking' ? 'One moment…' : "Don't close this tab — this only takes a few seconds."}
+          </p>
         </div>
       </main>
     );
@@ -657,11 +750,9 @@ export default function Checkout() {
               <p className="muted" style={{ margin: '6px 0 0', fontSize: 12 }}>Reference: {phonepeReturnHoldId}</p>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-              {!isPaid && (event ? (
-                <Link to={eventPath(eventCity(event) ?? city, event.slug)} className="btn btn-pri btn-lg">Try again →</Link>
-              ) : (
-                <Link to="/" className="btn btn-pri btn-lg">Back to Prebooze →</Link>
-              ))}
+              {!isPaid && (
+                <button type="button" className="btn btn-pri btn-lg" onClick={retryInPlace}>Try again →</button>
+              )}
               <Link to="/bookings" className={isPaid ? 'btn btn-pri btn-lg' : 'btn btn-ghost btn-lg'}>Check My Bookings →</Link>
             </div>
           </div>
