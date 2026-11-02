@@ -398,8 +398,16 @@ export default function Checkout() {
     return () => {
       cancelled = true;
     };
+    // phonepeReturnHoldId is a real dependency (read in the guard above),
+    // not just incidental — without it listed, a retryInPlace() that sets a
+    // new holdId in the SAME render phonepeReturnHoldId is still truthy in
+    // (navigate()'s URL strip hasn't propagated through the router yet)
+    // skips this run, and then never gets another chance to: holdId doesn't
+    // change again, so nothing else here would re-trigger it once the
+    // strip actually lands on the next render. Real bug hit 2026-11-02 —
+    // the Pay button stuck forever on "Calculating…" after Try again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [holdId, appliedCode, useCredit, effectiveWalletBalance, event?.id, promoterRefByEvent, quoteNonce]);
+  }, [holdId, appliedCode, useCredit, effectiveWalletBalance, event?.id, promoterRefByEvent, quoteNonce, phonepeReturnHoldId]);
 
   // Backing out of PhonePe with its own in-app back/close (not finishing or
   // cancelling) restores THIS SAME pre-redirect Checkout instance from
@@ -655,6 +663,15 @@ export default function Checkout() {
         setUseCredit(Boolean(p.walletCredit && p.walletCredit > 0));
       }
       setPaymentFailed(null);
+      // Forces the quote effect to actually run even though `holdId` just
+      // changed — its own early-return still reads the OLD `phonepeReturnHoldId`
+      // in the render right after setHoldId above (navigate()'s URL strip
+      // hasn't propagated through the router yet), so it skips that run;
+      // since `phonepeReturnHoldId` isn't itself one of the effect's deps,
+      // nothing then re-triggers it once the URL strip does land, leaving
+      // the Pay button stuck on "Calculating…" forever. Real bug hit
+      // 2026-11-02. Same fix shape as the bfcache pageshow handler above.
+      setQuoteNonce((n) => n + 1);
       // Strips ?phonepe_return=1&holdId=… so a refresh from here doesn't
       // re-enter the resume flow against the NEW hold's id.
       navigate(window.location.pathname, { replace: true });
