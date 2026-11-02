@@ -65,6 +65,17 @@ export default function Checkout() {
   const phonepeReturnHoldId = searchParams.get('phonepe_return') === '1' ? searchParams.get('holdId') : null;
   const [resumingPhonePe, setResumingPhonePe] = useState(Boolean(phonepeReturnHoldId));
   const [resumeErr, setResumeErr] = useState<string | null>(null);
+  // Mirrors prebooze-guest's CheckoutScreen paymentFailed — same four states,
+  // same copy, same button rules. Real bug hit 2026-11-02 (Saket, holds
+  // 059ab005385025e4c5080653e4a40d62 and 8818f49a1c641e415934932ebb1fb76c):
+  // cancelling INSIDE PhonePe sent the resume path through 6 doomed create()
+  // retries before landing on a scary "contact support" message, even
+  // though the server already knew (GET /pay/status/:holdId) it was a plain
+  // cancel the whole time. 'cancelled' is defined for copy parity with the
+  // app but never set here — web has no openAuthSessionAsync-style cancel
+  // signal to distinguish it from 'failed'; a deliberate browser X/back
+  // (not reaching PhonePe's own cancel) is the bfcache path fixed separately.
+  const [paymentFailed, setPaymentFailed] = useState<'failed' | 'unknown' | 'paidButUnconfirmed' | 'cancelled' | null>(null);
   // Set only on a PhonePe-return resume that found sessionStorage empty but
   // confirmed (via pendingOrder()) that a real PhonePe order exists for
   // this hold — the form below renders normally, but pay()'s submit routes
@@ -509,36 +520,57 @@ export default function Checkout() {
       return;
     }
     const { phonepeMerchantOrderId, ...payload } = JSON.parse(raw) as Omit<CreateBookingInput, 'holdId' | 'razorpay' | 'phonepe'> & { phonepeMerchantOrderId: string };
-    for (let attempt = 0; attempt < 6; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
-      try {
-        const booking = await bookings.create({ ...payload, holdId: holdIdToResume, phonepe: { merchantOrderId: phonepeMerchantOrderId } });
-        sessionStorage.removeItem(`pb_phonepe_${holdIdToResume}`);
-        // Deliberately NOT setResumingPhonePe(false) here — afterBookingSuccess
-        // navigates away immediately below, but navigate() doesn't swap the
-        // route synchronously, so a render in between would otherwise fall
-        // through this component's other early-return checks (e.g. the
-        // now-stale "hold expired" countdown, since real time has passed
-        // during the PhonePe round trip) and flash that screen for one
-        // frame before the confirmation page takes over. Real bug seen
-        // 2026-09-19: a genuinely successful payment flickered an "expired"
-        // screen before landing on the real confirmation + QR code.
-        afterBookingSuccess(booking.id);
-        return;
-      } catch {
-        // could be a genuinely still-PENDING order (retry) or an already-
-        // completed booking from a previous attempt at this same resume —
-        // check for the latter before continuing to retry.
-        const existing = await bookings.list().then((list) => list.find((b) => b.paymentId === phonepeMerchantOrderId)).catch(() => undefined);
-        if (existing) {
-          sessionStorage.removeItem(`pb_phonepe_${holdIdToResume}`);
-          afterBookingSuccess(existing.id);
-          return;
-        }
-      }
+    // Same shape as prebooze-guest's pollPayStatus — ask the server what
+    // PhonePe actually reports (GET /pay/status/:holdId, generic to any
+    // PhonePe hold despite BookingsService.offlinePaymentLinkStatus's name)
+    // instead of hammering create() and inferring status from its 400s.
+    // ~21s cap (14 tries · 1.5s) vs the app's ~6.5min — a web tab has no
+    // in-app browser PIN-entry/3DS wait to outlast; PhonePe's own webhook
+    // plus the stuck-payment cron (CronService.stuckPhonePePaymentTick)
+    // cover anything genuinely still mid-confirmation past this.
+    let status: 'paid' | 'pending' | 'failed' | 'unknown' = 'unknown';
+    for (let i = 0; i < 14; i++) {
+      const r = await bookings.offlinePaymentLinkStatus(holdIdToResume).catch(() => ({ status: 'unknown' as const }));
+      status = r.status;
+      if (status === 'paid' || status === 'failed') break;
+      await new Promise((r2) => setTimeout(r2, 1500));
     }
-    setResumingPhonePe(false);
-    setResumeErr(`If your payment went through, we're still finalizing your booking — check My Bookings in a minute. If it's not there, contact support with reference ${holdIdToResume}.`);
+    if (status !== 'paid') {
+      setResumingPhonePe(false);
+      setPaymentFailed(status === 'failed' ? 'failed' : 'unknown');
+      return;
+    }
+    // Payment is confirmed at this point — a few short retries because the
+    // webhook can land a couple of seconds after this poll already saw
+    // 'paid'. Not finding the booking on the first try isn't proof it
+    // doesn't exist yet (same reasoning as prebooze-guest's own retry here).
+    let already: Booking | undefined;
+    for (let i = 0; i < 5 && !already; i++) {
+      if (i > 0) await new Promise((r) => setTimeout(r, 1500));
+      already = await bookings.list().then((list) => list.find((b) => b.paymentId === phonepeMerchantOrderId)).catch(() => undefined);
+    }
+    try {
+      const booking = already ?? (await bookings.create({ ...payload, holdId: holdIdToResume, phonepe: { merchantOrderId: phonepeMerchantOrderId } }));
+      sessionStorage.removeItem(`pb_phonepe_${holdIdToResume}`);
+      // Deliberately NOT setResumingPhonePe(false) here — afterBookingSuccess
+      // navigates away immediately below, but navigate() doesn't swap the
+      // route synchronously, so a render in between would otherwise fall
+      // through this component's other early-return checks (e.g. the
+      // now-stale "hold expired" countdown, since real time has passed
+      // during the PhonePe round trip) and flash that screen for one
+      // frame before the confirmation page takes over. Real bug seen
+      // 2026-09-19: a genuinely successful payment flickered an "expired"
+      // screen before landing on the real confirmation + QR code.
+      afterBookingSuccess(booking.id);
+    } catch {
+      // PhonePe confirmed 'paid' but we still couldn't create/find the
+      // booking — never shown as a generic/scary error, since the money
+      // really was taken. Real bug class this guards against (RN hit it
+      // 2026-10-13): a transient lookup failure right after a genuine
+      // success must never read as "your payment didn't go through".
+      setResumingPhonePe(false);
+      setPaymentFailed('paidButUnconfirmed');
+    }
   };
 
   // Capture the cart on checkout entry (abandoned-cart recovery) — we already have
@@ -590,6 +622,49 @@ export default function Checkout() {
           <Loader size={56} />
           <h1 style={{ marginTop: 16 }}>Confirming your payment…</h1>
           <p className="muted" style={{ margin: '10px 0 0' }}>Don't close this tab — this only takes a few seconds.</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (paymentFailed) {
+    // Same four states, same copy, same button rules as prebooze-guest's
+    // CheckoutScreen (lines 490–521) — see paymentFailed's own declaration
+    // above for why 'cancelled' is defined but never set from here.
+    const titles = {
+      failed: 'Payment failed',
+      unknown: "Couldn't confirm your payment",
+      paidButUnconfirmed: 'Payment received',
+      cancelled: 'Payment cancelled',
+    } as const;
+    const subs = {
+      failed: 'The payment was declined or cancelled. No amount was charged — give it another try.',
+      unknown: "We couldn't confirm this with PhonePe yet. If money was deducted, it'll show up in My Bookings shortly — otherwise just try again.",
+      cancelled: 'You closed the payment screen before completing it. No amount was charged.',
+      paidButUnconfirmed: "Your payment went through, but your ticket's taking a moment to show up. Check My Bookings in a few seconds — it'll be there.",
+    } as const;
+    const isPaid = paymentFailed === 'paidButUnconfirmed';
+    return (
+      <main className="page">
+        <div className="container center" style={{ padding: '72px 0' }}>
+          <div className="card card-shadow" style={{ maxWidth: 460, margin: '0 auto', textAlign: 'center' }}>
+            <div className="confirm-tick" style={{ background: isPaid ? 'var(--accent)' : 'var(--danger)', color: '#fff' }}>
+              {isPaid ? <CheckCircle2 size={30} /> : <XCircle size={30} />}
+            </div>
+            <h1 style={{ fontSize: 22, marginTop: 8 }}>{titles[paymentFailed]}</h1>
+            <p className="muted" style={{ margin: '10px 0 0' }}>{subs[paymentFailed]}</p>
+            {paymentFailed === 'unknown' && phonepeReturnHoldId && (
+              <p className="muted" style={{ margin: '6px 0 0', fontSize: 12 }}>Reference: {phonepeReturnHoldId}</p>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+              {!isPaid && (event ? (
+                <Link to={eventPath(eventCity(event) ?? city, event.slug)} className="btn btn-pri btn-lg">Try again →</Link>
+              ) : (
+                <Link to="/" className="btn btn-pri btn-lg">Back to Prebooze →</Link>
+              ))}
+              <Link to="/bookings" className={isPaid ? 'btn btn-pri btn-lg' : 'btn btn-ghost btn-lg'}>Check My Bookings →</Link>
+            </div>
+          </div>
         </div>
       </main>
     );
