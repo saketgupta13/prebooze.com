@@ -304,7 +304,7 @@ export const bookings = {
   // real route is /bookings/check-in with the QR's signed token in the body
   // — not /bookings/:id/check-in like this used to declare (that endpoint
   // never existed; nothing called this wrapper before now).
-  checkIn: (token: string) => apiFetch<Booking>('/bookings/check-in', { body: { token } }),
+  checkIn: (token: string, eventId?: string) => apiFetch<Booking>('/bookings/check-in', { body: { token, eventId } }),
   waitlistJoin: (eventId: string) => apiFetch<WaitlistEntry>(`/events/${eventId}/waitlist`, { method: 'POST' }),
   waitlist: (eventId: string) => apiFetch<WaitlistEntry[]>(`/events/${eventId}/waitlist`),
   // Public, no auth — the link an offline booking's WhatsApp confirmation

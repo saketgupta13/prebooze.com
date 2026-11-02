@@ -6,5 +6,5 @@ import { apiFetch } from './client';
 import type { Booking } from '../types';
 
 export const bookings = {
-  checkIn: (token: string) => apiFetch<Booking>('/bookings/check-in', { body: { token } }),
+  checkIn: (token: string, eventId?: string) => apiFetch<Booking>('/bookings/check-in', { body: { token, eventId } }),
 };

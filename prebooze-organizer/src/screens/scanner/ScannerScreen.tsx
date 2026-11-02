@@ -190,7 +190,7 @@ export default function ScannerScreen() {
     if (raw.includes('.')) {
       setBusy(true);
       try {
-        const updated = await bookings.checkIn(raw);
+        const updated = await bookings.checkIn(raw, eventId);
         setState({ mode: 'checked-in', booking: updated });
         load();
       } catch (e) {
@@ -585,7 +585,13 @@ function CameraBox({
             ? "Couldn't access the camera — allow camera access, or use manual entry below."
             : 'Camera access denied — enable it in Settings, or use manual entry below.'}
         </Muted>
-        {permission.canAskAgain && <Button label="Grant camera access" onPress={requestPermission} />}
+        {/* Apple rejection (Guideline 5.1.1(iv), 2026-10-22): a button
+            labeled with the action itself ("Grant camera access") steers
+            the decision before the real OS permission dialog appears —
+            Apple's own fix is a neutral "Continue"/"Next" here, leaving
+            the actual allow/deny choice to the native prompt this still
+            triggers via requestPermission. */}
+        {permission.canAskAgain && <Button label="Continue" onPress={requestPermission} />}
       </View>
     );
   }

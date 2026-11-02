@@ -143,7 +143,7 @@ export default function VenueScanner() {
     if (raw.includes('.')) {
       setBusy(true);
       try {
-        const updated = await bookings.checkIn(raw);
+        const updated = await bookings.checkIn(raw, eventId);
         setState({ mode: 'checked-in', booking: updated });
         load();
       } catch (e) {

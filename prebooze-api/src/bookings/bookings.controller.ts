@@ -129,8 +129,8 @@ export class BookingsController {
 
   @Post('bookings/check-in')
   @UseGuards(JwtAuthGuard)
-  checkIn(@Req() req: AuthedReq, @Body('token') token: string) {
-    return this.bookings.checkIn(token, req.user.sub);
+  checkIn(@Req() req: AuthedReq, @Body('token') token: string, @Body('eventId') eventId?: string) {
+    return this.bookings.checkIn(token, req.user.sub, eventId);
   }
 
   @Post('events/:id/waitlist')

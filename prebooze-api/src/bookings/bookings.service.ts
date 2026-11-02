@@ -2757,7 +2757,7 @@ export class BookingsService {
    * OrganizerService.myEvent) — must be the organizer who owns the event, OR
    * — for a venue-hosted event (Event.hostedByVenue) — the venue that hosts
    * it, via the same User.venueId lookup VenueService.myVenue uses. */
-  async checkIn(qrToken: string, scannerUserId: string) {
+  async checkIn(qrToken: string, scannerUserId: string, scannerEventId?: string) {
     let payload: { bookingId: string };
     try {
       payload = await this.jwt.verifyAsync(qrToken);
@@ -2780,6 +2780,18 @@ export class BookingsService {
     if (!isOrganizerOwner && !isVenueOwner) {
       await this.logCheckIn({ ok: false, reason: 'scanned by an organizer/venue who does not own this event', eventId: booking.eventId, bookingId: booking.id });
       throw new ForbiddenException('This ticket is for a different event than the one you manage');
+    }
+    // Real bug (2026-11-02): the ownership check above only confirms the
+    // scanning organizer/venue owns *some* event this ticket belongs to —
+    // an organizer running several same-day events had the scanner screen
+    // open on Event A but a ticket for their own Event B scanned silently
+    // succeeded and displayed Event B's booking, since nothing ever
+    // compared the ticket's real event against the one the scanner screen
+    // was actually open on. scannerEventId is optional (older app builds
+    // won't send it) so this only activates once the client passes it.
+    if (scannerEventId && booking.eventId !== scannerEventId) {
+      await this.logCheckIn({ ok: false, reason: `scanned on event ${scannerEventId} but ticket is for ${booking.eventId}`, eventId: booking.eventId, bookingId: booking.id });
+      throw new ForbiddenException("This ticket is for a different event — check you're scanning for the right one");
     }
     if (booking.status !== 'confirmed') {
       await this.logCheckIn({ ok: false, reason: `ticket is ${booking.status}, not valid for entry`, eventId: booking.eventId, bookingId: booking.id, guestName: booking.mainGuest, tierName: booking.tierName });
