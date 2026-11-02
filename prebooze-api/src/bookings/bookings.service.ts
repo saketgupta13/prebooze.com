@@ -2777,7 +2777,26 @@ export class BookingsService {
       const scannerUser = await this.prisma.user.findUnique({ where: { id: scannerUserId } });
       isVenueOwner = !!scannerUser?.venueId && scannerUser.venueId === booking.event.venueId;
     }
-    if (!isOrganizerOwner && !isVenueOwner) {
+    // Real bug (2026-11-02, reported against a single-event organizer —
+    // ruled out the cross-event case below): OrgStaff/VenueStaff's `scan`
+    // flag exists specifically to grant a door-scanning team member access
+    // without making them the Organizer/Venue owner — but this check never
+    // looked at either table, only literal ownership. A staff member
+    // scanning their own (and only) event's real ticket got rejected with
+    // "different event," since they have no Organizer row of their own at
+    // all — the actual real-world door-scanning pattern (owners rarely
+    // scan every ticket themselves) was entirely unauthorized until now.
+    let isOrgStaffScanner = false;
+    if (!isOrganizerOwner && !isVenueOwner && booking.event.organizerId) {
+      const orgStaff = await this.prisma.orgStaff.findFirst({ where: { userId: scannerUserId, organizerId: booking.event.organizerId, scan: true } });
+      isOrgStaffScanner = !!orgStaff;
+    }
+    let isVenueStaffScanner = false;
+    if (!isOrganizerOwner && !isVenueOwner && !isOrgStaffScanner && booking.event.hostedByVenue && booking.event.venueId) {
+      const venueStaff = await this.prisma.venueStaff.findFirst({ where: { userId: scannerUserId, venueId: booking.event.venueId, scan: true } });
+      isVenueStaffScanner = !!venueStaff;
+    }
+    if (!isOrganizerOwner && !isVenueOwner && !isOrgStaffScanner && !isVenueStaffScanner) {
       await this.logCheckIn({ ok: false, reason: 'scanned by an organizer/venue who does not own this event', eventId: booking.eventId, bookingId: booking.id });
       throw new ForbiddenException('This ticket is for a different event than the one you manage');
     }
