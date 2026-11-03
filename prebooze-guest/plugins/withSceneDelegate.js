@@ -75,7 +75,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     // output without Xcode's GUI here.
     let activityCount = connectionOptions.userActivities.count
     let webActivity = connectionOptions.userActivities.first(where: { $0.activityType == NSUserActivityTypeBrowsingWeb })
-    let debugMsg = "activities=\(activityCount) webActivity=\(webActivity != nil) webpageURL=\(webActivity?.webpageURL?.absoluteString ?? "nil") urlContexts=\(connectionOptions.urlContexts.count)"
+    let debugMsg = "activities=\\(activityCount) webActivity=\\(webActivity != nil) webpageURL=\\(webActivity?.webpageURL?.absoluteString ?? "nil") urlContexts=\\(connectionOptions.urlContexts.count)"
     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
       guard let root = window.rootViewController else { return }
       let alert = UIAlertController(title: "Cold-launch debug", message: debugMsg, preferredStyle: .alert)
