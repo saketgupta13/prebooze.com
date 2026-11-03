@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Alert, Linking, Platform, View } from 'react-native';
+import { Linking, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
@@ -93,15 +93,16 @@ export default function App() {
   // getInitialURL, or tapped while the app was already open via the 'url'
   // event. Same two-case handling as the push-notification-tap flow above.
   useEffect(() => {
+    // Real bug confirmed 2026-11-04 via on-device diagnostics: this
+    // getInitialURL() call always returns null on a cold Universal Link
+    // launch — RN 0.86's new/bridgeless architecture doesn't route
+    // SceneDelegate's launch-time URL through the legacy
+    // self.bridge.launchOptions path this reads from, even though the
+    // native side genuinely has it. The real delivery now happens via the
+    // 'url' event listener below instead — SceneDelegate posts it with a
+    // short delay after startReactNative so this listener is mounted in
+    // time to catch it (see plugins/withSceneDelegate.js).
     Linking.getInitialURL().then((url) => {
-      // TEMPORARY diagnostic (remove once the cold-launch Universal Link
-      // bug is confirmed fixed) — the native side provably has the real
-      // URL (confirmed via SceneDelegate's own debug alert), so this
-      // checks whether it's actually reaching JS's Linking.getInitialURL()
-      // at all, given RN 0.86's new/bridgeless architecture may not route
-      // launchOptions the same way the legacy self.bridge.launchOptions
-      // mechanism assumed.
-      Alert.alert('JS getInitialURL debug', `url=${url ?? 'null'}`);
       if (url) handleDeepLink(url);
     });
     const sub = Linking.addEventListener('url', ({ url }) => {

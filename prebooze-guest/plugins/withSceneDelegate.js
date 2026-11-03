@@ -39,48 +39,39 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     guard let appDelegate = UIApplication.shared.delegate as? AppDelegate,
           let factory = appDelegate.reactNativeFactory else { return }
 
-    // Real bug found 2026-11-03/04, two wrong fixes before this one: a
-    // cold launch from a Universal Link delivers it via connectionOptions
-    // here, not via scene(_:continue:) below (only fires on an already-
-    // running app). Two earlier attempts called
-    // RCTLinkingManager.application(...continue:...) — but checking its
-    // actual source (RCTLinkingManager.mm) shows that class method only
-    // posts an NSNotification for an ALREADY-RUNNING app's "url" event
-    // listener; getInitialURL() (what JS calls once at cold-launch
-    // bootstrap) never reads from it at all — it only reads
-    // self.bridge.launchOptions[UIApplicationLaunchOptionsUserActivityDictionaryKey/URLKey],
-    // i.e. whatever NSDictionary is passed into startReactNative's own
-    // launchOptions parameter. So the actual fix is building that
-    // dictionary with the real launch-options keys/shape RCTLinkingManager
-    // expects and passing it into startReactNative directly, instead of
-    // calling RCTLinkingManager at all.
-    var launchOptions: [AnyHashable: Any] = [:]
-    if let userActivity = connectionOptions.userActivities.first(where: { $0.activityType == NSUserActivityTypeBrowsingWeb }) {
-      launchOptions[UIApplication.LaunchOptionsKey.userActivityDictionary] = [
-        "UIApplicationLaunchOptionsUserActivityTypeKey": NSUserActivityTypeBrowsingWeb,
-        "UIApplicationLaunchOptionsUserActivityKey": userActivity,
-      ]
-    } else if let url = connectionOptions.urlContexts.first?.url {
-      launchOptions[UIApplication.LaunchOptionsKey.url] = url
-    }
-
     let window = UIWindow(windowScene: windowScene)
-    factory.startReactNative(withModuleName: "main", in: window, launchOptions: launchOptions.isEmpty ? nil : launchOptions)
+    factory.startReactNative(withModuleName: "main", in: window, launchOptions: nil)
     self.window = window
     appDelegate.window = window
 
-    // TEMPORARY diagnostic (remove once the cold-launch Universal Link
-    // bug is confirmed fixed) — shows exactly what willConnectTo actually
-    // received, since there's no way to view a real device's console
-    // output without Xcode's GUI here.
-    let activityCount = connectionOptions.userActivities.count
-    let webActivity = connectionOptions.userActivities.first(where: { $0.activityType == NSUserActivityTypeBrowsingWeb })
-    let debugMsg = "activities=\\(activityCount) webActivity=\\(webActivity != nil) webpageURL=\\(webActivity?.webpageURL?.absoluteString ?? "nil") urlContexts=\\(connectionOptions.urlContexts.count)"
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-      guard let root = window.rootViewController else { return }
-      let alert = UIAlertController(title: "Cold-launch debug", message: debugMsg, preferredStyle: .alert)
-      alert.addAction(UIAlertAction(title: "OK", style: .default))
-      root.present(alert, animated: true)
+    // Real bug found 2026-11-03/04, two wrong fixes before this one: a
+    // cold launch from a Universal Link delivers it via connectionOptions
+    // here, not via scene(_:continue:) below (only fires on an already-
+    // running app). A prior attempt built an NSDictionary matching
+    // RCTLinkingManager.mm's expected launchOptions shape
+    // (UIApplicationLaunchOptionsUserActivityDictionaryKey, etc.) and
+    // passed it into startReactNative's own launchOptions param — a real
+    // on-device diagnostic proved the native side had the correct URL at
+    // that point, but a second diagnostic proved JS's
+    // Linking.getInitialURL() still got back null regardless. RN 0.86's
+    // new/bridgeless architecture doesn't route launchOptions through the
+    // legacy self.bridge.launchOptions path getInitialURL() reads from —
+    // confirmed empirically, not guessed.
+    //
+    // Fix: don't fight that plumbing. Reuse the exact mechanism already
+    // proven to work for a WARM tap (continueUserActivity posts an
+    // NSNotification -> RCTLinkingManager's "url" event -> App.tsx's
+    // existing Linking.addEventListener('url', ...) handler) — just fire
+    // it once JS has had time to mount and subscribe that listener. 1.5s
+    // comfortably covers JS bootstrap + the listener's own useEffect.
+    if let userActivity = connectionOptions.userActivities.first(where: { $0.activityType == NSUserActivityTypeBrowsingWeb }) {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        RCTLinkingManager.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
+      }
+    } else if let url = connectionOptions.urlContexts.first?.url {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        RCTLinkingManager.application(UIApplication.shared, open: url, options: [:])
+      }
     }
   }
 
