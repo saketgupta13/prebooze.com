@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Linking, Platform, View } from 'react-native';
+import { Alert, Linking, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
@@ -94,6 +94,14 @@ export default function App() {
   // event. Same two-case handling as the push-notification-tap flow above.
   useEffect(() => {
     Linking.getInitialURL().then((url) => {
+      // TEMPORARY diagnostic (remove once the cold-launch Universal Link
+      // bug is confirmed fixed) — the native side provably has the real
+      // URL (confirmed via SceneDelegate's own debug alert), so this
+      // checks whether it's actually reaching JS's Linking.getInitialURL()
+      // at all, given RN 0.86's new/bridgeless architecture may not route
+      // launchOptions the same way the legacy self.bridge.launchOptions
+      // mechanism assumed.
+      Alert.alert('JS getInitialURL debug', `url=${url ?? 'null'}`);
       if (url) handleDeepLink(url);
     });
     const sub = Linking.addEventListener('url', ({ url }) => {
