@@ -1,0 +1,28 @@
+name: Uptime check
+
+# Checks prebooze.com + the API's own /health endpoint from GitHub's network
+# — deliberately NOT run from the VPS itself. Real incident 2026-11-03: the
+# VPS's guest OS and app were both healthy the whole time (confirmed via
+# journalctl/pm2 after the fact), but external reachability (web, API, even
+# SSH) broke for ~10 minutes with nothing inside the box able to notice its
+# own unreachability. A check running on the VPS can't catch that class of
+# failure — this has to run somewhere else entirely.
+#
+# This workflow does NOT auto-restart anything (deliberate — no Hostinger
+# API token is stored here). It only fails loudly so GitHub emails the
+# repo's notification recipients, which is the fast-alert half of the fix;
+# the VPS restart itself is still a manual step (via Hostinger's API/hPanel)
+# until/unless that's wired up separately.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check prebooze.com
+        run: curl -fsS --max-time 20 https://prebooze.com/ -o /dev/null
+      - name: Check api.prebooze.com health
+        run: curl -fsS --max-time 20 https://api.prebooze.com/v1/health -o /dev/null
