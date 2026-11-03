@@ -68,6 +68,20 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     factory.startReactNative(withModuleName: "main", in: window, launchOptions: launchOptions.isEmpty ? nil : launchOptions)
     self.window = window
     appDelegate.window = window
+
+    // TEMPORARY diagnostic (remove once the cold-launch Universal Link
+    // bug is confirmed fixed) — shows exactly what willConnectTo actually
+    // received, since there's no way to view a real device's console
+    // output without Xcode's GUI here.
+    let activityCount = connectionOptions.userActivities.count
+    let webActivity = connectionOptions.userActivities.first(where: { $0.activityType == NSUserActivityTypeBrowsingWeb })
+    let debugMsg = "activities=\(activityCount) webActivity=\(webActivity != nil) webpageURL=\(webActivity?.webpageURL?.absoluteString ?? "nil") urlContexts=\(connectionOptions.urlContexts.count)"
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+      guard let root = window.rootViewController else { return }
+      let alert = UIAlertController(title: "Cold-launch debug", message: debugMsg, preferredStyle: .alert)
+      alert.addAction(UIAlertAction(title: "OK", style: .default))
+      root.present(alert, animated: true)
+    }
   }
 
   func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
