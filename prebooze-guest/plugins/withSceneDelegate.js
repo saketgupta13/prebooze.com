@@ -39,28 +39,33 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     guard let appDelegate = UIApplication.shared.delegate as? AppDelegate,
           let factory = appDelegate.reactNativeFactory else { return }
 
-    // Real bug found 2026-11-03/04: a cold launch from a Universal Link
-    // delivers the link via connectionOptions, not via scene(_:continue:)
-    // below (that only fires when the scene is already connected — a
-    // warm launch). The first fix forwarded it to RCTLinkingManager
-    // AFTER calling startReactNative — but that's too late: JS calls
-    // Linking.getInitialURL() during its own early startup, which races
-    // ahead of that native call and always wins, so it saw nothing and
-    // every cold-launch tap landed on the default route (a second tap,
-    // now a warm launch, worked because scene(_:continue:) fires on a
-    // running app before React Navigation's listener misses it). Setting
-    // the URL into RCTLinkingManager's static initial-URL cache BEFORE
-    // startReactNative — the same mechanism UIApplication's own
-    // launchOptions dictionary uses — makes it available the moment JS
-    // asks for it instead.
+    // Real bug found 2026-11-03/04, two wrong fixes before this one: a
+    // cold launch from a Universal Link delivers it via connectionOptions
+    // here, not via scene(_:continue:) below (only fires on an already-
+    // running app). Two earlier attempts called
+    // RCTLinkingManager.application(...continue:...) — but checking its
+    // actual source (RCTLinkingManager.mm) shows that class method only
+    // posts an NSNotification for an ALREADY-RUNNING app's "url" event
+    // listener; getInitialURL() (what JS calls once at cold-launch
+    // bootstrap) never reads from it at all — it only reads
+    // self.bridge.launchOptions[UIApplicationLaunchOptionsUserActivityDictionaryKey/URLKey],
+    // i.e. whatever NSDictionary is passed into startReactNative's own
+    // launchOptions parameter. So the actual fix is building that
+    // dictionary with the real launch-options keys/shape RCTLinkingManager
+    // expects and passing it into startReactNative directly, instead of
+    // calling RCTLinkingManager at all.
+    var launchOptions: [AnyHashable: Any] = [:]
     if let userActivity = connectionOptions.userActivities.first(where: { $0.activityType == NSUserActivityTypeBrowsingWeb }) {
-      RCTLinkingManager.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
+      launchOptions[UIApplication.LaunchOptionsKey.userActivityDictionary] = [
+        "UIApplicationLaunchOptionsUserActivityTypeKey": NSUserActivityTypeBrowsingWeb,
+        "UIApplicationLaunchOptionsUserActivityKey": userActivity,
+      ]
     } else if let url = connectionOptions.urlContexts.first?.url {
-      RCTLinkingManager.application(UIApplication.shared, open: url, options: [:])
+      launchOptions[UIApplication.LaunchOptionsKey.url] = url
     }
 
     let window = UIWindow(windowScene: windowScene)
-    factory.startReactNative(withModuleName: "main", in: window, launchOptions: nil)
+    factory.startReactNative(withModuleName: "main", in: window, launchOptions: launchOptions.isEmpty ? nil : launchOptions)
     self.window = window
     appDelegate.window = window
   }
