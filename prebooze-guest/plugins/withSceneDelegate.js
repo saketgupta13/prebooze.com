@@ -39,23 +39,30 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     guard let appDelegate = UIApplication.shared.delegate as? AppDelegate,
           let factory = appDelegate.reactNativeFactory else { return }
 
-    let window = UIWindow(windowScene: windowScene)
-    factory.startReactNative(withModuleName: "main", in: window, launchOptions: nil)
-    self.window = window
-    appDelegate.window = window
-
-    // Real bug found 2026-11-03: a cold launch from a Universal Link
-    // delivers the link via connectionOptions here, not via
-    // scene(_:continue:) below — that method only fires when the scene
-    // is already connected (app already running, brought to foreground).
-    // Without this, tapping a link while the app wasn't running opened
-    // the app to its default route; the user had to tap the link a
-    // second time (now a warm launch) for it to actually navigate.
+    // Real bug found 2026-11-03/04: a cold launch from a Universal Link
+    // delivers the link via connectionOptions, not via scene(_:continue:)
+    // below (that only fires when the scene is already connected — a
+    // warm launch). The first fix forwarded it to RCTLinkingManager
+    // AFTER calling startReactNative — but that's too late: JS calls
+    // Linking.getInitialURL() during its own early startup, which races
+    // ahead of that native call and always wins, so it saw nothing and
+    // every cold-launch tap landed on the default route (a second tap,
+    // now a warm launch, worked because scene(_:continue:) fires on a
+    // running app before React Navigation's listener misses it). Setting
+    // the URL into RCTLinkingManager's static initial-URL cache BEFORE
+    // startReactNative — the same mechanism UIApplication's own
+    // launchOptions dictionary uses — makes it available the moment JS
+    // asks for it instead.
     if let userActivity = connectionOptions.userActivities.first(where: { $0.activityType == NSUserActivityTypeBrowsingWeb }) {
       RCTLinkingManager.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
     } else if let url = connectionOptions.urlContexts.first?.url {
       RCTLinkingManager.application(UIApplication.shared, open: url, options: [:])
     }
+
+    let window = UIWindow(windowScene: windowScene)
+    factory.startReactNative(withModuleName: "main", in: window, launchOptions: nil)
+    self.window = window
+    appDelegate.window = window
   }
 
   func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
