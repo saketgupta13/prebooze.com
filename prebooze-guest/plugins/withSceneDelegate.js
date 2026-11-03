@@ -43,6 +43,19 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     factory.startReactNative(withModuleName: "main", in: window, launchOptions: nil)
     self.window = window
     appDelegate.window = window
+
+    // Real bug found 2026-11-03: a cold launch from a Universal Link
+    // delivers the link via connectionOptions here, not via
+    // scene(_:continue:) below — that method only fires when the scene
+    // is already connected (app already running, brought to foreground).
+    // Without this, tapping a link while the app wasn't running opened
+    // the app to its default route; the user had to tap the link a
+    // second time (now a warm launch) for it to actually navigate.
+    if let userActivity = connectionOptions.userActivities.first(where: { $0.activityType == NSUserActivityTypeBrowsingWeb }) {
+      RCTLinkingManager.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
+    } else if let url = connectionOptions.urlContexts.first?.url {
+      RCTLinkingManager.application(UIApplication.shared, open: url, options: [:])
+    }
   }
 
   func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
