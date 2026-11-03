@@ -45,7 +45,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(me);
         cacheUser(me);
         trackUserId(me.username || null);
-        registerPushTokenForCurrentDevice().then((t) => { pushTokenRef.current = t; });
+        // Real bug found 2026-11-04: the permission prompt only ever fired
+        // inside verifyOtp, on the assumption every logged-in session had
+        // freshly been through it. But the auth token lives in SecureStore
+        // (iOS Keychain), which survives app deletion/reinstall by default
+        // — so a guest who already had a session could reinstall many times
+        // and never see the permission dialog again, silently stuck on
+        // iOS's "undetermined" state forever (no Notifications row even
+        // shows up in iOS Settings until the OS has been asked at least
+        // once). Same guard as there — never re-prompts once denied.
+        Notifications.requestPermissionsAsync().catch(() => ({})).then(() => {
+          registerPushTokenForCurrentDevice().then((t) => { pushTokenRef.current = t; });
+        });
       } catch (e) {
         // Real bug found live (2026-10-17): this used to clear the token —
         // and therefore log the guest all the way out — on ANY boot
