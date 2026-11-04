@@ -23,6 +23,9 @@
       "android": {
         "serviceAccountKeyPath": "/Users/saketgupta/.prebooze-play-service-account.json",
         "track": "alpha"
+      },
+      "ios": {
+        "ascAppId": "6830486402"
       }
     }
   }
