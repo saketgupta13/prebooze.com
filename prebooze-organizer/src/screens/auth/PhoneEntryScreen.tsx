@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MessageCircle } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
@@ -75,14 +75,26 @@ export default function PhoneEntryScreen({ navigation }: Props) {
             />
           </View>
 
-          <Pressable style={styles.checkboxRow} onPress={() => setAgreed((a) => !a)}>
-            <View style={[styles.checkbox, agreed && styles.checkboxOn]}>
-              {agreed && <Txt style={styles.checkMark}>✓</Txt>}
-            </View>
-            <Txt style={styles.checkboxLabel}>
-              I agree with the <Txt style={styles.link}>Terms & Conditions</Txt> and <Txt style={styles.link}>Privacy Policy</Txt>
+          <View style={styles.checkboxRow}>
+            {/* Real bug found 2026-11-07: "Terms & Conditions" and "Privacy
+             * Policy" were styled as links but had no onPress at all — the
+             * whole row was one Pressable that only toggled the checkbox,
+             * and this app has no in-app legal screen either (unlike the
+             * guest app's PrivacyPolicyScreen). Split into its own Pressable
+             * so the checkbox and the two links are independently tappable,
+             * opening the real web pages. */}
+            <Pressable onPress={() => setAgreed((a) => !a)} hitSlop={8}>
+              <View style={[styles.checkbox, agreed && styles.checkboxOn]}>
+                {agreed && <Txt style={styles.checkMark}>✓</Txt>}
+              </View>
+            </Pressable>
+            <Txt style={styles.checkboxLabel} onPress={() => setAgreed((a) => !a)}>
+              I agree with the{' '}
+              <Txt style={styles.link} onPress={() => Linking.openURL('https://prebooze.com/legal/terms')}>Terms & Conditions</Txt>
+              {' '}and{' '}
+              <Txt style={styles.link} onPress={() => Linking.openURL('https://prebooze.com/legal/privacy')}>Privacy Policy</Txt>
             </Txt>
-          </Pressable>
+          </View>
 
           {!!err && <Txt style={styles.errorText}>✕ {err}</Txt>}
 
