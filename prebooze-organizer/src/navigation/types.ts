@@ -74,21 +74,14 @@ export type MoreStackParamList = {
   Withdraw: undefined;
   Transactions: undefined;
   Promoters: undefined;
-  // Read-only invoice history — the Feature-event purchase widget on web's
-  // OrganizerBilling.tsx is deliberately excluded (App Store IAP policy),
-  // this is just the real invoice list + PDF download behind it.
-  Billing: undefined;
-  // Read-only campaign status list — same carve-out as Billing above, the
-  // "Run ads" purchase itself deep-links to web instead.
-  Marketing: undefined;
+  // Billing and Marketing (and PaymentMethods below) removed entirely
+  // 2026-11-07 — see MoreScreen.tsx's comment: Apple rejection on
+  // Guideline 3.1.1 (Submission 0be68a74).
   // Phase 4 — settings, team & roles, verification, payment profiles
   // (2026-09-16).
   Settings: undefined;
   TeamRoles: undefined;
   Verification: undefined;
   PaymentProfiles: undefined;
-  // Personal-account items (2026-09-22) — shared across every role, not
-  // organizer-specific, matching web's NAV "no module" entries.
-  PaymentMethods: undefined;
   HelpCenter: undefined;
 };

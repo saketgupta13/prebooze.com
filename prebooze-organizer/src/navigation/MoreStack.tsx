@@ -8,14 +8,11 @@ import AbandonedCartsScreen from '../screens/abandonedcarts/AbandonedCartsScreen
 import PayoutsScreen from '../screens/payouts/PayoutsScreen';
 import WithdrawScreen from '../screens/payouts/WithdrawScreen';
 import TransactionsScreen from '../screens/transactions/TransactionsScreen';
-import BillingScreen from '../screens/payouts/BillingScreen';
-import MarketingScreen from '../screens/more/MarketingScreen';
 import PromotersScreen from '../screens/promoters/PromotersScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
 import TeamRolesScreen from '../screens/settings/TeamRolesScreen';
 import VerificationScreen from '../screens/settings/VerificationScreen';
 import PaymentProfilesScreen from '../screens/settings/PaymentProfilesScreen';
-import PaymentMethodsScreen from '../screens/settings/PaymentMethodsScreen';
 import HelpCenterScreen from '../screens/settings/HelpCenterScreen';
 import type { MoreStackParamList } from './types';
 
@@ -36,14 +33,11 @@ export default function MoreStack() {
       <Stack.Screen name="Payouts" component={PayoutsScreen} />
       <Stack.Screen name="Withdraw" component={WithdrawScreen} />
       <Stack.Screen name="Transactions" component={TransactionsScreen} />
-      <Stack.Screen name="Billing" component={BillingScreen} />
-      <Stack.Screen name="Marketing" component={MarketingScreen} />
       <Stack.Screen name="Promoters" component={PromotersScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="TeamRoles" component={TeamRolesScreen} />
       <Stack.Screen name="Verification" component={VerificationScreen} />
       <Stack.Screen name="PaymentProfiles" component={PaymentProfilesScreen} />
-      <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
       <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
     </Stack.Navigator>
   );
