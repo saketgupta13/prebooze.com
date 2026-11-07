@@ -7,6 +7,7 @@ import { ApiError } from '../../api/client';
 import { Button, H1, Muted, Screen, Txt } from '../../components/ui';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../theme/tokens';
 import type { AuthStackParamList } from '../../navigation/types';
+import { NoAccountScreen } from './StatusScreens';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'PhoneEntry'>;
 
@@ -18,6 +19,7 @@ export default function PhoneEntryScreen({ navigation }: Props) {
   const [agreed, setAgreed] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [noAccount, setNoAccount] = useState(false);
 
   const submit = async () => {
     if (phone.length !== 10) return setErr('Enter a valid 10-digit mobile number');
@@ -27,6 +29,16 @@ export default function PhoneEntryScreen({ navigation }: Props) {
     try {
       const fullPhone = `+91 ${phone}`;
       const res = await requestOtp(fullPhone);
+      // See StatusScreens.tsx's NoAccountScreen comment — Apple rejection
+      // 2026-11-07 (3.1.1): this app must never be the thing that creates a
+      // brand-new platform account. `existingName` is only ever present for
+      // a phone number the platform already has a User row for (from any
+      // app); a phone with none never reaches the name-collecting OTP
+      // screen — the one call capable of creating that row — at all.
+      if (!res.existingName) {
+        setNoAccount(true);
+        return;
+      }
       navigation.navigate('OtpEntry', { phone: fullPhone, requestId: res.requestId, devCode: res.devCode, existingName: res.existingName });
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "Couldn't send code — please try again");
@@ -34,6 +46,8 @@ export default function PhoneEntryScreen({ navigation }: Props) {
       setBusy(false);
     }
   };
+
+  if (noAccount) return <NoAccountScreen onBack={() => setNoAccount(false)} />;
 
   return (
     <Screen style={styles.screen}>
@@ -44,8 +58,8 @@ export default function PhoneEntryScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.card}>
-          <H1 style={styles.h1}>Welcome</H1>
-          <Muted style={styles.sub}>Login or sign up — no password needed</Muted>
+          <H1 style={styles.h1}>Welcome back</H1>
+          <Muted style={styles.sub}>Log in with your organizer phone number</Muted>
 
           <Txt style={styles.label}>Phone number</Txt>
           <View style={styles.phoneRow}>

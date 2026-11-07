@@ -39,6 +39,37 @@ export function RejectedReviewScreen({ reason }: { reason?: string }) {
   );
 }
 
+/** Apple rejection 2026-11-07 (Guideline 3.1.1) on Submission 0be68a74: "The
+ * app includes an account registration feature for businesses and
+ * organizations" — the OTP screen let a phone number the platform had NEVER
+ * seen before create a brand-new account right here, inside a business-tool
+ * app, before ever being told to apply on the website. Functionally harmless
+ * (the real organizer application/business details only ever lived on web —
+ * see NotOrganizerScreen below, which every brand-new account already
+ * landed on) but Apple doesn't look at where the harm is: it treats ANY
+ * account-creation capability in an app like this as "registration."
+ *
+ * Fix: PhoneEntryScreen now checks requestOtp's `existingName` — present
+ * only for a phone the platform already has a row for, from ANY app
+ * (guest/venue/organizer/etc. all share one User table). A truly brand-new
+ * number never reaches the OTP screen at all; it lands here instead, and
+ * the app never calls verifyOtp (the one call that can create a User row)
+ * for it. An already-known phone — whatever its role — still logs in
+ * exactly as before; this only closes the one path that was creating new
+ * accounts from zero. */
+export function NoAccountScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <StatusShell icon="🎪">
+      <H1 style={styles.h1}>No account found</H1>
+      <Muted style={styles.body}>
+        This app is for logging into an existing organizer account. To apply as a new organizer, set up your account on prebooze.com first — then come back here to log in.
+      </Muted>
+      <Button label="Set up on prebooze.com" onPress={() => Linking.openURL(ORGANIZER_ONBOARDING_URL)} style={styles.btn} />
+      <Button label="Back" variant="ghost" onPress={onBack} style={styles.btn} />
+    </StatusShell>
+  );
+}
+
 /** This app is organizer-only — a guest/other-role account (or one that's
  * never applied at all) gets sent to the real web onboarding wizard rather
  * than a native copy of it (not in this app's build scope). */
