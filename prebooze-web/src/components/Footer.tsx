@@ -77,8 +77,14 @@ export default function Footer() {
           </div>
           <div>
             <h3>Get the app</h3>
-            <a href="https://apps.apple.com/in/app/prebooze/id6830486402" target="_blank" rel="noreferrer">Guest app — App Store</a>
-            <a href="https://apps.apple.com/in/app/prebooze-partners/id6820904147" target="_blank" rel="noreferrer">Partners app — App Store</a>
+            <span style={{ display: 'block', fontSize: 13, color: 'var(--muted)', marginBottom: 4 }}>Guest app</span>
+            <a href="https://apps.apple.com/in/app/prebooze/id6830486402" target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginBottom: 12 }}>
+              <img src="/badges/app-store.svg" alt="Download the Prebooze Guest app on the App Store" height={40} />
+            </a>
+            <span style={{ display: 'block', fontSize: 13, color: 'var(--muted)', marginBottom: 4 }}>Partners app</span>
+            <a href="https://apps.apple.com/in/app/prebooze-partners/id6820904147" target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+              <img src="/badges/app-store.svg" alt="Download the Prebooze Partners app on the App Store" height={40} />
+            </a>
           </div>
           <div>
             <h3>Follow</h3>
