@@ -76,6 +76,11 @@ export default function Footer() {
             <Link to="/legal/privacy">Privacy</Link>
           </div>
           <div>
+            <h3>Get the app</h3>
+            <a href="https://apps.apple.com/in/app/prebooze/id6830486402" target="_blank" rel="noreferrer">Guest app — App Store</a>
+            <a href="https://apps.apple.com/in/app/prebooze-partners/id6820904147" target="_blank" rel="noreferrer">Partners app — App Store</a>
+          </div>
+          <div>
             <h3>Follow</h3>
             <div style={{ display: 'flex', gap: 10 }}>
               {socialList.map((s) => (
