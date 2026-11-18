@@ -383,7 +383,10 @@ export default function Home() {
   // organizer/promoter/lineup/venue lists are real (server already
   // city-filters them); mock fallback only applies offline.
   const byCity = <T extends { city: string }>(arr: T[]) => arr.filter((x) => x.city === city);
-  const orgPool = liveOrganizers ?? (isBackendEnabled() ? [] : byCity(ORGANIZERS));
+  // Excludes organizers with zero events hosted — a freshly self-signed-up
+  // account (instant, no admin review — see KycService.quickSignupOrganizer)
+  // with nothing built yet shouldn't occupy a slot in this slider.
+  const orgPool = (liveOrganizers ?? (isBackendEnabled() ? [] : byCity(ORGANIZERS))).filter((o) => o.eventsHosted > 0);
   const promoterPool = livePromoters ?? (isBackendEnabled() ? [] : byCity(PROMOTERS));
   const lineupPool = liveLineups ?? (isBackendEnabled() ? [] : byCity(LINEUPS));
   const venuePool = liveVenues ?? (isBackendEnabled() ? [] : byCity(VENUES));
