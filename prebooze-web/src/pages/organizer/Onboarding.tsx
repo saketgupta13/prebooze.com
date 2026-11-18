@@ -39,6 +39,14 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState('');
+  // One real confirm before this commits the account — self-serve signup is
+  // instant and the phone number is then locked into "organizer" (one phone,
+  // one role) until a staffer manually reverts it. Real incident 2026-11-18:
+  // a guest filled this whole form out and ended up stuck unable to book
+  // tickets, with no self-serve way back. This doesn't replace fixing that
+  // recovery gap — it just stops the irreversible step from firing on the
+  // same tap that fills out the form.
+  const [confirming, setConfirming] = useState(false);
 
   const draft0 = loadDraft(DRAFT_ID, emptyDraft);
   const [logo, setLogo] = useState('');
@@ -79,6 +87,10 @@ export default function Onboarding() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
     const otherLinks = other.map((l) => l.trim()).filter(Boolean);
     if (!isBackendEnabled()) {
       submitRoleApplication('organizer', { orgBrand: brand.trim(), orgUsername: slugify(brand) });
@@ -184,12 +196,31 @@ export default function Onboarding() {
           </div>
 
           {err && <div className="danger-text small" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><X size={14} /> {err}</div>}
+
+          {confirming && (
+            <div className="card" style={{ marginBottom: 10, background: 'var(--surface-2)' }}>
+              <p className="small" style={{ margin: 0 }}>
+                This creates a real organizer account on <span className="bold">{brand.trim() || 'this phone number'}</span> — your number switches
+                from guest to organizer, so you won't be able to book tickets as a guest afterward unless this is undone. Not trying to book a ticket?{' '}
+                <button type="button" className="link bold" style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', padding: 0 }} onClick={() => navigate('/')}>
+                  Go back to browsing
+                </button>
+                .
+              </p>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 10 }}>
-            <button type="button" className="btn btn-ghost" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => navigate(-1)}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              onClick={() => (confirming ? setConfirming(false) : navigate(-1))}
+            >
               <ArrowLeft size={15} /> Back
             </button>
             <button className="btn btn-pri btn-lg" style={{ flex: 1, minWidth: 0, whiteSpace: 'normal', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={!valid || submitting}>
-              {submitting ? 'Setting up…' : <>Create my organizer account <ArrowRight size={15} /></>}
+              {submitting ? 'Setting up…' : confirming ? <>Yes, create my organizer account <ArrowRight size={15} /></> : <>Create my organizer account <ArrowRight size={15} /></>}
             </button>
           </div>
         </form>
