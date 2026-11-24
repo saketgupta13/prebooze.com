@@ -199,13 +199,24 @@ export default function PayoutDetail() {
                   </span>
                 )}
               </span>
-              <span style={{ flex: 0.9, display: 'flex', justifyContent: 'flex-end' }}>
+              <span style={{ flex: 0.9, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                 {r.paidOut ? (
                   <span className="tag tag-green" title={r.payoutUtr ?? undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>Paid <Check size={11} /></span>
-                ) : payingEventId === r.id ? null : (
-                  <button className="btn btn-ghost btn-sm" disabled={r.payeeBalance === 0 || detail.hasOpenWithdrawal} onClick={() => { setPayingEventId(r.id); setUtrDraft(''); setErr(''); }}>
-                    Mark paid…
-                  </button>
+                ) : (
+                  <>
+                    {/* Every event listed here already only exists because it
+                        has ended (same isEventOver gate as the "All events" tab)
+                        — so !paidOut always means received-but-not-yet-paid,
+                        never "hasn't happened yet". Labeled explicitly rather
+                        than left implicit, matching Payments.tsx's "All events"
+                        tab tag. */}
+                    <span className="tag tag-amber">Received</span>
+                    {payingEventId !== r.id && (
+                      <button className="btn btn-ghost btn-sm" disabled={r.payeeBalance === 0 || detail.hasOpenWithdrawal} onClick={() => { setPayingEventId(r.id); setUtrDraft(''); setErr(''); }}>
+                        Mark paid…
+                      </button>
+                    )}
+                  </>
                 )}
               </span>
               {!r.paidOut && payingEventId === r.id && (

@@ -166,7 +166,15 @@ export default function Payments() {
                 {r.paidOut ? (
                   <span className="tag tag-green">Paid{r.payoutUtr ? ` · ${r.payoutUtr}` : ''}</span>
                 ) : (
-                  <span className="tag tag-dim">₹{fmt(r.net)} due</span>
+                  // Every row in this tab already only exists because the
+                  // event has ended (eventPayoutRows() gates on
+                  // CatalogService.isEventOver) — so "not yet paidOut" here
+                  // always means the revenue has been received and is
+                  // sitting ready for payout, never "event hasn't happened
+                  // yet". Labeled explicitly as "Received" (reusing the
+                  // same tag-amber styling as the withdrawal pipeline's own
+                  // 'received' status) rather than leaving that implicit.
+                  <span className="tag tag-amber">Received · ₹{fmt(r.net)} due</span>
                 )}
               </span>
             </div>
