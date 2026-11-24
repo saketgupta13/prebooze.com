@@ -147,6 +147,22 @@ export class PaymentsService {
     return { rows: sorted, collected, commissionKept };
   }
 
+  /** Whether this payee has ever had ANY withdrawal-type ledger row (open,
+   * complete, or rejected-then-reversed — doesn't matter which). Used to
+   * tell a real "this money already went out another door" gap apart from
+   * a pure rounding-drift gap in markPaid: if there's no withdrawal row at
+   * all, nothing could possibly have been withdrawn, so a small net-vs-
+   * balance mismatch can only be the per-booking-vs-per-event rounding
+   * difference documented on computePayoutBreakdown's call sites — real
+   * case found 2026-11-24 (Mastis Entertainments, ₹6,799 event net vs
+   * ₹6,796 ledger balance, zero withdrawal rows in their entire history). */
+  private async hasAnyWithdrawalRow(payeeType: 'organizer' | 'venue', payeeId: string): Promise<boolean> {
+    const count = payeeType === 'organizer'
+      ? await this.prisma.organizerLedgerTx.count({ where: { organizerId: payeeId, type: 'withdrawal' } })
+      : await this.prisma.venueLedgerTx.count({ where: { venueId: payeeId, type: 'withdrawal' } });
+    return count > 0;
+  }
+
   /** organizerId/venueId → payees with a self-serve withdrawal request admin
    * hasn't resolved yet (not yet 'complete' or 'rejected') — see
    * payoutsDue's use of this for why these get hidden from that list. */
@@ -361,6 +377,7 @@ export class PaymentsService {
     }
 
     const balance = await this.payeeBalance(payeeType, payeeId);
+    let payable = net;
     if (net > balance) {
       const already = net - balance;
       // Real confusion this message used to cause: a self-serve withdrawal
@@ -372,11 +389,27 @@ export class PaymentsService {
       // already surfaces on the admin UI.
       const openWithdrawalPayees = already > 0 ? await this.openWithdrawalPayees() : null;
       const hasOpenWithdrawal = openWithdrawalPayees?.has(`${payeeType}:${payeeId}`) ?? false;
-      throw new BadRequestException(
-        already > 0
-          ? `This event's payout is ₹${net.toLocaleString('en-IN')}, but only ₹${balance.toLocaleString('en-IN')} of that is still uncollected — the rest (₹${already.toLocaleString('en-IN')}) ${hasOpenWithdrawal ? "is reserved by a pending self-serve withdrawal request they haven't been paid yet" : 'looks like it has already been self-withdrawn and paid'}. Check the Withdrawal requests tab before marking this paid.`
-          : `This event's payout (₹${net.toLocaleString('en-IN')}) exceeds this ${payeeType}'s current balance (₹${balance.toLocaleString('en-IN')}) — can't mark it paid.`
-      );
+
+      // Real fix (2026-11-24, Mastis Entertainments): "already been
+      // self-withdrawn" is only possible if a withdrawal row actually
+      // exists for this payee. With none at all, the gap can only be
+      // rounding drift — eventPayoutRows()/markPaid compute commission by
+      // rounding once on the event's total revenue, while each booking's
+      // own ledger sale row rounded its own slice independently at sale
+      // time; summed across many bookings those two roundings can differ
+      // by a few rupees with nothing ever having left the balance. Safe to
+      // pay through in that case — capped at the real balance, since that
+      // (not the naively-computed net) is what's genuinely owed.
+      const hasWithdrawalHistory = !hasOpenWithdrawal && (await this.hasAnyWithdrawalRow(payeeType, payeeId));
+      if (!hasOpenWithdrawal && !hasWithdrawalHistory) {
+        payable = balance;
+      } else {
+        throw new BadRequestException(
+          hasOpenWithdrawal
+            ? `This event's payout is ₹${net.toLocaleString('en-IN')}, but only ₹${balance.toLocaleString('en-IN')} of that is still uncollected — the rest (₹${already.toLocaleString('en-IN')}) is reserved by a pending self-serve withdrawal request they haven't been paid yet. Check the Withdrawal requests tab before marking this paid.`
+            : `This event's payout is ₹${net.toLocaleString('en-IN')}, but only ₹${balance.toLocaleString('en-IN')} of that is still uncollected — the rest (₹${already.toLocaleString('en-IN')}) has already been self-withdrawn and paid. Check the Withdrawal requests tab before marking this paid.`
+        );
+      }
     }
 
     // Born already at 'complete' — unlike a self-serve withdrawal, admin has
@@ -390,16 +423,20 @@ export class PaymentsService {
       payeeType === 'organizer'
         ? this.prisma.organizerLedgerTx.create({
             data: {
-              organizerId: payeeId, type: 'withdrawal', amount: -net, eventId, eventTitle: event.title,
-              note: `Payout for "${event.title}" (admin-initiated)`,
+              organizerId: payeeId, type: 'withdrawal', amount: -payable, eventId, eventTitle: event.title,
+              note: payable !== net
+                ? `Payout for "${event.title}" (admin-initiated) — paid ₹${payable.toLocaleString('en-IN')} of the computed ₹${net.toLocaleString('en-IN')}; the ₹${(net - payable).toLocaleString('en-IN')} gap is rounding drift between per-booking and per-event commission rounding, not a shortfall`
+                : `Payout for "${event.title}" (admin-initiated)`,
               paymentProfileId: profile.id, payoutBankLast4: profile.bankLast4, payoutAccountHolderName: profile.accountHolderName, payoutIfsc: profile.ifsc,
               withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim(), withdrawalStatus: 'complete',
             },
           })
         : this.prisma.venueLedgerTx.create({
             data: {
-              venueId: payeeId, type: 'withdrawal', amount: -net, eventId, eventTitle: event.title,
-              note: `Payout for "${event.title}" (admin-initiated)`,
+              venueId: payeeId, type: 'withdrawal', amount: -payable, eventId, eventTitle: event.title,
+              note: payable !== net
+                ? `Payout for "${event.title}" (admin-initiated) — paid ₹${payable.toLocaleString('en-IN')} of the computed ₹${net.toLocaleString('en-IN')}; the ₹${(net - payable).toLocaleString('en-IN')} gap is rounding drift between per-booking and per-event commission rounding, not a shortfall`
+                : `Payout for "${event.title}" (admin-initiated)`,
               paymentProfileId: profile.id, payoutBankLast4: profile.bankLast4, payoutAccountHolderName: profile.accountHolderName, payoutIfsc: profile.ifsc,
               withdrawalPaidOut: true, withdrawalPaidUtr: utr.trim(), withdrawalStatus: 'complete',
             },
