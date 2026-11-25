@@ -78,9 +78,14 @@ export default function Footer() {
           <div>
             <h3>Get the app</h3>
             <span style={{ display: 'block', fontSize: 13, color: 'var(--muted)', marginBottom: 4 }}>Guest app</span>
-            <a href="https://apps.apple.com/in/app/prebooze/id6830486402" target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginBottom: 12 }}>
-              <img src="/badges/app-store.svg" alt="Download the Prebooze Guest app on the App Store" height={40} />
-            </a>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              <a href="https://apps.apple.com/in/app/prebooze/id6830486402" target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+                <img src="/badges/app-store.svg" alt="Download the Prebooze Guest app on the App Store" height={40} />
+              </a>
+              <a href="https://play.google.com/store/apps/details?id=com.prebooze.guest" target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+                <img src="/badges/google-play.png" alt="Download the Prebooze Guest app on Google Play" height={40} />
+              </a>
+            </div>
             <span style={{ display: 'block', fontSize: 13, color: 'var(--muted)', marginBottom: 4 }}>Partners app</span>
             <a href="https://apps.apple.com/in/app/prebooze-partners/id6820904147" target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
               <img src="/badges/app-store.svg" alt="Download the Prebooze Partners app on the App Store" height={40} />
