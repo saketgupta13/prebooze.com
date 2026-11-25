@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CityFilterDropdown, GradientPhoto, Tag } from '../components/ui';
+import { CityFilterDropdown, GradientPhoto, SearchBox, Tag } from '../components/ui';
 import { liveOrganizers, LiveApiError, type LiveOrganizer } from '../lib/liveApi';
 import { useLiveSession } from '../lib/useLiveSession';
 import { useLiveGate, LiveHeaderBar } from '../components/LiveChrome';
@@ -21,6 +21,7 @@ export default function Organizers() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [cityF, setCityF] = useState('All');
+  const [query, setQuery] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -42,7 +43,11 @@ export default function Organizers() {
     try { await liveOrganizers.setVerified(o.id, !o.verified); load(); } catch (err2) { setErr(err2 instanceof LiveApiError ? err2.message : 'Failed to update'); }
   };
 
-  const list = cityF === 'All' ? organizers : organizers.filter((o) => o.city === cityF || o.eventCities.includes(cityF));
+  let list = cityF === 'All' ? organizers : organizers.filter((o) => o.city === cityF || o.eventCities.includes(cityF));
+  if (query.trim()) {
+    const q = query.toLowerCase();
+    list = list.filter((o) => (o.brandName + (o.username ?? '') + (o.contact ?? '')).toLowerCase().includes(q));
+  }
 
   return (
     <div className="stack fade" style={{ maxWidth: 1100 }}>
@@ -55,7 +60,10 @@ export default function Organizers() {
         <Link to="/organizers/new" className="btn btn-pri">+ Add organizer</Link>
       </div>
 
-      <CityFilterDropdown value={cityF} onChange={setCityF} cities={cities} />
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <SearchBox value={query} onChange={setQuery} placeholder="Search organizers…" style={{ flex: 1, minWidth: 180 }} />
+        <CityFilterDropdown value={cityF} onChange={setCityF} cities={cities} />
+      </div>
 
       <div className="tblwrap">
         <div className="thead" style={{ minWidth: 640 }}>

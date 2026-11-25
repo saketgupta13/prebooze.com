@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, X, Pencil, MapPin, Clock, Link2, Info } from 'lucide-react';
 import { fmt } from '../store/data';
-import { CityFilterDropdown, eventStatusTag, GradientPhoto, Kpi, LiveLocationPicker, Tag } from '../components/ui';
+import { CityFilterDropdown, eventStatusTag, GradientPhoto, Kpi, LiveLocationPicker, SearchBox, Tag } from '../components/ui';
 import SeoFields, { emptySeo } from '../components/SeoFields';
 import MapEmbed from '../components/MapEmbed';
 import RealImageUpload, { RealGalleryUpload } from '../components/RealImageUpload';
@@ -296,6 +296,7 @@ export function Venues() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [city, setCity] = useState('All');
+  const [query, setQuery] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -313,7 +314,11 @@ export function Venues() {
   const gate = useLiveGate('Venues', session);
   if (gate) return gate;
 
-  const list = city === 'All' ? venues : venues.filter((v) => v.city === city);
+  let list = city === 'All' ? venues : venues.filter((v) => v.city === city);
+  if (query.trim()) {
+    const q = query.toLowerCase();
+    list = list.filter((v) => (v.name + (v.contactPerson ?? '') + (v.contact ?? '')).toLowerCase().includes(q));
+  }
 
   return (
     <div className="stack fade" style={{ maxWidth: 1100 }}>
@@ -326,7 +331,10 @@ export function Venues() {
         <Link to="/venues/new" className="btn btn-pri">+ Add venue</Link>
       </div>
 
-      <CityFilterDropdown value={city} onChange={setCity} cities={cities} />
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <SearchBox value={query} onChange={setQuery} placeholder="Search venues…" style={{ flex: 1, minWidth: 180 }} />
+        <CityFilterDropdown value={city} onChange={setCity} cities={cities} />
+      </div>
 
       <div className="tblwrap">
         <div className="thead" style={{ minWidth: 560 }}>
