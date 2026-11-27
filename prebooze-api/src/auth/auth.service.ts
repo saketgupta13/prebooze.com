@@ -8,7 +8,7 @@ import { REDIS } from '../redis.provider';
 import { WhatsappService } from '../notifications/whatsapp';
 import { EmailService } from '../notifications/email';
 import { uniqueReferralCodeFor } from '../referrals/referral.constants';
-import { PLACEHOLDER_USERNAME, uniqueUsernameFromName } from './guest-username';
+import { uniqueUsernameFromName } from './guest-username';
 import { missingProfileFields } from './profile-completeness';
 import { ageFromDob } from '../common/age-gate';
 import { MetaConversionsService } from '../meta/meta-conversions.service';
@@ -225,17 +225,15 @@ export class AuthService {
     // `existing.name` before submitting. That edit used to be silently
     // discarded (only the blank-name backfill ever wrote it back), so
     // changing your name on the login screen never actually changed your
-    // profile. Username backfill still only fires for the blank-name case —
-    // same "only ever touch the placeholder, never a guest's own choice"
-    // guard create()/updateMe()/adminCreate() all already use; an edit to an
-    // already-real name never touches username.
+    // profile. Username is regenerated from the new name on every real
+    // name change here, not just the blank-name case — explicit real-user
+    // decision 2026-11-27, same policy as updateMe()'s own name-change
+    // handling right below it.
     if (existing && name?.trim() && name.trim() !== existing.name) {
-      const newUsername = !existing.name && PLACEHOLDER_USERNAME.test(existing.username)
-        ? await uniqueUsernameFromName(this.prisma, name.trim(), existing.id)
-        : undefined;
-      await this.prisma.user.update({ where: { id: existing.id }, data: { name: name.trim(), ...(newUsername ? { username: newUsername } : {}) } });
+      const newUsername = await uniqueUsernameFromName(this.prisma, name.trim(), existing.id);
+      await this.prisma.user.update({ where: { id: existing.id }, data: { name: name.trim(), username: newUsername } });
       existing.name = name.trim();
-      if (newUsername) existing.username = newUsername;
+      existing.username = newUsername;
     }
 
     // Lazily link any organizer team invites sent to this phone before this
@@ -415,12 +413,14 @@ export class AuthService {
     ];
     for (const k of allowed) if (k in patch) data[k] = patch[k];
 
-    // A guest's very first username (uniqueUsername, verifyOtp) is only ever
-    // a phone-digit placeholder — name isn't known yet at that point. The
-    // real, name-based one gets set here instead, the first time a real name
-    // lands and the caller didn't also pick a username in the same save.
-    // Never touches a username the guest already customized themselves.
-    if (typeof data.name === 'string' && data.name.trim() && !('username' in data) && PLACEHOLDER_USERNAME.test(current.username)) {
+    // Username follows the name on every real change here — explicit
+    // real-user decision 2026-11-27, same policy as verifyOtp()'s own
+    // name-change handling. Previously only ever backfilled a still-
+    // placeholder (phone-digit) username on a guest's first real name;
+    // now regenerates it from the new name any time the name itself
+    // actually changes, unless the caller also set username explicitly in
+    // this same save (that explicit choice always wins).
+    if (typeof data.name === 'string' && data.name.trim() && data.name.trim() !== current.name && !('username' in data)) {
       data.username = await uniqueUsernameFromName(this.prisma, data.name.trim(), userId);
     }
 

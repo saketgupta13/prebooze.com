@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, ORGANIZERS, fmtCount } from '../data/mock';
 import { catalog } from '../api';
+import { instagramUrl } from '../lib/social';
 import { isBackendEnabled } from '../api/client';
 import type { Organizer, Event } from '../types';
 import { PageLoader } from '../components/Loader';
@@ -130,7 +131,7 @@ export default function OrganizerProfile() {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {social?.instagram && (
-              <a className="icon-round" href={linkHref(social.instagram)} target="_blank" rel="noopener noreferrer" title={social.instagram}><SocialIcon platform="instagram" /></a>
+              <a className="icon-round" href={instagramUrl(social.instagram)} target="_blank" rel="noopener noreferrer" title={social.instagram}><SocialIcon platform="instagram" /></a>
             )}
             {social?.facebook && (
               <a className="icon-round" href={linkHref(social.facebook)} target="_blank" rel="noopener noreferrer" title={social.facebook}><SocialIcon platform="facebook" /></a>

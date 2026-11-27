@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { EVENTS, VENUES, fmtCount } from '../data/mock';
 import { catalog } from '../api';
+import { instagramUrl } from '../lib/social';
 import { isBackendEnabled } from '../api/client';
 import type { Venue, Event } from '../types';
 import Poster from '../components/Poster';
@@ -116,7 +117,7 @@ export default function VenueDetail() {
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {venue.socialLinks?.instagram && (
-              <a className="icon-round" href={venue.socialLinks.instagram.startsWith('http') ? venue.socialLinks.instagram : `https://${venue.socialLinks.instagram}`} target="_blank" rel="noopener noreferrer" title={venue.socialLinks.instagram}><SocialIcon platform="instagram" /></a>
+              <a className="icon-round" href={instagramUrl(venue.socialLinks.instagram)} target="_blank" rel="noopener noreferrer" title={venue.socialLinks.instagram}><SocialIcon platform="instagram" /></a>
             )}
             {venue.socialLinks?.facebook && (
               <a className="icon-round" href={venue.socialLinks.facebook.startsWith('http') ? venue.socialLinks.facebook : `https://${venue.socialLinks.facebook}`} target="_blank" rel="noopener noreferrer" title={venue.socialLinks.facebook}><SocialIcon platform="facebook" /></a>

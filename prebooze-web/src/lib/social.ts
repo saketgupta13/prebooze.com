@@ -41,3 +41,21 @@ export function instagramHandle(url?: string): string | null {
   const parts = url.trim().replace(/\/+$/, '').split('/');
   return parts[parts.length - 1] || null;
 }
+
+/** Real bug (2026-11-27): an organizer/venue typing their real Instagram
+ * link into the Instagram field almost always just types their bare
+ * @username (what they'd actually hand someone), not a full URL or even
+ * "instagram.com/…" — every caller that only special-cased "already has
+ * http" (`l.startsWith('http') ? l : https://${l}`) then built
+ * `https://<username>` instead of `https://instagram.com/<username>`, a
+ * domain that doesn't exist, so the link never actually opened their
+ * profile. Handles all three real shapes typed in practice: a bare
+ * username (with or without a leading @), "instagram.com/username", and a
+ * full https:// URL. */
+export function instagramUrl(input?: string): string {
+  if (!input?.trim()) return '';
+  const v = input.trim().replace(/^@/, '');
+  if (/^https?:\/\//i.test(v)) return v;
+  if (/^(www\.)?instagram\.com\//i.test(v)) return `https://${v}`;
+  return `https://instagram.com/${v.replace(/^\/+/, '')}`;
+}
