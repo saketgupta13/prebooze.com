@@ -218,13 +218,19 @@ export class AuthService {
           marketingConsent: reqMeta?.marketingConsent ?? false,
         },
       }));
-    // Existing account that never got a name (one of the pre-this-change
-    // signups) — backfill it now that the OTP screen collected one, same
-    // as the old Checkout-only backfill used to do. Username too, same
-    // "only ever touch the placeholder, never a guest's own choice" guard
-    // create()/updateMe()/adminCreate() all already use.
-    if (existing && !existing.name && name?.trim()) {
-      const newUsername = PLACEHOLDER_USERNAME.test(existing.username)
+    // Covers two real cases: an account that never got a name (one of the
+    // pre-this-change signups) — backfill it now that the OTP screen
+    // collected one, same as the old Checkout-only backfill used to do —
+    // AND a returning guest who edits the name this screen pre-fills from
+    // `existing.name` before submitting. That edit used to be silently
+    // discarded (only the blank-name backfill ever wrote it back), so
+    // changing your name on the login screen never actually changed your
+    // profile. Username backfill still only fires for the blank-name case —
+    // same "only ever touch the placeholder, never a guest's own choice"
+    // guard create()/updateMe()/adminCreate() all already use; an edit to an
+    // already-real name never touches username.
+    if (existing && name?.trim() && name.trim() !== existing.name) {
+      const newUsername = !existing.name && PLACEHOLDER_USERNAME.test(existing.username)
         ? await uniqueUsernameFromName(this.prisma, name.trim(), existing.id)
         : undefined;
       await this.prisma.user.update({ where: { id: existing.id }, data: { name: name.trim(), ...(newUsername ? { username: newUsername } : {}) } });
