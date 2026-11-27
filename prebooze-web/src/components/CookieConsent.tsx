@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Cookie } from 'lucide-react';
+import { Cookie, Smartphone } from 'lucide-react';
 import { social } from '../api';
 import { getToken } from '../api/client';
 import { useApp } from '../store/AppContext';
@@ -191,6 +191,19 @@ export default function CookieConsent() {
             <div style={{ display: 'grid', gap: 8 }}>
               <button className="btn btn-pri btn-block" onClick={() => decide('accepted')}>Accept all</button>
               <button className="btn btn-ghost btn-block" onClick={() => setManaging(true)}>Manage cookies</button>
+            </div>
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border-3)' }}>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Smartphone size={13} /> Also on the Prebooze app
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <a href="https://apps.apple.com/in/app/prebooze/id6830486402" target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+                  <img src="/badges/app-store.svg" alt="Download the Prebooze Guest app on the App Store" height={34} />
+                </a>
+                <a href="https://play.google.com/store/apps/details?id=com.prebooze.guest" target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+                  <img src="/badges/google-play.svg" alt="Download the Prebooze Guest app on Google Play" height={34} />
+                </a>
+              </div>
             </div>
           </>
         ) : (

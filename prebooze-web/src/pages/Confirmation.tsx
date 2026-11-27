@@ -14,7 +14,7 @@ import { cityBrowse } from '../lib/urls';
 import { formatPrice } from '../lib/formatPrice';
 import { tierGraceEndDate, formatCountdownDHM } from '../lib/ticketTierPricing';
 import { useTicker } from '../lib/useTicker';
-import { CheckCircle2, PartyPopper, Martini, Download, Calendar, Megaphone, MessageCircle, Link2, Gift } from 'lucide-react';
+import { CheckCircle2, PartyPopper, Martini, Download, Calendar, Megaphone, MessageCircle, Link2, Gift, Smartphone } from 'lucide-react';
 
 export default function Confirmation() {
   const { id } = useParams();
@@ -162,6 +162,21 @@ export default function Confirmation() {
               <CheckCircle2 size={13} /> Visible to {visibility === 'public' ? 'everyone' : 'your followers'} on “Who's going”. Change in your profile.
             </div>
           )}
+        </div>
+
+        <div className="card" style={{ textAlign: 'left', marginTop: 16 }}>
+          <h3 style={{ marginBottom: 2, display: 'flex', alignItems: 'center', gap: 8 }}><Smartphone size={18} /> Get the Prebooze app</h3>
+          <p className="small muted" style={{ marginBottom: 10 }}>
+            Your ticket, wallet and faster rebooking — all in one place. Install it now so it's ready before you head out.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <a href="https://apps.apple.com/in/app/prebooze/id6830486402" target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+              <img src="/badges/app-store.svg" alt="Download the Prebooze Guest app on the App Store" height={40} />
+            </a>
+            <a href="https://play.google.com/store/apps/details?id=com.prebooze.guest" target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+              <img src="/badges/google-play.svg" alt="Download the Prebooze Guest app on Google Play" height={40} />
+            </a>
+          </div>
         </div>
 
         {!user?.profileRewardClaimedAt && (liveBookings ?? bookings).length === 1 && (
