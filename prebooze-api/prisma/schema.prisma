@@ -1095,6 +1095,13 @@ model Event {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // CatalogService.events()/event() filter on status+reviewOnly and order
+  // by date on every single public events-list/detail call — unindexed
+  // until now, so every one of those was a full table scan.
+  @@index([status, reviewOnly, date])
+  @@index([venueId])
+  @@index([organizerId])
 }
 
 /**
