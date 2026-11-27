@@ -9,7 +9,13 @@ async function bootstrap() {
   // needed to verify the Razorpay webhook's HMAC signature over the exact
   // bytes sent, without disabling body parsing for every other route.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
-  app.setGlobalPrefix('v1');
+  // ThumbController sits at /uploads/thumb/... (no /v1 prefix) — it has to
+  // live at the same un-prefixed path as the /uploads/... static route
+  // below so the two compose correctly (static middleware serves an
+  // already-cached thumbnail directly; a cache miss falls through to this
+  // controller, which generates and caches it, both at the exact same URL
+  // a plain poster/logo URL would otherwise resolve to).
+  app.setGlobalPrefix('v1', { exclude: ['uploads/thumb/(.*)'] });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableCors({
     origin: (process.env.CORS_ORIGINS ?? '').split(',').filter(Boolean),

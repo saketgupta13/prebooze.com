@@ -35,8 +35,26 @@ interface Props {
  * paints pixels but is invisible to Google Image Search and can't carry
  * alt text at all, which meant none of this site's real photography
  * (event posters, venue galleries, brand logos) was ever indexable. */
+// Real measurement 2026-11-27: every poster/logo is stored once at a fixed
+// ~960px hero size regardless of context — a grid/list card showing it at a
+// few hundred CSS px downloaded the exact same bytes as the one full-width
+// detail-page hero (100-220KB each). ThumbController generates+caches a
+// 400px copy on first request at the same filename, under /uploads/thumb/
+// 400/ instead of /uploads/ — same origin, same file, just smaller, so
+// nothing about the grid's layout/CSS changes, only which bytes load.
+// Deliberately only ever applied to a non-eager (grid/slider) image — the
+// one `eager` hero per page already needs the larger size. Falls back to
+// the original URL untouched for anything that isn't a plain StorageService
+// upload URL (e.g. an external/placeholder URL), same fail-open stance as
+// the backend thumbnail generator itself.
+function thumbUrl(url: string): string {
+  const m = url.match(/^(https?:\/\/[^/]+)\/uploads\/([0-9]+-[0-9a-f]{16}\.(?:jpg|jpeg|png|webp))$/i);
+  return m ? `${m[1]}/uploads/thumb/400/${m[2]}` : url;
+}
+
 export default function Poster({ hue, emoji, icon, label, variant = 'portrait', className = '', imageUrl, alt = '', eager = false }: Props) {
   const cls = variant === 'portrait' ? '' : variant;
+  const src = (imageUrl && !eager ? thumbUrl(imageUrl) : imageUrl) ?? undefined;
   // Falls all the way back to a real lucide icon (not the old hardcoded
   // musical-note emoji literal) when a caller supplies neither a real
   // `icon` nor its own `emoji` glyph — same "poster-icon" 40px treatment
@@ -55,7 +73,7 @@ export default function Poster({ hue, emoji, icon, label, variant = 'portrait', 
     >
       {imageUrl ? (
         <img
-          src={imageUrl}
+          src={src}
           alt={alt}
           loading={eager ? 'eager' : 'lazy'}
           decoding="async"

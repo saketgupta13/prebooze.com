@@ -44,6 +44,21 @@ const VIDEO_CRF = '26';
 // for something displayed a fraction of that size.
 const POSTER_MAX_WIDTH = 480;
 
+// Real measurement 2026-11-27: every poster/logo upload is stored once at
+// MAX_DIMENSION (960px) regardless of where it's displayed — a grid/list
+// card showing it at a few hundred CSS px was downloading the exact same
+// bytes as the full-width detail-page hero (100-220KB each, ~930KB total
+// for a 7-event browse page). Generated on demand (see getThumbnail below)
+// rather than at upload time, so every existing image already on disk
+// benefits too, not just new uploads — and the grid markup itself
+// (ThumbController's own doc comment) never has to change, only which URL
+// it requests. Only ever a fixed, small whitelist of widths, never an
+// arbitrary request param — an open "resize to anything" endpoint is a
+// cheap disk/CPU exhaustion vector.
+const THUMB_WIDTHS = [400] as const;
+
+const THUMB_DIR = join(UPLOAD_DIR, 'thumb');
+
 /** Local-disk file storage for uploads. Swap for S3/GCS by env var once
  * we're off a single box — callers only depend on save() returning a path/URL. */
 @Injectable()
@@ -86,6 +101,37 @@ export class StorageService {
     // API — a relative "/uploads/…" resolves against whichever domain
     // renders it and 404s there (nginx has no /uploads proxy on those sites).
     return { url: `${base}/uploads/${name}` }; // served statically in main.ts
+  }
+
+  /** Returns the on-disk path of a small thumbnail for an existing upload,
+   * generating and caching it on first request. `filename` is validated
+   * against the exact pattern StorageService itself ever writes
+   * (`<ms>-<16 hex>.<ext>`) — never passed through to the filesystem
+   * unchecked, which would otherwise be a path-traversal vector given this
+   * is reachable from a public, unauthenticated route (ThumbController).
+   * Returns null for anything that doesn't resolve to a real, existing,
+   * non-SVG raster image on disk — caller falls back to the original URL. */
+  async getThumbnail(filename: string, width: number): Promise<string | null> {
+    if (!/^[0-9]+-[0-9a-f]{16}\.(jpg|jpeg|png|webp)$/i.test(filename)) return null;
+    if (!(THUMB_WIDTHS as readonly number[]).includes(width)) return null;
+    const srcPath = join(UPLOAD_DIR, filename);
+    if (!existsSync(srcPath)) return null;
+    const destDir = join(THUMB_DIR, String(width));
+    const destPath = join(destDir, filename);
+    if (existsSync(destPath)) return destPath;
+    try {
+      if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
+      const buffer = readFileSync(srcPath);
+      const ext = filename.split('.').pop()!.toLowerCase();
+      const img = sharp(buffer, { failOn: 'none' });
+      const resized = img.resize({ width, withoutEnlargement: true });
+      const out = ext === 'png' ? await resized.png({ compressionLevel: 9 }).toBuffer() : await resized.jpeg({ quality: JPEG_QUALITY, mozjpeg: true }).toBuffer();
+      writeFileSync(destPath, out);
+      return destPath;
+    } catch (err) {
+      this.log.warn(`Thumbnail generation skipped for ${filename}: ${(err as Error).message}`);
+      return null;
+    }
   }
 
   /** Resize+recompress raster images; anything else (PDF resumes, GIFs,

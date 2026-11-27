@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { KycController, AdminKycController } from './kyc.controller';
+import { ThumbController } from './thumb.controller';
 import { KycService } from './kyc.service';
 import { StorageService } from './storage.service';
 import { KycProviderService } from './kyc-provider.service';
@@ -17,7 +18,7 @@ import { LeadsService } from '../admin/leads.service';
 // by JwtAuthGuard/StaffAuthGuard here) is already available without
 // importing it again.
 @Module({
-  controllers: [KycController, AdminKycController],
+  controllers: [KycController, AdminKycController, ThumbController],
   providers: [KycService, StorageService, KycProviderService, JwtAuthGuard, StaffAuthGuard, PermissionGuard, NotificationsService, EmailService, WhatsappService, StaffAlertsService, MetaConversionsService, LeadsService],
 })
 export class KycModule {}
