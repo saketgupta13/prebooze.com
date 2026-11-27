@@ -197,10 +197,10 @@ export default function CookieConsent() {
                 <Smartphone size={13} /> Also on the Prebooze app
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                <a href="https://apps.apple.com/in/app/prebooze/id6830486402" target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+                <a href="https://apps.apple.com/in/app/prebooze/id6830486402" style={{ display: 'inline-block' }}>
                   <img src="/badges/app-store.svg" alt="Download the Prebooze Guest app on the App Store" height={34} />
                 </a>
-                <a href="https://play.google.com/store/apps/details?id=com.prebooze.guest" target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+                <a href="https://play.google.com/store/apps/details?id=com.prebooze.guest" style={{ display: 'inline-block' }}>
                   <img src="/badges/google-play.svg" alt="Download the Prebooze Guest app on Google Play" height={34} />
                 </a>
               </div>
