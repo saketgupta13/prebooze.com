@@ -94,10 +94,16 @@ export default function Confirmation() {
             Your ticket, wallet and faster rebooking — all in one place. Install it now so it's ready before you head out.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            <a href="https://apps.apple.com/in/app/prebooze/id6830486402" target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+            {/* Same-tab, not target="_blank" — a new tab to apps.apple.com in
+                iOS Safari Private Browsing opens then auto-closes/bounces
+                back (Private mode suppresses the Universal Link handoff to
+                the real App Store app, so the interstitial tab has nowhere
+                to go) — looked like the link was broken, but it's a Private-
+                mode quirk in the new-tab flow itself, not the href. */}
+            <a href="https://apps.apple.com/in/app/prebooze/id6830486402" style={{ display: 'inline-block' }}>
               <img src="/badges/app-store.svg" alt="Download the Prebooze Guest app on the App Store" height={40} />
             </a>
-            <a href="https://play.google.com/store/apps/details?id=com.prebooze.guest" target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+            <a href="https://play.google.com/store/apps/details?id=com.prebooze.guest" style={{ display: 'inline-block' }}>
               <img src="/badges/google-play.svg" alt="Download the Prebooze Guest app on Google Play" height={40} />
             </a>
           </div>
